@@ -34,6 +34,14 @@ import { useRouter } from 'next/navigation';
 import { useAudioPlayer } from '@/app/providers';
 import { notify } from '@/components/NotificationCenter';
 import { LibraryPageSkeleton } from '@/components/Skeletons';
+import {
+  SynauraAnnouncementStrip,
+  SynauraAppShell,
+  SynauraInkPanel,
+  SynauraPanel,
+  SynauraRouteNav,
+  SynauraTopBar,
+} from '@/components/synaura/SynauraShell';
 import { applyCdnToTracks } from '@/lib/cdnHelpers';
 import { useBatchLikeSystem } from '@/hooks/useLikeSystem';
 import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
@@ -71,6 +79,64 @@ type Playlist = {
 function cx(...classes: Array<string | false | undefined | null>) {
   return classes.filter(Boolean).join(' ');
 }
+
+const LIBRARY_SCOPE_CLASS = 'library-synaura-scope';
+const LIBRARY_MODAL_CLASS = 'library-synaura-modal';
+
+const LIBRARY_SCOPE_CSS = `
+  .${LIBRARY_SCOPE_CLASS},
+  .${LIBRARY_MODAL_CLASS} {
+    --background-primary: transparent;
+    --background-secondary: #fff6ea;
+    --background-tertiary: rgba(255, 250, 242, 0.96);
+    --foreground-primary: #171313;
+    --foreground-secondary: rgba(23, 19, 19, 0.72);
+    --foreground-tertiary: rgba(23, 19, 19, 0.48);
+    --foreground-inactive: rgba(23, 19, 19, 0.34);
+    --border-primary: rgba(23, 19, 19, 0.08);
+    --border-secondary: rgba(23, 19, 19, 0.10);
+    --overlay-on-primary: rgba(23, 19, 19, 0.08);
+  }
+
+  .${LIBRARY_SCOPE_CLASS} .bg-background-fog-thin,
+  .${LIBRARY_MODAL_CLASS} .bg-background-fog-thin {
+    background-color: rgba(23, 19, 19, 0.04) !important;
+  }
+
+  .${LIBRARY_SCOPE_CLASS} .bg-background-tertiary,
+  .${LIBRARY_MODAL_CLASS} .bg-background-tertiary {
+    background-color: rgba(255, 250, 242, 0.96) !important;
+  }
+
+  .${LIBRARY_SCOPE_CLASS} .bg-overlay-on-primary,
+  .${LIBRARY_MODAL_CLASS} .bg-overlay-on-primary {
+    background-color: #171313 !important;
+    color: #fffaf2 !important;
+    border-color: #171313 !important;
+  }
+
+  .${LIBRARY_SCOPE_CLASS} .hover\\:bg-overlay-on-primary:hover,
+  .${LIBRARY_MODAL_CLASS} .hover\\:bg-overlay-on-primary:hover {
+    background-color: rgba(23, 19, 19, 0.08) !important;
+    color: #171313 !important;
+  }
+
+  .${LIBRARY_SCOPE_CLASS} .divide-border-secondary\\/40 > :not([hidden]) ~ :not([hidden]),
+  .${LIBRARY_MODAL_CLASS} .divide-border-secondary\\/40 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgba(23, 19, 19, 0.08) !important;
+  }
+
+  .${LIBRARY_SCOPE_CLASS} select,
+  .${LIBRARY_MODAL_CLASS} select {
+    color: #171313;
+  }
+
+  .${LIBRARY_SCOPE_CLASS} option,
+  .${LIBRARY_MODAL_CLASS} option {
+    background: #fffaf2;
+    color: #171313;
+  }
+`;
 
 function formatDuration(seconds: number) {
   const s = Math.max(0, Math.floor(seconds || 0));
@@ -628,6 +694,48 @@ export default function LibraryClient() {
     }
   }, [selectedPlaylistId]);
 
+  const tabMeta = (() => {
+    if (tab === 'playlists') {
+      return {
+        eyebrow: 'Organisation vivante',
+        title: selectedPlaylist ? selectedPlaylist.name : 'Bibliotheque Synaura',
+        description: selectedPlaylist
+          ? 'Retrouve un dossier, relance-le, reorganise ses pistes et garde la meme sensation que depuis la home.'
+          : 'Dossiers, favoris, recents et queue vivent maintenant dans la meme ambiance chaude que la home.',
+        count: selectedPlaylist ? selectedPlaylist.tracks?.length || 0 : visiblePlaylists.length,
+        countLabel: selectedPlaylist ? 'pistes dans le dossier' : 'dossiers visibles',
+      };
+    }
+
+    if (tab === 'favorites') {
+      return {
+        eyebrow: 'Collection aimee',
+        title: 'Favoris',
+        description: 'Les sons que tu gardes pres de toi, avec lecture immediate, likes et actions rapides.',
+        count: visibleFav.length,
+        countLabel: 'titres favoris',
+      };
+    }
+
+    if (tab === 'recent') {
+      return {
+        eyebrow: 'Memoire recente',
+        title: 'Recents',
+        description: 'Tout ce que tu as relance recemment, trie, filtre et pret a repartir.',
+        count: visibleRecent.length,
+        countLabel: 'titres recents',
+      };
+    }
+
+    return {
+      eyebrow: 'Lecture continue',
+      title: 'A suivre',
+      description: 'Ta queue reste au centre de la page, prete a enchainer sans casser ton rythme.',
+      count: upNextTracks.length,
+      countLabel: 'titres en attente',
+    };
+  })();
+
   const header = (
     <div className="sticky top-0 z-10 backdrop-blur-xl bg-background-primary/70 border-b border-border-secondary/60">
       <div className="mx-auto max-w-6xl px-4 py-4">
@@ -768,12 +876,216 @@ export default function LibraryClient() {
     </div>
   );
 
-  if (loading) return <LibraryPageSkeleton />;
+  const synauraHeader = (
+    <div className="sticky top-0 z-20 mb-5">
+      <div className="rounded-[2rem] border border-border-secondary bg-background-tertiary/95 p-4 shadow-[0_18px_60px_rgba(30,25,20,0.10)] backdrop-blur-2xl sm:p-5">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_240px] xl:items-start">
+          <div className="min-w-0 space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="inline-flex rounded-full bg-black/[0.05] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-black/42">
+                  {tabMeta.eyebrow}
+                </span>
+                <h1 className="mt-3 text-3xl font-black leading-[0.95] tracking-[-0.05em] text-[#171313] sm:text-[2.35rem]">
+                  {tabMeta.title}
+                </h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-foreground-secondary">{tabMeta.description}</p>
+              </div>
+
+              {tab === 'playlists' && !selectedPlaylistId ? (
+                <div className="hidden items-center gap-2 sm:flex">
+                  <button
+                    type="button"
+                    className={cx(
+                      'grid h-11 w-11 place-items-center rounded-full border border-border-secondary bg-background-fog-thin text-foreground-secondary transition hover:bg-black hover:text-white',
+                      viewMode === 'grid' && 'bg-[#171313] text-white hover:bg-[#171313]',
+                    )}
+                    onClick={() => setViewMode('grid')}
+                    aria-label="Vue grille"
+                  >
+                    <Grid className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    className={cx(
+                      'grid h-11 w-11 place-items-center rounded-full border border-border-secondary bg-background-fog-thin text-foreground-secondary transition hover:bg-black hover:text-white',
+                      viewMode === 'list' && 'bg-[#171313] text-white hover:bg-[#171313]',
+                    )}
+                    onClick={() => setViewMode('list')}
+                    aria-label="Vue liste"
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-[1.4rem] border border-border-secondary bg-background-fog-thin p-3">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-foreground-tertiary">Focus</p>
+                <p className="mt-2 text-2xl font-black tracking-[-0.05em] text-[#171313]">{tabMeta.count}</p>
+                <p className="text-xs text-foreground-secondary">{tabMeta.countLabel}</p>
+              </div>
+              <div className="rounded-[1.4rem] border border-border-secondary bg-background-fog-thin p-3">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-foreground-tertiary">Dossiers</p>
+                <p className="mt-2 text-2xl font-black tracking-[-0.05em] text-[#171313]">{playlists.length}</p>
+                <p className="text-xs text-foreground-secondary">organises dans ta bibliotheque</p>
+              </div>
+              <div className="rounded-[1.4rem] border border-border-secondary bg-background-fog-thin p-3">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-foreground-tertiary">Favoris</p>
+                <p className="mt-2 text-2xl font-black tracking-[-0.05em] text-[#171313]">{favoriteTracks.length}</p>
+                <p className="text-xs text-foreground-secondary">titres sauvegardes</p>
+              </div>
+              <div className="rounded-[1.4rem] border border-border-secondary bg-background-fog-thin p-3">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-foreground-tertiary">A suivre</p>
+                <p className="mt-2 text-2xl font-black tracking-[-0.05em] text-[#171313]">{upNextTracks.length}</p>
+                <p className="text-xs text-foreground-secondary">titres dans la queue</p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={selectedPlaylist ? 'Rechercher dans ce dossier...' : 'Rechercher un dossier ou une piste...'}
+                  className="h-12 w-full rounded-full border border-black/[0.08] bg-black/[0.04] pl-11 pr-11 text-sm text-[#171313] outline-none placeholder:text-black/28 focus:border-black/[0.16]"
+                />
+                {search.trim() ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-black/[0.06] text-black/42 transition hover:bg-black hover:text-white"
+                    aria-label="Effacer la recherche"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="synaura-no-scrollbar flex items-center gap-1 overflow-x-auto rounded-full bg-black/[0.04] p-1">
+                <TabButton active={tab === 'playlists'} onClick={() => { setTab('playlists'); setSelectedPlaylistId(null); }}>
+                  Dossiers
+                </TabButton>
+                <TabButton active={tab === 'favorites'} onClick={() => { setTab('favorites'); setSelectedPlaylistId(null); }}>
+                  Favoris
+                </TabButton>
+                <TabButton active={tab === 'recent'} onClick={() => { setTab('recent'); setSelectedPlaylistId(null); }}>
+                  Recents
+                </TabButton>
+                <TabButton active={tab === 'queue'} onClick={() => { setTab('queue'); setSelectedPlaylistId(null); }}>
+                  A suivre
+                </TabButton>
+              </div>
+            </div>
+
+            {tab !== 'playlists' && tab !== 'queue' ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex items-center gap-2 rounded-full border border-border-secondary bg-background-fog-thin px-4 py-2 text-xs text-foreground-secondary">
+                  <Clock3 className="h-4 w-4" />
+                  <select
+                    value={trackSort}
+                    onChange={(e) => setTrackSort(e.target.value as any)}
+                    className="bg-transparent pr-3 outline-none"
+                  >
+                    <option value="recent">Recent</option>
+                    <option value="title">Titre</option>
+                    <option value="plays">Ecoutes</option>
+                    <option value="duration">Duree</option>
+                  </select>
+                </div>
+
+                <div className="inline-flex items-center gap-2 rounded-full border border-border-secondary bg-background-fog-thin px-4 py-2 text-xs text-foreground-secondary">
+                  <Grid className="h-4 w-4" />
+                  <select
+                    value={genreFilter}
+                    onChange={(e) => setGenreFilter(e.target.value as any)}
+                    className="bg-transparent pr-3 outline-none"
+                  >
+                    <option value="all">Tous les genres</option>
+                    {Array.from(
+                      new Set(
+                        (tab === 'favorites' ? favoriteTracks : recentTracks)
+                          .flatMap((t) => (Array.isArray(t.genre) ? t.genre : []))
+                          .map(normalizeGenre)
+                          .filter(Boolean),
+                      ),
+                    )
+                      .sort((a, b) => a.localeCompare(b))
+                      .slice(0, 25)
+                      .map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {genreFilter !== 'all' || trackSort !== 'recent' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGenreFilter('all');
+                      setTrackSort('recent');
+                    }}
+                    className="h-10 rounded-full border border-border-secondary bg-background-fog-thin px-4 text-xs font-bold text-foreground-secondary transition hover:bg-black hover:text-white"
+                  >
+                    Reinitialiser
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="hidden xl:block">
+            <div
+              className="rounded-[1.75rem] p-4 text-[#fffaf2]"
+              style={{ background: 'linear-gradient(145deg, #171313 0%, #2a1f1b 55%, #171313 100%)' }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/8">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-white/42">Ancrage home</p>
+                  <p className="text-lg font-black tracking-[-0.04em]">Home feeling.</p>
+                </div>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-white/48">
+                La bibliotheque garde ses playlists, ses likes et sa queue, mais elle parle maintenant la meme langue que ton accueil.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  void header;
+
+  if (loading) {
+    return (
+      <SynauraAppShell>
+        <SynauraTopBar searchHref="/discover" searchLabel="Explorer le catalogue Synaura..." />
+        <SynauraRouteNav />
+        <SynauraAnnouncementStrip />
+        <div className={cx(LIBRARY_SCOPE_CLASS, 'px-1 pb-20')}>
+          <LibraryPageSkeleton />
+        </div>
+        <style jsx global>{LIBRARY_SCOPE_CSS}</style>
+      </SynauraAppShell>
+    );
+  }
 
   if (!userId) {
     return (
-      <div className="min-h-[70vh] px-4 py-10">
-        <div className="mx-auto max-w-xl rounded-3xl border border-border-secondary bg-background-fog-thin p-6 text-center">
+      <SynauraAppShell>
+        <SynauraTopBar searchHref="/discover" searchLabel="Explorer le catalogue Synaura..." />
+      <SynauraRouteNav />
+      <SynauraAnnouncementStrip />
+      <div className={cx(LIBRARY_SCOPE_CLASS, 'min-h-[70vh] px-4 py-10')}>
+        <SynauraPanel className="mx-auto max-w-xl p-6 text-center">
           <div className="mx-auto h-12 w-12 rounded-2xl bg-background-tertiary border border-border-secondary grid place-items-center">
             <Music className="h-6 w-6 text-foreground-secondary" />
           </div>
@@ -788,15 +1100,21 @@ export default function LibraryClient() {
           >
             Se connecter
           </button>
-        </div>
+        </SynauraPanel>
       </div>
+      <style jsx global>{LIBRARY_SCOPE_CSS}</style>
+      </SynauraAppShell>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-[70vh] px-4 py-10">
-        <div className="mx-auto max-w-xl rounded-3xl border border-border-secondary bg-background-fog-thin p-6">
+      <SynauraAppShell>
+        <SynauraTopBar searchHref="/discover" searchLabel="Explorer le catalogue Synaura..." />
+      <SynauraRouteNav />
+      <SynauraAnnouncementStrip />
+      <div className={cx(LIBRARY_SCOPE_CLASS, 'min-h-[70vh] px-4 py-10')}>
+        <SynauraPanel className="mx-auto max-w-xl p-6">
           <div className="text-lg font-semibold text-foreground-primary">Erreur</div>
           <div className="mt-1 text-sm text-foreground-secondary">{error}</div>
           <div className="mt-4 flex gap-2">
@@ -808,16 +1126,24 @@ export default function LibraryClient() {
               Réessayer
             </button>
           </div>
-        </div>
+        </SynauraPanel>
       </div>
+      <style jsx global>{LIBRARY_SCOPE_CSS}</style>
+      </SynauraAppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background-primary text-foreground-primary">
-      {header}
+    <SynauraAppShell>
+      <SynauraTopBar searchHref="/discover" searchLabel="Explorer le catalogue Synaura..." />
+      <SynauraRouteNav />
+      <SynauraAnnouncementStrip />
+      <div className={cx(LIBRARY_SCOPE_CLASS, 'grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start')}>
+        <main className="min-w-0">
+          <div className="min-h-screen bg-background-primary text-foreground-primary">
+            {synauraHeader}
 
-      <div className="mx-auto max-w-6xl px-4 py-6">
+            <div className="mx-auto max-w-6xl px-4 py-6">
         {/* Playlist detail */}
         {tab === 'playlists' && selectedPlaylistId && selectedPlaylist ? (
           <div>
@@ -1187,6 +1513,44 @@ export default function LibraryClient() {
             )}
           </AnimatePresence>
         )}
+            </div>
+          </div>
+        </main>
+
+        <aside className="hidden space-y-4 xl:block">
+          <SynauraInkPanel className="p-4">
+            <p className="mb-3 text-sm font-black">Bibliotheque vivante</p>
+            <div className="rounded-[1.4rem] bg-white/8 p-4">
+              <p className="text-3xl font-black leading-none">Queue.</p>
+              <p className="text-3xl font-black leading-none text-white/55">Favorites.</p>
+              <p className="mt-3 text-sm leading-6 text-white/45">
+                Ta lecture, tes likes et tes playlists gardent leur logique complete, dans une bibliotheque maintenant vraiment alignee sur la home.
+              </p>
+            </div>
+          </SynauraInkPanel>
+
+          <SynauraPanel className="p-4">
+            <p className="mb-3 text-sm font-black">Repères rapides</p>
+            <div className="grid gap-2">
+              <div className="rounded-2xl bg-black/[0.045] p-3">
+                <p className="text-xl font-black">{playlists.length}</p>
+                <p className="text-xs text-black/40">dossiers</p>
+              </div>
+              <div className="rounded-2xl bg-black/[0.045] p-3">
+                <p className="text-xl font-black">{favoriteTracks.length}</p>
+                <p className="text-xs text-black/40">favoris</p>
+              </div>
+              <div className="rounded-2xl bg-black/[0.045] p-3">
+                <p className="text-xl font-black">{recentTracks.length}</p>
+                <p className="text-xs text-black/40">recents</p>
+              </div>
+              <div className="rounded-2xl bg-black/[0.045] p-3">
+                <p className="text-xl font-black">{upNextTracks.length}</p>
+                <p className="text-xs text-black/40">a suivre</p>
+              </div>
+            </div>
+          </SynauraPanel>
+        </aside>
       </div>
 
       {/* Create playlist modal (portaled to body for true viewport centering) */}
@@ -1206,7 +1570,7 @@ export default function LibraryClient() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 18 }}
                     transition={{ duration: 0.18 }}
-                    className="w-[92vw] max-w-md rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
+                    className={cx(LIBRARY_MODAL_CLASS, 'w-[92vw] max-w-md rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden')}
                     onClick={(e: React.MouseEvent) => e.stopPropagation()}
                   >
                     <div className="p-4 border-b border-border-secondary/60 flex items-center justify-between">
@@ -1302,7 +1666,7 @@ export default function LibraryClient() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 22 }}
                     transition={{ duration: 0.18 }}
-                    className="w-[92vw] max-w-[460px] rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
+                    className={cx(LIBRARY_MODAL_CLASS, 'w-[92vw] max-w-[460px] rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden')}
                     onClick={(e: React.MouseEvent) => e.stopPropagation()}
                     style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
                   >
@@ -1470,7 +1834,7 @@ export default function LibraryClient() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 22 }}
                     transition={{ duration: 0.18 }}
-                    className="w-[92vw] max-w-[520px] rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
+                    className={cx(LIBRARY_MODAL_CLASS, 'w-[92vw] max-w-[520px] rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden')}
                     onClick={(e: React.MouseEvent) => e.stopPropagation()}
                     style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
                   >
@@ -1555,7 +1919,7 @@ export default function LibraryClient() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 22 }}
                     transition={{ duration: 0.18 }}
-                    className="w-[92vw] max-w-md rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
+                    className={cx(LIBRARY_MODAL_CLASS, 'w-[92vw] max-w-md rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden')}
                     onClick={(e: React.MouseEvent) => e.stopPropagation()}
                   >
               <div className="p-4 border-b border-border-secondary/60 flex items-center justify-between">
@@ -1640,7 +2004,8 @@ export default function LibraryClient() {
             document.body,
           )
         : null}
-    </div>
+      <style jsx global>{LIBRARY_SCOPE_CSS}</style>
+    </SynauraAppShell>
   );
 }
 
@@ -1658,10 +2023,10 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={cx(
-        'h-10 px-3 rounded-full text-sm transition',
+        'h-10 shrink-0 rounded-full px-4 text-sm font-black transition',
         active
-          ? 'bg-white/[0.1] text-white'
-          : 'text-white/30 hover:text-white/50',
+          ? 'bg-[#171313] text-[#fffaf2] shadow-[0_10px_24px_rgba(23,19,19,0.14)]'
+          : 'text-black/45 hover:bg-black/[0.06] hover:text-[#171313]',
       )}
     >
       {children}
@@ -1679,10 +2044,11 @@ function SectionHeader({
   action?: any;
 }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <div className="text-lg font-semibold">{title}</div>
-        <div className="text-sm text-foreground-tertiary">{subtitle}</div>
+        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-foreground-tertiary">Collection</div>
+        <div className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#171313]">{title}</div>
+        <div className="mt-1 text-sm text-foreground-secondary">{subtitle}</div>
       </div>
       {action}
     </div>
@@ -1707,16 +2073,16 @@ function PlaylistCard({
 
   if (viewMode === 'list') {
     return (
-      <div className="rounded-3xl border border-border-secondary bg-background-fog-thin overflow-hidden">
+      <div className="overflow-hidden rounded-[1.8rem] border border-border-secondary bg-background-tertiary shadow-[0_16px_40px_rgba(30,25,20,0.08)]">
         <button type="button" className="w-full text-left" onClick={onOpen}>
-          <div className="flex items-center gap-3 p-3">
-            <div className="h-12 w-12 rounded-2xl bg-background-tertiary border border-border-secondary overflow-hidden shrink-0">
+          <div className="flex items-center gap-3 p-3.5">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[1.1rem] border border-border-secondary bg-background-fog-thin">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={cover} alt={playlist.name} className="h-full w-full object-cover" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-semibold truncate">{playlist.name}</div>
-              <div className="text-xs text-foreground-tertiary truncate">
+              <div className="truncate text-[15px] font-black tracking-[-0.03em] text-[#171313]">{playlist.name}</div>
+              <div className="mt-1 truncate text-xs text-foreground-secondary">
                 {count} piste{count > 1 ? 's' : ''} • {playlist.isPublic ? 'Public' : 'Privé'}
               </div>
             </div>
@@ -1727,7 +2093,7 @@ function PlaylistCard({
                   e.stopPropagation();
                   onPlay();
                 }}
-                className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+                className="grid h-10 w-10 place-items-center rounded-full bg-[#171313] text-[#fffaf2] transition hover:scale-[1.03]"
                 aria-label="Lire"
               >
                 <Play className="h-4 w-4" />
@@ -1738,10 +2104,10 @@ function PlaylistCard({
                   e.stopPropagation();
                   onDelete();
                 }}
-                className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-red-500/15 hover:border-red-500/30 transition grid place-items-center"
+                className="grid h-10 w-10 place-items-center rounded-full border border-red-500/18 bg-red-500/[0.08] transition hover:bg-red-500/[0.12]"
                 aria-label="Supprimer"
               >
-                <Trash2 className="h-4 w-4 text-red-300" />
+                <Trash2 className="h-4 w-4 text-[#b42318]" />
               </button>
             </div>
           </div>
@@ -1751,17 +2117,17 @@ function PlaylistCard({
   }
 
   return (
-    <div className="rounded-3xl border border-border-secondary bg-background-fog-thin overflow-hidden group">
+    <div className="group overflow-hidden rounded-[1.9rem] border border-border-secondary bg-background-tertiary shadow-[0_18px_42px_rgba(30,25,20,0.08)]">
       <button type="button" className="w-full text-left" onClick={onOpen}>
-        <div className="aspect-square bg-background-tertiary border-b border-border-secondary/60 overflow-hidden">
+        <div className="aspect-square bg-background-fog-thin border-b border-border-secondary/60 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={cover} alt={playlist.name} className="h-full w-full object-cover" />
         </div>
-        <div className="p-3">
+        <div className="p-3.5">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="text-sm font-semibold truncate">{playlist.name}</div>
-              <div className="text-xs text-foreground-tertiary truncate">
+              <div className="truncate text-[15px] font-black tracking-[-0.03em] text-[#171313]">{playlist.name}</div>
+              <div className="mt-1 text-xs text-foreground-secondary truncate">
                 {count} piste{count > 1 ? 's' : ''} • {playlist.isPublic ? 'Public' : 'Privé'}
               </div>
             </div>
@@ -1771,7 +2137,7 @@ function PlaylistCard({
                 e.stopPropagation();
                 onPlay();
               }}
-              className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center opacity-0 group-hover:opacity-100"
+              className="grid h-10 w-10 place-items-center rounded-full bg-[#171313] text-[#fffaf2] transition opacity-0 group-hover:opacity-100 hover:scale-[1.03]"
               aria-label="Lire"
             >
               <Play className="h-4 w-4" />
@@ -1808,30 +2174,52 @@ function TrackRow({
 }) {
   const cover = track.coverUrl || '/default-cover.svg';
   return (
-    <div className={cx('px-3 py-2 flex items-center gap-3', disabled && 'opacity-60')}>
+    <div
+      className={cx(
+        'flex items-center gap-3 rounded-[1.5rem] px-3 py-2.5 transition',
+        isActive ? 'bg-[#171313] text-[#fffaf2]' : 'hover:bg-black/[0.035]',
+        disabled && 'opacity-60',
+      )}
+    >
+      <div
+        className={cx(
+          'grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-black',
+          isActive ? 'bg-white/10 text-white/72' : 'bg-black/[0.05] text-black/36',
+        )}
+      >
+        {index + 1}
+      </div>
       <button
         type="button"
         onClick={onPlay}
         disabled={disabled}
-        className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center shrink-0"
+        className={cx(
+          'grid h-11 w-11 shrink-0 place-items-center rounded-full transition',
+          isActive ? 'bg-[#fffaf2] text-[#171313]' : 'border border-border-secondary bg-background-fog-thin hover:bg-black hover:text-white',
+        )}
         aria-label="Lire"
       >
         {isActive && isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
       </button>
 
-      <div className="h-10 w-10 rounded-2xl bg-background-tertiary border border-border-secondary overflow-hidden shrink-0">
+      <div
+        className={cx(
+          'h-11 w-11 shrink-0 overflow-hidden rounded-[1rem] border',
+          isActive ? 'border-white/10 bg-white/10' : 'border-border-secondary bg-background-tertiary',
+        )}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={cover} alt={track.title} className="h-full w-full object-cover" />
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="text-sm text-foreground-primary truncate">{track.title || 'Titre'}</div>
-        <div className="text-xs text-foreground-tertiary truncate">{track.artist?.name || 'Artiste'}</div>
+        <div className={cx('truncate text-sm font-black tracking-[-0.03em]', isActive ? 'text-[#fffaf2]' : 'text-foreground-primary')}>{track.title || 'Titre'}</div>
+        <div className={cx('truncate text-xs', isActive ? 'text-white/52' : 'text-foreground-tertiary')}>{track.artist?.name || 'Artiste'}</div>
       </div>
 
-      <div className="hidden sm:flex items-center gap-4 text-xs text-foreground-tertiary">
+      <div className={cx('hidden items-center gap-4 text-xs sm:flex', isActive ? 'text-white/48' : 'text-foreground-tertiary')}>
         <span className="tabular-nums">{formatDuration(track.duration || 0)}</span>
-        <span className="tabular-nums">{formatCompact(track.plays || 0)} écoutes</span>
+        <span className="tabular-nums">{formatCompact(track.plays || 0)} ecoutes</span>
       </div>
 
       <button
@@ -1839,21 +2227,25 @@ function TrackRow({
         onClick={onToggleLike}
         disabled={disabled || likeLoading}
         className={cx(
-          'h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center',
-          liked && 'text-red-300 border-red-500/30',
+          'grid h-10 w-10 place-items-center rounded-full border transition',
+          isActive ? 'border-white/12 bg-white/10 text-white' : 'border-border-secondary bg-background-fog-thin hover:bg-black hover:text-white',
+          liked && !isActive && 'border-red-500/22 text-[#b42318]',
         )}
         aria-label="Favori"
       >
-        <Heart className={cx('h-4 w-4', liked && 'fill-red-400')} />
+        <Heart className={cx('h-4 w-4', liked && (isActive ? 'fill-white' : 'fill-[#ef4444]'))} />
       </button>
 
       <button
         type="button"
-        className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+        className={cx(
+          'grid h-10 w-10 place-items-center rounded-full border transition',
+          isActive ? 'border-white/12 bg-white/10 text-white' : 'border-border-secondary bg-background-fog-thin hover:bg-black hover:text-white',
+        )}
         aria-label="Plus"
         onClick={onMore}
       >
-        <MoreVertical className="h-4 w-4 text-foreground-tertiary" />
+        <MoreVertical className={cx('h-4 w-4', isActive ? 'text-white/72' : 'text-foreground-tertiary')} />
       </button>
     </div>
   );

@@ -3,8 +3,18 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, Play, Sparkles, UserPlus, X } from 'lucide-react';
+import { Play, Search, Sparkles, UserPlus, X } from 'lucide-react';
 import StarAcademyBanner from '@/components/StarAcademyBanner';
+import {
+  SynauraAppShell,
+  SynauraAnnouncementStrip,
+  SynauraFilterTabs,
+  SynauraHero,
+  SynauraInkPanel,
+  SynauraPanel,
+  SynauraRouteNav,
+  SynauraTopBar,
+} from '@/components/synaura/SynauraShell';
 import { useAudioPlayer } from '@/app/providers';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import {
@@ -15,8 +25,8 @@ import {
   SectionHeader,
   TrackRow,
   TrackTile,
-  type DiscoverArtistLite,
   type DiscoverAlbumLite,
+  type DiscoverArtistLite,
   type DiscoverPlaylistLite,
 } from './DiscoverTiles';
 
@@ -27,7 +37,7 @@ const GENRES = [
 
 function uniqById<T extends { _id: string }>(arr: T[]) {
   const seen = new Set<string>();
-  return arr.filter(item => {
+  return arr.filter((item) => {
     if (!item?._id || seen.has(item._id)) return false;
     seen.add(item._id);
     return true;
@@ -37,10 +47,59 @@ function uniqById<T extends { _id: string }>(arr: T[]) {
 function filterByGenre(tracks: DiscoverTrackLite[], genre: string | null): DiscoverTrackLite[] {
   if (!genre || genre === 'Tout') return tracks;
   const g = genre.toLowerCase();
-  return tracks.filter(t => {
+  return tracks.filter((t) => {
     const genres = Array.isArray((t as any)?.genre) ? (t as any).genre : (t as any)?.genre ? [(t as any).genre] : [];
     return genres.some((x: string) => String(x || '').toLowerCase().includes(g));
   });
+}
+
+function DiscoverGuestAside({
+  activeGenre,
+  topHits,
+  playlists,
+  artists,
+}: {
+  activeGenre: string;
+  topHits: number;
+  playlists: number;
+  artists: number;
+}) {
+  return (
+    <aside className="hidden space-y-4 xl:block">
+      <SynauraInkPanel className="p-4">
+        <p className="mb-3 text-sm font-black">Entree libre</p>
+        <div className="rounded-[1.4rem] bg-white/8 p-4">
+          <p className="text-3xl font-black leading-none">Discover.</p>
+          <p className="text-3xl font-black leading-none text-white/55">Listen first.</p>
+          <p className="mt-3 text-sm leading-6 text-white/45">
+            Tu peux deja ecouter, explorer et sentir la direction du nouveau Synaura avant meme de te connecter.
+          </p>
+        </div>
+      </SynauraInkPanel>
+
+      <SynauraPanel className="p-4">
+        <p className="mb-3 text-sm font-black">Repères rapides</p>
+        <div className="grid gap-2">
+          <div className="rounded-2xl bg-black/[0.045] p-3">
+            <p className="text-xl font-black">{topHits}</p>
+            <p className="text-xs text-black/40">top hits</p>
+          </div>
+          <div className="rounded-2xl bg-black/[0.045] p-3">
+            <p className="text-xl font-black">{artists}</p>
+            <p className="text-xs text-black/40">artistes en avant</p>
+          </div>
+          <div className="rounded-2xl bg-black/[0.045] p-3">
+            <p className="text-xl font-black">{playlists}</p>
+            <p className="text-xs text-black/40">playlists visibles</p>
+          </div>
+          <div className="rounded-2xl bg-black/[0.045] p-3">
+            <p className="text-xl font-black">{activeGenre}</p>
+            <p className="text-xs text-black/40">filtre actif</p>
+          </div>
+        </div>
+      </SynauraPanel>
+    </aside>
+  );
 }
 
 export default function DiscoverGuestClient({
@@ -72,18 +131,21 @@ export default function DiscoverGuestClient({
     const query = q.trim().toLowerCase();
     if (!query) return [];
     return allTracks
-      .filter(t => {
+      .filter((t) => {
         const a = t.artist?.artistName || t.artist?.name || t.artist?.username || '';
-        return `${t.title} ${a}`.toLowerCase().includes(query);
+        const genres = Array.isArray((t as any)?.genre) ? (t as any).genre.join(' ') : String((t as any)?.genre || '');
+        return `${t.title} ${a} ${genres}`.toLowerCase().includes(query);
       })
       .slice(0, 20);
   }, [q, allTracks]);
 
-  const topHits = useMemo(() =>
-    uniqById(filterByGenre(trending, activeGenre))
-      .sort((a, b) => (b.plays || 0) - (a.plays || 0))
-      .slice(0, 8),
-  [trending, activeGenre]);
+  const topHits = useMemo(
+    () =>
+      uniqById(filterByGenre(trending, activeGenre))
+        .sort((a, b) => (b.plays || 0) - (a.plays || 0))
+        .slice(0, 8),
+    [trending, activeGenre],
+  );
 
   const handleGenreClick = useCallback((genre: string) => {
     setActiveGenre(genre);
@@ -104,226 +166,228 @@ export default function DiscoverGuestClient({
   const isSearching = q.trim().length > 0;
 
   return (
-    <div className="min-h-screen text-white">
-      <main className="mx-auto w-full max-w-none px-4 sm:px-6 lg:px-10 2xl:px-12 py-6 md:py-10 space-y-6 md:space-y-8">
+    <SynauraAppShell>
+      <SynauraTopBar searchHref="/discover" searchLabel="Rechercher un son, un genre ou un artiste..." />
+      <SynauraRouteNav />
+      <SynauraAnnouncementStrip />
 
-        {/* Hero */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600/30 via-violet-600/20 to-transparent border border-white/[0.08] p-6 md:p-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(99,102,241,0.15),transparent_60%)]" />
-          <div className="relative">
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
-              Découvre, écoute, enchaîne.
-            </h1>
-            <p className="mt-2 text-sm md:text-base text-white/50 max-w-xl">
-              Des milliers de titres à écouter gratuitement. Crée un compte pour sauvegarder tes favoris et créer de la musique avec l'IA.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2.5">
-              <Link
-                href="/auth/signup"
-                className="h-10 px-5 rounded-full bg-indigo-500 hover:bg-indigo-400 text-white hover:scale-[1.03] active:scale-[0.97] transition-all text-sm font-bold inline-flex items-center gap-2 shadow-lg shadow-indigo-500/25"
-              >
-                <UserPlus className="w-4 h-4" />
-                Créer un compte
-              </Link>
-              <Link
-                href="/auth/signin"
-                className="h-10 px-5 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 transition text-sm font-semibold text-white"
-              >
-                Se connecter
-              </Link>
-              <button
-                onClick={() => handlePlayAll(trending)}
-                className="h-10 px-5 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 transition text-sm font-semibold text-white inline-flex items-center gap-2"
-              >
-                <Play className="w-4 h-4 fill-current" />
-                Écouter
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="relative">
-          <div className="flex items-center gap-3 h-11 px-4 rounded-xl bg-white/[0.06] border border-white/[0.08] focus-within:border-indigo-500/50 transition-colors">
-            <Search className="w-4 h-4 text-white/30 shrink-0" />
-            <input
-              value={q}
-              onChange={e => setQ(e.target.value)}
-              placeholder="Rechercher un titre, un artiste..."
-              className="bg-transparent outline-none w-full text-sm text-white placeholder:text-white/25"
-            />
-            {q && (
-              <button onClick={() => setQ('')} className="text-white/30 hover:text-white transition">
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Star Academy TikTok promo */}
-        <StarAcademyBanner variant="compact" />
-
-        {/* Genre chips */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
-          {GENRES.map(g => (
-            <button
-              key={g}
-              onClick={() => handleGenreClick(g)}
-              className={`shrink-0 h-8 px-4 rounded-full text-[13px] font-semibold transition-all whitespace-nowrap ${
-                activeGenre === g
-                  ? 'bg-white text-black shadow-md'
-                  : 'bg-white/[0.07] text-white/60 hover:bg-white/[0.12] hover:text-white'
-              }`}
-            >
-              {g}
-            </button>
-          ))}
-        </div>
-
-        {isSearching ? (
-          <section className="space-y-3">
-            <SectionHeader title={`Résultats pour "${q}"`} />
-            {searchResults.length ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1">
-                {searchResults.map((t, i) => (
-                  <TrackRow key={t._id} track={t} index={i} />
-                ))}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_310px] xl:items-start">
+        <main className="min-w-0 space-y-5 pb-28">
+          <SynauraHero
+            eyebrow="Catalogue ouvert"
+            title="Decouvre, ecoute, enchaine."
+            description="Des milliers de titres a ecouter gratuitement. Cree un compte plus tard pour garder tes favoris et pousser la personnalisation plus loin."
+            actions={
+              <>
+                <Link
+                  href="/auth/signup"
+                  className="inline-flex h-11 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Creer un compte
+                </Link>
+                <Link
+                  href="/auth/signin"
+                  className="inline-flex h-11 items-center gap-2 rounded-full bg-black/[0.06] px-5 text-sm font-black text-black/65 transition hover:bg-black hover:text-white"
+                >
+                  Se connecter
+                </Link>
+                <button
+                  onClick={() => handlePlayAll(trending)}
+                  className="inline-flex h-11 items-center gap-2 rounded-full bg-black/[0.06] px-5 text-sm font-black text-black/65 transition hover:bg-black hover:text-white"
+                >
+                  <Play className="h-4 w-4 fill-current" />
+                  Ecouter
+                </button>
+              </>
+            }
+            aside={
+              <div className="rounded-[1.7rem] bg-[#171313] p-4 text-[#fffaf2]">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-white/45">Sans friction</p>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="rounded-2xl bg-white/8 p-3">
+                    <p className="text-2xl font-black">{topHits.length}</p>
+                    <p className="text-xs text-white/45">top hits</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/8 p-3">
+                    <p className="text-2xl font-black">{artists.length}</p>
+                    <p className="text-xs text-white/45">artistes</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-white/45">
+                  {activeGenre === 'Tout' ? 'Entre par les tendances, puis ouvre ce qui te parle.' : `Focus actuel : ${activeGenre}.`}
+                </p>
               </div>
-            ) : (
-              <p className="text-sm text-white/30 py-8 text-center">Aucun résultat trouvé.</p>
-            )}
-          </section>
-        ) : (
-          <>
-            {/* Top Hits */}
-            {topHits.length > 0 && (
-              <section>
-                <SectionHeader
-                  title={isFiltered ? `Top ${activeGenre}` : 'Top Hits'}
-                  subtitle={isFiltered ? `Les meilleurs titres ${activeGenre}` : 'Les plus écoutés'}
-                />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
-                  {topHits.map((t, i) => (
+            }
+          />
+
+          <SynauraPanel className="p-4 sm:p-5">
+            <div className="grid gap-4">
+              <div className="relative">
+                <div className="flex h-11 items-center gap-3 rounded-xl border border-black/[0.08] bg-black/[0.04] px-4 transition-colors focus-within:border-black/[0.18]">
+                  <Search className="h-4 w-4 shrink-0 text-black/35" />
+                  <input
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="Rechercher un titre, un artiste ou un genre..."
+                    className="w-full bg-transparent text-sm text-[#171313] outline-none placeholder:text-black/28"
+                  />
+                  {q ? (
+                    <button type="button" onClick={() => setQ('')} className="text-black/35 transition hover:text-black">
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              <StarAcademyBanner variant="compact" />
+
+              <SynauraFilterTabs items={GENRES} active={activeGenre} onChange={handleGenreClick} />
+            </div>
+          </SynauraPanel>
+
+          {isSearching ? (
+            <SynauraInkPanel className="p-4 sm:p-5">
+              <SectionHeader title={`Resultats pour "${q}"`} subtitle="Titres qui correspondent a ta recherche" />
+              {searchResults.length ? (
+                <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 xl:grid-cols-3">
+                  {searchResults.map((t, i) => (
                     <TrackRow key={t._id} track={t} index={i} />
                   ))}
                 </div>
-              </section>
-            )}
+              ) : (
+                <p className="py-8 text-center text-sm text-white/35">Aucun resultat trouve.</p>
+              )}
+            </SynauraInkPanel>
+          ) : (
+            <>
+              {topHits.length > 0 ? (
+                <SynauraInkPanel className="p-4 sm:p-5">
+                  <SectionHeader
+                    title={isFiltered ? `Top ${activeGenre}` : 'Top Hits'}
+                    subtitle={isFiltered ? `Les meilleurs titres ${activeGenre}` : 'Les plus ecoutes'}
+                  />
+                  <div className="grid grid-cols-1 gap-1 md:grid-cols-2">
+                    {topHits.map((t, i) => (
+                      <TrackRow key={t._id} track={t} index={i} />
+                    ))}
+                  </div>
+                </SynauraInkPanel>
+              ) : null}
 
-            {/* Tendances */}
-            {filteredTrending.length > 0 && (
-              <section>
-                <SectionHeader
-                  title={isFiltered ? `Tendances ${activeGenre}` : 'Tendances'}
-                  subtitle="Ce qui cartonne"
-                />
-                <HorizontalScroller>
-                  {filteredTrending.slice(0, 16).map(t => (
-                    <TrackTile key={t._id} track={t} />
-                  ))}
-                </HorizontalScroller>
-              </section>
-            )}
+              {filteredTrending.length > 0 ? (
+                <SynauraInkPanel className="p-4 sm:p-5">
+                  <SectionHeader
+                    title={isFiltered ? `Tendances ${activeGenre}` : 'Tendances'}
+                    subtitle="Ce qui cartonne"
+                  />
+                  <HorizontalScroller>
+                    {filteredTrending.slice(0, 16).map((t) => (
+                      <TrackTile key={t._id} track={t} />
+                    ))}
+                  </HorizontalScroller>
+                </SynauraInkPanel>
+              ) : null}
 
-            {/* Nouveautés */}
-            {filteredNewest.length > 0 && (
-              <section>
-                <SectionHeader
-                  title={isFiltered ? `Nouveautés ${activeGenre}` : 'Nouveautés'}
-                  subtitle="Tout juste publié"
-                />
-                <HorizontalScroller>
-                  {filteredNewest.slice(0, 16).map(t => (
-                    <TrackTile key={t._id} track={t} />
-                  ))}
-                </HorizontalScroller>
-              </section>
-            )}
+              {filteredNewest.length > 0 ? (
+                <SynauraInkPanel className="p-4 sm:p-5">
+                  <SectionHeader
+                    title={isFiltered ? `Nouveautes ${activeGenre}` : 'Nouveautes'}
+                    subtitle="Tout juste publie"
+                  />
+                  <HorizontalScroller>
+                    {filteredNewest.slice(0, 16).map((t) => (
+                      <TrackTile key={t._id} track={t} />
+                    ))}
+                  </HorizontalScroller>
+                </SynauraInkPanel>
+              ) : null}
 
-            {/* Albums & EPs */}
-            {!isFiltered && albums && albums.length > 0 && (
-              <section>
-                <SectionHeader
-                  title="Albums & EPs"
-                  subtitle="Les sorties completes a ecouter"
-                  actionLabel="Voir tout"
-                  actionHref="/discover?section=albums"
-                />
-                <HorizontalScroller>
-                  {albums.slice(0, 16).map(album => (
-                    <AlbumTile key={album._id} album={album} />
-                  ))}
-                </HorizontalScroller>
-              </section>
-            )}
+              {!isFiltered && albums && albums.length > 0 ? (
+                <SynauraInkPanel className="p-4 sm:p-5">
+                  <SectionHeader
+                    title="Albums & EPs"
+                    subtitle="Les sorties completes a ecouter"
+                    actionLabel="Voir tout"
+                    actionHref="/discover?section=albums"
+                  />
+                  <HorizontalScroller>
+                    {albums.slice(0, 16).map((album) => (
+                      <AlbumTile key={album._id} album={album} />
+                    ))}
+                  </HorizontalScroller>
+                </SynauraInkPanel>
+              ) : null}
 
-            {/* Artistes */}
-            {!isFiltered && artists.length > 0 && (
-              <section>
-                <SectionHeader title="Artistes du moment" />
-                <HorizontalScroller>
-                  {artists.slice(0, 12).map(a => (
-                    <ArtistTile key={a._id} artist={a} />
-                  ))}
-                </HorizontalScroller>
-              </section>
-            )}
+              {!isFiltered && artists.length > 0 ? (
+                <SynauraInkPanel className="p-4 sm:p-5">
+                  <SectionHeader title="Artistes du moment" />
+                  <HorizontalScroller>
+                    {artists.slice(0, 12).map((a) => (
+                      <ArtistTile key={a._id} artist={a} />
+                    ))}
+                  </HorizontalScroller>
+                </SynauraInkPanel>
+              ) : null}
 
-            {/* Playlists */}
-            {!isFiltered && playlists.length > 0 && (
-              <section>
-                <SectionHeader title="Playlists populaires" />
-                <HorizontalScroller>
-                  {playlists.slice(0, 12).map(p => (
-                    <PlaylistTile key={p._id} playlist={p} />
-                  ))}
-                </HorizontalScroller>
-              </section>
-            )}
+              {!isFiltered && playlists.length > 0 ? (
+                <SynauraInkPanel className="p-4 sm:p-5">
+                  <SectionHeader title="Playlists populaires" />
+                  <HorizontalScroller>
+                    {playlists.slice(0, 12).map((p) => (
+                      <PlaylistTile key={p._id} playlist={p} />
+                    ))}
+                  </HorizontalScroller>
+                </SynauraInkPanel>
+              ) : null}
 
-            {/* Empty state */}
-            {isFiltered && filteredTrending.length === 0 && filteredNewest.length === 0 && (
-              <div className="py-16 text-center">
-                <p className="text-lg font-semibold text-white/50">Aucun titre {activeGenre} trouvé</p>
-                <p className="text-sm text-white/25 mt-1">Essaye un autre genre ou reviens à "Tout"</p>
-                <button
-                  onClick={() => handleGenreClick('Tout')}
-                  className="mt-4 h-9 px-5 rounded-full bg-white/10 hover:bg-white/15 text-sm font-semibold text-white transition"
-                >
-                  Voir tout
-                </button>
-              </div>
-            )}
-
-            {/* CTA */}
-            {!isFiltered && (
-              <div className="rounded-2xl bg-gradient-to-r from-indigo-500/10 to-violet-500/10 border border-white/[0.06] p-6 text-center">
-                <h3 className="text-lg font-bold text-white">Envie de plus ?</h3>
-                <p className="text-sm text-white/40 mt-1 max-w-md mx-auto">
-                  Crée un compte pour des recommandations personnalisées et la création musicale IA.
-                </p>
-                <div className="mt-4 flex items-center justify-center gap-3">
-                  <Link
-                    href="/auth/signup"
-                    className="h-10 px-6 rounded-full bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold inline-flex items-center gap-2 transition-all hover:scale-[1.03] shadow-lg shadow-indigo-500/25"
+              {isFiltered && filteredTrending.length === 0 && filteredNewest.length === 0 ? (
+                <SynauraPanel className="py-16 text-center">
+                  <p className="text-lg font-semibold text-black/60">Aucun titre {activeGenre} trouve</p>
+                  <p className="mt-1 text-sm text-black/35">Essaie un autre genre ou reviens a "Tout".</p>
+                  <button
+                    onClick={() => handleGenreClick('Tout')}
+                    className="mt-4 h-10 rounded-full bg-[#171313] px-5 text-sm font-semibold text-white transition hover:scale-[1.02]"
                   >
-                    Créer un compte
-                  </Link>
-                  <Link
-                    href="/ai-generator"
-                    className="h-10 px-6 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 text-white text-sm font-semibold inline-flex items-center gap-2 transition"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    Studio IA
-                  </Link>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+                    Voir tout
+                  </button>
+                </SynauraPanel>
+              ) : null}
 
-        <div className="h-24" />
-      </main>
-    </div>
+              {!isFiltered ? (
+                <SynauraPanel className="p-6 text-center">
+                  <h3 className="text-lg font-bold text-[#171313]">Envie d'aller plus loin ?</h3>
+                  <p className="mx-auto mt-1 max-w-md text-sm text-black/45">
+                    Cree un compte pour des recommandations personnalisees et la creation musicale IA.
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                    <Link
+                      href="/auth/signup"
+                      className="inline-flex h-10 items-center gap-2 rounded-full bg-[#171313] px-6 text-sm font-bold text-white transition hover:scale-[1.02]"
+                    >
+                      Creer un compte
+                    </Link>
+                    <Link
+                      href="/ai-generator"
+                      className="inline-flex h-10 items-center gap-2 rounded-full bg-black/[0.06] px-6 text-sm font-semibold text-black/65 transition hover:bg-black hover:text-white"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      Studio IA
+                    </Link>
+                  </div>
+                </SynauraPanel>
+              ) : null}
+            </>
+          )}
+        </main>
+
+        <DiscoverGuestAside
+          activeGenre={activeGenre}
+          topHits={topHits.length}
+          playlists={playlists.length}
+          artists={artists.length}
+        />
+      </div>
+    </SynauraAppShell>
   );
 }

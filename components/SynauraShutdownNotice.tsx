@@ -19,6 +19,7 @@ export default function SynauraShutdownNotice() {
 
   if (!isShutdownAnnounced() || isPastShutdownEnd()) return null;
   if (isHiddenRoute(pathname)) return null;
+  if (pathname === '/') return null;
   if (pathname === '/fermeture' || pathname === '/arret') return null;
 
   return <SynauraShutdownBanner variant="sticky" />;

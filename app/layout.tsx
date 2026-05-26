@@ -36,8 +36,11 @@ export const metadata: Metadata = {
     title: 'Synaura',
   },
   icons: {
-    icon: '/favicon.svg',
-    apple: '/apple-touch-icon.png',
+    icon: [
+      { url: '/brand/2026/app-logo.png', type: 'image/png' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/brand/2026/app-logo.png',
   },
 };
 

@@ -1,0 +1,2254 @@
+'use client';
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
+import { useAudioPlayer } from '@/app/providers';
+import { notify } from '@/components/NotificationCenter';
+import type { Post as BasePost } from '@/components/PostCard';
+import { useLikeSystem } from '@/hooks/useLikeSystem';
+import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
+import {
+  Bell,
+  Bookmark,
+  ChevronLeft,
+  ChevronRight,
+  Compass,
+  Disc3,
+  Heart,
+  Home,
+  Image as ImageIcon,
+  Library,
+  MessageCircle,
+  Mic2,
+  MoreHorizontal,
+  Music2,
+  Pause,
+  Play,
+  Radio,
+  Repeat2,
+  Search,
+  Share2,
+  Sparkles,
+  Upload,
+  Users,
+  Wand2,
+  Zap,
+} from 'lucide-react';
+
+type PlayerTrack = {
+  _id: string;
+  title: string;
+  artist: {
+    _id?: string;
+    name?: string;
+    username?: string;
+    avatar?: string;
+    artistName?: string;
+  };
+  audioUrl?: string;
+  coverUrl?: string;
+  duration?: number;
+  plays?: number;
+  likes?: string[] | number;
+  comments?: string[] | number;
+  isLiked?: boolean;
+  isAI?: boolean;
+  isBoosted?: boolean;
+  genre?: string[];
+  album?: string | null;
+};
+
+type Track = {
+  id: string;
+  title: string;
+  artist: string;
+  artistHref?: string;
+  cover: string;
+  style: string;
+  plays: string;
+  likes: string;
+  comments: string;
+  likesCount: number;
+  commentsCount: number;
+  tint: string;
+  playerTrack: PlayerTrack;
+};
+
+type Playlist = {
+  id: string;
+  title: string;
+  curator: string;
+  covers: string[];
+  tracks: string;
+  vibe: string;
+  href: string;
+};
+
+type Creator = {
+  id: string;
+  name: string;
+  handle: string;
+  avatar: string;
+  tag: string;
+  followers: string;
+  tint: string;
+  href: string;
+};
+
+type PostItem = {
+  id: string;
+  kind: 'post';
+  entity: BasePost;
+  author: string;
+  handle: string;
+  avatar: string;
+  authorHref?: string;
+  time: string;
+  mood: string;
+  text: string;
+  image?: string;
+  href: string;
+  track?: Track;
+  likesCount: number;
+  commentsCount: number;
+  isLiked: boolean;
+};
+
+type RadioItem = {
+  id: string;
+  kind: 'radio';
+  title: string;
+  subtitle: string;
+  station: string;
+  listeners: string;
+  color: string;
+  track: PlayerTrack;
+};
+
+type FeedItem =
+  | { id: string; kind: 'composer' }
+  | PostItem
+  | { id: string; kind: 'track'; title: string; subtitle: string; track: Track; label: string }
+  | { id: string; kind: 'rail'; title: string; subtitle: string; label: string; tracks: Track[] }
+  | { id: string; kind: 'playlist'; playlist: Playlist }
+  | { id: string; kind: 'creator'; title: string; creators: Creator[] }
+  | RadioItem
+  | { id: string; kind: 'studio'; title: string; text: string }
+  | { id: string; kind: 'booster'; title: string; text: string }
+  | { id: string; kind: 'library'; title: string; stats: Array<[string, string]> };
+
+type LibraryStats = {
+  playlists: number;
+  favorites: number;
+  recent: number;
+  ai: number;
+};
+
+type HomeComment = {
+  id: string;
+  content: string;
+  createdAt: string;
+  user: {
+    id: string;
+    username: string;
+    name: string;
+    avatar?: string | null;
+  };
+  replies: HomeComment[];
+};
+
+const FILTERS = ['Pour toi', 'Sons', 'Posts', 'Playlists', 'Createurs', 'Radio'];
+const TINTS = ['#8B5CF6', '#38BDF8', '#FB7185', '#F59E0B', '#14B8A6', '#EF4444'];
+const MUSIC_BATCH_SIZE = 6;
+const POST_BATCH_SIZE = 4;
+
+function formatCompact(value: number | string | null | undefined) {
+  const numberValue = typeof value === 'number' ? value : Number(value || 0);
+  if (!Number.isFinite(numberValue) || numberValue <= 0) return '0';
+  if (numberValue >= 1_000_000) return `${(numberValue / 1_000_000).toFixed(1)}M`;
+  if (numberValue >= 1_000) return `${(numberValue / 1_000).toFixed(1)}K`;
+  return String(numberValue);
+}
+
+function safeString(value: unknown, fallback: string) {
+  if (typeof value !== 'string') return fallback;
+  const trimmed = value.trim();
+  return trimmed || fallback;
+}
+
+function pickTint(seed: string) {
+  let total = 0;
+  for (const char of seed) total += char.charCodeAt(0);
+  return TINTS[total % TINTS.length];
+}
+
+function relativeTime(dateLike?: string) {
+  if (!dateLike) return 'maintenant';
+  const time = new Date(dateLike).getTime();
+  if (!Number.isFinite(time)) return 'maintenant';
+  const diff = Math.max(0, Date.now() - time);
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "a l'instant";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} j`;
+  return new Date(dateLike).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+
+async function fetchJson(url: string) {
+  try {
+    const response = await fetch(url, { cache: 'no-store' });
+    return await response.json().catch(() => null);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeArtistLabel(raw: any) {
+  return (
+    raw?.artist?.artistName ||
+    raw?.artist?.name ||
+    raw?.artist?.username ||
+    raw?.artist_name ||
+    raw?.creator_name ||
+    'Artiste inconnu'
+  );
+}
+
+function normalizePlayerTrack(raw: any): PlayerTrack | null {
+  const id = String(raw?._id || raw?.id || '');
+  if (!id) return null;
+
+  const artistLabel = normalizeArtistLabel(raw);
+  const genre = Array.isArray(raw?.genre)
+    ? raw.genre.filter(Boolean).map((entry: any) => String(entry))
+    : Array.isArray(raw?.tags)
+      ? raw.tags.filter(Boolean).map((entry: any) => String(entry))
+      : typeof raw?.genre === 'string' && raw.genre.trim()
+        ? [raw.genre.trim()]
+        : [];
+
+  return {
+    _id: id,
+    title: safeString(raw?.title, 'Titre inconnu'),
+    artist: {
+      _id: String(raw?.artist?._id || raw?.artist?.id || raw?.creator_id || ''),
+      name: safeString(raw?.artist?.name || raw?.artist?.artistName || artistLabel, artistLabel),
+      username: safeString(raw?.artist?.username, ''),
+      avatar: safeString(raw?.artist?.avatar, ''),
+      artistName: safeString(raw?.artist?.artistName || artistLabel, artistLabel),
+    },
+    audioUrl: typeof raw?.audioUrl === 'string' ? raw.audioUrl : typeof raw?.audio_url === 'string' ? raw.audio_url : '',
+    coverUrl:
+      typeof raw?.coverUrl === 'string'
+        ? raw.coverUrl
+        : typeof raw?.cover_url === 'string'
+          ? raw.cover_url
+          : typeof raw?.image_url === 'string'
+            ? raw.image_url
+            : '/default-cover.svg',
+    duration: Number(raw?.duration || 0),
+    plays: Number(raw?.plays || 0),
+    likes: raw?.likes ?? raw?.likes_count ?? 0,
+    comments: raw?.comments ?? raw?.comments_count ?? 0,
+    isLiked: Boolean(raw?.isLiked),
+    isAI: Boolean(raw?.isAI || id.startsWith('ai-')),
+    isBoosted: Boolean(raw?.isBoosted),
+    genre,
+    album: typeof raw?.album === 'string' ? raw.album : null,
+  };
+}
+
+function normalizeTrack(raw: any): Track | null {
+  const playerTrack = normalizePlayerTrack(raw);
+  if (!playerTrack) return null;
+
+  const artistLabel = playerTrack.artist.artistName || playerTrack.artist.name || playerTrack.artist.username || 'Artiste inconnu';
+  const likesCount = typeof playerTrack.likes === 'number' ? playerTrack.likes : Array.isArray(playerTrack.likes) ? playerTrack.likes.length : 0;
+  const commentsCount =
+    typeof playerTrack.comments === 'number' ? playerTrack.comments : Array.isArray(playerTrack.comments) ? playerTrack.comments.length : 0;
+  const firstGenre = playerTrack.genre?.[0];
+  const secondGenre = playerTrack.genre?.[1];
+  const style = playerTrack.isBoosted
+    ? 'Booste'
+    : playerTrack.isAI
+      ? 'Creation IA'
+      : [firstGenre, secondGenre].filter(Boolean).join(' · ') || 'Track Synaura';
+  const tint = pickTint(playerTrack._id);
+
+  return {
+    id: playerTrack._id,
+    title: playerTrack.title,
+    artist: artistLabel,
+    artistHref: playerTrack.artist.username ? `/profile/${encodeURIComponent(playerTrack.artist.username)}` : undefined,
+    cover: playerTrack.coverUrl || '/default-cover.svg',
+    style,
+    plays: formatCompact(playerTrack.plays),
+    likes: formatCompact(likesCount),
+    comments: formatCompact(commentsCount),
+    likesCount,
+    commentsCount,
+    tint,
+    playerTrack: {
+      ...playerTrack,
+      coverUrl: playerTrack.coverUrl || '/default-cover.svg',
+    },
+  };
+}
+
+function uniqueTracks(tracks: Array<Track | null | undefined>) {
+  const seen = new Set<string>();
+  return tracks.filter((track): track is Track => {
+    if (!track || seen.has(track.id)) return false;
+    seen.add(track.id);
+    return true;
+  });
+}
+
+function normalizePlaylist(raw: any, fallbackCovers: string[]) {
+  const id = String(raw?._id || raw?.id || '');
+  if (!id) return null;
+
+  const cover = typeof raw?.coverUrl === 'string' && raw.coverUrl ? raw.coverUrl : '/default-cover.svg';
+  const covers = [cover, ...fallbackCovers].slice(0, 4);
+  while (covers.length < 4) covers.push(cover);
+
+  const trackCount = Array.isArray(raw?.tracks) ? raw.tracks.length : Number(raw?.trackCount || 0);
+
+  return {
+    id,
+    title: safeString(raw?.name || raw?.title, 'Playlist'),
+    curator: safeString(raw?.creator?.artistName || raw?.creator?.name || 'Synaura Picks', 'Synaura Picks'),
+    covers,
+    tracks: `${trackCount || 0} sons`,
+    vibe: safeString(raw?.description, 'selection communautaire'),
+    href: `/playlists/${encodeURIComponent(id)}`,
+  } satisfies Playlist;
+}
+
+function normalizeCreator(raw: any) {
+  const id = String(raw?._id || raw?.id || '');
+  if (!id) return null;
+  const name = safeString(raw?.name || raw?.artistName || raw?.username, 'Createur');
+  const username = safeString(raw?.username, '');
+  const avatarValue = safeString(name, 'C').slice(0, 1).toUpperCase();
+  const totalPlays = Number(raw?.totalPlays || 0);
+  const trackCount = Number(raw?.trackCount || 0);
+
+  return {
+    id,
+    name,
+    handle: username ? `@${username}` : '@synaura',
+    avatar: avatarValue,
+    tag: trackCount > 0 ? `${trackCount} titres` : raw?.isTrending ? 'En tendance' : 'Actif sur Synaura',
+    followers: `${formatCompact(totalPlays)} ecoutes`,
+    tint: pickTint(id),
+    href: username ? `/profile/${encodeURIComponent(username)}` : '/community',
+  } satisfies Creator;
+}
+
+function normalizePost(raw: any) {
+  const id = String(raw?.id || '');
+  if (!id) return null;
+
+  const track = raw?.track
+    ? normalizeTrack({
+        _id: raw.track.id,
+        title: raw.track.title,
+        artist: {
+          _id: '',
+          name: raw.track.artist_name || 'Artiste',
+          username: '',
+        },
+        audioUrl: raw.track.audio_url,
+        coverUrl: raw.track.cover_url,
+        duration: raw.track.duration || 0,
+        likes: raw.likes_count || 0,
+        comments: raw.comments_count || 0,
+      })
+    : null;
+
+  const typeLabel =
+    raw?.type === 'track_share' ? 'partage de son' : raw?.type === 'photo' ? 'post image' : 'discussion';
+  const authorName = safeString(raw?.creator?.name || raw?.creator?.username, 'Membre');
+  const username = safeString(raw?.creator?.username, '');
+  const authorHref = username ? `/profile/${encodeURIComponent(username)}` : '/community';
+  const entity: BasePost = {
+    id,
+    type: raw?.type === 'track_share' ? 'track_share' : raw?.type === 'photo' ? 'photo' : 'text',
+    content: typeof raw?.content === 'string' ? raw.content : undefined,
+    image_url: typeof raw?.image_url === 'string' ? raw.image_url : undefined,
+    track_id: typeof raw?.track_id === 'string' ? raw.track_id : undefined,
+    likes_count: Number(raw?.likes_count || 0),
+    comments_count: Number(raw?.comments_count || 0),
+    created_at: safeString(raw?.created_at, new Date().toISOString()),
+    creator: {
+      id: String(raw?.creator?.id || raw?.creator_id || ''),
+      username,
+      name: authorName,
+      avatar: typeof raw?.creator?.avatar === 'string' ? raw.creator.avatar : undefined,
+      is_verified: Boolean(raw?.creator?.is_verified),
+    },
+    track: raw?.track
+      ? {
+          id: String(raw.track.id || ''),
+          title: safeString(raw.track.title, 'Son partage'),
+          artist_name: safeString(raw.track.artist_name, 'Artiste'),
+          cover_url: typeof raw.track.cover_url === 'string' ? raw.track.cover_url : undefined,
+          audio_url: typeof raw.track.audio_url === 'string' ? raw.track.audio_url : undefined,
+          duration: Number(raw.track.duration || 0),
+        }
+      : null,
+    isLiked: Boolean(raw?.isLiked),
+  };
+
+  return {
+    id,
+    kind: 'post',
+    entity,
+    author: authorName,
+    handle: username ? `@${username}` : '@synaura',
+    avatar: authorName.slice(0, 1).toUpperCase(),
+    authorHref,
+    time: relativeTime(raw?.created_at),
+    mood: typeLabel,
+    text: safeString(raw?.content, raw?.track?.title || 'Publication Synaura'),
+    image: raw?.type === 'photo' && typeof raw?.image_url === 'string' ? raw.image_url : undefined,
+    href: `/posts/${encodeURIComponent(id)}`,
+    track: track || undefined,
+    likesCount: Number(raw?.likes_count || 0),
+    commentsCount: Number(raw?.comments_count || 0),
+    isLiked: Boolean(raw?.isLiked),
+  } satisfies PostItem;
+}
+
+function isCommentableTrack(trackId: string) {
+  return Boolean(trackId) && !trackId.startsWith('ai-') && !trackId.startsWith('radio-');
+}
+
+async function copyTextToClipboard(value: string, successMessage = 'Lien copie') {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      notify.success(successMessage, '');
+      return;
+    }
+  } catch {}
+}
+
+function buildTrackFeedItem(track: Track, index: number, strategyLabel: string) {
+  const isTrending = strategyLabel === 'trending';
+  return {
+    id: `feed-track-${strategyLabel}-${track.id}-${index}`,
+    kind: 'track' as const,
+    title: index % 2 === 0 ? 'Le feed continue' : isTrending ? 'Ca monte maintenant' : 'Encore pour toi',
+    subtitle: isTrending
+      ? 'le fil repart sur les morceaux qui prennent de la vitesse en ce moment'
+      : 'on prolonge la session avec des morceaux proches de tes habitudes',
+    label: isTrending ? 'tendance' : 'pour toi',
+    track,
+  };
+}
+
+function buildInfiniteMusicItems(tracks: Track[], strategyLabel: string, offset: number) {
+  return tracks.map((track, index) => buildTrackFeedItem(track, offset + index, strategyLabel));
+}
+
+function buildRadioTrack({
+  id,
+  title,
+  artist,
+  streamUrl,
+  coverUrl,
+  genres,
+}: {
+  id: string;
+  title: string;
+  artist: string;
+  streamUrl: string;
+  coverUrl: string;
+  genres: string[];
+}) {
+  return {
+    _id: id,
+    title,
+    artist: {
+      _id: `artist-${id}`,
+      name: artist,
+      username: artist.toLowerCase().replace(/\s+/g, ''),
+    },
+    audioUrl: streamUrl,
+    coverUrl,
+    duration: -1,
+    likes: [],
+    comments: [],
+    plays: 0,
+    genre: genres,
+  } satisfies PlayerTrack;
+}
+
+function buildFeedItems({
+  posts,
+  forYouTracks,
+  trendingTracks,
+  recentTracks,
+  boostedTracks,
+  playlists,
+  creators,
+  radios,
+  libraryStats,
+}: {
+  posts: PostItem[];
+  forYouTracks: Track[];
+  trendingTracks: Track[];
+  recentTracks: Track[];
+  boostedTracks: Track[];
+  playlists: Playlist[];
+  creators: Creator[];
+  radios: RadioItem[];
+  libraryStats: LibraryStats | null;
+}) {
+  const items: FeedItem[] = [{ id: 'composer', kind: 'composer' }];
+
+  if (posts[0]) items.push(posts[0]);
+  if (forYouTracks.length) {
+    items.push({
+      id: 'rail-for-you',
+      kind: 'rail',
+      title: 'Pour toi',
+      subtitle: 'les titres et partages qui collent a ton humeur du moment',
+      label: 'personnalise',
+      tracks: forYouTracks.slice(0, 8),
+    });
+  }
+  if (posts[1]) items.push(posts[1]);
+  if (radios[0]) items.push(radios[0]);
+  if ((boostedTracks[0] || trendingTracks[0]) && (boostedTracks[0] || trendingTracks[0])!.playerTrack.audioUrl) {
+    const headlineTrack = boostedTracks[0] || trendingTracks[0];
+    items.push({
+      id: 'headline-track',
+      kind: 'track',
+      title: boostedTracks[0] ? 'Boost fort' : 'A ecouter maintenant',
+      subtitle: boostedTracks[0]
+        ? 'un titre actuellement pousse dans les surfaces Synaura'
+        : 'un morceau qui circule fort dans la communaute',
+      label: boostedTracks[0] ? 'boost' : 'recommande',
+      track: headlineTrack,
+    });
+  }
+  items.push({
+    id: 'studio',
+    kind: 'studio',
+    title: 'Studio IA',
+    text: 'Genere, remixe ou relance une idee depuis la home sans casser ton flow.',
+  });
+  if (playlists[0]) items.push({ id: `playlist-${playlists[0].id}`, kind: 'playlist', playlist: playlists[0] });
+  if (creators.length) items.push({ id: 'creator-rail', kind: 'creator', title: 'Createurs a suivre', creators: creators.slice(0, 8) });
+  if (trendingTracks.length) {
+    items.push({
+      id: 'rail-trending',
+      kind: 'rail',
+      title: 'Tendances maintenant',
+      subtitle: 'les pistes qui prennent de la vitesse en ce moment',
+      label: 'trending',
+      tracks: trendingTracks.slice(0, 8),
+    });
+  }
+  if (posts[2]) items.push(posts[2]);
+  items.push({
+    id: 'booster',
+    kind: 'booster',
+    title: 'Boosters du jour',
+    text: 'Active les mises en avant et les campagnes sans sortir de la logique Synaura.',
+  });
+  if (playlists[1]) items.push({ id: `playlist-${playlists[1].id}`, kind: 'playlist', playlist: playlists[1] });
+  if (radios[1]) items.push(radios[1]);
+  if (libraryStats) {
+    items.push({
+      id: 'library',
+      kind: 'library',
+      title: 'Ta bibliotheque',
+      stats: [
+        [String(libraryStats.playlists), 'playlists'],
+        [String(libraryStats.favorites), 'favoris'],
+        [String(libraryStats.ai), 'IA'],
+        [String(libraryStats.recent), 'recentes'],
+      ],
+    });
+  }
+  if (recentTracks.length) {
+    items.push({
+      id: 'rail-recent',
+      kind: 'rail',
+      title: 'Fraichement publie',
+      subtitle: 'les sorties recentes qui arrivent dans la home',
+      label: 'nouveau',
+      tracks: recentTracks.slice(0, 8),
+    });
+  }
+  if (posts[3]) items.push(posts[3]);
+
+  return items;
+}
+
+function matchesFilter(item: FeedItem, filter: string) {
+  if (filter === 'Pour toi') return true;
+  if (filter === 'Sons') return item.kind === 'track' || item.kind === 'rail' || (item.kind === 'post' && Boolean(item.track));
+  if (filter === 'Posts') return item.kind === 'composer' || item.kind === 'post';
+  if (filter === 'Playlists') return item.kind === 'playlist' || item.kind === 'library';
+  if (filter === 'Createurs') return item.kind === 'creator';
+  if (filter === 'Radio') return item.kind === 'radio';
+  return true;
+}
+
+function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative z-20 min-h-screen bg-[#F4EFE6] text-[#171313]">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_8%_0%,rgba(255,111,97,0.22),transparent_28%),radial-gradient(circle_at_94%_4%,rgba(124,92,255,0.20),transparent_30%),radial-gradient(circle_at_60%_100%,rgba(0,194,203,0.14),transparent_32%)]" />
+        <div className="absolute inset-0 opacity-[0.28] [background-image:linear-gradient(#ded4c7_1px,transparent_1px),linear-gradient(90deg,#ded4c7_1px,transparent_1px)] [background-size:34px_34px]" />
+        <motion.div
+          className="absolute -left-28 top-36 h-72 w-72 rounded-full bg-[#ff6f61]/18 blur-3xl"
+          animate={{ y: [0, -24, 0], x: [0, 18, 0] }}
+          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="absolute -right-20 top-24 h-80 w-80 rounded-full bg-[#7c5cff]/18 blur-3xl"
+          animate={{ y: [0, 28, 0], x: [0, -24, 0] }}
+          transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      </div>
+      <div className="relative mx-auto max-w-[1480px] px-3 py-3 sm:px-5 lg:px-8 lg:py-5">{children}</div>
+    </div>
+  );
+}
+
+function Card({
+  children,
+  className = '',
+  style,
+}: {
+  children?: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      className={`relative overflow-hidden rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/88 shadow-[0_18px_60px_rgba(30,25,20,0.10)] backdrop-blur-xl ${className}`}
+      style={style}
+    >
+      {children}
+    </div>
+  );
+}
+
+function InkCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={`relative overflow-hidden rounded-[2rem] bg-[#171313] text-[#fffaf2] shadow-[0_20px_70px_rgba(20,15,10,0.25)] ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function AvatarBubble({
+  value,
+  size = 'md',
+  tint = '#8B5CF6',
+}: {
+  value: string;
+  size?: 'sm' | 'md' | 'lg';
+  tint?: string;
+}) {
+  const sizes = {
+    sm: 'h-8 w-8 text-xs',
+    md: 'h-10 w-10 text-sm',
+    lg: 'h-14 w-14 text-lg',
+  };
+
+  return (
+    <div
+      className={`${sizes[size]} grid shrink-0 place-items-center rounded-full font-black text-white shadow-sm`}
+      style={{ background: tint }}
+    >
+      {value.slice(0, 1)}
+    </div>
+  );
+}
+
+function SynauraRouteNav() {
+  const items = [
+    { href: '/', label: 'Accueil', icon: Home },
+    { href: '/discover', label: 'Decouvrir', icon: Compass },
+    { href: '/library', label: 'Bibliotheque', icon: Library },
+    { href: '/community', label: 'Communaute', icon: Users },
+    { href: '/ai-generator', label: 'Studio', icon: Sparkles },
+    { href: '/upload', label: 'Publier', icon: Upload },
+  ];
+
+  return (
+    <nav className="mb-4" aria-label="Navigation Synaura">
+      <div className="no-scrollbar flex gap-2 overflow-x-auto rounded-[1.6rem] border border-black/[0.08] bg-[#fffaf2]/84 p-2 shadow-[0_14px_36px_rgba(30,25,20,0.08)] backdrop-blur-xl">
+        {items.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-black transition ${
+                item.href === '/'
+                  ? 'bg-[#171313] text-white'
+                  : 'bg-black/[0.045] text-black/56 hover:bg-black/[0.08] hover:text-[#171313]'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+function SynauraAnnouncementStrip() {
+  if (!isShutdownAnnounced() || isPastShutdownEnd()) return null;
+
+  return (
+    <Link
+      href="/fermeture"
+      className="mb-4 flex items-center justify-center gap-2 rounded-[1.35rem] border border-red-300/45 bg-red-50/92 px-4 py-3 text-center text-xs font-black text-red-900/78 shadow-[0_14px_30px_rgba(120,35,20,0.08)] transition hover:bg-red-50"
+    >
+      Synaura ferme le {SHUTDOWN_END_DATE_LABEL} - lire l'annonce officielle
+    </Link>
+  );
+}
+
+function TopBar() {
+  return (
+    <header className="sticky top-3 z-40 mb-4 flex items-center justify-between gap-3 rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/90 px-3 py-3 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:px-4">
+      <Link href="/" className="flex items-center gap-3">
+        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#171313] text-[#fffaf2]">
+          <Disc3 className="h-6 w-6" />
+        </div>
+        <div>
+          <p className="text-xl font-black tracking-tight">Synaura</p>
+          <p className="hidden text-xs font-bold uppercase tracking-[0.18em] text-black/35 sm:block">
+            social music feed
+          </p>
+        </div>
+      </Link>
+
+      <Link
+        href="/discover"
+        className="hidden h-11 max-w-2xl flex-1 items-center gap-3 rounded-full bg-black/[0.055] px-4 lg:flex"
+      >
+        <Search className="h-4 w-4 text-black/35" />
+        <span className="text-sm font-semibold text-black/35">Rechercher un son, un post, une playlist, un createur...</span>
+      </Link>
+
+      <div className="flex items-center gap-2">
+        <Link
+          href="/settings"
+          className="grid h-11 w-11 place-items-center rounded-full bg-black/[0.06] text-black/60 transition hover:bg-black hover:text-white"
+        >
+          <Bell className="h-5 w-5" />
+        </Link>
+        <Link
+          href="/ai-generator"
+          className="hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex"
+        >
+          <Sparkles className="h-4 w-4" /> Studio
+        </Link>
+        <Link
+          href="/upload"
+          className="inline-flex h-11 items-center rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
+        >
+          Publier
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+function playQueueFromTracks(tracks: Track[], targetTrackId: string, setQueueAndPlay: (tracks: any[], startIndex?: number) => void) {
+  const queue = tracks.map((track) => track.playerTrack).filter((track) => Boolean(track.audioUrl));
+  const startIndex = queue.findIndex((track) => track._id === targetTrackId);
+  if (!queue.length || startIndex === -1) {
+    notify.error('Lecture', "Cette selection n'a pas d'audio disponible.");
+    return;
+  }
+  setQueueAndPlay(queue as any, startIndex);
+}
+
+function MiniCarousel({ tracks }: { tracks: Track[] }) {
+  const { setQueueAndPlay } = useAudioPlayer();
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    if (active >= tracks.length) setActive(0);
+  }, [active, tracks.length]);
+
+  if (!tracks.length) {
+    return (
+      <Card className="mb-4 p-3 sm:p-4">
+        <div className="min-h-[176px] animate-pulse rounded-[1.55rem] bg-black/[0.05]" />
+      </Card>
+    );
+  }
+
+  const item = tracks[active] ?? tracks[0];
+
+  return (
+    <Card className="mb-4 p-3 sm:p-4">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_240px] sm:items-stretch">
+        <div className="relative min-h-[176px] overflow-hidden rounded-[1.55rem] bg-[#171313] p-4 text-white">
+          <img src={item.cover} alt="" className="absolute inset-0 h-full w-full object-cover opacity-32" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#171313] via-[#171313]/84 to-transparent" />
+          <div className="absolute inset-y-0 right-0 w-1/2 opacity-40" style={{ background: item.tint }} />
+          <div className="relative z-10 flex min-h-[144px] flex-col justify-between">
+            <div className="flex items-center justify-between gap-3">
+              <span className="rounded-full bg-white/12 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-white/70">
+                mini focus
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActive((value) => (value - 1 + tracks.length) % tracks.length)}
+                  className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-white/70"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActive((value) => (value + 1) % tracks.length)}
+                  className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-white/70"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div>
+              <h1 className="max-w-xl text-3xl font-black leading-[0.96] tracking-[-0.04em] sm:text-4xl">{item.title}</h1>
+              <p className="mt-1 text-sm font-semibold text-white/62">
+                {item.artist} · {item.style}
+              </p>
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => playQueueFromTracks(tracks, item.id, setQueueAndPlay)}
+                  className="inline-flex h-10 items-center gap-2 rounded-full bg-[#fffaf2] px-4 text-xs font-black text-black"
+                >
+                  <Play className="h-3.5 w-3.5 fill-current" /> Ecouter
+                </button>
+                <Link
+                  href={item.artistHref || '/discover'}
+                  className="inline-flex h-10 items-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/70"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" /> Explorer
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="hidden rounded-[1.55rem] bg-black/[0.045] p-2 sm:grid sm:grid-cols-2 sm:gap-2">
+          {tracks.slice(0, 4).map((track, index) => (
+            <button
+              key={track.id}
+              type="button"
+              onClick={() => setActive(index)}
+              className={`flex items-center gap-2 rounded-[1.15rem] p-2 text-left transition ${
+                active === index ? 'bg-[#171313] text-white' : 'bg-white/45 text-black/65 hover:bg-white'
+              }`}
+            >
+              <img src={track.cover} alt="" className="h-10 w-10 rounded-xl object-cover" />
+              <div className="min-w-0">
+                <p className="truncate text-xs font-black">{track.title}</p>
+                <p className="truncate text-[10px] opacity-55">{track.artist}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function MobileActions() {
+  const items = [
+    { label: 'Son', icon: Music2, tint: '#8B5CF6', href: '/upload' },
+    { label: 'Image', icon: ImageIcon, tint: '#FB7185', href: '/posts' },
+    { label: 'Playlist', icon: Library, tint: '#14B8A6', href: '/library' },
+    { label: 'Remix', icon: Repeat2, tint: '#38BDF8', href: '/ai-generator' },
+    { label: 'Radio', icon: Radio, tint: '#EF4444', href: '/discover' },
+    { label: 'Avis', icon: Mic2, tint: '#F59E0B', href: '/community' },
+  ];
+
+  return (
+    <div className="no-scrollbar -mx-3 mb-4 flex gap-3 overflow-x-auto px-3 lg:mx-0 lg:px-0">
+      {items.map((item) => (
+        <Link key={item.label} href={item.href} className="flex min-w-[76px] flex-col items-center gap-2">
+          <div
+            className="grid h-14 w-14 place-items-center rounded-[1.25rem] text-white shadow-[0_12px_30px_rgba(30,25,20,0.16)]"
+            style={{ background: item.tint }}
+          >
+            <item.icon className="h-5 w-5" />
+          </div>
+          <span className="text-xs font-black text-black/58">{item.label}</span>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function ComposerCard() {
+  const { data: session } = useSession();
+  const initial =
+    (session?.user as { name?: string; username?: string })?.name?.slice(0, 1) ||
+    (session?.user as { username?: string })?.username?.slice(0, 1) ||
+    'M';
+  const primaryHref = session?.user ? '/posts' : '/auth/signin';
+
+  const chips = [
+    { label: 'Son', icon: Music2, href: '/upload', active: true },
+    { label: 'Image', icon: ImageIcon, href: '/posts' },
+    { label: 'Texte', icon: MessageCircle, href: '/posts' },
+    { label: 'Playlist', icon: Library, href: '/library' },
+    { label: 'Studio IA', icon: Wand2, href: '/ai-generator' },
+  ];
+
+  return (
+    <Card className="p-4">
+      <div className="flex gap-3">
+        <AvatarBubble value={initial} tint="#171313" />
+        <div className="min-w-0 flex-1">
+          <Link
+            href={primaryHref}
+            className="flex h-12 w-full items-center rounded-[1.15rem] bg-black/[0.055] px-4 text-sm font-semibold text-black/38 transition hover:bg-black/[0.08]"
+          >
+            {session?.user ? 'Partager un texte, une image ou un son...' : 'Connecte-toi pour publier et reagir...'}
+          </Link>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {chips.map((chip) => (
+              <Link
+                key={chip.label}
+                href={chip.href}
+                className={`inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-black ${
+                  chip.active ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/56'
+                }`}
+              >
+                <chip.icon className="h-3.5 w-3.5" />
+                {chip.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function Wave({ color = '#14B8A6', active = true }: { color?: string; active?: boolean }) {
+  const bars = [32, 80, 48, 95, 58, 70, 42, 86];
+  return (
+    <div className="mt-2 flex h-5 items-end gap-1">
+      {bars.map((bar, index) => (
+        <motion.span
+          key={index}
+          className="w-1 rounded-full"
+          style={{ height: `${bar}%`, background: color, opacity: active ? 1 : 0.42 }}
+          animate={active ? { scaleY: [0.45, 1, 0.55] } : { scaleY: 0.68 }}
+          transition={{ duration: 0.52 + index * 0.03, repeat: active ? Infinity : 0, ease: 'easeInOut' }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function normalizeHomeComment(raw: any): HomeComment {
+  return {
+    id: String(raw?.id || ''),
+    content: safeString(raw?.content, ''),
+    createdAt: safeString(raw?.createdAt || raw?.created_at, new Date().toISOString()),
+    user: {
+      id: String(raw?.user?.id || raw?.user_id || ''),
+      username: safeString(raw?.user?.username, 'utilisateur'),
+      name: safeString(raw?.user?.name || raw?.user?.username, 'Membre'),
+      avatar: typeof raw?.user?.avatar === 'string' ? raw.user.avatar : null,
+    },
+    replies: Array.isArray(raw?.replies) ? raw.replies.map(normalizeHomeComment) : [],
+  };
+}
+
+function CommentAvatar({
+  comment,
+  dark = false,
+}: {
+  comment: HomeComment;
+  dark?: boolean;
+}) {
+  const letter = (comment.user.name || comment.user.username || '?').slice(0, 1).toUpperCase();
+  return (
+    <div
+      className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-black ${
+        dark ? 'bg-white/12 text-white' : 'bg-[#171313] text-[#fffaf2]'
+      }`}
+    >
+      {letter}
+    </div>
+  );
+}
+
+function InlineSharePanel({
+  dark = false,
+  url,
+  text,
+  onClose,
+}: {
+  dark?: boolean;
+  url: string;
+  text: string;
+  onClose: () => void;
+}) {
+  const panelClassName = dark
+    ? 'mt-3 rounded-[1.25rem] border border-white/10 bg-white/8 p-3 text-white'
+    : 'mt-3 rounded-[1.25rem] border border-black/[0.08] bg-black/[0.035] p-3 text-[#171313]';
+  const buttonClassName = dark
+    ? 'inline-flex h-10 items-center rounded-full bg-white/10 px-4 text-sm font-black text-white/78 transition hover:bg-white/14 hover:text-white'
+    : 'inline-flex h-10 items-center rounded-full bg-black/[0.055] px-4 text-sm font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black';
+
+  return (
+    <div className={panelClassName}>
+      <p className={`text-xs font-black uppercase tracking-[0.22em] ${dark ? 'text-white/45' : 'text-black/38'}`}>
+        Partager sans quitter le fil
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={async () => {
+            await copyTextToClipboard(url, 'Lien copie');
+            onClose();
+          }}
+          className={buttonClassName}
+        >
+          Copier le lien
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            await copyTextToClipboard(text, 'Texte copie');
+            onClose();
+          }}
+          className={buttonClassName}
+        >
+          Copier le texte
+        </button>
+      </div>
+      <p className={`mt-2 text-xs leading-5 ${dark ? 'text-white/42' : 'text-black/46'}`}>
+        Rien ne s’ouvre ailleurs: on garde le partage dans la page et on copie juste ce qu’il faut.
+      </p>
+    </div>
+  );
+}
+
+function InlineCommentsPanel({
+  kind,
+  targetId,
+  dark = false,
+  onCountChange,
+}: {
+  kind: 'track' | 'post';
+  targetId: string;
+  dark?: boolean;
+  onCountChange?: (delta: number) => void;
+}) {
+  const { data: session } = useSession();
+  const [comments, setComments] = useState<HomeComment[]>([]);
+  const [text, setText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [cursor, setCursor] = useState<string | number | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+
+  const panelClassName = dark
+    ? 'mt-3 rounded-[1.25rem] border border-white/10 bg-white/8 p-3 text-white'
+    : 'mt-3 rounded-[1.25rem] border border-black/[0.08] bg-black/[0.035] p-3 text-[#171313]';
+  const inputClassName = dark
+    ? 'min-h-[76px] w-full rounded-[1rem] border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none placeholder:text-white/28 focus:border-white/22'
+    : 'min-h-[76px] w-full rounded-[1rem] border border-black/[0.08] bg-white/68 px-3 py-3 text-sm text-[#171313] outline-none placeholder:text-black/28 focus:border-black/18';
+  const actionButtonClassName = dark
+    ? 'inline-flex h-10 items-center rounded-full bg-[#fffaf2] px-4 text-sm font-black text-[#171313] transition hover:opacity-90 disabled:opacity-50'
+    : 'inline-flex h-10 items-center rounded-full bg-[#171313] px-4 text-sm font-black text-[#fffaf2] transition hover:opacity-92 disabled:opacity-50';
+  const loadButtonClassName = dark
+    ? 'text-xs font-black text-white/52 transition hover:text-white'
+    : 'text-xs font-black text-black/46 transition hover:text-black';
+
+  const loadComments = useCallback(
+    async (mode: 'initial' | 'more' = 'initial', nextCursorValue: string | number | null = null) => {
+      const isTrack = kind === 'track';
+      const currentCursor = mode === 'initial' ? null : nextCursorValue;
+      const query = isTrack
+        ? `?limit=6&offset=${typeof currentCursor === 'number' ? currentCursor : 0}`
+        : `?limit=8${typeof currentCursor === 'string' ? `&cursor=${encodeURIComponent(currentCursor)}` : ''}`;
+
+      if (mode === 'initial') setLoading(true);
+
+      try {
+        const response = await fetch(`${isTrack ? `/api/tracks/${encodeURIComponent(targetId)}/comments` : `/api/posts/${encodeURIComponent(targetId)}/comments`}${query}`, {
+          cache: 'no-store',
+        });
+        const payload = await response.json().catch(() => null);
+        const nextComments = (Array.isArray(payload?.comments) ? payload.comments : []).map(normalizeHomeComment);
+
+        if (mode === 'initial') {
+          setComments(nextComments);
+        } else {
+          setComments((current) => [...current, ...nextComments]);
+        }
+
+        if (isTrack) {
+          setCursor(typeof payload?.nextOffset === 'number' ? payload.nextOffset : null);
+          setHasMore(Boolean(payload?.hasMore));
+        } else {
+          setCursor(typeof payload?.nextCursor === 'string' ? payload.nextCursor : null);
+          setHasMore(Boolean(payload?.nextCursor));
+        }
+      } catch {
+        notify.error('', 'Impossible de charger les commentaires');
+      } finally {
+        if (mode === 'initial') setLoading(false);
+      }
+    },
+    [kind, targetId],
+  );
+
+  useEffect(() => {
+    void loadComments('initial');
+  }, [kind, loadComments, targetId]);
+
+  const handleSubmit = useCallback(async () => {
+    if (!text.trim()) return;
+    if (!session) {
+      notify.error('', 'Connecte-toi pour commenter');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(
+        kind === 'track'
+          ? `/api/tracks/${encodeURIComponent(targetId)}/comments`
+          : `/api/posts/${encodeURIComponent(targetId)}/comments`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: text.trim() }),
+        },
+      );
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'submit-comment-failed');
+      }
+
+      const nextComment = normalizeHomeComment(kind === 'track' ? payload?.comment : payload);
+      setComments((current) => (kind === 'track' ? [nextComment, ...current] : [...current, nextComment]));
+      setText('');
+      onCountChange?.(1);
+    } catch (error: any) {
+      notify.error('', error?.message || 'Impossible d’envoyer le commentaire');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [kind, onCountChange, session, targetId, text]);
+
+  const renderComment = (comment: HomeComment, nested = false) => (
+    <div key={`${nested ? 'reply' : 'comment'}-${comment.id}`} className={nested ? 'ml-10 mt-2' : ''}>
+      <div className="flex gap-3">
+        <CommentAvatar comment={comment} dark={dark} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className={`text-sm font-black ${dark ? 'text-white' : 'text-[#171313]'}`}>{comment.user.name}</span>
+            <span className={`text-xs font-semibold ${dark ? 'text-white/38' : 'text-black/34'}`}>@{comment.user.username}</span>
+            <span className={`text-xs font-semibold ${dark ? 'text-white/28' : 'text-black/28'}`}>{relativeTime(comment.createdAt)}</span>
+          </div>
+          <p className={`mt-1 text-sm leading-6 ${dark ? 'text-white/72' : 'text-black/66'}`}>{comment.content}</p>
+          {comment.replies.length ? <div className="mt-2 space-y-2">{comment.replies.map((reply) => renderComment(reply, true))}</div> : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={panelClassName}>
+      <div className="flex items-center justify-between gap-3">
+        <p className={`text-xs font-black uppercase tracking-[0.22em] ${dark ? 'text-white/45' : 'text-black/38'}`}>
+          Commentaires dans le fil
+        </p>
+        {hasMore ? (
+          <button type="button" onClick={() => void loadComments('more', cursor)} className={loadButtonClassName}>
+            Charger plus
+          </button>
+        ) : null}
+      </div>
+
+      <div className="mt-3 space-y-3">
+        {loading ? (
+          <p className={`text-sm ${dark ? 'text-white/42' : 'text-black/44'}`}>Chargement...</p>
+        ) : comments.length ? (
+          comments.map((comment) => renderComment(comment))
+        ) : (
+          <p className={`text-sm ${dark ? 'text-white/42' : 'text-black/44'}`}>Aucun commentaire pour le moment.</p>
+        )}
+      </div>
+
+      <div className="mt-3">
+        <textarea
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          className={inputClassName}
+          placeholder="Ecris une reponse sans quitter la home..."
+        />
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <p className={`text-xs ${dark ? 'text-white/35' : 'text-black/36'}`}>Tout reste ancre dans cette carte.</p>
+          <button type="button" onClick={handleSubmit} disabled={submitting || !text.trim()} className={actionButtonClassName}>
+            {submitting ? 'Envoi...' : 'Publier'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TrackInlineActions({
+  track,
+  dark = false,
+}: {
+  track: Track;
+  dark?: boolean;
+}) {
+  const canComment = isCommentableTrack(track.id);
+  const { isLiked, likesCount, isLoading, toggleLike } = useLikeSystem({
+    trackId: track.id,
+    initialLikesCount: track.likesCount,
+    initialIsLiked: track.playerTrack.isLiked || false,
+  });
+  const [commentsCount, setCommentsCount] = useState(track.commentsCount);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+
+  useEffect(() => {
+    setCommentsCount(track.commentsCount);
+    setCommentsOpen(false);
+    setShareOpen(false);
+  }, [track.commentsCount, track.id]);
+
+  const defaultButtonClassName = dark
+    ? 'inline-flex h-10 items-center gap-2 rounded-full bg-white/10 px-4 text-sm font-black text-white/72 transition hover:bg-white/14 hover:text-white'
+    : 'inline-flex h-10 items-center gap-2 rounded-full bg-black/[0.055] px-4 text-sm font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black';
+  const likedButtonClassName = dark
+    ? 'inline-flex h-10 items-center gap-2 rounded-full bg-[#fffaf2] px-4 text-sm font-black text-[#171313] transition hover:opacity-90'
+    : 'inline-flex h-10 items-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-white transition hover:opacity-92';
+
+  return (
+    <div className="mt-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void toggleLike()}
+          disabled={isLoading}
+          className={isLiked ? likedButtonClassName : defaultButtonClassName}
+        >
+          <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+          {likesCount ? formatCompact(likesCount) : 'Liker'}
+        </button>
+
+        {canComment ? (
+          <button
+            type="button"
+            onClick={() => {
+              setCommentsOpen((current) => !current);
+              setShareOpen(false);
+            }}
+            className={defaultButtonClassName}
+          >
+            <MessageCircle className="h-4 w-4" />
+            {commentsCount ? formatCompact(commentsCount) : 'Commenter'}
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={() => {
+            setShareOpen((current) => !current);
+            setCommentsOpen(false);
+          }}
+          className={defaultButtonClassName}
+        >
+          <Share2 className="h-4 w-4" />
+          Partager
+        </button>
+      </div>
+
+      {commentsOpen ? (
+        <InlineCommentsPanel
+          kind="track"
+          targetId={track.id}
+          dark={dark}
+          onCountChange={(delta) => setCommentsCount((current) => Math.max(0, current + delta))}
+        />
+      ) : null}
+
+      {shareOpen ? (
+        <InlineSharePanel
+          dark={dark}
+          url={`${typeof window !== 'undefined' ? window.location.origin : ''}/track/${encodeURIComponent(track.id)}`}
+          text={`Ecoute ${track.title} par ${track.artist} sur Synaura`}
+          onClose={() => setShareOpen(false)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function MiniPlayer({ track, withActions = true }: { track: Track; withActions?: boolean }) {
+  const { audioState, playTrack } = useAudioPlayer();
+  const currentTrackId = audioState.tracks[audioState.currentTrackIndex]?._id;
+  const isPlayingThis = currentTrackId === track.id && audioState.isPlaying;
+
+  return (
+    <div className="mt-4 rounded-[1.35rem] bg-black/[0.055] p-3">
+      <div className="flex items-center gap-3">
+        <img src={track.cover} alt="" className="h-16 w-16 rounded-2xl object-cover" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-black">{track.title}</p>
+          <p className="truncate text-xs font-semibold text-black/42">
+            {track.artist} · {track.style}
+          </p>
+          <Wave color={track.tint} active={isPlayingThis} />
+          {withActions ? <TrackInlineActions track={track} /> : null}
+        </div>
+        <button
+          type="button"
+          onClick={() => playTrack(track.playerTrack as any)}
+          className="grid h-11 w-11 place-items-center rounded-full bg-[#171313] text-white"
+        >
+          {isPlayingThis ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PostCard({ item }: { item: PostItem }) {
+  const { data: session } = useSession();
+  const [liked, setLiked] = useState(item.isLiked);
+  const [likesCount, setLikesCount] = useState(item.likesCount);
+  const [commentsCount, setCommentsCount] = useState(item.commentsCount);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+
+  useEffect(() => {
+    setLiked(item.isLiked);
+    setLikesCount(item.likesCount);
+    setCommentsCount(item.commentsCount);
+    setCommentsOpen(false);
+    setShareOpen(false);
+  }, [item.commentsCount, item.id, item.isLiked, item.likesCount]);
+
+  const handleLike = useCallback(async () => {
+    if (!session) {
+      notify.error('', 'Connecte-toi pour liker');
+      return;
+    }
+
+    const nextLiked = !liked;
+    setLiked(nextLiked);
+    setLikesCount((current) => Math.max(0, current + (nextLiked ? 1 : -1)));
+
+    try {
+      const response = await fetch(`/api/posts/${encodeURIComponent(item.id)}/like`, {
+        method: nextLiked ? 'POST' : 'DELETE',
+      });
+
+      if (!response.ok && response.status !== 409) {
+        throw new Error('post-like-failed');
+      }
+    } catch {
+      setLiked(!nextLiked);
+      setLikesCount((current) => Math.max(0, current + (nextLiked ? -1 : 1)));
+      notify.error('', 'Impossible de mettre a jour le post');
+    }
+  }, [item.id, liked, session]);
+
+  return (
+    <Card className="p-4 sm:p-5">
+        <div className="flex gap-3">
+          <AvatarBubble value={item.avatar} tint={item.track?.tint ?? '#ff7a66'} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <Link href={item.authorHref || '/community'} className="font-black hover:underline">
+                    {item.author}
+                  </Link>
+                  <span className="text-sm font-semibold text-black/38">{item.handle}</span>
+                  <span className="text-sm font-semibold text-black/28">· {item.time}</span>
+                </div>
+                <span className="mt-2 inline-flex rounded-full bg-black/[0.055] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-black/46">
+                  {item.mood}
+                </span>
+                <p className="mt-3 text-[15px] leading-7 text-black/72">{item.text}</p>
+            </div>
+            <Link
+              href={item.href}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black/[0.055] text-black/42 transition hover:bg-black/[0.1] hover:text-black"
+              title="Ouvrir le post"
+            >
+              <MoreHorizontal className="h-5 w-5" />
+            </Link>
+          </div>
+
+          {item.track ? <MiniPlayer track={item.track} /> : null}
+
+          {!item.track && item.image ? (
+            <div className="mt-4 overflow-hidden rounded-[1.35rem] bg-black/[0.055]">
+              <img src={item.image} alt="" className="max-h-[360px] w-full object-cover" />
+            </div>
+          ) : null}
+
+          {!item.track && !item.image ? (
+            <div className="mt-4 rounded-[1.35rem] bg-black/[0.045] p-4">
+              <p className="text-sm font-semibold leading-6 text-black/52">Publication sociale issue du vrai flux createur.</p>
+            </div>
+          ) : null}
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleLike}
+              className={`inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-black transition ${
+                liked ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/62 hover:bg-black/[0.1] hover:text-black'
+              }`}
+            >
+              <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} />
+              {likesCount ? formatCompact(likesCount) : 'Liker'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setCommentsOpen((current) => !current);
+                setShareOpen(false);
+              }}
+              className="inline-flex h-10 items-center gap-2 rounded-full bg-black/[0.055] px-4 text-sm font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black"
+            >
+              <MessageCircle className="h-4 w-4" />
+              {commentsCount ? formatCompact(commentsCount) : 'Commenter'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShareOpen((current) => !current);
+                setCommentsOpen(false);
+              }}
+              className="inline-flex h-10 items-center gap-2 rounded-full bg-black/[0.055] px-4 text-sm font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black"
+            >
+              <Share2 className="h-4 w-4" />
+              Partager
+            </button>
+
+            <Link
+              href={item.authorHref || '/community'}
+              className="ml-auto inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-black text-black/42 transition hover:bg-black/[0.055] hover:text-black"
+            >
+              <Bookmark className="h-4 w-4" />
+              Profil
+            </Link>
+          </div>
+
+          {commentsOpen ? (
+            <InlineCommentsPanel
+              kind="post"
+              targetId={item.id}
+              onCountChange={(delta) => setCommentsCount((current) => Math.max(0, current + delta))}
+            />
+          ) : null}
+
+          {shareOpen ? (
+            <InlineSharePanel
+              url={`${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${encodeURIComponent(item.id)}`}
+              text={item.text || `Regarde ce post de ${item.author} sur Synaura`}
+              onClose={() => setShareOpen(false)}
+            />
+          ) : null}
+          </div>
+        </div>
+      </Card>
+  );
+}
+
+function TrackFeedCard({ item }: { item: Extract<FeedItem, { kind: 'track' }> }) {
+  const { audioState, playTrack } = useAudioPlayer();
+  const isPlayingThis = audioState.tracks[audioState.currentTrackIndex]?._id === item.track.id && audioState.isPlaying;
+
+  return (
+    <InkCard className="p-4 sm:p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-lg font-black">{item.title}</p>
+          <p className="text-sm text-white/45">{item.subtitle}</p>
+        </div>
+        <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-white/62">{item.label}</span>
+      </div>
+      <div className="flex items-center gap-4">
+        <img src={item.track.cover} alt="" className="h-24 w-24 rounded-[1.2rem] object-cover sm:h-28 sm:w-28" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xl font-black">{item.track.title}</p>
+          <p className="truncate text-sm font-semibold text-white/45">
+            {item.track.artist} · {item.track.style}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-white/50">
+            <span>{item.track.plays} ecoutes</span>
+            <span>{item.track.likes} likes</span>
+            <span>{item.track.comments} coms</span>
+          </div>
+          <Wave color={item.track.tint} active={isPlayingThis} />
+          <TrackInlineActions track={item.track} dark />
+        </div>
+        <button
+          type="button"
+          onClick={() => playTrack(item.track.playerTrack as any)}
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#fffaf2] text-black"
+        >
+          {isPlayingThis ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
+        </button>
+      </div>
+    </InkCard>
+  );
+}
+
+function RailCard({ item }: { item: Extract<FeedItem, { kind: 'rail' }> }) {
+  const { audioState, setQueueAndPlay } = useAudioPlayer();
+
+  return (
+    <Card className="p-4 sm:p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-lg font-black">{item.title}</p>
+          <p className="text-sm text-black/40">{item.subtitle}</p>
+        </div>
+        <span className="rounded-full bg-black/[0.055] px-3 py-1.5 text-xs font-black text-black/58">{item.label}</span>
+      </div>
+      <div className="no-scrollbar flex gap-3 overflow-x-auto pb-1">
+        {item.tracks.map((track) => {
+          const isPlayingThis = audioState.tracks[audioState.currentTrackIndex]?._id === track.id && audioState.isPlaying;
+          return (
+            <motion.div key={track.id} whileHover={{ y: -4 }} className="min-w-[150px] sm:min-w-[170px]">
+              <div className="rounded-[1.2rem] bg-black/[0.045] p-2">
+                <div className="relative overflow-hidden rounded-2xl">
+                  <img src={track.cover} alt="" className="aspect-square w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => playQueueFromTracks(item.tracks, track.id, setQueueAndPlay)}
+                    className="absolute bottom-2 right-2 grid h-9 w-9 place-items-center rounded-full bg-[#fffaf2] text-black"
+                  >
+                    {isPlayingThis ? <Pause className="h-3.5 w-3.5" /> : <Play className="ml-0.5 h-3.5 w-3.5 fill-current" />}
+                  </button>
+                </div>
+                <p className="mt-2 truncate text-sm font-black">{track.title}</p>
+                <p className="truncate text-xs text-black/36">{track.artist}</p>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function PlaylistCard({ item }: { item: Extract<FeedItem, { kind: 'playlist' }> }) {
+  const playlist = item.playlist;
+  return (
+    <Card className="p-4 sm:p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-lg font-black">{playlist.title}</p>
+          <p className="text-sm text-black/40">
+            {playlist.curator} · {playlist.vibe}
+          </p>
+        </div>
+        <span className="rounded-full bg-black/[0.055] px-3 py-1.5 text-xs font-black text-black/58">playlist</span>
+      </div>
+      <div className="grid grid-cols-[112px_1fr] gap-4 sm:grid-cols-[124px_1fr]">
+        <div className="grid h-[112px] grid-cols-2 overflow-hidden rounded-[1.15rem] sm:h-[124px]">
+          {playlist.covers.map((cover, index) => (
+            <img key={index} src={cover} alt="" className="h-full w-full object-cover" />
+          ))}
+        </div>
+        <div className="flex min-w-0 flex-col justify-between">
+          <div>
+            <p className="text-2xl font-black leading-tight">{playlist.tracks}</p>
+            <p className="mt-1 text-sm leading-6 text-black/52">Une vraie playlist issue des surfaces deja presentes dans l'app.</p>
+          </div>
+          <Link
+            href={playlist.href}
+            className="mt-3 inline-flex h-10 w-fit items-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-white"
+          >
+            <Play className="h-4 w-4 fill-current" /> Ouvrir
+          </Link>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function CreatorRailCard({ item }: { item: Extract<FeedItem, { kind: 'creator' }> }) {
+  return (
+    <Card className="p-4 sm:p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-lg font-black">{item.title}</p>
+          <p className="text-sm text-black/40">profils qui publient, remixent et font bouger la home</p>
+        </div>
+        <Users className="h-5 w-5 text-black/36" />
+      </div>
+      <div className="no-scrollbar flex gap-3 overflow-x-auto pb-1">
+        {item.creators.map((creator) => (
+          <Link key={creator.id} href={creator.href} className="min-w-[145px] rounded-[1.25rem] bg-black/[0.045] p-3 text-center transition hover:bg-black/[0.07]">
+            <div className="mx-auto mb-3 w-fit">
+              <AvatarBubble value={creator.avatar} size="lg" tint={creator.tint} />
+            </div>
+            <p className="truncate text-sm font-black">{creator.name}</p>
+            <p className="truncate text-xs text-black/36">{creator.handle}</p>
+            <p className="mt-2 text-xs font-bold text-black/50">{creator.followers}</p>
+            <div className="mt-3 grid h-9 place-items-center rounded-full bg-black/[0.06] text-xs font-black text-black/62">
+              Voir profil
+            </div>
+          </Link>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function RadioFeedCard({ item }: { item: RadioItem }) {
+  const { audioState, playTrack } = useAudioPlayer();
+  const isPlayingThis = audioState.tracks[audioState.currentTrackIndex]?._id === item.track._id && audioState.isPlaying;
+
+  return (
+    <InkCard className="p-4 sm:p-5">
+      <div className="flex items-center gap-4">
+        <div className="grid h-16 w-16 place-items-center rounded-[1.25rem] text-red-100" style={{ background: `${item.color}33` }}>
+          <Radio className="h-7 w-7" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-lg font-black">{item.title}</p>
+            <span className="rounded-full px-2.5 py-1 text-[10px] font-black text-red-100" style={{ background: `${item.color}55` }}>
+              LIVE
+            </span>
+          </div>
+          <p className="truncate text-sm text-white/45">{item.subtitle}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold text-white/50">
+            <span>{item.listeners} auditeurs</span>
+            <span>{item.station}</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => playTrack(item.track as any)}
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#fffaf2] text-black"
+        >
+          {isPlayingThis ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
+        </button>
+      </div>
+    </InkCard>
+  );
+}
+
+function StudioCard({ item }: { item: Extract<FeedItem, { kind: 'studio' }> }) {
+  return (
+    <Card
+      className="p-4 sm:p-5"
+      style={{ background: 'linear-gradient(135deg, #fffaf2 0%, #eee7ff 50%, #e2fbff 100%)' }}
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="grid h-14 w-14 place-items-center rounded-[1.2rem] bg-[#171313] text-white">
+            <Wand2 className="h-7 w-7" />
+          </div>
+          <div>
+            <p className="text-lg font-black">{item.title}</p>
+            <p className="mt-1 max-w-xl text-sm leading-6 text-black/54">{item.text}</p>
+          </div>
+        </div>
+        <Link href="/ai-generator" className="inline-flex h-11 items-center justify-center rounded-full bg-[#171313] px-5 text-sm font-black text-white">
+          Ouvrir
+        </Link>
+      </div>
+    </Card>
+  );
+}
+
+function BoosterCard({ item }: { item: Extract<FeedItem, { kind: 'booster' }> }) {
+  return (
+    <Card
+      className="p-4 sm:p-5"
+      style={{ background: 'linear-gradient(135deg, #fff6d7 0%, #ffe4f1 55%, #fffaf2 100%)' }}
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="grid h-14 w-14 place-items-center rounded-[1.2rem] bg-[#171313] text-[#fbbf24]">
+            <Zap className="h-7 w-7" />
+          </div>
+          <div>
+            <p className="text-lg font-black">{item.title}</p>
+            <p className="mt-1 max-w-xl text-sm leading-6 text-black/54">{item.text}</p>
+          </div>
+        </div>
+        <Link href="/boosters" className="inline-flex h-11 items-center justify-center rounded-full bg-[#171313] px-5 text-sm font-black text-white">
+          Booster
+        </Link>
+      </div>
+    </Card>
+  );
+}
+
+function LibraryCard({ item }: { item: Extract<FeedItem, { kind: 'library' }> }) {
+  return (
+    <Link href="/library">
+      <Card className="block p-4 sm:p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <p className="text-lg font-black">{item.title}</p>
+            <p className="text-sm text-black/40">favoris, playlists, IA et ecoutes recentes</p>
+          </div>
+          <Library className="h-5 w-5 text-black/36" />
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {item.stats.map(([value, label]) => (
+            <div key={label} className="rounded-2xl bg-black/[0.045] p-3">
+              <p className="text-xl font-black">{value}</p>
+              <p className="text-xs text-black/38">{label}</p>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </Link>
+  );
+}
+
+function FeedRenderer({ item }: { item: FeedItem }) {
+  if (item.kind === 'composer') return <ComposerCard />;
+  if (item.kind === 'post') return <PostCard item={item} />;
+  if (item.kind === 'track') return <TrackFeedCard item={item} />;
+  if (item.kind === 'rail') return <RailCard item={item} />;
+  if (item.kind === 'playlist') return <PlaylistCard item={item} />;
+  if (item.kind === 'creator') return <CreatorRailCard item={item} />;
+  if (item.kind === 'radio') return <RadioFeedCard item={item} />;
+  if (item.kind === 'studio') return <StudioCard item={item} />;
+  if (item.kind === 'booster') return <BoosterCard item={item} />;
+  return <LibraryCard item={item} />;
+}
+
+function RightColumn({
+  topTracks,
+  radioItem,
+  libraryStats,
+  playlistCount,
+}: {
+  topTracks: Track[];
+  radioItem: RadioItem | null;
+  libraryStats: LibraryStats | null;
+  playlistCount: number;
+}) {
+  const { audioState, playTrack } = useAudioPlayer();
+
+  return (
+    <aside className="hidden space-y-4 xl:block">
+      <InkCard className="p-4">
+        <p className="mb-3 text-sm font-black">Mood du moment</p>
+        <div className="rounded-[1.4rem] bg-white/8 p-4">
+          <p className="text-3xl font-black leading-none">Social.</p>
+          <p className="text-3xl font-black leading-none text-white/55">Music.</p>
+          <p className="mt-3 text-sm leading-6 text-white/45">
+            Recos, playlists, createurs et radios vivent ici avec les vraies donnees de l'application.
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-2xl bg-white/8 p-3">
+              <p className="text-xl font-black">{topTracks.length}</p>
+              <p className="text-xs text-white/45">titres chauds</p>
+            </div>
+            <div className="rounded-2xl bg-white/8 p-3">
+              <p className="text-xl font-black">{playlistCount}</p>
+              <p className="text-xs text-white/45">playlists vues</p>
+            </div>
+          </div>
+        </div>
+      </InkCard>
+
+      <Card className="p-4">
+        <p className="mb-3 text-sm font-black">A ecouter</p>
+        <div className="space-y-3">
+          {topTracks.slice(0, 4).map((track) => {
+            const isPlayingThis = audioState.tracks[audioState.currentTrackIndex]?._id === track.id && audioState.isPlaying;
+            return (
+              <button key={track.id} type="button" onClick={() => playTrack(track.playerTrack as any)} className="flex w-full items-center gap-3 text-left">
+                <img src={track.cover} alt="" className="h-11 w-11 rounded-xl object-cover" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-black">{track.title}</p>
+                  <p className="truncate text-xs text-black/36">{track.artist}</p>
+                </div>
+                {isPlayingThis ? <Pause className="h-4 w-4 text-black/36" /> : <Play className="h-4 w-4 text-black/36" />}
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
+      {radioItem ? (
+        <InkCard className="p-4">
+          <p className="mb-3 text-sm font-black">Radio live</p>
+          <button type="button" onClick={() => playTrack(radioItem.track as any)} className="w-full rounded-[1.4rem] bg-white/8 p-4 text-left">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-lg font-black">{radioItem.title}</p>
+                <p className="mt-1 text-sm text-white/45">{radioItem.listeners} auditeurs</p>
+              </div>
+              <div className="grid h-11 w-11 place-items-center rounded-full bg-[#fffaf2] text-[#171313]">
+                <Radio className="h-4 w-4" />
+              </div>
+            </div>
+          </button>
+        </InkCard>
+      ) : null}
+
+      {libraryStats ? (
+        <Card className="p-4">
+          <p className="mb-3 text-sm font-black">Ton rythme</p>
+          <div className="grid grid-cols-2 gap-2 text-xs font-bold text-black/58">
+            <div className="rounded-2xl bg-black/[0.045] p-3">
+              <p className="text-xl font-black text-[#171313]">{libraryStats.favorites}</p>
+              <p>favoris</p>
+            </div>
+            <div className="rounded-2xl bg-black/[0.045] p-3">
+              <p className="text-xl font-black text-[#171313]">{libraryStats.recent}</p>
+              <p>recentes</p>
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
+      <Card className="p-4">
+        <p className="mb-3 text-sm font-black">Explorer Synaura</p>
+        <div className="grid gap-2 text-xs font-bold text-black/58">
+          <Link href="/discover" className="hover:text-black">
+            Decouvrir
+          </Link>
+          <Link href="/ai-generator" className="hover:text-black">
+            Studio IA
+          </Link>
+          <Link href="/boosters" className="hover:text-black">
+            Boosters
+          </Link>
+          <Link href="/library" className="hover:text-black">
+            Bibliotheque
+          </Link>
+          <Link href="/community" className="hover:text-black">
+            Communaute
+          </Link>
+        </div>
+      </Card>
+    </aside>
+  );
+}
+
+function FeedLoadingState() {
+  return (
+    <div className="space-y-4">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <Card key={index} className="h-44 animate-pulse bg-white/70" />
+      ))}
+    </div>
+  );
+}
+
+function FeedEmptyState({ filter }: { filter: string }) {
+  return (
+    <Card className="p-8 text-center">
+      <p className="text-lg font-black">Rien a montrer pour "{filter}"</p>
+      <p className="mt-2 text-sm text-black/52">On continue de charger les vraies donnees, ou ce filtre n'a pas encore de contenu visible.</p>
+    </Card>
+  );
+}
+
+export default function SynauraWarmFeed() {
+  const { data: session } = useSession();
+  const userId = (session?.user as any)?.id as string | undefined;
+  const [filter, setFilter] = useState('Pour toi');
+  const [loading, setLoading] = useState(true);
+  const [forYouTracks, setForYouTracks] = useState<Track[]>([]);
+  const [trendingTracks, setTrendingTracks] = useState<Track[]>([]);
+  const [recentTracks, setRecentTracks] = useState<Track[]>([]);
+  const [boostedTracks, setBoostedTracks] = useState<Track[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [creators, setCreators] = useState<Creator[]>([]);
+  const [posts, setPosts] = useState<PostItem[]>([]);
+  const [libraryStats, setLibraryStats] = useState<LibraryStats | null>(null);
+  const [radioItems, setRadioItems] = useState<RadioItem[]>([]);
+  const [postCursor, setPostCursor] = useState<string | null>(null);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
+  const [musicCursor, setMusicCursor] = useState(0);
+  const [musicStrategy, setMusicStrategy] = useState<'reco' | 'trending'>('reco');
+  const [hasMoreMusic, setHasMoreMusic] = useState(true);
+  const [extraFeedItems, setExtraFeedItems] = useState<FeedItem[]>([]);
+  const [loadingMoreFeed, setLoadingMoreFeed] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const seenTrackIdsRef = useRef<Set<string>>(new Set());
+
+  const refreshRadio = useCallback(async () => {
+    const [mixx, ximam] = await Promise.all([
+      fetchJson('/api/radio/status?station=mixx_party'),
+      fetchJson('/api/radio/status?station=ximam'),
+    ]);
+
+    const nextRadios: RadioItem[] = [];
+
+    const mixxTrack = buildRadioTrack({
+      id: 'radio-mixx-party',
+      title: safeString(mixx?.data?.currentTrack?.title || 'Mixx Party Radio', 'Mixx Party Radio'),
+      artist: safeString(mixx?.data?.currentTrack?.artist || 'Mixx Party', 'Mixx Party'),
+      streamUrl: safeString(mixx?.data?.streamUrl, 'https://manager11.streamradio.fr:2425/stream'),
+      coverUrl: '/mixxparty1.png',
+      genres: ['Electronic', 'Dance'],
+    });
+    nextRadios.push({
+      id: 'radio-mixx',
+      kind: 'radio',
+      title: safeString(mixx?.data?.name || 'Mixx Party Radio', 'Mixx Party Radio'),
+      subtitle: safeString(mixx?.data?.description || 'radio live en continu', 'radio live en continu'),
+      station: 'Mixx Party',
+      listeners: formatCompact(mixx?.data?.stats?.listeners || 0),
+      color: '#EF4444',
+      track: mixxTrack,
+    });
+
+    const ximamTrack = buildRadioTrack({
+      id: 'radio-ximam',
+      title: safeString(ximam?.data?.currentTrack?.title || 'XimaM Music Radio', 'XimaM Music Radio'),
+      artist: safeString(ximam?.data?.currentTrack?.artist || 'XimaM', 'XimaM'),
+      streamUrl: safeString(ximam?.data?.streamUrl, 'https://manager11.streamradio.fr:2745/stream'),
+      coverUrl: '/ximam-radio-x.svg',
+      genres: ['Creator Radio', 'Synaura'],
+    });
+    nextRadios.push({
+      id: 'radio-ximam',
+      kind: 'radio',
+      title: safeString(ximam?.data?.name || 'XimaM Music Radio', 'XimaM Music Radio'),
+      subtitle: safeString(ximam?.data?.description || 'radio createur en continu', 'radio createur en continu'),
+      station: 'XimaM Radio',
+      listeners: formatCompact(ximam?.data?.stats?.listeners || 0),
+      color: '#8B5CF6',
+      track: ximamTrack,
+    });
+
+    setRadioItems(nextRadios);
+  }, []);
+
+  const refreshHomeData = useCallback(async () => {
+    setLoading(true);
+
+    const [
+      forYouJson,
+      trendingJson,
+      recentJson,
+      boostedJson,
+      playlistsJson,
+      artistsJson,
+      postsJson,
+      libraryPlaylistsJson,
+      libraryFavoritesJson,
+      libraryRecentJson,
+    ] = await Promise.all([
+      fetchJson('/api/ranking/feed?limit=18&ai=1&strategy=reco'),
+      fetchJson('/api/tracks/trending?limit=18'),
+      fetchJson('/api/tracks/recent?limit=18'),
+      fetchJson('/api/tracks/boosted?limit=8'),
+      fetchJson('/api/playlists/popular?limit=8'),
+      fetchJson('/api/artists?sort=trending&limit=8'),
+      fetchJson('/api/posts?limit=4'),
+      userId ? fetchJson(`/api/playlists?user=${encodeURIComponent(userId)}`) : Promise.resolve(null),
+      userId ? fetchJson('/api/tracks?liked=true&limit=60') : Promise.resolve(null),
+      userId ? fetchJson('/api/tracks?recent=true&limit=40') : Promise.resolve(null),
+    ]);
+
+    const forYou = uniqueTracks((Array.isArray(forYouJson?.tracks) ? forYouJson.tracks : []).map(normalizeTrack));
+    const trending = uniqueTracks((Array.isArray(trendingJson?.tracks) ? trendingJson.tracks : []).map(normalizeTrack));
+    const recent = uniqueTracks((Array.isArray(recentJson?.tracks) ? recentJson.tracks : []).map(normalizeTrack));
+    const boosted = uniqueTracks((Array.isArray(boostedJson?.tracks) ? boostedJson.tracks : []).map(normalizeTrack));
+
+    const fallbackCovers = uniqueTracks([...forYou, ...trending, ...recent])
+      .slice(0, 4)
+      .map((track) => track.cover);
+
+    const nextPlaylists = (Array.isArray(playlistsJson?.playlists) ? playlistsJson.playlists : [])
+      .map((playlist: any) => normalizePlaylist(playlist, fallbackCovers))
+      .filter((playlist: Playlist | null): playlist is Playlist => Boolean(playlist));
+
+    const nextCreators = (Array.isArray(artistsJson?.artists) ? artistsJson.artists : [])
+      .map(normalizeCreator)
+      .filter((creator: Creator | null): creator is Creator => Boolean(creator));
+
+    const nextPosts = (Array.isArray(postsJson?.posts) ? postsJson.posts : [])
+      .map(normalizePost)
+      .filter((post: PostItem | null): post is PostItem => Boolean(post));
+
+    setForYouTracks(forYou);
+    setTrendingTracks(trending);
+    setRecentTracks(recent);
+    setBoostedTracks(boosted);
+    setPlaylists(nextPlaylists);
+    setCreators(nextCreators);
+    setPosts(nextPosts);
+    setPostCursor(typeof postsJson?.nextCursor === 'string' ? postsJson.nextCursor : null);
+    setHasMorePosts(Boolean(postsJson?.hasMore));
+    setMusicStrategy('reco');
+    setMusicCursor(typeof forYouJson?.nextCursor === 'number' ? forYouJson.nextCursor : forYou.length);
+    setHasMoreMusic(true);
+    setExtraFeedItems([]);
+    setLoadingMoreFeed(false);
+    seenTrackIdsRef.current = new Set(
+      uniqueTracks([...forYou, ...trending, ...recent, ...boosted])
+        .map((track) => track.id)
+        .filter(Boolean),
+    );
+
+    if (userId) {
+      setLibraryStats({
+        playlists: Array.isArray(libraryPlaylistsJson?.playlists) ? libraryPlaylistsJson.playlists.length : 0,
+        favorites: Array.isArray(libraryFavoritesJson?.tracks) ? libraryFavoritesJson.tracks.length : 0,
+        recent: Array.isArray(libraryRecentJson?.tracks) ? libraryRecentJson.tracks.length : 0,
+        ai: Array.isArray(libraryRecentJson?.tracks)
+          ? libraryRecentJson.tracks.filter((track: any) => String(track?._id || track?.id || '').startsWith('ai-')).length
+          : 0,
+      });
+    } else {
+      setLibraryStats(null);
+    }
+
+    await refreshRadio();
+    setLoading(false);
+  }, [refreshRadio, userId]);
+
+  useEffect(() => {
+    void refreshHomeData();
+  }, [refreshHomeData]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      void refreshRadio();
+    }, 30000);
+    return () => window.clearInterval(interval);
+  }, [refreshRadio]);
+
+  const loadMoreFeed = useCallback(async () => {
+    if (loadingMoreFeed) return;
+
+    const wantsPosts = filter !== 'Sons';
+    const wantsMusic = filter !== 'Posts';
+    const canLoadPosts = wantsPosts && hasMorePosts;
+    const canLoadMusic = wantsMusic && hasMoreMusic;
+
+    if (!canLoadPosts && !canLoadMusic) return;
+
+    setLoadingMoreFeed(true);
+
+    try {
+      let nextItems: FeedItem[] = [];
+
+      if (canLoadPosts) {
+        const postsUrl = postCursor
+          ? `/api/posts?limit=${POST_BATCH_SIZE}&cursor=${encodeURIComponent(postCursor)}`
+          : `/api/posts?limit=${POST_BATCH_SIZE}`;
+        const postsJson = await fetchJson(postsUrl);
+        const nextPosts = (Array.isArray(postsJson?.posts) ? postsJson.posts : [])
+          .map(normalizePost)
+          .filter((post: PostItem | null): post is PostItem => Boolean(post));
+
+        setPostCursor(typeof postsJson?.nextCursor === 'string' ? postsJson.nextCursor : null);
+        setHasMorePosts(Boolean(postsJson?.hasMore));
+
+        if (nextPosts.length) {
+          nextItems = nextPosts;
+        }
+      }
+
+      if (!nextItems.length && canLoadMusic) {
+        const activeStrategy = musicStrategy;
+        const musicJson = await fetchJson(
+          `/api/ranking/feed?limit=${MUSIC_BATCH_SIZE}&ai=1&strategy=${activeStrategy}&cursor=${musicCursor}`,
+        );
+        const rawTracks = Array.isArray(musicJson?.tracks) ? musicJson.tracks : [];
+        const normalizedTracks = uniqueTracks(rawTracks.map(normalizeTrack));
+        const musicOffset = seenTrackIdsRef.current.size;
+        const uniqueNewTracks = normalizedTracks.filter((track) => !seenTrackIdsRef.current.has(track.id));
+
+        uniqueNewTracks.forEach((track) => {
+          seenTrackIdsRef.current.add(track.id);
+        });
+
+        const nextCursorValue =
+          typeof musicJson?.nextCursor === 'number' ? musicJson.nextCursor : musicCursor + rawTracks.length;
+        const apiHasMore = Boolean(musicJson?.hasMore);
+
+        setMusicCursor(nextCursorValue);
+
+        if (!apiHasMore && activeStrategy === 'reco') {
+          setMusicStrategy('trending');
+          setMusicCursor(0);
+          setHasMoreMusic(true);
+        } else {
+          setHasMoreMusic(apiHasMore);
+        }
+
+        if (uniqueNewTracks.length) {
+          nextItems = buildInfiniteMusicItems(uniqueNewTracks, activeStrategy, musicOffset);
+        }
+      }
+
+      if (nextItems.length) {
+        setExtraFeedItems((current) => [...current, ...nextItems]);
+      }
+    } catch {
+      notify.error('', 'Impossible de charger la suite du feed');
+    } finally {
+      setLoadingMoreFeed(false);
+    }
+  }, [filter, hasMoreMusic, hasMorePosts, loadingMoreFeed, musicCursor, musicStrategy, postCursor]);
+
+  const heroTracks = useMemo(() => {
+    const merged = uniqueTracks([...forYouTracks, ...trendingTracks, ...recentTracks]);
+    return merged.slice(0, 5);
+  }, [forYouTracks, trendingTracks, recentTracks]);
+
+  const baseFeedItems = useMemo(
+    () =>
+      buildFeedItems({
+        posts,
+        forYouTracks,
+        trendingTracks,
+        recentTracks,
+        boostedTracks,
+        playlists,
+        creators,
+        radios: radioItems,
+        libraryStats,
+      }),
+    [posts, forYouTracks, trendingTracks, recentTracks, boostedTracks, playlists, creators, radioItems, libraryStats],
+  );
+
+  const feedItems = useMemo(() => [...baseFeedItems, ...extraFeedItems], [baseFeedItems, extraFeedItems]);
+  const visibleItems = useMemo(() => feedItems.filter((item) => matchesFilter(item, filter)), [feedItems, filter]);
+  const canLoadMoreFeed = useMemo(() => {
+    if (loading) return false;
+    if (filter === 'Playlists' || filter === 'Createurs' || filter === 'Radio') return false;
+    if (filter === 'Posts') return hasMorePosts;
+    if (filter === 'Sons') return hasMoreMusic;
+    return hasMorePosts || hasMoreMusic;
+  }, [filter, hasMoreMusic, hasMorePosts, loading]);
+
+  const rightColumnTracks = useMemo(() => uniqueTracks([...boostedTracks, ...trendingTracks, ...forYouTracks]).slice(0, 6), [boostedTracks, trendingTracks, forYouTracks]);
+  const primaryRadio = radioItems[0] || null;
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || !canLoadMoreFeed) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          void loadMoreFeed();
+        }
+      },
+      { rootMargin: '420px 0px' },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [canLoadMoreFeed, loadMoreFeed, visibleItems.length]);
+
+  return (
+    <AppShell>
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+
+      <TopBar />
+      <SynauraRouteNav />
+      <SynauraAnnouncementStrip />
+      <MiniCarousel tracks={heroTracks} />
+      <MobileActions />
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,760px)_330px] xl:justify-center">
+        <main className="mx-auto w-full max-w-[760px] pb-28">
+          <div className="sticky top-[82px] z-30 -mx-3 mb-4 border-y border-black/[0.08] bg-[#F4EFE6]/88 px-3 py-3 backdrop-blur-2xl sm:mx-0 sm:rounded-[1.3rem] sm:border">
+            <div className="no-scrollbar flex gap-2 overflow-x-auto">
+              {FILTERS.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setFilter(item)}
+                  className={`h-10 shrink-0 rounded-full px-4 text-sm font-black transition ${
+                    filter === item ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/55 hover:bg-black/[0.09]'
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {loading && !visibleItems.length ? <FeedLoadingState /> : null}
+
+          {!loading && !visibleItems.length ? <FeedEmptyState filter={filter} /> : null}
+
+          {visibleItems.length ? (
+            <div className="space-y-4">
+              {visibleItems.map((item) => (
+                <FeedRenderer key={item.id} item={item} />
+              ))}
+            </div>
+          ) : null}
+
+          {canLoadMoreFeed ? (
+            <div className="pb-6 pt-4">
+              {loadingMoreFeed ? (
+                <div className="rounded-[1.4rem] border border-black/[0.08] bg-[#fffaf2]/80 px-4 py-3 text-center text-sm font-bold text-black/46">
+                  Le feed charge la suite...
+                </div>
+              ) : null}
+              <div ref={loadMoreRef} className="h-6" />
+            </div>
+          ) : null}
+        </main>
+
+        <RightColumn
+          topTracks={rightColumnTracks}
+          radioItem={primaryRadio}
+          libraryStats={libraryStats}
+          playlistCount={playlists.length}
+        />
+      </div>
+    </AppShell>
+  );
+}

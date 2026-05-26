@@ -19,6 +19,7 @@ import {
   User, Bookmark, Zap, Sparkles, Disc3,
 } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
 import { notify } from '@/components/NotificationCenter';
 
 import { useAudioPlayer } from '@/app/providers';
@@ -29,7 +30,6 @@ import { getCdnUrl } from '@/lib/cdn';
 import { applyCdnToTracks } from '@/lib/cdnHelpers';
 
 import FollowButton from '@/components/FollowButton';
-import CommentDialog from '@/components/CommentDialog';
 import DownloadDialog from '@/components/DownloadDialog';
 import QueueBubble from '@/components/QueueBubble';
 import QueueDialog from '@/components/QueueDialog';
@@ -63,6 +63,23 @@ interface Track {
   shares?: number;
   isBoosted?: boolean;
   isAI?: boolean;
+  createdAt?: string;
+  tags?: string[];
+}
+
+interface PlayerCommentUser {
+  id: string;
+  username: string;
+  name: string;
+  avatar?: string;
+}
+
+interface PlayerComment {
+  id: string;
+  content: string;
+  createdAt: string;
+  user: PlayerCommentUser;
+  replies: PlayerComment[];
 }
 
 interface TikTokPlayerProps {
@@ -70,6 +87,8 @@ interface TikTokPlayerProps {
   onClose: () => void;
   initialTrackId?: string;
 }
+
+type FeedMode = 'reco' | 'trending' | 'boost';
 
 /* ═══════════════════════════════════════════════════════════════
    CONSTANTS
@@ -91,6 +110,24 @@ const RADIO_POLL_MS = 8_000;
 
 /** Virtual window — only render activeIndex ± RENDER_BUFFER */
 const RENDER_BUFFER = 1;
+
+const FEED_MODE_META: Record<FeedMode, { label: string; accent: string; description: string }> = {
+  reco: {
+    label: 'Pour toi',
+    accent: 'from-fuchsia-500/50 via-violet-500/35 to-sky-500/40',
+    description: 'une suite personnalisee qui reste proche du son de depart',
+  },
+  trending: {
+    label: 'Tendances',
+    accent: 'from-amber-400/50 via-orange-500/35 to-rose-500/35',
+    description: 'les morceaux qui prennent de la vitesse maintenant',
+  },
+  boost: {
+    label: 'Boost',
+    accent: 'from-cyan-400/40 via-violet-500/35 to-fuchsia-500/45',
+    description: 'les titres pousses dans l’app, melanges au feed principal',
+  },
+};
 
 const RADIO_TRACKS: Track[] = [
   {
@@ -155,6 +192,119 @@ function coverUrl(track: Track | null): string | null {
   return typeof url === 'string' && url.includes('res.cloudinary.com')
     ? url.replace('/upload/', '/upload/f_auto,q_auto/')
     : url;
+}
+
+function topGenre(track: Track | null): string | null {
+  const genre = (track?.genre || [])
+    .map((value) => String(value || '').trim())
+    .find(Boolean);
+  return genre || null;
+}
+
+function uniqueTracks(tracks: Track[]): Track[] {
+  const seen = new Set<string>();
+  const result: Track[] = [];
+  for (const track of tracks) {
+    const id = trackId(track);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    result.push(track);
+  }
+  return result;
+}
+
+function insertRadioTracks(tracks: Track[], mode: FeedMode): Track[] {
+  if (!tracks.length) return RADIO_TRACKS;
+
+  const result = [...tracks];
+  const positions = mode === 'boost' ? [4, 11] : mode === 'trending' ? [6] : [8];
+
+  RADIO_TRACKS.forEach((radioTrack, radioIndex) => {
+    if (result.some((track) => trackId(track) === radioTrack._id)) return;
+    const fallback = Math.min(result.length, 6 + radioIndex * 6);
+    const insertAt = Math.min(result.length, positions[radioIndex] ?? fallback);
+    result.splice(insertAt, 0, radioTrack);
+  });
+
+  return result;
+}
+
+async function fetchFeedChunk(mode: FeedMode, cursor: number, seedGenre: string | null) {
+  const params = new URLSearchParams({
+    limit: String(FEED_LIMIT),
+    ai: '1',
+    cursor: String(Math.max(0, cursor)),
+  });
+
+  if (mode === 'trending') {
+    params.set('strategy', 'trending');
+  } else {
+    params.set('strategy', 'reco');
+    if (seedGenre) params.set('genre', seedGenre);
+  }
+
+  const [feedRes, boostedTracks] = await Promise.all([
+    fetch(`/api/ranking/feed?${params.toString()}`, { cache: 'no-store' }).then((response) => response.json()),
+    fetchBoosted(),
+  ]);
+
+  const feedTracks = applyCdnToTracks(Array.isArray(feedRes?.tracks) ? feedRes.tracks : []) as Track[];
+
+  let merged: Track[] = feedTracks;
+  if (mode === 'boost') {
+    merged = uniqueTracks([
+      ...boostedTracks.slice(0, Math.min(boostedTracks.length, 6)),
+      ...injectBoosted(feedTracks, boostedTracks, 2),
+    ]);
+  } else if (mode === 'trending') {
+    merged = injectBoosted(feedTracks, boostedTracks, 6);
+  } else {
+    merged = injectBoosted(feedTracks, boostedTracks, BOOSTED_INTERVAL);
+  }
+
+  if (mode === 'reco' && seedGenre && merged.length < 16) {
+    const fallbackParams = new URLSearchParams({
+      limit: String(FEED_LIMIT),
+      ai: '1',
+      cursor: String(Math.max(0, cursor)),
+      strategy: 'reco',
+    });
+    const fallbackRes = await fetch(`/api/ranking/feed?${fallbackParams.toString()}`, { cache: 'no-store' }).then((response) => response.json());
+    const fallbackTracks = applyCdnToTracks(Array.isArray(fallbackRes?.tracks) ? fallbackRes.tracks : []) as Track[];
+    merged = uniqueTracks([...merged, ...injectBoosted(fallbackTracks, boostedTracks, BOOSTED_INTERVAL)]);
+  }
+
+  return {
+    tracks: uniqueTracks(merged),
+    nextCursor: typeof feedRes?.nextCursor === 'number' ? feedRes.nextCursor : cursor + feedTracks.length,
+    hasMore: Boolean(feedRes?.hasMore),
+  };
+}
+
+function normalizePlayerComment(raw: any): PlayerComment {
+  return {
+    id: String(raw?.id || ''),
+    content: String(raw?.content || ''),
+    createdAt: String(raw?.createdAt || raw?.created_at || new Date().toISOString()),
+    user: {
+      id: String(raw?.user?.id || raw?.user_id || ''),
+      username: String(raw?.user?.username || 'utilisateur'),
+      name: String(raw?.user?.name || raw?.user?.username || 'Membre'),
+      avatar: typeof raw?.user?.avatar === 'string' ? raw.user.avatar : '',
+    },
+    replies: Array.isArray(raw?.replies) ? raw.replies.map(normalizePlayerComment) : [],
+  };
+}
+
+async function copyTextToClipboard(value: string, successMessage: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+    notify.success('OK', successMessage);
+    return true;
+  } catch {
+    notify.error('Erreur', 'Impossible de copier');
+    return false;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -785,6 +935,7 @@ interface TrackSlideProps {
   displayArtist: string;
   likesCount: number;
   rawComments: number;
+  shareCount: number;
   isLiked: boolean;
   lyricsOpen: boolean;
   radioMeta: RadioMeta | null;
@@ -809,7 +960,7 @@ interface TrackSlideProps {
 const TrackSlide = memo(function TrackSlide(props: TrackSlideProps) {
   const {
     track: t, index, isActive, isPlaying, duration, isRadio,
-    displayTitle, displayArtist, likesCount, rawComments,
+    displayTitle, displayArtist, likesCount, rawComments, shareCount,
     isLiked, lyricsOpen, radioMeta, albumContext, canDownload,
     onCoverTap, onDoubleTapLike, onToggleLike, onComments,
     onShare, onDownload, onAddToQueue, onToggleLyrics,
@@ -926,7 +1077,7 @@ const TrackSlide = memo(function TrackSlide(props: TrackSlideProps) {
         />
         <ActionBtn
           icon={Share2}
-          label={t.shares || 0}
+          label={shareCount}
           onClick={e => { e.stopPropagation(); onShare(t); }}
         />
         <ActionBtn
@@ -1065,6 +1216,325 @@ const TrackSlide = memo(function TrackSlide(props: TrackSlideProps) {
    COMPONENT: LoadingScreen
    ═══════════════════════════════════════════════════════════════ */
 
+function formatCommentTime(value: string) {
+  const date = new Date(value);
+  const timestamp = date.getTime();
+  if (!Number.isFinite(timestamp)) return '';
+  const diffMinutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+  if (diffMinutes < 1) return 'a l’instant';
+  if (diffMinutes < 60) return `il y a ${diffMinutes} min`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `il y a ${diffHours}h`;
+  return date.toLocaleDateString('fr-FR');
+}
+
+function CommentIdentity({ comment }: { comment: PlayerComment }) {
+  const letter = (comment.user.name || comment.user.username || '?').slice(0, 1).toUpperCase();
+  return (
+    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-black text-white ring-1 ring-white/10">
+      {letter}
+    </div>
+  );
+}
+
+function PlayerCommentsDrawer({
+  isOpen,
+  track,
+  commentCount,
+  onClose,
+  onCountChange,
+}: {
+  isOpen: boolean;
+  track: Track | null;
+  commentCount: number;
+  onClose: () => void;
+  onCountChange: (trackIdValue: string, nextCount: number) => void;
+}) {
+  const { data: session } = useSession();
+  const [comments, setComments] = useState<PlayerComment[]>([]);
+  const [text, setText] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+
+  const trackIdValue = trackId(track);
+  const disabled = !trackIdValue || isRadioId(trackIdValue) || trackIdValue.startsWith('ai-');
+
+  const loadComments = useCallback(async (mode: 'initial' | 'more' = 'initial') => {
+    if (!trackIdValue || disabled) {
+      setComments([]);
+      setHasMore(false);
+      setOffset(0);
+      return;
+    }
+
+    const nextOffset = mode === 'initial' ? 0 : offset;
+    if (mode === 'initial') setLoading(true);
+
+    try {
+      const response = await fetch(`/api/tracks/${encodeURIComponent(trackIdValue)}/comments?limit=8&offset=${nextOffset}`, {
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => null);
+      const nextComments = (Array.isArray(payload?.comments) ? payload.comments : []).map(normalizePlayerComment);
+
+      setComments((current) => (mode === 'initial' ? nextComments : [...current, ...nextComments]));
+      setHasMore(Boolean(payload?.hasMore));
+      setOffset(typeof payload?.nextOffset === 'number' ? payload.nextOffset : nextOffset + nextComments.length);
+    } catch {
+      notify.error('Erreur', 'Impossible de charger les commentaires');
+    } finally {
+      if (mode === 'initial') setLoading(false);
+    }
+  }, [disabled, offset, trackIdValue]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setText('');
+    void loadComments('initial');
+  }, [isOpen, loadComments, trackIdValue]);
+
+  const handleSubmit = useCallback(async () => {
+    if (!trackIdValue || disabled || !text.trim()) return;
+    if (!session?.user) {
+      notify.error('Erreur', 'Connecte-toi pour commenter');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(`/api/tracks/${encodeURIComponent(trackIdValue)}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: text.trim() }),
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Impossible d’envoyer le commentaire');
+      }
+
+      const nextComment = normalizePlayerComment(payload?.comment);
+      setComments((current) => [nextComment, ...current]);
+      onCountChange(trackIdValue, commentCount + 1);
+      setText('');
+    } catch (error: any) {
+      notify.error('Erreur', error?.message || 'Impossible d’envoyer le commentaire');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [commentCount, disabled, onCountChange, session?.user, text, trackIdValue]);
+
+  const renderComment = (comment: PlayerComment, nested = false) => (
+    <div key={`${nested ? 'reply' : 'comment'}-${comment.id}`} className={nested ? 'ml-11 mt-2' : ''}>
+      <div className="flex gap-3">
+        <CommentIdentity comment={comment} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-sm font-black text-white">{comment.user.name}</span>
+            <span className="text-xs font-semibold text-white/38">@{comment.user.username}</span>
+            <span className="text-xs font-semibold text-white/28">{formatCommentTime(comment.createdAt)}</span>
+          </div>
+          <p className="mt-1 text-sm leading-6 text-white/72">{comment.content}</p>
+          {comment.replies.length ? <div className="mt-2 space-y-2">{comment.replies.map((reply) => renderComment(reply, true))}</div> : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div key="comments-drawer" className="fixed inset-0 z-[135]">
+        <motion.button
+          type="button"
+          aria-label="Fermer les commentaires"
+          className="absolute inset-0 bg-black/62 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+        />
+        <div className="absolute inset-x-0 bottom-0 flex justify-center px-3 pb-[max(env(safe-area-inset-bottom,12px),12px)] pt-24">
+          <motion.div
+            initial={{ y: 24, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 24, opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            className="relative w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#09070d]/94 shadow-[0_30px_90px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
+            onClick={(event: MouseEvent<HTMLDivElement>) => event.stopPropagation()}
+          >
+            <div className="border-b border-white/10 px-5 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-white/40">Commentaires ancrés au player</p>
+                  <h3 className="mt-1 text-lg font-black text-white">{track?.title || 'Commentaires'}</h3>
+                  <p className="mt-1 text-sm text-white/48">
+                    {commentCount ? `${fmtCount(commentCount)} reactions dans le fil` : 'Aucune reaction pour le moment'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/8 text-white/68 transition hover:bg-white/12 hover:text-white"
+                >
+                  <ChevronDown className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
+              {disabled ? (
+                <p className="rounded-[1.25rem] border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/52">
+                  Les commentaires ne sont pas disponibles sur cette source.
+                </p>
+              ) : loading ? (
+                <div className="flex items-center gap-2 text-sm text-white/48">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Chargement...
+                </div>
+              ) : comments.length ? (
+                <div className="space-y-4">{comments.map((comment) => renderComment(comment))}</div>
+              ) : (
+                <p className="rounded-[1.25rem] border border-white/10 bg-white/5 px-4 py-4 text-sm text-white/52">
+                  Aucun commentaire pour le moment. Lance la conversation sans quitter le feed.
+                </p>
+              )}
+
+              {hasMore && !disabled ? (
+                <button
+                  type="button"
+                  onClick={() => void loadComments('more')}
+                  className="mt-4 inline-flex h-10 items-center rounded-full border border-white/10 bg-white/8 px-4 text-xs font-black uppercase tracking-[0.18em] text-white/62 transition hover:bg-white/12 hover:text-white"
+                >
+                  Charger plus
+                </button>
+              ) : null}
+            </div>
+
+            {!disabled ? (
+              <div className="border-t border-white/10 px-5 py-4">
+                <textarea
+                  value={text}
+                  onChange={(event) => setText(event.target.value)}
+                  className="min-h-[88px] w-full rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-white/26 focus:border-white/22"
+                  placeholder="Ecris une reponse sans sortir du player..."
+                />
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <p className="text-xs text-white/34">Tout reste dans cette couche du player.</p>
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={submitting || !text.trim()}
+                    className="inline-flex h-11 items-center rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] transition hover:opacity-92 disabled:opacity-50"
+                  >
+                    {submitting ? 'Envoi...' : 'Publier'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </motion.div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+function PlayerShareDrawer({
+  isOpen,
+  track,
+  albumContext,
+  onClose,
+  onShared,
+}: {
+  isOpen: boolean;
+  track: Track | null;
+  albumContext: { id: string; name: string } | null;
+  onClose: () => void;
+  onShared: (trackIdValue: string) => void;
+}) {
+  const trackIdValue = trackId(track);
+
+  const shareUrl = useMemo(() => {
+    if (!trackIdValue) return '';
+    if (albumContext) return `${window.location.origin}/album/${albumContext.id}`;
+    return `${window.location.origin}/track/${trackIdValue}`;
+  }, [albumContext, trackIdValue]);
+
+  const shareText = useMemo(() => {
+    if (!track) return '';
+    const label = albumContext ? albumContext.name : track.title;
+    const artist = track.artist?.name || track.artist?.username || 'Synaura';
+    return `Ecoute ${label} de ${artist} sur Synaura\n${shareUrl}`;
+  }, [albumContext, shareUrl, track]);
+
+  const handleCopy = useCallback(async (value: string, successMessage: string) => {
+    if (!trackIdValue || !value) return;
+    const copied = await copyTextToClipboard(value, successMessage);
+    if (!copied) return;
+    onShared(trackIdValue);
+    onClose();
+  }, [onClose, onShared, trackIdValue]);
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div key="share-drawer" className="fixed inset-0 z-[134]">
+        <motion.button
+          type="button"
+          aria-label="Fermer le partage"
+          className="absolute inset-0 bg-black/58 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+        />
+        <div className="absolute inset-x-0 bottom-0 flex justify-center px-3 pb-[max(env(safe-area-inset-bottom,12px),12px)] pt-24">
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 20, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="relative w-full max-w-xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#09070d]/94 p-5 shadow-[0_30px_90px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
+            onClick={(event: MouseEvent<HTMLDivElement>) => event.stopPropagation()}
+          >
+            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-white/40">Partager sans quitter le player</p>
+            <h3 className="mt-2 text-lg font-black text-white">{track?.title || 'Partager'}</h3>
+            <p className="mt-1 text-sm text-white/52">
+              On garde le partage dans le feed: rien ne renvoie vers une autre couche.
+            </p>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => void handleCopy(shareUrl, 'Lien copie')}
+                className="inline-flex h-11 items-center justify-center rounded-full bg-[#fffaf2] px-4 text-sm font-black text-[#171313] transition hover:opacity-92"
+              >
+                Copier le lien
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCopy(shareText, 'Texte copie')}
+                className="inline-flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/8 px-4 text-sm font-black text-white/78 transition hover:bg-white/12 hover:text-white"
+              >
+                Copier le texte
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-[1.25rem] border border-white/10 bg-white/5 p-4 text-sm text-white/58">
+              <p className="font-semibold text-white/78">{track?.artist?.name || track?.artist?.username || 'Synaura'}</p>
+              <p className="mt-1 break-all text-xs leading-6 text-white/42">{shareUrl}</p>
+            </div>
+          </motion.div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 const LoadingScreen = memo(function LoadingScreen() {
   return (
     <div className="fixed inset-0 z-[100] bg-black text-white grid place-items-center">
@@ -1100,13 +1570,18 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const { loading, tracks, activeIndex } = feed;
 
   /* ── UI state ── */
+  const [feedMode, setFeedMode] = useState<FeedMode>('reco');
+  const [seedGenre, setSeedGenre] = useState<string | null>(null);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [showDownloadDialog, setShowDownloadDialog] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [burstKey, setBurstKey] = useState(0);
   const [burstVisible, setBurstVisible] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
+  const [commentCountOverrides, setCommentCountOverrides] = useState<Record<string, number>>({});
+  const [shareCountOverrides, setShareCountOverrides] = useState<Record<string, number>>({});
 
   /* ── Refs ── */
   const didBootRef = useRef(false);
@@ -1115,10 +1590,11 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const prevQueueRef = useRef<{ tracks: any[]; currentTrackIndex: number } | null>(null);
   const openedTrackIdRef = useRef<string | null>(null);
   const changedTrackRef = useRef(false);
-  const feedLoadedRef = useRef(false);
+  const feedLoadedRef = useRef('');
   const openSeedIdRef = useRef<string | null>(null);
   const lastViewedRef = useRef<string | null>(null);
   const burstTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const loadRequestRef = useRef(0);
 
   /* ── Derived ── */
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
@@ -1126,11 +1602,16 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const activeTrack = tracks[activeIndex] ?? null;
   const activeTrackId = trackId(activeTrack);
   const activeIsRadio = isRadioId(activeTrackId);
-  const modalsOpen = commentsOpen || showDownloadDialog || lyricsOpen;
+  const currentSeedGenre = seedGenre || topGenre(currentTrack as Track | null) || topGenre(activeTrack);
+  const modeMeta = FEED_MODE_META[feedMode];
+  const resolveCommentCount = (id: string, rawValue: unknown) =>
+    id ? commentCountOverrides[id] ?? commentCounts[id] ?? countOf(rawValue) : 0;
+  const modalsOpen = commentsOpen || shareOpen || showQueue || showDownloadDialog || lyricsOpen;
 
   /* ── Hooks ── */
   const radioMeta = useRadioNowPlaying(activeTrackId, isOpen);
   const commentCounts = useCommentCounts(tracks, isOpen);
+  const activeCommentCount = resolveCommentCount(activeTrackId, activeTrack?.comments);
   usePreloader(tracks, activeIndex, isOpen);
 
   const { isLiked, likesCount, toggleLike, checkLikeStatus } = useLikeSystem({
@@ -1176,8 +1657,15 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
       }
       openedTrackIdRef.current = null;
       changedTrackRef.current = false;
-      feedLoadedRef.current = false;
+      feedLoadedRef.current = '';
       openSeedIdRef.current = null;
+      lastViewedRef.current = null;
+      loadRequestRef.current += 1;
+      setCommentsOpen(false);
+      setShareOpen(false);
+      setShowQueue(false);
+      setLyricsOpen(false);
+      setSeedGenre(null);
       onClose();
     }, [onClose, setCurrentTrackIndex, setTracks]),
   });
@@ -1192,8 +1680,16 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     }
     openedTrackIdRef.current = null;
     changedTrackRef.current = false;
-    feedLoadedRef.current = false;
+    feedLoadedRef.current = '';
     openSeedIdRef.current = null;
+    lastViewedRef.current = null;
+    loadRequestRef.current += 1;
+    setCommentsOpen(false);
+    setLyricsOpen(false);
+    setShareOpen(false);
+    setShowQueue(false);
+    setLyricsOpen(false);
+    setSeedGenre(null);
     onClose();
   }, [onClose, setCurrentTrackIndex, setTracks]);
 
@@ -1233,31 +1729,38 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     if (!openSeedIdRef.current) {
       openSeedIdRef.current = initialTrackId || openedTrackIdRef.current || null;
     }
+    if (!seedGenre) {
+      const seedTrack =
+        (audioState.tracks?.find((track) => trackId(track as any) === openSeedIdRef.current) as Track | undefined) ||
+        (audioState.tracks?.[audioState.currentTrackIndex] as Track | undefined) ||
+        undefined;
+      setSeedGenre(topGenre(seedTrack || null));
+    }
     changedTrackRef.current = false;
-  }, [audioState.currentTrackIndex, audioState.tracks, isOpen, initialTrackId]);
+  }, [audioState.currentTrackIndex, audioState.tracks, isOpen, initialTrackId, seedGenre]);
 
   /* ── Load feed ── */
   useEffect(() => {
-    if (!isOpen || feedLoadedRef.current) return;
-    feedLoadedRef.current = true;
+    const seedId = openSeedIdRef.current || openedTrackIdRef.current || initialTrackId || '';
+    const loadKey = `${feedMode}:${currentSeedGenre || 'all'}:${seedId}`;
+    if (!isOpen || feedLoadedRef.current === loadKey) return;
+    feedLoadedRef.current = loadKey;
     let mounted = true;
+    const requestId = ++loadRequestRef.current;
     didBootRef.current = false;
     setCommentsOpen(false);
+    setShareOpen(false);
+    setShowQueue(false);
     setLyricsOpen(false);
     suppressAutoplayRef.current = true;
     dispatch({ type: 'LOAD_START' });
 
     (async () => {
       try {
-        const [feedRes, boosted] = await Promise.all([
-          fetch(`/api/ranking/feed?limit=${FEED_LIMIT}&ai=1&strategy=reco&cursor=0`, { cache: 'no-store' }).then(r => r.json()),
-          fetchBoosted(),
-        ]);
-        if (!mounted) return;
+        const chunk = await fetchFeedChunk(feedMode, 0, currentSeedGenre);
+        if (!mounted || requestId !== loadRequestRef.current) return;
 
-        const regular = applyCdnToTracks(Array.isArray(feedRes?.tracks) ? feedRes.tracks : []) as Track[];
-        const withBoosted = injectBoosted(regular, boosted);
-        const merged: Track[] = [...RADIO_TRACKS, ...withBoosted];
+        const merged: Track[] = insertRadioTracks(chunk.tracks, feedMode);
 
         const prev = prevQueueRef.current;
         const prevCurrent = prev?.tracks?.[prev.currentTrackIndex] ?? null;
@@ -1282,8 +1785,8 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
           type: 'LOAD_SUCCESS',
           tracks: merged,
           startIndex,
-          cursor: typeof feedRes?.nextCursor === 'number' ? feedRes.nextCursor : merged.length,
-          hasMore: Boolean(feedRes?.hasMore),
+          cursor: chunk.nextCursor,
+          hasMore: chunk.hasMore,
         });
 
         requestAnimationFrame(() => {
@@ -1291,12 +1794,15 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
           suppressAutoplayRef.current = false;
         });
       } catch {
-        if (mounted) dispatch({ type: 'LOAD_FAIL' });
+        if (mounted && requestId === loadRequestRef.current) {
+          dispatch({ type: 'LOAD_FAIL' });
+          suppressAutoplayRef.current = false;
+        }
       }
     })();
     return () => { mounted = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, feedMode, currentSeedGenre, initialTrackId]);
 
   /* ── Boot sync — instant scroll ── */
   useEffect(() => {
@@ -1336,34 +1842,29 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
   /* ── Infinite scroll ── */
   useEffect(() => {
-    if (!isOpen || feed.loadingMore || !tracks.length) return;
+    if (!isOpen || feed.loadingMore || !feed.hasMore || !tracks.length) return;
     if (activeIndex < tracks.length - INFINITE_SCROLL_THRESHOLD) return;
     dispatch({ type: 'SET_LOADING_MORE', value: true });
 
     (async () => {
       try {
-        const cursor = feed.hasMore ? feed.cursor : 0;
-        const [feedRes, boosted] = await Promise.all([
-          fetch(`/api/ranking/feed?limit=${FEED_LIMIT}&ai=1&strategy=reco&cursor=${cursor}`, { cache: 'no-store' }).then(r => r.json()),
-          fetchBoosted(),
-        ]);
-        const regular = applyCdnToTracks(Array.isArray(feedRes?.tracks) ? feedRes.tracks : []) as Track[];
-        const withBoosted = injectBoosted(regular, boosted, 4);
+        const chunk = await fetchFeedChunk(feedMode, feed.cursor, currentSeedGenre);
+        const withBoosted = chunk.tracks;
 
         dispatch({
           type: 'APPEND',
           tracks: withBoosted,
-          cursor: typeof feedRes?.nextCursor === 'number' ? feedRes.nextCursor : cursor + regular.length,
-          hasMore: Boolean(feedRes?.hasMore),
+          cursor: chunk.nextCursor,
+          hasMore: chunk.hasMore,
         });
         // Sync global player queue
-        setTracks([...tracks, ...withBoosted] as any);
+        setTracks(uniqueTracks([...tracks, ...withBoosted]) as any);
       } catch {
         dispatch({ type: 'SET_LOADING_MORE', value: false });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeIndex, isOpen]);
+  }, [activeIndex, isOpen, feed.cursor, feed.hasMore, feed.loadingMore, feedMode, currentSeedGenre, tracks]);
 
   /* ── Sync external track change → scroll ── */
   useEffect(() => {
@@ -1377,21 +1878,41 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   }, [audioState.currentTrackIndex, isOpen, tracks.length, modalsOpen, activeIndex, scrollSnap]);
 
   /* ── Handlers ── */
-  const onShare = useCallback(async (t: Track) => {
-    const url = albumContext
-      ? `${window.location.origin}/album/${albumContext.id}`
-      : `${window.location.origin}/track/${t._id}`;
-    const title = albumContext ? albumContext.name : t.title;
-    try {
-      if ((navigator as any).share) {
-        await (navigator as any).share({ title, text: `Ecoute ${title} sur Synaura`, url });
-      } else {
-        await navigator.clipboard.writeText(url);
+  const onShare = useCallback((t: Track) => {
+    if (!t?._id) return;
+    setCommentsOpen(false);
+    setLyricsOpen(false);
+    setShareOpen(true);
+    return;
         notify.success('OK', 'Lien copié !');
-      }
-      try { sendTrackEvents(t._id, { event_type: 'share', source: 'tiktok-player' }); } catch { /* noop */ }
-    } catch { /* noop */ }
-  }, [albumContext]);
+  }, []);
+
+  const handleFeedModeChange = useCallback((mode: FeedMode) => {
+    if (mode === feedMode) return;
+    feedLoadedRef.current = '';
+    setCommentsOpen(false);
+    setShareOpen(false);
+    setLyricsOpen(false);
+    setFeedMode(mode);
+  }, [feedMode]);
+
+  const handleCommentCountChange = useCallback((trackIdValue: string, nextCount: number) => {
+    if (!trackIdValue) return;
+    setCommentCountOverrides((current) => ({
+      ...current,
+      [trackIdValue]: Math.max(0, nextCount),
+    }));
+  }, []);
+
+  const handleShared = useCallback((trackIdValue: string) => {
+    if (!trackIdValue) return;
+    const sourceTrack = tracks.find((track) => track._id === trackIdValue);
+    setShareCountOverrides((current) => ({
+      ...current,
+      [trackIdValue]: (current[trackIdValue] ?? countOf(sourceTrack?.shares)) + 1,
+    }));
+    try { sendTrackEvents(trackIdValue, { event_type: 'share', source: 'tiktok-player' }); } catch { /* noop */ }
+  }, [tracks]);
 
   const handleDownload = useCallback(() => {
     if (!activeTrack) return;
@@ -1489,6 +2010,34 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
               </div>
               <div className="w-10" />
             </div>
+            <div className="mt-3 rounded-[1.4rem] border border-white/10 bg-black/26 p-2.5 backdrop-blur-2xl">
+              <div className="flex gap-2 overflow-x-auto scrollbar-none">
+                {(Object.keys(FEED_MODE_META) as FeedMode[]).map((mode) => {
+                  const meta = FEED_MODE_META[mode];
+                  const active = mode === feedMode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => handleFeedModeChange(mode)}
+                      className={`inline-flex min-w-fit items-center rounded-full px-4 py-2 text-xs font-black transition ${
+                        active
+                          ? 'bg-[#fffaf2] text-[#171313] shadow-[0_10px_30px_rgba(0,0,0,0.22)]'
+                          : 'bg-white/7 text-white/64 hover:bg-white/12 hover:text-white'
+                      }`}
+                    >
+                      {meta.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className={`mt-2 rounded-[1.1rem] bg-gradient-to-r ${modeMeta.accent} px-3 py-2`}>
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/76">
+                  {modeMeta.label}{currentSeedGenre ? ` · ${currentSeedGenre}` : ''}
+                </p>
+                <p className="mt-1 text-[12px] leading-5 text-white/68">{modeMeta.description}</p>
+              </div>
+            </div>
           </header>
 
           <QueueDialog isOpen={showQueue} onClose={() => setShowQueue(false)} />
@@ -1537,7 +2086,8 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                   displayTitle={displayTitle}
                   displayArtist={displayArtist}
                   likesCount={isThis ? likesCount : countOf(t.likes)}
-                  rawComments={commentCounts[t._id] ?? countOf(t.comments)}
+                  rawComments={resolveCommentCount(t._id, t.comments)}
+                  shareCount={shareCountOverrides[t._id] ?? countOf(t.shares)}
                   isLiked={isThis ? isLiked : false}
                   lyricsOpen={isThis ? lyricsOpen : false}
                   radioMeta={radioMeta}
@@ -1550,7 +2100,10 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                     if (willLike) triggerBurst();
                   }}
                   onToggleLike={toggleLike}
-                  onComments={() => setCommentsOpen(true)}
+                  onComments={() => {
+                    setShareOpen(false);
+                    setCommentsOpen(true);
+                  }}
                   onShare={onShare}
                   onDownload={handleDownload}
                   onAddToQueue={t => {
@@ -1578,17 +2131,20 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
       </AnimatePresence>
 
       {/* Modals */}
-      {activeTrackId && !activeIsRadio && (
-        <CommentDialog
-          trackId={activeTrackId}
-          trackTitle={activeTrack?.title || 'Titre'}
-          trackArtist={activeTrack?.artist?.name || activeTrack?.artist?.username || 'Artiste'}
-          initialComments={[]}
-          isOpen={commentsOpen}
-          onClose={() => setCommentsOpen(false)}
-          className=""
-        />
-      )}
+      <PlayerCommentsDrawer
+        isOpen={commentsOpen}
+        track={activeTrack}
+        commentCount={activeCommentCount}
+        onClose={() => setCommentsOpen(false)}
+        onCountChange={handleCommentCountChange}
+      />
+      <PlayerShareDrawer
+        isOpen={shareOpen}
+        track={activeTrack}
+        albumContext={albumContext as any}
+        onClose={() => setShareOpen(false)}
+        onShared={handleShared}
+      />
       <DownloadDialog
         isOpen={showDownloadDialog}
         onClose={() => setShowDownloadDialog(false)}
