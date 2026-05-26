@@ -929,6 +929,8 @@ interface TrackSlideProps {
   index: number;
   isActive: boolean;
   isPlaying: boolean;
+  previousTrack: Track | null;
+  nextTrack: Track | null;
   duration: number;
   isRadio: boolean;
   displayTitle: string;
@@ -950,6 +952,7 @@ interface TrackSlideProps {
   onDownload: () => void;
   onAddToQueue: (t: Track) => void;
   onToggleLyrics: () => void;
+  onJump: (index: number, source: string) => void;
   onPlayPause: (t: Track) => void;
   onClose: () => void;
   onSeek: (time: number) => void;
@@ -959,12 +962,12 @@ interface TrackSlideProps {
 
 const TrackSlide = memo(function TrackSlide(props: TrackSlideProps) {
   const {
-    track: t, index, isActive, isPlaying, duration, isRadio,
+    track: t, index, isActive, isPlaying, previousTrack, nextTrack, duration, isRadio,
     displayTitle, displayArtist, likesCount, rawComments, shareCount,
     isLiked, lyricsOpen, radioMeta, albumContext, canDownload,
     onCoverTap, onDoubleTapLike, onToggleLike, onComments,
     onShare, onDownload, onAddToQueue, onToggleLyrics,
-    onPlayPause, onClose, onSeek, getAudioElement, itemRef,
+    onJump, onPlayPause, onClose, onSeek, getAudioElement, itemRef,
   } = props;
 
   const cover = useMemo(() => coverUrl(t), [t]);
@@ -974,240 +977,347 @@ const TrackSlide = memo(function TrackSlide(props: TrackSlideProps) {
     <div
       ref={itemRef}
       data-index={index}
-      className="relative h-[100dvh] w-full flex flex-col"
+      className="relative h-[100dvh] w-full px-4 pb-[max(env(safe-area-inset-bottom,18px),18px)] pt-[146px] md:px-6 md:pt-[164px] lg:px-8"
       style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
     >
-      {/* Cover area */}
-      <div className="flex-1 flex items-center justify-center px-8 pt-20 pb-6">
-        <button
-          onClick={e => { e.stopPropagation(); if (isActive) onCoverTap(t); }}
-          onDoubleClick={e => { e.stopPropagation(); if (isActive && !isRadio) onDoubleTapLike(); }}
-          className="relative w-[70vw] max-w-[380px] aspect-square group/cover"
-        >
-          {/* Shadow glow */}
-          <div
-            className="absolute -inset-4 rounded-[36px] opacity-50 blur-[50px] -z-10 transition-opacity duration-700"
-            style={cover
-              ? { backgroundImage: `url(${cover})`, backgroundSize: 'cover' }
-              : { background: 'linear-gradient(135deg, #7c3aed, #3b82f6)' }}
-          />
-          {/* Cover image */}
-          <div className={`relative w-full h-full rounded-[24px] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.5)] ring-1 ring-white/[0.12] transition-transform duration-300 ${isPlaying ? 'scale-[1.02]' : 'scale-100'}`}>
-            {cover ? (
-              <img
-                src={cover}
-                alt={t.title}
-                loading="eager"
-                decoding="async"
-                className={`absolute inset-0 w-full h-full object-cover transition-transform duration-[10000ms] ease-linear ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
-                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-              />
-            ) : (
-              <TrackCover
-                src={null}
-                title={t.title}
-                className={`absolute inset-0 w-full h-full transition-transform duration-[10000ms] ease-linear ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
-                rounded="rounded-none"
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-
-            {/* Play/Pause overlay */}
-            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${isPlaying ? 'opacity-0 group-hover/cover:opacity-100' : 'opacity-100'}`}>
-              <div className="w-14 h-14 rounded-full bg-black/40 backdrop-blur-xl border border-white/[0.15] flex items-center justify-center shadow-2xl">
-                {isPlaying ? <Pause className="w-6 h-6 text-white" /> : <Play className="w-6 h-6 text-white ml-0.5" />}
+      <div className="mx-auto flex h-full max-w-6xl flex-col justify-center">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_340px] lg:items-stretch">
+          <section className="overflow-hidden rounded-[2rem] border border-white/[0.1] bg-[#171313]/62 shadow-[0_26px_70px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-white/[0.08] px-4 py-3 md:px-5">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#fffaf2]/42">Lecture immersive</p>
+                <p className="mt-1 text-sm font-black text-white">
+                  {nextTrack ? 'Le flux continue naturellement vers le bas' : 'Fin de la selection actuelle'}
+                </p>
+              </div>
+              <div className="hidden items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-[11px] font-semibold text-white/58 sm:flex">
+                <ChevronDown className="h-3.5 w-3.5 -rotate-180" />
+                <span>{previousTrack ? previousTrack.title : 'Debut du fil'}</span>
+                <span className="text-white/22">/</span>
+                <span>{nextTrack ? nextTrack.title : 'Aucun suivant'}</span>
+                <ChevronDown className="h-3.5 w-3.5" />
               </div>
             </div>
 
-            {/* Genre tags */}
-            {genres.length > 0 && !isRadio && (
-              <div className="absolute top-3 left-3 flex gap-1.5">
-                {genres.map(g => (
-                  <span key={g} className="px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-xl text-[10px] font-bold text-white/90 border border-white/[0.1]">
-                    {g}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* LIVE badge */}
-            {isRadio && (
-              <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-red-500/80 backdrop-blur-sm border border-red-400/30 shadow-lg">
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                <span className="text-[11px] font-black text-white uppercase tracking-widest">Live</span>
-              </div>
-            )}
-
-            {/* Badges */}
-            {!isRadio && (
-              <div className="absolute top-3 right-3 flex flex-col gap-2 items-end">
-                {t.isBoosted && (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl backdrop-blur-sm border border-violet-500/30 shadow-lg" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(245,158,11,0.3))' }}>
-                    <Zap className="w-3 h-3 text-amber-400" style={{ fill: 'rgba(245,158,11,0.3)' }} />
-                    <span className="text-[11px] font-black text-white/90">Boosted</span>
-                  </div>
-                )}
-                {(t.isAI || String(t._id).startsWith('ai-')) && (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-violet-600/60 backdrop-blur-sm border border-violet-400/30 shadow-lg">
-                    <Sparkles className="w-3 h-3 text-violet-200" />
-                    <span className="text-[11px] font-black text-white/90">IA</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </button>
-      </div>
-
-      {/* Right sidebar */}
-      <aside className="absolute right-3 z-20 flex flex-col items-center gap-3 top-1/2 -translate-y-1/2 md:top-auto md:bottom-[220px] md:translate-y-0">
-        <ActionBtn
-          icon={Heart}
-          label={isActive ? likesCount : countOf(t.likes)}
-          active={isActive && isLiked}
-          activeColor="bg-rose-500/20 border-rose-400/25 text-rose-400"
-          disabled={!isActive || isRadio}
-          onClick={e => { e.stopPropagation(); onToggleLike(); }}
-        />
-        <ActionBtn
-          icon={MessageCircle}
-          label={rawComments}
-          disabled={!isActive || isRadio}
-          onClick={e => { e.stopPropagation(); onComments(); }}
-        />
-        <ActionBtn
-          icon={Share2}
-          label={shareCount}
-          onClick={e => { e.stopPropagation(); onShare(t); }}
-        />
-        <ActionBtn
-          icon={canDownload ? Download : Lock}
-          label=""
-          disabled={!isActive || isRadio || !canDownload}
-          onClick={e => { e.stopPropagation(); onDownload(); }}
-        />
-        <ActionBtn
-          icon={ListPlus}
-          label="File"
-          disabled={!isActive || isRadio}
-          onClick={e => {
-            e.stopPropagation();
-            onAddToQueue(t);
-          }}
-        />
-      </aside>
-
-      {/* Bottom panel */}
-      <footer className="relative z-20 px-4 pb-[max(env(safe-area-inset-bottom,16px),16px)]">
-        <div className="mx-auto max-w-lg overflow-hidden rounded-[24px] border border-white/[0.1] bg-black/40 backdrop-blur-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.4)]">
-          <div className="p-4 pb-3">
-            {/* Track info */}
-            <div className="flex items-center gap-3">
-              <div className="shrink-0 w-11 h-11 rounded-full overflow-hidden ring-2 ring-white/[0.1] bg-white/[0.05]">
-                {isRadio ? (
-                  <div className="w-full h-full bg-gradient-to-br from-indigo-600 to-violet-700 grid place-items-center">
-                    <img src={t.coverUrl || ''} alt="" className="w-8 h-6 object-contain" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                  </div>
-                ) : t.artist?.avatar ? (
-                  <img src={getCdnUrl(t.artist.avatar) || t.artist.avatar} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full grid place-items-center">
-                    <User size={18} className="text-white/30" />
-                  </div>
-                )}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <h2 className="text-[15px] font-bold truncate leading-tight text-white">{displayTitle}</h2>
-                <div className="mt-0.5 flex items-center gap-2 text-[13px] flex-wrap">
-                  <span className="font-medium text-white/60 truncate">{displayArtist}</span>
-                  {t.artist?._id && t.artist?.username && (
-                    <span onClick={e => e.stopPropagation()}>
-                      <FollowButton artistId={t.artist._id} artistUsername={t.artist.username} size="sm" />
-                    </span>
+            <div className="grid gap-6 p-4 md:p-5 lg:grid-cols-[minmax(280px,380px)_minmax(0,1fr)] lg:p-6">
+              <button
+                onClick={e => { e.stopPropagation(); if (isActive) onCoverTap(t); }}
+                onDoubleClick={e => { e.stopPropagation(); if (isActive && !isRadio) onDoubleTapLike(); }}
+                className="group/cover relative mx-auto aspect-square w-full max-w-[280px] md:max-w-[340px] lg:max-w-[380px]"
+              >
+                <div
+                  className="absolute -inset-5 rounded-[38px] opacity-55 blur-[55px] -z-10 transition-opacity duration-700"
+                  style={cover
+                    ? { backgroundImage: `url(${cover})`, backgroundSize: 'cover' }
+                    : { background: 'linear-gradient(135deg, #ff8a66, #7c5cff)' }}
+                />
+                <div className={`relative h-full w-full overflow-hidden rounded-[2rem] ring-1 ring-white/[0.12] shadow-[0_22px_64px_rgba(0,0,0,0.44)] transition-transform duration-300 ${isPlaying ? 'scale-[1.015]' : 'scale-100'}`}>
+                  {cover ? (
+                    <img
+                      src={cover}
+                      alt={t.title}
+                      loading="eager"
+                      decoding="async"
+                      className={`absolute inset-0 h-full w-full object-cover transition-transform duration-[10000ms] ease-linear ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
+                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <TrackCover
+                      src={null}
+                      title={t.title}
+                      className={`absolute inset-0 h-full w-full transition-transform duration-[10000ms] ease-linear ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
+                      rounded="rounded-none"
+                    />
                   )}
-                </div>
-                {albumContext && isActive && (
-                  <a
-                    href={`/album/${albumContext.id}`}
-                    onClick={e => { e.stopPropagation(); onClose(); }}
-                    className="mt-1 inline-flex items-center gap-1 text-[10px] text-violet-300/70 hover:text-violet-300 transition truncate"
-                  >
-                    <Disc3 className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{albumContext.name}</span>
-                  </a>
-                )}
-              </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/28 via-transparent to-black/8" />
 
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={e => { e.stopPropagation(); onPlayPause(t); }}
-                  className="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center shadow-lg shadow-white/10 hover:scale-105 transition-all active:scale-95"
-                  aria-label={isPlaying ? 'Pause' : 'Lecture'}
-                >
-                  {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-                </button>
-                {t.lyrics && (
+                  {genres.length > 0 && !isRadio ? (
+                    <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+                      {genres.map((g) => (
+                        <span key={g} className="rounded-full border border-white/[0.1] bg-black/38 px-2.5 py-1 text-[10px] font-bold text-white/90 backdrop-blur-xl">
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {isRadio ? (
+                    <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-xl border border-red-400/30 bg-red-500/80 px-2.5 py-1 shadow-lg">
+                      <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
+                      <span className="text-[11px] font-black uppercase tracking-widest text-white">Live</span>
+                    </div>
+                  ) : (
+                    <div className="absolute right-3 top-3 flex flex-col items-end gap-2">
+                      {t.isBoosted ? (
+                        <div className="flex items-center gap-1.5 rounded-xl border border-violet-500/30 px-2.5 py-1 shadow-lg backdrop-blur-sm" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(245,158,11,0.3))' }}>
+                          <Zap className="h-3 w-3 text-amber-400" style={{ fill: 'rgba(245,158,11,0.3)' }} />
+                          <span className="text-[11px] font-black text-white/90">Boosted</span>
+                        </div>
+                      ) : null}
+                      {(t.isAI || String(t._id).startsWith('ai-')) ? (
+                        <div className="flex items-center gap-1.5 rounded-xl border border-violet-400/30 bg-violet-600/60 px-2.5 py-1 shadow-lg backdrop-blur-sm">
+                          <Sparkles className="h-3 w-3 text-violet-200" />
+                          <span className="text-[11px] font-black text-white/90">IA</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+
+                  <div className="absolute inset-x-0 bottom-0 p-4">
+                    <div className="rounded-[1.2rem] border border-white/[0.1] bg-black/34 p-3 backdrop-blur-xl">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/44">Gestes rapides</p>
+                      <p className="mt-1 text-sm font-black text-white">
+                        {isRadio ? 'Tape pour lire ou mettre en pause la radio.' : 'Tape pour lecture, double-tape pour liker.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${isPlaying ? 'opacity-0 group-hover/cover:opacity-100' : 'opacity-100'}`}>
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/[0.15] bg-black/40 shadow-2xl backdrop-blur-xl">
+                      {isPlaying ? <Pause className="h-6 w-6 text-white" /> : <Play className="ml-0.5 h-6 w-6 text-white" />}
+                    </div>
+                  </div>
+                </div>
+              </button>
+
+              <div className="flex min-h-0 flex-col">
+                <div className="flex items-start gap-3">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-[1rem] bg-white/[0.06] ring-1 ring-white/[0.08]">
+                    {isRadio ? (
+                      <img src={t.coverUrl || ''} alt="" className="h-7 w-10 object-contain" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                    ) : t.artist?.avatar ? (
+                      <img src={getCdnUrl(t.artist.avatar) || t.artist.avatar} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <User size={18} className="text-white/34" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#fffaf2]/42">
+                      {isRadio ? 'Radio en direct' : 'Son actif dans le fil'}
+                    </p>
+                    <h2 className="mt-1 text-2xl font-black leading-tight text-white md:text-[2rem]">{displayTitle}</h2>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-white/62">
+                      <span className="font-semibold">{displayArtist}</span>
+                      {t.artist?._id && t.artist?.username ? (
+                        <span onClick={e => e.stopPropagation()}>
+                          <FollowButton artistId={t.artist._id} artistUsername={t.artist.username} size="sm" />
+                        </span>
+                      ) : null}
+                    </div>
+                    {albumContext && isActive ? (
+                      <a
+                        href={`/album/${albumContext.id}`}
+                        onClick={e => { e.stopPropagation(); onClose(); }}
+                        className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#fffaf2]/62 transition hover:text-white"
+                      >
+                        <Disc3 className="h-3.5 w-3.5" />
+                        {albumContext.name}
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="mt-4 hidden grid-cols-3 gap-2 md:grid">
+                  <div className="rounded-[1.1rem] border border-white/[0.08] bg-white/[0.04] px-3 py-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/36">Likes</p>
+                    <p className="mt-1 text-lg font-black text-white">{fmtCount(isActive ? likesCount : countOf(t.likes))}</p>
+                  </div>
+                  <div className="rounded-[1.1rem] border border-white/[0.08] bg-white/[0.04] px-3 py-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/36">Commentaires</p>
+                    <p className="mt-1 text-lg font-black text-white">{fmtCount(rawComments)}</p>
+                  </div>
+                  <div className="rounded-[1.1rem] border border-white/[0.08] bg-white/[0.04] px-3 py-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/36">Partages</p>
+                    <p className="mt-1 text-lg font-black text-white">{fmtCount(shareCount)}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
                   <button
-                    onClick={e => { e.stopPropagation(); if (isActive) onToggleLyrics(); }}
-                    className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-90 ${
-                      isActive && lyricsOpen
-                        ? 'bg-purple-500/20 border-purple-400/30 text-purple-300'
-                        : 'bg-white/[0.06] border-white/[0.1] hover:bg-white/[0.12] text-white/60'
-                    }`}
+                    onClick={e => { e.stopPropagation(); onPlayPause(t); }}
+                    className="inline-flex h-11 items-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] transition hover:opacity-92 active:scale-[0.98]"
+                    aria-label={isPlaying ? 'Pause' : 'Lecture'}
                   >
-                    <FileText className="w-4 h-4" />
+                    {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
+                    {isPlaying ? 'Pause' : 'Lire'}
                   </button>
-                )}
-              </div>
-            </div>
-
-            {/* Seek bar / Live indicator */}
-            <div className="mt-4">
-              {isRadio ? (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-[11px] font-bold text-red-400 uppercase tracking-widest">En direct</span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <ActionBtn
+                      icon={Heart}
+                      label={isActive ? likesCount : countOf(t.likes)}
+                      active={isActive && isLiked}
+                      activeColor="bg-rose-500/20 border-rose-400/25 text-rose-400"
+                      disabled={!isActive || isRadio}
+                      onClick={e => { e.stopPropagation(); onToggleLike(); }}
+                    />
+                    <ActionBtn
+                      icon={MessageCircle}
+                      label={rawComments}
+                      disabled={!isActive || isRadio}
+                      onClick={e => { e.stopPropagation(); onComments(); }}
+                    />
+                    <ActionBtn
+                      icon={Share2}
+                      label={shareCount}
+                      onClick={e => { e.stopPropagation(); onShare(t); }}
+                    />
+                    <ActionBtn
+                      icon={canDownload ? Download : Lock}
+                      label=""
+                      disabled={!isActive || isRadio || !canDownload}
+                      onClick={e => { e.stopPropagation(); onDownload(); }}
+                    />
+                    <ActionBtn
+                      icon={ListPlus}
+                      label="File"
+                      disabled={!isActive || isRadio}
+                      onClick={e => {
+                        e.stopPropagation();
+                        onAddToQueue(t);
+                      }}
+                    />
                   </div>
-                  {isActive && radioMeta && radioMeta.listeners > 0 && (
-                    <span className="text-[11px] text-white/35 tabular-nums">
-                      {radioMeta.listeners >= 1000 ? `${(radioMeta.listeners / 1000).toFixed(1)}k` : radioMeta.listeners} auditeurs
-                    </span>
+                </div>
+
+                <div className="mt-5 rounded-[1.35rem] border border-white/[0.08] bg-white/[0.04] px-4 py-4">
+                  {isRadio ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
+                        <span className="text-[11px] font-black uppercase tracking-[0.22em] text-red-300">En direct</span>
+                      </div>
+                      {isActive && radioMeta && radioMeta.listeners > 0 ? (
+                        <span className="text-xs font-semibold text-white/48 tabular-nums">
+                          {radioMeta.listeners >= 1000 ? `${(radioMeta.listeners / 1000).toFixed(1)}k` : radioMeta.listeners} auditeurs
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : isActive ? (
+                    <SeekBar onSeek={onSeek} getAudioElement={getAudioElement} />
+                  ) : (
+                    <div className="w-full">
+                      <div className="relative h-[5px] w-full overflow-hidden rounded-full bg-white/[0.08]" />
+                      <div className="mt-2 flex items-center justify-between text-[11px] font-medium tabular-nums text-white/40">
+                        <span>{fmtTime(0)}</span>
+                        <span>{fmtTime(duration)}</span>
+                      </div>
+                    </div>
                   )}
                 </div>
-              ) : isActive ? (
-                <SeekBar onSeek={onSeek} getAudioElement={getAudioElement} />
-              ) : (
-                <div className="w-full">
-                  <div className="relative h-[5px] w-full rounded-full bg-white/[0.08] overflow-hidden" />
-                  <div className="mt-2 flex items-center justify-between text-[11px] text-white/40 tabular-nums font-medium">
-                    <span>{fmtTime(0)}</span>
-                    <span>{fmtTime(duration)}</span>
+
+                <div className="mt-4 rounded-[1.25rem] border border-[#fffaf2]/12 bg-[#fffaf2]/8 px-4 py-4 md:hidden">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#fffaf2]/46">Suite du fil</p>
+                  <p className="mt-1 text-sm font-black text-white">{nextTrack?.title || 'Le flux charge ici se termine'}</p>
+                  <p className="truncate text-xs text-white/52">{nextTrack?.artist?.name || nextTrack?.artist?.username || 'Change de mode pour repartir'}</p>
+                </div>
+
+                <div className="mt-4 hidden gap-3 md:grid md:grid-cols-2">
+                  <div className="rounded-[1.25rem] border border-white/[0.08] bg-white/[0.04] px-4 py-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/38">Avant</p>
+                    <p className="mt-1 truncate text-sm font-black text-white">{previousTrack?.title || 'Tu es au debut du fil'}</p>
+                    <p className="truncate text-xs text-white/48">{previousTrack?.artist?.name || previousTrack?.artist?.username || 'Aucun son precedent'}</p>
+                  </div>
+                  <div className="rounded-[1.25rem] border border-[#fffaf2]/12 bg-[#fffaf2]/8 px-4 py-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#fffaf2]/46">Après</p>
+                    <p className="mt-1 truncate text-sm font-black text-white">{nextTrack?.title || 'Le flux charge ici se termine'}</p>
+                    <p className="truncate text-xs text-white/52">{nextTrack?.artist?.name || nextTrack?.artist?.username || 'Change de mode pour repartir'}</p>
                   </div>
                 </div>
-              )}
+
+                <AnimatePresence>
+                  {isActive && lyricsOpen && t.lyrics ? (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-4 rounded-[1.35rem] border border-white/[0.08] bg-black/18 px-4 py-4">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/38">Paroles</p>
+                          <button
+                            onClick={e => { e.stopPropagation(); onToggleLyrics(); }}
+                            className="inline-flex h-8 items-center rounded-full border border-white/[0.08] bg-white/[0.05] px-3 text-[11px] font-black text-white/62 transition hover:bg-white/[0.1] hover:text-white"
+                          >
+                            Refermer
+                          </button>
+                        </div>
+                        <div className="max-h-36 overflow-y-auto whitespace-pre-wrap text-[13px] leading-relaxed text-white/64 scrollbar-thin scrollbar-thumb-white/10">
+                          {t.lyrics}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </div>
+            </div>
+          </section>
+
+          <aside className="hidden flex-col gap-4 lg:flex">
+            <div className="rounded-[1.8rem] border border-black/[0.08] bg-[#fffaf2]/95 p-5 text-[#171313] shadow-[0_22px_54px_rgba(30,25,20,0.18)] backdrop-blur-2xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-black/36">Direction du scroll</p>
+              <div className="mt-3 flex items-center justify-center gap-2 text-black/48">
+                <ChevronDown className="h-4 w-4 -rotate-180" />
+                <ChevronDown className="h-5 w-5 animate-bounce" />
+              </div>
+              <p className="mt-3 text-base font-black">
+                {nextTrack ? 'Le prochain son est en dessous.' : 'Ce mode a fini sa sélection visible.'}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-black/58">
+                Ici le scroll fait partie du player: tu lis la carte en cours, puis tu montes ou descends dans le fil sans changer d’écran.
+              </p>
             </div>
 
-            {/* Lyrics */}
-            <AnimatePresence>
-              {isActive && lyricsOpen && t.lyrics && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="overflow-hidden"
+            <div className="rounded-[1.8rem] border border-white/[0.08] bg-[#171313]/58 p-5 text-white shadow-[0_20px_54px_rgba(0,0,0,0.24)] backdrop-blur-2xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/38">Enchainement</p>
+              <div className="mt-4 space-y-3">
+                <button
+                  type="button"
+                  disabled={!previousTrack}
+                  onClick={() => previousTrack && onJump(index - 1, 'tiktok-player-card-prev')}
+                  className="flex w-full items-start justify-between gap-3 rounded-[1.25rem] border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-left transition hover:bg-white/[0.08] disabled:opacity-45"
                 >
-                  <div className="mt-3 max-h-36 overflow-y-auto text-[13px] leading-relaxed whitespace-pre-wrap text-white/60 border-t border-white/[0.08] pt-3 scrollbar-thin scrollbar-thumb-white/10">
-                    {t.lyrics}
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/34">Avant</p>
+                    <p className="mt-1 truncate text-sm font-black text-white">{previousTrack?.title || 'Aucun son avant'}</p>
+                    <p className="truncate text-xs text-white/46">{previousTrack?.artist?.name || previousTrack?.artist?.username || 'Debut du flux'}</p>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                  <ChevronDown className="mt-1 h-4 w-4 -rotate-180 text-white/38" />
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!nextTrack}
+                  onClick={() => nextTrack && onJump(index + 1, 'tiktok-player-card-next')}
+                  className="flex w-full items-start justify-between gap-3 rounded-[1.25rem] border border-[#fffaf2]/12 bg-[#fffaf2]/8 px-4 py-3 text-left transition hover:bg-[#fffaf2]/12 disabled:opacity-45"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/34">Après</p>
+                    <p className="mt-1 truncate text-sm font-black text-white">{nextTrack?.title || 'Aucun son apres celui-ci'}</p>
+                    <p className="truncate text-xs text-white/46">{nextTrack?.artist?.name || nextTrack?.artist?.username || 'Fin du flux'}</p>
+                  </div>
+                  <ChevronDown className="mt-1 h-4 w-4 text-white/38" />
+                </button>
+              </div>
+
+              {t.lyrics ? (
+                <button
+                  onClick={e => { e.stopPropagation(); if (isActive) onToggleLyrics(); }}
+                  className={`mt-4 inline-flex h-10 items-center rounded-full border px-4 text-xs font-black transition ${
+                    isActive && lyricsOpen
+                      ? 'border-violet-400/30 bg-violet-500/20 text-violet-200'
+                      : 'border-white/[0.08] bg-white/[0.05] text-white/62 hover:bg-white/[0.08] hover:text-white'
+                  }`}
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  {lyricsOpen ? 'Masquer les paroles' : 'Voir les paroles'}
+                </button>
+              ) : null}
+            </div>
+          </aside>
         </div>
-      </footer>
+      </div>
     </div>
   );
 });
@@ -2232,7 +2342,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                 <p className="mt-1 text-[12px] leading-5 text-white/68">{modeMeta.description}</p>
                 {tracks.length > 1 ? (
                   <p className="mt-2 text-[11px] font-semibold text-white/82">
-                    Fais glisser vers le haut pour enchainer, ou utilise la barre du fil juste au-dessus du player.
+                    Fais glisser la carte pour monter ou descendre dans le fil sonore.
                   </p>
                 ) : null}
               </div>
@@ -2241,14 +2351,6 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
           <QueueDialog isOpen={showQueue} onClose={() => setShowQueue(false)} />
           <AnimatePresence>{burstVisible && <HeartBurst burstKey={burstKey} />}</AnimatePresence>
-          {tracks.length > 0 && !modalsOpen ? (
-            <FeedScrollGuide
-              tracks={tracks}
-              activeIndex={activeIndex}
-              onJump={playIndexFromGesture}
-              disabled={modalsOpen}
-            />
-          ) : null}
 
           {/* Scroll container — virtualized */}
           <div
@@ -2288,6 +2390,8 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                   index={i}
                   isActive={isThis}
                   isPlaying={isPlayingThis}
+                  previousTrack={i > 0 ? tracks[i - 1] : null}
+                  nextTrack={i < tracks.length - 1 ? tracks[i + 1] : null}
                   duration={duration}
                   isRadio={isRadio}
                   displayTitle={displayTitle}
@@ -2318,6 +2422,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                     notify.success('OK', `${t.title || 'Titre'} ajouté à la file`);
                   }}
                   onToggleLyrics={() => setLyricsOpen(v => !v)}
+                  onJump={playIndexFromGesture}
                   onPlayPause={onPlayPause}
                   onClose={closeHandler}
                   onSeek={seek}
