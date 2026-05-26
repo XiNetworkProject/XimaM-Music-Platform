@@ -954,9 +954,9 @@ function ComposerCard() {
   ];
 
   return (
-    <Card className="p-4">
+    <Card className="p-3 sm:p-4">
       <div className="flex gap-3">
-        <AvatarBubble value={initial} tint="#171313" />
+        <AvatarBubble value={initial} size="sm" tint="#171313" />
         <div className="min-w-0 flex-1">
           <Link
             href={primaryHref}
@@ -1199,7 +1199,7 @@ function InlineCommentsPanel({
   }, [kind, onCountChange, session, targetId, text]);
 
   const renderComment = (comment: HomeComment, nested = false) => (
-    <div key={`${nested ? 'reply' : 'comment'}-${comment.id}`} className={nested ? 'ml-10 mt-2' : ''}>
+    <div key={`${nested ? 'reply' : 'comment'}-${comment.id}`} className={nested ? 'ml-7 mt-2 sm:ml-10' : ''}>
       <div className="flex gap-3">
         <CommentAvatar comment={comment} dark={dark} />
         <div className="min-w-0 flex-1">
@@ -1418,9 +1418,9 @@ function PostCard({ item }: { item: PostItem }) {
   }, [item.id, liked, session]);
 
   return (
-    <Card className="p-4 sm:p-5">
-        <div className="flex gap-3">
-          <AvatarBubble value={item.avatar} tint={item.track?.tint ?? '#ff7a66'} />
+    <Card className="p-3 sm:p-5">
+        <div className="flex gap-2.5 sm:gap-3">
+          <AvatarBubble value={item.avatar} size="sm" tint={item.track?.tint ?? '#ff7a66'} />
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
@@ -1428,10 +1428,10 @@ function PostCard({ item }: { item: PostItem }) {
                   <Link href={item.authorHref || '/community'} className="font-black hover:underline">
                     {item.author}
                   </Link>
-                  <span className="text-sm font-semibold text-black/38">{item.handle}</span>
+                  <span className="text-xs font-semibold text-black/38 sm:text-sm">{item.handle}</span>
                   <span className="text-sm font-semibold text-black/28">· {item.time}</span>
                 </div>
-                <span className="mt-2 inline-flex rounded-full bg-black/[0.055] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-black/46">
+                <span className="mt-2 inline-flex rounded-full bg-black/[0.055] px-2 py-1 text-[9px] font-black uppercase tracking-wide text-black/46 sm:px-2.5 sm:text-[10px]">
                   {item.mood}
                 </span>
                 <p className="mt-3 text-[14px] leading-6 text-black/72 sm:text-[15px] sm:leading-7">{item.text}</p>
@@ -1449,12 +1449,12 @@ function PostCard({ item }: { item: PostItem }) {
 
           {!item.track && item.image ? (
             <div className="mt-4 overflow-hidden rounded-[1.35rem] bg-black/[0.055]">
-              <img src={item.image} alt="" className="max-h-[280px] w-full object-cover sm:max-h-[360px]" />
+              <img src={item.image} alt="" className="max-h-[220px] w-full object-cover sm:max-h-[360px]" />
             </div>
           ) : null}
 
           {!item.track && !item.image ? (
-            <div className="mt-4 rounded-[1.35rem] bg-black/[0.045] p-4">
+            <div className="mt-4 rounded-[1.2rem] bg-black/[0.045] p-3 sm:rounded-[1.35rem] sm:p-4">
               <p className="text-sm font-semibold leading-6 text-black/52">Publication sociale issue du vrai flux createur.</p>
             </div>
           ) : null}
@@ -1530,9 +1530,9 @@ function TrackFeedCard({ item }: { item: Extract<FeedItem, { kind: 'track' }> })
   const isPlayingThis = audioState.tracks[audioState.currentTrackIndex]?._id === item.track.id && audioState.isPlaying;
 
   return (
-    <InkCard className="p-4 sm:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
+    <InkCard className="p-3 sm:p-5">
+      <div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="min-w-0">
           <p className="text-lg font-black">{item.title}</p>
           <p className="text-sm text-white/45">{item.subtitle}</p>
         </div>
@@ -1542,10 +1542,10 @@ function TrackFeedCard({ item }: { item: Extract<FeedItem, { kind: 'track' }> })
         <img
           src={item.track.cover}
           alt=""
-          className="h-[220px] w-full rounded-[1.2rem] object-cover sm:h-28 sm:w-28 sm:shrink-0"
+          className="h-[156px] w-full rounded-[1rem] object-cover sm:h-28 sm:w-28 sm:rounded-[1.2rem] sm:shrink-0"
         />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xl font-black">{item.track.title}</p>
+          <p className="truncate text-lg font-black sm:text-xl">{item.track.title}</p>
           <p className="truncate text-sm font-semibold text-white/45">
             {item.track.artist} · {item.track.style}
           </p>
@@ -1560,7 +1560,7 @@ function TrackFeedCard({ item }: { item: Extract<FeedItem, { kind: 'track' }> })
         <button
           type="button"
           onClick={() => playTrack(item.track.playerTrack as any)}
-          className="grid h-11 w-11 shrink-0 place-items-center self-end rounded-full bg-[#fffaf2] text-black sm:h-12 sm:w-12 sm:self-auto"
+          className="grid h-10 w-full shrink-0 place-items-center rounded-full bg-[#fffaf2] text-black sm:h-12 sm:w-12 sm:self-auto"
         >
           {isPlayingThis ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
         </button>
@@ -1573,9 +1573,9 @@ function RailCard({ item }: { item: Extract<FeedItem, { kind: 'rail' }> }) {
   const { audioState, setQueueAndPlay } = useAudioPlayer();
 
   return (
-    <Card className="p-4 sm:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
+    <Card className="p-3 sm:p-5">
+      <div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="min-w-0">
           <p className="text-lg font-black">{item.title}</p>
           <p className="text-sm text-black/40">{item.subtitle}</p>
         </div>
@@ -1611,9 +1611,9 @@ function RailCard({ item }: { item: Extract<FeedItem, { kind: 'rail' }> }) {
 function PlaylistCard({ item }: { item: Extract<FeedItem, { kind: 'playlist' }> }) {
   const playlist = item.playlist;
   return (
-    <Card className="p-4 sm:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
+    <Card className="p-3 sm:p-5">
+      <div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="min-w-0">
           <p className="text-lg font-black">{playlist.title}</p>
           <p className="text-sm text-black/40">
             {playlist.curator} · {playlist.vibe}
@@ -1622,19 +1622,19 @@ function PlaylistCard({ item }: { item: Extract<FeedItem, { kind: 'playlist' }> 
         <span className="rounded-full bg-black/[0.055] px-3 py-1.5 text-xs font-black text-black/58">playlist</span>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[124px_1fr]">
-        <div className="grid h-[180px] grid-cols-2 overflow-hidden rounded-[1.15rem] sm:h-[124px]">
+        <div className="grid h-[140px] grid-cols-2 overflow-hidden rounded-[1rem] sm:h-[124px] sm:rounded-[1.15rem]">
           {playlist.covers.map((cover, index) => (
             <img key={index} src={cover} alt="" className="h-full w-full object-cover" />
           ))}
         </div>
         <div className="flex min-w-0 flex-col justify-between">
           <div className="min-w-0">
-            <p className="text-2xl font-black leading-tight">{playlist.tracks}</p>
+            <p className="text-xl font-black leading-tight sm:text-2xl">{playlist.tracks}</p>
             <p className="mt-1 text-sm leading-6 text-black/52">Une vraie playlist issue des surfaces deja presentes dans l'app.</p>
           </div>
           <Link
             href={playlist.href}
-            className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-white sm:w-fit"
+            className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-white sm:h-10 sm:w-fit"
           >
             <Play className="h-4 w-4 fill-current" /> Ouvrir
           </Link>
@@ -1646,9 +1646,9 @@ function PlaylistCard({ item }: { item: Extract<FeedItem, { kind: 'playlist' }> 
 
 function CreatorRailCard({ item }: { item: Extract<FeedItem, { kind: 'creator' }> }) {
   return (
-    <Card className="p-4 sm:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
+    <Card className="p-3 sm:p-5">
+      <div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="min-w-0">
           <p className="text-lg font-black">{item.title}</p>
           <p className="text-sm text-black/40">profils qui publient, remixent et font bouger la home</p>
         </div>
@@ -1659,10 +1659,10 @@ function CreatorRailCard({ item }: { item: Extract<FeedItem, { kind: 'creator' }
           <Link
             key={creator.id}
             href={creator.href}
-            className="min-w-0 rounded-[1.25rem] bg-black/[0.045] p-3 text-center transition hover:bg-black/[0.07] sm:min-w-[145px]"
+            className="min-w-0 rounded-[1.1rem] bg-black/[0.045] p-2.5 text-center transition hover:bg-black/[0.07] sm:min-w-[145px] sm:rounded-[1.25rem] sm:p-3"
           >
             <div className="mx-auto mb-3 w-fit">
-              <AvatarBubble value={creator.avatar} size="lg" tint={creator.tint} />
+              <AvatarBubble value={creator.avatar} size="md" tint={creator.tint} />
             </div>
             <p className="truncate text-sm font-black">{creator.name}</p>
             <p className="truncate text-xs text-black/36">{creator.handle}</p>
@@ -1682,13 +1682,13 @@ function RadioFeedCard({ item }: { item: RadioItem }) {
   const isPlayingThis = audioState.tracks[audioState.currentTrackIndex]?._id === item.track._id && audioState.isPlaying;
 
   return (
-    <InkCard className="p-4 sm:p-5">
+    <InkCard className="p-3 sm:p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div
-          className="grid h-16 w-16 place-items-center rounded-[1.25rem] text-red-100"
+          className="grid h-14 w-14 place-items-center rounded-[1rem] text-red-100 sm:h-16 sm:w-16 sm:rounded-[1.25rem]"
           style={{ background: `${item.color}33` }}
         >
-          <Radio className="h-7 w-7" />
+          <Radio className="h-6 w-6 sm:h-7 sm:w-7" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -1706,7 +1706,7 @@ function RadioFeedCard({ item }: { item: RadioItem }) {
         <button
           type="button"
           onClick={() => playTrack(item.track as any)}
-          className="grid h-11 w-11 shrink-0 place-items-center self-end rounded-full bg-[#fffaf2] text-black sm:h-12 sm:w-12 sm:self-auto"
+          className="grid h-10 w-full shrink-0 place-items-center rounded-full bg-[#fffaf2] text-black sm:h-12 sm:w-12 sm:self-auto"
         >
           {isPlayingThis ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
         </button>
@@ -1718,20 +1718,20 @@ function RadioFeedCard({ item }: { item: RadioItem }) {
 function StudioCard({ item }: { item: Extract<FeedItem, { kind: 'studio' }> }) {
   return (
     <Card
-      className="p-4 sm:p-5"
+      className="p-3 sm:p-5"
       style={{ background: 'linear-gradient(135deg, #fffaf2 0%, #eee7ff 50%, #e2fbff 100%)' }}
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="grid h-14 w-14 place-items-center rounded-[1.2rem] bg-[#171313] text-white">
-            <Wand2 className="h-7 w-7" />
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="grid h-12 w-12 place-items-center rounded-[1rem] bg-[#171313] text-white sm:h-14 sm:w-14 sm:rounded-[1.2rem]">
+            <Wand2 className="h-6 w-6 sm:h-7 sm:w-7" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-lg font-black">{item.title}</p>
             <p className="mt-1 max-w-xl text-sm leading-6 text-black/54">{item.text}</p>
           </div>
         </div>
-        <Link href="/ai-generator" className="inline-flex h-10 w-full items-center justify-center rounded-full bg-[#171313] px-4 text-sm font-black text-white sm:h-11 sm:w-auto sm:px-5">
+        <Link href="/ai-generator" className="inline-flex h-9 w-full items-center justify-center rounded-full bg-[#171313] px-4 text-sm font-black text-white sm:h-11 sm:w-auto sm:px-5">
           Ouvrir
         </Link>
       </div>
@@ -1742,20 +1742,20 @@ function StudioCard({ item }: { item: Extract<FeedItem, { kind: 'studio' }> }) {
 function BoosterCard({ item }: { item: Extract<FeedItem, { kind: 'booster' }> }) {
   return (
     <Card
-      className="p-4 sm:p-5"
+      className="p-3 sm:p-5"
       style={{ background: 'linear-gradient(135deg, #fff6d7 0%, #ffe4f1 55%, #fffaf2 100%)' }}
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="grid h-14 w-14 place-items-center rounded-[1.2rem] bg-[#171313] text-[#fbbf24]">
-            <Zap className="h-7 w-7" />
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="grid h-12 w-12 place-items-center rounded-[1rem] bg-[#171313] text-[#fbbf24] sm:h-14 sm:w-14 sm:rounded-[1.2rem]">
+            <Zap className="h-6 w-6 sm:h-7 sm:w-7" />
           </div>
           <div className="min-w-0">
             <p className="text-lg font-black">{item.title}</p>
             <p className="mt-1 max-w-xl text-sm leading-6 text-black/54">{item.text}</p>
           </div>
         </div>
-        <Link href="/boosters" className="inline-flex h-10 w-full items-center justify-center rounded-full bg-[#171313] px-4 text-sm font-black text-white sm:h-11 sm:w-auto sm:px-5">
+        <Link href="/boosters" className="inline-flex h-9 w-full items-center justify-center rounded-full bg-[#171313] px-4 text-sm font-black text-white sm:h-11 sm:w-auto sm:px-5">
           Booster
         </Link>
       </div>
@@ -1766,9 +1766,9 @@ function BoosterCard({ item }: { item: Extract<FeedItem, { kind: 'booster' }> })
 function LibraryCard({ item }: { item: Extract<FeedItem, { kind: 'library' }> }) {
   return (
     <Link href="/library">
-      <Card className="block p-4 sm:p-5">
+      <Card className="block p-3 sm:p-5">
         <div className="mb-4 flex items-center justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-lg font-black">{item.title}</p>
             <p className="text-sm text-black/40">favoris, playlists, IA et ecoutes recentes</p>
           </div>
@@ -1776,8 +1776,8 @@ function LibraryCard({ item }: { item: Extract<FeedItem, { kind: 'library' }> })
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {item.stats.map(([value, label]) => (
-            <div key={label} className="rounded-2xl bg-black/[0.045] p-3">
-              <p className="text-xl font-black">{value}</p>
+            <div key={label} className="rounded-2xl bg-black/[0.045] p-2.5 sm:p-3">
+              <p className="text-lg font-black sm:text-xl">{value}</p>
               <p className="text-xs text-black/38">{label}</p>
             </div>
           ))}
