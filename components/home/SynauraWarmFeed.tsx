@@ -609,7 +609,7 @@ function matchesFilter(item: FeedItem, filter: string) {
 
 function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative z-20 min-h-screen bg-[#F4EFE6] text-[#171313]">
+    <div className="relative z-20 min-h-screen overflow-x-hidden bg-[#F4EFE6] text-[#171313]">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_8%_0%,rgba(255,111,97,0.22),transparent_28%),radial-gradient(circle_at_94%_4%,rgba(124,92,255,0.20),transparent_30%),radial-gradient(circle_at_60%_100%,rgba(0,194,203,0.14),transparent_32%)]" />
         <div className="absolute inset-0 opacity-[0.28] [background-image:linear-gradient(#ded4c7_1px,transparent_1px),linear-gradient(90deg,#ded4c7_1px,transparent_1px)] [background-size:34px_34px]" />
@@ -624,7 +624,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
           transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
         />
       </div>
-      <div className="relative mx-auto max-w-[1480px] px-3 py-3 pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] sm:px-5 sm:pb-5 lg:px-8 lg:py-5">
+      <div className="relative mx-auto max-w-[1480px] px-2 py-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] sm:px-5 sm:py-3 sm:pb-5 lg:px-8 lg:py-5">
         {children}
       </div>
       <SharedSynauraMobileDock />
@@ -643,7 +643,7 @@ function Card({
 }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/88 shadow-[0_18px_60px_rgba(30,25,20,0.10)] backdrop-blur-xl ${className}`}
+      className={`relative w-full min-w-0 overflow-hidden rounded-[1.5rem] border border-black/[0.08] bg-[#fffaf2]/88 shadow-[0_18px_60px_rgba(30,25,20,0.10)] backdrop-blur-xl sm:rounded-[2rem] ${className}`}
       style={style}
     >
       {children}
@@ -654,7 +654,7 @@ function Card({
 function InkCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-[2rem] bg-[#171313] text-[#fffaf2] shadow-[0_20px_70px_rgba(20,15,10,0.25)] ${className}`}
+      className={`relative w-full min-w-0 overflow-hidden rounded-[1.5rem] bg-[#171313] text-[#fffaf2] shadow-[0_20px_70px_rgba(20,15,10,0.25)] sm:rounded-[2rem] ${className}`}
     >
       {children}
     </div>
@@ -739,8 +739,8 @@ function SynauraAnnouncementStrip() {
 
 function TopBar() {
   return (
-    <header className="sticky top-3 z-40 mb-4 rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/90 px-3 py-3 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:px-4">
-      <div className="flex items-center justify-between gap-3">
+    <header className="sticky top-2 z-40 mb-4 rounded-[1.6rem] border border-black/[0.08] bg-[#fffaf2]/90 px-3 py-3 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:top-3 sm:rounded-[2rem] sm:px-4">
+      <div className="flex items-center justify-between gap-2 sm:gap-3">
         <Link href="/" className="flex min-w-0 items-center gap-3">
           <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#171313] text-[#fffaf2]">
             <Disc3 className="h-6 w-6" />
@@ -767,7 +767,7 @@ function TopBar() {
         <div className="flex items-center gap-2">
           <Link
             href="/settings"
-            className="grid h-11 w-11 place-items-center rounded-full bg-black/[0.06] text-black/60 transition hover:bg-black hover:text-white"
+            className="grid h-10 w-10 place-items-center rounded-full bg-black/[0.06] text-black/60 transition hover:bg-black hover:text-white sm:h-11 sm:w-11"
           >
             <Bell className="h-5 w-5" />
           </Link>
@@ -779,24 +779,24 @@ function TopBar() {
           </Link>
           <Link
             href="/upload"
-            className="inline-flex h-11 items-center rounded-full bg-[#171313] px-4 text-sm font-black text-white transition hover:scale-[1.02] sm:px-5"
+            className="inline-flex h-10 items-center rounded-full bg-[#171313] px-3 text-xs font-black text-white transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm"
           >
             Publier
           </Link>
         </div>
       </div>
 
-      <div className="mt-3 flex gap-2 lg:hidden">
+      <div className="mt-2.5 flex gap-2 lg:hidden">
         <Link
           href="/discover"
-          className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-full bg-black/[0.055] px-4"
+          className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full bg-black/[0.055] px-3"
         >
           <Search className="h-4 w-4 shrink-0 text-black/35" />
-          <span className="truncate text-sm font-semibold text-black/35">Rechercher un son, un post, une playlist...</span>
+          <span className="truncate text-xs font-semibold text-black/35 sm:text-sm">Rechercher un son, un post, une playlist...</span>
         </Link>
         <Link
           href="/ai-generator"
-          className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:hidden"
+          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-black/[0.06] px-3 text-xs font-black text-black/60 transition hover:bg-black hover:text-white sm:hidden"
         >
           <Sparkles className="h-4 w-4" />
           Studio
@@ -837,7 +837,7 @@ function MiniCarousel({ tracks }: { tracks: Track[] }) {
   return (
     <Card className="mb-4 p-3 sm:p-4">
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_240px] sm:items-stretch">
-        <div className="relative min-h-[176px] overflow-hidden rounded-[1.55rem] bg-[#171313] p-4 text-white">
+        <div className="relative min-h-[164px] overflow-hidden rounded-[1.3rem] bg-[#171313] p-3 text-white sm:min-h-[176px] sm:rounded-[1.55rem] sm:p-4">
           <img src={item.cover} alt="" className="absolute inset-0 h-full w-full object-cover opacity-32" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#171313] via-[#171313]/84 to-transparent" />
           <div className="absolute inset-y-0 right-0 w-1/2 opacity-40" style={{ background: item.tint }} />
@@ -864,21 +864,21 @@ function MiniCarousel({ tracks }: { tracks: Track[] }) {
               </div>
             </div>
             <div>
-              <h1 className="max-w-xl text-3xl font-black leading-[0.96] tracking-[-0.04em] sm:text-4xl">{item.title}</h1>
+              <h1 className="max-w-xl text-[2rem] font-black leading-[0.96] tracking-[-0.04em] sm:text-4xl">{item.title}</h1>
               <p className="mt-1 text-sm font-semibold text-white/62">
                 {item.artist} · {item.style}
               </p>
-              <div className="mt-4 flex gap-2">
+              <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => playQueueFromTracks(tracks, item.id, setQueueAndPlay)}
-                  className="inline-flex h-10 items-center gap-2 rounded-full bg-[#fffaf2] px-4 text-xs font-black text-black"
+                  className="inline-flex h-9 items-center gap-2 rounded-full bg-[#fffaf2] px-3 text-[11px] font-black text-black sm:h-10 sm:px-4 sm:text-xs"
                 >
                   <Play className="h-3.5 w-3.5 fill-current" /> Ecouter
                 </button>
                 <Link
                   href={item.artistHref || '/discover'}
-                  className="inline-flex h-10 items-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/70"
+                  className="inline-flex h-9 items-center gap-2 rounded-full bg-white/10 px-3 text-[11px] font-black text-white/70 sm:h-10 sm:px-4 sm:text-xs"
                 >
                   <MessageCircle className="h-3.5 w-3.5" /> Explorer
                 </Link>
@@ -921,9 +921,9 @@ function MobileActions() {
   ];
 
   return (
-    <div className="no-scrollbar -mx-3 mb-4 flex gap-3 overflow-x-auto px-3 lg:mx-0 lg:px-0">
+    <div className="mb-4 grid grid-cols-3 gap-3 lg:flex lg:gap-3 lg:overflow-x-auto lg:px-0">
       {items.map((item) => (
-        <Link key={item.label} href={item.href} className="flex min-w-[76px] flex-col items-center gap-2">
+        <Link key={item.label} href={item.href} className="flex min-w-0 flex-col items-center gap-2">
           <div
             className="grid h-14 w-14 place-items-center rounded-[1.25rem] text-white shadow-[0_12px_30px_rgba(30,25,20,0.16)]"
             style={{ background: item.tint }}
@@ -964,12 +964,12 @@ function ComposerCard() {
           >
             {session?.user ? 'Partager un texte, une image ou un son...' : 'Connecte-toi pour publier et reagir...'}
           </Link>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {chips.map((chip) => (
               <Link
                 key={chip.label}
                 href={chip.href}
-                className={`inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-black ${
+                className={`inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full px-3 text-xs font-black ${
                   chip.active ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/56'
                 }`}
               >
@@ -1050,15 +1050,15 @@ function InlineSharePanel({
     ? 'mt-3 rounded-[1.25rem] border border-white/10 bg-white/8 p-3 text-white'
     : 'mt-3 rounded-[1.25rem] border border-black/[0.08] bg-black/[0.035] p-3 text-[#171313]';
   const buttonClassName = dark
-    ? 'inline-flex h-10 items-center rounded-full bg-white/10 px-4 text-sm font-black text-white/78 transition hover:bg-white/14 hover:text-white'
-    : 'inline-flex h-10 items-center rounded-full bg-black/[0.055] px-4 text-sm font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black';
+    ? 'inline-flex h-10 w-full items-center justify-center rounded-full bg-white/10 px-4 text-sm font-black text-white/78 transition hover:bg-white/14 hover:text-white sm:w-auto'
+    : 'inline-flex h-10 w-full items-center justify-center rounded-full bg-black/[0.055] px-4 text-sm font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black sm:w-auto';
 
   return (
     <div className={panelClassName}>
       <p className={`text-xs font-black uppercase tracking-[0.22em] ${dark ? 'text-white/45' : 'text-black/38'}`}>
         Partager sans quitter le fil
       </p>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 grid gap-2 sm:flex sm:flex-wrap">
         <button
           type="button"
           onClick={async () => {
@@ -1113,8 +1113,8 @@ function InlineCommentsPanel({
     ? 'min-h-[76px] w-full rounded-[1rem] border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none placeholder:text-white/28 focus:border-white/22'
     : 'min-h-[76px] w-full rounded-[1rem] border border-black/[0.08] bg-white/68 px-3 py-3 text-sm text-[#171313] outline-none placeholder:text-black/28 focus:border-black/18';
   const actionButtonClassName = dark
-    ? 'inline-flex h-10 items-center rounded-full bg-[#fffaf2] px-4 text-sm font-black text-[#171313] transition hover:opacity-90 disabled:opacity-50'
-    : 'inline-flex h-10 items-center rounded-full bg-[#171313] px-4 text-sm font-black text-[#fffaf2] transition hover:opacity-92 disabled:opacity-50';
+    ? 'inline-flex h-10 w-full items-center justify-center rounded-full bg-[#fffaf2] px-4 text-sm font-black text-[#171313] transition hover:opacity-90 disabled:opacity-50 sm:w-auto'
+    : 'inline-flex h-10 w-full items-center justify-center rounded-full bg-[#171313] px-4 text-sm font-black text-[#fffaf2] transition hover:opacity-92 disabled:opacity-50 sm:w-auto';
   const loadButtonClassName = dark
     ? 'text-xs font-black text-white/52 transition hover:text-white'
     : 'text-xs font-black text-black/46 transition hover:text-black';
@@ -1245,7 +1245,7 @@ function InlineCommentsPanel({
           className={inputClassName}
           placeholder="Ecris une reponse sans quitter la home..."
         />
-        <div className="mt-2 flex items-center justify-between gap-3">
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className={`text-xs ${dark ? 'text-white/35' : 'text-black/36'}`}>Tout reste ancre dans cette carte.</p>
           <button type="button" onClick={handleSubmit} disabled={submitting || !text.trim()} className={actionButtonClassName}>
             {submitting ? 'Envoi...' : 'Publier'}
@@ -1280,15 +1280,15 @@ function TrackInlineActions({
   }, [track.commentsCount, track.id]);
 
   const defaultButtonClassName = dark
-    ? 'inline-flex h-9 items-center justify-center gap-2 rounded-full bg-white/10 px-3 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-10 sm:px-4 sm:text-sm'
-    : 'inline-flex h-9 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-3 text-xs font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black sm:h-10 sm:px-4 sm:text-sm';
+    ? 'inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-white/10 px-3 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-10 sm:w-auto sm:px-4 sm:text-sm'
+    : 'inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-3 text-xs font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black sm:h-10 sm:w-auto sm:px-4 sm:text-sm';
   const likedButtonClassName = dark
-    ? 'inline-flex h-9 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-3 text-xs font-black text-[#171313] transition hover:opacity-90 sm:h-10 sm:px-4 sm:text-sm'
-    : 'inline-flex h-9 items-center justify-center gap-2 rounded-full bg-[#171313] px-3 text-xs font-black text-white transition hover:opacity-92 sm:h-10 sm:px-4 sm:text-sm';
+    ? 'inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-3 text-xs font-black text-[#171313] transition hover:opacity-90 sm:h-10 sm:w-auto sm:px-4 sm:text-sm'
+    : 'inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-[#171313] px-3 text-xs font-black text-white transition hover:opacity-92 sm:h-10 sm:w-auto sm:px-4 sm:text-sm';
 
   return (
     <div className="mt-3">
-      <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center">
+      <div className={`grid gap-2 sm:flex sm:flex-wrap sm:items-center ${canComment ? 'grid-cols-2' : 'grid-cols-1'}`}>
         <button
           type="button"
           onClick={() => void toggleLike()}
@@ -1313,17 +1313,17 @@ function TrackInlineActions({
           </button>
         ) : null}
 
-        <button
-          type="button"
-          onClick={() => {
-            setShareOpen((current) => !current);
-            setCommentsOpen(false);
-          }}
-          className={defaultButtonClassName}
-        >
-          <Share2 className="h-4 w-4" />
-          Partager
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShareOpen((current) => !current);
+              setCommentsOpen(false);
+            }}
+            className={defaultButtonClassName}
+          >
+            <Share2 className="h-4 w-4" />
+            Partager
+          </button>
       </div>
 
       {commentsOpen ? (
@@ -1463,7 +1463,7 @@ function PostCard({ item }: { item: PostItem }) {
             <button
               type="button"
               onClick={handleLike}
-              className={`inline-flex h-9 items-center justify-center gap-2 rounded-full px-3 text-xs font-black transition sm:h-10 sm:px-4 sm:text-sm ${
+              className={`inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full px-3 text-xs font-black transition sm:h-10 sm:w-auto sm:px-4 sm:text-sm ${
                 liked ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/62 hover:bg-black/[0.1] hover:text-black'
               }`}
             >
@@ -1477,7 +1477,7 @@ function PostCard({ item }: { item: PostItem }) {
                 setCommentsOpen((current) => !current);
                 setShareOpen(false);
               }}
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-3 text-xs font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black sm:h-10 sm:px-4 sm:text-sm"
+              className="inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-3 text-xs font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black sm:h-10 sm:w-auto sm:px-4 sm:text-sm"
             >
               <MessageCircle className="h-4 w-4" />
               {commentsCount ? formatCompact(commentsCount) : 'Commenter'}
@@ -1489,7 +1489,7 @@ function PostCard({ item }: { item: PostItem }) {
                 setShareOpen((current) => !current);
                 setCommentsOpen(false);
               }}
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-3 text-xs font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black sm:h-10 sm:px-4 sm:text-sm"
+              className="inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-3 text-xs font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black sm:h-10 sm:w-auto sm:px-4 sm:text-sm"
             >
               <Share2 className="h-4 w-4" />
               Partager
@@ -1497,7 +1497,7 @@ function PostCard({ item }: { item: PostItem }) {
 
             <Link
               href={item.authorHref || '/community'}
-              className="col-span-2 inline-flex h-9 items-center justify-center gap-2 rounded-full px-3 text-xs font-black text-black/42 transition hover:bg-black/[0.055] hover:text-black sm:ml-auto sm:h-10 sm:w-auto sm:px-4 sm:text-sm"
+              className="col-span-2 inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full px-3 text-xs font-black text-black/42 transition hover:bg-black/[0.055] hover:text-black sm:ml-auto sm:h-10 sm:w-auto sm:px-4 sm:text-sm"
             >
               <Bookmark className="h-4 w-4" />
               Profil
@@ -1549,10 +1549,10 @@ function TrackFeedCard({ item }: { item: Extract<FeedItem, { kind: 'track' }> })
           <p className="truncate text-sm font-semibold text-white/45">
             {item.track.artist} · {item.track.style}
           </p>
-          <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-bold text-white/50 sm:flex sm:flex-wrap sm:text-left">
-            <span className="rounded-full bg-white/[0.06] px-2 py-1">{item.track.plays} ecoutes</span>
-            <span className="rounded-full bg-white/[0.06] px-2 py-1">{item.track.likes} likes</span>
-            <span className="rounded-full bg-white/[0.06] px-2 py-1">{item.track.comments} coms</span>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-center text-[11px] font-bold text-white/50 sm:flex sm:flex-wrap sm:text-left sm:text-xs">
+            <span className="min-w-0 rounded-full bg-white/[0.06] px-2 py-1">{item.track.plays} ecoutes</span>
+            <span className="min-w-0 rounded-full bg-white/[0.06] px-2 py-1">{item.track.likes} likes</span>
+            <span className="col-span-2 min-w-0 rounded-full bg-white/[0.06] px-2 py-1 sm:col-auto">{item.track.comments} coms</span>
           </div>
           <Wave color={item.track.tint} active={isPlayingThis} />
           <TrackInlineActions track={item.track} dark />
@@ -1581,11 +1581,11 @@ function RailCard({ item }: { item: Extract<FeedItem, { kind: 'rail' }> }) {
         </div>
         <span className="rounded-full bg-black/[0.055] px-3 py-1.5 text-xs font-black text-black/58">{item.label}</span>
       </div>
-      <div className="no-scrollbar flex gap-3 overflow-x-auto pb-1">
+      <div className="grid grid-cols-2 gap-3 sm:flex sm:overflow-x-auto sm:pb-1">
         {item.tracks.map((track) => {
           const isPlayingThis = audioState.tracks[audioState.currentTrackIndex]?._id === track.id && audioState.isPlaying;
           return (
-            <motion.div key={track.id} whileHover={{ y: -4 }} className="min-w-[132px] sm:min-w-[170px]">
+            <motion.div key={track.id} whileHover={{ y: -4 }} className="min-w-0 sm:min-w-[170px]">
               <div className="rounded-[1.2rem] bg-black/[0.045] p-2">
                 <div className="relative overflow-hidden rounded-2xl">
                   <img src={track.cover} alt="" className="aspect-square w-full object-cover" />
@@ -1628,7 +1628,7 @@ function PlaylistCard({ item }: { item: Extract<FeedItem, { kind: 'playlist' }> 
           ))}
         </div>
         <div className="flex min-w-0 flex-col justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-2xl font-black leading-tight">{playlist.tracks}</p>
             <p className="mt-1 text-sm leading-6 text-black/52">Une vraie playlist issue des surfaces deja presentes dans l'app.</p>
           </div>
@@ -1654,12 +1654,12 @@ function CreatorRailCard({ item }: { item: Extract<FeedItem, { kind: 'creator' }
         </div>
         <Users className="h-5 w-5 text-black/36" />
       </div>
-      <div className="no-scrollbar flex gap-3 overflow-x-auto pb-1">
+      <div className="grid grid-cols-2 gap-3 sm:flex sm:overflow-x-auto sm:pb-1">
         {item.creators.map((creator) => (
           <Link
             key={creator.id}
             href={creator.href}
-            className="min-w-[132px] rounded-[1.25rem] bg-black/[0.045] p-3 text-center transition hover:bg-black/[0.07] sm:min-w-[145px]"
+            className="min-w-0 rounded-[1.25rem] bg-black/[0.045] p-3 text-center transition hover:bg-black/[0.07] sm:min-w-[145px]"
           >
             <div className="mx-auto mb-3 w-fit">
               <AvatarBubble value={creator.avatar} size="lg" tint={creator.tint} />
@@ -1731,7 +1731,7 @@ function StudioCard({ item }: { item: Extract<FeedItem, { kind: 'studio' }> }) {
             <p className="mt-1 max-w-xl text-sm leading-6 text-black/54">{item.text}</p>
           </div>
         </div>
-        <Link href="/ai-generator" className="inline-flex h-11 items-center justify-center rounded-full bg-[#171313] px-5 text-sm font-black text-white">
+        <Link href="/ai-generator" className="inline-flex h-10 w-full items-center justify-center rounded-full bg-[#171313] px-4 text-sm font-black text-white sm:h-11 sm:w-auto sm:px-5">
           Ouvrir
         </Link>
       </div>
@@ -1750,12 +1750,12 @@ function BoosterCard({ item }: { item: Extract<FeedItem, { kind: 'booster' }> })
           <div className="grid h-14 w-14 place-items-center rounded-[1.2rem] bg-[#171313] text-[#fbbf24]">
             <Zap className="h-7 w-7" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-lg font-black">{item.title}</p>
             <p className="mt-1 max-w-xl text-sm leading-6 text-black/54">{item.text}</p>
           </div>
         </div>
-        <Link href="/boosters" className="inline-flex h-11 items-center justify-center rounded-full bg-[#171313] px-5 text-sm font-black text-white">
+        <Link href="/boosters" className="inline-flex h-10 w-full items-center justify-center rounded-full bg-[#171313] px-4 text-sm font-black text-white sm:h-11 sm:w-auto sm:px-5">
           Booster
         </Link>
       </div>

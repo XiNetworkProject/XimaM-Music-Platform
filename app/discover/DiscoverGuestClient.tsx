@@ -281,11 +281,18 @@ export default function DiscoverGuestClient({
                     title={isFiltered ? `Tendances ${activeGenre}` : 'Tendances'}
                     subtitle="Ce qui cartonne"
                   />
-                  <HorizontalScroller>
-                    {filteredTrending.slice(0, 16).map((t) => (
-                      <TrackTile key={t._id} track={t} />
+                  <div className="grid grid-cols-2 gap-3 sm:hidden">
+                    {filteredTrending.slice(0, 6).map((t) => (
+                      <TrackTile key={t._id} track={t} grid />
                     ))}
-                  </HorizontalScroller>
+                  </div>
+                  <div className="hidden sm:block">
+                    <HorizontalScroller>
+                      {filteredTrending.slice(0, 16).map((t) => (
+                        <TrackTile key={t._id} track={t} />
+                      ))}
+                    </HorizontalScroller>
+                  </div>
                 </SynauraInkPanel>
               ) : null}
 
@@ -295,11 +302,18 @@ export default function DiscoverGuestClient({
                     title={isFiltered ? `Nouveautes ${activeGenre}` : 'Nouveautes'}
                     subtitle="Tout juste publie"
                   />
-                  <HorizontalScroller>
-                    {filteredNewest.slice(0, 16).map((t) => (
-                      <TrackTile key={t._id} track={t} />
+                  <div className="grid grid-cols-2 gap-3 sm:hidden">
+                    {filteredNewest.slice(0, 6).map((t) => (
+                      <TrackTile key={t._id} track={t} grid />
                     ))}
-                  </HorizontalScroller>
+                  </div>
+                  <div className="hidden sm:block">
+                    <HorizontalScroller>
+                      {filteredNewest.slice(0, 16).map((t) => (
+                        <TrackTile key={t._id} track={t} />
+                      ))}
+                    </HorizontalScroller>
+                  </div>
                 </SynauraInkPanel>
               ) : null}
 
@@ -311,33 +325,54 @@ export default function DiscoverGuestClient({
                     actionLabel="Voir tout"
                     actionHref="/discover?section=albums"
                   />
-                  <HorizontalScroller>
-                    {albums.slice(0, 16).map((album) => (
+                  <div className="grid grid-cols-2 gap-3 sm:hidden">
+                    {albums.slice(0, 6).map((album) => (
                       <AlbumTile key={album._id} album={album} />
                     ))}
-                  </HorizontalScroller>
+                  </div>
+                  <div className="hidden sm:block">
+                    <HorizontalScroller>
+                      {albums.slice(0, 16).map((album) => (
+                        <AlbumTile key={album._id} album={album} />
+                      ))}
+                    </HorizontalScroller>
+                  </div>
                 </SynauraInkPanel>
               ) : null}
 
               {!isFiltered && artists.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader title="Artistes du moment" />
-                  <HorizontalScroller>
-                    {artists.slice(0, 12).map((a) => (
+                  <div className="grid grid-cols-3 gap-3 sm:hidden">
+                    {artists.slice(0, 6).map((a) => (
                       <ArtistTile key={a._id} artist={a} />
                     ))}
-                  </HorizontalScroller>
+                  </div>
+                  <div className="hidden sm:block">
+                    <HorizontalScroller>
+                      {artists.slice(0, 12).map((a) => (
+                        <ArtistTile key={a._id} artist={a} />
+                      ))}
+                    </HorizontalScroller>
+                  </div>
                 </SynauraInkPanel>
               ) : null}
 
               {!isFiltered && playlists.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader title="Playlists populaires" />
-                  <HorizontalScroller>
-                    {playlists.slice(0, 12).map((p) => (
+                  <div className="grid grid-cols-2 gap-3 sm:hidden">
+                    {playlists.slice(0, 6).map((p) => (
                       <PlaylistTile key={p._id} playlist={p} />
                     ))}
-                  </HorizontalScroller>
+                  </div>
+                  <div className="hidden sm:block">
+                    <HorizontalScroller>
+                      {playlists.slice(0, 12).map((p) => (
+                        <PlaylistTile key={p._id} playlist={p} />
+                      ))}
+                    </HorizontalScroller>
+                  </div>
                 </SynauraInkPanel>
               ) : null}
 

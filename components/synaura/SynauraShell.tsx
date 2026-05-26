@@ -50,7 +50,7 @@ export function SynauraAppShell({
   contentClassName?: string;
 }) {
   return (
-    <div className={cx('relative z-20 min-h-screen bg-[#F4EFE6] text-[#171313]', className)}>
+    <div className={cx('relative z-20 min-h-screen overflow-x-hidden bg-[#F4EFE6] text-[#171313]', className)}>
       <style>{`
         .synaura-no-scrollbar::-webkit-scrollbar { display: none; }
         .synaura-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -73,7 +73,7 @@ export function SynauraAppShell({
 
       <div
         className={cx(
-          'relative mx-auto max-w-[1480px] px-3 py-3 pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] sm:px-5 sm:pb-5 lg:px-8 lg:py-5',
+          'relative mx-auto max-w-[1480px] px-2 py-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] sm:px-5 sm:py-3 sm:pb-5 lg:px-8 lg:py-5',
           contentClassName,
         )}
       >
@@ -96,7 +96,7 @@ export function SynauraPanel({
   return (
     <div
       className={cx(
-        'relative overflow-hidden rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/88 shadow-[0_18px_60px_rgba(30,25,20,0.10)] backdrop-blur-xl',
+        'relative w-full min-w-0 overflow-hidden rounded-[1.5rem] border border-black/[0.08] bg-[#fffaf2]/88 shadow-[0_18px_60px_rgba(30,25,20,0.10)] backdrop-blur-xl sm:rounded-[2rem]',
         className,
       )}
       style={style}
@@ -116,7 +116,7 @@ export function SynauraInkPanel({
   return (
     <div
       className={cx(
-        'relative overflow-hidden rounded-[2rem] bg-[#171313] text-[#fffaf2] shadow-[0_20px_70px_rgba(20,15,10,0.25)]',
+        'relative w-full min-w-0 overflow-hidden rounded-[1.5rem] bg-[#171313] text-[#fffaf2] shadow-[0_20px_70px_rgba(20,15,10,0.25)] sm:rounded-[2rem]',
         className,
       )}
     >
@@ -141,8 +141,8 @@ export function SynauraTopBar({
   primaryLabel?: string;
 }) {
   return (
-    <header className="sticky top-3 z-40 mb-4 rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/90 px-3 py-3 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:px-4">
-      <div className="flex items-center justify-between gap-3">
+    <header className="sticky top-2 z-40 mb-4 rounded-[1.6rem] border border-black/[0.08] bg-[#fffaf2]/90 px-3 py-3 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:top-3 sm:rounded-[2rem] sm:px-4">
+      <div className="flex items-center justify-between gap-2 sm:gap-3">
         <Link href="/" className="flex min-w-0 items-center gap-3">
           <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#171313] p-1.5">
             <Image
@@ -183,7 +183,7 @@ export function SynauraTopBar({
         <div className="flex items-center gap-2">
           <Link
             href="/settings"
-            className="grid h-11 w-11 place-items-center rounded-full bg-black/[0.06] text-black/60 transition hover:bg-black hover:text-white"
+            className="grid h-10 w-10 place-items-center rounded-full bg-black/[0.06] text-black/60 transition hover:bg-black hover:text-white sm:h-11 sm:w-11"
           >
             <Bell className="h-5 w-5" />
           </Link>
@@ -195,24 +195,24 @@ export function SynauraTopBar({
           </Link>
           <Link
             href={primaryHref}
-            className="inline-flex h-11 items-center justify-center rounded-full bg-[#171313] px-4 text-sm font-black text-white transition hover:scale-[1.02] sm:px-5"
+            className="inline-flex h-10 items-center justify-center rounded-full bg-[#171313] px-3 text-xs font-black text-white transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm"
           >
             {primaryLabel}
           </Link>
         </div>
       </div>
 
-      <div className="mt-3 flex gap-2 lg:hidden">
+      <div className="mt-2.5 flex gap-2 lg:hidden">
         <Link
           href={searchHref}
-          className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-full bg-black/[0.055] px-4"
+          className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full bg-black/[0.055] px-3"
         >
           <Search className="h-4 w-4 shrink-0 text-black/35" />
-          <span className="truncate text-sm font-semibold text-black/35">{searchLabel}</span>
+          <span className="truncate text-xs font-semibold text-black/35 sm:text-sm">{searchLabel}</span>
         </Link>
         <Link
           href={secondaryHref}
-          className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:hidden"
+          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-black/[0.06] px-3 text-xs font-black text-black/60 transition hover:bg-black hover:text-white sm:hidden"
         >
           <Sparkles className="h-4 w-4" />
           {secondaryLabel}
@@ -323,16 +323,16 @@ export function SynauraHero({
       className={cx('p-5 sm:p-6', className)}
       style={{ background: 'linear-gradient(135deg, #fffaf2 0%, #eee7ff 52%, #e2fbff 100%)' }}
     >
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-center">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-center">
         <div className="min-w-0">
           {eyebrow ? (
             <span className="inline-flex rounded-full bg-black/[0.055] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-black/52">
               {eyebrow}
             </span>
           ) : null}
-          <div className="mt-3 text-3xl font-black leading-[0.95] tracking-[-0.05em] text-[#171313] sm:text-4xl">{title}</div>
+          <div className="mt-3 text-[2rem] font-black leading-[0.95] tracking-[-0.05em] text-[#171313] sm:text-4xl">{title}</div>
           {description ? <div className="mt-3 max-w-2xl text-sm leading-6 text-black/58 sm:text-[15px]">{description}</div> : null}
-          {actions ? <div className="mt-5 flex flex-wrap gap-2.5">{actions}</div> : null}
+          {actions ? <div className="mt-5 grid gap-2 sm:flex sm:flex-wrap sm:gap-2.5">{actions}</div> : null}
         </div>
         {aside ? <div className="min-w-0">{aside}</div> : null}
       </div>
@@ -358,7 +358,7 @@ export function SynauraFilterTabs<T extends string>({
           onClick={() => onChange(item)}
           aria-pressed={active === item}
           className={cx(
-            'h-10 shrink-0 rounded-full px-4 text-sm font-black transition',
+            'h-9 shrink-0 rounded-full px-3 text-xs font-black transition sm:h-10 sm:px-4 sm:text-sm',
             active === item ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/55 hover:bg-black/[0.09]',
           )}
         >

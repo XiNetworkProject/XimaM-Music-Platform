@@ -68,7 +68,7 @@ export function SectionHeader({
   onAction?: () => void;
 }) {
   const actionClassName =
-    'inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 text-xs font-black uppercase tracking-[0.16em] text-white/72 transition hover:bg-white hover:text-[#171313]';
+    'inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 text-[11px] font-black uppercase tracking-[0.12em] text-white/72 transition hover:bg-white hover:text-[#171313] sm:w-auto sm:text-xs sm:tracking-[0.16em]';
 
   return (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -161,7 +161,7 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
     <div
       className={cx(
         'group/card overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] hover:shadow-[0_18px_40px_rgba(0,0,0,0.24)]',
-        grid ? 'w-full' : 'min-w-[158px] max-w-[158px] shrink-0 sm:min-w-[208px] sm:max-w-[208px]',
+        grid ? 'w-full' : 'min-w-[144px] max-w-[144px] shrink-0 sm:min-w-[208px] sm:max-w-[208px]',
       )}
       style={{ scrollSnapAlign: grid ? undefined : 'start' }}
     >
@@ -231,7 +231,7 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
         <p className="mt-1 line-clamp-1 text-[12px] text-white/46">{artistLabel}</p>
       </div>
 
-      <div className="mt-3 flex flex-col items-start gap-2 text-[11px] text-white/40 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-3 flex flex-col items-start gap-1.5 text-[10px] text-white/40 sm:flex-row sm:items-center sm:justify-between sm:text-[11px]">
         <span className="rounded-full bg-white/[0.06] px-2.5 py-1 font-semibold">{formatK(plays)} ecoutes</span>
         <span className="text-white/28">{isAI ? 'generation IA' : 'publie sur Synaura'}</span>
       </div>
@@ -291,7 +291,7 @@ export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: n
         <p className="mt-0.5 truncate text-[11px] text-white/42">{artistLabel}</p>
       </div>
 
-      <div className="shrink-0 items-center gap-2 self-end sm:flex sm:self-auto">
+      <div className="hidden shrink-0 items-center gap-2 sm:flex">
         <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-[10px] font-semibold text-white/48">
           {formatK(track.plays || 0)} ecoutes
         </span>
@@ -304,7 +304,7 @@ export function PlaylistTile({ playlist }: { playlist: DiscoverPlaylistLite }) {
   return (
     <Link
       href={`/playlists/${encodeURIComponent(playlist._id)}`}
-      className="group/card min-w-[172px] max-w-[172px] shrink-0 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] sm:min-w-[208px] sm:max-w-[208px]"
+      className="group/card min-w-[152px] max-w-[152px] shrink-0 overflow-hidden rounded-[1.55rem] border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] sm:min-w-[208px] sm:max-w-[208px] sm:rounded-[1.75rem]"
       style={{ scrollSnapAlign: 'start' }}
     >
       <div className="relative overflow-hidden rounded-[1.3rem]">
@@ -337,7 +337,7 @@ export function ArtistTile({ artist }: { artist: DiscoverArtistLite }) {
   return (
     <Link
       href={`/profile/${encodeURIComponent(artist.username)}`}
-      className="group/card min-w-[138px] max-w-[138px] shrink-0 rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-3 text-center transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] sm:min-w-[160px] sm:max-w-[160px]"
+      className="group/card min-w-[126px] max-w-[126px] shrink-0 rounded-[1.55rem] border border-white/10 bg-white/[0.05] p-2.5 text-center transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] sm:min-w-[160px] sm:max-w-[160px] sm:rounded-[1.75rem] sm:p-3"
       style={{ scrollSnapAlign: 'start' }}
     >
       {artist.avatar && !imgError ? (
@@ -406,7 +406,7 @@ export function AlbumTile({ album }: { album: DiscoverAlbumLite }) {
   return (
     <Link
       href={`/album/${album._id}`}
-      className="group/album min-w-[164px] max-w-[164px] shrink-0 rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] sm:min-w-[188px] sm:max-w-[188px]"
+      className="group/album min-w-[148px] max-w-[148px] shrink-0 rounded-[1.55rem] border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] sm:min-w-[188px] sm:max-w-[188px] sm:rounded-[1.75rem]"
       style={{ scrollSnapAlign: 'start' }}
     >
       <div className="relative overflow-hidden rounded-[1.3rem]">
