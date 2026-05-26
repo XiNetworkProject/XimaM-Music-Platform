@@ -877,7 +877,7 @@ export default function LibraryClient() {
   );
 
   const synauraHeader = (
-    <div className="sticky top-0 z-20 mb-5">
+    <div className="sticky top-[104px] z-20 mb-5 sm:top-0">
       <div className="rounded-[2rem] border border-border-secondary bg-background-tertiary/95 p-4 shadow-[0_18px_60px_rgba(30,25,20,0.10)] backdrop-blur-2xl sm:p-5">
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_240px] xl:items-start">
           <div className="min-w-0 space-y-4">
@@ -893,7 +893,7 @@ export default function LibraryClient() {
               </div>
 
               {tab === 'playlists' && !selectedPlaylistId ? (
-                <div className="hidden items-center gap-2 sm:flex">
+                <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
                   <button
                     type="button"
                     className={cx(

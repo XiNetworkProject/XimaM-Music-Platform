@@ -2,11 +2,13 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import { notify } from '@/components/NotificationCenter';
 import type { Post as BasePost } from '@/components/PostCard';
+import { SynauraMobileDock as SharedSynauraMobileDock } from '@/components/synaura/SynauraShell';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
 import {
@@ -622,7 +624,10 @@ function AppShell({ children }: { children: React.ReactNode }) {
           transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
         />
       </div>
-      <div className="relative mx-auto max-w-[1480px] px-3 py-3 sm:px-5 lg:px-8 lg:py-5">{children}</div>
+      <div className="relative mx-auto max-w-[1480px] px-3 py-3 pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] sm:px-5 sm:pb-5 lg:px-8 lg:py-5">
+        {children}
+      </div>
+      <SharedSynauraMobileDock />
     </div>
   );
 }
@@ -682,6 +687,7 @@ function AvatarBubble({
 }
 
 function SynauraRouteNav() {
+  const pathname = usePathname();
   const items = [
     { href: '/', label: 'Accueil', icon: Home },
     { href: '/discover', label: 'Decouvrir', icon: Compass },
@@ -692,17 +698,18 @@ function SynauraRouteNav() {
   ];
 
   return (
-    <nav className="mb-4" aria-label="Navigation Synaura">
+    <nav className="mb-4 hidden sm:block" aria-label="Navigation Synaura">
       <div className="no-scrollbar flex gap-2 overflow-x-auto rounded-[1.6rem] border border-black/[0.08] bg-[#fffaf2]/84 p-2 shadow-[0_14px_36px_rgba(30,25,20,0.08)] backdrop-blur-xl">
         {items.map((item) => {
           const Icon = item.icon;
+          const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(`${item.href}/`));
 
           return (
             <Link
               key={item.href}
               href={item.href}
               className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-black transition ${
-                item.href === '/'
+                isActive
                   ? 'bg-[#171313] text-white'
                   : 'bg-black/[0.045] text-black/56 hover:bg-black/[0.08] hover:text-[#171313]'
               }`}
@@ -732,45 +739,67 @@ function SynauraAnnouncementStrip() {
 
 function TopBar() {
   return (
-    <header className="sticky top-3 z-40 mb-4 flex items-center justify-between gap-3 rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/90 px-3 py-3 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:px-4">
-      <Link href="/" className="flex items-center gap-3">
-        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#171313] text-[#fffaf2]">
-          <Disc3 className="h-6 w-6" />
-        </div>
-        <div>
-          <p className="text-xl font-black tracking-tight">Synaura</p>
-          <p className="hidden text-xs font-bold uppercase tracking-[0.18em] text-black/35 sm:block">
-            social music feed
-          </p>
-        </div>
-      </Link>
+    <header className="sticky top-3 z-40 mb-4 rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/90 px-3 py-3 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:px-4">
+      <div className="flex items-center justify-between gap-3">
+        <Link href="/" className="flex min-w-0 items-center gap-3">
+          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#171313] text-[#fffaf2]">
+            <Disc3 className="h-6 w-6" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xl font-black tracking-tight">Synaura</p>
+            <p className="hidden text-xs font-bold uppercase tracking-[0.18em] text-black/35 sm:block">
+              social music feed
+            </p>
+            <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-black/35 sm:hidden">
+              mobile social music
+            </p>
+          </div>
+        </Link>
 
-      <Link
-        href="/discover"
-        className="hidden h-11 max-w-2xl flex-1 items-center gap-3 rounded-full bg-black/[0.055] px-4 lg:flex"
-      >
-        <Search className="h-4 w-4 text-black/35" />
-        <span className="text-sm font-semibold text-black/35">Rechercher un son, un post, une playlist, un createur...</span>
-      </Link>
-
-      <div className="flex items-center gap-2">
         <Link
-          href="/settings"
-          className="grid h-11 w-11 place-items-center rounded-full bg-black/[0.06] text-black/60 transition hover:bg-black hover:text-white"
+          href="/discover"
+          className="hidden h-11 max-w-2xl flex-1 items-center gap-3 rounded-full bg-black/[0.055] px-4 lg:flex"
         >
-          <Bell className="h-5 w-5" />
+          <Search className="h-4 w-4 text-black/35" />
+          <span className="text-sm font-semibold text-black/35">Rechercher un son, un post, une playlist, un createur...</span>
+        </Link>
+
+        <div className="flex items-center gap-2">
+          <Link
+            href="/settings"
+            className="grid h-11 w-11 place-items-center rounded-full bg-black/[0.06] text-black/60 transition hover:bg-black hover:text-white"
+          >
+            <Bell className="h-5 w-5" />
+          </Link>
+          <Link
+            href="/ai-generator"
+            className="hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex"
+          >
+            <Sparkles className="h-4 w-4" /> Studio
+          </Link>
+          <Link
+            href="/upload"
+            className="inline-flex h-11 items-center rounded-full bg-[#171313] px-4 text-sm font-black text-white transition hover:scale-[1.02] sm:px-5"
+          >
+            Publier
+          </Link>
+        </div>
+      </div>
+
+      <div className="mt-3 flex gap-2 lg:hidden">
+        <Link
+          href="/discover"
+          className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-full bg-black/[0.055] px-4"
+        >
+          <Search className="h-4 w-4 shrink-0 text-black/35" />
+          <span className="truncate text-sm font-semibold text-black/35">Rechercher un son, un post, une playlist...</span>
         </Link>
         <Link
           href="/ai-generator"
-          className="hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex"
+          className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:hidden"
         >
-          <Sparkles className="h-4 w-4" /> Studio
-        </Link>
-        <Link
-          href="/upload"
-          className="inline-flex h-11 items-center rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
-        >
-          Publier
+          <Sparkles className="h-4 w-4" />
+          Studio
         </Link>
       </div>
     </header>

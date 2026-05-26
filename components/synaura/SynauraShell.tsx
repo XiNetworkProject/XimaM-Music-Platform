@@ -26,6 +26,14 @@ const SYNAURA_ROUTE_ITEMS = [
   { href: '/upload', label: 'Publier', icon: Upload },
 ] as const;
 
+const SYNAURA_MOBILE_ROUTE_ITEMS = [
+  { href: '/', label: 'Accueil', icon: Home },
+  { href: '/discover', label: 'Explorer', icon: Compass },
+  { href: '/library', label: 'Biblio', icon: Library },
+  { href: '/community', label: 'Communa', icon: Users },
+  { href: '/ai-generator', label: 'Studio', icon: Sparkles },
+] as const;
+
 function routeIsActive(pathname: string | null, href: string) {
   if (!pathname) return href === '/';
   if (href === '/') return pathname === '/';
@@ -63,7 +71,15 @@ export function SynauraAppShell({
         />
       </div>
 
-      <div className={cx('relative mx-auto max-w-[1480px] px-3 py-3 sm:px-5 lg:px-8 lg:py-5', contentClassName)}>{children}</div>
+      <div
+        className={cx(
+          'relative mx-auto max-w-[1480px] px-3 py-3 pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] sm:px-5 sm:pb-5 lg:px-8 lg:py-5',
+          contentClassName,
+        )}
+      >
+        {children}
+      </div>
+      <SynauraMobileDock />
     </div>
   );
 }
@@ -125,59 +141,81 @@ export function SynauraTopBar({
   primaryLabel?: string;
 }) {
   return (
-    <header className="sticky top-3 z-40 mb-4 flex items-center justify-between gap-3 rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/90 px-3 py-3 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:px-4">
-      <Link href="/" className="flex min-w-0 items-center gap-3">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#171313] p-1.5">
-          <Image
-            src={SYNAURA_SHELL_BRAND.appLogo}
-            alt="Synaura"
-            width={36}
-            height={36}
-            className="h-9 w-9 object-contain"
-            unoptimized
-            priority
-          />
-        </div>
-        <div className="hidden min-w-0 sm:block">
-          <Image
-            src={SYNAURA_SHELL_BRAND.logotype}
-            alt="Synaura"
-            width={200}
-            height={48}
-            className="h-9 w-auto max-w-[200px] object-contain object-left"
-            unoptimized
-            priority
-          />
-        </div>
-        <p className="text-xl font-black tracking-tight sm:hidden">Synaura</p>
-      </Link>
+    <header className="sticky top-3 z-40 mb-4 rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/90 px-3 py-3 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:px-4">
+      <div className="flex items-center justify-between gap-3">
+        <Link href="/" className="flex min-w-0 items-center gap-3">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#171313] p-1.5">
+            <Image
+              src={SYNAURA_SHELL_BRAND.appLogo}
+              alt="Synaura"
+              width={36}
+              height={36}
+              className="h-9 w-9 object-contain"
+              unoptimized
+              priority
+            />
+          </div>
+          <div className="hidden min-w-0 sm:block">
+            <Image
+              src={SYNAURA_SHELL_BRAND.logotype}
+              alt="Synaura"
+              width={200}
+              height={48}
+              className="h-9 w-auto max-w-[200px] object-contain object-left"
+              unoptimized
+              priority
+            />
+          </div>
+          <div className="min-w-0 sm:hidden">
+            <p className="text-xl font-black tracking-tight">Synaura</p>
+            <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-black/36">mobile social music</p>
+          </div>
+        </Link>
 
-      <Link
-        href={searchHref}
-        className="hidden h-11 max-w-2xl flex-1 items-center gap-3 rounded-full bg-black/[0.055] px-4 lg:flex"
-      >
-        <Search className="h-4 w-4 text-black/35" />
-        <span className="truncate text-sm font-semibold text-black/35">{searchLabel}</span>
-      </Link>
-
-      <div className="flex items-center gap-2">
         <Link
-          href="/settings"
-          className="grid h-11 w-11 place-items-center rounded-full bg-black/[0.06] text-black/60 transition hover:bg-black hover:text-white"
+          href={searchHref}
+          className="hidden h-11 max-w-2xl flex-1 items-center gap-3 rounded-full bg-black/[0.055] px-4 lg:flex"
         >
-          <Bell className="h-5 w-5" />
+          <Search className="h-4 w-4 text-black/35" />
+          <span className="truncate text-sm font-semibold text-black/35">{searchLabel}</span>
+        </Link>
+
+        <div className="flex items-center gap-2">
+          <Link
+            href="/settings"
+            className="grid h-11 w-11 place-items-center rounded-full bg-black/[0.06] text-black/60 transition hover:bg-black hover:text-white"
+          >
+            <Bell className="h-5 w-5" />
+          </Link>
+          <Link
+            href={secondaryHref}
+            className="hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex"
+          >
+            <Sparkles className="h-4 w-4" /> {secondaryLabel}
+          </Link>
+          <Link
+            href={primaryHref}
+            className="inline-flex h-11 items-center justify-center rounded-full bg-[#171313] px-4 text-sm font-black text-white transition hover:scale-[1.02] sm:px-5"
+          >
+            {primaryLabel}
+          </Link>
+        </div>
+      </div>
+
+      <div className="mt-3 flex gap-2 lg:hidden">
+        <Link
+          href={searchHref}
+          className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-full bg-black/[0.055] px-4"
+        >
+          <Search className="h-4 w-4 shrink-0 text-black/35" />
+          <span className="truncate text-sm font-semibold text-black/35">{searchLabel}</span>
         </Link>
         <Link
           href={secondaryHref}
-          className="hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex"
+          className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:hidden"
         >
-          <Sparkles className="h-4 w-4" /> {secondaryLabel}
-        </Link>
-        <Link
-          href={primaryHref}
-          className="inline-flex h-11 items-center justify-center rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
-        >
-          {primaryLabel}
+          <Sparkles className="h-4 w-4" />
+          {secondaryLabel}
         </Link>
       </div>
     </header>
@@ -188,7 +226,7 @@ export function SynauraRouteNav({ className = '' }: { className?: string }) {
   const pathname = usePathname();
 
   return (
-    <nav className={cx('mb-4', className)} aria-label="Navigation Synaura">
+    <nav className={cx('mb-4 hidden sm:block', className)} aria-label="Navigation Synaura">
       <div className="synaura-no-scrollbar flex gap-2 overflow-x-auto rounded-[1.6rem] border border-black/[0.08] bg-[#fffaf2]/84 p-2 shadow-[0_14px_36px_rgba(30,25,20,0.08)] backdrop-blur-xl">
         {SYNAURA_ROUTE_ITEMS.map((item) => {
           const Icon = item.icon;
@@ -209,6 +247,41 @@ export function SynauraRouteNav({ className = '' }: { className?: string }) {
             </Link>
           );
         })}
+      </div>
+    </nav>
+  );
+}
+
+export function SynauraMobileDock() {
+  const pathname = usePathname();
+
+  return (
+    <nav
+      className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.7rem)] pt-2 sm:hidden"
+      aria-label="Navigation mobile Synaura"
+    >
+      <div className="mx-auto max-w-xl rounded-[1.8rem] border border-black/[0.08] bg-[#fffaf2]/96 p-2 shadow-[0_18px_50px_rgba(30,25,20,0.16)] backdrop-blur-2xl">
+        <div className="grid grid-cols-5 gap-1">
+          {SYNAURA_MOBILE_ROUTE_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const isActive = routeIsActive(pathname, item.href);
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cx(
+                  'flex min-w-0 flex-col items-center gap-1 rounded-[1.1rem] px-2 py-2 text-center transition',
+                  isActive ? 'bg-[#171313] text-white' : 'text-black/52 hover:bg-black/[0.05] hover:text-[#171313]',
+                )}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="truncate text-[10px] font-black tracking-[0.02em]">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );
