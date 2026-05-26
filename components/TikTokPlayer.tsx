@@ -1535,6 +1535,201 @@ function PlayerShareDrawer({
   );
 }
 
+function FeedNavigator({
+  tracks,
+  activeIndex,
+  onJump,
+  disabled,
+}: {
+  tracks: Track[];
+  activeIndex: number;
+  onJump: (index: number, source: string) => void;
+  disabled?: boolean;
+}) {
+  const prevTrack = activeIndex > 0 ? tracks[activeIndex - 1] : null;
+  const nextTrack = activeIndex < tracks.length - 1 ? tracks[activeIndex + 1] : null;
+  const dotStart = Math.max(0, activeIndex - 2);
+  const dotEnd = Math.min(tracks.length, activeIndex + 3);
+  const railTracks = tracks.slice(dotStart, dotEnd);
+
+  return (
+    <>
+      <div className="pointer-events-none absolute bottom-[112px] left-1/2 z-[122] hidden w-full max-w-[1040px] -translate-x-1/2 px-4 lg:block">
+        <div className="ml-auto flex w-[240px] flex-col gap-3">
+          <button
+            type="button"
+            disabled={!prevTrack || disabled}
+            onClick={() => prevTrack && onJump(activeIndex - 1, 'tiktok-player-nav-prev')}
+            className="pointer-events-auto rounded-[1.45rem] border border-black/[0.08] bg-[#fffaf2]/92 p-3 text-left text-[#171313] shadow-[0_18px_44px_rgba(30,25,20,0.16)] transition hover:-translate-y-0.5 disabled:cursor-default disabled:opacity-40"
+          >
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-black/36">Precedent</p>
+            <p className="mt-1 truncate text-sm font-black">{prevTrack?.title || 'Debut du feed'}</p>
+            <p className="truncate text-xs text-black/46">{prevTrack?.artist?.name || prevTrack?.artist?.username || 'Aucun son avant'}</p>
+          </button>
+
+          <div className="rounded-[1.6rem] border border-black/[0.08] bg-[#fffaf2]/94 px-4 py-3 text-[#171313] shadow-[0_20px_48px_rgba(30,25,20,0.18)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-black/36">Scroller est ici</p>
+            <p className="mt-1 text-sm font-black">Passe d’un son a l’autre avec la molette, le trackpad ou les boutons.</p>
+            <div className="mt-3 flex items-center gap-2">
+              <div className="flex flex-1 items-center justify-center gap-2">
+                {railTracks.map((track, index) => {
+                  const realIndex = dotStart + index;
+                  const active = realIndex === activeIndex;
+                  return (
+                    <button
+                      key={`${track._id}-${realIndex}`}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => onJump(realIndex, 'tiktok-player-nav-dot')}
+                      className={`pointer-events-auto h-2.5 rounded-full transition ${active ? 'w-10 bg-[#171313]' : 'w-2.5 bg-black/18 hover:bg-black/28'}`}
+                    />
+                  );
+                })}
+              </div>
+              <span className="text-xs font-black text-black/42">{activeIndex + 1}/{tracks.length}</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={!nextTrack || disabled}
+            onClick={() => nextTrack && onJump(activeIndex + 1, 'tiktok-player-nav-next')}
+            className="pointer-events-auto rounded-[1.45rem] border border-black/[0.08] bg-[#171313] p-3 text-left text-[#fffaf2] shadow-[0_24px_48px_rgba(23,19,19,0.28)] transition hover:translate-y-0.5 disabled:cursor-default disabled:opacity-40"
+          >
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/42">Suivant</p>
+            <p className="mt-1 truncate text-sm font-black">{nextTrack?.title || 'Fin de la selection actuelle'}</p>
+            <p className="truncate text-xs text-white/52">{nextTrack?.artist?.name || nextTrack?.artist?.username || 'Plus de morceau apres celui-ci'}</p>
+          </button>
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute bottom-[102px] left-1/2 z-[122] w-full max-w-[560px] -translate-x-1/2 px-4 lg:hidden">
+        <div className="pointer-events-auto rounded-[1.6rem] border border-black/[0.08] bg-[#fffaf2]/94 p-3 text-[#171313] shadow-[0_20px_48px_rgba(30,25,20,0.18)]">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-black/36">Glisse ou scrolle</p>
+          <p className="mt-1 text-sm font-black">Le prochain son est juste en dessous.</p>
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              disabled={!prevTrack || disabled}
+              onClick={() => prevTrack && onJump(activeIndex - 1, 'tiktok-player-nav-prev-mobile')}
+              className="inline-flex h-10 items-center rounded-full border border-black/[0.08] bg-black/[0.05] px-4 text-xs font-black text-black/62 disabled:opacity-40"
+            >
+              Precedent
+            </button>
+            <div className="min-w-0 flex-1 rounded-[1.1rem] bg-black/[0.04] px-3 py-2">
+              <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-black/34">Suivant</p>
+              <p className="truncate text-sm font-black">{nextTrack?.title || 'Tu as atteint la fin du flux charge'}</p>
+            </div>
+            <button
+              type="button"
+              disabled={!nextTrack || disabled}
+              onClick={() => nextTrack && onJump(activeIndex + 1, 'tiktok-player-nav-next-mobile')}
+              className="inline-flex h-10 items-center rounded-full bg-[#171313] px-4 text-xs font-black text-[#fffaf2] disabled:opacity-40"
+            >
+              Suivant
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function FeedScrollGuide({
+  tracks,
+  activeIndex,
+  onJump,
+  disabled,
+}: {
+  tracks: Track[];
+  activeIndex: number;
+  onJump: (index: number, source: string) => void;
+  disabled?: boolean;
+}) {
+  const currentTrack = tracks[activeIndex] ?? null;
+  const prevTrack = activeIndex > 0 ? tracks[activeIndex - 1] : null;
+  const nextTrack = activeIndex < tracks.length - 1 ? tracks[activeIndex + 1] : null;
+  const dotStart = Math.max(0, activeIndex - 2);
+  const dotEnd = Math.min(tracks.length, activeIndex + 3);
+  const railTracks = tracks.slice(dotStart, dotEnd);
+
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[123] flex justify-center px-4 pb-[132px] md:pb-[118px]">
+      <div className="pointer-events-auto w-full max-w-3xl overflow-hidden rounded-[1.8rem] border border-black/[0.08] bg-[#fffaf2]/95 text-[#171313] shadow-[0_24px_64px_rgba(30,25,20,0.2)] backdrop-blur-2xl">
+        <div className="grid gap-3 p-3 lg:grid-cols-[minmax(0,1fr)_minmax(320px,1.2fr)_minmax(0,1fr)] lg:items-center lg:p-4">
+          <button
+            type="button"
+            disabled={!prevTrack || disabled}
+            onClick={() => prevTrack && onJump(activeIndex - 1, 'tiktok-player-guide-prev')}
+            className="min-w-0 rounded-[1.3rem] border border-black/[0.08] bg-black/[0.04] px-4 py-3 text-left transition hover:-translate-y-0.5 hover:bg-black/[0.06] disabled:cursor-default disabled:opacity-40"
+          >
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#171313] text-[#fffaf2]">
+                <ChevronDown className="h-4 w-4 -rotate-180" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-black/38">Revenir au-dessus</p>
+                <p className="mt-1 truncate text-sm font-black">{prevTrack?.title || 'Début du flux'}</p>
+                <p className="truncate text-xs text-black/48">{prevTrack?.artist?.name || prevTrack?.artist?.username || 'Aucun morceau précédent'}</p>
+              </div>
+            </div>
+          </button>
+
+          <div className="rounded-[1.35rem] bg-[#171313] px-4 py-3 text-[#fffaf2] shadow-[0_16px_34px_rgba(23,19,19,0.18)]">
+            <div className="flex items-center justify-center gap-2 text-[#fffaf2]/58">
+              <ChevronDown className="h-4 w-4 -rotate-180" />
+              <ChevronDown className="h-4 w-4 animate-bounce" />
+            </div>
+            <p className="mt-2 text-center text-[10px] font-black uppercase tracking-[0.24em] text-[#fffaf2]/54">Fil sonore Synaura</p>
+            <p className="mt-1 text-center text-sm font-black">
+              {nextTrack ? 'Glisse vers le haut ou utilise Suivant' : 'Tu as atteint la fin du flux chargé'}
+            </p>
+            <p className="mt-1 truncate text-center text-xs text-[#fffaf2]/60">
+              {nextTrack ? `${nextTrack.title} arrive juste après ${currentTrack?.title || 'ce son'}` : 'Change de mode pour charger un autre angle du feed'}
+            </p>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex flex-1 items-center justify-center gap-2">
+                {railTracks.map((track, index) => {
+                  const realIndex = dotStart + index;
+                  const active = realIndex === activeIndex;
+                  return (
+                    <button
+                      key={`${track._id}-${realIndex}`}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => onJump(realIndex, 'tiktok-player-guide-dot')}
+                      className={`h-2.5 rounded-full transition ${active ? 'w-12 bg-[#fffaf2]' : 'w-2.5 bg-[#fffaf2]/24 hover:bg-[#fffaf2]/42'}`}
+                    />
+                  );
+                })}
+              </div>
+              <span className="text-xs font-black text-[#fffaf2]/58">{activeIndex + 1}/{tracks.length}</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={!nextTrack || disabled}
+            onClick={() => nextTrack && onJump(activeIndex + 1, 'tiktok-player-guide-next')}
+            className="min-w-0 rounded-[1.3rem] border border-black/[0.08] bg-[#171313] px-4 py-3 text-left text-[#fffaf2] transition hover:translate-y-0.5 disabled:cursor-default disabled:opacity-40"
+          >
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#fffaf2] text-[#171313]">
+                <ChevronDown className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#fffaf2]/42">Continuer en dessous</p>
+                <p className="mt-1 truncate text-sm font-black">{nextTrack?.title || 'Fin de la sélection actuelle'}</p>
+                <p className="truncate text-xs text-[#fffaf2]/54">{nextTrack?.artist?.name || nextTrack?.artist?.username || 'Plus aucun morceau après celui-ci'}</p>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const LoadingScreen = memo(function LoadingScreen() {
   return (
     <div className="fixed inset-0 z-[100] bg-black text-white grid place-items-center">
@@ -1883,8 +2078,6 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     setCommentsOpen(false);
     setLyricsOpen(false);
     setShareOpen(true);
-    return;
-        notify.success('OK', 'Lien copié !');
   }, []);
 
   const handleFeedModeChange = useCallback((mode: FeedMode) => {
@@ -1958,7 +2151,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
       <AnimatePresence>
         <motion.div
           key="tiktok-root"
-          className="fixed inset-0 z-[100] bg-black text-white overflow-hidden select-none"
+          className="fixed inset-0 z-[100] overflow-hidden bg-[#130d11] text-white select-none"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -1986,8 +2179,9 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                 )}
               </motion.div>
             </AnimatePresence>
-            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-black/70" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,rgba(99,102,241,0.12),transparent_60%)]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#120d11]/82 via-[#120d11]/42 to-[#120d11]/88" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,rgba(250,204,21,0.12),transparent_62%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(244,114,182,0.14),transparent_28%)]" />
           </div>
 
           {/* Header */}
@@ -1995,7 +2189,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
             <div className="flex items-center justify-between">
               <button
                 onClick={closeHandler}
-                className="h-10 w-10 rounded-full bg-black/40 backdrop-blur-xl grid place-items-center border border-white/[0.1] hover:bg-white/10 transition-all active:scale-90"
+                className="grid h-10 w-10 place-items-center rounded-full border border-[#fffaf2]/12 bg-[#171313]/52 backdrop-blur-xl transition-all hover:bg-[#171313]/72 active:scale-90"
                 title="Fermer"
               >
                 <ChevronDown size={22} className="text-white/90" />
@@ -2010,7 +2204,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
               </div>
               <div className="w-10" />
             </div>
-            <div className="mt-3 rounded-[1.4rem] border border-white/10 bg-black/26 p-2.5 backdrop-blur-2xl">
+            <div className="mt-3 rounded-[1.4rem] border border-[#fffaf2]/12 bg-[#171313]/46 p-2.5 backdrop-blur-2xl">
               <div className="flex gap-2 overflow-x-auto scrollbar-none">
                 {(Object.keys(FEED_MODE_META) as FeedMode[]).map((mode) => {
                   const meta = FEED_MODE_META[mode];
@@ -2036,12 +2230,25 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                   {modeMeta.label}{currentSeedGenre ? ` · ${currentSeedGenre}` : ''}
                 </p>
                 <p className="mt-1 text-[12px] leading-5 text-white/68">{modeMeta.description}</p>
+                {tracks.length > 1 ? (
+                  <p className="mt-2 text-[11px] font-semibold text-white/82">
+                    Fais glisser vers le haut pour enchainer, ou utilise la barre du fil juste au-dessus du player.
+                  </p>
+                ) : null}
               </div>
             </div>
           </header>
 
           <QueueDialog isOpen={showQueue} onClose={() => setShowQueue(false)} />
           <AnimatePresence>{burstVisible && <HeartBurst burstKey={burstKey} />}</AnimatePresence>
+          {tracks.length > 0 && !modalsOpen ? (
+            <FeedScrollGuide
+              tracks={tracks}
+              activeIndex={activeIndex}
+              onJump={playIndexFromGesture}
+              disabled={modalsOpen}
+            />
+          ) : null}
 
           {/* Scroll container — virtualized */}
           <div
@@ -2049,7 +2256,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
             onTouchStart={scrollSnap.onTouchStart}
             onTouchEnd={scrollSnap.onTouchEnd}
             onScroll={scrollSnap.onScroll}
-            className="h-full w-full overflow-y-auto overscroll-none"
+            className="h-full w-full overflow-y-auto overscroll-none md:cursor-grab active:cursor-grabbing"
             style={{ scrollSnapType: 'y mandatory', WebkitOverflowScrolling: 'touch' }}
           >
             {tracks.map((t, i) => {
