@@ -131,7 +131,7 @@ export function HorizontalScroller({ children }: { children: React.ReactNode }) 
 
       <div
         ref={scrollRef}
-        className="synaura-no-scrollbar -mx-1 flex gap-4 overflow-x-auto px-1 pb-1"
+        className="synaura-no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1 pb-1 pr-1 sm:gap-4"
         style={{ scrollSnapType: 'x mandatory' }}
         onScroll={handleScroll}
       >
@@ -161,7 +161,7 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
     <div
       className={cx(
         'group/card overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] hover:shadow-[0_18px_40px_rgba(0,0,0,0.24)]',
-        grid ? 'w-full' : 'min-w-[188px] max-w-[188px] shrink-0 sm:min-w-[208px] sm:max-w-[208px]',
+        grid ? 'w-full' : 'min-w-[158px] max-w-[158px] shrink-0 sm:min-w-[208px] sm:max-w-[208px]',
       )}
       style={{ scrollSnapAlign: grid ? undefined : 'start' }}
     >
@@ -220,7 +220,7 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
         <button
           type="button"
           onClick={() => track.audioUrl && playTrack(track as any)}
-          className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full bg-[#fffaf2] text-[#171313] shadow-[0_16px_35px_rgba(0,0,0,0.28)] transition duration-200 hover:scale-105"
+          className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#fffaf2] text-[#171313] shadow-[0_16px_35px_rgba(0,0,0,0.28)] transition duration-200 hover:scale-105 sm:h-11 sm:w-11"
         >
           <Play className="ml-0.5 h-4 w-4 fill-current" />
         </button>
@@ -231,7 +231,7 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
         <p className="mt-1 line-clamp-1 text-[12px] text-white/46">{artistLabel}</p>
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-white/40">
+      <div className="mt-3 flex flex-col items-start gap-2 text-[11px] text-white/40 sm:flex-row sm:items-center sm:justify-between">
         <span className="rounded-full bg-white/[0.06] px-2.5 py-1 font-semibold">{formatK(plays)} ecoutes</span>
         <span className="text-white/28">{isAI ? 'generation IA' : 'publie sur Synaura'}</span>
       </div>
@@ -247,7 +247,7 @@ export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: n
 
   return (
     <div
-      className="group/row flex items-center gap-3 rounded-[1.45rem] border border-white/10 bg-white/[0.04] px-3 py-2.5 transition duration-200 hover:bg-white/[0.08]"
+      className="group/row flex items-start gap-3 rounded-[1.45rem] border border-white/10 bg-white/[0.04] px-3 py-2.5 transition duration-200 hover:bg-white/[0.08] sm:items-center"
       onClick={() => track.audioUrl && playTrack(track as any)}
     >
       {typeof index === 'number' ? (
@@ -291,7 +291,7 @@ export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: n
         <p className="mt-0.5 truncate text-[11px] text-white/42">{artistLabel}</p>
       </div>
 
-      <div className="hidden shrink-0 items-center gap-2 sm:flex">
+      <div className="shrink-0 items-center gap-2 self-end sm:flex sm:self-auto">
         <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-[10px] font-semibold text-white/48">
           {formatK(track.plays || 0)} ecoutes
         </span>
@@ -304,7 +304,7 @@ export function PlaylistTile({ playlist }: { playlist: DiscoverPlaylistLite }) {
   return (
     <Link
       href={`/playlists/${encodeURIComponent(playlist._id)}`}
-      className="group/card min-w-[208px] max-w-[208px] shrink-0 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09]"
+      className="group/card min-w-[172px] max-w-[172px] shrink-0 overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] sm:min-w-[208px] sm:max-w-[208px]"
       style={{ scrollSnapAlign: 'start' }}
     >
       <div className="relative overflow-hidden rounded-[1.3rem]">
@@ -337,19 +337,19 @@ export function ArtistTile({ artist }: { artist: DiscoverArtistLite }) {
   return (
     <Link
       href={`/profile/${encodeURIComponent(artist.username)}`}
-      className="group/card min-w-[160px] max-w-[160px] shrink-0 rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-3 text-center transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09]"
+      className="group/card min-w-[138px] max-w-[138px] shrink-0 rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-3 text-center transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] sm:min-w-[160px] sm:max-w-[160px]"
       style={{ scrollSnapAlign: 'start' }}
     >
       {artist.avatar && !imgError ? (
         <img
           src={artist.avatar}
           alt={artist.name}
-          className="mx-auto h-20 w-20 rounded-full border-2 border-white/12 object-cover transition duration-200 group-hover/card:border-white/26"
+          className="mx-auto h-16 w-16 rounded-full border-2 border-white/12 object-cover transition duration-200 group-hover/card:border-white/26 sm:h-20 sm:w-20"
           loading="lazy"
           onError={() => setImgError(true)}
         />
       ) : (
-        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-2 border-white/12 bg-gradient-to-br from-[#ff6f61]/72 via-[#7c5cff]/58 to-[#00c2cb]/50 text-xl font-black text-white">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/12 bg-gradient-to-br from-[#ff6f61]/72 via-[#7c5cff]/58 to-[#00c2cb]/50 text-xl font-black text-white sm:h-20 sm:w-20">
           {(artist.name || artist.username || '?')[0].toUpperCase()}
         </div>
       )}
@@ -406,7 +406,7 @@ export function AlbumTile({ album }: { album: DiscoverAlbumLite }) {
   return (
     <Link
       href={`/album/${album._id}`}
-      className="group/album min-w-[188px] max-w-[188px] shrink-0 rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09]"
+      className="group/album min-w-[164px] max-w-[164px] shrink-0 rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] sm:min-w-[188px] sm:max-w-[188px]"
       style={{ scrollSnapAlign: 'start' }}
     >
       <div className="relative overflow-hidden rounded-[1.3rem]">
@@ -430,7 +430,7 @@ export function AlbumTile({ album }: { album: DiscoverAlbumLite }) {
             e.stopPropagation();
             router.push(`/album/${album._id}`);
           }}
-          className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full bg-[#fffaf2] text-[#171313] shadow-[0_16px_35px_rgba(0,0,0,0.28)] transition duration-200 hover:scale-105"
+          className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#fffaf2] text-[#171313] shadow-[0_16px_35px_rgba(0,0,0,0.28)] transition duration-200 hover:scale-105 sm:h-11 sm:w-11"
         >
           {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
         </button>

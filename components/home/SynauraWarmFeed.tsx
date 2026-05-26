@@ -1280,15 +1280,15 @@ function TrackInlineActions({
   }, [track.commentsCount, track.id]);
 
   const defaultButtonClassName = dark
-    ? 'inline-flex h-10 items-center gap-2 rounded-full bg-white/10 px-4 text-sm font-black text-white/72 transition hover:bg-white/14 hover:text-white'
-    : 'inline-flex h-10 items-center gap-2 rounded-full bg-black/[0.055] px-4 text-sm font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black';
+    ? 'inline-flex h-9 items-center justify-center gap-2 rounded-full bg-white/10 px-3 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-10 sm:px-4 sm:text-sm'
+    : 'inline-flex h-9 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-3 text-xs font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black sm:h-10 sm:px-4 sm:text-sm';
   const likedButtonClassName = dark
-    ? 'inline-flex h-10 items-center gap-2 rounded-full bg-[#fffaf2] px-4 text-sm font-black text-[#171313] transition hover:opacity-90'
-    : 'inline-flex h-10 items-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-white transition hover:opacity-92';
+    ? 'inline-flex h-9 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-3 text-xs font-black text-[#171313] transition hover:opacity-90 sm:h-10 sm:px-4 sm:text-sm'
+    : 'inline-flex h-9 items-center justify-center gap-2 rounded-full bg-[#171313] px-3 text-xs font-black text-white transition hover:opacity-92 sm:h-10 sm:px-4 sm:text-sm';
 
   return (
     <div className="mt-3">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center">
         <button
           type="button"
           onClick={() => void toggleLike()}
@@ -1354,8 +1354,8 @@ function MiniPlayer({ track, withActions = true }: { track: Track; withActions?:
 
   return (
     <div className="mt-4 rounded-[1.35rem] bg-black/[0.055] p-3">
-      <div className="flex items-center gap-3">
-        <img src={track.cover} alt="" className="h-16 w-16 rounded-2xl object-cover" />
+      <div className="flex items-start gap-3 sm:items-center">
+        <img src={track.cover} alt="" className="h-14 w-14 rounded-2xl object-cover sm:h-16 sm:w-16" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-black">{track.title}</p>
           <p className="truncate text-xs font-semibold text-black/42">
@@ -1367,7 +1367,7 @@ function MiniPlayer({ track, withActions = true }: { track: Track; withActions?:
         <button
           type="button"
           onClick={() => playTrack(track.playerTrack as any)}
-          className="grid h-11 w-11 place-items-center rounded-full bg-[#171313] text-white"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#171313] text-white sm:h-11 sm:w-11"
         >
           {isPlayingThis ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
         </button>
@@ -1423,7 +1423,7 @@ function PostCard({ item }: { item: PostItem }) {
           <AvatarBubble value={item.avatar} tint={item.track?.tint ?? '#ff7a66'} />
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <Link href={item.authorHref || '/community'} className="font-black hover:underline">
                     {item.author}
@@ -1434,11 +1434,11 @@ function PostCard({ item }: { item: PostItem }) {
                 <span className="mt-2 inline-flex rounded-full bg-black/[0.055] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-black/46">
                   {item.mood}
                 </span>
-                <p className="mt-3 text-[15px] leading-7 text-black/72">{item.text}</p>
+                <p className="mt-3 text-[14px] leading-6 text-black/72 sm:text-[15px] sm:leading-7">{item.text}</p>
             </div>
             <Link
               href={item.href}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black/[0.055] text-black/42 transition hover:bg-black/[0.1] hover:text-black"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black/[0.055] text-black/42 transition hover:bg-black/[0.1] hover:text-black sm:h-9 sm:w-9"
               title="Ouvrir le post"
             >
               <MoreHorizontal className="h-5 w-5" />
@@ -1449,7 +1449,7 @@ function PostCard({ item }: { item: PostItem }) {
 
           {!item.track && item.image ? (
             <div className="mt-4 overflow-hidden rounded-[1.35rem] bg-black/[0.055]">
-              <img src={item.image} alt="" className="max-h-[360px] w-full object-cover" />
+              <img src={item.image} alt="" className="max-h-[280px] w-full object-cover sm:max-h-[360px]" />
             </div>
           ) : null}
 
@@ -1459,11 +1459,11 @@ function PostCard({ item }: { item: PostItem }) {
             </div>
           ) : null}
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
             <button
               type="button"
               onClick={handleLike}
-              className={`inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-black transition ${
+              className={`inline-flex h-9 items-center justify-center gap-2 rounded-full px-3 text-xs font-black transition sm:h-10 sm:px-4 sm:text-sm ${
                 liked ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/62 hover:bg-black/[0.1] hover:text-black'
               }`}
             >
@@ -1477,7 +1477,7 @@ function PostCard({ item }: { item: PostItem }) {
                 setCommentsOpen((current) => !current);
                 setShareOpen(false);
               }}
-              className="inline-flex h-10 items-center gap-2 rounded-full bg-black/[0.055] px-4 text-sm font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-3 text-xs font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black sm:h-10 sm:px-4 sm:text-sm"
             >
               <MessageCircle className="h-4 w-4" />
               {commentsCount ? formatCompact(commentsCount) : 'Commenter'}
@@ -1489,7 +1489,7 @@ function PostCard({ item }: { item: PostItem }) {
                 setShareOpen((current) => !current);
                 setCommentsOpen(false);
               }}
-              className="inline-flex h-10 items-center gap-2 rounded-full bg-black/[0.055] px-4 text-sm font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-3 text-xs font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black sm:h-10 sm:px-4 sm:text-sm"
             >
               <Share2 className="h-4 w-4" />
               Partager
@@ -1497,7 +1497,7 @@ function PostCard({ item }: { item: PostItem }) {
 
             <Link
               href={item.authorHref || '/community'}
-              className="ml-auto inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-black text-black/42 transition hover:bg-black/[0.055] hover:text-black"
+              className="col-span-2 inline-flex h-9 items-center justify-center gap-2 rounded-full px-3 text-xs font-black text-black/42 transition hover:bg-black/[0.055] hover:text-black sm:ml-auto sm:h-10 sm:w-auto sm:px-4 sm:text-sm"
             >
               <Bookmark className="h-4 w-4" />
               Profil
@@ -1538,17 +1538,21 @@ function TrackFeedCard({ item }: { item: Extract<FeedItem, { kind: 'track' }> })
         </div>
         <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-white/62">{item.label}</span>
       </div>
-      <div className="flex items-center gap-4">
-        <img src={item.track.cover} alt="" className="h-24 w-24 rounded-[1.2rem] object-cover sm:h-28 sm:w-28" />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <img
+          src={item.track.cover}
+          alt=""
+          className="h-[220px] w-full rounded-[1.2rem] object-cover sm:h-28 sm:w-28 sm:shrink-0"
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate text-xl font-black">{item.track.title}</p>
           <p className="truncate text-sm font-semibold text-white/45">
             {item.track.artist} · {item.track.style}
           </p>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-white/50">
-            <span>{item.track.plays} ecoutes</span>
-            <span>{item.track.likes} likes</span>
-            <span>{item.track.comments} coms</span>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-bold text-white/50 sm:flex sm:flex-wrap sm:text-left">
+            <span className="rounded-full bg-white/[0.06] px-2 py-1">{item.track.plays} ecoutes</span>
+            <span className="rounded-full bg-white/[0.06] px-2 py-1">{item.track.likes} likes</span>
+            <span className="rounded-full bg-white/[0.06] px-2 py-1">{item.track.comments} coms</span>
           </div>
           <Wave color={item.track.tint} active={isPlayingThis} />
           <TrackInlineActions track={item.track} dark />
@@ -1556,7 +1560,7 @@ function TrackFeedCard({ item }: { item: Extract<FeedItem, { kind: 'track' }> })
         <button
           type="button"
           onClick={() => playTrack(item.track.playerTrack as any)}
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#fffaf2] text-black"
+          className="grid h-11 w-11 shrink-0 place-items-center self-end rounded-full bg-[#fffaf2] text-black sm:h-12 sm:w-12 sm:self-auto"
         >
           {isPlayingThis ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
         </button>
@@ -1581,7 +1585,7 @@ function RailCard({ item }: { item: Extract<FeedItem, { kind: 'rail' }> }) {
         {item.tracks.map((track) => {
           const isPlayingThis = audioState.tracks[audioState.currentTrackIndex]?._id === track.id && audioState.isPlaying;
           return (
-            <motion.div key={track.id} whileHover={{ y: -4 }} className="min-w-[150px] sm:min-w-[170px]">
+            <motion.div key={track.id} whileHover={{ y: -4 }} className="min-w-[132px] sm:min-w-[170px]">
               <div className="rounded-[1.2rem] bg-black/[0.045] p-2">
                 <div className="relative overflow-hidden rounded-2xl">
                   <img src={track.cover} alt="" className="aspect-square w-full object-cover" />
@@ -1617,8 +1621,8 @@ function PlaylistCard({ item }: { item: Extract<FeedItem, { kind: 'playlist' }> 
         </div>
         <span className="rounded-full bg-black/[0.055] px-3 py-1.5 text-xs font-black text-black/58">playlist</span>
       </div>
-      <div className="grid grid-cols-[112px_1fr] gap-4 sm:grid-cols-[124px_1fr]">
-        <div className="grid h-[112px] grid-cols-2 overflow-hidden rounded-[1.15rem] sm:h-[124px]">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[124px_1fr]">
+        <div className="grid h-[180px] grid-cols-2 overflow-hidden rounded-[1.15rem] sm:h-[124px]">
           {playlist.covers.map((cover, index) => (
             <img key={index} src={cover} alt="" className="h-full w-full object-cover" />
           ))}
@@ -1630,7 +1634,7 @@ function PlaylistCard({ item }: { item: Extract<FeedItem, { kind: 'playlist' }> 
           </div>
           <Link
             href={playlist.href}
-            className="mt-3 inline-flex h-10 w-fit items-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-white"
+            className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-white sm:w-fit"
           >
             <Play className="h-4 w-4 fill-current" /> Ouvrir
           </Link>
@@ -1652,7 +1656,11 @@ function CreatorRailCard({ item }: { item: Extract<FeedItem, { kind: 'creator' }
       </div>
       <div className="no-scrollbar flex gap-3 overflow-x-auto pb-1">
         {item.creators.map((creator) => (
-          <Link key={creator.id} href={creator.href} className="min-w-[145px] rounded-[1.25rem] bg-black/[0.045] p-3 text-center transition hover:bg-black/[0.07]">
+          <Link
+            key={creator.id}
+            href={creator.href}
+            className="min-w-[132px] rounded-[1.25rem] bg-black/[0.045] p-3 text-center transition hover:bg-black/[0.07] sm:min-w-[145px]"
+          >
             <div className="mx-auto mb-3 w-fit">
               <AvatarBubble value={creator.avatar} size="lg" tint={creator.tint} />
             </div>
@@ -1675,8 +1683,11 @@ function RadioFeedCard({ item }: { item: RadioItem }) {
 
   return (
     <InkCard className="p-4 sm:p-5">
-      <div className="flex items-center gap-4">
-        <div className="grid h-16 w-16 place-items-center rounded-[1.25rem] text-red-100" style={{ background: `${item.color}33` }}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div
+          className="grid h-16 w-16 place-items-center rounded-[1.25rem] text-red-100"
+          style={{ background: `${item.color}33` }}
+        >
           <Radio className="h-7 w-7" />
         </div>
         <div className="min-w-0 flex-1">
@@ -1695,7 +1706,7 @@ function RadioFeedCard({ item }: { item: RadioItem }) {
         <button
           type="button"
           onClick={() => playTrack(item.track as any)}
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#fffaf2] text-black"
+          className="grid h-11 w-11 shrink-0 place-items-center self-end rounded-full bg-[#fffaf2] text-black sm:h-12 sm:w-12 sm:self-auto"
         >
           {isPlayingThis ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
         </button>
