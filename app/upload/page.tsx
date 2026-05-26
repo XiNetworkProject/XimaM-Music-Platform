@@ -474,6 +474,595 @@ export default function UploadPage() {
       : 'Immediatement';
 
   return (
+    <SynauraAppShell contentClassName="max-w-[1540px]">
+      <SynauraTopBar
+        searchLabel="Rechercher avant de publier..."
+        secondaryHref="/ai-generator"
+        secondaryLabel="Studio"
+        primaryHref="/upload"
+        primaryLabel="Publier"
+      />
+      <SynauraRouteNav />
+      <SynauraAnnouncementStrip />
+
+      <section className="mb-4 overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-[#171313] text-white shadow-[0_28px_80px_rgba(20,15,10,0.22)]">
+        <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-stretch">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#171313]">Upload Synaura</span>
+              <span className="rounded-full border border-white/12 bg-white/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/62">
+                {releaseLabel}
+              </span>
+              <span className="rounded-full border border-white/12 bg-white/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/62">
+                {selectedTrackCount} piste{selectedTrackCount > 1 ? 's' : ''}
+              </span>
+            </div>
+            <h1 className="mt-4 max-w-3xl text-3xl font-black leading-[0.94] tracking-[-0.07em] sm:text-5xl">
+              Finalise une sortie comme une session Studio.
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/56 sm:text-base">
+              Upload reprend le meme cockpit que le Studio : fichiers, metadata, verification, planning et publication restent dans le nouveau Synaura.
+            </p>
+            <div className="mt-5 grid gap-2 sm:flex sm:flex-wrap">
+              <button
+                type="button"
+                onClick={() => router.push('/ai-generator')}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]"
+              >
+                <Wand2 className="h-4 w-4" />
+                Ouvrir le Studio
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push('/library')}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-5 text-sm font-black text-white transition hover:bg-white/[0.14]"
+              >
+                <Library className="h-4 w-4" />
+                Bibliotheque
+              </button>
+            </div>
+          </div>
+
+          <div className="grid min-w-0 gap-2 sm:grid-cols-3 lg:grid-cols-1">
+            {[
+              { label: 'Importer', value: `${selectedTrackCount || 0} piste(s)`, active: currentStep === 1, done: step1Valid },
+              { label: 'Presenter', value: title.trim() || 'Metadata', active: currentStep === 2, done: step2Valid },
+              { label: 'Diffuser', value: scheduledLabel, active: currentStep === 3, done: currentStep === 3 },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className={[
+                  'min-w-0 rounded-[1.15rem] border p-3 transition',
+                  item.active ? 'border-white/32 bg-white text-[#171313]' : item.done ? 'border-emerald-200/24 bg-emerald-300/10 text-white' : 'border-white/10 bg-white/[0.06] text-white',
+                ].join(' ')}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className={['text-[10px] font-black uppercase tracking-[0.16em]', item.active ? 'text-black/45' : 'text-white/38'].join(' ')}>{item.label}</p>
+                  <span className={['grid h-7 w-7 place-items-center rounded-full', item.active ? 'bg-[#171313] text-white' : item.done ? 'bg-emerald-300/16 text-emerald-100' : 'bg-white/[0.08] text-white/40'].join(' ')}>
+                    {item.done ? <Check className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  </span>
+                </div>
+                <p className="mt-2 truncate text-sm font-black">{item.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <main className="grid gap-3 lg:grid-cols-[250px_minmax(0,1fr)_330px] xl:grid-cols-[270px_minmax(0,1fr)_360px]">
+        <aside className="min-w-0 space-y-3">
+          <SynauraPanel className="p-3 sm:p-4">
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => router.push('/')}
+                className="grid h-10 w-10 place-items-center rounded-2xl bg-black/[0.06] text-black/58 transition hover:bg-[#171313] hover:text-white"
+                aria-label="Retour a l'accueil"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/38">Publication</p>
+                <h1 className="truncate text-xl font-black tracking-[-0.04em] text-[#171313]">Nouvelle sortie</h1>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-2">
+              {STEPS.map((step) => {
+                const enabled = step.k === 1 || (step.k === 2 && step1Valid) || (step.k === 3 && step1Valid && step2Valid);
+                const active = currentStep === step.k;
+                const done = step.k === 1 ? step1Valid : step.k === 2 ? step2Valid : currentStep === 3;
+
+                return (
+                  <button
+                    key={step.k}
+                    type="button"
+                    disabled={!enabled}
+                    onClick={() => setCurrentStep(step.k)}
+                    className={[
+                      'flex min-w-0 items-center gap-3 rounded-[1.15rem] px-3 py-3 text-left transition disabled:cursor-not-allowed',
+                      active ? 'bg-[#171313] text-white' : done ? 'bg-emerald-500/10 text-[#171313]' : 'bg-black/[0.045] text-black/48',
+                    ].join(' ')}
+                  >
+                    <span className={['grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-black', active ? 'bg-white text-[#171313]' : 'bg-white/70 text-[#171313]'].join(' ')}>
+                      {done ? <Check className="h-3.5 w-3.5" /> : step.k}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-black">{step.label}</span>
+                      <span className={['block truncate text-[11px] font-semibold', active ? 'text-white/54' : 'text-black/38'].join(' ')}>
+                        {step.k === 1 ? `${selectedTrackCount || 0} piste(s)` : step.k === 2 ? (title.trim() || 'Titre et cover') : visibility}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-4">
+              <div className="mb-2 flex items-center justify-between text-[11px] font-black uppercase tracking-[0.16em] text-black/34">
+                <span>Avancee</span>
+                <span>{progressPercent}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-black/[0.07]">
+                <div
+                  className="h-full rounded-full bg-[#171313] transition-all duration-500"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+          </SynauraPanel>
+
+          <SynauraPanel className="p-3 sm:p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/38">Contexte</p>
+            <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-1">
+              <div className="rounded-[1rem] bg-black/[0.045] p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-black/34">Format</p>
+                <p className="mt-1 text-sm font-black text-[#171313]">{releaseLabel}</p>
+              </div>
+              <div className="rounded-[1rem] bg-black/[0.045] p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-black/34">Limite</p>
+                <p className="mt-1 text-sm font-black text-[#171313]">{uploadLimitLabel}</p>
+              </div>
+              <div className="rounded-[1rem] bg-black/[0.045] p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-black/34">Sortie</p>
+                <p className="mt-1 truncate text-sm font-black text-[#171313]">{scheduledLabel}</p>
+              </div>
+              <div className="rounded-[1rem] bg-black/[0.045] p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-black/34">Plan</p>
+                <p className="mt-1 text-sm font-black capitalize text-[#171313]">{planKey}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.push('/ai-generator')}
+              className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-white transition hover:scale-[1.01]"
+            >
+              <Wand2 className="h-4 w-4" />
+              Studio IA
+            </button>
+          </SynauraPanel>
+        </aside>
+
+        <section className="min-w-0 overflow-hidden rounded-[1.5rem] bg-[#171313] text-white shadow-[0_24px_70px_rgba(20,15,10,0.22)] sm:rounded-[2rem]">
+          <div className="border-b border-white/[0.08] bg-[#1d1717] px-3 py-3 sm:px-5 sm:py-4">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">Workflow live</p>
+                <h2 className="mt-1 truncate text-2xl font-black tracking-[-0.04em] text-white">
+                  {currentStep === 1 ? 'Importer' : currentStep === 2 ? 'Presenter' : 'Diffuser'}
+                </h2>
+              </div>
+              <div className="grid grid-cols-3 gap-1 rounded-full bg-white/[0.06] p-1">
+                {(['single', 'ep', 'album'] as ReleaseType[]).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => {
+                      setReleaseType(type);
+                      if (type === 'single') setTrackMetas([]);
+                      else setAudioFile(null);
+                    }}
+                    className={[
+                      'h-9 rounded-full px-3 text-xs font-black capitalize transition',
+                      releaseType === type ? 'bg-white text-[#171313]' : 'text-white/46 hover:bg-white/[0.07] hover:text-white',
+                    ].join(' ')}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {blockedMsg && (
+            <div className="mx-3 mt-3 flex flex-col gap-3 rounded-[1.1rem] border border-amber-300/20 bg-amber-300/10 p-3 sm:mx-5 sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-xs font-semibold text-amber-100">{blockedMsg}. Passe a un plan superieur.</span>
+              <button
+                type="button"
+                onClick={() => router.push('/subscriptions')}
+                className="inline-flex h-9 items-center justify-center rounded-full bg-amber-200 px-3 text-xs font-black text-[#171313]"
+              >
+                Voir les plans
+              </button>
+            </div>
+          )}
+
+          <div className="p-3 sm:p-5">
+            <AnimatePresence mode="wait">
+              {currentStep === 1 && (
+                <motion.div key="upload-files" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <ReleaseTypeSelector
+                      value={releaseType}
+                      onChange={(value) => {
+                        setReleaseType(value);
+                        if (value === 'single') setTrackMetas([]);
+                        else setAudioFile(null);
+                      }}
+                    />
+                  </div>
+
+                  {releaseType === 'single' && !audioFile ? (
+                    <div
+                      {...getAudioRP()}
+                      className={[
+                        'cursor-pointer rounded-[1.25rem] border border-dashed p-6 text-center transition sm:p-10',
+                        isAudioDrag ? 'border-[#ff6f61] bg-[#ff6f61]/10' : 'border-white/[0.12] bg-white/[0.035] hover:border-white/24',
+                      ].join(' ')}
+                    >
+                      <input {...getAudioIP()} />
+                      <Upload className="mx-auto mb-3 h-10 w-10 text-white/32" />
+                      <p className="text-base font-black text-white">Ajoute ton morceau principal</p>
+                      <p className="mt-1 text-xs font-semibold text-white/36">MP3, WAV, FLAC - max {uploadLimitLabel}</p>
+                    </div>
+                  ) : releaseType === 'single' && audioFile ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3 rounded-[1.2rem] border border-white/[0.10] bg-white/[0.04] p-3">
+                        <button
+                          type="button"
+                          onClick={() => setIsPlaying(!isPlaying)}
+                          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-[#171313] transition hover:scale-[1.03]"
+                        >
+                          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-black">{audioFile.name}</p>
+                          <p className="mt-0.5 text-[11px] font-semibold text-white/34">
+                            {(audioFile.size / 1024 / 1024).toFixed(1)} MB - {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAudioFile(null);
+                            setIsPlaying(false);
+                          }}
+                          className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/42 transition hover:bg-red-500/15 hover:text-red-200"
+                          aria-label="Retirer le fichier"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <WaveformDisplay
+                        audioFile={audioFile}
+                        currentTime={currentTime}
+                        duration={duration}
+                        onSeek={(time) => {
+                          if (audioRef.current) {
+                            audioRef.current.currentTime = time;
+                            setCurrentTime(time);
+                          }
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div
+                        {...getAudioRP()}
+                        className={[
+                          'cursor-pointer rounded-[1.25rem] border border-dashed p-6 text-center transition',
+                          isAudioDrag ? 'border-[#ff6f61] bg-[#ff6f61]/10' : 'border-white/[0.12] bg-white/[0.035] hover:border-white/24',
+                        ].join(' ')}
+                      >
+                        <input {...getAudioIP()} />
+                        <Upload className="mx-auto mb-2 h-8 w-8 text-white/32" />
+                        <p className="text-sm font-black text-white">Ajouter les pistes</p>
+                        <p className="mt-1 text-[11px] font-semibold text-white/34">{releaseType === 'ep' ? '2 a 6 pistes' : '7 a 50 pistes'} - glisse ou clique</p>
+                      </div>
+
+                      {trackMetas.length > 0 && (
+                        <div>
+                          <div className="mb-2 flex items-center justify-between gap-2 text-xs">
+                            <span className="font-black text-white/46">{trackMetas.length} piste(s)</span>
+                            {!trackCountValid && <span className="text-[11px] font-black text-amber-200">{releaseType === 'ep' ? 'EP: 2-6 pistes' : 'Album: 7+ pistes'}</span>}
+                          </div>
+                          <TrackListEditor tracks={trackMetas} onChange={setTrackMetas} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {currentStep === 2 && (
+                <motion.div key="upload-details" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-[160px_minmax(0,1fr)]">
+                    <div
+                      {...getCoverRP()}
+                      className={[
+                        'aspect-square cursor-pointer overflow-hidden rounded-[1.2rem] border border-dashed transition',
+                        isCoverDrag ? 'border-[#ff6f61] bg-[#ff6f61]/10' : coverFile ? 'border-white/[0.10]' : 'border-white/[0.12] bg-white/[0.035] hover:border-white/24',
+                      ].join(' ')}
+                    >
+                      <input {...getCoverIP()} />
+                      {coverFile ? (
+                        <img src={coverPreviewUrl!} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="grid h-full place-items-center text-center">
+                          <div>
+                            <Image className="mx-auto h-7 w-7 text-white/28" />
+                            <p className="mt-2 px-3 text-xs font-black text-white/40">Pochette</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid min-w-0 gap-3">
+                      <label className="grid gap-1.5">
+                        <span className="text-xs font-black uppercase tracking-[0.14em] text-white/36">{releaseType === 'single' ? 'Titre' : releaseType === 'ep' ? "Nom de l'EP" : "Nom de l'album"}</span>
+                        <input
+                          type="text"
+                          value={title}
+                          onChange={(event) => setTitle(event.target.value)}
+                          className="h-12 rounded-[1rem] border border-white/[0.10] bg-white/[0.05] px-4 text-sm font-semibold text-white outline-none placeholder:text-white/20 focus:border-white/28"
+                          placeholder="Titre de ta sortie"
+                        />
+                      </label>
+                      <label className="grid gap-1.5">
+                        <span className="text-xs font-black uppercase tracking-[0.14em] text-white/36">Artiste</span>
+                        <input
+                          type="text"
+                          value={user?.name || ''}
+                          disabled
+                          className="h-12 cursor-not-allowed rounded-[1rem] border border-white/[0.08] bg-white/[0.035] px-4 text-sm font-semibold text-white/34"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-black uppercase tracking-[0.14em] text-white/36">Description</span>
+                    <textarea
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      rows={3}
+                      className="min-h-24 resize-none rounded-[1rem] border border-white/[0.10] bg-white/[0.05] px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-white/20 focus:border-white/28"
+                      placeholder="Decris ta musique..."
+                    />
+                  </label>
+
+                  <Section title="Genres" icon={Music} defaultOpen>
+                    <GenrePicker selected={genres} onChange={setGenres} max={5} />
+                  </Section>
+                  <Section title="Mood" icon={Sparkles} defaultOpen={false}>
+                    <MoodSelector value={mood} onChange={setMood} />
+                  </Section>
+                  <Section title="Langue" icon={FileText} defaultOpen={false}>
+                    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                      {(['fr', 'en', 'es', 'ar', 'pt', 'de', 'it', 'ja', 'ko', 'instrumental', 'other'] as const).map((key) => {
+                        const labels: Record<string, string> = { fr: 'Francais', en: 'Anglais', es: 'Espagnol', ar: 'Arabe', pt: 'Portugais', de: 'Allemand', it: 'Italien', ja: 'Japonais', ko: 'Coreen', instrumental: 'Instrumental', other: 'Autre' };
+                        const active = language === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setLanguage(active ? '' : key)}
+                            className={['rounded-full px-3 py-2 text-xs font-black transition', active ? 'bg-white text-[#171313]' : 'bg-white/[0.06] text-white/48 hover:bg-white/[0.10]'].join(' ')}
+                          >
+                            {labels[key]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </Section>
+                  <Section title="Tags" icon={FileText} defaultOpen={false}>
+                    <TagsInput tags={tags} onChange={setTags} max={10} />
+                  </Section>
+                  {releaseType === 'single' && (
+                    <Section title="Paroles" icon={FileText} defaultOpen={false}>
+                      <textarea
+                        value={lyrics}
+                        onChange={(event) => setLyrics(event.target.value)}
+                        rows={7}
+                        className="w-full resize-none rounded-[1rem] border border-white/[0.10] bg-white/[0.05] px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-white/20 focus:border-white/28"
+                        placeholder="Ajoute les paroles..."
+                      />
+                    </Section>
+                  )}
+                  <Section title="Featuring" icon={Music} defaultOpen={false}>
+                    <FeaturingSearch artists={featuring} onChange={setFeaturing} />
+                  </Section>
+                  <Section title="Credits" icon={FileText} defaultOpen={false}>
+                    <CreditsEditor credits={credits} onChange={setCredits} />
+                  </Section>
+                </motion.div>
+              )}
+
+              {currentStep === 3 && (
+                <motion.div key="upload-publish" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-4">
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {([['public', 'Public'], ['unlisted', 'Non liste'], ['private', 'Prive']] as const).map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setVisibility(key)}
+                        className={['h-11 rounded-full text-sm font-black transition', visibility === key ? 'bg-white text-[#171313]' : 'bg-white/[0.06] text-white/46 hover:bg-white/[0.10]'].join(' ')}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <label className="flex cursor-pointer items-center gap-3 rounded-[1.1rem] bg-white/[0.04] px-4 py-3 text-sm font-black text-white/68">
+                    <input
+                      type="checkbox"
+                      checked={isExplicit}
+                      onChange={(event) => setIsExplicit(event.target.checked)}
+                      className="h-4 w-4 rounded border-white/20 bg-white/[0.04] text-[#ff6f61] focus:ring-[#ff6f61]/30"
+                    />
+                    Contenu explicite
+                  </label>
+
+                  <Section title="Date de publication" icon={Clock3} defaultOpen>
+                    <ScheduleSelector mode={scheduleMode} scheduledAt={scheduledAt} onModeChange={setScheduleMode} onDateChange={setScheduledAt} />
+                  </Section>
+
+                  <label className="grid max-w-xs gap-1.5">
+                    <span className="text-xs font-black uppercase tracking-[0.14em] text-white/36">Annee copyright</span>
+                    <input
+                      type="number"
+                      value={copyrightYear}
+                      onChange={(event) => setCopyrightYear(parseInt(event.target.value) || new Date().getFullYear())}
+                      className="h-11 rounded-[1rem] border border-white/[0.10] bg-white/[0.05] px-4 text-sm font-semibold text-white outline-none focus:border-white/28"
+                    />
+                  </label>
+
+                  <div className="rounded-[1.2rem] border border-white/[0.08] bg-white/[0.035] p-3">
+                    <UploadPreview
+                      releaseType={releaseType}
+                      title={title}
+                      artist={user?.name || ''}
+                      description={description}
+                      genres={genres}
+                      mood={mood}
+                      language={language}
+                      tags={tags}
+                      isPublic={visibility === 'public'}
+                      isExplicit={isExplicit}
+                      visibility={visibility}
+                      coverFile={coverFile}
+                      audioFile={audioFile}
+                      tracks={trackMetas}
+                      featuring={featuring}
+                      credits={credits}
+                      scheduleMode={scheduleMode}
+                      scheduledAt={scheduledAt}
+                      duration={duration}
+                      copyrightOwner={user?.name || ''}
+                      copyrightYear={copyrightYear}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {(uploadProgress.audio > 0 || uploadProgress.cover > 0) && (
+            <div className="border-t border-white/[0.08] px-3 py-3 sm:px-5">
+              <div className="grid gap-2">
+                {uploadProgress.audio > 0 && (
+                  <div>
+                    <div className="mb-1 flex justify-between text-[10px] font-black uppercase tracking-[0.14em] text-white/36"><span>Audio</span><span>{uploadProgress.audio}%</span></div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.08]"><div className="h-full rounded-full bg-white transition-all duration-300" style={{ width: `${uploadProgress.audio}%` }} /></div>
+                  </div>
+                )}
+                {uploadProgress.cover > 0 && (
+                  <div>
+                    <div className="mb-1 flex justify-between text-[10px] font-black uppercase tracking-[0.14em] text-white/36"><span>Pochette</span><span>{uploadProgress.cover}%</span></div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.08]"><div className="h-full rounded-full bg-white transition-all duration-300" style={{ width: `${uploadProgress.cover}%` }} /></div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="sticky bottom-0 z-10 border-t border-white/[0.08] bg-[#171313]/94 px-3 py-3 backdrop-blur-xl sm:px-5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex gap-2">
+                {currentStep > 1 && (
+                  <button type="button" onClick={() => setCurrentStep(currentStep - 1)} className="h-10 rounded-full bg-white/[0.06] px-4 text-sm font-black text-white/62 transition hover:bg-white/[0.10]">
+                    Retour
+                  </button>
+                )}
+                <button type="button" onClick={cancelUpload} className="h-10 rounded-full bg-red-500/10 px-4 text-sm font-black text-red-200 transition hover:bg-red-500/18">
+                  Annuler
+                </button>
+              </div>
+              {currentStep < totalSteps ? (
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(currentStep + 1)}
+                  disabled={(currentStep === 1 && !step1Valid) || (currentStep === 2 && !step2Valid) || !canUpload}
+                  className="h-11 rounded-full bg-white px-6 text-sm font-black text-[#171313] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  Suivant
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isUploading || !canUpload}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-black text-[#171313] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  {isUploading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#171313]/25 border-t-[#171313]" /> : <Sparkles className="h-4 w-4" />}
+                  {isUploading ? 'Upload...' : 'Publier'}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <aside className="min-w-0 space-y-3">
+          <SynauraPanel className="p-3 sm:p-4">
+            <div className="aspect-square overflow-hidden rounded-[1.1rem] bg-[#171313]">
+              {coverPreviewUrl ? (
+                <img src={coverPreviewUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="grid h-full place-items-center bg-[linear-gradient(135deg,#171313,#302545_58%,#0f3b42)]">
+                  <Music className="h-12 w-12 text-white/20" />
+                </div>
+              )}
+            </div>
+            <div className="mt-3 min-w-0">
+              <p className="truncate text-xl font-black tracking-[-0.04em] text-[#171313]">{title.trim() || 'Sans titre'}</p>
+              <p className="mt-1 truncate text-sm font-semibold text-black/48">{user?.name || 'Artiste'}</p>
+              {featuring.length > 0 && <p className="mt-1 truncate text-xs font-semibold text-black/36">feat. {featuring.map((artist) => artist.name).join(', ')}</p>}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-[1rem] bg-black/[0.045] p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-black/34">Format</p>
+                <p className="mt-1 text-sm font-black text-[#171313]">{releaseLabel}</p>
+              </div>
+              <div className="rounded-[1rem] bg-black/[0.045] p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-black/34">Pistes</p>
+                <p className="mt-1 text-sm font-black text-[#171313]">{selectedTrackCount}</p>
+              </div>
+            </div>
+          </SynauraPanel>
+
+          <SynauraPanel className="p-3 sm:p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/38">A verifier</p>
+            <div className="mt-3 grid gap-2">
+              {[
+                { label: 'Audio', done: step1Valid },
+                { label: 'Pochette + titre', done: step2Valid },
+                { label: 'Publication', done: currentStep === 3 },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-3 rounded-[1rem] bg-black/[0.045] px-3 py-2.5">
+                  <span className={['grid h-7 w-7 place-items-center rounded-full', item.done ? 'bg-emerald-500/14 text-emerald-700' : 'bg-black/[0.06] text-black/34'].join(' ')}>
+                    {item.done ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                  </span>
+                  <span className="text-sm font-black text-[#171313]">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </SynauraPanel>
+        </aside>
+      </main>
+    </SynauraAppShell>
+  );
+
+  return (
     <SynauraAppShell contentClassName="max-w-[1500px]">
       <SynauraTopBar />
       <SynauraRouteNav />
@@ -635,15 +1224,15 @@ export default function UploadPage() {
                         <p className="text-base sm:text-lg font-medium text-white/60">Glisse ton fichier audio ici</p>
                         <p className="text-xs text-white/30 mt-1">MP3, WAV, FLAC — Max {planKey === 'starter' ? 200 : planKey === 'pro' ? 500 : planKey === 'enterprise' ? '1 Go' : '80'} MB</p>
                       </div>
-                    ) : releaseType === 'single' && audioFile ? (
+                    ) : releaseType === 'single' && audioFile instanceof File ? (
                       <div className="space-y-3">
                         <div className="flex items-center gap-3 p-3 rounded-2xl border border-white/[0.08] bg-white/[0.02]">
                           <button type="button" onClick={() => setIsPlaying(!isPlaying)} className="w-10 h-10 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] flex items-center justify-center transition">
                             {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                           </button>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium truncate">{audioFile.name}</div>
-                            <div className="text-[10px] text-white/30">{(audioFile.size / 1024 / 1024).toFixed(1)} MB — {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}</div>
+                            <div className="text-sm font-medium truncate">{audioFile?.name}</div>
+                            <div className="text-[10px] text-white/30">{((audioFile?.size || 0) / 1024 / 1024).toFixed(1)} MB - {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}</div>
                         </div>
                           <button type="button" onClick={() => { setAudioFile(null); setIsPlaying(false); }} className="w-8 h-8 rounded-lg hover:bg-red-500/10 flex items-center justify-center transition text-white/30 hover:text-red-400"><X className="w-4 h-4" /></button>
                       </div>

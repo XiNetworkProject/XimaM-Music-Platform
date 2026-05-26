@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import { notify } from '@/components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Music, Mic, Settings, Play, Pause, SkipBack, SkipForward, Zap, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Repeat, Search, SlidersHorizontal, Wand2, ListMusic, Command, Terminal, FolderOpen, History, Library, Clock3, Send, Layers, Upload } from 'lucide-react';
+import { Sparkles, Music, Mic, Settings, Play, Pause, SkipBack, SkipForward, Zap, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Check, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Repeat, Search, SlidersHorizontal, Wand2, ListMusic, Command, Terminal, FolderOpen, History, Library, Clock3, Send, Layers, Upload } from 'lucide-react';
 import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { fetchCreditsBalance } from '@/lib/credits';
 import { ACTION_COSTS, CREDITS_PER_GENERATION } from '@/lib/billing/pricing';
@@ -31,7 +31,6 @@ import { SynauraWaveform } from '@/components/audio/SynauraWaveform';
 import {
   SynauraAnnouncementStrip,
   SynauraAppShell,
-  SynauraHero,
   SynauraInkPanel,
   SynauraRouteNav,
   SynauraTopBar,
@@ -2837,7 +2836,13 @@ export default function AIGenerator() {
   if (!session) {
     return (
       <SynauraAppShell>
-        <SynauraTopBar />
+        <SynauraTopBar
+          searchLabel="Rechercher une inspiration, un son ou un createur..."
+          secondaryHref="/upload"
+          secondaryLabel="Upload"
+          primaryHref="/ai-generator"
+          primaryLabel="Studio"
+        />
         <SynauraRouteNav />
         <div className="flex min-h-[70vh] items-center justify-center">
           <div className="rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/88 px-8 py-10 text-center shadow-[0_20px_70px_rgba(20,15,10,0.12)]">
@@ -2850,59 +2855,797 @@ export default function AIGenerator() {
   );
 }
 
+  const studioFocusTrack = selectedTrack ?? generatedTrack ?? generatedTracks[0] ?? null;
+  const studioResultTracks = generatedTracks.length > 0 ? generatedTracks : (studioFocusTrack ? [studioFocusTrack] : []);
+  const studioTagSuggestions = Array.from(new Set(tagCategories.flatMap((cat) => cat.tags.slice(0, 8)))).slice(0, 28);
+  const studioProgress = activeBgGeneration ? liveProgressPct : generationStatus === 'completed' ? 100 : generationStatus === 'pending' ? 12 : 0;
+  const studioStateLabel =
+    sunoState === 'first'
+      ? 'Premier rendu disponible'
+      : sunoState === 'pending'
+        ? isRemixMode ? 'Remix en cours' : 'Generation en cours'
+        : sunoState === 'success'
+          ? 'Generation finalisee'
+          : sunoState === 'error'
+            ? 'Action requise'
+            : 'Pret a creer';
+  const studioPromptLength = customMode ? style.length : description.length;
+  const studioModeCopy =
+    generationModeKind === 'simple'
+      ? 'Decris une idee, Synaura construit le morceau.'
+      : generationModeKind === 'custom'
+        ? 'Controle titre, style, paroles et rendu.'
+        : 'Transforme un son existant sans casser son identite.';
+
+  return (
+    <SynauraAppShell contentClassName="max-w-[1700px]">
+      <SynauraTopBar
+        searchLabel="Rechercher une inspiration, un son ou un createur..."
+        secondaryHref="/upload"
+        secondaryLabel="Upload"
+        primaryHref="/ai-generator"
+        primaryLabel="Studio"
+      />
+      <SynauraRouteNav />
+      <SynauraAnnouncementStrip />
+
+      <div className="space-y-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
+        <section className="relative overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-[#171313] p-4 text-white shadow-[0_28px_80px_rgba(20,15,10,0.22)] sm:p-5 lg:p-6">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_15%,rgba(255,111,97,0.28),transparent_34%),radial-gradient(circle_at_84%_18%,rgba(0,194,203,0.18),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_42%)]" />
+          <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div className="min-w-0">
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#171313]">Studio IA</span>
+                <span className="rounded-full border border-white/12 bg-white/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/70">{studioStateLabel}</span>
+                {activeGenerationCount > 0 && (
+                  <span className="rounded-full bg-[#ff6f61]/18 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#ffd6cf]">
+                    {activeGenerationCount} job{activeGenerationCount > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+              <h1 className="max-w-3xl text-3xl font-black leading-[0.92] tracking-[-0.07em] text-white sm:text-5xl lg:text-6xl">
+                Une vraie table de creation Synaura.
+              </h1>
+              <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-white/58 sm:text-base">
+                Le Studio devient un cockpit ancre a l'accueil : composer, remixer, ecouter, publier et reprendre une piste sans changer d'univers.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowBuyCredits(true)}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-4 text-sm font-black text-white transition hover:bg-white/[0.14]"
+              >
+                <Coins className="h-4 w-4 text-[#ffd166]" />
+                {creditsBalance} cr.
+              </button>
+              <Link
+                href="/upload"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-black text-[#171313] transition hover:scale-[1.02]"
+              >
+                <Upload className="h-4 w-4" />
+                Upload
+              </Link>
+              <Link
+                href="/library"
+                className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-4 text-sm font-black text-white transition hover:bg-white/[0.14] sm:col-span-1"
+              >
+                <Library className="h-4 w-4" />
+                Bibliotheque
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-3 md:grid-cols-3">
+          {[
+            { label: 'Composer', detail: generationModeKind === 'simple' ? 'Idee libre' : generationModeKind === 'custom' ? 'Piece controlee' : 'Remix source', status: studioStateLabel, active: true },
+            { label: 'Ecouter', detail: studioFocusTrack?.title || 'Aucun rendu', status: studioResultTracks.length ? `${studioResultTracks.length} version(s)` : 'En attente', active: Boolean(studioFocusTrack) },
+            { label: 'Publier', detail: selectedVisibilityState?.is_public ? 'Deja public' : 'Pret pour Upload', status: selectedVisibilityState?.is_public ? 'En ligne' : 'A preparer', active: selectedVisibilityState?.is_public === true },
+          ].map((step) => (
+            <div
+              key={step.label}
+              className={[
+                'min-w-0 rounded-[1.35rem] border p-4 shadow-[0_16px_42px_rgba(20,15,10,0.08)]',
+                step.active ? 'border-black/[0.10] bg-[#fffaf2]' : 'border-black/[0.07] bg-[#fffaf2]/70',
+              ].join(' ')}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="rounded-full bg-black/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-black/45">{step.label}</span>
+                <span className={['grid h-8 w-8 place-items-center rounded-full', step.active ? 'bg-[#171313] text-white' : 'bg-black/[0.06] text-black/36'].join(' ')}>
+                  {step.active ? <Check className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                </span>
+              </div>
+              <p className="mt-3 truncate text-base font-black tracking-[-0.03em] text-[#171313]">{step.detail}</p>
+              <p className="mt-1 truncate text-xs font-bold text-black/42">{step.status}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(300px,390px)_minmax(0,1fr)_minmax(280px,360px)]">
+          <aside className="min-w-0 overflow-hidden rounded-[1.5rem] border border-black/[0.08] bg-[#fff8ed] shadow-[0_20px_70px_rgba(20,15,10,0.10)]">
+            <div className="border-b border-black/[0.07] bg-[#f5eadb] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7868]">Composer</p>
+                  <h2 className="truncate text-xl font-black tracking-[-0.05em] text-[#171313]">Nouvelle session</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={generateMusic}
+                  disabled={isGenerationDisabled || isGenerating || rateLimitActive}
+                  className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white shadow-[0_14px_34px_rgba(20,15,10,0.20)] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {isGenerating ? <span className="h-4 w-4 rounded-full border-2 border-white/60 border-t-transparent animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  {isGenerating ? 'Creation...' : rateLimitActive ? `${cooldownSecondsLeft}s` : 'Creer'}
+                </button>
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {([
+                  { key: 'simple' as const, label: 'Idee', icon: Sparkles },
+                  { key: 'custom' as const, label: 'Piece', icon: SlidersHorizontal },
+                  { key: 'remix' as const, label: 'Remix', icon: Repeat },
+                ]).map((mode) => {
+                  const active = generationModeKind === mode.key;
+                  const Icon = mode.icon;
+                  return (
+                    <button
+                      key={mode.key}
+                      type="button"
+                      onClick={() => selectGenerationMode(mode.key)}
+                      className={`rounded-[1rem] border px-2 py-3 text-xs font-black transition ${
+                        active
+                          ? 'border-[#171313] bg-[#171313] text-white shadow-[0_10px_24px_rgba(20,15,10,0.16)]'
+                          : 'border-black/[0.07] bg-white/70 text-[#6e5f54] hover:bg-white'
+                      }`}
+                    >
+                      <Icon className="mx-auto mb-1 h-4 w-4" />
+                      {mode.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-3 text-xs font-semibold leading-5 text-[#7f7065]">{studioModeCopy}</p>
+            </div>
+
+            <div className="max-h-none space-y-4 overflow-y-auto p-4 xl:max-h-[calc(100vh-15rem)]">
+              {generationModeKind === 'simple' ? (
+                <label className="block">
+                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Prompt principal</span>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    disabled={isGenerationDisabled}
+                    placeholder="Ex: pop solaire, refrains enormes, basse ronde, voix feminine, ambiance route de nuit..."
+                    className="min-h-[170px] w-full resize-none rounded-[1.2rem] border border-black/[0.08] bg-white px-4 py-3 text-sm font-semibold leading-6 text-[#171313] outline-none placeholder:text-[#9b8d82] focus:border-[#171313]"
+                  />
+                </label>
+              ) : (
+                <div className="space-y-3">
+                  <label className="block">
+                    <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Titre</span>
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      disabled={isGenerationDisabled}
+                      placeholder="Nom de travail"
+                      className="h-12 w-full rounded-full border border-black/[0.08] bg-white px-4 text-sm font-black text-[#171313] outline-none placeholder:text-[#9b8d82] focus:border-[#171313]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Direction musicale</span>
+                    <textarea
+                      value={style}
+                      onChange={(e) => setStyle(e.target.value)}
+                      disabled={isGenerationDisabled}
+                      placeholder="Genre, instruments, energie, reference de production..."
+                      className="min-h-[125px] w-full resize-none rounded-[1.2rem] border border-black/[0.08] bg-white px-4 py-3 text-sm font-semibold leading-6 text-[#171313] outline-none placeholder:text-[#9b8d82] focus:border-[#171313]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Paroles</span>
+                    <textarea
+                      value={lyrics}
+                      onChange={(e) => setLyrics(e.target.value)}
+                      disabled={isGenerationDisabled || isInstrumental}
+                      placeholder={isInstrumental ? 'Instrumental active' : 'Couplets, refrain, adlibs... ou laisse vide pour auto.'}
+                      className="min-h-[150px] w-full resize-none rounded-[1.2rem] border border-black/[0.08] bg-white px-4 py-3 text-sm font-semibold leading-6 text-[#171313] outline-none placeholder:text-[#9b8d82] focus:border-[#171313] disabled:bg-black/[0.04]"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {isRemixMode && (
+                <div className="rounded-[1.25rem] border border-[#00a6ad]/20 bg-[#eafffb] p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#087b80]">Source remix</p>
+                      <p className="text-xs font-semibold text-[#416b6d]">Upload un son ou choisis une piste de ta bibliotheque.</p>
+                    </div>
+                    {remixUploadUrl && (
+                      <button type="button" onClick={clearRemixSource} className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#087b80]">
+                        Retirer
+                      </button>
+                    )}
+                  </div>
+                  <RemixDropzone
+                    file={remixFile}
+                    uploading={remixUploading}
+                    onFileSelected={(file: File) => {
+                      setRemixFile(file);
+                      setPendingRemixFile(file);
+                      setRemixUploadModalOpen(true);
+                    }}
+                  />
+                  {remixUploadUrl && (
+                    <div className="mt-2 rounded-xl bg-white px-3 py-2 text-xs font-black text-[#171313]">
+                      {remixSourceLabel ?? 'Source prete'}
+                    </div>
+                  )}
+                  {uploadedRemixAssets.length > 0 && (
+                    <div className="mt-3 grid gap-2">
+                      {uploadedRemixAssets.slice(0, 4).map((track) => {
+                        const media = resolveTrackMedia(track as any);
+                        const picked = remixUploadUrl && media.playableUrl === remixUploadUrl;
+                        return (
+                          <button
+                            key={`new-remix-${track.id}`}
+                            type="button"
+                            onClick={() => useLibraryTrackForRemix(track)}
+                            className={`min-w-0 rounded-xl border px-3 py-2 text-left text-xs font-black transition ${
+                              picked ? 'border-[#00a6ad] bg-white text-[#087b80]' : 'border-black/[0.06] bg-white/70 text-[#5f5650] hover:bg-white'
+                            }`}
+                          >
+                            <span className="block truncate">{getUploadedAssetName(track)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsInstrumental((v) => !v)}
+                  className={`rounded-[1rem] border px-3 py-3 text-left text-xs font-black transition ${
+                    isInstrumental ? 'border-[#171313] bg-[#171313] text-white' : 'border-black/[0.07] bg-white text-[#5f5650]'
+                  }`}
+                >
+                  <Mic className="mb-2 h-4 w-4" />
+                  {isInstrumental ? 'Instrumental' : 'Voix active'}
+                </button>
+                <button
+                  type="button"
+                  onClick={generateAutoLyrics}
+                  disabled={isGeneratingLyrics || isInstrumental}
+                  className="rounded-[1rem] border border-black/[0.07] bg-white px-3 py-3 text-left text-xs font-black text-[#5f5650] transition hover:bg-[#fffaf2] disabled:opacity-45"
+                >
+                  <Wand2 className="mb-2 h-4 w-4" />
+                  {isGeneratingLyrics ? 'Ecriture...' : 'Lyrics auto'}
+                </button>
+              </div>
+
+              <div className="rounded-[1.25rem] border border-black/[0.07] bg-white p-3">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Couleurs sonores</p>
+                  <span className="text-[11px] font-black text-[#171313]">{selectedTags.length} tags</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {studioTagSuggestions.map((tag) => {
+                    const active = selectedTags.includes(tag);
+                    return (
+                      <button
+                        key={`studio-tag-${tag}`}
+                        type="button"
+                        onClick={() => setSelectedTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])}
+                        className={`rounded-full border px-3 py-1.5 text-[11px] font-black transition ${
+                          active ? 'border-[#171313] bg-[#171313] text-white' : 'border-black/[0.07] bg-[#f7efe4] text-[#6e5f54] hover:bg-[#fff7ec]'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-[1.25rem] border border-black/[0.07] bg-white p-3">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Reglages</p>
+                  <span className="text-[11px] font-black text-[#171313]">{studioModelLabel}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['V4_5', 'V4_5PLUS', 'V5'] as const).map((model) => (
+                    <button
+                      key={model}
+                      type="button"
+                      onClick={() => setModelVersion(model)}
+                      className={`rounded-full px-3 py-2 text-[11px] font-black transition ${
+                        modelVersion === model ? 'bg-[#171313] text-white' : 'bg-[#f5eadb] text-[#6e5f54] hover:bg-[#efe0ce]'
+                      }`}
+                    >
+                      {model === 'V5' ? 'v5' : model === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {([60, 120, 180] as const).map((duration) => (
+                    <button
+                      key={duration}
+                      type="button"
+                      onClick={() => setGenerationDuration(duration)}
+                      className={`rounded-full px-3 py-2 text-[11px] font-black transition ${
+                        generationDuration === duration ? 'bg-[#ff6f61] text-white' : 'bg-[#f5eadb] text-[#6e5f54] hover:bg-[#efe0ce]'
+                      }`}
+                    >
+                      {duration}s
+                    </button>
+                  ))}
+                </div>
+                {customMode && (
+                  <div className="mt-4 space-y-3">
+                    {([
+                      ['Creativite', weirdness, setWeirdness],
+                      ['Style', styleInfluence, setStyleInfluence],
+                      ['Audio', audioWeight, setAudioWeight],
+                    ] as const).map(([label, value, setter]) => (
+                      <label key={label} className="block">
+                        <span className="mb-1 flex items-center justify-between text-[11px] font-black text-[#6e5f54]">
+                          {label}
+                          <span>{value}%</span>
+                        </span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={value}
+                          onChange={(e) => setter(Number(e.target.value))}
+                          className="w-full accent-[#171313]"
+                        />
+                      </label>
+                    ))}
+                    <label className="block">
+                      <span className="mb-1 block text-[11px] font-black text-[#6e5f54]">Tags a eviter</span>
+                      <input
+                        value={negativeTags}
+                        onChange={(e) => setNegativeTags(e.target.value)}
+                        placeholder="ex: noisy, distorted..."
+                        className="h-10 w-full rounded-full border border-black/[0.08] bg-[#fffaf2] px-4 text-xs font-semibold text-[#171313] outline-none"
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-[1.25rem] border border-black/[0.07] bg-[#171313] p-3 text-white">
+                <p className="mb-3 text-[11px] font-black uppercase tracking-[0.16em] text-white/45">Presets rapides</p>
+                <div className="grid gap-2">
+                  {aiStudioPresets.slice(0, 5).map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleApplyPreset(preset)}
+                      className={`rounded-xl border px-3 py-2 text-left transition ${
+                        activePresetId === preset.id ? 'border-white bg-white text-[#171313]' : 'border-white/10 bg-white/[0.06] text-white hover:bg-white/[0.10]'
+                      }`}
+                    >
+                      <span className="block truncate text-xs font-black">{(preset as any).name || preset.id}</span>
+                      <span className={`mt-0.5 block truncate text-[10px] font-semibold ${activePresetId === preset.id ? 'text-[#6e5f54]' : 'text-white/45'}`}>
+                        {(preset as any).description || 'Appliquer ce style'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <main className="min-w-0 space-y-4">
+            <section className="overflow-hidden rounded-[1.5rem] border border-black/[0.08] bg-[#171313] text-white shadow-[0_20px_70px_rgba(20,15,10,0.16)]">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-white/[0.05] p-4">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Live desk</p>
+                  <h2 className="truncate text-2xl font-black tracking-[-0.05em]">{studioFocusTrack?.title || title || 'Aucun rendu selectionne'}</h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => previousTrack()} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-white/70 hover:bg-white/[0.12]">
+                    <SkipBack className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (audioState.isPlaying) {
+                        pause();
+                        return;
+                      }
+                      if (studioFocusTrack) {
+                        await Promise.resolve(playGenerated(studioFocusTrack));
+                        return;
+                      }
+                      await play().catch(() => {});
+                    }}
+                    className="grid h-12 w-12 place-items-center rounded-full bg-white text-[#171313] shadow-[0_14px_34px_rgba(255,255,255,0.12)] transition hover:scale-[1.04]"
+                  >
+                    {audioState.isPlaying ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
+                  </button>
+                  <button type="button" onClick={() => nextTrack()} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-white/70 hover:bg-white/[0.12]">
+                    <SkipForward className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+                <div className="min-w-0">
+                  <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.06] p-3">
+                    <div className="mb-3 flex items-center justify-between gap-3 text-xs font-black text-white/48">
+                      <span>{formatTime(playbackCurrentTime)}</span>
+                      <span>{formatTime(playbackDuration || studioFocusTrack?.duration || 0)}</span>
+                    </div>
+                    <SynauraWaveform
+                      waveformData={timestampedWaveform}
+                      progress={isWaveformForPlayingTrack ? playbackProgress : 0}
+                      onSeek={seekByRatio}
+                      variant="studio"
+                      heightClass="h-28"
+                      idPrefix="new-studio-wave"
+                      duration={playbackDuration || 0}
+                      showTimeLabel
+                      showProgressBar
+                    />
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button type="button" onClick={() => seek(Math.max(0, playbackCurrentTime - 10))} className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-black text-white/58 hover:text-white">-10s</button>
+                      <button type="button" onClick={() => seek(Math.min(playbackDuration || 0, playbackCurrentTime + 10))} className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-black text-white/58 hover:text-white">+10s</button>
+                      <button type="button" onClick={() => fetchTimestampedLyrics(false)} disabled={timestampedLoading || !studioFocusTrack || isInstrumental} className="rounded-full border border-[#00c2cb]/25 bg-[#00c2cb]/12 px-3 py-2 text-xs font-black text-[#c9fbff] disabled:opacity-45">
+                        {timestampedLoading ? 'Sync...' : 'Synchroniser paroles'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-[1.25rem] border border-white/10 bg-white/[0.06] p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Rendu</p>
+                        <h3 className="text-lg font-black tracking-[-0.04em] text-white">{studioStateLabel}</h3>
+                      </div>
+                      <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#171313]">{Math.round(studioProgress)}%</span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-white/10">
+                      <div className="h-full rounded-full bg-gradient-to-r from-[#ff6f61] via-[#ffd166] to-[#00c2cb] transition-all" style={{ width: `${studioProgress}%` }} />
+                    </div>
+                    {sunoError && <p className="mt-3 rounded-xl bg-red-500/12 px-3 py-2 text-xs font-bold text-red-100">{sunoError}</p>}
+                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-black text-white/45">
+                    <span className="rounded-full bg-white/[0.07] px-3 py-1">{studioModelLabel}</span>
+                      <span className="rounded-full bg-white/[0.07] px-3 py-1">{generationDuration}s</span>
+                      <span className="rounded-full bg-white/[0.07] px-3 py-1">{studioPromptLength} caracteres</span>
+                      {activeBgGeneration?.taskId && <span className="rounded-full bg-white/[0.07] px-3 py-1">#{String(activeBgGeneration.taskId).slice(-6)}</span>}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="min-w-0 rounded-[1.25rem] border border-white/10 bg-white/[0.06] p-3">
+                  <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Resultats instantanes</p>
+                  <div className="grid gap-2">
+                    {studioResultTracks.length > 0 ? studioResultTracks.slice(0, 4).map((track, index) => (
+                      <button
+                        key={`studio-result-${track.id}-${index}`}
+                        type="button"
+                        onClick={() => {
+                          setSelectedTrack(track);
+                          setGeneratedTrack(track);
+                          playGenerated(track);
+                        }}
+                        className={`flex min-w-0 items-center gap-3 rounded-[1rem] border p-2 text-left transition ${
+                          String(studioFocusTrack?.id) === String(track.id) ? 'border-white/40 bg-white/[0.14]' : 'border-white/10 bg-white/[0.05] hover:bg-white/[0.10]'
+                        }`}
+                      >
+                        {track.imageUrl ? (
+                          <img src={track.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+                        ) : (
+                          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#ff6f61]/20 text-[#ffd6cf]">
+                            <Music className="h-5 w-5" />
+                          </span>
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-black text-white">{track.title || `Version ${index + 1}`}</span>
+                          <span className="block truncate text-[11px] font-semibold text-white/45">{track.duration ? formatTime(track.duration) : 'IA Synaura'}</span>
+                        </span>
+                        <Play className="h-4 w-4 shrink-0 text-white/55" />
+                      </button>
+                    )) : (
+                      <div className="rounded-[1rem] border border-dashed border-white/16 bg-white/[0.04] px-4 py-8 text-center">
+                        <Sparkles className="mx-auto mb-3 h-6 w-6 text-white/38" />
+                        <p className="text-sm font-black text-white">Aucun rendu pour le moment</p>
+                        <p className="mt-1 text-xs font-semibold text-white/42">Lance une creation, les versions arrivent ici.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-[1.5rem] border border-black/[0.08] bg-[#fff8ed] p-4 shadow-[0_20px_70px_rgba(20,15,10,0.08)]">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7868]">Bibliotheque studio</p>
+                  <h2 className="text-2xl font-black tracking-[-0.05em] text-[#171313]">Tes derniers rendus</h2>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={refreshGenerations} className="inline-flex h-10 items-center gap-2 rounded-full bg-[#171313] px-4 text-xs font-black text-white">
+                    <RefreshCw className="h-4 w-4" />
+                    Actualiser
+                  </button>
+                  <Link href="/library" className="inline-flex h-10 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-xs font-black text-[#171313]">
+                    Tout voir
+                  </Link>
+                </div>
+              </div>
+
+              {generationsLoading ? (
+                <div className="rounded-[1.25rem] border border-black/[0.07] bg-white px-4 py-10 text-center text-sm font-black text-[#6e5f54]">Chargement de la bibliotheque...</div>
+              ) : generationsError ? (
+                <div className="rounded-[1.25rem] border border-red-200 bg-red-50 px-4 py-4 text-sm font-black text-red-700">{generationsError}</div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {visibleGenerations.slice(0, 10).map((generation) => {
+                    const track = generation.tracks?.[0];
+                    const converted = track ? convertAITrackToGenerated(track as any) : null;
+                    const isSelected = selectedGeneration?.id === generation.id;
+                    return (
+                      <article
+                        key={generation.id}
+                        className={`min-w-0 rounded-[1.25rem] border p-3 transition ${
+                          isSelected ? 'border-[#171313] bg-white shadow-[0_14px_34px_rgba(20,15,10,0.10)]' : 'border-black/[0.07] bg-white/72 hover:bg-white'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => selectGenerationInIde(generation)}
+                          className="flex w-full min-w-0 items-center gap-3 text-left"
+                        >
+                          {converted?.imageUrl ? (
+                            <img src={converted.imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-[1rem] object-cover" />
+                          ) : (
+                            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-[1rem] bg-[#171313] text-white">
+                              <Music className="h-5 w-5" />
+                            </span>
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-black text-[#171313]">{generation.metadata?.title || track?.title || 'Generation Synaura'}</span>
+                            <span className="mt-1 block truncate text-xs font-semibold text-[#8b7868]">{new Date(generation.created_at).toLocaleString('fr-FR')}</span>
+                          </span>
+                          <span className={`rounded-full px-2 py-1 text-[10px] font-black ${
+                            generation.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : generation.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {generation.status}
+                          </span>
+                        </button>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button type="button" onClick={() => handlePlayGeneration(generation)} className="inline-flex h-9 items-center gap-1 rounded-full bg-[#171313] px-3 text-xs font-black text-white">
+                            <Play className="h-3.5 w-3.5 fill-current" />
+                            Lire
+                          </button>
+                          {converted && (
+                            <button type="button" onClick={() => handleReuseTrackInfo(converted)} className="inline-flex h-9 items-center gap-1 rounded-full border border-black/[0.08] bg-white px-3 text-xs font-black text-[#171313]">
+                              <Wand2 className="h-3.5 w-3.5" />
+                              Reprendre
+                            </button>
+                          )}
+                          {track && (
+                            <button type="button" onClick={() => useLibraryTrackForRemix(track)} className="inline-flex h-9 items-center gap-1 rounded-full border border-[#00a6ad]/20 bg-[#eafffb] px-3 text-xs font-black text-[#087b80]">
+                              <Repeat className="h-3.5 w-3.5" />
+                              Remix
+                            </button>
+                          )}
+                          <button type="button" onClick={() => assignABSlot('A', generation.id)} className={`h-9 rounded-full px-3 text-xs font-black ${abA === generation.id ? 'bg-[#ff6f61] text-white' : 'bg-[#f5eadb] text-[#6e5f54]'}`}>A</button>
+                          <button type="button" onClick={() => assignABSlot('B', generation.id)} className={`h-9 rounded-full px-3 text-xs font-black ${abB === generation.id ? 'bg-[#00c2cb] text-[#071315]' : 'bg-[#f5eadb] text-[#6e5f54]'}`}>B</button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                  {visibleGenerations.length === 0 && (
+                    <div className="md:col-span-2 rounded-[1.25rem] border border-dashed border-black/[0.12] bg-white/70 px-4 py-12 text-center">
+                      <Music className="mx-auto mb-3 h-8 w-8 text-[#8b7868]" />
+                      <p className="text-sm font-black text-[#171313]">Aucune generation encore.</p>
+                      <p className="mt-1 text-xs font-semibold text-[#8b7868]">Le premier rendu peuplera ce workspace.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          </main>
+
+          <aside className="min-w-0 space-y-4">
+            <section className="rounded-[1.5rem] border border-black/[0.08] bg-[#171313] p-4 text-white shadow-[0_20px_70px_rgba(20,15,10,0.16)]">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Sortie</p>
+              <h2 className="mt-1 text-2xl font-black tracking-[-0.05em]">Inspecteur</h2>
+              <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.06]">
+                {studioFocusTrack?.imageUrl ? (
+                  <img src={studioFocusTrack.imageUrl} alt="" className="aspect-square w-full object-cover" />
+                ) : (
+                  <div className="grid aspect-square w-full place-items-center bg-[radial-gradient(circle_at_40%_30%,rgba(255,111,97,0.35),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02))]">
+                    <Music className="h-12 w-12 text-white/60" />
+                  </div>
+                )}
+                <div className="p-3">
+                  <h3 className="truncate text-lg font-black">{studioFocusTrack?.title || 'Piste non selectionnee'}</h3>
+                  <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-white/45">
+                    {studioFocusTrack?.prompt || studioFocusTrack?.lyrics || 'Selectionne une piste pour acceder aux actions de sortie.'}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={!studioFocusTrack}
+                  onClick={() => studioFocusTrack && playGenerated(studioFocusTrack)}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white text-xs font-black text-[#171313] disabled:opacity-45"
+                >
+                  <Play className="h-4 w-4 fill-current" />
+                  Lire
+                </button>
+                <button
+                  type="button"
+                  disabled={!studioFocusTrack}
+                  onClick={() => studioFocusTrack && downloadGenerated(studioFocusTrack)}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.07] text-xs font-black text-white disabled:opacity-45"
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </button>
+                <button
+                  type="button"
+                  disabled={!studioFocusTrack}
+                  onClick={() => studioFocusTrack && shareGenerated(studioFocusTrack)}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.07] text-xs font-black text-white disabled:opacity-45"
+                >
+                  <Share2 className="h-4 w-4" />
+                  Partager
+                </button>
+                <button
+                  type="button"
+                  disabled={!studioFocusTrack}
+                  onClick={() => studioFocusTrack && useGeneratedTrackForRemix(studioFocusTrack)}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#00c2cb]/20 bg-[#00c2cb]/12 text-xs font-black text-[#c9fbff] disabled:opacity-45"
+                >
+                  <Repeat className="h-4 w-4" />
+                  Remix
+                </button>
+              </div>
+              <button
+                type="button"
+                disabled={!studioFocusTrack || publishingVisibility}
+                onClick={toggleGenerationVisibility}
+                className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-full bg-[#ff6f61] text-xs font-black text-white disabled:opacity-45"
+              >
+                {publishingVisibility ? 'Publication...' : selectedVisibilityState?.is_public ? 'Retirer du profil' : 'Publier sur Synaura'}
+              </button>
+            </section>
+
+            <section className="rounded-[1.5rem] border border-black/[0.08] bg-[#fff8ed] p-4 shadow-[0_20px_70px_rgba(20,15,10,0.08)]">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7868]">Comparaison</p>
+              <h2 className="mt-1 text-xl font-black tracking-[-0.05em] text-[#171313]">Slots A/B</h2>
+              <div className="mt-3 grid gap-2">
+                <div className="rounded-[1rem] bg-white px-3 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#ff6f61]">Slot A</p>
+                  <p className="mt-1 truncate text-sm font-black text-[#171313]">{abA ? (recentGenerationsSorted.find((g) => g.id === abA)?.metadata?.title || recentGenerationsSorted.find((g) => g.id === abA)?.tracks?.[0]?.title || String(abA).slice(0, 8)) : 'Vide'}</p>
+                </div>
+                <div className="rounded-[1rem] bg-white px-3 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#00a6ad]">Slot B</p>
+                  <p className="mt-1 truncate text-sm font-black text-[#171313]">{abB ? (recentGenerationsSorted.find((g) => g.id === abB)?.metadata?.title || recentGenerationsSorted.find((g) => g.id === abB)?.tracks?.[0]?.title || String(abB).slice(0, 8)) : 'Vide'}</p>
+                </div>
+                <button type="button" onClick={toggleABPlay} disabled={!abA || !abB} className="inline-flex h-11 items-center justify-center rounded-full bg-[#171313] text-xs font-black text-white disabled:opacity-45">
+                  Ecouter {abSide === 'A' ? 'B' : 'A'}
+                </button>
+              </div>
+            </section>
+
+            <section className="rounded-[1.5rem] border border-black/[0.08] bg-[#fff8ed] p-4 shadow-[0_20px_70px_rgba(20,15,10,0.08)]">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7868]">Memoire</p>
+              <h2 className="mt-1 text-xl font-black tracking-[-0.05em] text-[#171313]">Journal</h2>
+              <div className="mt-3 max-h-56 space-y-2 overflow-y-auto">
+                {logs.slice(0, 8).map((line) => (
+                  <div key={line.id} className="rounded-[1rem] bg-white px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8b7868]">{line.level} - {line.at}</p>
+                    <p className="mt-1 text-xs font-semibold text-[#171313]">{line.msg}</p>
+                  </div>
+                ))}
+                {logs.length === 0 && <p className="rounded-[1rem] bg-white px-3 py-4 text-center text-xs font-black text-[#8b7868]">Aucun evenement pour l'instant.</p>}
+              </div>
+            </section>
+          </aside>
+        </section>
+      </div>
+
+      <UploadConfirmModal
+        isOpen={remixUploadModalOpen && !!pendingRemixFile}
+        file={pendingRemixFile}
+        onConfirm={(uploadTitle) => {
+          const f = pendingRemixFile;
+          setRemixUploadModalOpen(false);
+          setPendingRemixFile(null);
+          if (f) performRemixUpload(f, uploadTitle);
+        }}
+        onCancel={() => {
+          setRemixUploadModalOpen(false);
+          setPendingRemixFile(null);
+          setRemixFile(null);
+        }}
+      />
+      <UploadProgressModal
+        isOpen={remixUploading}
+        title={uploadingRemixTitle}
+        onCancel={() => {
+          uploadAbortRef.current?.abort();
+          setRemixUploading(false);
+          setUploadingRemixTitle(null);
+        }}
+      />
+      <BuyCreditsModal isOpen={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
+
+      <div className="lg:hidden">
+        <TrackInspector
+          track={selectedTrack}
+          isOpen={showTrackPanel}
+          onClose={closeTrackPanel}
+          onPlay={playGenerated}
+          onDownload={downloadGenerated}
+          onShare={shareGenerated}
+          onRemix={useGeneratedTrackForRemix}
+          onCopyLyrics={handleCopyLyrics}
+          variant="overlay"
+          isPublished={selectedVisibilityState?.is_public === true}
+          publishingVisibility={publishingVisibility}
+          onTogglePublish={toggleGenerationVisibility}
+        />
+      </div>
+    </SynauraAppShell>
+  );
+
   return (
     <SynauraAppShell contentClassName="max-w-[1660px]">
       <SynauraTopBar />
       <SynauraRouteNav />
       <SynauraAnnouncementStrip />
-      <div className="space-y-4">
-        <SynauraHero
-          eyebrow="Studio Synaura"
-          title={<>Le studio IA est maintenant branche au meme point d'entree que le reste de l'app.</>}
-          description={
-            <>
-              Generation, bibliotheque, remix, export et publication restent intacts,
-              mais l'experience commence enfin dans le nouveau shell Synaura.
-            </>
-          }
-          actions={
-            <>
-              <Link
-                href="/upload"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
-              >
-                <Upload className="h-4 w-4" />
-                Aller a l'upload
-              </Link>
-              <Link
-                href="/library"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-black/[0.06] px-5 text-sm font-black text-[#171313] transition hover:bg-black/[0.10]"
-              >
-                <Library className="h-4 w-4" />
-                Voir la bibliotheque
-              </Link>
-            </>
-          }
-          aside={
-            <div className="rounded-[1.55rem] bg-[#171313] p-4 text-white shadow-[0_24px_70px_rgba(15,10,10,0.24)]">
-              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.04] p-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Mode</p>
-                  <p className="mt-2 text-lg font-black">{studioModeLabel}</p>
-                </div>
-                <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.04] p-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Modele</p>
-                  <p className="mt-2 text-lg font-black">{studioModelLabel}</p>
-                </div>
-                <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.04] p-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Credits</p>
-                  <p className="mt-2 text-lg font-black">{creditsBalance}</p>
-                  <p className="mt-1 text-xs text-white/40">{activeGenerationCount > 0 ? `${activeGenerationCount} generation(s) en cours` : 'Pret a lancer une session'}</p>
-                </div>
-              </div>
+      <div className="space-y-3">
+        <section className="grid gap-3 rounded-[1.35rem] border border-black/[0.08] bg-[#171313] p-3 text-white shadow-[0_18px_48px_rgba(20,15,10,0.18)] sm:rounded-[1.6rem] sm:p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/46">Studio IA</span>
+              <span className="rounded-full bg-emerald-300/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100">
+                {activeGenerationCount > 0 ? `${activeGenerationCount} en cours` : 'Pret'}
+              </span>
             </div>
-          }
-        />
+            <h1 className="mt-2 truncate text-2xl font-black text-white">Creer, remixer, publier</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-white/46">
+              <span>{studioModeLabel}</span>
+              <span className="h-1 w-1 rounded-full bg-white/24" />
+              <span>{studioModelLabel}</span>
+              <span className="h-1 w-1 rounded-full bg-white/24" />
+              <span>{creditsBalance} credits</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+            <Link
+              href="/upload"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-black text-[#171313] transition hover:scale-[1.02]"
+            >
+              <Upload className="h-4 w-4" />
+              Upload
+            </Link>
+            <Link
+              href="/library"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/[0.08] px-4 text-sm font-black text-white transition hover:bg-white/[0.12]"
+            >
+              <Library className="h-4 w-4" />
+              Biblio
+            </Link>
+          </div>
+        </section>
 
         <SynauraInkPanel className="overflow-hidden p-0">
           <div className="studio-pro relative min-h-screen bg-[#07070a] text-white font-sans selection:bg-indigo-500/30">
@@ -3537,7 +4280,7 @@ export default function AIGenerator() {
                         ? 'border-cyan-400/30 bg-cyan-500/15 text-cyan-200'
                         : 'border-indigo-400/30 bg-indigo-500/15 text-indigo-200'
                     }`}>
-                      {activeBgGeneration?.taskId ? `#${activeBgGeneration.taskId.slice(-6)}` : 'Live'}
+                      {activeBgGeneration?.taskId ? `#${String(activeBgGeneration?.taskId).slice(-6)}` : 'Live'}
                     </span>
                   </div>
 
@@ -3675,18 +4418,18 @@ export default function AIGenerator() {
                     <div className="space-y-2">
                       {selectedTrack ? (
                         <>
-                          <div className="text-xs text-zinc-400 truncate">{selectedTrack.title || 'Piste sélectionnée'}</div>
+                          <div className="text-xs text-zinc-400 truncate">{selectedTrack?.title || 'Piste sélectionnée'}</div>
                           <div className="flex gap-2">
                             <button
                               type="button"
-                              onClick={() => playGenerated(selectedTrack)}
+                              onClick={() => selectedTrack && playGenerated(selectedTrack)}
                               className="flex-1 h-9 rounded-xl bg-white text-black text-xs font-semibold"
                             >
                               Lire
                             </button>
                             <button
                               type="button"
-                              onClick={() => downloadGenerated(selectedTrack)}
+                              onClick={() => selectedTrack && downloadGenerated(selectedTrack)}
                               className="h-9 px-3 rounded-xl border border-white/10 bg-white/5 text-xs"
                             >
                               MP3
@@ -4113,11 +4856,11 @@ export default function AIGenerator() {
                         <div className="grid w-full grid-cols-2 gap-2 lg:grid-cols-3">
                           <div className="min-w-0 rounded-xl border border-indigo-500/15 bg-indigo-500/[0.04] px-3 py-2.5">
                             <div className="text-[10px] font-medium uppercase tracking-wider text-indigo-300/50 mb-0.5">Slot A</div>
-                            <div className="truncate text-xs text-white/90 font-medium">{abA ? (recentGenerationsSorted.find((x) => x.id === abA)?.metadata?.title || recentGenerationsSorted.find((x) => x.id === abA)?.tracks?.[0]?.title || abA.slice(0, 8)) : '—'}</div>
+                            <div className="truncate text-xs text-white/90 font-medium">{abA ? (recentGenerationsSorted.find((x) => x.id === abA)?.metadata?.title || recentGenerationsSorted.find((x) => x.id === abA)?.tracks?.[0]?.title || String(abA).slice(0, 8)) : '—'}</div>
                           </div>
                           <div className="min-w-0 rounded-xl border border-violet-500/15 bg-violet-500/[0.04] px-3 py-2.5">
                             <div className="text-[10px] font-medium uppercase tracking-wider text-violet-300/50 mb-0.5">Slot B</div>
-                            <div className="truncate text-xs text-white/90 font-medium">{abB ? (recentGenerationsSorted.find((x) => x.id === abB)?.metadata?.title || recentGenerationsSorted.find((x) => x.id === abB)?.tracks?.[0]?.title || abB.slice(0, 8)) : '—'}</div>
+                            <div className="truncate text-xs text-white/90 font-medium">{abB ? (recentGenerationsSorted.find((x) => x.id === abB)?.metadata?.title || recentGenerationsSorted.find((x) => x.id === abB)?.tracks?.[0]?.title || String(abB).slice(0, 8)) : '—'}</div>
                           </div>
                           <button
                             type="button"
@@ -4287,7 +5030,7 @@ export default function AIGenerator() {
                   generationsById={generationsById}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
-                  filterBy={filterBy === 'with-lyrics' ? 'voix' : filterBy}
+                  filterBy={(filterBy === 'with-lyrics' ? 'voix' : filterBy) as any}
                   onFilterByChange={(v) => setFilterBy(v === 'voix' ? 'with-lyrics' : v)}
                   sortBy={sortBy}
                   onSortByChange={setSortBy}
@@ -4362,22 +5105,22 @@ export default function AIGenerator() {
                 onClick={() => setShowTrackPanel(true)}
                 className="w-full flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#0c0c14]/95 backdrop-blur-2xl px-3.5 py-3 shadow-[0_12px_40px_rgba(0,0,0,.5)] cursor-pointer active:scale-[0.98] transition-transform"
               >
-                {generatedTrack.imageUrl ? (
-                  <img src={generatedTrack.imageUrl} alt="" className="w-11 h-11 rounded-xl object-cover shrink-0 ring-1 ring-white/[0.08]" />
+                {generatedTrack?.imageUrl ? (
+                  <img src={generatedTrack?.imageUrl || ''} alt="" className="w-11 h-11 rounded-xl object-cover shrink-0 ring-1 ring-white/[0.08]" />
                 ) : (
                   <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500/30 to-violet-500/30 shrink-0 flex items-center justify-center">
                     <Zap className="w-4 h-4 text-indigo-300" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0 text-left">
-                  <div className="truncate text-sm font-semibold text-white/90">{generatedTrack.title || 'Piste'}</div>
-                  <div className="text-[11px] text-white/40 mt-0.5">{formatTime(audioState.currentTime)} / {formatTime(audioState.duration || generatedTrack.duration || 0)}</div>
+                  <div className="truncate text-sm font-semibold text-white/90">{generatedTrack?.title || 'Piste'}</div>
+                  <div className="text-[11px] text-white/40 mt-0.5">{formatTime(audioState.currentTime)} / {formatTime(audioState.duration || generatedTrack?.duration || 0)}</div>
                 </div>
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    audioState.isPlaying ? pause() : playGenerated(generatedTrack);
+                    audioState.isPlaying ? pause() : generatedTrack && playGenerated(generatedTrack);
                   }}
                   className="w-10 h-10 flex items-center justify-center rounded-full bg-white text-black shadow-lg active:scale-95 transition-transform"
                 >
