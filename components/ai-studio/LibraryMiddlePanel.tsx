@@ -21,6 +21,7 @@ import {
   ArchiveRestore,
 } from 'lucide-react';
 import type { AITrack, AIGeneration } from '@/lib/aiGenerationService';
+import { isLikelyExpiredAIProviderUrl } from '@/lib/media-url-health';
 
 type ChipKey = 'all' | 'instrumental' | 'voix' | 'liked' | 'trashed';
 type SortKey = 'newest' | 'oldest' | 'title';
@@ -53,9 +54,11 @@ function sanitizeCoverUrl(url?: string): string {
   const t = url.trim();
   if (t.startsWith('/')) return t;
   try {
-    const host = new URL(t).hostname.toLowerCase();
-    if (host === 'musicfile.api.box' || host.endsWith('.musicfile.api.box')) return '';
-  } catch {}
+    new URL(t);
+    if (isLikelyExpiredAIProviderUrl(t)) return '';
+  } catch {
+    return '';
+  }
   return t;
 }
 

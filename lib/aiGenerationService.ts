@@ -1,6 +1,7 @@
 // lib/aiGenerationService.ts
 import { supabase, supabaseAdmin } from './supabase';
 import { Track } from '@/lib/suno-normalize';
+import { isUsableHttpMediaUrl } from '@/lib/media-url-health';
 
 export interface AIGeneration {
   id: string;
@@ -194,6 +195,7 @@ class AIGenerationService {
     
     const toInsert: any[] = [];
     const toUpdate: Array<{ sunoId: string; patch: any }> = [];
+    const cleanMediaUrl = (url?: string | null) => (isUsableHttpMediaUrl(url) ? String(url).trim() : '');
 
     tracks.forEach((track, index) => {
       // Suno renvoie les tags comme une chaîne séparée par des virgules
@@ -210,9 +212,9 @@ class AIGenerationService {
         suno_id: sunoId,
         title: track.title || `${generationTitle} ${index + 1}`,
         // Important: audio_url doit rester la piste "finale". Le stream preview reste en stream_audio_url.
-        audio_url: track.audio || '',
-        stream_audio_url: track.stream || '',
-        image_url: track.image || '',
+        audio_url: cleanMediaUrl(track.audio),
+        stream_audio_url: cleanMediaUrl(track.stream),
+        image_url: cleanMediaUrl(track.image),
         duration: Math.round(track.duration || 120), // Convertir en entier
         prompt: track.raw?.prompt || generationLyrics || '', // Paroles/lyrics
         // Utiliser UNIQUEMENT le modèle de la génération (celui réellement utilisé par l'utilisateur)
@@ -232,9 +234,9 @@ class AIGenerationService {
 
       const patch: any = {
         // Ne jamais écraser une bonne URL finale par une chaîne vide.
-        audio_url: nextRow.audio_url || existing.audio_url || '',
-        stream_audio_url: nextRow.stream_audio_url || existing.stream_audio_url || '',
-        image_url: nextRow.image_url || existing.image_url || '',
+        audio_url: nextRow.audio_url || cleanMediaUrl(existing.audio_url) || '',
+        stream_audio_url: nextRow.stream_audio_url || cleanMediaUrl(existing.stream_audio_url) || '',
+        image_url: nextRow.image_url || cleanMediaUrl(existing.image_url) || '',
         duration: nextRow.duration || existing.duration || 120,
         prompt: nextRow.prompt || existing.prompt || '',
         title: nextRow.title || existing.title || '',

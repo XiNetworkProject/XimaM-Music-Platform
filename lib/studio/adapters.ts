@@ -1,5 +1,6 @@
 import type { StudioTrack } from '@/lib/studio/types';
 import type { AITrack } from '@/lib/aiGenerationService';
+import { pickFirstUsableHttpMediaUrl } from '@/lib/media-url-health';
 
 function safeStr(v: any, fallback = ''): string {
   return typeof v === 'string' ? v : fallback;
@@ -27,8 +28,8 @@ export function aiTrackToStudioTrack(ai: any, artistName: string): StudioTrack {
     lyrics: safeStr((t as any).lyrics, prompt || undefined),
     negativePrompt: undefined,
     model: safeStr((t as any).model_name, safeStr(gen?.model, 'V4_5')),
-    audioUrl: safeStr((t as any).audio_url, safeStr((t as any).stream_audio_url, '')),
-    coverUrl: safeStr((t as any).image_url, '/synaura_symbol.svg'),
+    audioUrl: pickFirstUsableHttpMediaUrl((t as any).audio_url, (t as any).stream_audio_url),
+    coverUrl: pickFirstUsableHttpMediaUrl((t as any).image_url) || '/synaura_symbol.svg',
     isFavorite: !!(t as any).is_favorite,
     status: 'ready',
     source: 'ai_track',

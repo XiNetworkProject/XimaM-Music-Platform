@@ -4,6 +4,7 @@ import { useAudioRecommendations } from './useAudioRecommendations';
 import { sendTrackEvents } from '@/lib/analyticsClient';
 import { getCdnUrl } from '@/lib/cdn';
 import { getEntitlements } from '@/lib/entitlements';
+import { isLikelyExpiredAIProviderUrl } from '@/lib/media-url-health';
 
 interface Track {
   _id: string;
@@ -266,15 +267,7 @@ export const useAudioService = () => {
 
   const isDeadMediaHost = useCallback((url?: string) => {
     if (!url) return true;
-    try {
-      const host = new URL(url).hostname.toLowerCase();
-      return (
-        host === 'musicfile.api.box' ||
-        host.endsWith('.musicfile.api.box')
-      );
-    } catch {
-      return true;
-    }
+    return isLikelyExpiredAIProviderUrl(url);
   }, []);
 
 

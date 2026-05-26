@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Download, Share2, Music, AlertTriangle, CheckCircle2, Loader2, Wand2, MoreVertical, Copy, RotateCcw } from 'lucide-react';
 import type { GeneratedTrack } from '@/lib/aiStudioTypes';
+import { isLikelyExpiredAIProviderUrl } from '@/lib/media-url-health';
 
 type GenerationStatus = 'idle' | 'pending' | 'completed' | 'failed';
 
@@ -36,11 +37,8 @@ const sanitizeCoverUrl = (url?: string) => {
   if (!trimmed) return '';
   if (trimmed.startsWith('/')) return trimmed;
   try {
-    const host = new URL(trimmed).hostname.toLowerCase();
-    if (
-      host === 'musicfile.api.box' ||
-      host.endsWith('.musicfile.api.box')
-    ) return '';
+    new URL(trimmed);
+    if (isLikelyExpiredAIProviderUrl(trimmed)) return '';
     return trimmed;
   } catch {
     return '';

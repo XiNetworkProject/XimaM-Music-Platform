@@ -24,6 +24,7 @@ import { aiStudioPresets } from '@/lib/aiStudioPresets';
 import StudioBackground from '@/components/StudioBackground';
 import RightPanelImproved from '@/components/ai-studio/RightPanelImproved';
 import type { GeneratedTrack, AIStudioPreset } from '@/lib/aiStudioTypes';
+import { isLikelyExpiredAIProviderUrl, pickFirstUsableHttpMediaUrl } from '@/lib/media-url-health';
 import { SUNO_BTN_BASE, SUNO_FIELD, SUNO_SELECT, SUNO_TEXTAREA, SUNO_INPUT, SUNO_PILL_SOLID, SUNO_PANEL } from '@/components/ui/sunoClasses';
 import { SunoAccordionSection } from '@/components/ui/SunoAccordionSection';
 import { SunoSlider } from '@/components/ui/SunoSlider';
@@ -776,48 +777,6 @@ export default function AIGenerator() {
     return commandItems.filter((c) => `${c.label} ${c.desc}`.toLowerCase().includes(q));
   }, [cmdQuery, commandItems]);
 
-  const pickFirstHttp = (...values: Array<unknown>) => {
-    for (const value of values) {
-      if (typeof value !== 'string') continue;
-      const trimmed = value.trim();
-      if (!/^https?:\/\//i.test(trimmed)) continue;
-      try {
-        const host = new URL(trimmed).hostname.toLowerCase();
-        // Legacy hosts now dead/unstable: skip early to avoid browser/network noise.
-        if (
-          host === 'musicfile.api.box' ||
-          host.endsWith('.musicfile.api.box')
-        ) {
-          continue;
-        }
-      } catch {
-        continue;
-      }
-      return trimmed;
-    }
-    return '';
-  };
-
-  const isBlockedCoverHost = (host: string) =>
-    host === 'musicfile.api.box' ||
-    host.endsWith('.musicfile.api.box');
-
-  const pickFirstHttpImage = (...values: Array<unknown>) => {
-    for (const value of values) {
-      if (typeof value !== 'string') continue;
-      const trimmed = value.trim();
-      if (!/^https?:\/\//i.test(trimmed)) continue;
-      try {
-        const host = new URL(trimmed).hostname.toLowerCase();
-        if (isBlockedCoverHost(host)) continue;
-      } catch {
-        continue;
-      }
-      return trimmed;
-    }
-    return '';
-  };
-
   function parseSourceLinks(sourceLinks?: string | null) {
     if (!sourceLinks) return null as any;
     try {
@@ -839,7 +798,7 @@ export default function AIGenerator() {
   const resolveTrackMedia = (track: AITrack | any) => {
     const links = parseSourceLinks((track as any)?.source_links);
     const linksObj = links && typeof links === 'object' ? links : {};
-    const audioFromLinks = pickFirstHttp(
+    const audioFromLinks = pickFirstUsableHttpMediaUrl(
       linksObj.audio,
       linksObj.audio_url,
       linksObj.audioUrl,
@@ -847,7 +806,7 @@ export default function AIGenerator() {
       linksObj.sourceAudioUrl,
       linksObj.url
     );
-    const streamFromLinks = pickFirstHttp(
+    const streamFromLinks = pickFirstUsableHttpMediaUrl(
       linksObj.stream,
       linksObj.stream_url,
       linksObj.stream_audio_url,
@@ -855,7 +814,7 @@ export default function AIGenerator() {
       linksObj.source_stream_audio_url,
       linksObj.sourceStreamAudioUrl
     );
-    const imageFromLinks = pickFirstHttpImage(
+    const imageFromLinks = pickFirstUsableHttpMediaUrl(
       linksObj.image,
       linksObj.image_url,
       linksObj.imageUrl,
@@ -866,21 +825,21 @@ export default function AIGenerator() {
       linksObj.coverUrl
     );
 
-    const streamUrl = pickFirstHttp(
+    const streamUrl = pickFirstUsableHttpMediaUrl(
       (track as any)?.stream_audio_url,
       (track as any)?.streamAudioUrl,
       (track as any)?.source_stream_audio_url,
       (track as any)?.sourceStreamAudioUrl,
       streamFromLinks
     );
-    const audioUrl = pickFirstHttp(
+    const audioUrl = pickFirstUsableHttpMediaUrl(
       (track as any)?.audio_url,
       (track as any)?.audioUrl,
       (track as any)?.source_audio_url,
       (track as any)?.sourceAudioUrl,
       audioFromLinks
     );
-    const imageUrl = pickFirstHttpImage(
+    const imageUrl = pickFirstUsableHttpMediaUrl(
       (track as any)?.image_url,
       (track as any)?.imageUrl,
       (track as any)?.source_image_url,
@@ -890,7 +849,7 @@ export default function AIGenerator() {
 
     return {
       // En bibliothèque, préférer l'URL audio finale; garder le stream en fallback.
-      playableUrl: pickFirstHttp(audioUrl, streamUrl),
+      playableUrl: pickFirstUsableHttpMediaUrl(audioUrl, streamUrl),
       audioUrl,
       streamUrl,
       imageUrl,
@@ -898,14 +857,14 @@ export default function AIGenerator() {
   };
 
   const resolveLiveTrackMedia = (track: any) => {
-    const audioUrl = pickFirstHttp(
+    const audioUrl = pickFirstUsableHttpMediaUrl(
       track?.audio,
       track?.audio_url,
       track?.audioUrl,
       track?.source_audio_url,
       track?.raw?.audio_url
     );
-    const streamUrl = pickFirstHttp(
+    const streamUrl = pickFirstUsableHttpMediaUrl(
       track?.stream,
       track?.stream_audio_url,
       track?.streamAudioUrl,
@@ -913,8 +872,8 @@ export default function AIGenerator() {
       track?.raw?.stream_audio_url
     );
     // En live, le stream est généralement disponible avant l'URL audio finale.
-    const playableUrl = pickFirstHttp(streamUrl, audioUrl);
-    const imageUrl = pickFirstHttpImage(
+    const playableUrl = pickFirstUsableHttpMediaUrl(streamUrl, audioUrl);
+    const imageUrl = pickFirstUsableHttpMediaUrl(
       track?.image,
       track?.image_url,
       track?.imageUrl,
@@ -925,17 +884,20 @@ export default function AIGenerator() {
   };
 
   const isPotentiallyExpiredProviderUrl = (url?: string) => {
-    if (!url) return true;
-    return /(^|\.)musicfile\.api\.box/i.test(url);
+    return isLikelyExpiredAIProviderUrl(url);
   };
 
   // Jouer une track IA (même logique que ai-library)
   const aiTrackToPlayerTrack = (track: AITrack, generation: AIGeneration): PlayerTrack | null => {
     const media = resolveTrackMedia(track);
     const playableUrl = media.playableUrl;
-    if (!playableUrl) return null;
+    if (!playableUrl || isPotentiallyExpiredProviderUrl(playableUrl)) return null;
     const backupAudioUrls = Array.from(
-      new Set([media.streamUrl, media.audioUrl].filter((u): u is string => Boolean(u && u !== playableUrl)))
+      new Set(
+        [media.streamUrl, media.audioUrl].filter(
+          (u): u is string => Boolean(u && u !== playableUrl && !isPotentiallyExpiredProviderUrl(u))
+        )
+      )
     );
 
     const pt: PlayerTrack & { generationTaskId?: string; sunoAudioId?: string } = {
@@ -992,6 +954,19 @@ export default function AIGenerator() {
         image_url: candidate.image || (track as any).image_url || '',
       } as AITrack;
 
+      const statusUpper = String(json?.status || '').toUpperCase();
+      if (tracks.length > 0 && (statusUpper === 'SUCCESS' || statusUpper === 'COMPLETE')) {
+        fetch('/api/suno/save-tracks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taskId, tracks, status: 'completed' }),
+        })
+          .then((saveRes) => {
+            if (saveRes.ok) window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
+          })
+          .catch(() => {});
+      }
+
       setAllTracks((prev) => prev.map((t) => (t.id === track.id ? patchedTrack : t)));
       setGenerations((prev) =>
         prev.map((g) => {
@@ -1011,7 +986,12 @@ export default function AIGenerator() {
   const playAITrack = async (track: AITrack, generation: AIGeneration) => {
     let targetTrack = track;
     const initialMedia = resolveTrackMedia(track);
-    if (!initialMedia.playableUrl || isPotentiallyExpiredProviderUrl(initialMedia.playableUrl)) {
+    if (
+      !initialMedia.playableUrl ||
+      isPotentiallyExpiredProviderUrl(initialMedia.playableUrl) ||
+      !initialMedia.imageUrl ||
+      (initialMedia.imageUrl && isPotentiallyExpiredProviderUrl(initialMedia.imageUrl))
+    ) {
       pushLog('info', 'Récupération des URLs fraîches de la piste…');
       const refreshed = await hydrateTrackFromSuno(track, generation);
       if (refreshed) targetTrack = refreshed;
@@ -1050,14 +1030,33 @@ export default function AIGenerator() {
     }
   };
 
-  const playGenerationQueue = (generation: AIGeneration) => {
+  const ensureFreshAITrackForPlayback = async (track: AITrack, generation: AIGeneration) => {
+    const media = resolveTrackMedia(track);
+    if (
+      !media.playableUrl ||
+      isPotentiallyExpiredProviderUrl(media.playableUrl) ||
+      !media.imageUrl ||
+      isPotentiallyExpiredProviderUrl(media.imageUrl)
+    ) {
+      const refreshed = await hydrateTrackFromSuno(track, generation);
+      return refreshed || track;
+    }
+    return track;
+  };
+
+  const playGenerationQueue = async (generation: AIGeneration) => {
     const tracks = generation.tracks || [];
     if (!tracks.length) {
       notify.error('Lecture', 'Aucune piste trouvée pour cette génération.');
       return;
     }
 
-    const playable = tracks
+    const freshTracks: AITrack[] = [];
+    for (const track of tracks) {
+      freshTracks.push(await ensureFreshAITrackForPlayback(track as any, generation));
+    }
+
+    const playable = freshTracks
       .map((t) => aiTrackToPlayerTrack(t, generation))
       .filter(Boolean) as PlayerTrack[];
 
@@ -1072,15 +1071,16 @@ export default function AIGenerator() {
   };
 
   // Fonction pour jouer une génération
-  const handlePlayGeneration = (generation: AIGeneration) => {
+  const handlePlayGeneration = async (generation: AIGeneration) => {
+    setSelectedGeneration(generation);
     if (generation.tracks?.length) {
       const firstTrack = generation.tracks[0];
-      const converted = convertAITrackToGenerated(firstTrack as any);
+      const freshFirst = await ensureFreshAITrackForPlayback(firstTrack as any, generation);
+      const converted = convertAITrackToGenerated(freshFirst as any);
       setSelectedTrack(converted);
       setGeneratedTrack(converted);
     }
-    setSelectedGeneration(generation);
-    playGenerationQueue(generation);
+    await playGenerationQueue(generation);
   };
 
   const assignABSlot = useCallback((slot: 'A' | 'B', generationId: string) => {
@@ -1597,10 +1597,37 @@ export default function AIGenerator() {
 
   const playGenerated = async (gt: GeneratedTrack) => {
     const directUrl = typeof gt.audioUrl === 'string' ? gt.audioUrl.trim() : '';
-    const backupDirect = Array.isArray(gt.backupAudioUrls)
-      ? gt.backupAudioUrls.find((u) => typeof u === 'string' && u.trim().length > 0)?.trim() || ''
-      : '';
-    const playableDirect = directUrl || backupDirect;
+    const backupUrls = Array.isArray(gt.backupAudioUrls)
+      ? gt.backupAudioUrls.map((u) => (typeof u === 'string' ? u.trim() : '')).filter(Boolean)
+      : [];
+    const playableDirect = pickFirstUsableHttpMediaUrl(directUrl, ...backupUrls) || directUrl || backupUrls[0] || '';
+    const sourceTrackForGt = allTracks.find((t: any) =>
+      String(t.id) === String(gt.id) ||
+      String(t.suno_id || '') === String((gt as any).sunoAudioId || gt.id || '')
+    );
+    const sourceGenId = (sourceTrackForGt as any)?.generation_id || (sourceTrackForGt as any)?.generation?.id;
+    const sourceGenForGt =
+      (sourceGenId ? generationsById.get(String(sourceGenId)) : null) ||
+      ((gt as any).generationTaskId
+        ? recentGenerationsSorted.find((g) => String(g.task_id || '') === String((gt as any).generationTaskId))
+        : null) ||
+      selectedGeneration ||
+      recentGenerationsSorted.find((g) => (g.tracks || []).some((t) =>
+        String(t.id) === String(gt.id) ||
+        String((t as any).suno_id || '') === String((gt as any).sunoAudioId || gt.id || '')
+      )) ||
+      null;
+
+    if (playableDirect && isPotentiallyExpiredProviderUrl(playableDirect)) {
+      if (sourceTrackForGt && sourceGenForGt) {
+        await playAITrack(sourceTrackForGt as any, sourceGenForGt);
+        return;
+      }
+      notify.error('Lecture', 'Cette source audio temporaire a expire. Synchronise la piste Suno pour recuperer une URL fraiche.');
+      pushLog('warn', `Source audio expiree: ${gt.title || gt.id}`);
+      return;
+    }
+
     if (!playableDirect) {
       const rawLive = (activeBgGeneration?.latestTracks || []).find((t: any, idx: number) => {
         const tid = String(t?.id || `${activeBgGeneration?.taskId || 'task'}_${idx}`);
@@ -1615,7 +1642,7 @@ export default function AIGenerator() {
           backupAudioUrls: Array.from(
             new Set(
               [liveMedia.audioUrl, liveMedia.streamUrl].filter(
-                (u): u is string => Boolean(u && u !== livePlayableUrl)
+                (u): u is string => Boolean(u && u !== livePlayableUrl && !isPotentiallyExpiredProviderUrl(u))
               )
             )
           ),
@@ -1626,16 +1653,9 @@ export default function AIGenerator() {
         return;
       }
       // Fallback: retrouver la track IA source puis utiliser le pipeline robuste (hydrate/retry).
-      const sourceTrack = allTracks.find((t) => String(t.id) === String(gt.id));
-      if (sourceTrack) {
-        const genId = (sourceTrack as any).generation_id || (sourceTrack as any).generation?.id;
-        const sourceGen =
-          (genId ? generationsById.get(String(genId)) : null) ||
-          selectedGeneration ||
-          recentGenerationsSorted.find((g) => (g.tracks || []).some((t) => String(t.id) === String(sourceTrack.id))) ||
-          null;
-        if (sourceGen) {
-          await playAITrack(sourceTrack as any, sourceGen);
+      if (sourceTrackForGt) {
+        if (sourceGenForGt) {
+          await playAITrack(sourceTrackForGt as any, sourceGenForGt);
           return;
         }
       }
@@ -1645,8 +1665,10 @@ export default function AIGenerator() {
     }
 
     const taskIdForLyrics =
-      activeBgGeneration?.taskId ??
-      recentGenerationsSorted.find((g) => (g.tracks || []).some((t: any) => String(t.id) === String(gt.id)))?.task_id ??
+      (gt as any).generationTaskId ||
+      (sourceGenForGt as any)?.task_id ||
+      activeBgGeneration?.taskId ||
+      recentGenerationsSorted.find((g) => (g.tracks || []).some((t: any) => String(t.id) === String(gt.id)))?.task_id ||
       null;
     const playerTrack: PlayerTrack & { generationTaskId?: string; sunoAudioId?: string } = {
       _id: `gen-${gt.id}`,
@@ -1658,7 +1680,9 @@ export default function AIGenerator() {
       },
       audioUrl: playableDirect,
       backupAudioUrls: Array.isArray(gt.backupAudioUrls)
-        ? gt.backupAudioUrls.filter((u) => typeof u === 'string' && u.trim().length > 0 && u.trim() !== playableDirect)
+        ? gt.backupAudioUrls.filter(
+            (u) => typeof u === 'string' && u.trim().length > 0 && u.trim() !== playableDirect && !isPotentiallyExpiredProviderUrl(u)
+          )
         : [],
       coverUrl: gt.imageUrl || '/synaura_symbol.svg',
       duration: gt.duration || 120,
@@ -1668,7 +1692,7 @@ export default function AIGenerator() {
       genre: ['IA']
     };
     (playerTrack as any).generationTaskId = taskIdForLyrics ?? '';
-    (playerTrack as any).sunoAudioId = String(gt.id ?? '');
+    (playerTrack as any).sunoAudioId = String((gt as any).sunoAudioId || (sourceTrackForGt as any)?.suno_id || gt.id || '');
     await Promise.resolve(playTrack(playerTrack as any)).catch(() => {
       notify.error('Lecture', 'La lecture a échoué pour cette piste.');
       pushLog('error', `Échec lecture generated: ${gt.title || gt.id}`);
@@ -1677,7 +1701,15 @@ export default function AIGenerator() {
 
   const downloadGenerated = async (gt: GeneratedTrack) => {
     try {
-      const res = await fetch(gt.audioUrl);
+      const sourceUrl = pickFirstUsableHttpMediaUrl(
+        typeof gt.audioUrl === 'string' ? gt.audioUrl : '',
+        ...(Array.isArray(gt.backupAudioUrls) ? gt.backupAudioUrls : [])
+      );
+      if (!sourceUrl) {
+        notify.error('Telechargement', 'Aucune URL audio fraiche disponible pour cette piste.');
+        return;
+      }
+      const res = await fetch(sourceUrl);
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1764,13 +1796,10 @@ export default function AIGenerator() {
   };
 
   const useGeneratedTrackForRemix = (track: GeneratedTrack) => {
-    const sourceUrl =
-      (typeof track.audioUrl === 'string' && track.audioUrl.trim().length > 0
-        ? track.audioUrl.trim()
-        : '') ||
-      (Array.isArray(track.backupAudioUrls)
-        ? track.backupAudioUrls.find((u) => typeof u === 'string' && u.trim().length > 0)?.trim() || ''
-        : '');
+    const sourceUrl = pickFirstUsableHttpMediaUrl(
+      typeof track.audioUrl === 'string' ? track.audioUrl.trim() : '',
+      ...(Array.isArray(track.backupAudioUrls) ? track.backupAudioUrls : [])
+    );
     if (!sourceUrl) {
       notify.error('Remix', 'Aucune URL audio exploitable pour cette génération.');
       return;
@@ -1873,7 +1902,11 @@ export default function AIGenerator() {
   const convertAITrackToGenerated = (aiTrack: AITrack): GeneratedTrack => {
     const media = resolveTrackMedia(aiTrack);
     const backupAudioUrls = Array.from(
-      new Set([media.audioUrl, media.streamUrl].filter((u): u is string => Boolean(u && u !== media.playableUrl)))
+      new Set(
+        [media.audioUrl, media.streamUrl].filter(
+          (u): u is string => Boolean(u && u !== media.playableUrl && !isPotentiallyExpiredProviderUrl(u))
+        )
+      )
     );
     const generation = generationsById.get(String(aiTrack.generation_id));
     return {
@@ -2325,7 +2358,11 @@ export default function AIGenerator() {
       const media = resolveLiveTrackMedia(track);
       const primaryUrl = media.audioUrl || media.playableUrl;
       const backups = Array.from(
-        new Set([media.audioUrl, media.streamUrl, media.playableUrl].filter((u): u is string => Boolean(u && u !== primaryUrl)))
+        new Set(
+          [media.audioUrl, media.streamUrl, media.playableUrl].filter(
+            (u): u is string => Boolean(u && u !== primaryUrl && !isPotentiallyExpiredProviderUrl(u))
+          )
+        )
       );
       return {
         id: track.id || `${activeBgGeneration.taskId}_${index}`,

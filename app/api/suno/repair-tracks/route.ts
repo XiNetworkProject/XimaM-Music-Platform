@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getRecordInfo } from '@/lib/suno';
 import { normalizeSunoItem } from '@/lib/suno-normalize';
+import { isLikelyExpiredAIProviderUrl } from '@/lib/media-url-health';
 
 type AnyTrack = {
   id: string;
@@ -23,12 +24,7 @@ const isHttp = (v?: string | null) => typeof v === 'string' && /^https?:\/\//i.t
 
 const isDeadMediaHost = (url?: string | null) => {
   if (!url) return true;
-  try {
-    const host = new URL(url).hostname.toLowerCase();
-    return host === 'musicfile.api.box' || host.endsWith('.musicfile.api.box');
-  } catch {
-    return true;
-  }
+  return isLikelyExpiredAIProviderUrl(url);
 };
 
 const pickValid = (...candidates: Array<string | null | undefined>) => {
@@ -76,7 +72,8 @@ export async function POST(req: NextRequest) {
       const needsRepair = existingTracks.some((t) => {
         const audioBad = !isHttp(t.audio_url) || isDeadMediaHost(t.audio_url);
         const streamBad = !isHttp(t.stream_audio_url) || isDeadMediaHost(t.stream_audio_url);
-        return audioBad || streamBad;
+        const imageBad = !isHttp(t.image_url) || isDeadMediaHost(t.image_url);
+        return audioBad || streamBad || imageBad;
       });
 
       if (!needsRepair) continue;
