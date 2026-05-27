@@ -22,6 +22,7 @@ import {
   Home,
   Image as ImageIcon,
   Library,
+  Loader2,
   MessageCircle,
   Mic2,
   MoreHorizontal,
@@ -32,10 +33,13 @@ import {
   Repeat2,
   Search,
   Share2,
+  Send,
   Sparkles,
+  Trash2,
   Upload,
   Users,
   Wand2,
+  X,
   Zap,
 } from 'lucide-react';
 
@@ -103,6 +107,7 @@ type PostItem = {
   id: string;
   kind: 'post';
   entity: BasePost;
+  creatorId: string;
   author: string;
   handle: string;
   avatar: string;
@@ -159,6 +164,19 @@ type HomeComment = {
     avatar?: string | null;
   };
   replies: HomeComment[];
+};
+
+type HomeSearchResults = {
+  tracks: Track[];
+  posts: PostItem[];
+  artists: Array<{
+    id: string;
+    name: string;
+    username: string;
+    avatar: string;
+    href: string;
+  }>;
+  playlists: Playlist[];
 };
 
 const FILTERS = ['Pour toi', 'Sons', 'Posts', 'Playlists', 'Createurs', 'Radio'];
@@ -412,6 +430,7 @@ function normalizePost(raw: any) {
     id,
     kind: 'post',
     entity,
+    creatorId: entity.creator.id,
     author: authorName,
     handle: username ? `@${username}` : '@synaura',
     avatar: authorName.slice(0, 1).toUpperCase(),
@@ -440,6 +459,225 @@ async function copyTextToClipboard(value: string, successMessage = 'Lien copie')
       return;
     }
   } catch {}
+}
+
+function normalizeSearchArtist(raw: any) {
+  const id = String(raw?._id || raw?.id || '');
+  if (!id) return null;
+  const username = safeString(raw?.username, '');
+  const name = safeString(raw?.artistName || raw?.name || username, 'Createur');
+  return {
+    id,
+    name,
+    username,
+    avatar: typeof raw?.avatar === 'string' ? raw.avatar : '',
+    href: username ? `/profile/${encodeURIComponent(username)}` : '/community',
+  };
+}
+
+function HomeSearchBox({ compact = false }: { compact?: boolean }) {
+  const { playTrack } = useAudioPlayer();
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<HomeSearchResults>({ tracks: [], posts: [], artists: [], playlists: [] });
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const totalResults = results.tracks.length + results.posts.length + results.artists.length + results.playlists.length;
+
+  const runSearch = useCallback(async (value: string) => {
+    const q = value.trim();
+    if (q.length < 2) {
+      abortRef.current?.abort();
+      setResults({ tracks: [], posts: [], artists: [], playlists: [] });
+      setOpen(false);
+      setLoading(false);
+      return;
+    }
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLoading(true);
+    setOpen(true);
+
+    try {
+      const [searchJson, postsJson] = await Promise.all([
+        fetch(`/api/search?query=${encodeURIComponent(q)}&filter=all&limit=6`, { cache: 'no-store', signal: controller.signal })
+          .then((response) => response.json().catch(() => null)),
+        fetch(`/api/posts?limit=5&query=${encodeURIComponent(q)}`, { cache: 'no-store', signal: controller.signal })
+          .then((response) => response.json().catch(() => null)),
+      ]);
+
+      const tracks = (Array.isArray(searchJson?.tracks) ? searchJson.tracks : [])
+        .map(normalizeTrack)
+        .filter((track: Track | null): track is Track => Boolean(track));
+      const posts = (Array.isArray(postsJson?.posts) ? postsJson.posts : [])
+        .map(normalizePost)
+        .filter((post: PostItem | null): post is PostItem => Boolean(post));
+      const artists = (Array.isArray(searchJson?.artists) ? searchJson.artists : [])
+        .map(normalizeSearchArtist)
+        .filter((artist: ReturnType<typeof normalizeSearchArtist>): artist is NonNullable<ReturnType<typeof normalizeSearchArtist>> => Boolean(artist));
+      const fallbackCovers = tracks.map((track: Track) => track.cover);
+      const playlists = (Array.isArray(searchJson?.playlists) ? searchJson.playlists : [])
+        .map((playlist: any) => normalizePlaylist(playlist, fallbackCovers))
+        .filter((playlist: Playlist | null): playlist is Playlist => Boolean(playlist));
+
+      setResults({ tracks, posts, artists, playlists });
+    } catch (error: any) {
+      if (error?.name !== 'AbortError') {
+        setResults({ tracks: [], posts: [], artists: [], playlists: [] });
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void runSearch(query), 260);
+    return () => window.clearTimeout(timer);
+  }, [query, runSearch]);
+
+  useEffect(() => {
+    const onPointerDown = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, []);
+
+  const clearSearch = () => {
+    abortRef.current?.abort();
+    setQuery('');
+    setOpen(false);
+    setResults({ tracks: [], posts: [], artists: [], playlists: [] });
+  };
+
+  return (
+    <div ref={rootRef} className={`relative ${compact ? 'min-w-0 flex-1' : 'hidden max-w-2xl flex-1 lg:block'}`}>
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35 sm:left-4" />
+        <input
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            if (event.target.value.trim().length >= 2) setOpen(true);
+          }}
+          onFocus={() => {
+            if (query.trim().length >= 2) setOpen(true);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setOpen(false);
+            if (event.key === 'Enter' && results.tracks[0]) {
+              event.preventDefault();
+              playTrack(results.tracks[0].playerTrack as any);
+              setOpen(false);
+            }
+          }}
+          placeholder={compact ? 'Rechercher sur Synaura...' : 'Rechercher un son, un post, une playlist, un createur...'}
+          className="h-10 w-full rounded-full border border-transparent bg-black/[0.055] pl-9 pr-10 text-xs font-semibold text-[#171313] outline-none placeholder:text-black/35 transition focus:border-black/[0.12] focus:bg-white/70 sm:h-11 sm:pl-11 sm:text-sm"
+        />
+        {query ? (
+          <button
+            type="button"
+            onClick={clearSearch}
+            className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-black/[0.06] text-black/42 transition hover:bg-black hover:text-white"
+            aria-label="Effacer la recherche"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+      </div>
+
+      {open ? (
+        <div className="absolute left-0 right-0 top-[calc(100%+0.55rem)] z-[80] max-h-[72vh] overflow-y-auto rounded-[1.35rem] border border-black/[0.08] bg-[#fffaf2]/98 p-2 shadow-[0_24px_80px_rgba(30,25,20,0.22)] backdrop-blur-2xl">
+          <div className="flex items-center justify-between px-2 py-2">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">
+              {loading ? 'Recherche...' : totalResults ? `${totalResults} resultat(s)` : 'Recherche'}
+            </p>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin text-black/35" /> : null}
+          </div>
+
+          {!loading && !totalResults ? (
+            <div className="rounded-[1rem] bg-black/[0.045] p-5 text-center">
+              <Search className="mx-auto h-7 w-7 text-black/24" />
+              <p className="mt-2 text-sm font-black text-black/58">Aucun resultat pour "{query}"</p>
+            </div>
+          ) : null}
+
+          {results.tracks.length ? (
+            <div className="space-y-1">
+              <p className="px-2 pt-1 text-[10px] font-black uppercase tracking-[0.18em] text-black/34">Sons</p>
+              {results.tracks.slice(0, 4).map((track) => (
+                <button
+                  key={track.id}
+                  type="button"
+                  onClick={() => {
+                    playTrack(track.playerTrack as any);
+                    setOpen(false);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-[1rem] p-2 text-left transition hover:bg-black/[0.055]"
+                >
+                  <img src={track.cover} alt="" className="h-11 w-11 rounded-[0.8rem] object-cover" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-black text-[#171313]">{track.title}</span>
+                    <span className="block truncate text-xs font-semibold text-black/40">{track.artist}</span>
+                  </span>
+                  <Play className="h-4 w-4 text-black/42" />
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {results.posts.length ? (
+            <div className="mt-2 space-y-1">
+              <p className="px-2 pt-1 text-[10px] font-black uppercase tracking-[0.18em] text-black/34">Posts</p>
+              {results.posts.slice(0, 4).map((post) => (
+                <Link
+                  key={post.id}
+                  href={post.href}
+                  onClick={() => setOpen(false)}
+                  className="flex items-start gap-3 rounded-[1rem] p-2 transition hover:bg-black/[0.055]"
+                >
+                  <AvatarBubble value={post.avatar} size="sm" tint={post.track?.tint || '#171313'} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-black text-[#171313]">{post.author}</span>
+                    <span className="line-clamp-2 text-xs font-semibold leading-5 text-black/46">{post.text}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : null}
+
+          {(results.artists.length || results.playlists.length) ? (
+            <div className="mt-2 grid gap-1 sm:grid-cols-2">
+              {results.artists.slice(0, 3).map((artist) => (
+                <Link key={artist.id} href={artist.href} onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-[1rem] p-2 transition hover:bg-black/[0.055]">
+                  <AvatarBubble value={(artist.name || artist.username).slice(0, 1).toUpperCase()} size="sm" tint={pickTint(artist.id)} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-black">{artist.name}</span>
+                    <span className="block truncate text-xs text-black/38">@{artist.username || 'synaura'}</span>
+                  </span>
+                </Link>
+              ))}
+              {results.playlists.slice(0, 3).map((playlist) => (
+                <Link key={playlist.id} href={playlist.href} onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-[1rem] p-2 transition hover:bg-black/[0.055]">
+                  <div className="grid h-10 w-10 place-items-center rounded-[0.85rem] bg-black/[0.06]">
+                    <Library className="h-4 w-4 text-black/42" />
+                  </div>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-black">{playlist.title}</span>
+                    <span className="block truncate text-xs text-black/38">{playlist.tracks}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function buildTrackFeedItem(track: Track, index: number, strategyLabel: string) {
@@ -756,13 +994,7 @@ function TopBar() {
           </div>
         </Link>
 
-        <Link
-          href="/discover"
-          className="hidden h-11 max-w-2xl flex-1 items-center gap-3 rounded-full bg-black/[0.055] px-4 lg:flex"
-        >
-          <Search className="h-4 w-4 text-black/35" />
-          <span className="text-sm font-semibold text-black/35">Rechercher un son, un post, une playlist, un createur...</span>
-        </Link>
+        <HomeSearchBox />
 
         <div className="flex items-center gap-2">
           <Link
@@ -787,13 +1019,7 @@ function TopBar() {
       </div>
 
       <div className="mt-2.5 flex gap-2 lg:hidden">
-        <Link
-          href="/discover"
-          className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full bg-black/[0.055] px-3"
-        >
-          <Search className="h-4 w-4 shrink-0 text-black/35" />
-          <span className="truncate text-xs font-semibold text-black/35 sm:text-sm">Rechercher un son, un post, une playlist...</span>
-        </Link>
+        <HomeSearchBox compact />
         <Link
           href="/ai-generator"
           className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-black/[0.06] px-3 text-xs font-black text-black/60 transition hover:bg-black hover:text-white sm:hidden"
@@ -937,46 +1163,171 @@ function MobileActions() {
   );
 }
 
-function ComposerCard() {
+function ComposerCard({ onPostCreated }: { onPostCreated: (post: PostItem) => void }) {
   const { data: session } = useSession();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [mode, setMode] = useState<'text' | 'photo'>('text');
+  const [content, setContent] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const initial =
     (session?.user as { name?: string; username?: string })?.name?.slice(0, 1) ||
     (session?.user as { username?: string })?.username?.slice(0, 1) ||
     'M';
-  const primaryHref = session?.user ? '/posts' : '/auth/signin';
 
   const chips = [
-    { label: 'Son', icon: Music2, href: '/upload', active: true },
-    { label: 'Image', icon: ImageIcon, href: '/posts' },
-    { label: 'Texte', icon: MessageCircle, href: '/posts' },
-    { label: 'Playlist', icon: Library, href: '/library' },
-    { label: 'Studio IA', icon: Wand2, href: '/ai-generator' },
+    { label: 'Son', icon: Music2, href: '/upload', active: false },
+    { label: 'Image', icon: ImageIcon, action: () => { setMode('photo'); fileInputRef.current?.click(); }, active: mode === 'photo' },
+    { label: 'Texte', icon: MessageCircle, action: () => setMode('text'), active: mode === 'text' },
+    { label: 'Studio IA', icon: Wand2, href: '/ai-generator', active: false },
   ];
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreview('');
+      return;
+    }
+    const url = URL.createObjectURL(imageFile);
+    setImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
+
+  const handlePublish = useCallback(async () => {
+    if (!session?.user) {
+      notify.error('', 'Connecte-toi pour publier');
+      return;
+    }
+
+    const trimmed = content.trim();
+    if (mode === 'text' && !trimmed) {
+      notify.error('', 'Ecris quelque chose avant de publier');
+      return;
+    }
+    if (mode === 'photo' && !imageFile) {
+      notify.error('', 'Ajoute une image pour publier ce post');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      let imageUrl = '';
+      if (mode === 'photo' && imageFile) {
+        const formData = new FormData();
+        formData.append('file', imageFile);
+        const uploadResponse = await fetch('/api/posts/upload-image', { method: 'POST', body: formData });
+        const uploadPayload = await uploadResponse.json().catch(() => null);
+        if (!uploadResponse.ok) throw new Error(uploadPayload?.error || 'Upload image impossible');
+        imageUrl = uploadPayload?.url || '';
+      }
+
+      const response = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: mode === 'photo' ? 'photo' : 'text',
+          content: trimmed,
+          image_url: imageUrl || undefined,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || 'Publication impossible');
+
+      const normalized = normalizePost(payload);
+      if (normalized) onPostCreated(normalized);
+      setContent('');
+      setImageFile(null);
+      setMode('text');
+      notify.success('Post publie', 'Il est deja dans le feed.');
+    } catch (error: any) {
+      notify.error('', error?.message || 'Impossible de publier');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [content, imageFile, mode, onPostCreated, session?.user]);
 
   return (
     <Card className="p-3 sm:p-4">
       <div className="flex gap-3">
         <AvatarBubble value={initial} size="sm" tint="#171313" />
         <div className="min-w-0 flex-1">
-          <Link
-            href={primaryHref}
-            className="flex h-12 w-full items-center rounded-[1.15rem] bg-black/[0.055] px-4 text-sm font-semibold text-black/38 transition hover:bg-black/[0.08]"
-          >
-            {session?.user ? 'Partager un texte, une image ou un son...' : 'Connecte-toi pour publier et reagir...'}
-          </Link>
+          {session?.user ? (
+            <div className="rounded-[1.15rem] bg-black/[0.055] p-2">
+              <textarea
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                rows={mode === 'photo' ? 2 : 3}
+                className="min-h-[76px] w-full resize-none rounded-[0.95rem] border border-transparent bg-white/55 px-3 py-3 text-sm font-semibold text-[#171313] outline-none placeholder:text-black/34 focus:border-black/[0.1]"
+                placeholder={mode === 'photo' ? 'Ajoute une legende a ton image...' : 'Partager un texte directement depuis l’accueil...'}
+              />
+              {imagePreview ? (
+                <div className="relative mt-2 overflow-hidden rounded-[1rem] bg-black/[0.06]">
+                  <img src={imagePreview} alt="" className="max-h-56 w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setImageFile(null)}
+                    className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/65 text-white"
+                    aria-label="Retirer l'image"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : null}
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-semibold text-black/35">Publication inline, sans changer de page.</p>
+                <button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={submitting || (mode === 'text' ? !content.trim() : !imageFile)}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-white transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {submitting ? 'Publication...' : 'Publier'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <Link
+              href="/auth/signin"
+              className="flex h-12 w-full items-center rounded-[1.15rem] bg-black/[0.055] px-4 text-sm font-semibold text-black/38 transition hover:bg-black/[0.08]"
+            >
+              Connecte-toi pour publier et reagir...
+            </Link>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0] || null;
+              if (file) {
+                setMode('photo');
+                setImageFile(file);
+              }
+              event.currentTarget.value = '';
+            }}
+          />
           <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
-            {chips.map((chip) => (
-              <Link
-                key={chip.label}
-                href={chip.href}
-                className={`inline-flex h-10 w-full min-w-0 items-center justify-center gap-2 rounded-full px-3 text-[11px] font-black sm:h-9 sm:w-auto sm:text-xs ${
-                  chip.active ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/56'
-                }`}
-              >
-                <chip.icon className="h-3.5 w-3.5" />
-                {chip.label}
-              </Link>
-            ))}
+            {chips.map((chip) => {
+              const className = `inline-flex h-10 w-full min-w-0 items-center justify-center gap-2 rounded-full px-3 text-[11px] font-black transition sm:h-9 sm:w-auto sm:text-xs ${
+                chip.active ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/56 hover:bg-black/[0.09]'
+              }`;
+              if ('href' in chip && chip.href) {
+                return (
+                  <Link key={chip.label} href={chip.href} className={className}>
+                    <chip.icon className="h-3.5 w-3.5" />
+                    {chip.label}
+                  </Link>
+                );
+              }
+              return (
+                <button key={chip.label} type="button" onClick={chip.action} className={className}>
+                  <chip.icon className="h-3.5 w-3.5" />
+                  {chip.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -1014,6 +1365,12 @@ function normalizeHomeComment(raw: any): HomeComment {
     },
     replies: Array.isArray(raw?.replies) ? raw.replies.map(normalizeHomeComment) : [],
   };
+}
+
+function removeCommentFromTree(comments: HomeComment[], commentId: string): HomeComment[] {
+  return comments
+    .filter((comment) => comment.id !== commentId)
+    .map((comment) => ({ ...comment, replies: removeCommentFromTree(comment.replies, commentId) }));
 }
 
 function CommentAvatar({
@@ -1090,11 +1447,13 @@ function InlineSharePanel({
 function InlineCommentsPanel({
   kind,
   targetId,
+  ownerId,
   dark = false,
   onCountChange,
 }: {
   kind: 'track' | 'post';
   targetId: string;
+  ownerId?: string;
   dark?: boolean;
   onCountChange?: (delta: number) => void;
 }) {
@@ -1103,6 +1462,7 @@ function InlineCommentsPanel({
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | number | null>(null);
   const [hasMore, setHasMore] = useState(false);
 
@@ -1198,22 +1558,72 @@ function InlineCommentsPanel({
     }
   }, [kind, onCountChange, session, targetId, text]);
 
-  const renderComment = (comment: HomeComment, nested = false) => (
-    <div key={`${nested ? 'reply' : 'comment'}-${comment.id}`} className={nested ? 'ml-7 mt-2 sm:ml-10' : ''}>
-      <div className="flex gap-3">
-        <CommentAvatar comment={comment} dark={dark} />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className={`text-sm font-black ${dark ? 'text-white' : 'text-[#171313]'}`}>{comment.user.name}</span>
-            <span className={`text-xs font-semibold ${dark ? 'text-white/38' : 'text-black/34'}`}>@{comment.user.username}</span>
-            <span className={`text-xs font-semibold ${dark ? 'text-white/28' : 'text-black/28'}`}>{relativeTime(comment.createdAt)}</span>
+  const handleDeleteComment = useCallback(async (comment: HomeComment) => {
+    if (!session?.user) {
+      notify.error('', 'Connecte-toi pour supprimer un commentaire');
+      return;
+    }
+    if (!comment.id || deletingCommentId) return;
+
+    const currentUserId = String((session.user as any)?.id || '');
+    const canDelete = currentUserId && (currentUserId === comment.user.id || currentUserId === ownerId);
+    if (!canDelete) {
+      notify.error('', 'Tu ne peux pas supprimer ce commentaire');
+      return;
+    }
+
+    setDeletingCommentId(comment.id);
+    try {
+      const response = await fetch(
+        kind === 'track'
+          ? `/api/tracks/${encodeURIComponent(targetId)}/comments/${encodeURIComponent(comment.id)}`
+          : `/api/posts/${encodeURIComponent(targetId)}/comments?comment_id=${encodeURIComponent(comment.id)}`,
+        { method: 'DELETE' },
+      );
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || 'Suppression impossible');
+
+      setComments((current) => removeCommentFromTree(current, comment.id));
+      onCountChange?.(-1);
+      notify.success('', 'Commentaire supprime');
+    } catch (error: any) {
+      notify.error('', error?.message || 'Impossible de supprimer le commentaire');
+    } finally {
+      setDeletingCommentId(null);
+    }
+  }, [deletingCommentId, kind, onCountChange, ownerId, session?.user, targetId]);
+
+  const renderComment = (comment: HomeComment, nested = false) => {
+    const currentUserId = String((session?.user as any)?.id || '');
+    const canDelete = Boolean(currentUserId && (currentUserId === comment.user.id || currentUserId === ownerId));
+
+    return (
+      <div key={`${nested ? 'reply' : 'comment'}-${comment.id}`} className={nested ? 'ml-7 mt-2 sm:ml-10' : ''}>
+        <div className="flex gap-3">
+          <CommentAvatar comment={comment} dark={dark} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className={`text-sm font-black ${dark ? 'text-white' : 'text-[#171313]'}`}>{comment.user.name}</span>
+              <span className={`text-xs font-semibold ${dark ? 'text-white/38' : 'text-black/34'}`}>@{comment.user.username}</span>
+              <span className={`text-xs font-semibold ${dark ? 'text-white/28' : 'text-black/28'}`}>{relativeTime(comment.createdAt)}</span>
+              {canDelete ? (
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteComment(comment)}
+                  disabled={deletingCommentId === comment.id}
+                  className={`text-xs font-black transition ${dark ? 'text-white/35 hover:text-white' : 'text-black/32 hover:text-black'}`}
+                >
+                  {deletingCommentId === comment.id ? 'Suppression...' : 'Supprimer'}
+                </button>
+              ) : null}
+            </div>
+            <p className={`mt-1 text-sm leading-6 ${dark ? 'text-white/72' : 'text-black/66'}`}>{comment.content}</p>
+            {comment.replies.length ? <div className="mt-2 space-y-2">{comment.replies.map((reply) => renderComment(reply, true))}</div> : null}
           </div>
-          <p className={`mt-1 text-sm leading-6 ${dark ? 'text-white/72' : 'text-black/66'}`}>{comment.content}</p>
-          {comment.replies.length ? <div className="mt-2 space-y-2">{comment.replies.map((reply) => renderComment(reply, true))}</div> : null}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className={panelClassName}>
@@ -1376,13 +1786,18 @@ function MiniPlayer({ track, withActions = true }: { track: Track; withActions?:
   );
 }
 
-function PostCard({ item }: { item: PostItem }) {
+function PostCard({ item, onDeleted }: { item: PostItem; onDeleted: (postId: string) => void }) {
   const { data: session } = useSession();
   const [liked, setLiked] = useState(item.isLiked);
   const [likesCount, setLikesCount] = useState(item.likesCount);
   const [commentsCount, setCommentsCount] = useState(item.commentsCount);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const currentUserId = String((session?.user as any)?.id || '');
+  const currentUsername = String((session?.user as any)?.username || '');
+  const isOwnPost = Boolean(currentUserId && currentUserId === item.creatorId) || Boolean(currentUsername && item.handle === `@${currentUsername}`);
 
   useEffect(() => {
     setLiked(item.isLiked);
@@ -1390,6 +1805,7 @@ function PostCard({ item }: { item: PostItem }) {
     setCommentsCount(item.commentsCount);
     setCommentsOpen(false);
     setShareOpen(false);
+    setMenuOpen(false);
   }, [item.commentsCount, item.id, item.isLiked, item.likesCount]);
 
   const handleLike = useCallback(async () => {
@@ -1417,6 +1833,30 @@ function PostCard({ item }: { item: PostItem }) {
     }
   }, [item.id, liked, session]);
 
+  const handleDeletePost = useCallback(async () => {
+    if (!session?.user) {
+      notify.error('', 'Connecte-toi pour supprimer ce post');
+      return;
+    }
+    if (!isOwnPost || deleting) return;
+    const ok = window.confirm('Supprimer ce post ?');
+    if (!ok) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/posts/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || 'Suppression impossible');
+      onDeleted(item.id);
+      notify.success('', 'Post supprime');
+    } catch (error: any) {
+      notify.error('', error?.message || 'Impossible de supprimer le post');
+    } finally {
+      setDeleting(false);
+      setMenuOpen(false);
+    }
+  }, [deleting, isOwnPost, item.id, onDeleted, session?.user]);
+
   return (
     <Card className="p-3 sm:p-5">
         <div className="flex gap-2.5 sm:gap-3">
@@ -1436,13 +1876,37 @@ function PostCard({ item }: { item: PostItem }) {
                 </span>
                 <p className="mt-3 text-[14px] leading-6 text-black/72 sm:text-[15px] sm:leading-7">{item.text}</p>
             </div>
-            <Link
-              href={item.href}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black/[0.055] text-black/42 transition hover:bg-black/[0.1] hover:text-black sm:h-9 sm:w-9"
-              title="Ouvrir le post"
-            >
-              <MoreHorizontal className="h-5 w-5" />
-            </Link>
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((current) => !current)}
+                className="grid h-8 w-8 place-items-center rounded-full bg-black/[0.055] text-black/42 transition hover:bg-black/[0.1] hover:text-black sm:h-9 sm:w-9"
+                title="Actions du post"
+              >
+                <MoreHorizontal className="h-5 w-5" />
+              </button>
+              {menuOpen ? (
+                <div className="absolute right-0 top-[calc(100%+0.45rem)] z-20 w-52 rounded-[1rem] border border-black/[0.08] bg-[#fffaf2] p-1.5 shadow-[0_16px_48px_rgba(30,25,20,0.18)]">
+                  <Link
+                    href={item.href}
+                    className="flex h-9 items-center rounded-[0.75rem] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.055] hover:text-black"
+                  >
+                    Ouvrir le post
+                  </Link>
+                  {isOwnPost ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleDeletePost()}
+                      disabled={deleting}
+                      className="flex h-9 w-full items-center gap-2 rounded-[0.75rem] px-3 text-left text-xs font-black text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      {deleting ? 'Suppression...' : 'Supprimer'}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           </div>
 
           {item.track ? <MiniPlayer track={item.track} /> : null}
@@ -1508,6 +1972,7 @@ function PostCard({ item }: { item: PostItem }) {
             <InlineCommentsPanel
               kind="post"
               targetId={item.id}
+              ownerId={item.creatorId}
               onCountChange={(delta) => setCommentsCount((current) => Math.max(0, current + delta))}
             />
           ) : null}
@@ -1789,9 +2254,17 @@ function LibraryCard({ item }: { item: Extract<FeedItem, { kind: 'library' }> })
   );
 }
 
-function FeedRenderer({ item }: { item: FeedItem }) {
-  if (item.kind === 'composer') return <ComposerCard />;
-  if (item.kind === 'post') return <PostCard item={item} />;
+function FeedRenderer({
+  item,
+  onPostCreated,
+  onPostDeleted,
+}: {
+  item: FeedItem;
+  onPostCreated: (post: PostItem) => void;
+  onPostDeleted: (postId: string) => void;
+}) {
+  if (item.kind === 'composer') return <ComposerCard onPostCreated={onPostCreated} />;
+  if (item.kind === 'post') return <PostCard item={item} onDeleted={onPostDeleted} />;
   if (item.kind === 'track') return <TrackFeedCard item={item} />;
   if (item.kind === 'rail') return <RailCard item={item} />;
   if (item.kind === 'playlist') return <PlaylistCard item={item} />;
@@ -2211,6 +2684,17 @@ export default function SynauraWarmFeed() {
   const rightColumnTracks = useMemo(() => uniqueTracks([...boostedTracks, ...trendingTracks, ...forYouTracks]).slice(0, 6), [boostedTracks, trendingTracks, forYouTracks]);
   const primaryRadio = radioItems[0] || null;
 
+  const handlePostCreated = useCallback((post: PostItem) => {
+    setPosts((current) => [post, ...current.filter((item) => item.id !== post.id)]);
+    setHasMorePosts(true);
+    if (filter !== 'Pour toi' && filter !== 'Posts') setFilter('Posts');
+  }, [filter]);
+
+  const handlePostDeleted = useCallback((postId: string) => {
+    setPosts((current) => current.filter((post) => post.id !== postId));
+    setExtraFeedItems((current) => current.filter((item) => !(item.kind === 'post' && item.id === postId)));
+  }, []);
+
   useEffect(() => {
     const target = loadMoreRef.current;
     if (!target || !canLoadMoreFeed) return;
@@ -2281,7 +2765,7 @@ export default function SynauraWarmFeed() {
           {visibleItems.length ? (
             <div className="space-y-4">
               {visibleItems.map((item) => (
-                <FeedRenderer key={item.id} item={item} />
+                <FeedRenderer key={item.id} item={item} onPostCreated={handlePostCreated} onPostDeleted={handlePostDeleted} />
               ))}
             </div>
           ) : null}

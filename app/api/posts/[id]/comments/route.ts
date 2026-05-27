@@ -33,15 +33,16 @@ export async function GET(
       return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 
-    // Récupérer les profils des auteurs séparément
     const userIds = Array.from(new Set((comments || []).map((c: any) => c.user_id).filter(Boolean)));
-    let profilesMap: Record<string, any> = {};
+    const profilesMap: Record<string, any> = {};
     if (userIds.length > 0) {
       const { data: profilesData } = await supabaseAdmin
         .from('profiles')
         .select('id, username, name, avatar, is_verified')
         .in('id', userIds);
-      (profilesData || []).forEach((p: any) => { profilesMap[p.id] = p; });
+      (profilesData || []).forEach((p: any) => {
+        profilesMap[p.id] = p;
+      });
     }
 
     const formatted = (comments || []).map((c: any) => ({
@@ -70,7 +71,7 @@ export async function POST(
   try {
     const session = await getApiSession(request);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
     }
 
     const { id: postId } = params;
@@ -93,7 +94,6 @@ export async function POST(
       return NextResponse.json({ error: 'Erreur commentaire' }, { status: 500 });
     }
 
-    // Incrémenter le compteur de commentaires
     const { data: post } = await supabaseAdmin
       .from('creator_posts')
       .select('comments_count, creator_id')
@@ -106,14 +106,12 @@ export async function POST(
         .update({ comments_count: ((post as any).comments_count || 0) + 1 })
         .eq('id', postId);
 
-      // Notifier le créateur (pas soi-même)
       if ((post as any).creator_id !== userId) {
-        const commenterName = (session.user as any).username || (session.user as any).name || 'Quelqu\'un';
+        const commenterName = (session.user as any).username || (session.user as any).name || "Quelqu'un";
         notifyPostComment(userId, (post as any).creator_id, commenterName, postId).catch(() => {});
       }
     }
 
-    // Récupérer le profil de l'auteur séparément
     const { data: authorProfile } = await supabaseAdmin
       .from('profiles')
       .select('id, username, name, avatar, is_verified')
@@ -145,9 +143,10 @@ export async function DELETE(
   try {
     const session = await getApiSession(request);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
     }
 
+    const { id: postId } = params;
     const { searchParams } = new URL(request.url);
     const commentId = searchParams.get('comment_id') || searchParams.get('commentId');
     if (!commentId) return NextResponse.json({ error: 'comment_id requis' }, { status: 400 });
@@ -156,20 +155,34 @@ export async function DELETE(
       .from('post_comments')
       .select('user_id, post_id')
       .eq('id', commentId)
+      .eq('post_id', postId)
       .single();
 
-    if (!existing || (existing as any).user_id !== session.user.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+    if (!existing) {
+      return NextResponse.json({ error: 'Commentaire introuvable' }, { status: 404 });
     }
 
-    await supabaseAdmin.from('post_comments').delete().eq('id', commentId);
-
-    // Décrémenter le compteur
     const { data: post } = await supabaseAdmin
       .from('creator_posts')
-      .select('comments_count')
+      .select('comments_count, creator_id')
       .eq('id', (existing as any).post_id)
       .single();
+
+    const userId = session.user.id;
+    const canDelete = (existing as any).user_id === userId || (post as any)?.creator_id === userId;
+    if (!canDelete) {
+      return NextResponse.json({ error: 'Non autorise' }, { status: 403 });
+    }
+
+    const { error: deleteError } = await supabaseAdmin
+      .from('post_comments')
+      .delete()
+      .eq('id', commentId)
+      .eq('post_id', postId);
+
+    if (deleteError) {
+      return NextResponse.json({ error: 'Erreur suppression' }, { status: 500 });
+    }
 
     if (post) {
       await supabaseAdmin
@@ -178,7 +191,7 @@ export async function DELETE(
         .eq('id', (existing as any).post_id);
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, deletedId: commentId });
   } catch (e) {
     console.error('[posts/comments] DELETE error:', e);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });

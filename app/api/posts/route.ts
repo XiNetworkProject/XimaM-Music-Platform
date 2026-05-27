@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const creatorId = searchParams.get('creator_id');
     const cursor = searchParams.get('cursor');
+    const q = (searchParams.get('query') || searchParams.get('q') || '').trim();
     const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 30);
 
     const session = await getApiSession(request);
@@ -68,6 +69,10 @@ export async function GET(request: NextRequest) {
 
     if (creatorId) {
       query = query.eq('creator_id', creatorId);
+    }
+
+    if (q) {
+      query = query.ilike('content', `%${q.replace(/[%_]/g, '\\$&')}%`);
     }
 
     if (cursor) {
