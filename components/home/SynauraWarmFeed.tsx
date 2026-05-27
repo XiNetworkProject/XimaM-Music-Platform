@@ -10,6 +10,7 @@ import { notify } from '@/components/NotificationCenter';
 import type { Post as BasePost } from '@/components/PostCard';
 import { SynauraMobileDock as SharedSynauraMobileDock } from '@/components/synaura/SynauraShell';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
+import { sendTrackEvents } from '@/lib/analyticsClient';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
 import {
   Bell,
@@ -178,6 +179,12 @@ type HomeSearchResults = {
   }>;
   playlists: Playlist[];
 };
+
+type HomeFeedActions = {
+  onPostCreated: (post: PostItem) => void;
+};
+
+const HomeFeedActionsContext = React.createContext<HomeFeedActions | null>(null);
 
 const FILTERS = ['Pour toi', 'Sons', 'Posts', 'Playlists', 'Createurs', 'Radio'];
 const TINTS = ['#8B5CF6', '#38BDF8', '#FB7185', '#F59E0B', '#14B8A6', '#EF4444'];
@@ -456,8 +463,40 @@ async function copyTextToClipboard(value: string, successMessage = 'Lien copie')
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(value);
       notify.success(successMessage, '');
-      return;
+      return true;
     }
+  } catch {}
+
+  try {
+    if (typeof document !== 'undefined') {
+      const textArea = document.createElement('textarea');
+      textArea.value = value;
+      textArea.setAttribute('readonly', 'true');
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-9999px';
+      document.body.appendChild(textArea);
+      textArea.select();
+      const copied = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      if (copied) {
+        notify.success(successMessage, '');
+        return true;
+      }
+    }
+  } catch {}
+
+  notify.error('', 'Copie impossible');
+  return false;
+}
+
+function recordTrackShare(track: Track | undefined, source: string) {
+  if (!track || !isCommentableTrack(track.id)) return;
+  try {
+    void sendTrackEvents(track.id, {
+      event_type: 'share',
+      source,
+      is_ai_track: Boolean(track.playerTrack.isAI),
+    });
   } catch {}
 }
 
@@ -1419,8 +1458,8 @@ function InlineSharePanel({
         <button
           type="button"
           onClick={async () => {
-            await copyTextToClipboard(url, 'Lien copie');
-            onClose();
+            const copied = await copyTextToClipboard(url, 'Lien copie');
+            if (copied) onClose();
           }}
           className={buttonClassName}
         >
@@ -1429,8 +1468,8 @@ function InlineSharePanel({
         <button
           type="button"
           onClick={async () => {
-            await copyTextToClipboard(text, 'Texte copie');
-            onClose();
+            const copied = await copyTextToClipboard(text, 'Texte copie');
+            if (copied) onClose();
           }}
           className={buttonClassName}
         >
@@ -1439,6 +1478,212 @@ function InlineSharePanel({
       </div>
       <p className={`mt-2 text-xs leading-5 ${dark ? 'text-white/42' : 'text-black/46'}`}>
         Rien ne s’ouvre ailleurs: on garde le partage dans la page et on copie juste ce qu’il faut.
+      </p>
+    </div>
+  );
+}
+
+function InlineTrackSharePanel({
+  dark = false,
+  url,
+  text,
+  track,
+  onClose,
+}: {
+  dark?: boolean;
+  url: string;
+  text: string;
+  track: Track;
+  onClose: () => void;
+}) {
+  const { data: session } = useSession();
+  const feedActions = React.useContext(HomeFeedActionsContext);
+  const [caption, setCaption] = useState('');
+  const [sharing, setSharing] = useState(false);
+  const canPostTrack = isCommentableTrack(track.id);
+  const quickCaptions = ['Coup de coeur', 'A mettre en boucle', 'Besoin d avis', 'Pour vos playlists'];
+
+  const panelClassName = dark
+    ? 'mt-3 rounded-[1.25rem] border border-white/10 bg-white/8 p-3 text-white'
+    : 'mt-3 rounded-[1.25rem] border border-black/[0.08] bg-black/[0.035] p-3 text-[#171313]';
+  const buttonClassName = dark
+    ? 'inline-flex h-10 w-full items-center justify-center rounded-full bg-white/10 px-4 text-sm font-black text-white/78 transition hover:bg-white/14 hover:text-white sm:w-auto'
+    : 'inline-flex h-10 w-full items-center justify-center rounded-full bg-black/[0.055] px-4 text-sm font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black sm:w-auto';
+  const primaryButtonClassName = dark
+    ? 'inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-4 text-sm font-black text-[#171313] transition hover:opacity-90 disabled:opacity-50 sm:w-auto'
+    : 'inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-[#fffaf2] transition hover:opacity-92 disabled:opacity-50 sm:w-auto';
+  const inputClassName = dark
+    ? 'min-h-[76px] w-full resize-none rounded-[1rem] border border-white/10 bg-black/22 px-3 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/22'
+    : 'min-h-[76px] w-full resize-none rounded-[1rem] border border-black/[0.08] bg-white/72 px-3 py-3 text-sm text-[#171313] outline-none placeholder:text-black/30 focus:border-black/18';
+  const chipClassName = dark
+    ? 'h-8 shrink-0 rounded-full bg-white/10 px-3 text-xs font-black text-white/58 transition hover:bg-white/14 hover:text-white'
+    : 'h-8 shrink-0 rounded-full bg-black/[0.055] px-3 text-xs font-black text-black/50 transition hover:bg-black/[0.09] hover:text-black';
+
+  const handleInternalShare = useCallback(async () => {
+    if (!canPostTrack) {
+      notify.error('', 'Ce son ne peut pas encore etre republie');
+      return;
+    }
+    if (!session?.user) {
+      notify.error('', 'Connecte-toi pour partager dans le feed');
+      return;
+    }
+    if (sharing) return;
+
+    setSharing(true);
+    try {
+      const response = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'track_share',
+          track_id: track.id,
+          content: caption.trim() || undefined,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || 'Partage impossible');
+
+      const post = normalizePost(payload);
+      if (post) feedActions?.onPostCreated(post);
+      recordTrackShare(track, 'home-internal-post');
+      setCaption('');
+      notify.success('', 'Son partage dans le feed');
+      onClose();
+    } catch (error: any) {
+      notify.error('', error?.message || 'Impossible de partager ce son');
+    } finally {
+      setSharing(false);
+    }
+  }, [canPostTrack, caption, feedActions, onClose, session?.user, sharing, track]);
+
+  const handleNativeShare = useCallback(async () => {
+    try {
+      if (typeof navigator !== 'undefined' && (navigator as any).share) {
+        await (navigator as any).share({ title: track.title, text, url });
+        recordTrackShare(track, 'home-native-share');
+        onClose();
+        return;
+      }
+    } catch {
+      return;
+    }
+
+    const copied = await copyTextToClipboard(url, 'Lien copie');
+    if (copied) {
+      recordTrackShare(track, 'home-copy-link');
+      onClose();
+    }
+  }, [onClose, text, track, url]);
+
+  return (
+    <div className={panelClassName}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className={`text-xs font-black uppercase tracking-[0.22em] ${dark ? 'text-white/45' : 'text-black/38'}`}>
+            Partager sans quitter le fil
+          </p>
+          <p className={`mt-1 text-sm leading-6 ${dark ? 'text-white/58' : 'text-black/52'}`}>
+            Republie le son dans le feed ou envoie un lien propre.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className={`grid h-8 w-8 shrink-0 place-items-center rounded-full transition ${
+            dark ? 'bg-white/10 text-white/58 hover:text-white' : 'bg-black/[0.055] text-black/42 hover:text-black'
+          }`}
+          title="Fermer"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className={`mt-3 flex gap-3 rounded-[1rem] p-2.5 ${dark ? 'bg-black/18' : 'bg-white/62'}`}>
+        <img src={track.cover} alt="" className="h-12 w-12 shrink-0 rounded-[0.85rem] object-cover" />
+        <div className="min-w-0">
+          <p className={`truncate text-sm font-black ${dark ? 'text-white' : 'text-[#171313]'}`}>{track.title}</p>
+          <p className={`truncate text-xs font-bold ${dark ? 'text-white/45' : 'text-black/42'}`}>{track.artist}</p>
+          <p className={`mt-1 text-[11px] font-black uppercase tracking-wide ${dark ? 'text-white/32' : 'text-black/30'}`}>
+            Post interne Synaura
+          </p>
+        </div>
+      </div>
+
+      {canPostTrack ? (
+        <div className="mt-3 space-y-2">
+          <textarea
+            value={caption}
+            onChange={(event) => setCaption(event.target.value.slice(0, 220))}
+            className={inputClassName}
+            placeholder="Ajoute une phrase avant de republier ce son..."
+          />
+          <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+            {quickCaptions.map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => setCaption((current) => (current.trim() ? `${current.trim()} ${chip}` : chip))}
+                className={chipClassName}
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className={`text-xs ${dark ? 'text-white/36' : 'text-black/36'}`}>
+              {session?.user ? `${caption.length}/220 caracteres` : 'Connexion requise pour publier dans le feed.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleInternalShare()}
+              disabled={sharing || !session?.user}
+              className={primaryButtonClassName}
+            >
+              {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {sharing ? 'Partage...' : 'Publier dans le feed'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className={`mt-3 rounded-[1rem] p-3 text-sm leading-6 ${dark ? 'bg-black/18 text-white/48' : 'bg-white/62 text-black/48'}`}>
+          Ce son vient d'une source temporaire ou radio. Le partage public reste possible par lien, mais pas en post interne.
+        </div>
+      )}
+
+      <div className="mt-3 grid gap-2 sm:flex sm:flex-wrap">
+        <button type="button" onClick={() => void handleNativeShare()} className={buttonClassName}>
+          Partage rapide
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            const copied = await copyTextToClipboard(url, 'Lien copie');
+            if (copied) {
+              recordTrackShare(track, 'home-copy-link');
+              onClose();
+            }
+          }}
+          className={buttonClassName}
+        >
+          Copier le lien
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            const copied = await copyTextToClipboard(text, 'Texte copie');
+            if (copied) {
+              recordTrackShare(track, 'home-copy-text');
+              onClose();
+            }
+          }}
+          className={buttonClassName}
+        >
+          Copier le texte
+        </button>
+      </div>
+      <p className={`mt-2 text-xs leading-5 ${dark ? 'text-white/42' : 'text-black/46'}`}>
+        Le partage interne cree un vrai post track_share et nourrit aussi les signaux du feed.
       </p>
     </div>
   );
@@ -1746,10 +1991,11 @@ function TrackInlineActions({
       ) : null}
 
       {shareOpen ? (
-        <InlineSharePanel
+        <InlineTrackSharePanel
           dark={dark}
           url={`${typeof window !== 'undefined' ? window.location.origin : ''}/track/${encodeURIComponent(track.id)}`}
           text={`Ecoute ${track.title} par ${track.artist} sur Synaura`}
+          track={track}
           onClose={() => setShareOpen(false)}
         />
       ) : null}
@@ -1978,11 +2224,20 @@ function PostCard({ item, onDeleted }: { item: PostItem; onDeleted: (postId: str
           ) : null}
 
           {shareOpen ? (
-            <InlineSharePanel
-              url={`${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${encodeURIComponent(item.id)}`}
-              text={item.text || `Regarde ce post de ${item.author} sur Synaura`}
-              onClose={() => setShareOpen(false)}
-            />
+            item.track ? (
+              <InlineTrackSharePanel
+                url={`${typeof window !== 'undefined' ? window.location.origin : ''}/track/${encodeURIComponent(item.track.id)}`}
+                text={`Ecoute ${item.track.title} par ${item.track.artist} sur Synaura`}
+                track={item.track}
+                onClose={() => setShareOpen(false)}
+              />
+            ) : (
+              <InlineSharePanel
+                url={`${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${encodeURIComponent(item.id)}`}
+                text={item.text || `Regarde ce post de ${item.author} sur Synaura`}
+                onClose={() => setShareOpen(false)}
+              />
+            )
           ) : null}
           </div>
         </div>
@@ -2695,6 +2950,18 @@ export default function SynauraWarmFeed() {
     setExtraFeedItems((current) => current.filter((item) => !(item.kind === 'post' && item.id === postId)));
   }, []);
 
+  const homeFeedActions = useMemo(() => ({ onPostCreated: handlePostCreated }), [handlePostCreated]);
+
+  useEffect(() => {
+    const handleExternalPostCreated = (event: Event) => {
+      const post = normalizePost((event as CustomEvent).detail);
+      if (post) handlePostCreated(post);
+    };
+
+    window.addEventListener('synaura:post-created', handleExternalPostCreated);
+    return () => window.removeEventListener('synaura:post-created', handleExternalPostCreated);
+  }, [handlePostCreated]);
+
   useEffect(() => {
     const target = loadMoreRef.current;
     if (!target || !canLoadMoreFeed) return;
@@ -2713,7 +2980,8 @@ export default function SynauraWarmFeed() {
   }, [canLoadMoreFeed, loadMoreFeed, visibleItems.length]);
 
   return (
-    <AppShell>
+    <HomeFeedActionsContext.Provider value={homeFeedActions}>
+      <AppShell>
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -2789,6 +3057,7 @@ export default function SynauraWarmFeed() {
           playlistCount={playlists.length}
         />
       </div>
-    </AppShell>
+      </AppShell>
+    </HomeFeedActionsContext.Provider>
   );
 }

@@ -298,13 +298,33 @@ function normalizePlayerComment(raw: any): PlayerComment {
 
 async function copyTextToClipboard(value: string, successMessage: string) {
   try {
-    await navigator.clipboard.writeText(value);
-    notify.success('OK', successMessage);
-    return true;
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      notify.success('OK', successMessage);
+      return true;
+    }
   } catch {
-    notify.error('Erreur', 'Impossible de copier');
-    return false;
+    /* fallback below */
   }
+
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.value = value;
+    textArea.setAttribute('readonly', 'true');
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+    const copied = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    if (copied) {
+      notify.success('OK', successMessage);
+      return true;
+    }
+  } catch {}
+
+  notify.error('Erreur', 'Impossible de copier');
+  return false;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1563,9 +1583,14 @@ function PlayerShareDrawer({
   track: Track | null;
   albumContext: { id: string; name: string } | null;
   onClose: () => void;
-  onShared: (trackIdValue: string) => void;
+  onShared: (trackIdValue: string, source?: string) => void;
 }) {
+  const { data: session } = useSession();
+  const [caption, setCaption] = useState('');
+  const [publishing, setPublishing] = useState(false);
   const trackIdValue = trackId(track);
+  const canInternalShare = Boolean(trackIdValue && !isRadioId(trackIdValue) && !trackIdValue.startsWith('ai-'));
+  const quickCaptions = ['Coup de coeur', 'A mettre en boucle', 'Besoin d avis'];
 
   const shareUrl = useMemo(() => {
     if (!trackIdValue) return '';
@@ -1584,9 +1609,48 @@ function PlayerShareDrawer({
     if (!trackIdValue || !value) return;
     const copied = await copyTextToClipboard(value, successMessage);
     if (!copied) return;
-    onShared(trackIdValue);
+    onShared(trackIdValue, successMessage === 'Lien copie' ? 'tiktok-copy-link' : 'tiktok-copy-text');
     onClose();
   }, [onClose, onShared, trackIdValue]);
+
+  const handleInternalShare = useCallback(async () => {
+    if (!track || !trackIdValue || !canInternalShare) {
+      notify.error('Erreur', 'Ce son ne peut pas etre republie');
+      return;
+    }
+    if (!session?.user) {
+      notify.error('Erreur', 'Connecte-toi pour publier dans le feed');
+      return;
+    }
+    if (publishing) return;
+
+    setPublishing(true);
+    try {
+      const response = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'track_share',
+          track_id: trackIdValue,
+          content: caption.trim() || undefined,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || 'Partage impossible');
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('synaura:post-created', { detail: payload }));
+      }
+      onShared(trackIdValue, 'tiktok-internal-post');
+      notify.success('OK', 'Son publie dans le feed');
+      setCaption('');
+      onClose();
+    } catch (error: any) {
+      notify.error('Erreur', error?.message || 'Impossible de publier ce son');
+    } finally {
+      setPublishing(false);
+    }
+  }, [canInternalShare, caption, onClose, onShared, publishing, session?.user, track, trackIdValue]);
 
   if (!isOpen) return null;
 
@@ -1616,6 +1680,59 @@ function PlayerShareDrawer({
             <p className="mt-1 text-sm text-white/52">
               On garde le partage dans le feed: rien ne renvoie vers une autre couche.
             </p>
+
+            <div className="mt-4 rounded-[1.35rem] border border-white/10 bg-white/5 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-white">Publier ce son dans le feed</p>
+                  <p className="mt-1 text-xs leading-5 text-white/42">
+                    Cree un vrai post partageable, visible comme les anciens partages Synaura.
+                  </p>
+                </div>
+                <Music2 className="h-5 w-5 shrink-0 text-white/35" />
+              </div>
+
+              {canInternalShare ? (
+                <div className="mt-3 space-y-2">
+                  <textarea
+                    value={caption}
+                    onChange={(event) => setCaption(event.target.value.slice(0, 220))}
+                    placeholder="Ajoute une phrase avant de republier..."
+                    className="min-h-[76px] w-full resize-none rounded-[1rem] border border-white/10 bg-black/22 px-3 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/22"
+                  />
+                  <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+                    {quickCaptions.map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => setCaption((current) => (current.trim() ? `${current.trim()} ${chip}` : chip))}
+                        className="h-8 shrink-0 rounded-full bg-white/10 px-3 text-xs font-black text-white/58 transition hover:bg-white/14 hover:text-white"
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs text-white/36">
+                      {session?.user ? `${caption.length}/220 caracteres` : 'Connexion requise pour publier.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void handleInternalShare()}
+                      disabled={publishing || !session?.user}
+                      className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-4 text-sm font-black text-[#171313] transition hover:opacity-92 disabled:opacity-50 sm:w-auto"
+                    >
+                      {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+                      {publishing ? 'Publication...' : 'Publier dans le feed'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 rounded-[1rem] bg-black/25 p-3 text-sm leading-6 text-white/45">
+                  Les radios, lives ou sons temporaires se partagent par lien uniquement.
+                </p>
+              )}
+            </div>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               <button
@@ -2207,14 +2324,14 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     }));
   }, []);
 
-  const handleShared = useCallback((trackIdValue: string) => {
+  const handleShared = useCallback((trackIdValue: string, source = 'tiktok-player') => {
     if (!trackIdValue) return;
     const sourceTrack = tracks.find((track) => track._id === trackIdValue);
     setShareCountOverrides((current) => ({
       ...current,
       [trackIdValue]: (current[trackIdValue] ?? countOf(sourceTrack?.shares)) + 1,
     }));
-    try { sendTrackEvents(trackIdValue, { event_type: 'share', source: 'tiktok-player' }); } catch { /* noop */ }
+    try { sendTrackEvents(trackIdValue, { event_type: 'share', source, is_ai_track: Boolean(sourceTrack?.isAI) }); } catch { /* noop */ }
   }, [tracks]);
 
   const handleDownload = useCallback(() => {
