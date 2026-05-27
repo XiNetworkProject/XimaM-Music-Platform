@@ -14,6 +14,11 @@ function parseTags(raw: string): string[] {
     .slice(0, 25);
 }
 
+function normalizeVariantTarget(value: number): number {
+  const clamped = Math.max(2, Math.min(8, Number.isFinite(value) ? value : 2));
+  return Math.ceil(clamped / 2) * 2;
+}
+
 export default function GeneratorForm({ onGenerate }: { onGenerate: () => void }) {
   const form = useStudioStore((s) => s.form);
   const setForm = useStudioStore((s) => s.setForm);
@@ -41,11 +46,11 @@ export default function GeneratorForm({ onGenerate }: { onGenerate: () => void }
             onClick={onGenerate}
           >
             <Wand2 className="w-4 h-4" />
-            Queue {Math.max(1, Math.min(8, Number(form.variations || 1)))}x
+            Generer {normalizeVariantTarget(Number(form.variations || 2))} versions
           </button>
         </div>
         <div className="px-4 pb-4 -mt-2 text-[11px] text-foreground-tertiary">
-          Ajoute à la queue (auto-run selon ton réglage).
+          Un batch Suno sort 2 variantes A/B, lisibles des que le stream arrive.
         </div>
       </div>
 
@@ -80,15 +85,19 @@ export default function GeneratorForm({ onGenerate }: { onGenerate: () => void }
           </label>
 
           <label className="grid gap-1">
-            <span className="text-[11px] text-foreground-tertiary">Variations (1–8)</span>
+            <span className="text-[11px] text-foreground-tertiary">Variantes voulues (2-8)</span>
             <input
               className={SUNO_FIELD}
               type="number"
-              min={1}
+              min={2}
               max={8}
+              step={2}
               value={form.variations}
-              onChange={(e) => setForm({ variations: Math.max(1, Math.min(8, Number(e.target.value || 1))) })}
+              onChange={(e) => setForm({ variations: normalizeVariantTarget(Number(e.target.value || 2)) })}
             />
+            <span className="text-[10px] text-foreground-tertiary">
+              2 variantes = 1 generation debitee.
+            </span>
           </label>
 
           <label className="flex items-center justify-between gap-3">

@@ -66,16 +66,18 @@ export async function POST(req: NextRequest) {
       console.log("✅ Génération créée:", generationId);
     }
 
-    // En "partial", ne persister que les pistes ayant déjà une URL audio finale.
-    // On évite de figer des URLs live/stream temporaires dans la bibliothèque.
+    // Les previews stream sont acceptees ici pour debloquer la lecture rapide;
+    // le callback complete remplace ensuite avec l'audio final quand disponible.
+    const hasPlayableAudio = (t: any) => {
+      const hasAudio = typeof t?.audio === 'string' && t.audio.trim().length > 0;
+      const hasStream = typeof t?.stream === 'string' && t.stream.trim().length > 0;
+      return hasAudio || hasStream;
+    };
+
     const tracksToPersist =
       normalizedStatus === 'partial'
-        ? (tracks || []).filter((t: any) => typeof t?.audio === 'string' && t.audio.trim().length > 0)
-        : (tracks || []).filter((t: any) => {
-            const hasAudio = typeof t?.audio === 'string' && t.audio.trim().length > 0;
-            const hasStream = typeof t?.stream === 'string' && t.stream.trim().length > 0;
-            return hasAudio || hasStream;
-          });
+        ? (tracks || []).filter(hasPlayableAudio)
+        : (tracks || []).filter(hasPlayableAudio);
 
     if (!tracksToPersist || tracksToPersist.length === 0) {
       console.log("ℹ️ Aucune track persistable pour ce statut:", normalizedStatus);

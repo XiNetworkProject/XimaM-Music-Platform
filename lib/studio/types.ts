@@ -21,6 +21,7 @@ export type StudioTrack = {
   audioUrl?: string;
   coverUrl?: string;
   isFavorite?: boolean;
+  isPublic?: boolean;
   status: StudioTrackStatus;
   progress?: number;
   error?: string;

@@ -157,6 +157,10 @@ export function useBackgroundGeneration() {
         const mergedTracks = mergeTracksById(previousTracks, tracks);
         const availableTracks = mergedTracks.length > 0 ? mergedTracks : previousTracks;
         const elapsedMs = current ? Date.now() - current.startTime : 0;
+        const hasFinalAudio = (track: any) =>
+          typeof (track?.audio || track?.audio_url || track?.audioUrl) === 'string' &&
+          String(track?.audio || track?.audio_url || track?.audioUrl).trim().length > 0;
+        const finalReadyCount = availableTracks.filter(hasFinalAudio).length;
 
         updateGeneration(taskId, (g) => ({
           ...g,
@@ -173,9 +177,12 @@ export function useBackgroundGeneration() {
             const prevCount = Array.isArray(g.latestTracks) ? g.latestTracks.length : 0;
             const nextCount = availableTracks.length;
             shouldSavePartial = !g.firstSaved || nextCount > prevCount;
-            // Certains jobs restent bloqués en FIRST_SUCCESS (95%) côté provider.
-            // On force completion quand 2 pistes sont là, ou après long délai avec au moins 1 piste.
-            shouldForceComplete = nextCount >= 2 || (nextCount >= 1 && elapsedMs > Math.max(g.estimatedTime * 2, 240000));
+            // Certains jobs restent bloques en FIRST_SUCCESS cote provider.
+            // On ne finalise que quand l'audio final est la, sauf timeout long.
+            shouldForceComplete =
+              (nextCount >= 2 && finalReadyCount >= nextCount) ||
+              (nextCount >= 1 && finalReadyCount >= nextCount && elapsedMs > 90000) ||
+              (nextCount >= 1 && elapsedMs > Math.max(g.estimatedTime * 4, 480000));
             return {
               ...g,
               status: shouldForceComplete ? 'completed' : 'first',
@@ -205,7 +212,7 @@ export function useBackgroundGeneration() {
               lastError: 'SAVE_COMPLETED_FAILED',
             }));
           }
-        } else if (availableTracks.length >= 2 && elapsedMs > 30000) {
+        } else if (availableTracks.length >= 2 && finalReadyCount >= availableTracks.length) {
           // Fallback robuste: certains providers ne passent jamais en SUCCESS malgré 2 tracks disponibles.
           let shouldSave = false;
           updateGeneration(taskId, (g) => {
@@ -305,10 +312,10 @@ export function useBackgroundGeneration() {
 
         const generation = generationsRef.current.find((g) => g.taskId === taskId);
         const elapsed = generation ? Date.now() - generation.startTime : 0;
-        let delay = 6000;
-        if (elapsed > 180000) delay = 30000;
-        else if (elapsed > 120000) delay = 20000;
-        else if (elapsed > 60000) delay = 12000;
+        let delay = availableTracks.length > 0 ? 4000 : 2500;
+        if (elapsed > 180000) delay = 20000;
+        else if (elapsed > 120000) delay = 12000;
+        else if (elapsed > 60000) delay = 7000;
 
         const timeout = setTimeout(poll, delay);
         pollingRefs.current.set(taskId, timeout);

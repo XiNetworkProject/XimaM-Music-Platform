@@ -1,6 +1,6 @@
 'use client';
 
-import { Music2, Play } from 'lucide-react';
+import { Globe2, Music2, Play } from 'lucide-react';
 import type { StudioTrack } from '@/lib/studio/types';
 import { useStudioStore } from '@/lib/studio/store';
 import { SUNO_ICON_PILL } from '@/components/ui/sunoClasses';
@@ -50,7 +50,15 @@ export default function LibraryItemRow({
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] text-foreground-primary truncate">{track.title}</div>
+        <div className="flex items-center gap-2">
+          <div className="text-[13px] text-foreground-primary truncate">{track.title}</div>
+          {track.isPublic ? (
+            <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-400/12 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-200">
+              <Globe2 className="h-2.5 w-2.5" />
+              Public
+            </span>
+          ) : null}
+        </div>
         <div className="text-[11px] text-foreground-tertiary truncate">{(track.prompt || '').slice(0, 120)}</div>
       </div>
 

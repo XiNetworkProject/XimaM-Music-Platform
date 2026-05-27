@@ -39,7 +39,7 @@ export default function SynauraMiniPlayer() {
 
   const sidebarWidth = isSidebarOpen ? 220 : 72;
   const useWarmBar = isSynauraSurface(pathname);
-  const isStudioPage = pathname?.startsWith('/ai-generator');
+  const isStudioPage = pathname?.startsWith('/ai-generator') || pathname?.startsWith('/studio');
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');

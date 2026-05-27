@@ -71,11 +71,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Mettre à jour la génération même quand c'est une erreur callback sans tracks.
-    // Important: ne persister les pistes qu'au callback "complete" pour éviter
-    // de figer des URLs partielles/temporaires (first/text).
+    // Important: "first" est persiste comme preview jouable, puis "complete"
+    // enrichit la ligne avec l'audio final.
     // Au "complete", chaque track inclut image_url (cover) et prompt (paroles) fournis par Suno,
     // qui sont enregistrés automatiquement via updateGenerationStatus → saveTracks.
-    const shouldPersistTracks = callbackTypeLower === 'complete' && tracks.length > 0;
+    const shouldPersistTracks = (callbackTypeLower === 'first' || callbackTypeLower === 'complete') && tracks.length > 0;
     try {
       await aiGenerationService.updateGenerationStatus(taskId, statusForDb, shouldPersistTracks ? tracks : undefined);
       console.log("✅ Génération mise à jour en base:", taskId, statusForDb);

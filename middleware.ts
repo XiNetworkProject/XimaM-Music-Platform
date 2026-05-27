@@ -30,12 +30,18 @@ const protectedPages = [
   '/stats',
   '/subscriptions',
   '/ai-generator',
+  '/studio',
   '/settings',
   '/admin',
 ];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (pathname === '/ai-generator' || pathname.startsWith('/ai-generator/')) {
+    const studioUrl = new URL(request.url);
+    studioUrl.pathname = pathname.replace(/^\/ai-generator/, '/studio');
+    return NextResponse.redirect(studioUrl);
+  }
 
   // Après la date de fin : seules les pages d'information restent accessibles
   if (isPastShutdownEnd() && !isShutdownAllowedPath(pathname)) {

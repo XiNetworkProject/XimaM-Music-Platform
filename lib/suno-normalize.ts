@@ -11,7 +11,16 @@ export type Track = {
 
 export function normalizeSunoItem(item: any): Track {
   // Supporte webhook (snake_case) ET polling (camelCase)
-  const id = item.id ?? item.audioId ?? item.trackId ?? crypto.randomUUID();
+  const id =
+    item.id ??
+    item.audioId ??
+    item.trackId ??
+    item.source_audio_url ??
+    item.audio_url ??
+    item.source_stream_audio_url ??
+    item.stream_audio_url ??
+    item.title ??
+    crypto.randomUUID();
   
   // Convertir la durée en entier (secondes)
   let duration: number | undefined;

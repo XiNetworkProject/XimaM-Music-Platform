@@ -83,6 +83,14 @@ export default function QueuePanel() {
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full border ${statusPill(q.status)}`}>
                     {q.status}
                   </span>
+                  {q.paramsSnapshot?._endpoint === 'upload-cover' ? (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full border border-cyan-300/20 bg-cyan-300/10 text-cyan-100">
+                      remix guide
+                    </span>
+                  ) : null}
+                  {q.paramsSnapshot?._expectedVariants ? (
+                    <span className="ml-2 text-foreground-inactive">{q.paramsSnapshot._expectedVariants} variantes</span>
+                  ) : null}
                   {q.taskId ? <span className="ml-2 text-foreground-inactive">#{q.taskId}</span> : null}
                 </div>
                 {q.error ? <div className="text-[11px] text-red-400 truncate">{q.error}</div> : null}

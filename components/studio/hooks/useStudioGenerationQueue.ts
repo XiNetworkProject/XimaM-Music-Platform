@@ -25,12 +25,28 @@ export function useStudioGenerationQueue({
 
   const { generations: bgGenerations, startBackgroundGeneration } = useBackgroundGeneration();
 
+  const prepareRequest = (requestBody: any) => {
+    const {
+      _endpoint,
+      _batchIndex,
+      _batchTotal,
+      _expectedVariants,
+      _sourceTrackId,
+      ...body
+    } = requestBody || {};
+    return {
+      endpoint: _endpoint === 'upload-cover' ? '/api/suno/upload-cover' : '/api/suno/generate',
+      body,
+    };
+  };
+
   const runGenerateRequest = useCallback(
     async (requestBody: any) => {
-      const res = await fetch('/api/suno/generate', {
+      const { endpoint, body } = prepareRequest(requestBody);
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -77,11 +93,21 @@ export function useStudioGenerationQueue({
       const st = useStudioStore.getState();
       const requestBody = makeRequestBodyFromForm(st.form as any);
       const projectId = (st.activeProjectId || 'project_default') as string;
-      const n = Math.max(1, Math.min(8, Number((st.form as any).variations || 1)));
-      for (let i = 0; i < n; i++) {
-        enqueueQueueItem({ ...requestBody, _variationIndex: i + 1, _variationTotal: n }, projectId);
+      const requestedVariants = Math.max(2, Math.min(8, Number((st.form as any).variations || 2)));
+      const batchCount = Math.max(1, Math.ceil(requestedVariants / 2));
+      const expectedVariants = batchCount * 2;
+      for (let i = 0; i < batchCount; i++) {
+        enqueueQueueItem(
+          {
+            ...requestBody,
+            _batchIndex: i + 1,
+            _batchTotal: batchCount,
+            _expectedVariants: 2,
+          },
+          projectId
+        );
       }
-      notify.success('Queue', `${n} job(s) ajouté(s)`);
+      notify.success('Queue', `${expectedVariants} variantes prevues (${batchCount} batch Suno)`);
     } catch (e: any) {
       notify.error('Queue', e?.message || 'Erreur');
     }
@@ -92,15 +118,42 @@ export function useStudioGenerationQueue({
       const st = useStudioStore.getState();
       const t = st.tracks.find((x) => x.id === trackId);
       if (!t) return;
-      st.loadTrackIntoForm(trackId);
       const nextTitle = `${t.title || 'Musique'} (variante)`;
       try {
-        const requestBody = makeRequestBodyFromForm({ ...st.form, customMode: true, title: nextTitle } as any);
+        const sourceUrl = String(t.audioUrl || '').trim();
+        if (!sourceUrl) {
+          notify.error('Remix', 'Aucune URL audio exploitable pour cette piste');
+          return;
+        }
+
+        const lyrics = String(t.lyrics || t.prompt || '').trim();
+        const style = (t.tags || []).join(', ') || st.form.style || 'remix, polished, modern mix';
+        const remixForm = {
+          ...st.form,
+          customMode: true,
+          instrumental: !lyrics,
+          title: nextTitle,
+          style,
+          lyrics,
+        };
+        st.loadTrackIntoForm(trackId);
+        const requestBody = makeRequestBodyFromForm(remixForm as any);
         const projectId = (st.activeProjectId || 'project_default') as string;
-        enqueueQueueItem({ ...requestBody, title: nextTitle }, projectId);
-        notify.success('Queue', 'Variante ajoutée à la queue');
+        enqueueQueueItem(
+          {
+            ...requestBody,
+            _endpoint: 'upload-cover',
+            _sourceTrackId: t.id,
+            uploadUrl: sourceUrl,
+            sourceDurationSec: t.durationSec,
+            title: nextTitle,
+            _expectedVariants: 2,
+          },
+          projectId
+        );
+        notify.success('Queue', 'Remix guide ajoute a la queue');
       } catch (e: any) {
-        notify.error('Variante', e?.message || 'Erreur');
+        notify.error('Remix', e?.message || 'Erreur');
       }
     },
     [enqueueQueueItem, makeRequestBodyFromForm]
@@ -110,7 +163,13 @@ export function useStudioGenerationQueue({
   useEffect(() => {
     (bgGenerations || []).forEach((g) => {
       const status = g.status === 'completed' ? 'done' : g.status === 'failed' ? 'failed' : 'running';
-      updateJobStatus(g.taskId, { status, progress: g.progress });
+      updateJobStatus(g.taskId, {
+        status,
+        progress: g.progress,
+        trackIds: Array.isArray(g.latestTracks)
+          ? g.latestTracks.map((t: any) => String(t?.id || t?.audioId || t?.trackId || '')).filter(Boolean)
+          : undefined,
+      });
 
       const match = (useStudioStore.getState().queueItems || []).find((q) => q.taskId === g.taskId) || null;
       if (match) {
@@ -194,6 +253,7 @@ export function useStudioGenerationQueue({
     enqueueFromCurrentForm,
     generateVariantFromTrack,
     retryQueueItem,
+    bgGenerations,
   };
 }
 

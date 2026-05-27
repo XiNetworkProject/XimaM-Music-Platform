@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Clock3,
   Command,
@@ -57,6 +58,7 @@ function makeId() {
 export default function StudioClient() {
   const { audioState, play, pause, nextTrack, previousTrack, playTrack } = useAudioPlayer();
   const { quota } = useAIQuota();
+  const searchParams = useSearchParams();
 
   const [showBuyCredits, setShowBuyCredits] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -159,6 +161,15 @@ export default function StudioClient() {
     });
   }, [assetQuery, visibleTracks]);
 
+  useEffect(() => {
+    const sharedTrackId = searchParams?.get('track');
+    if (!sharedTrackId || visibleTracks.length === 0) return;
+    const exists = visibleTracks.some((t) => t.id === sharedTrackId);
+    if (!exists) return;
+    selectTrack(sharedTrackId);
+    setUI({ inspectorOpen: true, mobileTab: 'inspector' });
+  }, [searchParams, selectTrack, setUI, visibleTracks]);
+
   const pushLog = useCallback((level: LogLine['level'], msg: string) => {
     const now = new Date();
     const ts = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -182,14 +193,16 @@ export default function StudioClient() {
     onCloseInspector: () => setUI({ inspectorOpen: false }),
   });
 
-  const { enqueueFromCurrentForm, generateVariantFromTrack } = useStudioGenerationQueue({
+  const { enqueueFromCurrentForm, generateVariantFromTrack, bgGenerations } = useStudioGenerationQueue({
     onInsufficientCredits: () => setShowBuyCredits(true),
     onCreditsBalance: (b) => setCreditsBalance(b),
   });
 
   const runGenerate = useCallback(() => {
+    const requestedVariants = Math.max(2, Math.min(8, Number(form.variations || 2)));
+    const batchCount = Math.max(1, Math.ceil(requestedVariants / 2));
     enqueueFromCurrentForm();
-    pushLog('info', `Génération lancée (${form.model}, variations: ${form.variations || 1})`);
+    pushLog('info', `Generation lancee (${form.model}, ${batchCount * 2} variantes prevues)`);
   }, [enqueueFromCurrentForm, form.model, form.variations, pushLog]);
 
   const applyPreset = useCallback(
@@ -501,7 +514,7 @@ export default function StudioClient() {
                   tracks={visibleTracks}
                   loading={libraryLoading}
                   error={libraryError}
-                  bgGenerations={[]}
+                  bgGenerations={bgGenerations}
                   onRefreshLibrary={loadLibraryTracks}
                   searchRef={searchRef}
                 />

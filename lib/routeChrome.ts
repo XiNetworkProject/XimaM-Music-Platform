@@ -26,11 +26,12 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
   const isHome = pathname === '/';
   const isAuth = pathname.startsWith('/auth');
   const isMeteoFullscreen = pathname.includes('/meteo/login') || pathname.includes('/meteo/dashboard');
-  const isSynauraSurface = startsWithAny(pathname, ['/discover', '/library', '/upload', '/ai-generator']);
+  const isSynauraSurface = startsWithAny(pathname, ['/discover', '/library', '/upload', '/ai-generator', '/studio']);
   const useFullScreenLayout = isHome || isAuth || isMeteoFullscreen || isSynauraSurface;
   const hideTopSearch = startsWithAny(pathname, [
     '/discover',
     '/ai-generator',
+    '/studio',
     '/library',
     '/boosters',
     '/star-academy-tiktok',
@@ -42,7 +43,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     showTopSearch: !useFullScreenLayout && !hideTopSearch,
     showBottomNav: !useFullScreenLayout,
     useFullScreenLayout,
-    suppressGlobalPlayerPadding: isAuth || pathname.startsWith('/ai-generator'),
+    suppressGlobalPlayerPadding: isAuth || pathname.startsWith('/ai-generator') || pathname.startsWith('/studio'),
     showGlobalShutdownNotice: !useFullScreenLayout,
   };
 }
