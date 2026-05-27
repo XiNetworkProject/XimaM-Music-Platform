@@ -31,14 +31,14 @@ const formatSec = (sec: number) => {
   return `${m}:${String(s).padStart(2, '0')}`;
 };
 
-const sanitizeCoverUrl = (url?: string) => {
+const sanitizeCoverUrl = (url?: string, createdAt?: string) => {
   if (!url) return '';
   const trimmed = String(url).trim();
   if (!trimmed) return '';
   if (trimmed.startsWith('/')) return trimmed;
   try {
     new URL(trimmed);
-    if (isLikelyExpiredAIProviderUrl(trimmed)) return '';
+    if (isLikelyExpiredAIProviderUrl(trimmed, createdAt)) return '';
     return trimmed;
   } catch {
     return '';
@@ -180,10 +180,10 @@ export function GenerationTimeline({
               <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-r from-white/[0.04] to-white/[0.02] p-3.5 flex flex-col gap-2 flex-1 hover:border-white/[0.10] hover:bg-white/[0.06] transition-all">
                 <div className="flex items-start gap-3">
                   <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-accent-purple to-accent-blue flex items-center justify-center shrink-0 overflow-hidden relative">
-                    {sanitizeCoverUrl(track.imageUrl) ? (
+                    {sanitizeCoverUrl(track.imageUrl, track.createdAt) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={sanitizeCoverUrl(track.imageUrl)}
+                        src={sanitizeCoverUrl(track.imageUrl, track.createdAt)}
                         alt={track.title || 'Cover générée'}
                         className="w-full h-full object-cover"
                         onError={(e) => {

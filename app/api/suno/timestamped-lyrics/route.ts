@@ -40,7 +40,8 @@ export async function POST(req: NextRequest) {
     const json = await res.json().catch(() => ({}));
     if (!res.ok || Number(json?.code) !== 200) {
       const providerCode = Number(json?.code);
-      const status = Number.isFinite(providerCode) && providerCode >= 400 && providerCode <= 599 ? providerCode : res.status;
+      const providerStatus = Number.isFinite(providerCode) && providerCode >= 400 && providerCode <= 599 ? providerCode : res.status;
+      const status = providerStatus >= 500 ? 502 : providerStatus;
       return NextResponse.json({ error: json?.msg || 'Erreur timestamped lyrics', raw: json }, { status: Number.isFinite(status) ? status : 502 });
     }
 
@@ -54,4 +55,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error?.message || 'Erreur interne' }, { status: 500 });
   }
 }
-

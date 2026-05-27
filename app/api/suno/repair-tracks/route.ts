@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { getRecordInfo } from '@/lib/suno';
 import { normalizeSunoItem } from '@/lib/suno-normalize';
 import { isLikelyExpiredAIProviderUrl } from '@/lib/media-url-health';
+import { cacheSunoTrackMedia } from '@/lib/suno-media-cache';
 
 type AnyTrack = {
   id: string;
@@ -12,28 +13,41 @@ type AnyTrack = {
   audio_url?: string | null;
   stream_audio_url?: string | null;
   image_url?: string | null;
+  source_links?: string | null;
+  created_at?: string | null;
 };
 
 type AnyGeneration = {
   id: string;
   task_id?: string | null;
+  created_at?: string | null;
   tracks?: AnyTrack[];
 };
 
 const isHttp = (v?: string | null) => typeof v === 'string' && /^https?:\/\//i.test(v.trim());
 
-const isDeadMediaHost = (url?: string | null) => {
+const isDeadMediaHost = (url?: string | null, createdAt?: string | Date | null) => {
   if (!url) return true;
-  return isLikelyExpiredAIProviderUrl(url);
+  return isLikelyExpiredAIProviderUrl(url, createdAt);
 };
 
-const pickValid = (...candidates: Array<string | null | undefined>) => {
+const pickValid = (candidates: Array<{ url?: string | null; createdAt?: string | Date | null }>) => {
   for (const candidate of candidates) {
-    if (!isHttp(candidate)) continue;
-    if (isDeadMediaHost(candidate)) continue;
-    return String(candidate).trim();
+    if (!isHttp(candidate.url)) continue;
+    if (isDeadMediaHost(candidate.url, candidate.createdAt)) continue;
+    return String(candidate.url).trim();
   }
   return '';
+};
+
+const parseSourceLinks = (value?: string | null) => {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
 };
 
 export async function POST(req: NextRequest) {
@@ -48,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     const { data: generationsRaw, error: genErr } = await supabaseAdmin
       .from('ai_generations')
-      .select('id, task_id, tracks:ai_tracks(id, suno_id, audio_url, stream_audio_url, image_url)')
+      .select('id, task_id, created_at, tracks:ai_tracks(id, suno_id, audio_url, stream_audio_url, image_url, source_links, created_at)')
       .eq('user_id', session.user.id)
       .not('task_id', 'is', null)
       .order('created_at', { ascending: false })
@@ -70,9 +84,10 @@ export async function POST(req: NextRequest) {
 
       const existingTracks = Array.isArray(generation.tracks) ? generation.tracks : [];
       const needsRepair = existingTracks.some((t) => {
-        const audioBad = !isHttp(t.audio_url) || isDeadMediaHost(t.audio_url);
-        const streamBad = !isHttp(t.stream_audio_url) || isDeadMediaHost(t.stream_audio_url);
-        const imageBad = !isHttp(t.image_url) || isDeadMediaHost(t.image_url);
+        const createdAt = t.created_at || generation.created_at || null;
+        const audioBad = !isHttp(t.audio_url) || isDeadMediaHost(t.audio_url, createdAt);
+        const streamBad = !isHttp(t.stream_audio_url) || isDeadMediaHost(t.stream_audio_url, createdAt);
+        const imageBad = !isHttp(t.image_url) || isDeadMediaHost(t.image_url, createdAt);
         return audioBad || streamBad || imageBad;
       });
 
@@ -101,16 +116,44 @@ export async function POST(req: NextRequest) {
           const fresh = bySunoId.get(sunoId);
           if (!fresh) continue;
 
-          const nextAudio = pickValid(fresh.audio, dbTrack.audio_url);
-          const nextStream = pickValid(fresh.stream, dbTrack.stream_audio_url);
-          const nextImage = pickValid(fresh.image, dbTrack.image_url);
+          const cachedMedia = await cacheSunoTrackMedia({
+            generationId: generation.id,
+            sunoId,
+            audioUrl: fresh.audio,
+            streamUrl: fresh.stream,
+            imageUrl: fresh.image,
+            existingAudioUrl: dbTrack.audio_url,
+            existingImageUrl: dbTrack.image_url,
+          });
+
+          const existingCreatedAt = dbTrack.created_at || generation.created_at || null;
+          const freshCreatedAt = new Date();
+          const nextAudio = pickValid([
+            { url: cachedMedia.audioUrl, createdAt: freshCreatedAt },
+            { url: fresh.audio, createdAt: freshCreatedAt },
+            { url: dbTrack.audio_url, createdAt: existingCreatedAt },
+          ]);
+          const nextStream = pickValid([
+            { url: cachedMedia.streamUrl, createdAt: freshCreatedAt },
+            { url: fresh.stream, createdAt: freshCreatedAt },
+            { url: dbTrack.stream_audio_url, createdAt: existingCreatedAt },
+          ]);
+          const nextImage = pickValid([
+            { url: cachedMedia.imageUrl, createdAt: freshCreatedAt },
+            { url: fresh.image, createdAt: freshCreatedAt },
+            { url: dbTrack.image_url, createdAt: existingCreatedAt },
+          ]);
 
           const changed =
             nextAudio !== String(dbTrack.audio_url || '') ||
             nextStream !== String(dbTrack.stream_audio_url || '') ||
             nextImage !== String(dbTrack.image_url || '');
+          const sourceLinks = {
+            ...parseSourceLinks(dbTrack.source_links),
+            ...cachedMedia.sourceLinksPatch,
+          };
 
-          if (!changed) continue;
+          if (!changed && !Object.keys(cachedMedia.sourceLinksPatch || {}).length) continue;
 
           const { error: updErr } = await supabaseAdmin
             .from('ai_tracks')
@@ -118,6 +161,7 @@ export async function POST(req: NextRequest) {
               audio_url: nextAudio,
               stream_audio_url: nextStream,
               image_url: nextImage,
+              source_links: JSON.stringify(sourceLinks),
             })
             .eq('id', dbTrack.id);
 

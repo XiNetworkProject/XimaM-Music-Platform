@@ -145,7 +145,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     },
     features: [
       '2 400 crédits / mois (≈ 200 gén.)',
-      'Tous les modèles IA (V4.5, V4.5+, V5)',
+      'Tous les modèles IA (V4.5, V4.5+, V5, V5.5)',
       'Messagerie',
       'Playlists collaboratives',
       'Analyses avancées',
@@ -157,7 +157,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       maxPlaylists: -1,
       maxFileMb: 500,
       audioQualityKbps: 320,
-      availableModels: ['V4_5', 'V4_5PLUS', 'V5'],
+      availableModels: ['V4_5', 'V4_5PLUS', 'V5', 'V5_5'],
     },
     featureFlags: {
       messaging: true,

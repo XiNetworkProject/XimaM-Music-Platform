@@ -35,14 +35,14 @@ function isInstrumentalText(s: string) {
   return s.toLowerCase().includes('instrumental');
 }
 
-function sanitizeCoverUrl(url?: string) {
+function sanitizeCoverUrl(url?: string, createdAt?: string) {
   if (!url) return '';
   const trimmed = url.trim();
   if (!trimmed) return '';
   if (trimmed.startsWith('/')) return trimmed;
   try {
     new URL(trimmed);
-    if (isLikelyExpiredAIProviderUrl(trimmed)) return '';
+    if (isLikelyExpiredAIProviderUrl(trimmed, createdAt)) return '';
   } catch {
     return '';
   }
@@ -134,14 +134,19 @@ export function LibraryClipsList({
               const gen = genId ? generationsById.get(String(genId)) || null : null;
               const title = t.title || 'Musique générée';
               const durationSec = Number((t as any).duration) || 0;
-              let cover = sanitizeCoverUrl(t.image_url) || '/synaura_symbol.svg';
-              if ((!cover || cover === '/synaura_symbol.svg') && (t as any).source_links) {
+              let links: any = null;
+              if ((t as any).source_links) {
                 try {
-                  const links = JSON.parse((t as any).source_links);
-                  cover = sanitizeCoverUrl(
-                    links?.image || links?.image_url || links?.imageUrl || links?.cover || links?.cover_url
-                  ) || cover;
+                  links = JSON.parse((t as any).source_links);
                 } catch {}
+              }
+              const mediaFreshAt = links?.provider_urls_refreshed_at || links?.media_cached_at || t.created_at;
+              let cover = sanitizeCoverUrl(t.image_url, mediaFreshAt) || '/synaura_symbol.svg';
+              if ((!cover || cover === '/synaura_symbol.svg') && (t as any).source_links) {
+                cover = sanitizeCoverUrl(
+                  links?.image || links?.image_url || links?.imageUrl || links?.cover || links?.cover_url || links?.provider_image_url,
+                  mediaFreshAt
+                ) || cover;
               }
               const promptText = (t.prompt || gen?.prompt || '').slice(0, 200);
 

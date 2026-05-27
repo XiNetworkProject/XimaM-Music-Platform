@@ -1,7 +1,7 @@
 // lib/aiGenerationService.ts
 import { supabase, supabaseAdmin } from './supabase';
 import { Track } from '@/lib/suno-normalize';
-import { isUsableHttpMediaUrl } from '@/lib/media-url-health';
+import { cacheSunoTrackMedia } from '@/lib/suno-media-cache';
 
 export interface AIGeneration {
   id: string;
@@ -195,9 +195,18 @@ class AIGenerationService {
     
     const toInsert: any[] = [];
     const toUpdate: Array<{ sunoId: string; patch: any }> = [];
-    const cleanMediaUrl = (url?: string | null) => (isUsableHttpMediaUrl(url) ? String(url).trim() : '');
+    const parseSourceLinks = (value?: string | null) => {
+      if (!value) return {};
+      try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        return {};
+      }
+    };
 
-    tracks.forEach((track, index) => {
+    for (let index = 0; index < tracks.length; index += 1) {
+      const track = tracks[index];
       // Suno renvoie les tags comme une chaîne séparée par des virgules
       const tagsString = track.raw?.tags || '';
       const tagsArray = typeof tagsString === 'string' 
@@ -205,16 +214,32 @@ class AIGenerationService {
         : (Array.isArray(tagsString) ? tagsString : []);
 
       const sunoId = String(track.id || '').trim();
-      if (!sunoId) return;
+      if (!sunoId) continue;
+      const existing = existingBySunoId.get(sunoId);
+      const cachedMedia = await cacheSunoTrackMedia({
+        generationId,
+        sunoId,
+        audioUrl: track.audio,
+        streamUrl: track.stream,
+        imageUrl: track.image,
+        existingAudioUrl: existing?.audio_url,
+        existingImageUrl: existing?.image_url,
+      });
+      const rawLinks = track.raw?.links && typeof track.raw.links === 'object' ? track.raw.links : {};
+      const sourceLinks = {
+        ...parseSourceLinks(existing?.source_links),
+        ...rawLinks,
+        ...cachedMedia.sourceLinksPatch,
+      };
 
       const nextRow = {
         generation_id: generationId,
         suno_id: sunoId,
         title: track.title || `${generationTitle} ${index + 1}`,
         // Important: audio_url doit rester la piste "finale". Le stream preview reste en stream_audio_url.
-        audio_url: cleanMediaUrl(track.audio),
-        stream_audio_url: cleanMediaUrl(track.stream),
-        image_url: cleanMediaUrl(track.image),
+        audio_url: cachedMedia.audioUrl,
+        stream_audio_url: cachedMedia.streamUrl,
+        image_url: cachedMedia.imageUrl,
         duration: Math.round(track.duration || 120), // Convertir en entier
         prompt: track.raw?.prompt || generationLyrics || '', // Paroles/lyrics
         // Utiliser UNIQUEMENT le modèle de la génération (celui réellement utilisé par l'utilisateur)
@@ -224,19 +249,18 @@ class AIGenerationService {
         // Style musical séparé
         style: generationStyle || track.raw?.style || tagsString || null,
         lyrics: track.raw?.lyrics || track.raw?.prompt || generationLyrics || null,
-        source_links: track.raw?.links ? JSON.stringify(track.raw.links) : null
+        source_links: JSON.stringify(sourceLinks)
       };
-      const existing = existingBySunoId.get(sunoId);
       if (!existing) {
         toInsert.push(nextRow);
-        return;
+        continue;
       }
 
       const patch: any = {
         // Ne jamais écraser une bonne URL finale par une chaîne vide.
-        audio_url: nextRow.audio_url || cleanMediaUrl(existing.audio_url) || '',
-        stream_audio_url: nextRow.stream_audio_url || cleanMediaUrl(existing.stream_audio_url) || '',
-        image_url: nextRow.image_url || cleanMediaUrl(existing.image_url) || '',
+        audio_url: nextRow.audio_url || existing.audio_url || '',
+        stream_audio_url: nextRow.stream_audio_url || existing.stream_audio_url || '',
+        image_url: nextRow.image_url || existing.image_url || '',
         duration: nextRow.duration || existing.duration || 120,
         prompt: nextRow.prompt || existing.prompt || '',
         title: nextRow.title || existing.title || '',
@@ -246,7 +270,7 @@ class AIGenerationService {
         source_links: nextRow.source_links || existing.source_links || null,
       };
       toUpdate.push({ sunoId, patch });
-    });
+    }
 
     if (toInsert.length > 0) {
       console.log("📊 Nouvelles tracks à insérer:", toInsert);

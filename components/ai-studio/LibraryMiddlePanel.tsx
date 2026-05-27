@@ -49,13 +49,13 @@ function isInstrumentalTrack(s: string): boolean {
   return s.toLowerCase().includes('instrumental');
 }
 
-function sanitizeCoverUrl(url?: string): string {
+function sanitizeCoverUrl(url?: string, createdAt?: string): string {
   if (!url?.trim()) return '';
   const t = url.trim();
   if (t.startsWith('/')) return t;
   try {
     new URL(t);
-    if (isLikelyExpiredAIProviderUrl(t)) return '';
+    if (isLikelyExpiredAIProviderUrl(t, createdAt)) return '';
   } catch {
     return '';
   }
@@ -219,12 +219,16 @@ function TrackRow({
   const title = track.title || 'Sans titre';
   const subtitle = (track.prompt || gen?.prompt || '').slice(0, 90);
   const duration = formatDuration(Number(track.duration) || 0);
-  let coverUrl = sanitizeCoverUrl(track.image_url);
-  if (!coverUrl && (track as any).source_links) {
+  let links: any = null;
+  if ((track as any).source_links) {
     try {
-      const links = JSON.parse((track as any).source_links);
-      coverUrl = sanitizeCoverUrl(links?.image || links?.image_url || links?.cover);
+      links = JSON.parse((track as any).source_links);
     } catch {}
+  }
+  const mediaFreshAt = links?.provider_urls_refreshed_at || links?.media_cached_at || track.created_at;
+  let coverUrl = sanitizeCoverUrl(track.image_url, mediaFreshAt);
+  if (!coverUrl && (track as any).source_links) {
+    coverUrl = sanitizeCoverUrl(links?.image || links?.image_url || links?.cover || links?.provider_image_url, mediaFreshAt);
   }
   const model = (track.model_name || gen?.model || 'v5').replace(/^V/, 'v').toLowerCase();
 

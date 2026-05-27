@@ -120,6 +120,12 @@ export default function StudioClient() {
         desc: 'Build orchestral, impact trailer.',
         patch: { customMode: true, model: 'V5', style: 'cinematic orchestral epic trailer', title: 'Cinematic Build', tags: ['cinematic', 'orchestral', 'epic'] },
       },
+      {
+        id: 'suno55',
+        name: 'Suno 5.5 Clean',
+        desc: 'Rendu premium, voix nettes, mix propre.',
+        patch: { customMode: false, model: 'V5_5', description: 'premium pop, clean vocals, detailed mix, modern radio energy', tags: ['v5.5', 'premium', 'clean'] },
+      },
     ],
     []
   );
@@ -629,7 +635,7 @@ export default function StudioClient() {
               <input
                 ref={cmdInputRef}
                 className="w-full bg-transparent text-sm outline-none placeholder:text-white/30"
-                placeholder="Commande… (generate, model v5, focus search, inspector)"
+                placeholder="Commande… (generate, model v5.5, focus search, inspector)"
                 onKeyDown={(e) => {
                   if (e.key !== 'Enter') return;
                   const val = (e.currentTarget.value || '').toLowerCase();
@@ -638,7 +644,8 @@ export default function StudioClient() {
                   if (val.includes('mode ide')) setShellMode('ide');
                   if (val.includes('mode classic')) setShellMode('classic');
                   if (val.includes('mode')) pushLog('info', `Mode: ${val.includes('classic') ? 'classic' : 'ide'}`);
-                  if (val.includes('model v5')) setForm({ model: 'V5' });
+                  if (val.includes('model v5.5')) setForm({ model: 'V5_5' });
+                  else if (val.includes('model v5')) setForm({ model: 'V5' });
                   if (val.includes('model v4.5+')) setForm({ model: 'V4_5PLUS' as any });
                   if (val.includes('model v4.5')) setForm({ model: 'V4_5' });
                   if (val.includes('focus') || val.includes('search')) searchRef.current?.focus();
@@ -663,4 +670,3 @@ export default function StudioClient() {
     </div>
   );
 }
-

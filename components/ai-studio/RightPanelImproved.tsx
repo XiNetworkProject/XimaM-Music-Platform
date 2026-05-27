@@ -403,9 +403,11 @@ export default function RightPanelImproved({
               { id: 'V4_5', label: 'v4.5', desc: 'Rapide et stable — idéal pour l\'itération', tag: 'Rapide', color: 'emerald' },
               { id: 'V4_5PLUS', label: 'v4.5+', desc: 'Voix plus détaillées et naturelles', tag: 'Pro', color: 'violet' },
               { id: 'V5', label: 'v5', desc: 'Qualité studio premium, rendu avancé', tag: 'Beta', color: 'indigo' },
+              { id: 'V5_5', label: 'v5.5', desc: 'Dernier modele Suno, rendu plus riche et plus propre', tag: 'New', color: 'sky' },
             ].map((m) => {
               const isActive = modelVersion === m.id;
               const colorMap: Record<string, { active: string; tag: string; glow: string }> = {
+                sky: { active: 'from-sky-500/15 to-cyan-500/15 shadow-[inset_0_0_0_1px_rgba(56,189,248,0.25)]', tag: 'bg-sky-400/20 text-sky-300', glow: 'from-sky-500/20 via-transparent to-cyan-500/20' },
                 emerald: { active: 'from-emerald-500/15 to-teal-500/15 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.25)]', tag: 'bg-emerald-400/20 text-emerald-300', glow: 'from-emerald-500/20 via-transparent to-teal-500/20' },
                 violet: { active: 'from-violet-500/15 to-purple-500/15 shadow-[inset_0_0_0_1px_rgba(167,139,250,0.25)]', tag: 'bg-violet-400/20 text-violet-300', glow: 'from-violet-500/20 via-transparent to-purple-500/20' },
                 indigo: { active: 'from-indigo-500/15 to-blue-500/15 shadow-[inset_0_0_0_1px_rgba(129,140,248,0.25)]', tag: 'bg-indigo-400/20 text-indigo-300', glow: 'from-indigo-500/20 via-transparent to-blue-500/20' },

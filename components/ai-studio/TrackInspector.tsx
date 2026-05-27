@@ -29,14 +29,14 @@ const formatSec = (sec: number) => {
   return `${m}:${String(s).padStart(2, '0')}`;
 };
 
-const sanitizeCoverUrl = (url?: string) => {
+const sanitizeCoverUrl = (url?: string, createdAt?: string) => {
   if (!url) return '';
   const trimmed = String(url).trim();
   if (!trimmed) return '';
   if (trimmed.startsWith('/')) return trimmed;
   try {
     new URL(trimmed);
-    if (isLikelyExpiredAIProviderUrl(trimmed)) return '';
+    if (isLikelyExpiredAIProviderUrl(trimmed, createdAt)) return '';
     return trimmed;
   } catch {
     return '';
@@ -212,10 +212,10 @@ function InspectorContent({
       {/* Cover + Actions */}
       <div className={`px-5 pt-5 shrink-0 ${isMobileSheet ? 'flex gap-4 items-start' : ''}`}>
         <div className={`${isMobileSheet ? 'w-28 h-28 shrink-0' : 'w-full aspect-square mb-4'} rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center overflow-hidden`}>
-            {sanitizeCoverUrl(track.imageUrl) ? (
+            {sanitizeCoverUrl(track.imageUrl, track.createdAt) ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={sanitizeCoverUrl(track.imageUrl)}
+                src={sanitizeCoverUrl(track.imageUrl, track.createdAt)}
                 alt={track.title || 'Cover générée'}
                 className="w-full h-full object-cover"
                 onError={(e) => {

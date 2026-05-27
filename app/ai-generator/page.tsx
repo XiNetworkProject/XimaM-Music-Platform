@@ -24,7 +24,7 @@ import { aiStudioPresets } from '@/lib/aiStudioPresets';
 import StudioBackground from '@/components/StudioBackground';
 import RightPanelImproved from '@/components/ai-studio/RightPanelImproved';
 import type { GeneratedTrack, AIStudioPreset } from '@/lib/aiStudioTypes';
-import { isLikelyExpiredAIProviderUrl, pickFirstUsableHttpMediaUrl } from '@/lib/media-url-health';
+import { isLikelyExpiredAIProviderUrl, pickFirstPlayableHttpMediaUrl } from '@/lib/media-url-health';
 import { SUNO_BTN_BASE, SUNO_FIELD, SUNO_SELECT, SUNO_TEXTAREA, SUNO_INPUT, SUNO_PILL_SOLID, SUNO_PANEL } from '@/components/ui/sunoClasses';
 import { SunoAccordionSection } from '@/components/ui/SunoAccordionSection';
 import { SunoSlider } from '@/components/ui/SunoSlider';
@@ -94,6 +94,7 @@ interface PlayerTrack {
   isLiked?: boolean;
   genre?: string[];
   backupAudioUrls?: string[];
+  createdAt?: string;
 }
 
 // Composant "Orb" de statut pour la génération
@@ -222,6 +223,7 @@ function ModelDropdownPortal({
   }, [open, onClose]);
 
   const models = [
+    { id: 'V5_5', label: 'v5.5', tag: 'New', color: 'sky' },
     { id: 'V5', label: 'v5', tag: 'Beta', color: 'indigo' },
     { id: 'V4_5PLUS', label: 'v4.5+', tag: 'Pro', color: 'violet' },
     { id: 'V4_5', label: 'v4.5', tag: 'Rapide', color: 'emerald' },
@@ -251,11 +253,13 @@ function ModelDropdownPortal({
           {models.map((m) => {
             const isActive = modelVersion === m.id;
             const colorMap: Record<string, string> = {
+              sky: isActive ? 'text-sky-300 bg-sky-500/10' : '',
               indigo: isActive ? 'text-indigo-300 bg-indigo-500/10' : '',
               violet: isActive ? 'text-violet-300 bg-violet-500/10' : '',
               emerald: isActive ? 'text-emerald-300 bg-emerald-500/10' : '',
             };
             const tagMap: Record<string, string> = {
+              sky: 'bg-sky-400/15 text-sky-300 border-sky-400/25',
               indigo: 'bg-indigo-400/15 text-indigo-300 border-indigo-400/25',
               violet: 'bg-violet-400/15 text-violet-300 border-violet-400/25',
               emerald: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/25',
@@ -754,6 +758,7 @@ export default function AIGenerator() {
     () => [
       { id: 'generate', label: 'Generate', desc: 'Lancer une génération', run: () => executePaletteCommand('generate') },
       { id: 'preset-edm', label: 'Apply preset: EDM', desc: 'Appliquer un preset proche EDM', run: () => executePaletteCommand('preset edm') },
+      { id: 'model-v55', label: 'Set model: v5.5', desc: 'Basculer le modèle vers v5.5', run: () => executePaletteCommand('model v5.5') },
       { id: 'model-v5', label: 'Set model: v5', desc: 'Basculer le modèle vers v5', run: () => executePaletteCommand('model v5') },
       { id: 'mode-custom', label: 'Set mode: custom', desc: 'Passer en mode custom', run: () => executePaletteCommand('mode custom') },
       { id: 'mode-remix', label: 'Set mode: remix', desc: 'Passer en mode remix', run: () => executePaletteCommand('mode remix') },
@@ -798,58 +803,68 @@ export default function AIGenerator() {
   const resolveTrackMedia = (track: AITrack | any) => {
     const links = parseSourceLinks((track as any)?.source_links);
     const linksObj = links && typeof links === 'object' ? links : {};
-    const audioFromLinks = pickFirstUsableHttpMediaUrl(
+    const createdAt =
+      (track as any)?.media_fetched_at ||
+      linksObj.provider_urls_refreshed_at ||
+      linksObj.media_cached_at ||
+      (track as any)?.created_at ||
+      (track as any)?.createdAt ||
+      null;
+    const audioFromLinks = pickFirstPlayableHttpMediaUrl([
       linksObj.audio,
       linksObj.audio_url,
       linksObj.audioUrl,
       linksObj.source_audio_url,
       linksObj.sourceAudioUrl,
+      linksObj.provider_audio_url,
       linksObj.url
-    );
-    const streamFromLinks = pickFirstUsableHttpMediaUrl(
+    ], createdAt);
+    const streamFromLinks = pickFirstPlayableHttpMediaUrl([
       linksObj.stream,
       linksObj.stream_url,
       linksObj.stream_audio_url,
       linksObj.streamAudioUrl,
       linksObj.source_stream_audio_url,
-      linksObj.sourceStreamAudioUrl
-    );
-    const imageFromLinks = pickFirstUsableHttpMediaUrl(
+      linksObj.sourceStreamAudioUrl,
+      linksObj.provider_stream_audio_url
+    ], createdAt);
+    const imageFromLinks = pickFirstPlayableHttpMediaUrl([
       linksObj.image,
       linksObj.image_url,
       linksObj.imageUrl,
       linksObj.source_image_url,
       linksObj.sourceImageUrl,
+      linksObj.provider_image_url,
       linksObj.cover,
       linksObj.cover_url,
       linksObj.coverUrl
-    );
+    ], createdAt);
 
-    const streamUrl = pickFirstUsableHttpMediaUrl(
+    const streamUrl = pickFirstPlayableHttpMediaUrl([
       (track as any)?.stream_audio_url,
       (track as any)?.streamAudioUrl,
       (track as any)?.source_stream_audio_url,
       (track as any)?.sourceStreamAudioUrl,
       streamFromLinks
-    );
-    const audioUrl = pickFirstUsableHttpMediaUrl(
+    ], createdAt);
+    const audioUrl = pickFirstPlayableHttpMediaUrl([
       (track as any)?.audio_url,
       (track as any)?.audioUrl,
       (track as any)?.source_audio_url,
       (track as any)?.sourceAudioUrl,
       audioFromLinks
-    );
-    const imageUrl = pickFirstUsableHttpMediaUrl(
+    ], createdAt);
+    const imageUrl = pickFirstPlayableHttpMediaUrl([
       (track as any)?.image_url,
       (track as any)?.imageUrl,
       (track as any)?.source_image_url,
       (track as any)?.sourceImageUrl,
       imageFromLinks
-    );
+    ], createdAt);
 
     return {
       // En bibliothèque, préférer l'URL audio finale; garder le stream en fallback.
-      playableUrl: pickFirstUsableHttpMediaUrl(audioUrl, streamUrl),
+      playableUrl: pickFirstPlayableHttpMediaUrl([audioUrl, streamUrl], createdAt),
       audioUrl,
       streamUrl,
       imageUrl,
@@ -857,45 +872,54 @@ export default function AIGenerator() {
   };
 
   const resolveLiveTrackMedia = (track: any) => {
-    const audioUrl = pickFirstUsableHttpMediaUrl(
+    const liveCreatedAt = new Date();
+    const audioUrl = pickFirstPlayableHttpMediaUrl([
       track?.audio,
       track?.audio_url,
       track?.audioUrl,
       track?.source_audio_url,
       track?.raw?.audio_url
-    );
-    const streamUrl = pickFirstUsableHttpMediaUrl(
+    ], liveCreatedAt);
+    const streamUrl = pickFirstPlayableHttpMediaUrl([
       track?.stream,
       track?.stream_audio_url,
       track?.streamAudioUrl,
       track?.source_stream_audio_url,
       track?.raw?.stream_audio_url
-    );
+    ], liveCreatedAt);
     // En live, le stream est généralement disponible avant l'URL audio finale.
-    const playableUrl = pickFirstUsableHttpMediaUrl(streamUrl, audioUrl);
-    const imageUrl = pickFirstUsableHttpMediaUrl(
+    const playableUrl = pickFirstPlayableHttpMediaUrl([streamUrl, audioUrl], liveCreatedAt);
+    const imageUrl = pickFirstPlayableHttpMediaUrl([
       track?.image,
       track?.image_url,
       track?.imageUrl,
       track?.source_image_url,
       track?.raw?.image_url
-    );
+    ], liveCreatedAt);
     return { playableUrl, imageUrl, audioUrl, streamUrl };
   };
 
-  const isPotentiallyExpiredProviderUrl = (url?: string) => {
-    return isLikelyExpiredAIProviderUrl(url);
+  const isPotentiallyExpiredProviderUrl = (url?: string, createdAt?: string | Date | null) => {
+    return isLikelyExpiredAIProviderUrl(url, createdAt);
   };
 
   // Jouer une track IA (même logique que ai-library)
   const aiTrackToPlayerTrack = (track: AITrack, generation: AIGeneration): PlayerTrack | null => {
     const media = resolveTrackMedia(track);
+    const links = parseSourceLinks((track as any)?.source_links);
+    const createdAt =
+      (track as any)?.media_fetched_at ||
+      links?.provider_urls_refreshed_at ||
+      links?.media_cached_at ||
+      (track as any)?.created_at ||
+      (track as any)?.createdAt ||
+      null;
     const playableUrl = media.playableUrl;
-    if (!playableUrl || isPotentiallyExpiredProviderUrl(playableUrl)) return null;
+    if (!playableUrl || isPotentiallyExpiredProviderUrl(playableUrl, createdAt)) return null;
     const backupAudioUrls = Array.from(
       new Set(
         [media.streamUrl, media.audioUrl].filter(
-          (u): u is string => Boolean(u && u !== playableUrl && !isPotentiallyExpiredProviderUrl(u))
+          (u): u is string => Boolean(u && u !== playableUrl && !isPotentiallyExpiredProviderUrl(u, createdAt))
         )
       )
     );
@@ -913,6 +937,7 @@ export default function AIGenerator() {
       audioUrl: playableUrl,
       backupAudioUrls,
       coverUrl: media.imageUrl || '/synaura_symbol.svg',
+      createdAt: createdAt || track.created_at,
       genre: ['IA', 'Généré'],
       plays: track.play_count || 0,
       likes: [],
@@ -946,12 +971,22 @@ export default function AIGenerator() {
         tracks[0];
       if (!candidate) return null;
 
+      const refreshedAt = new Date().toISOString();
+      const existingLinks = parseSourceLinks((track as any).source_links);
       const patchedTrack: AITrack = {
         ...(track as any),
         suno_id: (track as any).suno_id || candidate.id || (track as any).suno_id,
         audio_url: candidate.audio || (track as any).audio_url || '',
         stream_audio_url: candidate.stream || (track as any).stream_audio_url || '',
         image_url: candidate.image || (track as any).image_url || '',
+        media_fetched_at: refreshedAt,
+        source_links: JSON.stringify({
+          ...(existingLinks && typeof existingLinks === 'object' ? existingLinks : {}),
+          provider_audio_url: candidate.audio || (track as any).audio_url || null,
+          provider_stream_audio_url: candidate.stream || (track as any).stream_audio_url || null,
+          provider_image_url: candidate.image || (track as any).image_url || null,
+          provider_urls_refreshed_at: refreshedAt,
+        }),
       } as AITrack;
 
       const statusUpper = String(json?.status || '').toUpperCase();
@@ -986,11 +1021,19 @@ export default function AIGenerator() {
   const playAITrack = async (track: AITrack, generation: AIGeneration) => {
     let targetTrack = track;
     const initialMedia = resolveTrackMedia(track);
+    const initialLinks = parseSourceLinks((track as any)?.source_links);
+    const createdAt =
+      (track as any)?.media_fetched_at ||
+      initialLinks?.provider_urls_refreshed_at ||
+      initialLinks?.media_cached_at ||
+      (track as any)?.created_at ||
+      (track as any)?.createdAt ||
+      null;
     if (
       !initialMedia.playableUrl ||
-      isPotentiallyExpiredProviderUrl(initialMedia.playableUrl) ||
+      isPotentiallyExpiredProviderUrl(initialMedia.playableUrl, createdAt) ||
       !initialMedia.imageUrl ||
-      (initialMedia.imageUrl && isPotentiallyExpiredProviderUrl(initialMedia.imageUrl))
+      (initialMedia.imageUrl && isPotentiallyExpiredProviderUrl(initialMedia.imageUrl, createdAt))
     ) {
       pushLog('info', 'Récupération des URLs fraîches de la piste…');
       const refreshed = await hydrateTrackFromSuno(track, generation);
@@ -1032,11 +1075,19 @@ export default function AIGenerator() {
 
   const ensureFreshAITrackForPlayback = async (track: AITrack, generation: AIGeneration) => {
     const media = resolveTrackMedia(track);
+    const links = parseSourceLinks((track as any)?.source_links);
+    const createdAt =
+      (track as any)?.media_fetched_at ||
+      links?.provider_urls_refreshed_at ||
+      links?.media_cached_at ||
+      (track as any)?.created_at ||
+      (track as any)?.createdAt ||
+      null;
     if (
       !media.playableUrl ||
-      isPotentiallyExpiredProviderUrl(media.playableUrl) ||
+      isPotentiallyExpiredProviderUrl(media.playableUrl, createdAt) ||
       !media.imageUrl ||
-      isPotentiallyExpiredProviderUrl(media.imageUrl)
+      isPotentiallyExpiredProviderUrl(media.imageUrl, createdAt)
     ) {
       const refreshed = await hydrateTrackFromSuno(track, generation);
       return refreshed || track;
@@ -1308,7 +1359,7 @@ export default function AIGenerator() {
     const savedConsole = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.consoleCollapsed') : null;
     if (savedConsole === '1') setConsoleCollapsed(true);
     const savedModel = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.defaultModel') : null;
-    if (savedModel === 'V5' || savedModel === 'V4_5PLUS' || savedModel === 'V4_5') setModelVersion(savedModel);
+    if (savedModel === 'V5_5' || savedModel === 'V5' || savedModel === 'V4_5PLUS' || savedModel === 'V4_5') setModelVersion(savedModel);
     const savedDuration = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.defaultDuration') : null;
     if (savedDuration === '60' || savedDuration === '120' || savedDuration === '180') setGenerationDuration(Number(savedDuration) as 60 | 120 | 180);
     const savedLeftPx = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.leftPx') : null;
@@ -1600,7 +1651,7 @@ export default function AIGenerator() {
     const backupUrls = Array.isArray(gt.backupAudioUrls)
       ? gt.backupAudioUrls.map((u) => (typeof u === 'string' ? u.trim() : '')).filter(Boolean)
       : [];
-    const playableDirect = pickFirstUsableHttpMediaUrl(directUrl, ...backupUrls) || directUrl || backupUrls[0] || '';
+    const playableDirect = pickFirstPlayableHttpMediaUrl([directUrl, ...backupUrls], gt.createdAt) || directUrl || backupUrls[0] || '';
     const sourceTrackForGt = allTracks.find((t: any) =>
       String(t.id) === String(gt.id) ||
       String(t.suno_id || '') === String((gt as any).sunoAudioId || gt.id || '')
@@ -1618,7 +1669,7 @@ export default function AIGenerator() {
       )) ||
       null;
 
-    if (playableDirect && isPotentiallyExpiredProviderUrl(playableDirect)) {
+    if (playableDirect && isPotentiallyExpiredProviderUrl(playableDirect, gt.createdAt)) {
       if (sourceTrackForGt && sourceGenForGt) {
         await playAITrack(sourceTrackForGt as any, sourceGenForGt);
         return;
@@ -1642,7 +1693,7 @@ export default function AIGenerator() {
           backupAudioUrls: Array.from(
             new Set(
               [liveMedia.audioUrl, liveMedia.streamUrl].filter(
-                (u): u is string => Boolean(u && u !== livePlayableUrl && !isPotentiallyExpiredProviderUrl(u))
+                (u): u is string => Boolean(u && u !== livePlayableUrl && !isPotentiallyExpiredProviderUrl(u, new Date()))
               )
             )
           ),
@@ -1681,7 +1732,7 @@ export default function AIGenerator() {
       audioUrl: playableDirect,
       backupAudioUrls: Array.isArray(gt.backupAudioUrls)
         ? gt.backupAudioUrls.filter(
-            (u) => typeof u === 'string' && u.trim().length > 0 && u.trim() !== playableDirect && !isPotentiallyExpiredProviderUrl(u)
+            (u) => typeof u === 'string' && u.trim().length > 0 && u.trim() !== playableDirect && !isPotentiallyExpiredProviderUrl(u, gt.createdAt)
           )
         : [],
       coverUrl: gt.imageUrl || '/synaura_symbol.svg',
@@ -1689,7 +1740,8 @@ export default function AIGenerator() {
       likes: [],
       comments: [],
       plays: 0,
-      genre: ['IA']
+      genre: ['IA'],
+      createdAt: gt.createdAt
     };
     (playerTrack as any).generationTaskId = taskIdForLyrics ?? '';
     (playerTrack as any).sunoAudioId = String((gt as any).sunoAudioId || (sourceTrackForGt as any)?.suno_id || gt.id || '');
@@ -1701,9 +1753,9 @@ export default function AIGenerator() {
 
   const downloadGenerated = async (gt: GeneratedTrack) => {
     try {
-      const sourceUrl = pickFirstUsableHttpMediaUrl(
-        typeof gt.audioUrl === 'string' ? gt.audioUrl : '',
-        ...(Array.isArray(gt.backupAudioUrls) ? gt.backupAudioUrls : [])
+      const sourceUrl = pickFirstPlayableHttpMediaUrl(
+        [typeof gt.audioUrl === 'string' ? gt.audioUrl : '', ...(Array.isArray(gt.backupAudioUrls) ? gt.backupAudioUrls : [])],
+        gt.createdAt
       );
       if (!sourceUrl) {
         notify.error('Telechargement', 'Aucune URL audio fraiche disponible pour cette piste.');
@@ -1796,9 +1848,9 @@ export default function AIGenerator() {
   };
 
   const useGeneratedTrackForRemix = (track: GeneratedTrack) => {
-    const sourceUrl = pickFirstUsableHttpMediaUrl(
-      typeof track.audioUrl === 'string' ? track.audioUrl.trim() : '',
-      ...(Array.isArray(track.backupAudioUrls) ? track.backupAudioUrls : [])
+    const sourceUrl = pickFirstPlayableHttpMediaUrl(
+      [typeof track.audioUrl === 'string' ? track.audioUrl.trim() : '', ...(Array.isArray(track.backupAudioUrls) ? track.backupAudioUrls : [])],
+      track.createdAt
     );
     if (!sourceUrl) {
       notify.error('Remix', 'Aucune URL audio exploitable pour cette génération.');
@@ -1901,10 +1953,18 @@ export default function AIGenerator() {
   // Fonction pour convertir AITrack en GeneratedTrack
   const convertAITrackToGenerated = (aiTrack: AITrack): GeneratedTrack => {
     const media = resolveTrackMedia(aiTrack);
+    const links = parseSourceLinks((aiTrack as any)?.source_links);
+    const createdAt =
+      (aiTrack as any)?.media_fetched_at ||
+      links?.provider_urls_refreshed_at ||
+      links?.media_cached_at ||
+      (aiTrack as any)?.created_at ||
+      (aiTrack as any)?.createdAt ||
+      null;
     const backupAudioUrls = Array.from(
       new Set(
         [media.audioUrl, media.streamUrl].filter(
-          (u): u is string => Boolean(u && u !== media.playableUrl && !isPotentiallyExpiredProviderUrl(u))
+          (u): u is string => Boolean(u && u !== media.playableUrl && !isPotentiallyExpiredProviderUrl(u, createdAt))
         )
       )
     );
@@ -1921,7 +1981,7 @@ export default function AIGenerator() {
       lyrics: aiTrack.lyrics || '',
       isInstrumental: aiTrack.prompt?.toLowerCase().includes('instrumental') || false,
       duration: aiTrack.duration || 120,
-      createdAt: aiTrack.created_at,
+      createdAt: createdAt || aiTrack.created_at,
       imageUrl: media.imageUrl || '/synaura_symbol.svg'
     };
   };
@@ -2360,7 +2420,7 @@ export default function AIGenerator() {
       const backups = Array.from(
         new Set(
           [media.audioUrl, media.streamUrl, media.playableUrl].filter(
-            (u): u is string => Boolean(u && u !== primaryUrl && !isPotentiallyExpiredProviderUrl(u))
+            (u): u is string => Boolean(u && u !== primaryUrl && !isPotentiallyExpiredProviderUrl(u, new Date()))
           )
         )
       );
@@ -2707,10 +2767,11 @@ export default function AIGenerator() {
     const v = raw.trim().toLowerCase();
     if (!v) return;
 
-    const modelMatch = v.match(/\bmodel\s+(v5|v4\.5\+|v4\.5)\b/);
+    const modelMatch = v.match(/\bmodel\s+(v5\.5|v5|v4\.5\+|v4\.5)\b/);
     if (modelMatch) {
       const m = modelMatch[1];
-      if (m === 'v5') setModelVersion('V5');
+      if (m === 'v5.5') setModelVersion('V5_5');
+      else if (m === 'v5') setModelVersion('V5');
       else if (m === 'v4.5+') setModelVersion('V4_5PLUS');
       else setModelVersion('V4_5');
       pushLog('info', `Palette: model ${m}`);
@@ -2868,7 +2929,7 @@ export default function AIGenerator() {
 
   // Vérification d'authentification (même logique que ai-library)
   const studioModeLabel = shellMode === 'ide' ? 'IDE immersif' : 'Classic';
-  const studioModelLabel = modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5';
+  const studioModelLabel = modelVersion === 'V5_5' ? 'v5.5' : modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5';
 
   if (!session) {
     return (
@@ -3196,8 +3257,8 @@ export default function AIGenerator() {
                   <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Reglages</p>
                   <span className="text-[11px] font-black text-[#171313]">{studioModelLabel}</span>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['V4_5', 'V4_5PLUS', 'V5'] as const).map((model) => (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {(['V4_5', 'V4_5PLUS', 'V5', 'V5_5'] as const).map((model) => (
                     <button
                       key={model}
                       type="button"
@@ -3206,7 +3267,7 @@ export default function AIGenerator() {
                         modelVersion === model ? 'bg-[#171313] text-white' : 'bg-[#f5eadb] text-[#6e5f54] hover:bg-[#efe0ce]'
                       }`}
                     >
-                      {model === 'V5' ? 'v5' : model === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
+                      {model === 'V5_5' ? 'v5.5' : model === 'V5' ? 'v5' : model === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
                     </button>
                   ))}
                 </div>
@@ -4480,15 +4541,15 @@ export default function AIGenerator() {
                   )}
 
                   {rightTab === 'models' && (
-                    <div className="grid grid-cols-3 gap-2">
-                      {['V4_5', 'V4_5PLUS', 'V5'].map((m) => (
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {['V4_5', 'V4_5PLUS', 'V5', 'V5_5'].map((m) => (
                         <button
                           key={m}
                           type="button"
                           onClick={() => setModelVersion(m as any)}
                           className={`h-9 rounded-xl border text-xs ${modelVersion === m ? 'border-emerald-400/40 bg-emerald-400/10' : 'border-white/10 bg-white/5'}`}
                         >
-                          {m === 'V4_5' ? 'v4.5' : m === 'V4_5PLUS' ? 'v4.5+' : 'v5'}
+                          {m === 'V5_5' ? 'v5.5' : m === 'V4_5' ? 'v4.5' : m === 'V4_5PLUS' ? 'v4.5+' : 'v5'}
                         </button>
                       ))}
                     </div>
@@ -4653,7 +4714,7 @@ export default function AIGenerator() {
                         <div className="text-[13px] font-semibold text-white/90">Prompt</div>
                         <div className="inline-flex items-center gap-1.5">
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300/80 border border-indigo-500/20">
-                            {modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
+                            {modelVersion === 'V5_5' ? 'v5.5' : modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
                           </span>
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.04] text-white/40 border border-white/[0.06]">
                             {generationDuration}s
@@ -5368,6 +5429,7 @@ export default function AIGenerator() {
                             { id: 'V4_5' as const, label: 'v4.5' },
                             { id: 'V4_5PLUS' as const, label: 'v4.5+' },
                             { id: 'V5' as const, label: 'v5' },
+                            { id: 'V5_5' as const, label: 'v5.5' },
                           ]).map((m) => (
                             <button
                               key={m.id}

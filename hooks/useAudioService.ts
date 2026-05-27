@@ -265,9 +265,9 @@ export const useAudioService = () => {
     }
   }, []);
 
-  const isDeadMediaHost = useCallback((url?: string) => {
+  const isDeadMediaHost = useCallback((url?: string, createdAt?: string) => {
     if (!url) return true;
-    return isLikelyExpiredAIProviderUrl(url);
+    return isLikelyExpiredAIProviderUrl(url, createdAt);
   }, []);
 
 
@@ -572,7 +572,7 @@ export const useAudioService = () => {
             [track.audioUrl, ...(Array.isArray(track.backupAudioUrls) ? track.backupAudioUrls : [])]
               .map((u) => (typeof u === 'string' ? u.trim() : ''))
               .filter((u) => /^https?:\/\//i.test(u))
-              .filter((u) => !isDeadMediaHost(u))
+              .filter((u) => !isDeadMediaHost(u, track.createdAt))
           )
         );
         if (!candidates.length) {
@@ -835,7 +835,7 @@ export const useAudioService = () => {
         [track?.audioUrl, ...(Array.isArray(track?.backupAudioUrls) ? track.backupAudioUrls : [])]
           .map((u) => (typeof u === 'string' ? u.trim() : ''))
           .filter((u) => /^https?:\/\//i.test(u))
-          .filter((u) => !isDeadMediaHost(u))
+          .filter((u) => !isDeadMediaHost(u, track?.createdAt))
       )
     );
     if (!candidates.length) {

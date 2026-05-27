@@ -1,4 +1,4 @@
-type SunoModel = 'V4' | 'V4_5' | 'V4_5PLUS' | 'V4_5ALL' | 'V5';
+type SunoModel = 'V4' | 'V4_5' | 'V4_5PLUS' | 'V4_5ALL' | 'V5' | 'V5_5';
 
 type ValidateInput = {
   customMode: boolean;
@@ -23,11 +23,12 @@ const MODEL_LIMITS: Record<SunoModel, { prompt: number; style: number; title: nu
   V4_5PLUS: { prompt: 5000, style: 1000, title: 100 },
   V4_5ALL: { prompt: 5000, style: 1000, title: 80 },
   V5: { prompt: 5000, style: 1000, title: 100 },
+  V5_5: { prompt: 5000, style: 1000, title: 100 },
 };
 
 export function normalizeSunoModel(model: string | undefined): SunoModel {
   const m = String(model || 'V4_5').toUpperCase();
-  if (m === 'V4' || m === 'V4_5' || m === 'V4_5PLUS' || m === 'V4_5ALL' || m === 'V5') return m;
+  if (m === 'V4' || m === 'V4_5' || m === 'V4_5PLUS' || m === 'V4_5ALL' || m === 'V5' || m === 'V5_5') return m;
   return 'V4_5';
 }
 

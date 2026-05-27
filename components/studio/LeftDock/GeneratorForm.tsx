@@ -74,8 +74,8 @@ export default function GeneratorForm({ onGenerate }: { onGenerate: () => void }
             <select className={SUNO_SELECT} value={form.model} onChange={(e) => setForm({ model: e.target.value })}>
               <option value="V4_5">V4_5</option>
               <option value="V4_5PLUS">V4_5PLUS</option>
-              <option value="V3_5">V3_5</option>
               <option value="V5">V5</option>
+              <option value="V5_5">V5_5</option>
             </select>
           </label>
 
