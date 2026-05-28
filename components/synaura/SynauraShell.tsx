@@ -22,7 +22,7 @@ const SYNAURA_ROUTE_ITEMS = [
   { href: '/discover', label: 'Decouvrir', icon: Compass },
   { href: '/library', label: 'Bibliotheque', icon: Library },
   { href: '/community', label: 'Communaute', icon: Users },
-  { href: '/studio', label: 'Studio', icon: Sparkles },
+  { href: '/ai-generator', label: 'Studio', icon: Sparkles },
   { href: '/upload', label: 'Publier', icon: Upload },
 ] as const;
 
@@ -31,7 +31,7 @@ const SYNAURA_MOBILE_ROUTE_ITEMS = [
   { href: '/discover', label: 'Explorer', icon: Compass },
   { href: '/library', label: 'Biblio', icon: Library },
   { href: '/community', label: 'Communa', icon: Users },
-  { href: '/studio', label: 'Studio', icon: Sparkles },
+  { href: '/ai-generator', label: 'Studio', icon: Sparkles },
 ] as const;
 
 function routeIsActive(pathname: string | null, href: string) {
@@ -128,7 +128,7 @@ export function SynauraInkPanel({
 export function SynauraTopBar({
   searchHref = '/discover',
   searchLabel = 'Rechercher un son, post, playlist, créateur...',
-  secondaryHref = '/studio',
+  secondaryHref = '/ai-generator',
   secondaryLabel = 'Studio',
   primaryHref = '/upload',
   primaryLabel = 'Publier',

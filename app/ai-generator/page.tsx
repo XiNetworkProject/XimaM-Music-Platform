@@ -2439,7 +2439,12 @@ export default function AIGenerator() {
       };
     });
     setGeneratedTracks(convertedTracks);
-    setGeneratedTrack((prev) => prev || convertedTracks[0] || null);
+    setGeneratedTrack((prev) => {
+      if (!prev) return convertedTracks[0] || null;
+      return convertedTracks.some((track) => String(track.id) === String(prev.id))
+        ? prev
+        : convertedTracks[0] || prev;
+    });
   }, [activeBgGeneration, customMode, description, isInstrumental, isRemixMode, lyrics, style, title]);
 
   // Dès qu'une génération passe en completed, synchroniser la bibliothèque
@@ -2955,6 +2960,10 @@ export default function AIGenerator() {
 
   const studioFocusTrack = selectedTrack ?? generatedTrack ?? generatedTracks[0] ?? null;
   const studioResultTracks = generatedTracks.length > 0 ? generatedTracks : (studioFocusTrack ? [studioFocusTrack] : []);
+  const studioExpectedSlots = activeBgGeneration && activeBgGeneration.status !== 'completed'
+    ? Math.max(2, studioResultTracks.length || 0)
+    : studioResultTracks.length;
+  const studioResultSlots = Array.from({ length: Math.max(studioResultTracks.length, studioExpectedSlots) });
   const studioTagSuggestions = Array.from(new Set(tagCategories.flatMap((cat) => cat.tags.slice(0, 8)))).slice(0, 28);
   const studioProgress = activeBgGeneration ? liveProgressPct : generationStatus === 'completed' ? 100 : generationStatus === 'pending' ? 12 : 0;
   const studioStateLabel =
@@ -3428,33 +3437,42 @@ export default function AIGenerator() {
                 <div className="min-w-0 rounded-[1.25rem] border border-white/10 bg-white/[0.06] p-3">
                   <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Resultats instantanes</p>
                   <div className="grid gap-2">
-                    {studioResultTracks.length > 0 ? studioResultTracks.slice(0, 4).map((track, index) => (
-                      <button
-                        key={`studio-result-${track.id}-${index}`}
-                        type="button"
-                        onClick={() => {
-                          setSelectedTrack(track);
-                          setGeneratedTrack(track);
-                          playGenerated(track);
-                        }}
-                        className={`flex min-w-0 items-center gap-3 rounded-[1rem] border p-2 text-left transition ${
-                          String(studioFocusTrack?.id) === String(track.id) ? 'border-white/40 bg-white/[0.14]' : 'border-white/10 bg-white/[0.05] hover:bg-white/[0.10]'
-                        }`}
-                      >
-                        {track.imageUrl ? (
-                          <img src={track.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
-                        ) : (
-                          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#ff6f61]/20 text-[#ffd6cf]">
-                            <Music className="h-5 w-5" />
+                    {studioResultSlots.length > 0 ? studioResultSlots.slice(0, 4).map((_, index) => {
+                      const track = studioResultTracks[index];
+                      const isReady = Boolean(track?.audioUrl);
+                      const isSelected = track && String(studioFocusTrack?.id) === String(track.id);
+                      return (
+                        <button
+                          key={`studio-result-${track?.id || activeBgGeneration?.taskId || 'slot'}-${index}`}
+                          type="button"
+                          disabled={!track}
+                          onClick={() => {
+                            if (!track) return;
+                            setSelectedTrack(track);
+                            setGeneratedTrack(track);
+                            playGenerated(track);
+                          }}
+                          className={`flex min-w-0 items-center gap-3 rounded-[1rem] border p-2 text-left transition disabled:cursor-default ${
+                            isSelected ? 'border-white/40 bg-white/[0.14]' : isReady ? 'border-white/10 bg-white/[0.05] hover:bg-white/[0.10]' : 'border-dashed border-white/14 bg-white/[0.035]'
+                          }`}
+                        >
+                          {track?.imageUrl ? (
+                            <img src={track.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+                          ) : (
+                            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#ff6f61]/20 text-[#ffd6cf]">
+                              {track ? <Music className="h-5 w-5" /> : <Sparkles className="h-5 w-5 animate-pulse" />}
+                            </span>
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-black text-white">{track?.title || `Version ${index === 0 ? 'A' : index === 1 ? 'B' : index + 1}`}</span>
+                            <span className="block truncate text-[11px] font-semibold text-white/45">
+                              {track ? (track.duration ? formatTime(track.duration) : 'Preview IA') : 'Slot reserve, stream en attente'}
+                            </span>
                           </span>
-                        )}
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-black text-white">{track.title || `Version ${index + 1}`}</span>
-                          <span className="block truncate text-[11px] font-semibold text-white/45">{track.duration ? formatTime(track.duration) : 'IA Synaura'}</span>
-                        </span>
-                        <Play className="h-4 w-4 shrink-0 text-white/55" />
-                      </button>
-                    )) : (
+                          {isReady ? <Play className="h-4 w-4 shrink-0 text-white/55" /> : <Clock3 className="h-4 w-4 shrink-0 text-white/35" />}
+                        </button>
+                      );
+                    }) : (
                       <div className="rounded-[1rem] border border-dashed border-white/16 bg-white/[0.04] px-4 py-8 text-center">
                         <Sparkles className="mx-auto mb-3 h-6 w-6 text-white/38" />
                         <p className="text-sm font-black text-white">Aucun rendu pour le moment</p>
@@ -3523,6 +3541,26 @@ export default function AIGenerator() {
                           </span>
                         </button>
                         <div className="mt-3 flex flex-wrap gap-2">
+                          {(generation.tracks || []).slice(0, 2).map((variant: any, variantIndex: number) => {
+                            const variantTrack = convertAITrackToGenerated(variant);
+                            return (
+                              <button
+                                key={`${generation.id}-variant-${variant.id || variantIndex}`}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedGeneration(generation);
+                                  setSelectedTrack(variantTrack);
+                                  setGeneratedTrack(variantTrack);
+                                }}
+                                className="inline-flex h-8 max-w-full items-center gap-2 rounded-full border border-black/[0.08] bg-[#fff8ed] px-2.5 text-[11px] font-black text-[#171313] hover:bg-[#f5eadb]"
+                              >
+                                <span className={`grid h-4 w-4 place-items-center rounded-full text-[9px] ${variantIndex === 0 ? 'bg-[#ff6f61] text-white' : 'bg-[#00c2cb] text-[#071315]'}`}>
+                                  {variantIndex === 0 ? 'A' : 'B'}
+                                </span>
+                                <span className="truncate">{variant.title || `Version ${variantIndex + 1}`}</span>
+                              </button>
+                            );
+                          })}
                           <button type="button" onClick={() => handlePlayGeneration(generation)} className="inline-flex h-9 items-center gap-1 rounded-full bg-[#171313] px-3 text-xs font-black text-white">
                             <Play className="h-3.5 w-3.5 fill-current" />
                             Lire

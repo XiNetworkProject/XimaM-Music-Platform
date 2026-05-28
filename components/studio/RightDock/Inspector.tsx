@@ -103,7 +103,7 @@ export default function Inspector({
 
   const shareTrack = async () => {
     if (!t) return;
-    const url = `${window.location.origin}/studio?track=${encodeURIComponent(t.id)}`;
+    const url = `${window.location.origin}/ai-generator?track=${encodeURIComponent(t.id)}`;
     try {
       if ((navigator as any).share) {
         await (navigator as any).share({ title: t.title, text: 'Cree avec Synaura Studio', url });

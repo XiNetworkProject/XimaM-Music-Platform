@@ -211,7 +211,7 @@ export default function AppSidebar() {
       {/* CTA : Studio IA + Uploader */}
       <div className="px-3 mb-3 space-y-1.5">
         <Link
-          href="/studio"
+          href="/ai-generator"
           className={`group/cta relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-all active:scale-[0.97] overflow-hidden ${
             studioActive
               ? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/30'

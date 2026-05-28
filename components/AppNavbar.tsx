@@ -565,7 +565,7 @@ export default function AppNavbar() {
 
                   {/* IA */}
                   <Link
-                    href="/studio"
+                    href="/ai-generator"
                     className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-sm font-bold bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 hover:from-violet-500 hover:via-fuchsia-500 hover:to-cyan-300 text-white shadow-[0_0_26px_rgba(129,140,248,0.9)] hover:scale-105 active:scale-95 transition-all"
                   >
                     <Sparkles className="w-5 h-5" />

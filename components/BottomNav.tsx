@@ -60,7 +60,7 @@ export default function BottomNav() {
   const tabs = [
     { icon: Home, label: 'Accueil', path: '/' },
     { icon: Search, label: 'Explorer', path: '/discover' },
-    { icon: Sparkles, label: 'Studio', path: '/studio' },
+    { icon: Sparkles, label: 'Studio', path: '/ai-generator' },
     { icon: BookOpen, label: 'Biblio', path: '/library', auth: true },
   ];
 
