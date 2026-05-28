@@ -12,7 +12,7 @@ type CampaignTemplate = 'announcement' | 'update' | 'studio' | 'reengagement' | 
 const TEMPLATES: { id: CampaignTemplate; label: string; icon: typeof Mail; color: string; desc: string }[] = [
   { id: 'announcement', label: 'Annonce', icon: Megaphone, color: 'violet', desc: 'Annonce importante pour la communauté' },
   { id: 'update', label: 'Mise à jour', icon: Rocket, color: 'cyan', desc: 'Nouvelles fonctionnalités et améliorations' },
-  { id: 'studio', label: 'Studio IA', icon: Bot, color: 'blue', desc: 'Promouvoir le studio de musique IA' },
+  { id: 'studio', label: 'Studio', icon: Bot, color: 'blue', desc: 'Promouvoir le studio de musique' },
   { id: 'reengagement', label: 'Réengagement', icon: Heart, color: 'pink', desc: 'Faire revenir les utilisateurs inactifs' },
   { id: 'star-academy', label: 'Star Academy', icon: Star, color: 'amber', desc: 'Actualités Star Academy TikTok' },
   { id: 'custom', label: 'Personnalisé', icon: Pencil, color: 'emerald', desc: 'Email libre avec ton propre contenu' },
@@ -34,10 +34,10 @@ const DEFAULTS: Record<CampaignTemplate, { subject: string; title: string; messa
     ctaUrl: '/discover',
   },
   studio: {
-    subject: 'Crée ta musique avec le Studio IA',
-    title: 'Le Studio IA t\'attend',
+    subject: 'Crée ta musique avec le Studio',
+    title: 'Le Studio t\'attend',
     message: 'Génère des morceaux uniques en quelques clics grâce à notre studio de musique IA. Des milliers de styles, des paroles personnalisées, et une qualité studio.',
-    ctaLabel: 'Ouvrir le Studio IA',
+    ctaLabel: 'Ouvrir le Studio',
     ctaUrl: '/ai-generator',
   },
   reengagement: {
@@ -555,7 +555,7 @@ function EmailPreview({ template, title, message, ctaLabel, ctaUrl }: { template
           </div>
           <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.06)', margin: '16px 0' }} />
           <p style={{ margin: 0, color: '#64748b', fontSize: 10, textAlign: 'center' }}>
-            Découvrir · Studio IA · Communauté<br />synaura.fr · contact.syn@synaura.fr
+            Découvrir · Studio · Communauté<br />synaura.fr · contact.syn@synaura.fr
           </p>
         </div>
       </div>

@@ -109,7 +109,7 @@ export function welcomeEmailTemplate({
         </div>
         <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:14px;text-align:center">
           <div style="font-size:20px;margin-bottom:4px">🤖</div>
-          <div style="font-size:12px;color:#94a3b8">Studio IA</div>
+          <div style="font-size:12px;color:#94a3b8">Studio</div>
         </div>
         <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:14px;text-align:center">
           <div style="font-size:20px;margin-bottom:4px">👥</div>
@@ -122,7 +122,7 @@ export function welcomeEmailTemplate({
       </div>
 
       <div style="text-align:center;margin-bottom:16px">
-        <a href="${baseUrl}/ai-generator" style="display:inline-block;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#fff;text-decoration:none;padding:10px 24px;border-radius:10px;font-weight:500;font-size:13px">Ouvrir le Studio IA →</a>
+        <a href="${baseUrl}/ai-generator" style="display:inline-block;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#fff;text-decoration:none;padding:10px 24px;border-radius:10px;font-weight:500;font-size:13px">Ouvrir le Studio →</a>
       </div>
 
       <hr style="border:none;border-top:1px solid rgba(255,255,255,0.06);margin:20px 0"/>
@@ -343,4 +343,3 @@ export function saReviewingTemplate({
     </div>
   `);
 }
-

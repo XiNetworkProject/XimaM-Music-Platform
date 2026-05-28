@@ -15,6 +15,7 @@ import { useAudioPlayer } from '@/app/providers';
 import { notify } from '@/components/NotificationCenter';
 import { getCdnUrl } from '@/lib/cdn';
 import type { Post } from '@/components/PostCard';
+import { SynauraAppShell, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
 
 interface Comment {
   id: string;
@@ -197,7 +198,16 @@ export default function PostPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a14] text-white pb-32">
+    <SynauraAppShell contentClassName="max-w-[860px]">
+      <SynauraTopBar
+        searchLabel="Rechercher un post, un son ou un createur..."
+        secondaryHref="/upload"
+        secondaryLabel="Upload"
+        primaryHref="/ai-generator"
+        primaryLabel="Studio"
+      />
+      <SynauraRouteNav />
+      <div className="overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-[#0a0a14] text-white pb-32 shadow-[0_28px_80px_rgba(20,15,10,0.18)]">
       {/* Background glow depuis la cover/image */}
       {coverSrc && (
         <div className="fixed inset-0 pointer-events-none z-0">
@@ -389,6 +399,7 @@ export default function PostPage() {
           </div>
         </motion.div>
       </div>
-    </div>
+      </div>
+    </SynauraAppShell>
   );
 }

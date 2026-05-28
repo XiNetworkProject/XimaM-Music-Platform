@@ -267,7 +267,7 @@ function generateTips(ov: OverviewData | null, tracks: UnifiedTrack[], series: a
   const days = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 
   if (ov.avgRetention > 0 && ov.avgRetention < 40) {
-    tips.push({ id:'ret-low', type:'warning', title:'Accroche tes auditeurs', message:'Les 15 premieres secondes sont cruciales. Travaille tes intros pour garder l\'attention de tes auditeurs.', cta:{ label:'Ouvrir le Studio', href:'/studio' }, priority:90 });
+    tips.push({ id:'ret-low', type:'warning', title:'Accroche tes auditeurs', message:'Les 15 premieres secondes sont cruciales. Travaille tes intros pour garder l\'attention de tes auditeurs.', cta:{ label:'Ouvrir le Studio', href:'/ai-generator' }, priority:90 });
   }
   if (ov.plays > 5 && likeR < 3) {
     tips.push({ id:'like-low', type:'info', title:'Engage ta communaute', message:'Ton ratio likes/ecoutes est faible. Encourage tes auditeurs a liker en ajoutant un appel a l\'action dans ta bio.', cta:{ label:'Modifier mon profil', href:'/profile' }, priority:70 });
@@ -290,7 +290,7 @@ function generateTips(ov: OverviewData | null, tracks: UnifiedTrack[], series: a
     }
   }
   if (ov.totalTracks < 3) {
-    tips.push({ id:'few-tracks', type:'action', title:'Publie plus de pistes', message:'Plus tu publies, plus l\'algorithme te recommande. Lance-toi avec le Studio IA !', cta:{ label:'Creer avec l\'IA', href:'/studio' }, priority:80 });
+    tips.push({ id:'few-tracks', type:'action', title:'Publie plus de pistes', message:'Plus tu publies, plus l\'algorithme te recommande. Prepare ton prochain son dans le Studio.', cta:{ label:'Ouvrir le Studio', href:'/ai-generator' }, priority:80 });
   }
   if (ov.bestTrack && ov.plays > 0 && ov.bestTrack.plays / ov.plays > 0.5 && tracks.length > 1) {
     tips.push({ id:'diversify', type:'info', title:'Diversifie ton catalogue', message:`"${ov.bestTrack.title}" concentre plus de la moitie de tes ecoutes. Cree des pistes dans le meme style pour elargir ton audience.`, priority:55 });
@@ -299,7 +299,7 @@ function generateTips(ov: OverviewData | null, tracks: UnifiedTrack[], series: a
     tips.push({ id:'ret-great', type:'success', title:'Retention excellente', message:'Ta musique captive les auditeurs jusqu\'au bout. Continue sur cette lancee !', priority:40 });
   }
   if (tracks.some(t => t.trend7d > 0)) {
-    tips.push({ id:'trending', type:'success', title:'En progression', message:'Certaines pistes gagnent en ecoutes cette semaine. Profite de l\'elan pour publier du nouveau contenu !', cta:{ label:'Studio', href:'/studio' }, priority:45 });
+    tips.push({ id:'trending', type:'success', title:'En progression', message:'Certaines pistes gagnent en ecoutes cette semaine. Profite de l\'elan pour publier du nouveau contenu !', cta:{ label:'Studio', href:'/ai-generator' }, priority:45 });
   }
   if (ov.followers > 0 && ov.plays > 20) {
     tips.push({ id:'boost', type:'action', title:'Boost ta visibilite', message:'Utilise les Boosters pour propulser tes meilleures pistes dans les recommandations et toucher plus de monde.', cta:{ label:'Ouvrir les Boosters', href:'/boosters' }, priority:35 });
@@ -546,7 +546,7 @@ function StatsPageInner() {
               <Link href="/profile" className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] text-sm transition-all">
                 <Users size={15} /> Profil
               </Link>
-              <Link href="/studio" className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-all">
+              <Link href="/ai-generator" className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-all">
                 <Sparkles size={15} /> Studio
             </Link>
             </div>
@@ -1029,7 +1029,7 @@ function EmptyState() {
         <Link href="/upload" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] text-sm transition-all">
           <Music size={16} /> Uploader une piste
         </Link>
-        <Link href="/studio" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-all">
+        <Link href="/ai-generator" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-all">
           <Sparkles size={16} /> Creer avec l&apos;IA
         </Link>
       </div>

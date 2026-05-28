@@ -45,12 +45,12 @@ export const CAMPAIGN_PRESETS: Record<
     accentTo: '#8b5cf6',
   },
   studio: {
-    label: 'Studio IA',
+    label: 'Studio',
     emoji: '🤖',
-    defaultSubject: 'Crée ta musique avec le Studio IA',
-    defaultTitle: 'Le Studio IA t\'attend',
+    defaultSubject: 'Crée ta musique avec le Studio',
+    defaultTitle: 'Le Studio t\'attend',
     defaultMessage: 'Génère des morceaux uniques en quelques clics grâce à notre studio de musique IA. Des milliers de styles, des paroles personnalisées, et une qualité studio.',
-    defaultCta: 'Ouvrir le Studio IA',
+    defaultCta: 'Ouvrir le Studio',
     defaultCtaUrl: '/ai-generator',
     accentFrom: '#8b5cf6',
     accentTo: '#3b82f6',
@@ -139,7 +139,7 @@ export function buildCampaignEmail(opts: CampaignOptions): string {
         <div style="font-size:15px;font-weight:700;color:#f9a8d4;margin-bottom:6px">Ce qui t'attend</div>
         <div style="color:#cbd5e1;font-size:13px;line-height:1.6">
           🎵 Nouvelles musiques publiées<br/>
-          🤖 Studio IA amélioré<br/>
+          Studio amélioré<br/>
           👥 Communauté grandissante<br/>
           ⭐ Événements exclusifs
         </div>
@@ -174,7 +174,7 @@ export function buildCampaignEmail(opts: CampaignOptions): string {
         <div style="text-align:center">
           <div style="margin-bottom:12px">
             <a href="${baseUrl}/discover" style="color:#94a3b8;text-decoration:none;font-size:12px;margin:0 8px">Découvrir</a>
-            <a href="${baseUrl}/ai-generator" style="color:#94a3b8;text-decoration:none;font-size:12px;margin:0 8px">Studio IA</a>
+            <a href="${baseUrl}/ai-generator" style="color:#94a3b8;text-decoration:none;font-size:12px;margin:0 8px">Studio</a>
             <a href="${baseUrl}/community" style="color:#94a3b8;text-decoration:none;font-size:12px;margin:0 8px">Communauté</a>
           </div>
           <p style="margin:0;color:#64748b;font-size:11px">

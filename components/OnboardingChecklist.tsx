@@ -70,7 +70,7 @@ export default function OnboardingChecklist() {
     return [
       { key: 'account', label: 'Creer un compte', done: hasAccount, icon: UserPlus, action: '/auth/signup', actionLabel: 'Creer' },
       { key: 'listen', label: 'Ecouter un titre', done: hasListened, icon: Music, action: '/discover', actionLabel: 'Ecouter' },
-      { key: 'studio', label: 'Essayer le Studio IA', done: hasTriedStudio, icon: Sparkles, action: '/ai-generator', actionLabel: 'Essayer' },
+      { key: 'studio', label: 'Essayer le Studio', done: hasTriedStudio, icon: Sparkles, action: '/ai-generator', actionLabel: 'Essayer' },
       { key: 'upload', label: 'Uploader ou publier', done: hasOneTrack, icon: Upload, action: '/upload', actionLabel: 'Uploader' },
     ];
   }, [user?.id, usage?.tracks?.used, triedStudio]);

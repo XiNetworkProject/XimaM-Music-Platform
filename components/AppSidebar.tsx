@@ -208,7 +208,7 @@ export default function AppSidebar() {
         </AnimatePresence>
         </div>
 
-      {/* CTA : Studio IA + Uploader */}
+      {/* CTA : Studio + Uploader */}
       <div className="px-3 mb-3 space-y-1.5">
         <Link
           href="/ai-generator"
@@ -217,11 +217,11 @@ export default function AppSidebar() {
               ? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/30'
               : 'bg-white/[0.04] text-white/80 hover:bg-indigo-500/10 hover:text-indigo-300'
           } group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:px-0`}
-          title={collapsed ? 'Studio IA' : undefined}
+          title={collapsed ? 'Studio' : undefined}
         >
           <div className={`absolute inset-0 bg-gradient-to-r from-indigo-600/10 to-violet-600/10 opacity-0 transition-opacity ${studioActive ? 'opacity-100' : 'group-hover/cta:opacity-100'}`} />
           <Sparkles className="w-[18px] h-[18px] shrink-0 relative z-[1]" />
-          <span className="group-data-[collapsed=true]/sidebar:hidden truncate relative z-[1]">Studio IA</span>
+          <span className="group-data-[collapsed=true]/sidebar:hidden truncate relative z-[1]">Studio</span>
         </Link>
 
         <Link

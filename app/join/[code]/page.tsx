@@ -77,7 +77,7 @@ export default function JoinReferralPage() {
           <div className="grid grid-cols-3 gap-3 mb-6 text-xs">
             <div className="rounded-xl bg-white/5 border border-white/8 p-3">
               <Music className="w-5 h-5 text-violet-300 mx-auto mb-1.5" />
-              <span className="text-white/70">Studio IA</span>
+              <span className="text-white/70">Studio</span>
             </div>
             <div className="rounded-xl bg-white/5 border border-white/8 p-3">
               <Users className="w-5 h-5 text-cyan-300 mx-auto mb-1.5" />

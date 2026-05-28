@@ -300,7 +300,7 @@ export default function DiscoverAuthedClient({
                   className="inline-flex h-11 items-center gap-2 rounded-full bg-black/[0.06] px-5 text-sm font-black text-black/65 transition hover:bg-black hover:text-white"
                 >
                   <Sparkles className="h-4 w-4" />
-                  Studio IA
+                  Studio
                 </button>
               </>
             }

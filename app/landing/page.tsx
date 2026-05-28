@@ -90,7 +90,7 @@ export default async function LandingPage() {
                 <ul className="mt-2 text-sm text-foreground-secondary space-y-1">
                   <li>Catalogue public jouable en 1 clic</li>
                   <li>Tendances & nouveautés visibles (SEO)</li>
-                  <li>Studio IA “pro” pour créer des sons</li>
+                  <li>Studio simple pour créer des sons</li>
                 </ul>
               </div>
               <div className="rounded-2xl border border-border-secondary bg-white/5 p-4">

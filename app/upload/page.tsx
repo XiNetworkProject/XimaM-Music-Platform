@@ -498,10 +498,10 @@ export default function UploadPage() {
               </span>
             </div>
             <h1 className="mt-4 max-w-3xl text-3xl font-black leading-[0.94] tracking-[-0.07em] sm:text-5xl">
-              Finalise une sortie comme une session Studio.
+              Prepare ta sortie sans te perdre dans les reglages.
             </h1>
             <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/56 sm:text-base">
-              Upload reprend le meme cockpit que le Studio : fichiers, metadata, verification, planning et publication restent dans le nouveau Synaura.
+              Ajoute tes fichiers, verifie les infos, choisis le bon moment et publie proprement sur Synaura.
             </p>
             <div className="mt-5 grid gap-2 sm:flex sm:flex-wrap">
               <button
@@ -638,7 +638,7 @@ export default function UploadPage() {
               className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-white transition hover:scale-[1.01]"
             >
               <Wand2 className="h-4 w-4" />
-              Studio IA
+              Studio
             </button>
           </SynauraPanel>
         </aside>

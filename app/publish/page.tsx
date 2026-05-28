@@ -60,7 +60,7 @@ const STEPS = [
       'Ton son est instantanément visible dans le fil Découvrir. Utilise les boosters et le studio IA pour augmenter ta portée.',
     details: [
       'Apparition dans les sections Tendances & Pour toi',
-      'Studio IA : génère des variations et des remixes',
+      'Studio : prepare des variations et des remixes',
       'Boosters de visibilité disponibles dans ton espace',
     ],
     cta: { label: 'Voir les boosters', href: '/boosters' },

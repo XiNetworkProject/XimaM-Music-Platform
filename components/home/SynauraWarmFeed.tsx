@@ -822,7 +822,7 @@ function buildFeedItems({
   items.push({
     id: 'studio',
     kind: 'studio',
-    title: 'Studio IA',
+    title: 'Studio',
     text: 'Genere, remixe ou relance une idee depuis la home sans casser ton flow.',
   });
   if (playlists[0]) items.push({ id: `playlist-${playlists[0].id}`, kind: 'playlist', playlist: playlists[0] });
@@ -1219,7 +1219,7 @@ function ComposerCard({ onPostCreated }: { onPostCreated: (post: PostItem) => vo
     { label: 'Son', icon: Music2, href: '/upload', active: false },
     { label: 'Image', icon: ImageIcon, action: () => { setMode('photo'); fileInputRef.current?.click(); }, active: mode === 'photo' },
     { label: 'Texte', icon: MessageCircle, action: () => setMode('text'), active: mode === 'text' },
-    { label: 'Studio IA', icon: Wand2, href: '/ai-generator', active: false },
+    { label: 'Studio', icon: Wand2, href: '/ai-generator', active: false },
   ];
 
   useEffect(() => {
@@ -1313,7 +1313,7 @@ function ComposerCard({ onPostCreated }: { onPostCreated: (post: PostItem) => vo
                 </div>
               ) : null}
               <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs font-semibold text-black/35">Publication inline, sans changer de page.</p>
+                <p className="text-xs font-semibold text-black/35">Partage ton idee quand elle est prete.</p>
                 <button
                   type="button"
                   onClick={handlePublish}
@@ -2133,12 +2133,16 @@ function PostCard({ item, onDeleted }: { item: PostItem; onDeleted: (postId: str
               </button>
               {menuOpen ? (
                 <div className="absolute right-0 top-[calc(100%+0.45rem)] z-20 w-52 rounded-[1rem] border border-black/[0.08] bg-[#fffaf2] p-1.5 shadow-[0_16px_48px_rgba(30,25,20,0.18)]">
-                  <Link
-                    href={item.href}
-                    className="flex h-9 items-center rounded-[0.75rem] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.055] hover:text-black"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCommentsOpen(true);
+                      setMenuOpen(false);
+                    }}
+                    className="flex h-9 w-full items-center rounded-[0.75rem] px-3 text-left text-xs font-black text-black/58 transition hover:bg-black/[0.055] hover:text-black"
                   >
-                    Ouvrir le post
-                  </Link>
+                    Voir les commentaires
+                  </button>
                   {isOwnPost ? (
                     <button
                       type="button"
@@ -2492,7 +2496,7 @@ function LibraryCard({ item }: { item: Extract<FeedItem, { kind: 'library' }> })
         <div className="mb-4 flex items-center justify-between">
           <div className="min-w-0">
             <p className="text-lg font-black">{item.title}</p>
-            <p className="text-sm text-black/40">favoris, playlists, IA et ecoutes recentes</p>
+            <p className="text-sm text-black/40">favoris, playlists et ecoutes recentes</p>
           </div>
           <Library className="h-5 w-5 text-black/36" />
         </div>
@@ -2551,7 +2555,7 @@ function RightColumn({
           <p className="text-3xl font-black leading-none">Social.</p>
           <p className="text-3xl font-black leading-none text-white/55">Music.</p>
           <p className="mt-3 text-sm leading-6 text-white/45">
-            Recos, playlists, createurs et radios vivent ici avec les vraies donnees de l'application.
+            Retrouve les sons, les createurs et les radios qui bougent en ce moment.
           </p>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="rounded-2xl bg-white/8 p-3">
@@ -2625,7 +2629,7 @@ function RightColumn({
             Decouvrir
           </Link>
           <Link href="/ai-generator" className="hover:text-black">
-            Studio IA
+            Studio
           </Link>
           <Link href="/boosters" className="hover:text-black">
             Boosters
@@ -2656,7 +2660,7 @@ function FeedEmptyState({ filter }: { filter: string }) {
   return (
     <Card className="p-8 text-center">
       <p className="text-lg font-black">Rien a montrer pour "{filter}"</p>
-      <p className="mt-2 text-sm text-black/52">On continue de charger les vraies donnees, ou ce filtre n'a pas encore de contenu visible.</p>
+      <p className="mt-2 text-sm text-black/52">Reviens dans un instant, de nouveaux sons peuvent arriver.</p>
     </Card>
   );
 }

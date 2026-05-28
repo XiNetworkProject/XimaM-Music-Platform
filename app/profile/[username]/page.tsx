@@ -20,6 +20,7 @@ import dynamic from 'next/dynamic';
 import { AnimatePresence } from 'framer-motion';
 import { UModal, UModalBody, UModalTitle, UModalFooter, UDrawer, UButton, UInput, UTextarea } from '@/components/ui/UnifiedUI';
 import CreatorFeed from '@/components/CreatorFeed';
+import { SynauraAppShell, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
 
 const BoosterOpenModal = dynamic(() => import('@/components/BoosterOpenModal'), { ssr: false });
 
@@ -167,7 +168,16 @@ export default function SynauraProfile() {
 
   /* ═══════════ RENDER ═══════════ */
   return (
-    <div className="min-h-screen pb-32">
+    <SynauraAppShell contentClassName="max-w-[1180px]">
+      <SynauraTopBar
+        searchLabel="Rechercher un profil, un son ou une playlist..."
+        secondaryHref="/upload"
+        secondaryLabel="Upload"
+        primaryHref="/ai-generator"
+        primaryLabel="Studio"
+      />
+      <SynauraRouteNav />
+      <div className="min-h-screen overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-[#0a0a10] pb-32 shadow-[0_28px_80px_rgba(20,15,10,0.18)]">
 
       {/* ═══════ HERO ═══════ */}
       <div className="relative">
@@ -267,7 +277,7 @@ export default function SynauraProfile() {
             </button>
             <button onClick={() => router.push('/ai-generator')} className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition group">
               <Sparkles size={15} className="text-white/40 group-hover:text-[#6e56cf] transition" />
-              <span className="text-xs font-medium text-white/50 group-hover:text-white/70 transition hidden sm:inline">Studio IA</span>
+              <span className="text-xs font-medium text-white/50 group-hover:text-white/70 transition hidden sm:inline">Studio</span>
             </button>
             <button onClick={() => router.push('/library')} className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition group">
               <Library size={15} className="text-white/40 group-hover:text-white/60 transition" />
@@ -303,7 +313,7 @@ export default function SynauraProfile() {
             {isOwnProfile && !query.trim() && (
               <div className="mt-5 flex justify-center gap-3">
                 <button onClick={() => router.push('/upload')} className="px-5 py-2 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-sm text-white/70 font-medium transition inline-flex items-center gap-1.5"><Upload size={14} /> Uploader</button>
-                <button onClick={() => router.push('/studio')} className="px-5 py-2 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition inline-flex items-center gap-1.5"><Sparkles size={14} /> Studio IA</button>
+                <button onClick={() => router.push('/ai-generator')} className="px-5 py-2 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition inline-flex items-center gap-1.5"><Sparkles size={14} /> Studio</button>
                   </div>
                 )}
               </div>
@@ -585,7 +595,8 @@ export default function SynauraProfile() {
           </button>
         </div>
       )}
-    </div>
+      </div>
+    </SynauraAppShell>
   );
 }
 
@@ -754,4 +765,3 @@ function DrawerContent({ track, playing, onPlay, onEdit, onDelete, isOwn, onLike
     </div>
   );
 } 
-

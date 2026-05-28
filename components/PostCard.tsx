@@ -2,7 +2,6 @@
 
 import React, { memo, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Heart, MessageCircle, MoreHorizontal, Trash2, Play, Pause, Music2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
@@ -80,7 +79,6 @@ function Avatar({ creator, size = 'md' }: { creator: PostCreator; size?: 'sm' | 
 
 const PostCard = memo(function PostCard({ post, onDelete, onCommentClick, compact = false }: PostCardProps) {
   const { data: session } = useSession();
-  const router = useRouter();
   const { playTrack, audioState } = useAudioPlayer();
   const [liked, setLiked] = useState(post.isLiked);
   const [likesCount, setLikesCount] = useState(post.likes_count);
@@ -146,9 +144,8 @@ const PostCard = memo(function PostCard({ post, onDelete, onCommentClick, compac
       : null;
 
     return (
-      <Link
-        href={`/posts/${post.id}`}
-        className="relative flex gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.05] hover:border-white/[0.09] hover:bg-white/[0.05] transition-all duration-200 overflow-hidden group block"
+      <article
+        className="relative flex gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.05] hover:border-white/[0.09] hover:bg-white/[0.05] transition-all duration-200 overflow-hidden group"
       >
         {/* Accent line */}
         <div className="absolute left-0 top-3 bottom-3 w-[2px] rounded-full bg-gradient-to-b from-violet-500 to-indigo-500 opacity-60" />
@@ -213,7 +210,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onCommentClick, compac
             </button>
           )}
         </div>
-      </Link>
+      </article>
     );
   }
 
@@ -222,7 +219,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onCommentClick, compac
   /* TEXT POST */
   if (post.type === 'text') {
     return (
-      <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18] cursor-pointer" onClick={() => router.push(`/posts/${post.id}`)}>
+      <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18]">
         {/* Subtle gradient top accent */}
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-violet-500/40 to-transparent" />
 
@@ -256,7 +253,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onCommentClick, compac
   /* PHOTO POST */
   if (post.type === 'photo') {
     return (
-      <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18] cursor-pointer" onClick={() => router.push(`/posts/${post.id}`)}>
+      <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18]">
         {/* Photo full-width */}
         {post.image_url && !imgError && (
           <div className="relative">
@@ -296,7 +293,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onCommentClick, compac
 
   /* TRACK SHARE POST */
   return (
-    <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18] cursor-pointer" onClick={() => router.push(`/posts/${post.id}`)}>
+    <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18]">
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent" />
 
       {/* Track hero */}

@@ -56,6 +56,15 @@ type TimestampedWord = {
 
 const makeId = () => Math.random().toString(36).slice(2, 10);
 
+type StudioLibraryItem = {
+  id: string;
+  generation: AIGeneration;
+  source: AITrack;
+  track: GeneratedTrack;
+  index: number;
+  createdAt: string;
+};
+
 /** Messages d'erreur Suno en français (doc: 400, 401, 404, 405, 413, 429, 430, 455, 500) */
 function getSunoErrorMessage(status: number, errJson: { error?: string; msg?: string }): string {
   const custom = errJson?.error || errJson?.msg;
@@ -768,7 +777,6 @@ export default function AIGenerator() {
       { id: 'tab-assets', label: 'Open tab: Assets', desc: 'Basculer vers l’onglet assets', run: () => executePaletteCommand('tab assets') },
       { id: 'refresh', label: 'Refresh library', desc: 'Synchroniser la bibliothèque', run: () => executePaletteCommand('refresh') },
       { id: 'refresh-credits', label: 'Refresh Suno credits', desc: 'Rafraîchir crédits provider Suno', run: () => executePaletteCommand('credits refresh') },
-      { id: 'ab-toggle', label: 'A/B toggle', desc: 'Basculer lecture entre A et B', run: () => executePaletteCommand('ab toggle') },
       { id: 'export-mp3', label: 'Export MP3', desc: 'Préparer export MP3', run: () => executePaletteCommand('export mp3') },
       { id: 'mode-ide', label: 'Switch mode: IDE', desc: 'Passer en mode IDE', run: () => executePaletteCommand('mode ide') },
       { id: 'mode-classic', label: 'Switch mode: Classic', desc: 'Passer en mode Classic', run: () => executePaletteCommand('mode classic') },
@@ -1986,6 +1994,30 @@ export default function AIGenerator() {
     };
   };
 
+  const studioLibraryTracks = React.useMemo<StudioLibraryItem[]>(() => {
+    const seen = new Set<string>();
+    const items: StudioLibraryItem[] = [];
+
+    visibleGenerations.forEach((generation) => {
+      (generation.tracks || []).forEach((rawTrack, index) => {
+        const source = rawTrack as AITrack;
+        const id = String((source as any).id || `${generation.id}-${index}`);
+        if (seen.has(id)) return;
+        seen.add(id);
+        items.push({
+          id,
+          generation,
+          source,
+          track: convertAITrackToGenerated(source),
+          index,
+          createdAt: (source as any).created_at || generation.created_at,
+        });
+      });
+    });
+
+    return items.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  }, [visibleGenerations, generationsById]);
+
   const activeBgGeneration = React.useMemo(
     () =>
       currentTaskId
@@ -2951,14 +2983,14 @@ export default function AIGenerator() {
           <div className="rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/88 px-8 py-10 text-center shadow-[0_20px_70px_rgba(20,15,10,0.12)]">
             <Music className="mx-auto mb-4 h-16 w-16 text-[#171313]" />
             <h2 className="mb-2 text-2xl font-black tracking-[-0.04em] text-[#171313]">Connexion requise</h2>
-            <p className="text-gray-400">Connectez-vous pour accéder à votre générateur IA</p>
+            <p className="text-gray-400">Connectez-vous pour ouvrir votre Studio.</p>
           </div>
         </div>
       </SynauraAppShell>
   );
 }
 
-  const studioFocusTrack = selectedTrack ?? generatedTrack ?? generatedTracks[0] ?? null;
+  const studioFocusTrack = selectedTrack ?? generatedTrack ?? generatedTracks[0] ?? studioLibraryTracks[0]?.track ?? null;
   const studioResultTracks = generatedTracks.length > 0 ? generatedTracks : (studioFocusTrack ? [studioFocusTrack] : []);
   const studioExpectedSlots = activeBgGeneration && activeBgGeneration.status !== 'completed'
     ? Math.max(2, studioResultTracks.length || 0)
@@ -2979,10 +3011,10 @@ export default function AIGenerator() {
   const studioPromptLength = customMode ? style.length : description.length;
   const studioModeCopy =
     generationModeKind === 'simple'
-      ? 'Decris une idee, Synaura construit le morceau.'
+      ? 'Decris une idee, choisis quelques couleurs, puis lance la creation.'
       : generationModeKind === 'custom'
-        ? 'Controle titre, style, paroles et rendu.'
-        : 'Transforme un son existant sans casser son identite.';
+        ? 'Pose le titre, le style et les paroles exactement comme tu les veux.'
+        : 'Choisis une source et donne une nouvelle direction au morceau.';
 
   return (
     <SynauraAppShell contentClassName="max-w-[1700px]">
@@ -3002,7 +3034,7 @@ export default function AIGenerator() {
           <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div className="min-w-0">
               <div className="mb-4 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#171313]">Studio IA</span>
+                <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#171313]">Studio</span>
                 <span className="rounded-full border border-white/12 bg-white/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/70">{studioStateLabel}</span>
                 {activeGenerationCount > 0 && (
                   <span className="rounded-full bg-[#ff6f61]/18 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#ffd6cf]">
@@ -3011,10 +3043,10 @@ export default function AIGenerator() {
                 )}
               </div>
               <h1 className="max-w-3xl text-3xl font-black leading-[0.92] tracking-[-0.07em] text-white sm:text-5xl lg:text-6xl">
-                Une vraie table de creation Synaura.
+                Cree, ecoute et garde tout au meme endroit.
               </h1>
               <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-white/58 sm:text-base">
-                Le Studio devient un cockpit ancre a l'accueil : composer, remixer, ecouter, publier et reprendre une piste sans changer d'univers.
+                Compose une idee, remixe une piste, retrouve chaque rendu dans ta bibliotheque et publie quand c'est pret.
               </p>
             </div>
 
@@ -3035,7 +3067,7 @@ export default function AIGenerator() {
                 Upload
               </Link>
               <Link
-                href="/library"
+                href="/ai-library"
                 className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-4 text-sm font-black text-white transition hover:bg-white/[0.14] sm:col-span-1"
               >
                 <Library className="h-4 w-4" />
@@ -3048,7 +3080,7 @@ export default function AIGenerator() {
         <section className="grid gap-3 md:grid-cols-3">
           {[
             { label: 'Composer', detail: generationModeKind === 'simple' ? 'Idee libre' : generationModeKind === 'custom' ? 'Piece controlee' : 'Remix source', status: studioStateLabel, active: true },
-            { label: 'Ecouter', detail: studioFocusTrack?.title || 'Aucun rendu', status: studioResultTracks.length ? `${studioResultTracks.length} version(s)` : 'En attente', active: Boolean(studioFocusTrack) },
+            { label: 'Ecouter', detail: studioFocusTrack?.title || 'Aucun rendu', status: studioLibraryTracks.length ? `${studioLibraryTracks.length} piste(s)` : 'En attente', active: Boolean(studioFocusTrack) },
             { label: 'Publier', detail: selectedVisibilityState?.is_public ? 'Deja public' : 'Pret pour Upload', status: selectedVisibilityState?.is_public ? 'En ligne' : 'A preparer', active: selectedVisibilityState?.is_public === true },
           ].map((step) => (
             <div
@@ -3070,7 +3102,7 @@ export default function AIGenerator() {
           ))}
         </section>
 
-        <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(300px,390px)_minmax(0,1fr)_minmax(280px,360px)]">
+        <section className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(300px,390px)_minmax(0,1fr)_minmax(280px,360px)]">
           <aside className="min-w-0 overflow-hidden rounded-[1.5rem] border border-black/[0.08] bg-[#fff8ed] shadow-[0_20px_70px_rgba(20,15,10,0.10)]">
             <div className="border-b border-black/[0.07] bg-[#f5eadb] p-4">
               <div className="flex items-center justify-between gap-3">
@@ -3117,7 +3149,7 @@ export default function AIGenerator() {
               <p className="mt-3 text-xs font-semibold leading-5 text-[#7f7065]">{studioModeCopy}</p>
             </div>
 
-            <div className="max-h-none space-y-4 overflow-y-auto p-4 xl:max-h-[calc(100vh-15rem)]">
+            <div className="space-y-4 p-4">
               {generationModeKind === 'simple' ? (
                 <label className="block">
                   <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Prompt principal</span>
@@ -3435,7 +3467,7 @@ export default function AIGenerator() {
                 </div>
 
                 <div className="min-w-0 rounded-[1.25rem] border border-white/10 bg-white/[0.06] p-3">
-                  <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Resultats instantanes</p>
+                  <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Ecoute live</p>
                   <div className="grid gap-2">
                     {studioResultSlots.length > 0 ? studioResultSlots.slice(0, 4).map((_, index) => {
                       const track = studioResultTracks[index];
@@ -3464,9 +3496,9 @@ export default function AIGenerator() {
                             </span>
                           )}
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-black text-white">{track?.title || `Version ${index === 0 ? 'A' : index === 1 ? 'B' : index + 1}`}</span>
+                            <span className="block truncate text-sm font-black text-white">{track?.title || `Rendu ${index + 1}`}</span>
                             <span className="block truncate text-[11px] font-semibold text-white/45">
-                              {track ? (track.duration ? formatTime(track.duration) : 'Preview IA') : 'Slot reserve, stream en attente'}
+                              {track ? (track.duration ? formatTime(track.duration) : 'Preview en cours') : 'Preparation du stream...'}
                             </span>
                           </span>
                           {isReady ? <Play className="h-4 w-4 shrink-0 text-white/55" /> : <Clock3 className="h-4 w-4 shrink-0 text-white/35" />}
@@ -3488,14 +3520,15 @@ export default function AIGenerator() {
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7868]">Bibliotheque studio</p>
-                  <h2 className="text-2xl font-black tracking-[-0.05em] text-[#171313]">Tes derniers rendus</h2>
+                  <h2 className="text-2xl font-black tracking-[-0.05em] text-[#171313]">Toutes tes pistes</h2>
+                  <p className="mt-1 text-xs font-bold text-[#8b7868]">Chaque rendu est une piste independante, prete a ecouter, remixer ou publier.</p>
                 </div>
                 <div className="flex gap-2">
                   <button type="button" onClick={refreshGenerations} className="inline-flex h-10 items-center gap-2 rounded-full bg-[#171313] px-4 text-xs font-black text-white">
                     <RefreshCw className="h-4 w-4" />
                     Actualiser
                   </button>
-                  <Link href="/library" className="inline-flex h-10 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-xs font-black text-[#171313]">
+                  <Link href="/ai-library" className="inline-flex h-10 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-xs font-black text-[#171313]">
                     Tout voir
                   </Link>
                 </div>
@@ -3506,88 +3539,88 @@ export default function AIGenerator() {
               ) : generationsError ? (
                 <div className="rounded-[1.25rem] border border-red-200 bg-red-50 px-4 py-4 text-sm font-black text-red-700">{generationsError}</div>
               ) : (
-                <div className="grid gap-3 md:grid-cols-2">
-                  {visibleGenerations.slice(0, 10).map((generation) => {
-                    const track = generation.tracks?.[0];
-                    const converted = track ? convertAITrackToGenerated(track as any) : null;
-                    const isSelected = selectedGeneration?.id === generation.id;
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {studioLibraryTracks.slice(0, 18).map((item) => {
+                    const isSelected = String(studioFocusTrack?.id) === String(item.track.id);
+                    const isPublic = Boolean((item.source as any).is_public || (item.generation as any).is_public);
                     return (
                       <article
-                        key={generation.id}
-                        className={`min-w-0 rounded-[1.25rem] border p-3 transition ${
-                          isSelected ? 'border-[#171313] bg-white shadow-[0_14px_34px_rgba(20,15,10,0.10)]' : 'border-black/[0.07] bg-white/72 hover:bg-white'
+                        key={`studio-library-${item.id}`}
+                        className={`min-w-0 overflow-hidden rounded-[1.25rem] border transition ${
+                          isSelected ? 'border-[#171313] bg-white shadow-[0_14px_34px_rgba(20,15,10,0.10)]' : 'border-black/[0.07] bg-white/74 hover:bg-white'
                         }`}
                       >
                         <button
                           type="button"
-                          onClick={() => selectGenerationInIde(generation)}
-                          className="flex w-full min-w-0 items-center gap-3 text-left"
+                          onClick={() => {
+                            setSelectedGeneration(item.generation);
+                            setSelectedTrack(item.track);
+                            setGeneratedTrack(item.track);
+                            setShowTrackPanel(true);
+                            setRightTab('inspector');
+                          }}
+                          className="flex w-full min-w-0 gap-3 p-3 text-left"
                         >
-                          {converted?.imageUrl ? (
-                            <img src={converted.imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-[1rem] object-cover" />
+                          {item.track.imageUrl ? (
+                            <img src={item.track.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-[1rem] object-cover" />
                           ) : (
-                            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-[1rem] bg-[#171313] text-white">
+                            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-[1rem] bg-[#171313] text-white">
                               <Music className="h-5 w-5" />
                             </span>
                           )}
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-black text-[#171313]">{generation.metadata?.title || track?.title || 'Generation Synaura'}</span>
-                            <span className="mt-1 block truncate text-xs font-semibold text-[#8b7868]">{new Date(generation.created_at).toLocaleString('fr-FR')}</span>
-                          </span>
-                          <span className={`rounded-full px-2 py-1 text-[10px] font-black ${
-                            generation.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : generation.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            {generation.status}
+                            <span className="block truncate text-sm font-black text-[#171313]">{item.track.title || `Rendu ${item.index + 1}`}</span>
+                            <span className="mt-1 block truncate text-xs font-semibold text-[#8b7868]">
+                              {item.track.duration ? formatTime(item.track.duration) : 'Audio'} · {new Date(item.createdAt).toLocaleDateString('fr-FR')}
+                            </span>
+                            <span className="mt-2 flex flex-wrap gap-1.5">
+                              <span className="rounded-full bg-[#f5eadb] px-2 py-1 text-[10px] font-black text-[#6e5f54]">Rendu {item.index + 1}</span>
+                              {isPublic && <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-black text-emerald-700">Public</span>}
+                              {item.generation.status !== 'completed' && (
+                                <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black text-amber-700">{item.generation.status}</span>
+                              )}
+                            </span>
                           </span>
                         </button>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {(generation.tracks || []).slice(0, 2).map((variant: any, variantIndex: number) => {
-                            const variantTrack = convertAITrackToGenerated(variant);
-                            return (
-                              <button
-                                key={`${generation.id}-variant-${variant.id || variantIndex}`}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedGeneration(generation);
-                                  setSelectedTrack(variantTrack);
-                                  setGeneratedTrack(variantTrack);
-                                }}
-                                className="inline-flex h-8 max-w-full items-center gap-2 rounded-full border border-black/[0.08] bg-[#fff8ed] px-2.5 text-[11px] font-black text-[#171313] hover:bg-[#f5eadb]"
-                              >
-                                <span className={`grid h-4 w-4 place-items-center rounded-full text-[9px] ${variantIndex === 0 ? 'bg-[#ff6f61] text-white' : 'bg-[#00c2cb] text-[#071315]'}`}>
-                                  {variantIndex === 0 ? 'A' : 'B'}
-                                </span>
-                                <span className="truncate">{variant.title || `Version ${variantIndex + 1}`}</span>
-                              </button>
-                            );
-                          })}
-                          <button type="button" onClick={() => handlePlayGeneration(generation)} className="inline-flex h-9 items-center gap-1 rounded-full bg-[#171313] px-3 text-xs font-black text-white">
+                        <div className="grid grid-cols-3 gap-2 border-t border-black/[0.06] bg-[#fffaf2] p-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedGeneration(item.generation);
+                              setSelectedTrack(item.track);
+                              setGeneratedTrack(item.track);
+                              playAITrack(item.source, item.generation);
+                            }}
+                            className="inline-flex h-9 items-center justify-center gap-1 rounded-full bg-[#171313] px-3 text-xs font-black text-white"
+                          >
                             <Play className="h-3.5 w-3.5 fill-current" />
                             Lire
                           </button>
-                          {converted && (
-                            <button type="button" onClick={() => handleReuseTrackInfo(converted)} className="inline-flex h-9 items-center gap-1 rounded-full border border-black/[0.08] bg-white px-3 text-xs font-black text-[#171313]">
-                              <Wand2 className="h-3.5 w-3.5" />
-                              Reprendre
-                            </button>
-                          )}
-                          {track && (
-                            <button type="button" onClick={() => useLibraryTrackForRemix(track)} className="inline-flex h-9 items-center gap-1 rounded-full border border-[#00a6ad]/20 bg-[#eafffb] px-3 text-xs font-black text-[#087b80]">
-                              <Repeat className="h-3.5 w-3.5" />
-                              Remix
-                            </button>
-                          )}
-                          <button type="button" onClick={() => assignABSlot('A', generation.id)} className={`h-9 rounded-full px-3 text-xs font-black ${abA === generation.id ? 'bg-[#ff6f61] text-white' : 'bg-[#f5eadb] text-[#6e5f54]'}`}>A</button>
-                          <button type="button" onClick={() => assignABSlot('B', generation.id)} className={`h-9 rounded-full px-3 text-xs font-black ${abB === generation.id ? 'bg-[#00c2cb] text-[#071315]' : 'bg-[#f5eadb] text-[#6e5f54]'}`}>B</button>
+                          <button
+                            type="button"
+                            onClick={() => handleReuseTrackInfo(item.track)}
+                            className="inline-flex h-9 items-center justify-center gap-1 rounded-full border border-black/[0.08] bg-white px-3 text-xs font-black text-[#171313]"
+                          >
+                            <Wand2 className="h-3.5 w-3.5" />
+                            Reprendre
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => useLibraryTrackForRemix(item.source)}
+                            className="inline-flex h-9 items-center justify-center gap-1 rounded-full border border-[#00a6ad]/20 bg-[#eafffb] px-3 text-xs font-black text-[#087b80]"
+                          >
+                            <Repeat className="h-3.5 w-3.5" />
+                            Remix
+                          </button>
                         </div>
                       </article>
                     );
                   })}
-                  {visibleGenerations.length === 0 && (
-                    <div className="md:col-span-2 rounded-[1.25rem] border border-dashed border-black/[0.12] bg-white/70 px-4 py-12 text-center">
+                  {studioLibraryTracks.length === 0 && (
+                    <div className="md:col-span-2 xl:col-span-3 rounded-[1.25rem] border border-dashed border-black/[0.12] bg-white/70 px-4 py-12 text-center">
                       <Music className="mx-auto mb-3 h-8 w-8 text-[#8b7868]" />
-                      <p className="text-sm font-black text-[#171313]">Aucune generation encore.</p>
-                      <p className="mt-1 text-xs font-semibold text-[#8b7868]">Le premier rendu peuplera ce workspace.</p>
+                      <p className="text-sm font-black text-[#171313]">Aucune piste pour le moment.</p>
+                      <p className="mt-1 text-xs font-semibold text-[#8b7868]">Lance une creation, chaque rendu arrivera ici comme une vraie piste.</p>
                     </div>
                   )}
                 </div>
@@ -3663,20 +3696,45 @@ export default function AIGenerator() {
             </section>
 
             <section className="rounded-[1.5rem] border border-black/[0.08] bg-[#fff8ed] p-4 shadow-[0_20px_70px_rgba(20,15,10,0.08)]">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7868]">Comparaison</p>
-              <h2 className="mt-1 text-xl font-black tracking-[-0.05em] text-[#171313]">Slots A/B</h2>
-              <div className="mt-3 grid gap-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7868]">Session</p>
+              <h2 className="mt-1 text-xl font-black tracking-[-0.05em] text-[#171313]">Apercu rapide</h2>
+              <div className="mt-3 grid grid-cols-2 gap-2">
                 <div className="rounded-[1rem] bg-white px-3 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#ff6f61]">Slot A</p>
-                  <p className="mt-1 truncate text-sm font-black text-[#171313]">{abA ? (recentGenerationsSorted.find((g) => g.id === abA)?.metadata?.title || recentGenerationsSorted.find((g) => g.id === abA)?.tracks?.[0]?.title || String(abA).slice(0, 8)) : 'Vide'}</p>
+                  <p className="text-2xl font-black text-[#171313]">{studioLibraryTracks.length}</p>
+                  <p className="text-[11px] font-bold text-[#8b7868]">pistes en bibliotheque</p>
                 </div>
                 <div className="rounded-[1rem] bg-white px-3 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#00a6ad]">Slot B</p>
-                  <p className="mt-1 truncate text-sm font-black text-[#171313]">{abB ? (recentGenerationsSorted.find((g) => g.id === abB)?.metadata?.title || recentGenerationsSorted.find((g) => g.id === abB)?.tracks?.[0]?.title || String(abB).slice(0, 8)) : 'Vide'}</p>
+                  <p className="text-2xl font-black text-[#171313]">{activeGenerationCount}</p>
+                  <p className="text-[11px] font-bold text-[#8b7868]">creation en cours</p>
                 </div>
-                <button type="button" onClick={toggleABPlay} disabled={!abA || !abB} className="inline-flex h-11 items-center justify-center rounded-full bg-[#171313] text-xs font-black text-white disabled:opacity-45">
-                  Ecouter {abSide === 'A' ? 'B' : 'A'}
-                </button>
+              </div>
+              <div className="mt-3 space-y-2">
+                {studioLibraryTracks.slice(0, 3).map((item) => (
+                  <button
+                    key={`quick-${item.id}`}
+                    type="button"
+                    onClick={() => {
+                      setSelectedGeneration(item.generation);
+                      setSelectedTrack(item.track);
+                      setGeneratedTrack(item.track);
+                      playAITrack(item.source, item.generation);
+                    }}
+                    className="flex w-full min-w-0 items-center gap-2 rounded-[1rem] bg-white px-3 py-2 text-left transition hover:bg-[#fffaf2]"
+                  >
+                    {item.track.imageUrl ? (
+                      <img src={item.track.imageUrl} alt="" className="h-9 w-9 shrink-0 rounded-xl object-cover" />
+                    ) : (
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#171313] text-white">
+                        <Music className="h-4 w-4" />
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-black text-[#171313]">{item.track.title || `Rendu ${item.index + 1}`}</span>
+                      <span className="block truncate text-[10px] font-bold text-[#8b7868]">{item.track.duration ? formatTime(item.track.duration) : 'Audio'}</span>
+                    </span>
+                    <Play className="h-3.5 w-3.5 text-[#8b7868]" />
+                  </button>
+                ))}
               </div>
             </section>
 
@@ -3751,7 +3809,7 @@ export default function AIGenerator() {
         <section className="grid gap-3 rounded-[1.35rem] border border-black/[0.08] bg-[#171313] p-3 text-white shadow-[0_18px_48px_rgba(20,15,10,0.18)] sm:rounded-[1.6rem] sm:p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-white/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/46">Studio IA</span>
+              <span className="rounded-full bg-white/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/46">Studio</span>
               <span className="rounded-full bg-emerald-300/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100">
                 {activeGenerationCount > 0 ? `${activeGenerationCount} en cours` : 'Pret'}
               </span>
@@ -3902,7 +3960,7 @@ export default function AIGenerator() {
 
       <div className="relative z-10 mx-auto max-w-[1600px] px-3 sm:px-4 py-4 lg:pb-4 pb-[calc(140px+env(safe-area-inset-bottom,0px))]">
         <header className="sr-only">
-          <h1>Studio IA Synaura</h1>
+          <h1>Studio Synaura</h1>
         </header>
 
         {/* Mobile studio tabs */}
