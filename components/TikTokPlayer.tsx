@@ -100,12 +100,12 @@ const BOOSTED_INTERVAL = 5;
 const PRELOAD_RANGE = 3;
 const AUDIO_PRELOAD_COUNT = 2;
 const INFINITE_SCROLL_THRESHOLD = 6;
-const WHEEL_LOCK_MS = 600;
-const SNAP_SETTLE_MS = 300;
-const SCROLL_GUARD_MS = 800;
+const WHEEL_LOCK_MS = 460;
+const SNAP_SETTLE_MS = 160;
+const SCROLL_GUARD_MS = 560;
 const DOUBLE_TAP_MS = 250;
-const AUTOPLAY_DEBOUNCE_MS = 60;
-const GESTURE_COOLDOWN_MS = 500;
+const AUTOPLAY_DEBOUNCE_MS = 35;
+const GESTURE_COOLDOWN_MS = 380;
 const RADIO_POLL_MS = 8_000;
 
 /** Virtual window — only render activeIndex ± RENDER_BUFFER */
@@ -622,6 +622,7 @@ function useScrollSnap(opts: ScrollSnapOpts) {
       if (locked) return;
       e.preventDefault();
       if (wheelLockRef.current) return;
+      if (Math.abs(e.deltaY) < 8) return;
       const dir = e.deltaY > 0 ? 1 : -1;
       const next = clamp(activeIndex + dir, 0, trackCount - 1);
       if (next === activeIndex) return;
@@ -692,13 +693,26 @@ function useScrollSnap(opts: ScrollSnapOpts) {
     snapTimerRef.current = setTimeout(() => {
       const idx = visibleIndex();
       if (idx !== activeIndex) onNavigate(idx, 'tiktok-player-scroll');
-    }, 200);
+    }, 110);
   }, [locked, visibleIndex, activeIndex, onNavigate]);
 
   const onTouchStart = useCallback(() => {
     isTouchingRef.current = true;
     clearTimeout(snapTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = containerRef.current;
+    if (!el || !('onscrollend' in window)) return;
+    const handler = () => {
+      if (locked) return;
+      const idx = visibleIndex();
+      if (idx !== activeIndex) onNavigate(idx, 'tiktok-player-scrollend');
+    };
+    el.addEventListener('scrollend', handler);
+    return () => el.removeEventListener('scrollend', handler);
+  }, [activeIndex, isOpen, locked, onNavigate, visibleIndex]);
 
   // Cleanup
   useEffect(() => () => clearTimeout(snapTimerRef.current), []);
@@ -1360,12 +1374,24 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
     <div
       ref={itemRef}
       data-index={index}
-      className="relative h-[100dvh] w-full overflow-hidden px-4 pb-[max(env(safe-area-inset-bottom,16px),16px)] pt-[112px] md:px-8"
-      style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
+      className="relative h-[100dvh] w-full snap-start overflow-hidden px-4 pb-[max(env(safe-area-inset-bottom,16px),16px)] pt-[112px] md:px-8"
+      style={{
+        scrollSnapAlign: 'start',
+        scrollSnapStop: 'always',
+        contain: 'layout paint style',
+        contentVisibility: 'auto',
+      }}
     >
       <div className="absolute inset-0">
         {cover ? (
-          <img src={cover} alt="" className="h-full w-full scale-125 object-cover opacity-55 blur-3xl saturate-150" />
+          <img
+            src={cover}
+            alt=""
+            loading={isActive ? 'eager' : 'lazy'}
+            decoding="async"
+            draggable={false}
+            className="h-full w-full scale-125 object-cover opacity-55 blur-3xl saturate-150"
+          />
         ) : null}
         <div className="absolute inset-0 bg-gradient-to-b from-[#120d11]/86 via-[#120d11]/26 to-[#120d11]/92" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(255,111,97,0.16),transparent_28%),radial-gradient(circle_at_88%_30%,rgba(124,92,255,0.13),transparent_32%)]" />
@@ -1384,7 +1410,10 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
                 <img
                   src={cover}
                   alt={t.title}
-                  className={`h-full w-full object-cover transition-transform duration-[12000ms] ease-linear ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
+                  loading={isActive ? 'eager' : 'lazy'}
+                  decoding="async"
+                  draggable={false}
+                  className={`h-full w-full object-cover transition-transform duration-[12000ms] ease-linear will-change-transform ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
                   onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 />
               ) : (
@@ -2669,13 +2698,22 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
           <AnimatePresence>{burstVisible && <HeartBurst burstKey={burstKey} />}</AnimatePresence>
 
           {/* Scroll container — virtualized */}
+          <style>{`
+            .synaura-tiktok-scroll::-webkit-scrollbar { display: none; }
+          `}</style>
           <div
             ref={scrollSnap.containerRef}
             onTouchStart={scrollSnap.onTouchStart}
             onTouchEnd={scrollSnap.onTouchEnd}
             onScroll={scrollSnap.onScroll}
-            className="h-full w-full overflow-y-auto overscroll-none md:cursor-grab active:cursor-grabbing"
-            style={{ scrollSnapType: 'y mandatory', WebkitOverflowScrolling: 'touch' }}
+            className="synaura-tiktok-scroll h-full w-full snap-y snap-mandatory touch-pan-y overflow-y-auto overscroll-contain md:cursor-grab active:cursor-grabbing"
+            style={{
+              scrollSnapType: 'y mandatory',
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehaviorY: 'contain',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}
           >
             {tracks.map((t, i) => {
               // Virtual rendering: off-screen items become empty placeholders
@@ -2684,8 +2722,8 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                   <div
                     key={t._id || i}
                     ref={el => { scrollSnap.itemRefs.current[i] = el; }}
-                    className="h-[100dvh] w-full"
-                    style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
+                    className="h-[100dvh] w-full snap-start"
+                    style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always', contain: 'layout size paint style' }}
                   />
                 );
               }
