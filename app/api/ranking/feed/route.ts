@@ -55,6 +55,73 @@ function diversifyConsecutiveArtists(tracks: any[], maxConsecutive = 3): any[] {
   return result;
 }
 
+async function applyGlobalTrendingScores(tracks: any[], now: number) {
+  if (!tracks.length) return tracks;
+  const ids = tracks.map((track: any) => String(track._id || '')).filter((id: string) => id && !id.startsWith('ai-'));
+  if (!ids.length) return tracks;
+
+  const since72h = new Date(now - 72 * 60 * 60 * 1000).toISOString();
+  const since6hMs = now - 6 * 60 * 60 * 1000;
+  const momentum = new Map<string, { score: number; last: number; users: Set<string> }>();
+
+  try {
+    const { data: events } = await supabaseAdmin
+      .from('track_events')
+      .select('track_id, event_type, created_at, user_id, session_id')
+      .in('track_id', ids.slice(0, 500))
+      .gte('created_at', since72h)
+      .in('event_type', ['view', 'play_start', 'play_complete', 'like', 'favorite', 'share'])
+      .limit(5000);
+
+    for (const event of events || []) {
+      const trackId = String(event.track_id || '');
+      if (!trackId) continue;
+      const created = event.created_at ? new Date(event.created_at).getTime() : now;
+      const ageHours = Math.max(0.25, (now - created) / 3_600_000);
+      const recentBoost = created >= since6hMs ? 1.65 : 1;
+      const decay = Math.exp(-ageHours * Math.LN2 / 24);
+      const weights: Record<string, number> = {
+        view: 0.35,
+        play_start: 1.2,
+        play_complete: 2.6,
+        like: 3.2,
+        favorite: 3.8,
+        share: 4.4,
+      };
+      const current = momentum.get(trackId) || { score: 0, last: 0, users: new Set<string>() };
+      current.score += (weights[event.event_type] || 0.5) * decay * recentBoost;
+      current.last = Math.max(current.last, created);
+      const actor = String(event.user_id || event.session_id || '');
+      if (actor) current.users.add(actor);
+      momentum.set(trackId, current);
+    }
+  } catch (error) {
+    console.error('ranking: global trending events failed', error);
+  }
+
+  return tracks
+    .map((track: any, index: number) => {
+      const current = momentum.get(String(track._id));
+      const ageHours = track.createdAt ? Math.max(1, (now - new Date(track.createdAt).getTime()) / 3_600_000) : 72;
+      const freshness = 4 * Math.exp(-ageHours * Math.LN2 / 48);
+      const crowd = current ? Math.log10(current.users.size + 1) * 7 : 0;
+      const base = Number(track.rankingScore || 0) * 0.32;
+      const score = base + (current?.score || 0) + crowd + freshness - index * 0.002;
+      return {
+        ...track,
+        rankingScore: Number(score.toFixed(6)),
+        recommendationScore: Number(score.toFixed(6)),
+        recommendationReasons: current ? ['global_performance', 'social_engagement'] : ['fresh'],
+        recommendationDebug: {
+          globalTrend: Number((current?.score || 0).toFixed(3)),
+          uniqueActors: current?.users.size || 0,
+          freshness: Number(freshness.toFixed(3)),
+        },
+      };
+    })
+    .sort((a: any, b: any) => (b.rankingScore || 0) - (a.rankingScore || 0));
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -857,6 +924,9 @@ export async function GET(request: NextRequest) {
       console.error('ranking: fresh injection failed', e);
     }
 
+    if (strategy === 'trending') {
+      combinedAll = await applyGlobalTrendingScores(combinedAll, now);
+    } else {
     try {
       const signals = userId
         ? await buildUserRecommendationSignals({ supabase: supabaseAdmin, userId, candidateTracks: combinedAll })
@@ -869,6 +939,7 @@ export async function GET(request: NextRequest) {
       }) as any[];
     } catch (e) {
       console.error('ranking: recommendation engine failed', e);
+    }
     }
 
     if (genreFilter) {

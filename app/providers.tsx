@@ -875,42 +875,114 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   // Persister l'état dans localStorage
   const savedTrackIdRef = useRef<string | null>(null);
+  const savedResumePositionRef = useRef<number>(0);
+  const savedShouldResumePlayRef = useRef<boolean>(false);
   useEffect(() => {
     const savedState = localStorage.getItem('audioPlayerState');
+    const savedLast = localStorage.getItem('synaura.lastTrack');
     if (savedState) {
       try {
         const parsed = JSON.parse(savedState);
-        savedTrackIdRef.current = typeof parsed?.currentTrackId === 'string' ? parsed.currentTrackId : null;
-        setAudioState(prev => ({ ...prev, ...parsed }));
+        const savedTracks = Array.isArray(parsed?.tracks) ? parsed.tracks.filter((track: any) => track?._id && track?.audioUrl).slice(0, 120) : [];
+        const currentTrackId = typeof parsed?.currentTrackId === 'string' ? parsed.currentTrackId : null;
+        savedTrackIdRef.current = currentTrackId;
+        savedResumePositionRef.current = Math.max(0, Number(parsed?.currentTime || parsed?.position || 0));
+        savedShouldResumePlayRef.current = Boolean(parsed?.isPlaying);
+        setAudioState(prev => ({
+          ...prev,
+          tracks: savedTracks.length ? savedTracks : prev.tracks,
+          currentTrackIndex: Number.isFinite(parsed?.currentTrackIndex) ? Math.max(0, Number(parsed.currentTrackIndex)) : prev.currentTrackIndex,
+          isPlaying: false,
+          showPlayer: Boolean(parsed?.showPlayer || currentTrackId),
+          isMinimized: parsed?.isMinimized ?? prev.isMinimized,
+          volume: Number.isFinite(parsed?.volume) ? Number(parsed.volume) : prev.volume,
+          shuffle: Boolean(parsed?.shuffle),
+          repeat: parsed?.repeat === 'one' || parsed?.repeat === 'all' ? parsed.repeat : 'none',
+          currentTime: savedResumePositionRef.current,
+          duration: Number.isFinite(parsed?.duration) ? Number(parsed.duration) : prev.duration,
+        }));
       } catch (error) {
         console.error('Erreur parsing audio state:', error);
       }
+    } else if (savedLast) {
+      try {
+        const parsed = JSON.parse(savedLast);
+        const track = parsed?.track;
+        if (track?._id && track?.audioUrl) {
+          savedTrackIdRef.current = track._id;
+          savedResumePositionRef.current = Math.max(0, Number(parsed?.position || 0));
+          setAudioState(prev => ({
+            ...prev,
+            tracks: [track],
+            currentTrackIndex: 0,
+            showPlayer: true,
+            isPlaying: false,
+            currentTime: savedResumePositionRef.current,
+          }));
+        }
+      } catch {}
     }
   }, []);
 
-  useEffect(() => {
+  const persistAudioSession = useCallback(() => {
     const currentTrack = audioState.tracks[audioState.currentTrackIndex] || null;
     const currentTrackId = currentTrack?._id || null;
-    localStorage.setItem('audioPlayerState', JSON.stringify({
-      currentTrackIndex: audioState.currentTrackIndex,
-      currentTrackId,
-      isPlaying: audioState.isPlaying,
-      showPlayer: audioState.showPlayer,
-      isMinimized: audioState.isMinimized,
-      volume: audioState.volume,
-      shuffle: audioState.shuffle,
-      repeat: audioState.repeat,
-    }));
-    if (currentTrack?._id) {
-      try {
+    const audioEl = ((audioService as any).audioElement ?? null) as HTMLAudioElement | null;
+    const position = audioEl && Number.isFinite(audioEl.currentTime)
+      ? audioEl.currentTime
+      : Number(audioState.currentTime || 0);
+    const duration = audioEl && Number.isFinite(audioEl.duration)
+      ? audioEl.duration
+      : Number(audioState.duration || currentTrack?.duration || 0);
+    const safeTracks = (audioState.tracks || [])
+      .filter((track) => track?._id && track?.audioUrl)
+      .slice(0, 120);
+
+    try {
+      localStorage.setItem('audioPlayerState', JSON.stringify({
+        tracks: safeTracks,
+        currentTrackIndex: audioState.currentTrackIndex,
+        currentTrackId,
+        currentTime: position,
+        duration,
+        isPlaying: audioState.isPlaying,
+        showPlayer: audioState.showPlayer || Boolean(currentTrackId),
+        isMinimized: audioState.isMinimized,
+        volume: audioState.volume,
+        shuffle: audioState.shuffle,
+        repeat: audioState.repeat,
+        savedAt: Date.now(),
+      }));
+      if (currentTrack?._id) {
         localStorage.setItem('synaura.lastTrack', JSON.stringify({
           track: currentTrack,
-          position: 0,
+          position,
+          duration,
+          queue: safeTracks,
+          currentTrackIndex: audioState.currentTrackIndex,
+          wasPlaying: audioState.isPlaying,
           timestamp: Date.now(),
         }));
-      } catch {}
-    }
-  }, [audioState.currentTrackIndex, audioState.isPlaying, audioState.showPlayer, audioState.isMinimized, audioState.volume, audioState.shuffle, audioState.repeat, audioState.tracks]);
+      }
+    } catch {}
+  }, [audioService, audioState]);
+
+  useEffect(() => {
+    persistAudioSession();
+  }, [persistAudioSession]);
+
+  useEffect(() => {
+    const onPageHide = () => persistAudioSession();
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') persistAudioSession();
+    };
+    window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [persistAudioSession]);
 
   // Persist playback position every 3s so "Écouter" can resume mid-track
   useEffect(() => {
@@ -919,17 +991,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       const currentTrack = audioState.tracks[audioState.currentTrackIndex];
       if (!currentTrack?._id) return;
       try {
-        const audioEl = ((audioService as any).audioElement ?? null) as HTMLAudioElement | null;
-        const position = audioEl && Number.isFinite(audioEl.currentTime) ? audioEl.currentTime : 0;
-        localStorage.setItem('synaura.lastTrack', JSON.stringify({
-          track: currentTrack,
-          position,
-          timestamp: Date.now(),
-        }));
+        persistAudioSession();
       } catch {}
     }, 3000);
     return () => clearInterval(interval);
-  }, [audioState.isPlaying, audioState.currentTrackIndex, audioState.tracks]);
+  }, [audioState.isPlaying, audioState.currentTrackIndex, audioState.tracks, persistAudioSession]);
 
   // Rehydration: si on a un currentTrackId sauvegardé, retrouver l'index quand les tracks sont dispo
   useEffect(() => {
@@ -955,6 +1021,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     // CRITICAL: if the audio service already has a currentTrack, never force-load a track from UI state.
     // This was interrupting auto-next (ended -> next starts -> provider rehydration loadTrack pauses it).
     if (audioService.state.currentTrack) {
+      const position = savedResumePositionRef.current;
+      if (position > 1) {
+        try { audioService.actions.seek(position); } catch {}
+      }
       hasRehydratedAudioRef.current = true;
       return;
     }
@@ -967,7 +1037,23 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
     hasRehydratedAudioRef.current = true;
-    audioService.actions.loadTrack(t).catch(() => {});
+    audioService.actions.loadTrack(t)
+      .then(() => {
+        const position = savedResumePositionRef.current;
+        if (position > 1 && (!t.duration || position < Math.max(1, t.duration - 4))) {
+          audioService.actions.seek(position);
+          setAudioTime(prev => ({ ...prev, currentTime: position }));
+          setAudioState(prev => ({ ...prev, currentTime: position, showPlayer: true, isPlaying: false }));
+        }
+        if (savedShouldResumePlayRef.current) {
+          window.setTimeout(() => {
+            audioService.actions.play().catch(() => {
+              setAudioState(prev => ({ ...prev, isPlaying: false, showPlayer: true }));
+            });
+          }, 180);
+        }
+      })
+      .catch(() => {});
   }, [
     audioState.showPlayer,
     audioState.tracks.length,

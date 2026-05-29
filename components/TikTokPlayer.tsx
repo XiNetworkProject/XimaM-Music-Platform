@@ -236,7 +236,7 @@ async function fetchFeedChunk(mode: FeedMode, cursor: number, seedGenre: string 
     cursor: String(Math.max(0, cursor)),
   });
 
-  if (mode === 'trending') {
+  if (mode === 'trending' || mode === 'boost') {
     params.set('strategy', 'trending');
   } else {
     params.set('strategy', 'reco');
@@ -254,7 +254,7 @@ async function fetchFeedChunk(mode: FeedMode, cursor: number, seedGenre: string 
   if (mode === 'boost') {
     merged = uniqueTracks([
       ...boostedTracks.slice(0, Math.min(boostedTracks.length, 6)),
-      ...injectBoosted(feedTracks, boostedTracks, 2),
+      ...injectBoosted(feedTracks, boostedTracks, 3),
     ]);
   } else if (mode === 'trending') {
     merged = injectBoosted(feedTracks, boostedTracks, 6);
@@ -2202,14 +2202,46 @@ function FeedScrollGuide({
 
 const LoadingScreen = memo(function LoadingScreen() {
   return (
-    <div className="fixed inset-0 z-[100] bg-black text-white grid place-items-center">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center gap-4">
-        <div className="relative w-16 h-16">
-          <div className="absolute inset-0 rounded-full border-2 border-white/10" />
-          <div className="absolute inset-0 rounded-full border-2 border-t-purple-400 border-r-transparent border-b-transparent border-l-transparent animate-spin" />
-          <Music2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-white/60" />
+    <div className="fixed inset-0 z-[100] grid place-items-center overflow-hidden bg-[#fff3e4] text-[#171313]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,111,97,0.28),transparent_30%),radial-gradient(circle_at_82%_22%,rgba(124,92,255,0.16),transparent_32%),radial-gradient(circle_at_50%_95%,rgba(0,194,203,0.14),transparent_34%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(23,19,19,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(23,19,19,0.04)_1px,transparent_1px)] bg-[size:38px_38px] opacity-55" />
+
+      <motion.div
+        initial={{ opacity: 0, y: 14, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.32, ease: 'easeOut' }}
+        className="relative flex w-[min(88vw,360px)] flex-col items-center rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/88 px-7 py-8 text-center shadow-[0_28px_90px_rgba(44,33,19,0.16)] backdrop-blur-2xl"
+      >
+        <motion.div
+          animate={{ y: [0, -4, 0], rotate: [0, -1.5, 1.5, 0] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+          className="relative grid h-24 w-24 place-items-center rounded-[1.8rem] bg-white shadow-[0_18px_54px_rgba(44,33,19,0.14)]"
+        >
+          <div className="absolute -inset-4 rounded-[2.2rem] bg-[radial-gradient(circle,rgba(255,111,97,0.22),transparent_62%)] blur-xl" />
+          <img
+            src="/brand/2026/synaura-symbol-2026.png"
+            alt="Synaura"
+            className="relative h-16 w-16 object-contain"
+            draggable={false}
+          />
+        </motion.div>
+
+        <div className="mt-6 flex h-9 items-end gap-1.5">
+          {[0, 1, 2, 3, 4].map((bar) => (
+            <motion.span
+              key={bar}
+              animate={{ height: ['34%', '100%', '48%', '82%', '34%'] }}
+              transition={{ duration: 0.9, repeat: Infinity, delay: bar * 0.09, ease: 'easeInOut' }}
+              className="w-2 rounded-full bg-[#171313]"
+            />
+          ))}
         </div>
-        <p className="text-sm text-white/50 font-medium">Chargement du feed…</p>
+
+        <p className="mt-5 text-[11px] font-black uppercase tracking-[0.24em] text-black/38">TikTok player</p>
+        <p className="mt-2 text-xl font-black tracking-tight">Préparation du feed</p>
+        <p className="mt-2 text-sm font-semibold leading-6 text-black/48">
+          On cale les sons, les transitions et la file pour un scroll propre.
+        </p>
       </motion.div>
     </div>
   );
@@ -2250,6 +2282,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
   /* ── Refs ── */
   const didBootRef = useRef(false);
+  const bootingRef = useRef(false);
   const suppressAutoplayRef = useRef(false);
   const lastGesturePlayAtRef = useRef(0);
   const prevQueueRef = useRef<{ tracks: any[]; currentTrackIndex: number } | null>(null);
@@ -2268,6 +2301,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const activeTrackId = trackId(activeTrack);
   const activeIsRadio = isRadioId(activeTrackId);
   const currentSeedGenre = seedGenre || topGenre(currentTrack as Track | null) || topGenre(activeTrack);
+  const feedSeedGenre = feedMode === 'reco' ? currentSeedGenre : null;
   const modeMeta = FEED_MODE_META[feedMode];
   const resolveCommentCount = (id: string, rawValue: unknown) =>
     id ? commentCountOverrides[id] ?? commentCounts[id] ?? countOf(rawValue) : 0;
@@ -2289,6 +2323,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
   /* ── Navigation handler ── */
   const playIndexFromGesture = useCallback(async (i: number, source: string) => {
+    if (bootingRef.current) return;
     const t = tracks[i];
     if (!t?._id) return;
     lastGesturePlayAtRef.current = Date.now();
@@ -2322,6 +2357,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
       }
       openedTrackIdRef.current = null;
       changedTrackRef.current = false;
+      bootingRef.current = false;
       feedLoadedRef.current = '';
       openSeedIdRef.current = null;
       lastViewedRef.current = null;
@@ -2345,6 +2381,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     }
     openedTrackIdRef.current = null;
     changedTrackRef.current = false;
+    bootingRef.current = false;
     feedLoadedRef.current = '';
     openSeedIdRef.current = null;
     lastViewedRef.current = null;
@@ -2407,12 +2444,13 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   /* ── Load feed ── */
   useEffect(() => {
     const seedId = openSeedIdRef.current || openedTrackIdRef.current || initialTrackId || '';
-    const loadKey = `${feedMode}:${currentSeedGenre || 'all'}:${seedId}`;
+    const loadKey = `${feedMode}:${feedSeedGenre || 'global'}:${feedMode === 'reco' ? seedId : 'all'}`;
     if (!isOpen || feedLoadedRef.current === loadKey) return;
     feedLoadedRef.current = loadKey;
     let mounted = true;
     const requestId = ++loadRequestRef.current;
     didBootRef.current = false;
+    bootingRef.current = true;
     setCommentsOpen(false);
     setShareOpen(false);
     setShowQueue(false);
@@ -2422,7 +2460,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
     (async () => {
       try {
-        const chunk = await fetchFeedChunk(feedMode, 0, currentSeedGenre);
+        const chunk = await fetchFeedChunk(feedMode, 0, feedSeedGenre);
         if (!mounted || requestId !== loadRequestRef.current) return;
 
         const merged: Track[] = insertRadioTracks(chunk.tracks, feedMode);
@@ -2435,16 +2473,20 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
         }
 
         const seedId = openSeedIdRef.current || openedTrackIdRef.current || prevId || trackId(merged[0]);
-        const idx = seedId ? merged.findIndex(t => trackId(t) === seedId) : 0;
-        const startIndex = Math.max(0, idx);
+        const seedIndex = seedId ? merged.findIndex(t => trackId(t) === seedId) : -1;
+        if (seedIndex > 0) {
+          const [seedTrack] = merged.splice(seedIndex, 1);
+          merged.unshift(seedTrack);
+        }
+        const startIndex = 0;
 
         setTracks(merged as any);
-        setCurrentTrackIndex(startIndex);
 
         const curr = audioState.tracks?.[audioState.currentTrackIndex];
-        const alreadyPlaying = Boolean(audioState.isPlaying && curr?._id === trackId(merged[startIndex]));
+        const alreadyPlaying = Boolean(audioState.isPlaying && trackId(curr) === trackId(merged[startIndex]));
         if (alreadyPlaying) setQueueOnly(merged as any, startIndex);
         else setQueueAndPlay(merged as any, startIndex);
+        setCurrentTrackIndex(startIndex);
 
         dispatch({
           type: 'LOAD_SUCCESS',
@@ -2456,18 +2498,25 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
         requestAnimationFrame(() => {
           scrollSnap.scrollTo(startIndex, 'auto');
-          suppressAutoplayRef.current = false;
+          requestAnimationFrame(() => scrollSnap.scrollTo(startIndex, 'auto'));
+          window.setTimeout(() => {
+            if (requestId === loadRequestRef.current) {
+              bootingRef.current = false;
+              suppressAutoplayRef.current = false;
+            }
+          }, 260);
         });
       } catch {
         if (mounted && requestId === loadRequestRef.current) {
           dispatch({ type: 'LOAD_FAIL' });
+          bootingRef.current = false;
           suppressAutoplayRef.current = false;
         }
       }
     })();
     return () => { mounted = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, feedMode, currentSeedGenre, initialTrackId]);
+  }, [isOpen, feedMode, feedSeedGenre, initialTrackId]);
 
   /* ── Boot sync — instant scroll ── */
   useEffect(() => {
@@ -2478,7 +2527,10 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     if (idx >= 0) {
       didBootRef.current = true;
       dispatch({ type: 'SET_INDEX', index: idx });
-      scrollSnap.scrollTo(idx, 'auto');
+      requestAnimationFrame(() => {
+        scrollSnap.scrollTo(idx, 'auto');
+        requestAnimationFrame(() => scrollSnap.scrollTo(idx, 'auto'));
+      });
     }
   }, [isOpen, tracks, scrollSnap]);
 
@@ -2491,7 +2543,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
   /* ── Auto-play on index change ── */
   useEffect(() => {
-    if (!isOpen || suppressAutoplayRef.current) return;
+    if (!isOpen || suppressAutoplayRef.current || bootingRef.current) return;
     if (Date.now() - lastGesturePlayAtRef.current < GESTURE_COOLDOWN_MS) return;
     const t = tracks[activeIndex];
     if (!t?._id || currentId === t._id) return;
@@ -2513,7 +2565,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
     (async () => {
       try {
-        const chunk = await fetchFeedChunk(feedMode, feed.cursor, currentSeedGenre);
+        const chunk = await fetchFeedChunk(feedMode, feed.cursor, feedSeedGenre);
         const withBoosted = chunk.tracks;
 
         dispatch({
@@ -2529,11 +2581,11 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeIndex, isOpen, feed.cursor, feed.hasMore, feed.loadingMore, feedMode, currentSeedGenre, tracks]);
+  }, [activeIndex, isOpen, feed.cursor, feed.hasMore, feed.loadingMore, feedMode, feedSeedGenre, tracks]);
 
   /* ── Sync external track change → scroll ── */
   useEffect(() => {
-    if (!isOpen || !tracks.length || modalsOpen) return;
+    if (!isOpen || !tracks.length || modalsOpen || bootingRef.current) return;
     if (scrollSnap.isTouchingRef.current) return;
     if (Date.now() - scrollSnap.lastScrollAt.current < SCROLL_GUARD_MS) return;
     const idx = audioState.currentTrackIndex;

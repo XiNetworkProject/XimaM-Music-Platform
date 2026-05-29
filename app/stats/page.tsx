@@ -343,6 +343,134 @@ function DataQualityNotice({ overview, series }: { overview: OverviewData | null
   );
 }
 
+function StatsTips({
+  overview,
+  posts,
+  trackSeries,
+  selectedTrack,
+}: {
+  overview: OverviewData | null;
+  posts: PostStats | null;
+  trackSeries: TrackPoint[];
+  selectedTrack: string;
+}) {
+  const tips = useMemo(() => {
+    const out: Array<{ title: string; text: string; tone: 'dark' | 'coral' | 'soft'; icon: any }> = [];
+    const last7Plays = trackSeries.slice(-7).reduce((acc, point) => acc + (point.plays || 0), 0);
+    const previous7Plays = trackSeries.slice(-14, -7).reduce((acc, point) => acc + (point.plays || 0), 0);
+    const postEngagement = posts?.engagement || 0;
+
+    if (overview?.avgRetentionEstimated) {
+      out.push({
+        title: 'Rétention à fiabiliser',
+        text: 'Lance quelques écoutes complètes sur tes sons récents pour remplir les événements de progression. Sans ça, Synaura évite d’inventer un pourcentage.',
+        tone: 'coral',
+        icon: AlertTriangle,
+      });
+    } else if ((overview?.avgRetention || 0) < 45) {
+      out.push({
+        title: 'Intro à retravailler',
+        text: 'La rétention est basse. Teste un début plus direct sur les 10 premières secondes ou une version plus courte.',
+        tone: 'coral',
+        icon: Headphones,
+      });
+    } else {
+      out.push({
+        title: 'Garde ce format',
+        text: 'Ta rétention est exploitable. Regarde les jours forts et republie autour des sons qui tiennent le mieux.',
+        tone: 'dark',
+        icon: CheckCircle,
+      });
+    }
+
+    if ((posts?.postsInRange || 0) === 0) {
+      out.push({
+        title: 'Relance avec un post',
+        text: 'Aucun post sur la période. Partage un extrait, une histoire ou le contexte du son qui marche le mieux.',
+        tone: 'soft',
+        icon: PenLine,
+      });
+    } else if (postEngagement < 1) {
+      out.push({
+        title: 'Posts plus conversationnels',
+        text: 'Tes posts existent mais déclenchent peu de réponses. Termine par une question simple ou demande un avis précis.',
+        tone: 'soft',
+        icon: MessageCircle,
+      });
+    } else {
+      out.push({
+        title: 'Amplifie les posts actifs',
+        text: 'Les posts réagissent. Reposte le meilleur son avec un angle différent et renvoie vers ton profil.',
+        tone: 'dark',
+        icon: Share2,
+      });
+    }
+
+    if (last7Plays > previous7Plays && last7Plays > 0) {
+      out.push({
+        title: 'Momentum détecté',
+        text: 'Les 7 derniers jours montent. Publie une suite ou booste le son maintenant plutôt que d’attendre.',
+        tone: 'dark',
+        icon: TrendingUp,
+      });
+    } else if (last7Plays > 0) {
+      out.push({
+        title: 'Teste un autre créneau',
+        text: 'Le rythme est stable ou plus calme. Utilise la heatmap pour poster aux heures où ton audience réagit.',
+        tone: 'soft',
+        icon: CalendarDays,
+      });
+    }
+
+    if (selectedTrack === 'all') {
+      out.push({
+        title: 'Sélectionne un son',
+        text: 'Choisis un morceau précis pour voir le funnel et comparer deux titres. C’est là qu’on repère vraiment les décrochages.',
+        tone: 'soft',
+        icon: BarChart3,
+      });
+    }
+
+    return out.slice(0, 4);
+  }, [overview, posts, selectedTrack, trackSeries]);
+
+  const tones = {
+    dark: 'bg-[#171313] text-[#fffaf2] border-transparent',
+    coral: 'bg-[#fff1e8] text-[#171313] border-[#ff6f61]/22',
+    soft: 'bg-[#fffaf2]/82 text-[#171313] border-black/[0.08]',
+  };
+
+  return (
+    <SynauraPanel className="p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Tips</p>
+          <h3 className="mt-1 text-xl font-black">À faire maintenant</h3>
+        </div>
+        <Sparkles className="h-5 w-5 text-black/30" />
+      </div>
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        {tips.map((tip) => {
+          const Icon = tip.icon;
+          return (
+            <div key={tip.title} className={`rounded-[1.25rem] border p-4 ${tones[tip.tone]}`}>
+              <div className="flex items-start gap-3">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/18">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-black">{tip.title}</p>
+                  <p className="mt-1 text-xs font-semibold leading-5 opacity-62">{tip.text}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </SynauraPanel>
+  );
+}
+
 function DailyBreakdown({ trackSeries, postSeries, metric }: { trackSeries: TrackPoint[]; postSeries: PostPoint[]; metric: MetricKey }) {
   const rows = trackSeries.map((point, index) => ({ track: point, post: postSeries[index] || { date: point.date, posts: 0, likes: 0, comments: 0 } })).slice(-14).reverse();
   return (
@@ -816,6 +944,10 @@ export default function StatsPage() {
           onCompareTrack={setCompareTrack}
         />
         <DataQualityNotice overview={overview} series={trackSeries} />
+      </div>
+
+      <div className="mb-4">
+        <StatsTips overview={overview} posts={posts} trackSeries={trackSeries} selectedTrack={selectedTrack} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.5fr_0.8fr]">
