@@ -1,6 +1,6 @@
 // Service Worker pour XimaM Music Platform
-const CACHE_NAME = 'ximam-audio-v5';
-const AUDIO_CACHE_NAME = 'ximam-audio-files-v5';
+const CACHE_NAME = 'ximam-audio-v6';
+const AUDIO_CACHE_NAME = 'ximam-audio-files-v6';
 const NOTIFICATION_TAG = 'ximam-music-player';
 
 // Fonction helper pour vérifier si une requête peut être mise en cache
@@ -295,6 +295,13 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/api/auth') ||
     url.pathname.startsWith('/api/upload')
   ) {
+    return;
+  }
+
+  // Les APIs doivent rester fraîches. Sinon le feed, les détails de sons et les
+  // nouvelles musiques peuvent rester bloqués jusqu'à vidage manuel du cache.
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(fetch(event.request, { cache: 'no-store' }));
     return;
   }
   

@@ -38,6 +38,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     '/playlists',
     '/album',
     '/settings',
+    '/stats',
     '/search',
     '/notifications',
     '/join',

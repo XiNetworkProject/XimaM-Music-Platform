@@ -6,7 +6,17 @@ import { supabaseAdmin } from '@/lib/supabase';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-type Point = { date: string; plays: number; uniques: number; likes: number };
+type Point = {
+  date: string;
+  plays: number;
+  uniques: number;
+  likes: number;
+  starts: number;
+  completes: number;
+  retention: number | null;
+  listenMs: number;
+  dataQuality: 'real' | 'insufficient';
+};
 
 function startFromRange(range: string | null): Date {
   const d = new Date();
@@ -112,6 +122,11 @@ export async function GET(request: NextRequest) {
         plays: counts.get(k) || 0,
         uniques: uniqueSets.get(k)?.size || 0,
         likes: 0,
+        starts: 0,
+        completes: 0,
+        retention: null,
+        listenMs: 0,
+        dataQuality: 'insufficient',
       });
       cursor.setDate(cursor.getDate() + 1);
     }
@@ -136,6 +151,38 @@ export async function GET(request: NextRequest) {
       }
     } catch (e) { console.error('timeseries: likes error:', e); }
 
+    /* ── Playback events: real retention and listening time ── */
+    try {
+      const { data: eventRows } = await supabaseAdmin
+        .from('track_events')
+        .select('created_at, event_type, duration_ms')
+        .in('track_id', trackIds)
+        .in('event_type', ['play_start', 'play_complete'])
+        .gte('created_at', startDate.toISOString())
+        .limit(100000);
+
+      if (eventRows) {
+        const byDate = new Map(series.map((point) => [point.date, point]));
+        for (const row of eventRows) {
+          if (!row.created_at) continue;
+          const key = fmtDate(new Date(row.created_at));
+          const point = byDate.get(key);
+          if (!point) continue;
+          if (row.event_type === 'play_start') point.starts += 1;
+          if (row.event_type === 'play_complete') {
+            point.completes += 1;
+            point.listenMs += Number(row.duration_ms) || 0;
+          }
+        }
+        for (const point of series) {
+          if (point.starts > 0) {
+            point.retention = Math.round((point.completes / point.starts) * 1000) / 10;
+            point.dataQuality = 'real';
+          }
+        }
+      }
+    } catch (e) { console.error('timeseries: events error:', e); }
+
     return NextResponse.json(series);
   } catch (e) {
     console.error('timeseries error:', e);
@@ -147,7 +194,17 @@ function buildEmptySeries(start: Date, end: Date): Point[] {
   const out: Point[] = [];
   const c = new Date(start);
   while (c <= end) {
-    out.push({ date: fmtDate(c), plays: 0, uniques: 0, likes: 0 });
+    out.push({
+      date: fmtDate(c),
+      plays: 0,
+      uniques: 0,
+      likes: 0,
+      starts: 0,
+      completes: 0,
+      retention: null,
+      listenMs: 0,
+      dataQuality: 'insufficient',
+    });
     c.setDate(c.getDate() + 1);
   }
   return out;

@@ -212,12 +212,12 @@ export function useAppPreload() {
 
       // Phase 2: Données pour navigation et autres pages (en parallèle)
       const [forYouRes, recommendedRes, followingRes, discoverRes, usersRes, genresRes] = await Promise.allSettled([
-        fetch('/api/ranking/feed?limit=30&ai=1', { headers: { 'Cache-Control': 'max-age=300' } }).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch('/api/tracks/recommended?limit=20', { headers: { 'Cache-Control': 'max-age=300' } }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/ranking/feed?limit=60&ai=1', { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/tracks/recommended?limit=20', { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null),
         session?.user?.id 
-          ? fetch('/api/tracks/following?limit=20', { headers: { 'Cache-Control': 'max-age=300' } }).then(r => r.ok ? r.json() : null).catch(() => null)
+          ? fetch('/api/tracks/following?limit=20', { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null)
           : Promise.resolve(null),
-        fetch('/api/tracks?limit=50', { headers: { 'Cache-Control': 'max-age=300' } }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch('/api/tracks?limit=80', { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null),
         fetch('/api/users/popular?limit=20', { headers: { 'Cache-Control': 'max-age=300' } }).then(r => r.ok ? r.json() : null).catch(() => null),
         fetch('/api/genres', { headers: { 'Cache-Control': 'max-age=600' } }).then(r => r.ok ? r.json() : null).catch(() => null),
       ]);

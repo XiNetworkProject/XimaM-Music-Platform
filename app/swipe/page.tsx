@@ -87,7 +87,7 @@ export default function SwipePage() {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch("/api/ranking/feed?limit=60&ai=1", { cache: "no-store" });
+        const res = await fetch("/api/ranking/feed?limit=140&ai=1", { cache: "no-store" });
         if (!res.ok) throw new Error("Chargement impossible");
         const json = await res.json();
         const list = applyCdnToTracks((Array.isArray(json?.tracks) ? json.tracks : []) as any) as Track[];

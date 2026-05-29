@@ -43,122 +43,100 @@ export default function DownloadDialog({
 
   return (
     <UModal open={isOpen} onClose={handleClose} zClass="z-[200]" size="md" showClose={false}>
-      <UModalBody>
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500">
-              <Download size={20} className="text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-white">Téléchargement</h2>
-              <p className="text-sm text-white/70">Conditions d'utilisation</p>
-            </div>
+      <UModalBody className="!bg-[#fffaf2] !text-[#171313]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-black/38">Télécharger ce son</p>
+            <h2 className="mt-2 text-2xl font-black tracking-tight">Garder une copie</h2>
+            <p className="mt-2 text-sm font-semibold leading-6 text-black/52">
+              Le fichier reste lié aux droits de l’artiste. Valide simplement les deux points avant de lancer le téléchargement.
+            </p>
           </div>
-          <UButton variant="ghost" size="icon" onClick={handleClose} disabled={isDownloading}>
-            <X size={20} />
-          </UButton>
-        </div>
-
-        {/* Track Info */}
-        <div className="mb-6 p-4 bg-white/5 rounded-xl border border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-              <FileText size={16} className="text-purple-400" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-white">{trackTitle}</h3>
-              <p className="text-sm text-white/70">par {artistName}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Terms */}
-        <div className="space-y-4 mb-6">
-          <div className="flex items-start gap-3">
-            <div className="p-1 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 mt-0.5">
-              <Shield size={16} className="text-blue-400" />
-            </div>
-            <div className="flex-1">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={acceptedTerms}
-                  onChange={(e) => setAcceptedTerms(e.target.checked)}
-                  disabled={isDownloading}
-                  className="mt-1 w-4 h-4 rounded border-white/30 bg-white/10 text-purple-500 focus:ring-purple-500 focus:ring-2 disabled:opacity-50"
-                />
-                <div className="text-sm text-white/90">
-                  <span className="font-medium">Conditions d'utilisation</span>
-                  <p className="text-white/70 mt-1">
-                    J'accepte d'utiliser cette musique uniquement à des fins personnelles et non commerciales. 
-                    Je ne redistribuerai pas ce fichier sans autorisation.
-                  </p>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <div className="p-1 rounded-lg bg-gradient-to-br from-orange-500/20 to-red-500/20 mt-0.5">
-              <Copyright size={16} className="text-orange-400" />
-            </div>
-            <div className="flex-1">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={acceptedCopyright}
-                  onChange={(e) => setAcceptedCopyright(e.target.checked)}
-                  disabled={isDownloading}
-                  className="mt-1 w-4 h-4 rounded border-white/30 bg-white/10 text-purple-500 focus:ring-purple-500 focus:ring-2 disabled:opacity-50"
-                />
-                <div className="text-sm text-white/90">
-                  <span className="font-medium">Respect du droit d'auteur</span>
-                  <p className="text-white/70 mt-1">
-                    Je reconnais que cette œuvre est protégée par le droit d'auteur et m'engage à respecter 
-                    les droits de l'artiste et de Synaura.
-                  </p>
-                </div>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Warning */}
-        <div className="mb-6 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-          <div className="flex items-start gap-2">
-            <AlertTriangle size={16} className="text-yellow-400 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-yellow-200">
-              <p className="font-medium">Important</p>
-              <p className="text-yellow-300/80 mt-1">
-                Le téléchargement est réservé aux abonnés Pro et Enterprise. 
-                Toute utilisation commerciale nécessite une autorisation préalable.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3">
-          <UButton
-            variant="secondary"
-            size="lg"
-            fullWidth
+          <button
+            type="button"
             onClick={handleClose}
             disabled={isDownloading}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-black/[0.06] text-black/56 transition hover:bg-black/[0.1]"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="mt-5 rounded-[1.4rem] border border-black/[0.08] bg-white p-4 shadow-[0_16px_44px_rgba(44,33,19,0.08)]">
+          <div className="flex items-center gap-3">
+            <div className="grid h-12 w-12 place-items-center rounded-[1rem] bg-[#171313] text-white">
+              <Download size={18} />
+            </div>
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-black">{trackTitle}</h3>
+              <p className="truncate text-sm font-bold text-black/46">{artistName}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          <label className="flex cursor-pointer gap-3 rounded-[1.25rem] border border-black/[0.08] bg-white/80 p-4 transition hover:bg-white">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              disabled={isDownloading}
+              className="mt-1 h-4 w-4 rounded border-black/20 text-[#171313] focus:ring-[#171313]"
+            />
+            <span className="min-w-0">
+              <span className="flex items-center gap-2 text-sm font-black">
+                <Shield size={15} />
+                Usage personnel
+              </span>
+              <span className="mt-1 block text-sm leading-6 text-black/52">
+                Je n’utilise pas ce fichier pour une redistribution ou un usage commercial sans autorisation.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex cursor-pointer gap-3 rounded-[1.25rem] border border-black/[0.08] bg-white/80 p-4 transition hover:bg-white">
+            <input
+              type="checkbox"
+              checked={acceptedCopyright}
+              onChange={(e) => setAcceptedCopyright(e.target.checked)}
+              disabled={isDownloading}
+              className="mt-1 h-4 w-4 rounded border-black/20 text-[#171313] focus:ring-[#171313]"
+            />
+            <span className="min-w-0">
+              <span className="flex items-center gap-2 text-sm font-black">
+                <Copyright size={15} />
+                Droits respectés
+              </span>
+              <span className="mt-1 block text-sm leading-6 text-black/52">
+                Je respecte les droits de l’artiste et les règles de Synaura.
+              </span>
+            </span>
+          </label>
+        </div>
+
+        <div className="mt-5 flex items-start gap-2 rounded-[1.2rem] border border-[#ffb84d]/30 bg-[#fff1d6] p-3 text-sm text-[#6b4212]">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <p className="leading-6">Le téléchargement dépend de ton abonnement et des droits du morceau.</p>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isDownloading}
+            className="h-12 rounded-full border border-black/[0.08] bg-white text-sm font-black text-black/58 transition hover:bg-black/[0.04]"
           >
             Annuler
-          </UButton>
-          <UButton
-            variant="primary"
-            size="lg"
-            fullWidth
+          </button>
+          <button
+            type="button"
             onClick={handleConfirm}
             disabled={!acceptedTerms || !acceptedCopyright || isDownloading}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#171313] text-sm font-black text-white transition hover:opacity-92 disabled:opacity-45"
           >
             {isDownloading ? (
               <>
-                <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                 Téléchargement...
               </>
             ) : (
@@ -167,7 +145,7 @@ export default function DownloadDialog({
                 Télécharger
               </>
             )}
-          </UButton>
+          </button>
         </div>
       </UModalBody>
     </UModal>

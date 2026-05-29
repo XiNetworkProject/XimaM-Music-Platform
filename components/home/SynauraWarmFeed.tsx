@@ -189,7 +189,7 @@ const HomeFeedActionsContext = React.createContext<HomeFeedActions | null>(null)
 
 const FILTERS = ['Pour toi', 'Sons', 'Posts', 'Playlists', 'Createurs', 'Radio'];
 const TINTS = ['#8B5CF6', '#38BDF8', '#FB7185', '#F59E0B', '#14B8A6', '#EF4444'];
-const MUSIC_BATCH_SIZE = 6;
+const MUSIC_BATCH_SIZE = 18;
 const POST_BATCH_SIZE = 4;
 
 function formatCompact(value: number | string | null | undefined) {
@@ -505,6 +505,56 @@ function recordTrackShare(track: Track | undefined, source: string) {
   } catch {}
 }
 
+function getRecommendationSessionId() {
+  try {
+    const key = 'synaura_reco_session_id';
+    const existing = localStorage.getItem(key);
+    if (existing) return existing;
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(key, id);
+    return id;
+  } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+}
+
+function feedItemImpression(item: FeedItem, rank: number) {
+  if (item.kind === 'track') {
+    return {
+      contentType: 'track',
+      contentId: item.track.id,
+      source: 'home',
+      rank,
+      score: Number((item.track.playerTrack as any)?.recommendationScore || 0),
+      reasons: (item.track.playerTrack as any)?.recommendationReasons || [],
+    };
+  }
+  if (item.kind === 'post') {
+    return {
+      contentType: 'post',
+      contentId: item.id,
+      source: 'home',
+      rank,
+      score: Number((item.entity as any)?.recommendationScore || 0),
+      reasons: (item.entity as any)?.recommendationReasons || [],
+    };
+  }
+  return null;
+}
+
+function sendRecommendationImpressions(impressions: Array<ReturnType<typeof feedItemImpression>>) {
+  const valid = impressions.filter(Boolean);
+  if (!valid.length) return;
+  try {
+    void fetch('/api/recommendations/impressions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: getRecommendationSessionId(), impressions: valid }),
+      keepalive: true,
+    });
+  } catch {}
+}
+
 function normalizeSearchArtist(raw: any) {
   const id = String(raw?._id || raw?.id || '');
   if (!id) return null;
@@ -740,6 +790,21 @@ function buildTrackFeedItem(track: Track, index: number, strategyLabel: string) 
 
 function buildInfiniteMusicItems(tracks: Track[], strategyLabel: string, offset: number) {
   return tracks.map((track, index) => buildTrackFeedItem(track, offset + index, strategyLabel));
+}
+
+function normalizeUnifiedFeedItems(rawItems: any[], offset: number) {
+  const items: FeedItem[] = [];
+  rawItems.forEach((item, index) => {
+    if (item?.type === 'track' && item.track) {
+      const track = normalizeTrack(item.track);
+      if (track) items.push(buildTrackFeedItem(track, offset + index, 'reco'));
+    }
+    if (item?.type === 'post' && item.post) {
+      const post = normalizePost(item.post);
+      if (post) items.push(post);
+    }
+  });
+  return items;
 }
 
 function buildRadioTrack({
@@ -2337,23 +2402,34 @@ function LibraryCard({ item }: { item: Extract<FeedItem, { kind: 'library' }> })
 
 function FeedRenderer({
   item,
+  rank,
   onPostCreated,
   onPostDeleted,
 }: {
   item: FeedItem;
+  rank: number;
   onPostCreated: (post: PostItem) => void;
   onPostDeleted: (postId: string) => void;
 }) {
-  if (item.kind === 'composer') return <ComposerCard onPostCreated={onPostCreated} />;
-  if (item.kind === 'post') return <PostCard item={item} onDeleted={onPostDeleted} />;
-  if (item.kind === 'track') return <TrackFeedCard item={item} />;
-  if (item.kind === 'rail') return <RailCard item={item} />;
-  if (item.kind === 'playlist') return <PlaylistCard item={item} />;
-  if (item.kind === 'creator') return <CreatorRailCard item={item} />;
-  if (item.kind === 'radio') return <RadioFeedCard item={item} />;
-  if (item.kind === 'studio') return <StudioCard item={item} />;
-  if (item.kind === 'booster') return <BoosterCard item={item} />;
-  return <LibraryCard item={item} />;
+  const impression = feedItemImpression(item, rank);
+  const body =
+    item.kind === 'composer' ? <ComposerCard onPostCreated={onPostCreated} /> :
+    item.kind === 'post' ? <PostCard item={item} onDeleted={onPostDeleted} /> :
+    item.kind === 'track' ? <TrackFeedCard item={item} /> :
+    item.kind === 'rail' ? <RailCard item={item} /> :
+    item.kind === 'playlist' ? <PlaylistCard item={item} /> :
+    item.kind === 'creator' ? <CreatorRailCard item={item} /> :
+    item.kind === 'radio' ? <RadioFeedCard item={item} /> :
+    item.kind === 'studio' ? <StudioCard item={item} /> :
+    item.kind === 'booster' ? <BoosterCard item={item} /> :
+    <LibraryCard item={item} />;
+
+  if (!impression) return body;
+  return (
+    <div data-reco-impression="1" data-reco-key={`${impression.contentType}:${impression.contentId}`}>
+      {body}
+    </div>
+  );
 }
 
 function RightColumn({
@@ -2510,6 +2586,7 @@ export default function SynauraWarmFeed() {
   const [loadingMoreFeed, setLoadingMoreFeed] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const seenTrackIdsRef = useRef<Set<string>>(new Set());
+  const impressionSeenRef = useRef<Set<string>>(new Set());
 
   const refreshRadio = useCallback(async () => {
     const [mixx, ximam] = await Promise.all([
@@ -2564,30 +2641,28 @@ export default function SynauraWarmFeed() {
     setLoading(true);
 
     const [
-      forYouJson,
+      feedJson,
       trendingJson,
       recentJson,
       boostedJson,
       playlistsJson,
       artistsJson,
-      postsJson,
       libraryPlaylistsJson,
       libraryFavoritesJson,
       libraryRecentJson,
     ] = await Promise.all([
-      fetchJson('/api/ranking/feed?limit=18&ai=1&strategy=reco'),
+      fetchJson('/api/recommendations/feed?limit=24'),
       fetchJson('/api/tracks/trending?limit=18'),
       fetchJson('/api/tracks/recent?limit=18'),
       fetchJson('/api/tracks/boosted?limit=8'),
       fetchJson('/api/playlists/popular?limit=8'),
       fetchJson('/api/artists?sort=trending&limit=8'),
-      fetchJson('/api/posts?limit=4'),
       userId ? fetchJson(`/api/playlists?user=${encodeURIComponent(userId)}`) : Promise.resolve(null),
       userId ? fetchJson('/api/tracks?liked=true&limit=60') : Promise.resolve(null),
       userId ? fetchJson('/api/tracks?recent=true&limit=40') : Promise.resolve(null),
     ]);
 
-    const forYou = uniqueTracks((Array.isArray(forYouJson?.tracks) ? forYouJson.tracks : []).map(normalizeTrack));
+    const forYou = uniqueTracks((Array.isArray(feedJson?.tracks) ? feedJson.tracks : []).map(normalizeTrack));
     const trending = uniqueTracks((Array.isArray(trendingJson?.tracks) ? trendingJson.tracks : []).map(normalizeTrack));
     const recent = uniqueTracks((Array.isArray(recentJson?.tracks) ? recentJson.tracks : []).map(normalizeTrack));
     const boosted = uniqueTracks((Array.isArray(boostedJson?.tracks) ? boostedJson.tracks : []).map(normalizeTrack));
@@ -2604,7 +2679,7 @@ export default function SynauraWarmFeed() {
       .map(normalizeCreator)
       .filter((creator: Creator | null): creator is Creator => Boolean(creator));
 
-    const nextPosts = (Array.isArray(postsJson?.posts) ? postsJson.posts : [])
+    const nextPosts = (Array.isArray(feedJson?.posts) ? feedJson.posts : [])
       .map(normalizePost)
       .filter((post: PostItem | null): post is PostItem => Boolean(post));
 
@@ -2615,11 +2690,11 @@ export default function SynauraWarmFeed() {
     setPlaylists(nextPlaylists);
     setCreators(nextCreators);
     setPosts(nextPosts);
-    setPostCursor(typeof postsJson?.nextCursor === 'string' ? postsJson.nextCursor : null);
-    setHasMorePosts(Boolean(postsJson?.hasMore));
+    setPostCursor(typeof feedJson?.nextCursor === 'string' ? feedJson.nextCursor : null);
+    setHasMorePosts(Boolean(feedJson?.hasMore));
     setMusicStrategy('reco');
-    setMusicCursor(typeof forYouJson?.nextCursor === 'number' ? forYouJson.nextCursor : forYou.length);
-    setHasMoreMusic(true);
+    setMusicCursor(typeof feedJson?.nextCursor === 'string' ? Number(feedJson.nextCursor) || forYou.length : forYou.length);
+    setHasMoreMusic(Boolean(feedJson?.hasMore));
     setExtraFeedItems([]);
     setLoadingMoreFeed(false);
     seenTrackIdsRef.current = new Set(
@@ -2670,25 +2745,43 @@ export default function SynauraWarmFeed() {
 
     try {
       let nextItems: FeedItem[] = [];
+      let nextPosts: PostItem[] = [];
+      let nextMusicItems: FeedItem[] = [];
+
+      if (filter === 'Pour toi') {
+        const feedUrl = postCursor
+          ? `/api/recommendations/feed?limit=${MUSIC_BATCH_SIZE + POST_BATCH_SIZE}&cursor=${encodeURIComponent(postCursor)}`
+          : `/api/recommendations/feed?limit=${MUSIC_BATCH_SIZE + POST_BATCH_SIZE}`;
+        const feedJson = await fetchJson(feedUrl);
+        nextItems = normalizeUnifiedFeedItems(Array.isArray(feedJson?.items) ? feedJson.items : [], seenTrackIdsRef.current.size);
+        setPostCursor(typeof feedJson?.nextCursor === 'string' ? feedJson.nextCursor : null);
+        setMusicCursor(typeof feedJson?.nextCursor === 'string' ? Number(feedJson.nextCursor) || musicCursor : musicCursor);
+        setHasMorePosts(Boolean(feedJson?.hasMore));
+        setHasMoreMusic(Boolean(feedJson?.hasMore));
+
+        nextItems.forEach((item) => {
+          if (item.kind === 'track') seenTrackIdsRef.current.add(item.track.id);
+        });
+        if (nextItems.length) {
+          setExtraFeedItems((current) => [...current, ...nextItems]);
+        }
+        return;
+      }
 
       if (canLoadPosts) {
         const postsUrl = postCursor
-          ? `/api/posts?limit=${POST_BATCH_SIZE}&cursor=${encodeURIComponent(postCursor)}`
-          : `/api/posts?limit=${POST_BATCH_SIZE}`;
+          ? `/api/recommendations/mixed?limit=${POST_BATCH_SIZE}&cursor=${encodeURIComponent(postCursor)}`
+          : `/api/recommendations/mixed?limit=${POST_BATCH_SIZE}`;
         const postsJson = await fetchJson(postsUrl);
-        const nextPosts = (Array.isArray(postsJson?.posts) ? postsJson.posts : [])
+        nextPosts = (Array.isArray(postsJson?.posts) ? postsJson.posts : [])
           .map(normalizePost)
           .filter((post: PostItem | null): post is PostItem => Boolean(post));
 
         setPostCursor(typeof postsJson?.nextCursor === 'string' ? postsJson.nextCursor : null);
         setHasMorePosts(Boolean(postsJson?.hasMore));
-
-        if (nextPosts.length) {
-          nextItems = nextPosts;
-        }
       }
 
-      if (!nextItems.length && canLoadMusic) {
+      if (canLoadMusic) {
         const activeStrategy = musicStrategy;
         const musicJson = await fetchJson(
           `/api/ranking/feed?limit=${MUSIC_BATCH_SIZE}&ai=1&strategy=${activeStrategy}&cursor=${musicCursor}`,
@@ -2717,7 +2810,19 @@ export default function SynauraWarmFeed() {
         }
 
         if (uniqueNewTracks.length) {
-          nextItems = buildInfiniteMusicItems(uniqueNewTracks, activeStrategy, musicOffset);
+          nextMusicItems = buildInfiniteMusicItems(uniqueNewTracks, activeStrategy, musicOffset);
+        }
+      }
+
+      if (filter === 'Posts') {
+        nextItems = nextPosts;
+      } else if (filter === 'Sons') {
+        nextItems = nextMusicItems;
+      } else {
+        const max = Math.max(nextPosts.length, nextMusicItems.length);
+        for (let i = 0; i < max; i++) {
+          if (nextMusicItems[i]) nextItems.push(nextMusicItems[i]);
+          if (nextPosts[i]) nextItems.push(nextPosts[i]);
         }
       }
 
@@ -2805,6 +2910,36 @@ export default function SynauraWarmFeed() {
     return () => observer.disconnect();
   }, [canLoadMoreFeed, loadMoreFeed, visibleItems.length]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined' || !visibleItems.length) return;
+    const nodes = Array.from(document.querySelectorAll<HTMLElement>('[data-reco-impression="1"]'));
+    if (!nodes.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const impressions: Array<ReturnType<typeof feedItemImpression>> = [];
+        for (const entry of entries) {
+          if (!entry.isIntersecting || entry.intersectionRatio < 0.55) continue;
+          const key = (entry.target as HTMLElement).dataset.recoKey || '';
+          if (!key || impressionSeenRef.current.has(key)) continue;
+          impressionSeenRef.current.add(key);
+          const [type, ...idParts] = key.split(':');
+          const id = idParts.join(':');
+          const rank = visibleItems.findIndex((item) => {
+            const impression = feedItemImpression(item, 0);
+            return impression?.contentType === type && impression.contentId === id;
+          });
+          if (rank >= 0) impressions.push(feedItemImpression(visibleItems[rank], rank));
+        }
+        sendRecommendationImpressions(impressions);
+      },
+      { threshold: [0.55], rootMargin: '0px 0px -12% 0px' },
+    );
+
+    nodes.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, [visibleItems]);
+
   return (
     <HomeFeedActionsContext.Provider value={homeFeedActions}>
       <AppShell>
@@ -2858,8 +2993,8 @@ export default function SynauraWarmFeed() {
 
           {visibleItems.length ? (
             <div className="space-y-4">
-              {visibleItems.map((item) => (
-                <FeedRenderer key={item.id} item={item} onPostCreated={handlePostCreated} onPostDeleted={handlePostDeleted} />
+              {visibleItems.map((item, index) => (
+                <FeedRenderer key={item.id} item={item} rank={index} onPostCreated={handlePostCreated} onPostDeleted={handlePostDeleted} />
               ))}
             </div>
           ) : null}

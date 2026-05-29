@@ -94,7 +94,7 @@ type FeedMode = 'reco' | 'trending' | 'boost';
    CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
 
-const FEED_LIMIT = 50;
+const FEED_LIMIT = 120;
 const BOOSTED_LIMIT = 10;
 const BOOSTED_INTERVAL = 5;
 const PRELOAD_RANGE = 3;
@@ -1342,6 +1342,220 @@ const TrackSlide = memo(function TrackSlide(props: TrackSlideProps) {
   );
 });
 
+const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps) {
+  const {
+    track: t, index, isActive, isPlaying, duration, isRadio,
+    displayTitle, displayArtist, likesCount, rawComments, shareCount,
+    isLiked, lyricsOpen, radioMeta, albumContext, canDownload,
+    onCoverTap, onDoubleTapLike, onToggleLike, onComments,
+    onShare, onDownload, onAddToQueue, onToggleLyrics,
+    onPlayPause, onClose, onSeek, getAudioElement, itemRef,
+  } = props;
+
+  const cover = useMemo(() => coverUrl(t), [t]);
+  const genres = useMemo(() => (t.genre || []).filter(Boolean).slice(0, 2), [t.genre]);
+  const isAi = Boolean(t.isAI || String(t._id).startsWith('ai-'));
+
+  return (
+    <div
+      ref={itemRef}
+      data-index={index}
+      className="relative h-[100dvh] w-full overflow-hidden px-4 pb-[max(env(safe-area-inset-bottom,16px),16px)] pt-[112px] md:px-8"
+      style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
+    >
+      <div className="absolute inset-0">
+        {cover ? (
+          <img src={cover} alt="" className="h-full w-full scale-125 object-cover opacity-55 blur-3xl saturate-150" />
+        ) : null}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#120d11]/86 via-[#120d11]/26 to-[#120d11]/92" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(255,111,97,0.16),transparent_28%),radial-gradient(circle_at_88%_30%,rgba(124,92,255,0.13),transparent_32%)]" />
+      </div>
+
+      <div className="relative z-10 mx-auto flex h-full max-w-6xl items-center justify-center">
+        <div className="grid w-full items-end gap-5 md:grid-cols-[minmax(0,1fr)_82px]">
+          <div className="min-w-0">
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); if (isActive) onCoverTap(t); }}
+              onDoubleClick={e => { e.stopPropagation(); if (isActive && !isRadio) onDoubleTapLike(); }}
+              className="group/cover relative mx-auto block aspect-square w-[min(78vw,520px)] overflow-hidden rounded-[2rem] border border-white/[0.12] bg-white/[0.06] shadow-[0_32px_110px_rgba(0,0,0,0.44)] md:w-[min(54vh,520px)]"
+            >
+              {cover ? (
+                <img
+                  src={cover}
+                  alt={t.title}
+                  className={`h-full w-full object-cover transition-transform duration-[12000ms] ease-linear ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                />
+              ) : (
+                <TrackCover src={null} title={t.title} className="h-full w-full" rounded="rounded-none" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/54 via-transparent to-black/12" />
+
+              <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+                {isRadio ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white">
+                    <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                    Live
+                  </span>
+                ) : null}
+                {t.isBoosted ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#fffaf2] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#171313]">
+                    <Zap className="h-3 w-3" />
+                    Boost
+                  </span>
+                ) : null}
+                {isAi ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-500 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white">
+                    <Sparkles className="h-3 w-3" />
+                    IA
+                  </span>
+                ) : null}
+              </div>
+
+              <div className={`absolute inset-0 grid place-items-center transition ${isPlaying ? 'opacity-0 group-hover/cover:opacity-100' : 'opacity-100'}`}>
+                <span className="grid h-20 w-20 place-items-center rounded-full border border-white/18 bg-black/48 shadow-2xl backdrop-blur-xl">
+                  {isPlaying ? <Pause className="h-8 w-8 text-white" /> : <Play className="ml-1 h-8 w-8 fill-current text-white" />}
+                </span>
+              </div>
+            </button>
+
+            <div className="mx-auto mt-4 w-full max-w-[760px] rounded-[1.6rem] border border-white/[0.1] bg-black/34 p-4 shadow-[0_22px_80px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
+              <div className="flex items-start gap-3">
+                <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-white/10 ring-1 ring-white/12">
+                  {isRadio && t.coverUrl ? (
+                    <img src={t.coverUrl} alt="" className="h-7 w-8 object-contain" />
+                  ) : t.artist?.avatar ? (
+                    <img src={getCdnUrl(t.artist.avatar) || t.artist.avatar} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <User size={18} className="text-white/42" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {genres.map((genre) => (
+                      <span key={genre} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-white/58">
+                        {genre}
+                      </span>
+                    ))}
+                    {albumContext ? (
+                      <a href={`/album/${albumContext.id}`} onClick={e => { e.stopPropagation(); onClose(); }} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-white/58 hover:text-white">
+                        Album
+                      </a>
+                    ) : null}
+                  </div>
+                  <h2 className="mt-2 line-clamp-2 text-2xl font-black leading-tight text-white md:text-3xl">{displayTitle}</h2>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-bold text-white/66">{displayArtist}</p>
+                    {t.artist?._id && t.artist?.username && !isRadio ? (
+                      <span onClick={e => e.stopPropagation()}>
+                        <FollowButton artistId={t.artist._id} artistUsername={t.artist.username} size="sm" />
+                      </span>
+                    ) : null}
+                    {isActive && isRadio && radioMeta?.listeners ? (
+                      <span className="rounded-full bg-red-500/18 px-2.5 py-1 text-xs font-black text-red-100">
+                        {fmtCount(radioMeta.listeners)} en direct
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                {isActive && !isRadio ? (
+                  <SeekBar onSeek={onSeek} getAudioElement={getAudioElement} />
+                ) : (
+                  <div className="flex items-center justify-between text-[11px] font-medium tabular-nums text-white/42">
+                    <span>{fmtTime(0)}</span>
+                    <span>{fmtTime(duration)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <aside className="mx-auto flex flex-row items-center justify-center gap-3 md:flex-col md:justify-end">
+            <ActionBtn
+              icon={Heart}
+              label={likesCount}
+              active={isActive && isLiked}
+              activeColor="bg-rose-500/22 border-rose-400/30 text-rose-300"
+              disabled={!isActive || isRadio}
+              onClick={e => { e.stopPropagation(); onToggleLike(); }}
+            />
+            <ActionBtn
+              icon={MessageCircle}
+              label={rawComments}
+              disabled={!isActive || isRadio}
+              onClick={e => { e.stopPropagation(); onComments(); }}
+            />
+            <ActionBtn
+              icon={Share2}
+              label={shareCount}
+              onClick={e => { e.stopPropagation(); onShare(t); }}
+            />
+            <ActionBtn
+              icon={canDownload ? Download : Lock}
+              label=""
+              disabled={!isActive || isRadio || !canDownload}
+              onClick={e => { e.stopPropagation(); onDownload(); }}
+            />
+            <ActionBtn
+              icon={ListPlus}
+              label=""
+              disabled={!isActive || isRadio}
+              onClick={e => {
+                e.stopPropagation();
+                onAddToQueue(t);
+              }}
+            />
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onPlayPause(t); }}
+              className="grid h-12 w-12 place-items-center rounded-full bg-[#fffaf2] text-[#171313] shadow-[0_16px_40px_rgba(0,0,0,0.28)] transition active:scale-95"
+            >
+              {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
+            </button>
+          </aside>
+        </div>
+      </div>
+
+      {t.lyrics ? (
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); if (isActive) onToggleLyrics(); }}
+          className="absolute bottom-[max(env(safe-area-inset-bottom,16px),16px)] left-4 z-20 inline-flex h-10 items-center gap-2 rounded-full border border-white/12 bg-black/36 px-4 text-xs font-black text-white/70 backdrop-blur-xl transition hover:bg-white/10 hover:text-white"
+        >
+          <FileText className="h-4 w-4" />
+          {lyricsOpen ? 'Masquer paroles' : 'Paroles'}
+        </button>
+      ) : null}
+
+      <AnimatePresence>
+        {isActive && lyricsOpen ? (
+          <motion.div
+            initial={{ y: 24, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 24, opacity: 0 }}
+            className="absolute inset-x-3 bottom-3 z-40 mx-auto max-w-2xl rounded-[1.8rem] border border-white/12 bg-[#09070d]/92 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.44)] backdrop-blur-2xl"
+            onClick={(e: MouseEvent<HTMLDivElement>) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-black text-white">Paroles</p>
+              <button type="button" onClick={onToggleLyrics} className="grid h-9 w-9 place-items-center rounded-full bg-white/8 text-white/62">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-3 max-h-[38vh] overflow-y-auto whitespace-pre-wrap text-sm leading-7 text-white/68">
+              {t.lyrics?.trim() || 'Aucune parole disponible.'}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+});
+
 /* ═══════════════════════════════════════════════════════════════
    COMPONENT: LoadingScreen
    ═══════════════════════════════════════════════════════════════ */
@@ -2412,27 +2626,16 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
           </div>
 
           {/* Header */}
-          <header className="absolute top-0 left-0 right-0 z-[120] px-4 pt-[max(env(safe-area-inset-top,12px),12px)] pb-3">
-            <div className="flex items-center justify-between">
+          <header className="absolute left-0 right-0 top-0 z-[120] px-4 pt-[max(env(safe-area-inset-top,12px),12px)]">
+            <div className="mx-auto grid max-w-4xl grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-3">
               <button
                 onClick={closeHandler}
-                className="grid h-10 w-10 place-items-center rounded-full border border-[#fffaf2]/12 bg-[#171313]/52 backdrop-blur-xl transition-all hover:bg-[#171313]/72 active:scale-90"
+                className="grid h-11 w-11 place-items-center rounded-full border border-white/12 bg-black/32 backdrop-blur-xl transition-all hover:bg-black/48 active:scale-90"
                 title="Fermer"
               >
                 <ChevronDown size={22} className="text-white/90" />
               </button>
-              <div className="flex items-center gap-2">
-                {tracks.length > 1 && (
-                  <div className="px-3 py-1.5 rounded-full bg-black/30 backdrop-blur-xl border border-white/[0.1] text-[11px] font-bold text-white/70 tabular-nums">
-                    {activeIndex + 1}<span className="text-white/30 mx-0.5">/</span>{tracks.length}
-                  </div>
-                )}
-                <QueueBubble variant="pill" onClick={() => setShowQueue(true)} />
-              </div>
-              <div className="w-10" />
-            </div>
-            <div className="mt-3 rounded-[1.4rem] border border-[#fffaf2]/12 bg-[#171313]/46 p-2.5 backdrop-blur-2xl">
-              <div className="flex gap-2 overflow-x-auto scrollbar-none">
+              <div className="mx-auto flex w-full max-w-[360px] justify-center rounded-full border border-white/12 bg-black/28 p-1 backdrop-blur-2xl">
                 {(Object.keys(FEED_MODE_META) as FeedMode[]).map((mode) => {
                   const meta = FEED_MODE_META[mode];
                   const active = mode === feedMode;
@@ -2441,10 +2644,10 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                       key={mode}
                       type="button"
                       onClick={() => handleFeedModeChange(mode)}
-                      className={`inline-flex min-w-fit items-center rounded-full px-4 py-2 text-xs font-black transition ${
+                      className={`h-9 flex-1 rounded-full px-2 text-xs font-black transition ${
                         active
-                          ? 'bg-[#fffaf2] text-[#171313] shadow-[0_10px_30px_rgba(0,0,0,0.22)]'
-                          : 'bg-white/7 text-white/64 hover:bg-white/12 hover:text-white'
+                          ? 'bg-white text-[#171313] shadow-[0_10px_30px_rgba(0,0,0,0.2)]'
+                          : 'text-white/62 hover:bg-white/10 hover:text-white'
                       }`}
                     >
                       {meta.label}
@@ -2452,18 +2655,14 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                   );
                 })}
               </div>
-              <div className={`mt-2 rounded-[1.1rem] bg-gradient-to-r ${modeMeta.accent} px-3 py-2`}>
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/76">
-                  {modeMeta.label}{currentSeedGenre ? ` · ${currentSeedGenre}` : ''}
-                </p>
-                <p className="mt-1 text-[12px] leading-5 text-white/68">{modeMeta.description}</p>
-                {tracks.length > 1 ? (
-                  <p className="mt-2 text-[11px] font-semibold text-white/82">
-                    Fais glisser la carte pour monter ou descendre dans le fil sonore.
-                  </p>
-                ) : null}
-              </div>
+              <QueueBubble variant="icon" onClick={() => setShowQueue(true)} />
             </div>
+            {tracks.length > 1 ? (
+              <p className="mx-auto mt-2 w-fit rounded-full bg-black/22 px-3 py-1 text-[11px] font-bold tabular-nums text-white/58 backdrop-blur-xl">
+                {activeIndex + 1}<span className="mx-1 text-white/26">/</span>{tracks.length}
+                {currentSeedGenre ? <span className="ml-2 text-white/38">{currentSeedGenre}</span> : null}
+              </p>
+            ) : null}
           </header>
 
           <QueueDialog isOpen={showQueue} onClose={() => setShowQueue(false)} />
@@ -2501,7 +2700,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                 : (t.artist?.name || t.artist?.username || 'Artiste inconnu');
 
               return (
-                <TrackSlide
+                <MinimalTrackSlide
                   key={t._id || i}
                   track={t}
                   index={i}

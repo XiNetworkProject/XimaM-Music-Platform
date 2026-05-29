@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
       avgRetention = Math.round((completes / starts) * 1000) / 10;
     } else if (curPlays > 0) {
       avgRetentionEstimated = true;
-      avgRetention = 65;
+      avgRetention = 0;
     }
 
     /* ── 4. Followers ── */

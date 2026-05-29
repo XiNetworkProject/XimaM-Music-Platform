@@ -7,7 +7,7 @@ import { useAudioPlayer } from '@/app/providers';
 type Props = {
   onClick: () => void;
   className?: string;
-  variant?: 'bubble' | 'pill';
+  variant?: 'bubble' | 'pill' | 'icon';
 };
 
 export default function QueueBubble({ onClick, className = '', variant = 'bubble' }: Props) {
@@ -17,7 +17,25 @@ export default function QueueBubble({ onClick, className = '', variant = 'bubble
     return Math.max(0, Array.isArray(upNextTracks) ? upNextTracks.length : 0);
   }, [upNextTracks]);
 
-  if (!upNextEnabled && count <= 0) return null;
+  if (!upNextEnabled && count <= 0 && variant !== 'icon') return null;
+
+  if (variant === 'icon') {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`relative grid h-11 w-11 place-items-center rounded-full border border-white/12 bg-black/32 text-white/70 backdrop-blur-xl transition hover:bg-black/48 hover:text-white ${className}`}
+        aria-label="File d’attente"
+      >
+        <ListMusic className="h-5 w-5" />
+        {count > 0 ? (
+          <span className="absolute -right-1 -top-1 inline-flex min-w-[1.2rem] justify-center rounded-full bg-[#ff6f61] px-1.5 py-0.5 text-[10px] font-black text-white tabular-nums">
+            {count}
+          </span>
+        ) : null}
+      </button>
+    );
+  }
 
   if (variant === 'pill') {
     return (

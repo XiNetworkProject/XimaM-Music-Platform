@@ -240,7 +240,7 @@
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: var(--bg);
+  background: #F4EFE6;
   overflow: hidden;
 }
 .aurora-layer {
@@ -249,10 +249,10 @@
   opacity: 0.25;
   mix-blend-mode: normal;
 }
-.aurora-1 { width: 50vw; height: 50vw; left: -10vw; top: -10vh; background: radial-gradient(circle at 30% 30%, rgba(110,86,207,0.45) 0%, transparent 60%); }
-.aurora-2 { width: 40vw; height: 40vw; right: -10vw; top: 10vh; background: radial-gradient(circle at 70% 20%, rgba(240,147,251,0.35) 0%, transparent 60%); }
-.aurora-3 { width: 60vw; height: 60vw; left: 10vw; bottom: -20vh; background: radial-gradient(circle at 40% 70%, rgba(0,211,167,0.25) 0%, transparent 60%); opacity: 0.25; }
-.aurora-vignette { position: absolute; inset: 0; background: radial-gradient(1200px 800px at 10% -10%, rgba(110,86,207,0.12), transparent 40%), radial-gradient(1000px 700px at 110% 10%, rgba(217,70,239,0.10), transparent 40%); }
+.aurora-1 { width: 50vw; height: 50vw; left: -10vw; top: -10vh; background: radial-gradient(circle at 30% 30%, rgba(255,111,97,0.20) 0%, transparent 60%); }
+.aurora-2 { width: 40vw; height: 40vw; right: -10vw; top: 10vh; background: radial-gradient(circle at 70% 20%, rgba(124,92,255,0.12) 0%, transparent 60%); }
+.aurora-3 { width: 60vw; height: 60vw; left: 10vw; bottom: -20vh; background: radial-gradient(circle at 40% 70%, rgba(0,194,203,0.10) 0%, transparent 60%); opacity: 0.22; }
+.aurora-vignette { position: absolute; inset: 0; background: radial-gradient(1200px 800px at 10% -10%, rgba(255,111,97,0.10), transparent 40%), radial-gradient(1000px 700px at 110% 10%, rgba(124,92,255,0.08), transparent 40%); }
 
 /* Animation pulse lente pour la bannière de lancement */
 @keyframes pulse-slow {

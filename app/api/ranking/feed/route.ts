@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { computeRankingScore } from '@/lib/ranking';
+import { buildAnonymousRecommendationSignals, buildUserRecommendationSignals, rerankTracks } from '@/lib/recommendation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
@@ -57,11 +58,12 @@ function diversifyConsecutiveArtists(tracks: any[], maxConsecutive = 3): any[] {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(parseInt(searchParams.get('limit') || '30', 10), 100);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '30', 10), 200);
     const includeAi = searchParams.get('ai') === '1';
     const cursor = Math.max(0, parseInt(searchParams.get('cursor') || '0', 10) || 0);
     const strategy = (searchParams.get('strategy') || 'reco').toLowerCase(); // reco | trending
     const genreFilter = searchParams.get('genre')?.trim().toLowerCase() || null;
+    const debug = searchParams.get('debug') === '1';
     
     // Récupérer l'utilisateur connecté (session cookie > fallback query param)
     const session = await getServerSession(authOptions).catch(() => null);
@@ -798,6 +800,77 @@ export async function GET(request: NextRequest) {
     });
 
     let combinedAll = [...scoredNormal, ...scoredAI].sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0));
+
+    // Les nouvelles musiques n'ont pas toujours de ligne dans track_stats_rolling_30d.
+    // On les injecte quand même dans le feed pour éviter l'effet "bloqué à 50 titres".
+    try {
+      const existingIds = new Set(combinedAll.map((track: any) => String(track._id)));
+      const { data: freshTracks } = await supabaseAdmin
+        .from('tracks')
+        .select(`
+          id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, lyrics, plays, album,
+          profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
+        `)
+        .eq('is_public', true)
+        .not('audio_url', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      const freshFormatted = (freshTracks || [])
+        .filter((track: any) => !existingIds.has(String(track.id)))
+        .map((track: any, index: number) => {
+          const ageHours = track?.created_at ? Math.max(1, (now - new Date(track.created_at).getTime()) / 3_600_000) : 24;
+          const freshnessScore = 12 * Math.exp(-ageHours * Math.LN2 / 72);
+          return {
+            _id: track.id,
+            title: track.title,
+            artist: {
+              _id: track.creator_id,
+              username: track.profiles?.username,
+              name: track.profiles?.name,
+              avatar: track.profiles?.avatar,
+              isArtist: track.profiles?.is_artist,
+              artistName: track.profiles?.artist_name,
+            },
+            duration: track.duration || 0,
+            coverUrl: track.cover_url,
+            audioUrl: track.audio_url,
+            album: track.album || null,
+            genre: track.genre || [],
+            lyrics: track.lyrics || null,
+            likes: [],
+            plays: track.plays || 0,
+            createdAt: track.created_at,
+            isFeatured: false,
+            isVerified: track.profiles?.is_verified || false,
+            rankingScore: freshnessScore - index * 0.01,
+            isAI: false,
+            isLiked: false,
+            isBoosted: false,
+            boostMultiplier: undefined,
+            isFresh: true,
+          };
+        });
+
+      combinedAll = [...combinedAll, ...freshFormatted].sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0));
+    } catch (e) {
+      console.error('ranking: fresh injection failed', e);
+    }
+
+    try {
+      const signals = userId
+        ? await buildUserRecommendationSignals({ supabase: supabaseAdmin, userId, candidateTracks: combinedAll })
+        : buildAnonymousRecommendationSignals();
+      combinedAll = rerankTracks(combinedAll as any[], signals, {
+        strategy: strategy === 'trending' ? 'trending' : 'reco',
+        debug,
+        genreFilter,
+        maxConsecutiveArtists: 2,
+      }) as any[];
+    } catch (e) {
+      console.error('ranking: recommendation engine failed', e);
+    }
+
     if (genreFilter) {
       combinedAll = combinedAll.filter((t: any) => {
         const genres = Array.isArray(t.genre) ? t.genre : t.genre ? [t.genre] : [];
@@ -807,7 +880,10 @@ export async function GET(request: NextRequest) {
     combinedAll = diversifyConsecutiveArtists(combinedAll, 3);
     const combined = combinedAll.slice(cursor, cursor + limit);
     const nextCursor = cursor + combined.length;
-    return NextResponse.json({ tracks: combined, nextCursor, hasMore: nextCursor < combinedAll.length });
+    return NextResponse.json(
+      { tracks: combined, nextCursor, hasMore: nextCursor < combinedAll.length },
+      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } }
+    );
   } catch (error) {
     console.error('Erreur ranking feed:', error);
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });

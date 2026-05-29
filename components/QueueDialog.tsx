@@ -41,10 +41,10 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
     (async () => {
       setLoadingSug(true);
       try {
-        const res = await fetch('/api/ranking/feed?strategy=reco&ai=0&limit=20', { cache: 'no-store' });
+        const res = await fetch('/api/recommendations/feed?limit=20', { cache: 'no-store' });
         const json = await res.json().catch(() => ({}));
         if (cancelled) return;
-        setSuggestions(Array.isArray(json?.tracks) ? json.tracks : []);
+        setSuggestions(Array.isArray(json?.tracks) ? json.tracks.filter(Boolean) : []);
       } catch {
         if (!cancelled) setSuggestions([]);
       } finally {
@@ -104,17 +104,26 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
           {/* Header */}
           <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
-                <ListMusic className="w-4 h-4 text-white" />
+              <div className="w-10 h-10 rounded-2xl bg-[#fffaf2] text-[#171313] flex items-center justify-center shadow-lg shadow-black/20 shrink-0">
+                <ListMusic className="w-4 h-4 text-[#171313]" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-sm font-bold text-white">À suivre</h2>
+                <h2 className="text-sm font-black text-white">File d’attente</h2>
                 <p className="text-[11px] text-white/40">
                   {upNextTracks.length} titre{upNextTracks.length !== 1 ? 's' : ''}
                   {totalDuration && ` · ${totalDuration}`}
                 </p>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={toggleUpNextEnabled}
+              className={`hidden rounded-full px-3 py-2 text-[11px] font-black transition sm:inline-flex ${
+                upNextEnabled ? 'bg-[#fffaf2] text-[#171313]' : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.1] hover:text-white'
+              }`}
+            >
+              {upNextEnabled ? 'File active' : 'Activer'}
+            </button>
             <button onClick={onClose} className="w-8 h-8 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] transition flex items-center justify-center" aria-label="Fermer">
               <X className="w-4 h-4 text-white/60" />
             </button>
@@ -227,8 +236,8 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
               <div className="py-6 px-5">
                 <div className="text-center py-4">
                   <Music2 className="w-8 h-8 text-white/10 mx-auto mb-2" />
-                  <p className="text-sm text-white/30">Rien dans la file pour le moment</p>
-                  <p className="text-[11px] text-white/15 mt-1">Utilise les 3 points sur une piste pour ajouter</p>
+                  <p className="text-sm text-white/42">Rien dans “À suivre” pour le moment</p>
+                  <p className="text-[11px] text-white/22 mt-1">Ajoute un son depuis le bouton file, ou choisis une suggestion ci-dessous.</p>
                 </div>
 
                 {(loadingSug || suggestions.length > 0) && (

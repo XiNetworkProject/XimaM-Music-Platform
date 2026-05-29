@@ -1,4 +1,13 @@
-export default function StudioBackground() {
+export default function StudioBackground({ variant = 'studio' }: { variant?: 'studio' | 'synaura' }) {
+  if (variant === 'synaura') {
+    return (
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0 bg-[#F4EFE6]" aria-hidden>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_8%_0%,rgba(255,111,97,0.20),transparent_28%),radial-gradient(circle_at_94%_4%,rgba(124,92,255,0.12),transparent_30%),radial-gradient(circle_at_60%_100%,rgba(0,194,203,0.10),transparent_32%)]" />
+        <div className="absolute inset-0 opacity-[0.22] [background-image:linear-gradient(#ded4c7_1px,transparent_1px),linear-gradient(90deg,#ded4c7_1px,transparent_1px)] [background-size:34px_34px]" />
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0" aria-hidden>
       {/* Gradient global */}

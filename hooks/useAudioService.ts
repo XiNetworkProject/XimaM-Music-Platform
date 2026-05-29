@@ -72,6 +72,8 @@ export const useAudioService = () => {
   // so callbacks they call must be routed through refs to avoid stale closures.
   const handleTrackEndRef = useRef<() => void>(() => {});
   const currentTrackIdRef = useRef<string | null>(null);
+  const currentTrackRef = useRef<Track | null>(null);
+  const lastExplicitTransitionAtRef = useRef<number>(0);
   
   const [state, setState] = useState<AudioServiceState>({
     currentTrack: null,
@@ -217,6 +219,7 @@ export const useAudioService = () => {
 
   useEffect(() => {
     currentTrackIdRef.current = state.currentTrack?._id || null;
+    currentTrackRef.current = state.currentTrack || null;
   }, [state.currentTrack?._id]);
   
   // Initialisation du service worker et des notifications
@@ -277,7 +280,7 @@ export const useAudioService = () => {
     if (audioRef.current) return;
 
     audioRef.current = new Audio();
-    audioRef.current.preload = 'metadata';
+    audioRef.current.preload = 'auto';
     audioRef.current.crossOrigin = 'anonymous';
     
     // Configuration spécifique pour mobile
@@ -305,7 +308,7 @@ export const useAudioService = () => {
         }));
         
         // Envoyer les événements de progression (25%, 50%, 75%, 98%=complete)
-        const currentTrack = state.currentTrack;
+        const currentTrack = currentTrackRef.current;
         if (currentTrack && isAdTrack(currentTrack)) return;
         if (currentTrack && audio.duration > 0) {
           const progressPct = (audio.currentTime / audio.duration) * 100;
@@ -478,6 +481,7 @@ export const useAudioService = () => {
       
       // Charger les pistes depuis les mêmes APIs que la page (sans limite)
       const apis = [
+        '/api/ranking/feed?limit=200&ai=1&strategy=reco',
         '/api/tracks/popular?limit=1000',
         '/api/tracks/trending?limit=1000',
         '/api/tracks/recent?limit=1000',
@@ -487,7 +491,7 @@ export const useAudioService = () => {
       
       const allTracksPromises = apis.map(async (url) => {
         try {
-          const response = await fetch(url);
+          const response = await fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
           if (response.ok) {
             const data = await response.json();
             return data.tracks || [];
@@ -549,6 +553,26 @@ export const useAudioService = () => {
     } catch {}
   }, [state.currentTrack, notificationPermission]);
 
+  const emitPlaybackTransition = useCallback((eventType: 'skip' | 'next' | 'prev', reason: string) => {
+    const audio = audioRef.current;
+    const track = currentTrackRef.current;
+    if (!audio || !track || isAdTrack(track)) return;
+    const durationSec = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : track.duration || 0;
+    const positionSec = Math.max(0, audio.currentTime || 0);
+    const progressPct = durationSec > 0 ? Math.round((positionSec / durationSec) * 1000) / 10 : 0;
+    if (positionSec < 2 || progressPct >= 85) return;
+    lastExplicitTransitionAtRef.current = Date.now();
+    sendTrackEvents(track._id, {
+      event_type: eventType,
+      position_ms: Math.round(positionSec * 1000),
+      duration_ms: Math.round(durationSec * 1000),
+      progress_pct: progressPct,
+      is_ai_track: String(track._id).startsWith('ai-'),
+      source: 'audio-player',
+      extra: { reason },
+    });
+  }, []);
+
   const loadTrack = useCallback(async (track: Track) => {
     try {
       // Validation de l'URL audio avec plus de flexibilité
@@ -583,6 +607,14 @@ export const useAudioService = () => {
         if (state.currentTrack && state.currentTime > 0) {
           const listenDuration = Math.min(state.currentTime, state.currentTrack.duration);
           recommendations.analyzeListeningSession(state.currentTrack, listenDuration);
+        }
+
+        if (
+          state.currentTrack?._id &&
+          state.currentTrack._id !== track._id &&
+          Date.now() - lastExplicitTransitionAtRef.current > 800
+        ) {
+          emitPlaybackTransition('skip', 'track_switch');
         }
 
         // Forcer l'arrêt de la lecture actuelle
@@ -658,6 +690,7 @@ export const useAudioService = () => {
           throw lastErr || new Error('Aucune source audio lisible');
         }
         
+        currentTrackRef.current = loadedUrl === track.audioUrl ? track : { ...track, audioUrl: loadedUrl };
         setState(prev => ({ 
           ...prev, 
           currentTrack: loadedUrl === track.audioUrl ? track : { ...track, audioUrl: loadedUrl },
@@ -686,7 +719,7 @@ export const useAudioService = () => {
       }));
       throw error;
     }
-  }, [state.currentTrack, state.currentTime, recommendations, isDeadMediaHost]);
+  }, [state.currentTrack, state.currentTime, recommendations, isDeadMediaHost, emitPlaybackTransition]);
 
   // Fonction pour incrémenter les écoutes avec debounce et suivi
   const updatePlayCount = useCallback(async (trackId: string) => {
@@ -732,15 +765,44 @@ export const useAudioService = () => {
     return () => clearTimeout(timeoutId);
   }, [trackedPlays]);
 
+  const readRecentlyPlayedEntries = useCallback((): Array<{ id: string; at: number; count: number }> => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]');
+      if (!Array.isArray(raw)) return [];
+      return raw
+        .map((entry: any) => {
+          if (typeof entry === 'string') return { id: entry, at: Date.now(), count: 1 };
+          return {
+            id: String(entry?.id || entry?._id || ''),
+            at: Number(entry?.at || Date.now()),
+            count: Math.max(1, Number(entry?.count || 1)),
+          };
+        })
+        .filter((entry) => entry.id);
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const writeRecentlyPlayedEvent = useCallback((trackId: string) => {
+    if (!trackId) return;
+    try {
+      const now = Date.now();
+      const existing = readRecentlyPlayedEntries().filter((entry) => now - entry.at < 7 * 24 * 60 * 60 * 1000);
+      const prev = existing.find((entry) => entry.id === trackId);
+      const nextEntry = { id: trackId, at: now, count: (prev?.count || 0) + 1 };
+      const nextHistory = [...existing.filter((entry) => entry.id !== trackId), nextEntry].slice(-40);
+      localStorage.setItem('recentlyPlayed', JSON.stringify(nextHistory));
+    } catch {}
+  }, [readRecentlyPlayedEntries]);
+
   const play = useCallback(async (track?: Track) => {
     try {
       if (track) {
         await loadTrack(track);
         
         try {
-          const recentlyPlayed = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]');
-          const updatedHistory = [...recentlyPlayed, track._id].slice(-10);
-          localStorage.setItem('recentlyPlayed', JSON.stringify(updatedHistory));
+          writeRecentlyPlayedEvent(track._id);
         } catch {}
         
         // Incrémenter les écoutes pour la piste qui commence à jouer
@@ -823,7 +885,7 @@ export const useAudioService = () => {
     } catch (error) {
       // Erreur silencieuse
     }
-  }, [loadTrack, isFirstPlay, updatePlayCount]);
+  }, [loadTrack, isFirstPlay, updatePlayCount, writeRecentlyPlayedEvent]);
 
   // Variant "immediate": used for auto-next (ended) to avoid autoplay restrictions caused by async awaits.
   // It sets src and calls audio.play() immediately (without waiting for canplay).
@@ -869,6 +931,7 @@ export const useAudioService = () => {
         // keep isPlaying false until play succeeds (ended context)
         isPlaying: false,
       }));
+      currentTrackRef.current = track;
       lastTrackId.current = track._id;
 
       // Hard reset can help clear a sticky `ended` state in some browsers
@@ -915,6 +978,19 @@ export const useAudioService = () => {
               }, 80);
             }
             setState(prev => ({ ...prev, isPlaying: true, error: null }));
+            if (!hasStartedRef.current && !isAdTrack(track)) {
+              hasStartedRef.current = true;
+              sendTrackEvents(track._id, {
+                event_type: 'play_start',
+                position_ms: Math.round((audioRef.current?.currentTime || 0) * 1000),
+                duration_ms: Math.round((audioRef.current?.duration || track.duration || 0) * 1000),
+                is_ai_track: String(track._id).startsWith('ai-'),
+                source: 'audio-player',
+                extra: { path: 'playImmediate' },
+              });
+              updatePlayCount(track._id);
+              writeRecentlyPlayedEvent(track._id);
+            }
           };
           const onErr = (err: any) => {
             if (useTinyVolume) {
@@ -974,6 +1050,7 @@ export const useAudioService = () => {
       };
       setTimeout(() => retry('250ms'), 250);
       setTimeout(() => retry('1200ms'), 1200);
+      setTimeout(() => retry('3000ms'), 3000);
 
       // Also retry when the browser signals it can play
       try {
@@ -981,12 +1058,17 @@ export const useAudioService = () => {
         audio.addEventListener('canplay', onCanPlay, { once: true } as any);
       } catch {}
 
-      // If after 500ms we still haven't advanced, surface a deterministic error with media states.
+      // Mobile browsers can delay the next source while the tab is backgrounded.
+      // Do not fail after 500ms: that was stopping long background sessions.
       setTimeout(() => {
         const a = audioRef.current;
         if (!a) return;
         const notStarted = a.paused && (a.currentTime || 0) < 0.05;
         if (!notStarted) return;
+        if (typeof document !== 'undefined' && document.hidden) {
+          retry('background-final');
+          return;
+        }
         const code = (a.error as any)?.code;
         const msg = `Auto-next bloqué: paused@0s (ended=${a.ended}) readyState=${a.readyState} networkState=${a.networkState} errorCode=${code ?? 'n/a'}`;
         console.error('❌ auto-next not started:', {
@@ -999,12 +1081,12 @@ export const useAudioService = () => {
           src: a.src,
         });
         setState(prev => ({ ...prev, isPlaying: false, isLoading: false, error: msg }));
-      }, 500);
+      }, 6000);
     } catch (e) {
       console.error('❌ playImmediate error:', e);
       setState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
     }
-  }, [isDeadMediaHost]);
+  }, [isDeadMediaHost, updatePlayCount, writeRecentlyPlayedEvent]);
 
   const buildAudioAdTrack = useCallback((): Track | null => {
     const url = String(audioAdUrlRef.current || '').trim();
@@ -1110,20 +1192,15 @@ export const useAudioService = () => {
 
   const readRecentlyPlayed = useCallback((): string[] => {
     try {
-      const raw = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]');
-      return Array.isArray(raw) ? raw.map((value) => String(value || '')).filter(Boolean) : [];
+      return readRecentlyPlayedEntries().map((entry) => entry.id);
     } catch {
       return [];
     }
-  }, []);
+  }, [readRecentlyPlayedEntries]);
 
   const writeRecentlyPlayed = useCallback((trackId: string) => {
-    if (!trackId) return;
-    try {
-      const nextHistory = [...readRecentlyPlayed().filter((entry) => entry !== trackId), trackId].slice(-12);
-      localStorage.setItem('recentlyPlayed', JSON.stringify(nextHistory));
-    } catch {}
-  }, [readRecentlyPlayed]);
+    writeRecentlyPlayedEvent(trackId);
+  }, [writeRecentlyPlayedEvent]);
 
   const pickContinuationTrack = useCallback((currentTrack: Track | null) => {
     if (!allTracks.length) return null;
@@ -1179,6 +1256,7 @@ export const useAudioService = () => {
     }
 
     const nextTrack = currentQueue[nextIndex];
+    emitPlaybackTransition('next', 'next_button');
     setCurrentIndex(nextIndex);
     if (state.isPlaying) {
       // IMPORTANT: jouer via play(track) pour éviter les états stale (loadTrack + play séparés)
@@ -1197,6 +1275,7 @@ export const useAudioService = () => {
     if (allTracks.length > 0) {
       const nextRecommendedTrack = pickContinuationTrack(state.currentTrack);
       if (nextRecommendedTrack) {
+        emitPlaybackTransition('next', 'next_recommendation');
         writeRecentlyPlayed(nextRecommendedTrack._id);
         if (state.isPlaying) {
           play(nextRecommendedTrack as any).catch(() => {});
@@ -1210,7 +1289,7 @@ export const useAudioService = () => {
     } else {
       setState(prev => ({ ...prev, isPlaying: false }));
     }
-  }, [queue, shuffledQueue, currentIndex, shuffle, repeat, state.isPlaying, state.currentTrack, allTracks, loadTrack, play, stop, pickContinuationTrack, writeRecentlyPlayed]);
+  }, [queue, shuffledQueue, currentIndex, shuffle, repeat, state.isPlaying, state.currentTrack, allTracks, loadTrack, play, stop, pickContinuationTrack, writeRecentlyPlayed, emitPlaybackTransition]);
 
   const previousTrack = useCallback(() => {
     const currentQueue = shuffle ? shuffledQueue : queue;
@@ -1237,6 +1316,7 @@ export const useAudioService = () => {
     }
 
     const prevTrack = currentQueue[prevIndex];
+    emitPlaybackTransition('prev', 'previous_button');
     setCurrentIndex(prevIndex);
     if (state.isPlaying) {
       play(prevTrack).catch(() => {});
@@ -1256,7 +1336,7 @@ export const useAudioService = () => {
     }
 
     setState(prev => ({ ...prev, isPlaying: false }));
-  }, [queue, shuffledQueue, currentIndex, shuffle, repeat, state.isPlaying, state.currentTrack, allTracks.length, loadTrack, play, stop, seek, state.currentTime]);
+  }, [queue, shuffledQueue, currentIndex, shuffle, repeat, state.isPlaying, state.currentTrack, allTracks.length, loadTrack, play, stop, seek, state.currentTime, emitPlaybackTransition]);
 
   const requestNotificationPermission = useCallback(async (): Promise<boolean> => {
     if (!('Notification' in window)) {

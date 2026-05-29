@@ -114,7 +114,7 @@ export default function RootLayout({
           <body className={`theme-suno ${inter.className} overflow-hidden max-w-full h-full`}>
         <Providers>
           {/* Studio Background (fond global de l'app) */}
-          <StudioBackground />
+          <StudioBackground variant="synaura" />
           
           {/* Aurora background (fixed layers) */}
           <div className="aurora-bg" aria-hidden>
