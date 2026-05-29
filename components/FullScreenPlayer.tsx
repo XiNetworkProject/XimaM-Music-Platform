@@ -8,7 +8,12 @@ import TikTokPlayer from './TikTokPlayer';
 import TrackCover from './TrackCover';
 
 function isSynauraSurface(pathname: string | null) {
-  return pathname === '/' || pathname?.startsWith('/discover') || pathname?.startsWith('/library');
+  return (
+    pathname === '/' ||
+    pathname?.startsWith('/discover') ||
+    pathname?.startsWith('/library') ||
+    pathname?.startsWith('/studio')
+  );
 }
 
 function toTime(seconds: number) {
@@ -39,7 +44,7 @@ export default function SynauraMiniPlayer() {
 
   const sidebarWidth = isSidebarOpen ? 220 : 72;
   const useWarmBar = isSynauraSurface(pathname);
-  const isStudioPage = pathname?.startsWith('/ai-generator') || pathname?.startsWith('/studio');
+  const isLegacyStudioPlayerPage = pathname?.startsWith('/ai-generator');
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
@@ -130,7 +135,7 @@ export default function SynauraMiniPlayer() {
 
       {!showTikTok ? (
         useWarmBar ? (
-          <div className={`fixed inset-x-0 bottom-0 z-[50] pointer-events-none ${isStudioPage ? 'hidden lg:block' : ''}`}>
+          <div className="fixed inset-x-0 bottom-0 z-[50] pointer-events-none">
             <div className="pointer-events-auto px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:px-4">
               <div className="mx-auto max-w-[980px] overflow-hidden rounded-[1.45rem] border border-black/[0.08] bg-[#fffaf2]/96 text-[#171313] shadow-[0_22px_60px_rgba(30,25,20,0.22)] backdrop-blur-2xl">
                 <div
@@ -264,7 +269,7 @@ export default function SynauraMiniPlayer() {
           </div>
         ) : (
           <div
-            className={`fixed bottom-0 right-0 z-[50] pointer-events-none ${isStudioPage ? 'hidden lg:block' : ''}`}
+            className={`fixed bottom-0 right-0 z-[50] pointer-events-none ${isLegacyStudioPlayerPage ? 'hidden lg:block' : ''}`}
             style={{ left: isLg ? sidebarWidth : 0, transition: 'left 200ms ease' }}
           >
             <div className="pointer-events-auto">

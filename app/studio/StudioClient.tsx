@@ -10,12 +10,10 @@ import {
   Library,
   ListMusic,
   Loader2,
-  Pause,
   Play,
   Search,
   Settings,
   Sparkles,
-  Square,
   Terminal,
   Wand2,
   X,
@@ -307,22 +305,11 @@ export default function StudioClient() {
 
             <div className="h-6 w-px bg-border-secondary mx-1 hidden md:block" />
 
-            <div className="ml-auto flex items-center gap-1">
-              <button onClick={() => previousTrack()} className="rounded-xl p-2 text-white/70 hover:bg-white/10">
-                <Play className="h-4 w-4 rotate-180" />
-              </button>
-              <button
-                onClick={() => (audioState.isPlaying ? pause() : void play())}
-                className="rounded-xl p-2 border border-border-secondary bg-white/10 hover:bg-white/15"
-              >
-                {audioState.isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-[1px]" />}
-              </button>
-              <button onClick={() => nextTrack()} className="rounded-xl p-2 text-white/70 hover:bg-white/10">
-                <Play className="h-4 w-4" />
-              </button>
-              <button onClick={() => pause()} className="rounded-xl p-2 text-white/70 hover:bg-white/10">
-                <Square className="h-4 w-4" />
-              </button>
+            <div className="ml-auto hidden min-w-0 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 md:flex">
+              <div className={`h-2 w-2 rounded-full ${audioState.isPlaying ? 'bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.7)]' : 'bg-white/24'}`} />
+              <span className="max-w-[220px] truncate text-xs font-semibold text-white/70">
+                {currentTrack?.title ? `Player Synaura: ${(currentTrack as any).title}` : 'Player Synaura prêt'}
+              </span>
             </div>
 
             <div className="hidden lg:flex w-[300px] items-center gap-2 rounded-2xl border border-border-secondary bg-white/[0.04] px-3 py-2">
