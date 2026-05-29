@@ -31,8 +31,8 @@ self.addEventListener('install', (event) => {
       return cache.addAll([
         '/',
         '/manifest.json',
-        '/android-chrome-192x192.png',
-        '/android-chrome-512x512.png'
+        '/brand/2026/synaura-symbol-2026-white.png',
+        '/brand/2026/synaura-symbol-2026.png'
       ]);
     })
   );
@@ -64,8 +64,8 @@ self.addEventListener('push', (event) => {
   let notificationData = {
     title: 'Synaura',
     body: 'Nouvelle notification',
-    icon: '/android-chrome-192x192.png',
-    badge: '/android-chrome-192x192.png',
+    icon: '/brand/2026/synaura-symbol-2026-white.png',
+    badge: '/brand/2026/synaura-symbol-2026-white.png',
     tag: NOTIFICATION_TAG
   };
 
@@ -202,8 +202,8 @@ self.addEventListener('message', (event) => {
     // Créer la nouvelle notification avec les données les plus récentes
     const options = {
       body: body || `${track?.artist?.name || track?.artist?.username} - ${isPlaying ? 'En lecture' : 'En pause'}`,
-      icon: track?.coverUrl || '/android-chrome-192x192.png',
-      badge: '/android-chrome-192x192.png',
+      icon: track?.coverUrl || '/brand/2026/synaura-symbol-2026-white.png',
+      badge: '/brand/2026/synaura-symbol-2026-white.png',
       vibrate: [200, 100, 200],
       data: { track, isPlaying },
       tag: NOTIFICATION_TAG,
@@ -211,22 +211,22 @@ self.addEventListener('message', (event) => {
         {
           action: 'play',
           title: '▶️ Lire',
-          icon: '/android-chrome-192x192.png'
+          icon: '/brand/2026/synaura-symbol-2026-white.png'
         },
         {
           action: 'pause',
           title: '⏸️ Pause',
-          icon: '/android-chrome-192x192.png'
+          icon: '/brand/2026/synaura-symbol-2026-white.png'
         },
         {
           action: 'next',
           title: '⏭️ Suivant',
-          icon: '/android-chrome-192x192.png'
+          icon: '/brand/2026/synaura-symbol-2026-white.png'
         },
         {
           action: 'previous',
           title: '⏮️ Précédent',
-          icon: '/android-chrome-192x192.png'
+          icon: '/brand/2026/synaura-symbol-2026-white.png'
         }
       ],
       requireInteraction: true,

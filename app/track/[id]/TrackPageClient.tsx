@@ -7,6 +7,8 @@ import { useAudioPlayer } from '@/app/providers';
 import Link from 'next/link';
 import { Play, Pause, Heart, Clock, Music, Headphones, Share2, Code, UserPlus, Sparkles, ArrowLeft } from 'lucide-react';
 import ShareButtons from '@/components/ShareButtons';
+import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import { getCdnUrl } from '@/lib/cdn';
 
 interface TrackData {
   id: string;
@@ -27,6 +29,21 @@ interface TrackData {
 const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec) % 60).padStart(2, '0')}`;
 const fmt = new Intl.NumberFormat('fr-FR', { notation: 'compact' });
 
+function ArtistAvatar({ name, username, avatar }: { name: string; username: string; avatar?: string | null }) {
+  const url = avatar ? getCdnUrl(avatar) || avatar : null;
+  const initial = (name || username || '?').slice(0, 1).toUpperCase();
+
+  if (url) {
+    return <img src={url} alt="" className="h-12 w-12 rounded-full object-cover shadow-[0_14px_30px_rgba(20,15,10,0.12)]" />;
+  }
+
+  return (
+    <div className="grid h-12 w-12 place-items-center rounded-full bg-[#171313] text-sm font-black text-white shadow-[0_14px_30px_rgba(20,15,10,0.12)]">
+      {initial}
+    </div>
+  );
+}
+
 export default function TrackPageClient({ track }: { track: TrackData | null }) {
   const { data: session } = useSession();
   const router = useRouter();
@@ -40,14 +57,17 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
 
   if (!track) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-white gap-4 px-4">
-        <Music className="w-16 h-16 text-white/20" />
-        <h1 className="text-2xl font-bold">Track introuvable</h1>
-        <p className="text-white/60 text-sm text-center">Cette musique n'existe pas ou a été supprimée.</p>
-        <Link href="/discover" className="mt-4 px-6 py-2.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-sm font-semibold hover:brightness-110 transition-all">
-          Découvrir la musique
-        </Link>
-      </div>
+      <SynauraAppShell contentClassName="max-w-[1100px]">
+        <SynauraTopBar searchHref="/discover" searchLabel="Rechercher un son, un post ou un createur..." />
+        <SynauraPanel className="px-6 py-14 text-center sm:px-8">
+          <Music className="mx-auto h-14 w-14 text-black/16" />
+          <h1 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#171313]">Track introuvable</h1>
+          <p className="mt-2 text-sm font-semibold text-black/45">Cette musique n'existe pas ou a ete supprimee.</p>
+          <Link href="/discover" className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]">
+            Decouvrir la musique
+          </Link>
+        </SynauraPanel>
+      </SynauraAppShell>
     );
   }
 
@@ -86,129 +106,166 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
   };
 
   const trackUrl = typeof window !== 'undefined' ? `${window.location.origin}/track/${track.id}` : `https://www.synaura.fr/track/${track.id}`;
+  const coverSrc = track.coverUrl || null;
 
   return (
-    <div className="min-h-screen text-white">
-      {/* Hero section */}
-      <div className="relative overflow-hidden">
-        {/* Blurred background */}
-        {track.coverUrl && (
-          <div className="absolute inset-0 z-0">
-            <img src={track.coverUrl} alt="" className="w-full h-full object-cover blur-[80px] scale-110 opacity-40" />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-[#0a0a0f]" />
-          </div>
-        )}
-        <div className={`relative z-10 max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-12 ${!track.coverUrl ? 'bg-gradient-to-b from-violet-900/20 to-transparent' : ''}`}>
-          {/* Back nav */}
-          <Link href="/discover" className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white/80 mb-8 transition-colors">
-            <ArrowLeft className="w-3.5 h-3.5" /> Découvrir
-          </Link>
+    <SynauraAppShell contentClassName="max-w-[1180px]">
+      <SynauraTopBar searchHref="/discover" searchLabel="Rechercher un son, un post ou un createur..." />
 
-          <div className="flex flex-col sm:flex-row gap-6 sm:gap-8 items-center sm:items-end">
-            {/* Cover */}
-            <div className="relative w-52 h-52 sm:w-60 sm:h-60 rounded-xl overflow-hidden shadow-2xl shadow-black/60 flex-shrink-0 group">
-              {track.coverUrl ? (
-                <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-violet-800/40 to-fuchsia-800/40 flex items-center justify-center">
-                  <Music className="w-16 h-16 text-white/20" />
-                </div>
-              )}
-              <button
-                onClick={handlePlay}
-                className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all"
-              >
-                <div className="w-14 h-14 rounded-full bg-violet-500 shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all">
-                  {isPlaying ? <Pause className="w-6 h-6 text-white" /> : <Play className="w-6 h-6 text-white ml-0.5" />}
-                </div>
-              </button>
+      <div className="space-y-4 pb-24">
+        <button
+          onClick={() => router.back()}
+          className="inline-flex h-11 items-center gap-2 rounded-full border border-black/[0.08] bg-[#fffaf2]/88 px-4 text-sm font-black text-black/56 shadow-[0_14px_36px_rgba(30,25,20,0.08)] transition hover:bg-[#171313] hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour
+        </button>
+
+        <SynauraInkPanel className="overflow-hidden">
+          {coverSrc ? (
+            <div className="absolute inset-0">
+              <img src={coverSrc} alt="" className="h-full w-full object-cover opacity-18 blur-[18px] scale-110" />
+              <div className="absolute inset-0 bg-gradient-to-br from-[#171313]/68 via-[#171313]/82 to-[#171313]" />
             </div>
+          ) : null}
+          <div className="relative px-5 py-6 sm:px-7 sm:py-8">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
+              <div className="relative h-40 w-40 overflow-hidden rounded-[2rem] bg-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:h-52 sm:w-52">
+                {coverSrc ? (
+                  <img src={coverSrc} alt={track.title} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="grid h-full w-full place-items-center bg-white/10">
+                    <Music className="h-14 w-14 text-white/24" />
+                  </div>
+                )}
+              </div>
 
-            {/* Info */}
-            <div className="flex-1 text-center sm:text-left space-y-3 min-w-0">
-              {track.isAI && (
-                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-violet-300 bg-violet-500/15 border border-violet-500/20 rounded-full px-2.5 py-0.5">
-                  <Sparkles className="w-3 h-3" /> Création IA
-                </span>
-              )}
-              <h1 className="text-3xl sm:text-4xl font-bold leading-tight break-words">{track.title}</h1>
-              {track.artistUsername ? (
-                <Link href={`/profile/${track.artistUsername}`} className="text-base text-white/70 hover:text-white transition-colors">
-                  {track.artist}
-                </Link>
-              ) : (
-                <p className="text-base text-white/70">{track.artist}</p>
-              )}
-
-              <div className="flex items-center gap-4 text-xs text-white/50 justify-center sm:justify-start flex-wrap">
-                {track.genre?.length > 0 && <span className="bg-white/8 rounded-full px-2.5 py-1">{track.genre[0]}</span>}
-                {track.duration > 0 && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {mmss(track.duration)}</span>}
-                {track.plays > 0 && <span className="flex items-center gap-1"><Headphones className="w-3 h-3" /> {fmt.format(track.plays)}</span>}
-                {track.likes > 0 && <span className="flex items-center gap-1"><Heart className="w-3 h-3" /> {fmt.format(track.likes)}</span>}
+              <div className="min-w-0 flex-1">
+                {track.isAI ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-white/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/72">
+                    <Sparkles className="h-3 w-3" />
+                    Creation IA
+                  </span>
+                ) : null}
+                <h1 className="mt-3 break-words text-3xl font-black leading-[0.95] tracking-[-0.06em] text-white sm:text-5xl">
+                  {track.title}
+                </h1>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <ArtistAvatar name={track.artist} username={track.artistUsername} avatar={track.artistAvatar} />
+                  <div className="min-w-0">
+                    {track.artistUsername ? (
+                      <Link href={`/profile/${track.artistUsername}`} className="block truncate text-base font-black text-white hover:text-white/82">
+                        {track.artist}
+                      </Link>
+                    ) : (
+                      <p className="text-base font-black text-white">{track.artist}</p>
+                    )}
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-white/48">
+                      {track.genre?.length > 0 ? <span>{track.genre[0]}</span> : null}
+                      {track.duration > 0 ? <span>· {mmss(track.duration)}</span> : null}
+                      {track.plays > 0 ? <span>· {fmt.format(track.plays)} ecoutes</span> : null}
+                      {track.likes > 0 ? <span>· {fmt.format(track.likes)} likes</span> : null}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </SynauraInkPanel>
 
-      {/* Actions */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        {/* Player button row */}
-        <div className="flex flex-wrap gap-3 items-center">
-          <button onClick={handlePlay}
-            className="flex items-center gap-2 px-7 py-3 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-sm font-semibold shadow-lg shadow-violet-500/25 hover:brightness-110 active:scale-95 transition-all">
-            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-            {isPlaying ? 'Pause' : 'Écouter'}
-          </button>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_360px]">
+          <SynauraPanel className="p-5 sm:p-6">
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={handlePlay}
+                className="inline-flex h-12 items-center gap-2 rounded-full bg-[#171313] px-6 text-sm font-black text-white transition hover:scale-[1.02] active:scale-95"
+              >
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                {isPlaying ? 'Pause' : 'Ecouter'}
+              </button>
 
-          <button onClick={() => setShowShare(!showShare)}
-            className="flex items-center gap-2 px-4 py-3 rounded-full bg-white/8 hover:bg-white/14 text-sm transition-all">
-            <Share2 className="w-4 h-4" /> Partager
-          </button>
+              <button
+                onClick={() => setShowShare(!showShare)}
+                className="inline-flex h-12 items-center gap-2 rounded-full bg-black/[0.055] px-5 text-sm font-black text-black/60 transition hover:bg-black/[0.1] hover:text-black"
+              >
+                <Share2 className="h-4 w-4" />
+                Partager
+              </button>
 
-          <button onClick={handleCopyEmbed}
-            className="flex items-center gap-2 px-4 py-3 rounded-full bg-white/8 hover:bg-white/14 text-sm transition-all">
-            <Code className="w-4 h-4" /> {embedCopied ? 'Copié !' : 'Embed'}
-          </button>
-        </div>
-
-        {/* Share panel */}
-        {showShare && (
-          <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-            <ShareButtons url={trackUrl} title={`${track.title} — ${track.artist}`} />
-          </div>
-        )}
-
-        {/* HTML5 fallback player (SEO + no-JS) */}
-        <div className="rounded-xl bg-white/5 border border-white/10 p-4">
-          <p className="text-xs text-white/40 mb-2">Lecteur audio</p>
-          <audio controls preload="none" className="w-full" style={{ height: 40 }}>
-            <source src={track.audioUrl} type="audio/mpeg" />
-            Votre navigateur ne supporte pas le lecteur audio.
-          </audio>
-        </div>
-
-        {/* CTA for non-authenticated users */}
-        {!session && (
-          <div className="rounded-2xl bg-gradient-to-r from-violet-900/30 to-fuchsia-900/30 border border-violet-500/20 p-6 text-center space-y-4">
-            <h2 className="text-lg font-semibold">Rejoins Synaura gratuitement</h2>
-            <p className="text-sm text-white/60 max-w-md mx-auto">
-              Crée ton compte pour sauvegarder tes favoris, créer de la musique avec l'IA et rejoindre la communauté.
-            </p>
-            <div className="flex items-center justify-center gap-3">
-              <Link href="/auth/signup"
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-sm font-semibold hover:brightness-110 transition-all">
-                <UserPlus className="w-4 h-4" /> Créer un compte
-              </Link>
-              <Link href="/auth/signin"
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 text-sm hover:bg-white/16 transition-all">
-                Se connecter
-              </Link>
+              <button
+                onClick={handleCopyEmbed}
+                className="inline-flex h-12 items-center gap-2 rounded-full bg-black/[0.055] px-5 text-sm font-black text-black/60 transition hover:bg-black/[0.1] hover:text-black"
+              >
+                <Code className="h-4 w-4" />
+                {embedCopied ? 'Code copie' : 'Embed'}
+              </button>
             </div>
-            <p className="text-xs text-white/40">50 crédits IA offerts à l'inscription</p>
+
+            {showShare ? (
+              <div className="mt-4 rounded-[1.35rem] border border-black/[0.08] bg-black/[0.03] p-4">
+                <ShareButtons url={trackUrl} title={`${track.title} — ${track.artist}`} />
+              </div>
+            ) : null}
+
+            <div className="mt-4 rounded-[1.35rem] border border-black/[0.08] bg-black/[0.03] p-4">
+              <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-black/38">Lecteur audio</p>
+              <audio controls preload="none" className="w-full" style={{ height: 40 }}>
+                <source src={track.audioUrl} type="audio/mpeg" />
+                Votre navigateur ne supporte pas le lecteur audio.
+              </audio>
+            </div>
+          </SynauraPanel>
+
+          <div className="space-y-4">
+            <SynauraPanel className="p-5 sm:p-6">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">Infos</p>
+              <div className="mt-4 grid gap-3 text-sm font-semibold text-black/58">
+                <div className="flex items-center justify-between rounded-[1rem] bg-black/[0.03] px-4 py-3">
+                  <span>Duree</span>
+                  <span className="font-black text-[#171313]">{track.duration > 0 ? mmss(track.duration) : 'Non renseignee'}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-[1rem] bg-black/[0.03] px-4 py-3">
+                  <span>Ecoutes</span>
+                  <span className="font-black text-[#171313]">{fmt.format(track.plays || 0)}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-[1rem] bg-black/[0.03] px-4 py-3">
+                  <span>Likes</span>
+                  <span className="font-black text-[#171313]">{fmt.format(track.likes || 0)}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-[1rem] bg-black/[0.03] px-4 py-3">
+                  <span>Genre</span>
+                  <span className="font-black text-[#171313]">{track.genre?.[0] || 'Libre'}</span>
+                </div>
+              </div>
+            </SynauraPanel>
+
+            {!session ? (
+              <SynauraPanel className="border-[#ff6f61]/18 bg-[#fff7ec] p-5 shadow-[0_22px_70px_rgba(44,33,19,0.12)] sm:p-6">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#ff6f61]">Écoute en invité</p>
+                <h2 className="mt-3 text-2xl font-black tracking-[-0.04em] text-[#171313]">Crée ton compte pour garder ce son</h2>
+                <p className="mt-2 text-sm font-semibold leading-6 text-black/58">
+                  Sauvegarde tes favoris, suis l'artiste, publie tes propres sons et reçois les nouveautés.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Link
+                    href={`/auth/signup?callbackUrl=/track/${track.id}`}
+                    className="inline-flex h-11 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Creer un compte
+                  </Link>
+                  <Link
+                    href={`/auth/signin?callbackUrl=/track/${track.id}`}
+                    className="inline-flex h-11 items-center rounded-full bg-white px-5 text-sm font-black text-black/60 transition hover:bg-black hover:text-white"
+                  >
+                    Se connecter
+                  </Link>
+                </div>
+              </SynauraPanel>
+            ) : null}
           </div>
-        )}
+        </div>
       </div>
-    </div>
+    </SynauraAppShell>
   );
 }

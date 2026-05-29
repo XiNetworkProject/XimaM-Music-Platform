@@ -125,24 +125,24 @@ export default function PostCommentsSheet({ post, isOpen, onClose, onCommentCoun
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-            className="fixed inset-x-0 bottom-0 z-[201] max-h-[80dvh] flex flex-col rounded-t-2xl bg-[#0e0e18] border-t border-white/[0.06] lg:left-auto lg:right-6 lg:bottom-24 lg:w-[420px] lg:rounded-2xl lg:border lg:max-h-[70dvh]"
+            className="fixed inset-x-0 bottom-0 z-[201] max-h-[80dvh] flex flex-col rounded-t-2xl border-t border-black/[0.08] bg-[#fffaf2] text-[#171313] lg:left-auto lg:right-6 lg:bottom-24 lg:w-[420px] lg:max-h-[70dvh] lg:rounded-2xl lg:border"
           >
             {/* Handle */}
             <div className="flex justify-center pt-3 pb-1 lg:hidden">
-              <div className="w-10 h-1 rounded-full bg-white/[0.1]" />
+              <div className="w-10 h-1 rounded-full bg-black/[0.12]" />
             </div>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-              <h3 className="text-[15px] font-semibold text-white/90">
+            <div className="flex items-center justify-between border-b border-black/[0.06] px-4 py-3">
+              <h3 className="text-[15px] font-semibold text-[#171313]">
                 Commentaires
                 {comments.length > 0 && (
-                  <span className="ml-2 text-[12px] text-white/30 font-normal tabular-nums">{comments.length}</span>
+                  <span className="ml-2 text-[12px] text-black/34 font-normal tabular-nums">{comments.length}</span>
                 )}
               </h3>
               <button
                 onClick={onClose}
-                className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/[0.1] transition-all"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/[0.05] text-black/45 transition-all hover:bg-black/[0.08] hover:text-[#171313]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -152,12 +152,12 @@ export default function PostCommentsSheet({ post, isOpen, onClose, onCommentCoun
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-0">
               {loading && comments.length === 0 && (
                 <div className="flex justify-center py-8">
-                  <Loader2 className="w-5 h-5 text-white/20 animate-spin" />
+                  <Loader2 className="w-5 h-5 text-black/25 animate-spin" />
                 </div>
               )}
               {!loading && comments.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <p className="text-[13px] text-white/25">Aucun commentaire. Sois le premier !</p>
+                  <p className="text-[13px] text-black/38">Aucun commentaire. Sois le premier !</p>
                 </div>
               )}
               {comments.map(comment => {
@@ -185,12 +185,12 @@ export default function PostCommentsSheet({ post, isOpen, onClose, onCommentCoun
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-[13px] font-semibold text-white/80">
+                        <span className="text-[13px] font-semibold text-[#171313]">
                           {comment.user?.name || comment.user?.username}
                         </span>
-                        <span className="text-[11px] text-white/25 tabular-nums">{timeAgo}</span>
+                        <span className="text-[11px] text-black/28 tabular-nums">{timeAgo}</span>
                       </div>
-                      <p className="text-[13px] text-white/60 leading-relaxed mt-0.5 break-words">
+                      <p className="text-[13px] text-black/62 leading-relaxed mt-0.5 break-words">
                         {comment.content}
                       </p>
                     </div>
@@ -202,7 +202,7 @@ export default function PostCommentsSheet({ post, isOpen, onClose, onCommentCoun
                 <button
                   onClick={() => loadComments(nextCursor)}
                   disabled={loading}
-                  className="w-full text-center text-[12px] text-white/30 hover:text-white/50 py-2 transition-colors"
+                  className="w-full py-2 text-center text-[12px] text-black/38 transition-colors hover:text-[#171313]"
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Charger plus'}
                 </button>
@@ -213,7 +213,7 @@ export default function PostCommentsSheet({ post, isOpen, onClose, onCommentCoun
 
             {/* Input */}
             {session ? (
-              <div className="p-3 border-t border-white/[0.06] flex gap-2 items-end">
+              <div className="flex items-end gap-2 border-t border-black/[0.06] p-3">
                 <textarea
                   ref={inputRef}
                   value={text}
@@ -221,7 +221,7 @@ export default function PostCommentsSheet({ post, isOpen, onClose, onCommentCoun
                   onKeyDown={handleKeyDown}
                   placeholder="Écrire un commentaire…"
                   rows={1}
-                  className="flex-1 bg-white/[0.05] border border-white/[0.08] rounded-xl px-3 py-2 text-[13px] text-white/80 placeholder-white/20 resize-none focus:outline-none focus:border-white/[0.2] transition-colors min-h-[38px] max-h-24 overflow-y-auto"
+                  className="min-h-[38px] max-h-24 flex-1 resize-none overflow-y-auto rounded-xl border border-black/[0.08] bg-black/[0.03] px-3 py-2 text-[13px] text-[#171313] placeholder:text-black/28 transition-colors focus:border-black/[0.16] focus:outline-none"
                   style={{ height: 'auto' }}
                   onInput={e => {
                     const el = e.currentTarget;
@@ -232,7 +232,7 @@ export default function PostCommentsSheet({ post, isOpen, onClose, onCommentCoun
                 <button
                   onClick={handleSubmit}
                   disabled={!text.trim() || submitting}
-                  className="w-9 h-9 rounded-full bg-violet-500 flex items-center justify-center text-white hover:bg-violet-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 shrink-0"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#171313] text-white transition-all hover:bg-black disabled:opacity-30 disabled:cursor-not-allowed active:scale-95"
                 >
                   {submitting
                     ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -241,9 +241,9 @@ export default function PostCommentsSheet({ post, isOpen, onClose, onCommentCoun
                 </button>
               </div>
             ) : (
-              <div className="p-3 border-t border-white/[0.06]">
-                <p className="text-center text-[12px] text-white/25">
-                  <a href="/auth/signin" className="text-violet-400 hover:text-violet-300 underline">Connecte-toi</a> pour commenter
+              <div className="border-t border-black/[0.06] p-3">
+                <p className="text-center text-[12px] text-black/38">
+                  <a href="/auth/signin" className="text-[#7c5cff] hover:text-[#5f46df] underline">Connecte-toi</a> pour commenter
                 </p>
               </div>
             )}

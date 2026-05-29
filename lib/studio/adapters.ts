@@ -44,7 +44,9 @@ export function aiTrackToStudioTrack(ai: any, artistName: string): StudioTrack {
     negativePrompt: undefined,
     model: safeStr((t as any).model_name, safeStr(gen?.model, 'V4_5')),
     audioUrl: pickFirstPlayableHttpMediaUrl([(t as any).audio_url, (t as any).stream_audio_url, links.provider_audio_url, links.provider_stream_audio_url], createdAt),
-    coverUrl: pickFirstPlayableHttpMediaUrl([(t as any).image_url, links.provider_image_url], createdAt) || '/synaura_symbol.svg',
+    coverUrl:
+      pickFirstPlayableHttpMediaUrl([(t as any).image_url, links.provider_image_url], createdAt) ||
+      '/brand/2026/synaura-symbol-2026-white.png',
     isFavorite: !!((t as any).is_liked ?? (t as any).is_favorite),
     isPublic: Boolean((t as any).is_public ?? gen?.is_public),
     status: 'ready',

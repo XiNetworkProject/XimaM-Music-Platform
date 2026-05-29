@@ -680,8 +680,8 @@ function CinematicIntro({ onEnter }: { onEnter: () => void }) {
         <span style={{ fontSize: "10px", letterSpacing: "4px", color: "rgba(255,255,255,0.25)", textTransform: "uppercase" }}>
           Une production
         </span>
-        <Image src="/synaura_symbol.svg" alt="Synaura" width={16} height={16}
-          style={{ filter: "brightness(0) invert(1) opacity(0.3)" }} />
+        <Image src="/brand/2026/synaura-symbol-2026.png" alt="Synaura" width={26} height={26}
+          style={{ opacity: 0.55 }} unoptimized />
         <Image src="/synaura_logotype.svg" alt="Synaura" width={60} height={18}
           style={{ filter: "brightness(0) invert(1) opacity(0.3)" }} />
       </div>

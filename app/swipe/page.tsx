@@ -1,24 +1,25 @@
 ﻿"use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  X,
-  ChevronUp,
-  ChevronDown,
-  Heart,
-  MessageCircle,
-  Share2,
-  Download,
-  Play,
-  Pause,
-  FileText,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
-
-import { useAudioPlayer } from "../providers";
-import FollowButton from "@/components/FollowButton";
+import { useAudioPlayer } from "@/app/providers";
 import { applyCdnToTracks } from "@/lib/cdnHelpers";
+import FollowButton from "@/components/FollowButton";
+import {
+  ChevronDown,
+  ChevronUp,
+  Download,
+  Heart,
+  Loader2,
+  MessageCircle,
+  Pause,
+  Play,
+  Share2,
+  Sparkles,
+  X,
+} from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 type Track = {
   _id: string;
@@ -27,8 +28,8 @@ type Track = {
   audioUrl: string;
   coverUrl?: string;
   duration: number;
-  likes: any; // parfois array, parfois number selon tes endroits
-  comments: any; // idem
+  likes: number | string[];
+  comments: number | string[];
   plays: number;
   isLiked?: boolean;
   genre?: string[];
@@ -36,50 +37,41 @@ type Track = {
 };
 
 const fmtTime = (s: number) => {
-  if (!isFinite(s) || s < 0) return "0:00";
+  if (!Number.isFinite(s) || s < 0) return "0:00";
   const m = Math.floor(s / 60);
   const ss = Math.floor(s % 60);
   return `${m}:${String(ss).padStart(2, "0")}`;
 };
 
 const fmtCount = (n: number) => {
-  if (!isFinite(n) || n < 0) return "0";
+  if (!Number.isFinite(n) || n < 0) return "0";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
 };
 
-function getLikesCount(likes: any) {
-  if (Array.isArray(likes)) return likes.length;
-  if (typeof likes === "number") return likes;
-  return 0;
-}
-
-function getCommentsCount(comments: any) {
-  if (Array.isArray(comments)) return comments.length;
-  if (typeof comments === "number") return comments;
+function countOf(value: unknown) {
+  if (Array.isArray(value)) return value.length;
+  if (typeof value === "number") return value;
   return 0;
 }
 
 export default function SwipePage() {
   const router = useRouter();
-  useSession(); // session utilisée implicitement par FollowButton/likes
-
-  const { audioState, setTracks, playTrack, play, pause, seek, handleLike } = useAudioPlayer();
+  const { audioState, setQueueAndPlay, playTrack, play, pause, seek, handleLike } = useAudioPlayer();
 
   const [loading, setLoading] = useState(true);
-  const [tracks, setLocalTracks] = useState<Track[]>([]);
+  const [tracks, setTracks] = useState<Track[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [lyricsOpen, setLyricsOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const itemRefs = useRef<(HTMLElement | null)[]>([]);
   const wheelLockRef = useRef(false);
-
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const currentId = currentTrack?._id;
 
-  // Plein écran: bloque le scroll du body
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -88,24 +80,21 @@ export default function SwipePage() {
     };
   }, []);
 
-  // Charge le feed (mêmes endpoints que ton home)
   useEffect(() => {
     let mounted = true;
 
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch("/api/ranking/feed?limit=50&ai=1", { cache: "no-store" });
+        setError(null);
+        const res = await fetch("/api/ranking/feed?limit=60&ai=1", { cache: "no-store" });
+        if (!res.ok) throw new Error("Chargement impossible");
         const json = await res.json();
-        const list: Track[] = Array.isArray(json?.tracks) ? json.tracks : [];
-
-        const cdnTracks = applyCdnToTracks(list as any) as any;
+        const list = applyCdnToTracks((Array.isArray(json?.tracks) ? json.tracks : []) as any) as Track[];
         if (!mounted) return;
-
-        setLocalTracks(cdnTracks);
-        setTracks(cdnTracks as any); // pour que le player connaisse la queue
-      } catch {
-        // silencieux
+        setTracks(list);
+      } catch (e: any) {
+        if (mounted) setError(e?.message || "Impossible de charger le scroll");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -114,115 +103,113 @@ export default function SwipePage() {
     return () => {
       mounted = false;
     };
-  }, [setTracks]);
-
-  const scrollToIndex = useCallback((i: number, behavior: ScrollBehavior = "smooth") => {
-    const el = itemRefs.current[i];
-    if (!el) return;
-    el.scrollIntoView({ behavior, block: "start" });
   }, []);
 
-  // Observer: détecte quel écran est “actif”
-  useEffect(() => {
-    if (!tracks.length) return;
-
-    const els = itemRefs.current.filter(Boolean) as HTMLDivElement[];
-    if (!els.length) return;
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const best = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0))[0];
-        if (!best) return;
-
-        const idx = Number((best.target as HTMLElement).dataset.index);
-        if (Number.isFinite(idx)) setActiveIndex(idx);
-      },
-      { root: containerRef.current, threshold: [0.55, 0.7, 0.85] }
-    );
-
-    els.forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
-  }, [tracks.length]);
-
-  // Auto-play quand on change d’écran (TikTok-like)
-  useEffect(() => {
-    const t = tracks[activeIndex];
-    if (!t?._id) return;
-
-    const timer = window.setTimeout(() => {
-      if (currentId !== t._id) playTrack(t as any);
-    }, 120);
-
-    return () => window.clearTimeout(timer);
-  }, [activeIndex, tracks, playTrack, currentId]);
-
-  // Wheel “1 écran par scroll” (desktop)
-  const onWheel = useCallback(
-    (e: React.WheelEvent) => {
-      if (lyricsOpen) return;
-      if (wheelLockRef.current) {
-        e.preventDefault();
-        return;
-      }
-
-      const dir = e.deltaY > 0 ? 1 : -1;
-      const next = Math.min(tracks.length - 1, Math.max(0, activeIndex + dir));
-      if (next === activeIndex) return;
-
-      wheelLockRef.current = true;
-      e.preventDefault();
-      scrollToIndex(next, "smooth");
-
-      window.setTimeout(() => {
-        wheelLockRef.current = false;
-      }, 420);
-    },
-    [activeIndex, tracks.length, scrollToIndex, lyricsOpen]
+  const queueTracks = useMemo(
+    () =>
+      tracks.map((track) => ({
+        ...track,
+        coverUrl: track.coverUrl || "/brand/2026/synaura-symbol-2026-white.png",
+        source: "swipe",
+      })),
+    [tracks],
   );
 
-  // Keyboard (↑ ↓ + espace)
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (lyricsOpen) return;
+  const scrollToIndex = useCallback((index: number, behavior: ScrollBehavior = "smooth") => {
+    itemRefs.current[index]?.scrollIntoView({ behavior, block: "start" });
+  }, []);
 
-      if (e.key === "ArrowDown" || e.key === "PageDown") {
-        e.preventDefault();
+  const playIndex = useCallback(
+    (index: number) => {
+      const track = tracks[index];
+      if (!track?._id) return;
+      setActiveIndex(index);
+      setQueueAndPlay(queueTracks as any, index);
+    },
+    [queueTracks, setQueueAndPlay, tracks],
+  );
+
+  useEffect(() => {
+    if (!tracks.length) return;
+    const root = containerRef.current;
+    if (!root) return;
+    const els = itemRefs.current.filter(Boolean) as HTMLElement[];
+    if (!els.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const best = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => (b.intersectionRatio || 0) - (a.intersectionRatio || 0))[0];
+        if (!best) return;
+        const index = Number((best.target as HTMLElement).dataset.index);
+        if (Number.isFinite(index)) setActiveIndex(index);
+      },
+      { root, threshold: [0.55, 0.72, 0.9] },
+    );
+
+    els.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [tracks.length]);
+
+  useEffect(() => {
+    const track = tracks[activeIndex];
+    if (!track?._id || lyricsOpen) return;
+    const timer = window.setTimeout(() => {
+      if (currentId !== track._id) playIndex(activeIndex);
+    }, 110);
+    return () => window.clearTimeout(timer);
+  }, [activeIndex, currentId, lyricsOpen, playIndex, tracks]);
+
+  const onWheel = useCallback(
+    (event: React.WheelEvent) => {
+      if (lyricsOpen) return;
+      if (wheelLockRef.current) {
+        event.preventDefault();
+        return;
+      }
+      const direction = event.deltaY > 0 ? 1 : -1;
+      const next = Math.min(tracks.length - 1, Math.max(0, activeIndex + direction));
+      if (next === activeIndex) return;
+      wheelLockRef.current = true;
+      event.preventDefault();
+      scrollToIndex(next);
+      window.setTimeout(() => {
+        wheelLockRef.current = false;
+      }, 430);
+    },
+    [activeIndex, lyricsOpen, scrollToIndex, tracks.length],
+  );
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (lyricsOpen) return;
+      if (event.key === "ArrowDown" || event.key === "PageDown") {
+        event.preventDefault();
         scrollToIndex(Math.min(tracks.length - 1, activeIndex + 1));
       }
-      if (e.key === "ArrowUp" || e.key === "PageUp") {
-        e.preventDefault();
+      if (event.key === "ArrowUp" || event.key === "PageUp") {
+        event.preventDefault();
         scrollToIndex(Math.max(0, activeIndex - 1));
       }
-      if (e.key === " " || e.key === "Spacebar") {
-        e.preventDefault();
-        if (audioState.isPlaying) pause();
-        else play();
+      if (event.key === " " || event.key === "Spacebar") {
+        event.preventDefault();
+        audioState.isPlaying ? pause() : play();
       }
-      if (e.key === "Escape") {
-        e.preventDefault();
+      if (event.key === "Escape") {
+        event.preventDefault();
         router.back();
       }
     };
-
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [activeIndex, tracks.length, scrollToIndex, audioState.isPlaying, pause, play, router, lyricsOpen]);
+  }, [activeIndex, audioState.isPlaying, lyricsOpen, pause, play, router, scrollToIndex, tracks.length]);
 
-  const close = useCallback(() => {
-    try {
-      router.back();
-    } catch {
-      router.push("/");
-    }
-  }, [router]);
-
-  const onShare = useCallback(async (t: Track) => {
-    const url = `${window.location.origin}/track/${t._id}`;
+  const shareTrack = useCallback(async (track: Track) => {
+    const url = `${window.location.origin}/track/${track._id}`;
     try {
       if ((navigator as any).share) {
-        await (navigator as any).share({ title: t.title, text: "Écoute sur Synaura", url });
+        await (navigator as any).share({ title: track.title, text: "Écoute sur Synaura", url });
       } else {
         await navigator.clipboard.writeText(url);
       }
@@ -233,247 +220,204 @@ export default function SwipePage() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center text-white">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white" />
+      <div className="fixed inset-0 z-[100] grid place-items-center bg-[#fffaf2] text-[#171313]">
+        <div className="rounded-[2rem] border border-[#dccfbb] bg-white p-8 text-center shadow-[0_24px_80px_rgba(44,33,19,0.16)]">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+          <p className="mt-3 text-sm font-black text-black/50">Chargement du scroll...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || tracks.length === 0) {
+    return (
+      <div className="fixed inset-0 z-[100] grid place-items-center bg-[#fffaf2] text-[#171313]">
+        <div className="max-w-md rounded-[2rem] border border-[#dccfbb] bg-white p-8 text-center shadow-[0_24px_80px_rgba(44,33,19,0.16)]">
+          <Sparkles className="mx-auto h-10 w-10 text-black/24" />
+          <h1 className="mt-4 text-2xl font-black">Aucun son à afficher</h1>
+          <p className="mt-2 text-sm font-semibold text-black/48">{error || "Le feed est vide pour le moment."}</p>
+          <button onClick={() => router.push("/")} className="mt-5 h-11 rounded-full bg-[#171313] px-5 text-sm font-black text-white">
+            Retour accueil
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-[80] text-white">
+    <div className="fixed inset-0 z-[100] overflow-hidden bg-[#171313] text-white">
       <div
         ref={containerRef}
         onWheel={onWheel}
-        className="h-full w-full overflow-y-auto snap-y snap-mandatory swipe-container"
+        className="h-full w-full snap-y snap-mandatory overflow-y-auto overscroll-contain"
         style={{ scrollSnapType: "y mandatory" }}
       >
-        {tracks.map((t, i) => {
-          const isThis = i === activeIndex;
-          const isPlayingThis = isThis && currentId === t._id && audioState.isPlaying;
-
-          const duration =
-            isThis && currentId === t._id
-              ? audioState.duration || t.duration || 0
-              : t.duration || 0;
-          const currentTime = isThis && currentId === t._id ? audioState.currentTime || 0 : 0;
-
-          const likesCount = getLikesCount(t.likes);
-          const commentsCount = getCommentsCount(t.comments);
+        {tracks.map((track, index) => {
+          const isActive = index === activeIndex;
+          const isPlayingThis = currentId === track._id && audioState.isPlaying;
+          const currentTime = currentId === track._id ? audioState.currentTime || 0 : 0;
+          const duration = currentId === track._id ? audioState.duration || track.duration || 0 : track.duration || 0;
+          const likesCount = countOf(track.likes);
+          const commentsCount = countOf(track.comments);
 
           return (
-            <div
-              key={t._id || i}
+            <section
+              key={track._id || index}
               ref={(el) => {
-                itemRefs.current[i] = el;
+                itemRefs.current[index] = el;
               }}
-              data-index={i}
-              className="relative h-[100svh] w-full snap-start"
-              style={{ scrollSnapAlign: "start" }}
+              data-index={index}
+              className="relative h-[100svh] w-full snap-start overflow-hidden"
+              style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
             >
               <div className="absolute inset-0">
                 <img
-                  src={t.coverUrl || "/default-cover.svg"}
+                  src={track.coverUrl || "/brand/2026/synaura-symbol-2026-white.png"}
                   alt=""
-                  className="w-full h-full object-cover scale-110 blur-3xl opacity-40"
-                  onError={(e) => (((e.currentTarget as HTMLImageElement).src = "/default-cover.svg"))}
+                  className="h-full w-full scale-125 object-cover opacity-42 blur-3xl saturate-150"
+                  onError={(event) => {
+                    event.currentTarget.src = "/brand/2026/synaura-symbol-2026-white.png";
+                  }}
                 />
-                <div className="absolute inset-0 bg-black/55" />
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-transparent to-cyan-900/20" />
+                <div className="absolute inset-0 bg-gradient-to-b from-[#171313]/90 via-[#171313]/35 to-[#171313]/92" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(255,111,97,0.22),transparent_30%),radial-gradient(circle_at_88%_30%,rgba(124,92,255,0.18),transparent_32%),radial-gradient(circle_at_50%_100%,rgba(0,194,203,0.14),transparent_34%)]" />
               </div>
 
-              <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between safe-area-top">
-                <button
-                  onClick={close}
-                  className="w-11 h-11 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] backdrop-blur-md flex items-center justify-center transition-all"
-                  aria-label="Fermer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-
-                <div className="text-xs text-white/70 flex items-center gap-2">
-                  <span>Swipe ↑ / ↓</span>
-                  <div className="flex flex-col -space-y-1">
-                    <ChevronUp className="w-4 h-4 opacity-70" />
-                    <ChevronDown className="w-4 h-4 opacity-70" />
+              <header className="absolute left-0 right-0 top-0 z-30 px-4 pt-[max(env(safe-area-inset-top),1rem)]">
+                <div className="flex items-center justify-between">
+                  <button onClick={() => router.back()} className="grid h-11 w-11 place-items-center rounded-full border border-white/12 bg-white/10 backdrop-blur-xl transition hover:bg-white/16" aria-label="Fermer">
+                    <X className="h-5 w-5" />
+                  </button>
+                  <div className="rounded-full border border-white/12 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white/64 backdrop-blur-xl">
+                    Scroll Synaura
                   </div>
                 </div>
-              </div>
+              </header>
 
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
+              <div className="absolute inset-0 z-10 grid place-items-center px-5">
                 <button
-                  onClick={() => handleLike(t._id)}
-                  className="w-12 h-12 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] backdrop-blur-md flex flex-col items-center justify-center transition-all"
-                >
-                  <Heart className={`w-5 h-5 ${t.isLiked ? "text-pink-400" : "text-white"}`} />
-                  <span className="text-[11px] mt-0.5 text-white/80">{fmtCount(likesCount)}</span>
-                </button>
-
-                <button
-                  onClick={() => router.push(`/track/${t._id}`, { scroll: false })}
-                  className="w-12 h-12 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] backdrop-blur-md flex flex-col items-center justify-center transition-all"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  <span className="text-[11px] mt-0.5 text-white/80">{fmtCount(commentsCount)}</span>
-                </button>
-
-                <button
-                  onClick={() => onShare(t)}
-                  className="w-12 h-12 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] backdrop-blur-md flex flex-col items-center justify-center transition-all"
-                >
-                  <Share2 className="w-5 h-5" />
-                  <span className="text-[11px] mt-0.5 text-white/80"> </span>
-                </button>
-
-                <a
-                  href={t.audioUrl}
-                  download
-                  className="w-12 h-12 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] backdrop-blur-md flex flex-col items-center justify-center transition-all"
-                >
-                  <Download className="w-5 h-5" />
-                  <span className="text-[11px] mt-0.5 text-white/80"> </span>
-                </a>
-              </div>
-
-              <div className="absolute inset-0 z-10 flex items-center justify-center px-6">
-                <button
+                  type="button"
                   onClick={() => {
-                    if (currentId !== t._id) playTrack(t as any);
+                    if (currentId !== track._id) playIndex(index);
                     else if (audioState.isPlaying) pause();
-                    else play();
+                    else void play();
                   }}
-                  className="relative w-[78vw] max-w-[520px] aspect-square rounded-3xl overflow-hidden border border-white/10 shadow-2xl"
+                  className="group relative w-[min(76vw,520px)] overflow-hidden rounded-[2.2rem] border border-white/12 bg-white/8 shadow-[0_34px_100px_rgba(0,0,0,0.38)] backdrop-blur"
                 >
                   <img
-                    src={t.coverUrl || "/default-cover.svg"}
-                    alt={t.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => (((e.currentTarget as HTMLImageElement).src = "/default-cover.svg"))}
+                    src={track.coverUrl || "/brand/2026/synaura-symbol-2026-white.png"}
+                    alt={track.title}
+                    className="aspect-square w-full object-cover"
+                    onError={(event) => {
+                      event.currentTarget.src = "/brand/2026/synaura-symbol-2026-white.png";
+                    }}
                   />
-                  <div className="absolute inset-0 bg-black/10" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-16 h-16 rounded-full bg-black/40 border border-white/10 backdrop-blur-md flex items-center justify-center">
-                      {isPlayingThis ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7" />}
-                    </div>
+                  <div className="absolute inset-0 bg-black/10 transition group-hover:bg-black/0" />
+                  <div className="absolute inset-0 grid place-items-center">
+                    <span className="grid h-20 w-20 place-items-center rounded-full border border-white/18 bg-[#171313]/56 text-white shadow-xl backdrop-blur-xl transition group-hover:scale-105">
+                      {isPlayingThis ? <Pause className="h-8 w-8" /> : <Play className="ml-1 h-8 w-8 fill-current" />}
+                    </span>
                   </div>
                 </button>
               </div>
 
-              <div className="absolute left-1/2 -translate-x-1/2 bottom-5 z-20 w-[94vw] max-w-[1000px] safe-area-bottom">
-                <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4">
-                  <div className="flex items-start justify-between gap-3">
+              <aside className="absolute right-4 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-3">
+                <button onClick={() => handleLike(track._id)} className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
+                  <Heart className={`h-5 w-5 ${track.isLiked ? "fill-[#ff6f61] text-[#ff6f61]" : ""}`} />
+                  <span className="text-[10px] font-black">{fmtCount(likesCount)}</span>
+                </button>
+                <button onClick={() => router.push(`/track/${track._id}`, { scroll: false })} className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
+                  <MessageCircle className="h-5 w-5" />
+                  <span className="text-[10px] font-black">{fmtCount(commentsCount)}</span>
+                </button>
+                <button onClick={() => shareTrack(track)} className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
+                  <Share2 className="h-5 w-5" />
+                </button>
+                <a href={track.audioUrl} download className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
+                  <Download className="h-5 w-5" />
+                </a>
+              </aside>
+
+              <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[max(env(safe-area-inset-bottom),1rem)]">
+                <div className="mx-auto max-w-5xl rounded-[1.8rem] border border-white/12 bg-[#fffaf2]/95 p-4 text-[#171313] shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+                  <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="text-xs text-white/70">♪ Single</p>
-                      <p className="text-lg font-bold leading-tight line-clamp-1">{t.title}</p>
-                      <div className="mt-1 flex items-center gap-2 flex-wrap">
-                        <p className="text-sm text-white/80">{t.artist?.name || t.artist?.username}</p>
-                        {t.artist?._id && (
-                          <FollowButton
-                            artistId={t.artist._id}
-                            artistUsername={t.artist.username}
-                            size="sm"
-                            className="text-xs py-1 px-2 rounded-full"
-                          />
-                        )}
-                        <span className="text-xs text-white/60">Qualité audio: 320k</span>
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/34">
+                        {track.genre?.[0] || "Synaura"}
+                      </p>
+                      <h2 className="mt-1 truncate text-2xl font-black tracking-tight">{track.title}</h2>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-bold text-black/56">{track.artist?.name || track.artist?.username || "Artiste"}</p>
+                        {track.artist?._id ? (
+                          <FollowButton artistId={track.artist._id} artistUsername={track.artist.username} size="sm" className="rounded-full px-3 py-1 text-xs" />
+                        ) : null}
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => {
-                          if (currentId !== t._id) playTrack(t as any);
-                          else if (audioState.isPlaying) pause();
-                          else play();
-                        }}
-                        className="w-12 h-12 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-center transition-all"
-                      >
-                        {isPlayingThis ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                      </button>
-
-                      <button
-                        onClick={() => setLyricsOpen(true)}
-                        className="px-4 h-12 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] flex items-center gap-2 transition-all"
-                      >
-                        <FileText className="w-4 h-4" />
-                        <span className="text-sm font-semibold">Paroles</span>
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => {
+                        if (currentId !== track._id) playIndex(index);
+                        else if (audioState.isPlaying) pause();
+                        else void play();
+                      }}
+                      className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#171313] text-white transition hover:scale-105"
+                    >
+                      {isPlayingThis ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
+                    </button>
                   </div>
 
                   <div className="mt-4">
-                    <div className="flex items-center justify-between text-xs text-white/70 mb-2">
+                    <div className="mb-2 flex items-center justify-between text-xs font-bold text-black/42">
                       <span>{fmtTime(currentTime)}</span>
-                      <span>{fmtTime(duration)}</span>
+                      <span>
+                        {index + 1}/{tracks.length} · {fmtTime(duration)}
+                      </span>
                     </div>
-
                     <input
                       type="range"
                       min={0}
                       max={Math.max(1, duration)}
                       value={Math.min(currentTime, Math.max(1, duration))}
-                      onChange={(e) => {
-                        if (currentId === t._id) seek(Number(e.target.value));
+                      onChange={(event) => {
+                        const value = Number(event.target.value);
+                        if (currentId === track._id) seek(value);
                         else {
-                          playTrack(t as any).then(() => {
-                            setTimeout(() => seek(Number(e.target.value)), 120);
-                          });
+                          void playTrack(track as any).then(() => setTimeout(() => seek(value), 120));
                         }
                       }}
-                      className="w-full slider"
+                      className="h-2 w-full accent-[#171313]"
                     />
                   </div>
                 </div>
               </div>
 
-              {lyricsOpen && isThis && (
-                <div className="absolute inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-end">
-                  <div className="w-full max-w-[1000px] mx-auto rounded-t-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-5 pb-8 safe-area-bottom">
-                    <div className="flex items-center justify-between">
-                      <p className="font-bold text-lg">Paroles</p>
-                      <button
-                        onClick={() => setLyricsOpen(false)}
-                        className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-center transition-all"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    <div className="mt-4 max-h-[55vh] overflow-y-auto pr-1">
-                      <pre className="whitespace-pre-wrap text-sm text-white/85 leading-relaxed">
-                        {t.lyrics?.trim()
-                          ? t.lyrics
-                          : "Aucune parole disponible pour ce titre (pour le moment)."}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="absolute right-4 bottom-28 z-30 hidden md:flex flex-col gap-2">
-                <button
-                  onClick={() => scrollToIndex(Math.max(0, activeIndex - 1))}
-                  className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] backdrop-blur-md flex items-center justify-center transition-all"
-                >
-                  <ChevronUp className="w-5 h-5" />
+              <div className="absolute bottom-28 right-4 z-30 hidden flex-col gap-2 md:flex">
+                <button onClick={() => scrollToIndex(Math.max(0, activeIndex - 1))} className="grid h-10 w-10 place-items-center rounded-full border border-white/12 bg-white/10 backdrop-blur-xl transition hover:bg-white/16">
+                  <ChevronUp className="h-5 w-5" />
                 </button>
-                <button
-                  onClick={() => scrollToIndex(Math.min(tracks.length - 1, activeIndex + 1))}
-                  className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] backdrop-blur-md flex items-center justify-center transition-all"
-                >
-                  <ChevronDown className="w-5 h-5" />
+                <button onClick={() => scrollToIndex(Math.min(tracks.length - 1, activeIndex + 1))} className="grid h-10 w-10 place-items-center rounded-full border border-white/12 bg-white/10 backdrop-blur-xl transition hover:bg-white/16">
+                  <ChevronDown className="h-5 w-5" />
                 </button>
               </div>
-            </div>
+
+              {lyricsOpen && isActive ? (
+                <div className="absolute inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm">
+                  <div className="mx-auto w-full max-w-4xl rounded-t-[2rem] border border-white/12 bg-[#fffaf2] p-5 text-[#171313]">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-black">Paroles</h3>
+                      <button onClick={() => setLyricsOpen(false)} className="grid h-10 w-10 place-items-center rounded-full bg-black/[0.06]">
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                    <pre className="mt-4 max-h-[55vh] overflow-y-auto whitespace-pre-wrap text-sm font-semibold leading-7 text-black/64">
+                      {track.lyrics?.trim() || "Aucune parole disponible pour ce titre."}
+                    </pre>
+                  </div>
+                </div>
+              ) : null}
+            </section>
           );
         })}
-
-        {!tracks.length && (
-          <div className="h-[100svh] flex items-center justify-center text-white/70">
-            Aucune musique à afficher.
-          </div>
-        )}
       </div>
     </div>
   );
 }
-

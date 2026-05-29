@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         tracks: [],
         artists: [],
-        playlists: []
+        playlists: [],
+        posts: [],
       });
     }
 
@@ -93,12 +94,44 @@ export async function GET(request: NextRequest) {
       searchPromises.push(Promise.resolve({ data: [], error: null }));
     }
 
+    // Recherche dans les posts publics (si nécessaire)
+    if (filter === 'all' || filter === 'posts') {
+      searchPromises.push(
+        supabase
+          .from('creator_posts')
+          .select(`
+            id,
+            post_type,
+            content,
+            image_url,
+            track_id,
+            likes_count,
+            comments_count,
+            created_at,
+            creator_id,
+            profiles!creator_posts_creator_id_fkey (
+              id,
+              username,
+              name,
+              avatar
+            )
+          `)
+          .eq('is_public', true)
+          .ilike('content', `%${query.replace(/[%_]/g, '\\$&')}%`)
+          .order('created_at', { ascending: false })
+          .limit(limit)
+      );
+    } else {
+      searchPromises.push(Promise.resolve({ data: [], error: null }));
+    }
+
     // Exécuter toutes les requêtes en parallèle
-    const [tracksResult, artistsResult, playlistsResult] = await Promise.all(searchPromises);
+    const [tracksResult, artistsResult, playlistsResult, postsResult] = await Promise.all(searchPromises);
     
     let tracks: any[] = [];
     let artists: any[] = [];
     let playlists: any[] = [];
+    let posts: any[] = [];
 
     // Traiter les résultats des tracks
     if (tracksResult.data && tracksResult.data.length > 0) {
@@ -192,19 +225,46 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Traiter les résultats des posts
+    if (postsResult.data && postsResult.data.length > 0) {
+      posts = postsResult.data.map((post: any) => {
+        const creator = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles;
+        return {
+          _id: post.id,
+          id: post.id,
+          type: post.post_type,
+          content: post.content || '',
+          excerpt: post.content || '',
+          imageUrl: post.image_url || null,
+          trackId: post.track_id || null,
+          likes: post.likes_count || 0,
+          comments: post.comments_count || 0,
+          createdAt: post.created_at,
+          creator: creator ? {
+            _id: creator.id,
+            id: creator.id,
+            username: creator.username,
+            name: creator.name || creator.username,
+            avatar: creator.avatar || '',
+          } : null,
+        };
+      });
+    }
+
     const totalTime = Date.now() - startTime;
-    console.log(`⚡ Recherche "${query}" optimisée terminée en ${totalTime}ms: ${tracks.length} pistes, ${artists.length} artistes, ${playlists.length} playlists`);
+    console.log(`⚡ Recherche "${query}" optimisée terminée en ${totalTime}ms: ${tracks.length} pistes, ${artists.length} artistes, ${playlists.length} playlists, ${posts.length} posts`);
 
     return NextResponse.json({
       tracks,
       artists,
       playlists,
+      posts,
       query,
       filter,
-      totalResults: tracks.length + artists.length + playlists.length,
+      totalResults: tracks.length + artists.length + playlists.length + posts.length,
       performance: {
         totalTime,
-        queryCount: 3, // Nombre de requêtes principales
+        queryCount: 4, // Nombre de requêtes principales
         optimization: 'parallel_queries'
       }
     });

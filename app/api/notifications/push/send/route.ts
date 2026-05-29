@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import webpush from 'web-push';
+import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
@@ -12,11 +14,18 @@ if (VAPID_PUBLIC && VAPID_PRIVATE) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const sessionUserId = (session?.user as any)?.id;
+    if (!sessionUserId) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+
     const body = await request.json();
     const { userId, title, body: notifBody, url, icon, tag } = body || {};
 
     if (!userId || !title) {
       return NextResponse.json({ error: 'userId et title requis' }, { status: 400 });
+    }
+    if (userId !== sessionUserId) {
+      return NextResponse.json({ error: 'Envoi push non autorise' }, { status: 403 });
     }
 
     const { data: subs } = await supabaseAdmin
@@ -31,8 +40,8 @@ export async function POST(request: Request) {
     const payload = JSON.stringify({
       title: title || 'Synaura',
       body: notifBody || '',
-      icon: icon || '/synaura_symbol.svg',
-      badge: '/synaura_symbol.svg',
+      icon: icon || '/brand/2026/synaura-symbol-2026-white.png',
+      badge: '/brand/2026/synaura-symbol-2026-white.png',
       url: url || '/boosters',
       tag: tag || 'boost-reminder',
     });

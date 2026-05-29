@@ -131,11 +131,12 @@ export default function AppSidebar() {
         <Link href="/" className="flex items-center gap-2.5 group-data-[collapsed=true]/sidebar:justify-center group/logo">
           <div className="relative shrink-0">
             <Image
-              src="/synaura_symbol.svg"
+              src="/brand/2026/synaura-symbol-2026.png"
               alt="Synaura"
-              width={30}
-              height={30}
-              className="h-[30px] w-[30px] object-contain transition-transform duration-200 group-hover/logo:scale-110"
+              width={42}
+              height={42}
+              className="h-[42px] w-[42px] object-contain transition-transform duration-200 group-hover/logo:scale-110"
+              unoptimized
             />
             <div className="absolute -inset-1.5 rounded-xl bg-indigo-500/20 blur-lg opacity-0 group-hover/logo:opacity-100 transition-opacity -z-10" />
           </div>

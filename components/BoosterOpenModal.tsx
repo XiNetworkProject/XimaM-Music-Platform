@@ -266,7 +266,7 @@ export default function BoosterOpenModal({
                   {/* Synaura logo */}
                   <div className="absolute bottom-1.5 left-0 right-0 flex items-center justify-center">
                     <div className="px-2 py-0.5 rounded bg-white/5 border border-white/10">
-                      <Image src="/synaura_symbol.svg" alt="" width={14} height={14} style={{ filter: 'brightness(0) invert(1) opacity(0.4)' }} />
+                      <Image src="/brand/2026/synaura-symbol-2026.png" alt="" width={24} height={24} className="h-6 w-6 object-contain opacity-70" unoptimized />
                     </div>
                   </div>
                 </div>
@@ -382,7 +382,7 @@ export default function BoosterOpenModal({
 
                   {/* Synaura logo */}
                   <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center">
-                    <Image src="/synaura_symbol.svg" alt="" width={14} height={14} style={{ filter: 'brightness(0) invert(1) opacity(0.2)' }} />
+                    <Image src="/brand/2026/synaura-symbol-2026.png" alt="" width={24} height={24} className="h-6 w-6 object-contain opacity-45" unoptimized />
                   </div>
                 </div>
 

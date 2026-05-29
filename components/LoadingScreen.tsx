@@ -198,11 +198,12 @@ function OrbLoader({
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         >
           <Image
-            src="/synaura_symbol.svg"
+            src="/brand/2026/synaura-symbol-2026.png"
             alt="Synaura"
-            width={64}
-            height={64}
-            className="drop-shadow-[0_0_22px_rgba(255,255,255,0.55)]"
+            width={92}
+            height={92}
+            className="h-[92px] w-[92px] object-contain drop-shadow-[0_0_22px_rgba(255,255,255,0.55)]"
+            unoptimized
           />
         </motion.div>
 
@@ -368,11 +369,12 @@ export default function LoadingScreen({
                 <div className="absolute inset-0 rounded-full blur-xl bg-accent-brand/60 opacity-60" />
                 <div className="relative w-9 h-9 rounded-xl bg-black/70 border border-white/15 flex items-center justify-center overflow-hidden">
                   <Image
-                    src="/synaura_symbol.svg"
+                    src="/brand/2026/synaura-symbol-2026.png"
                     alt="Synaura"
-                    width={20}
-                    height={20}
-                    className="drop-shadow-[0_0_12px_rgba(255,255,255,0.7)]"
+                    width={34}
+                    height={34}
+                    className="h-8 w-8 object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.7)]"
+                    unoptimized
                   />
                 </div>
               </div>

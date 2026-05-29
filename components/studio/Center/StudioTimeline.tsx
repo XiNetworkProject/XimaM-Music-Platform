@@ -29,7 +29,7 @@ function playableUrl(track: any): string {
 }
 
 function coverUrl(track: any): string {
-  return String(track?.image || track?.image_url || track?.imageUrl || '/synaura_symbol.svg').trim();
+  return String(track?.image || track?.image_url || track?.imageUrl || '/brand/2026/synaura-symbol-2026-white.png').trim();
 }
 
 function trackTitle(g: BackgroundGeneration, track: any, index: number): string {
@@ -107,7 +107,7 @@ export default function StudioTimeline({
       artist: { _id: 'ai', name: t.artistName, username: t.artistName },
       duration: t.durationSec || 120,
       audioUrl: t.audioUrl || '',
-      coverUrl: t.coverUrl || '/synaura_symbol.svg',
+      coverUrl: t.coverUrl || '/brand/2026/synaura-symbol-2026-white.png',
       genre: ['IA', 'Généré'],
       plays: 0,
       likes: [],
@@ -121,7 +121,7 @@ export default function StudioTimeline({
       artist: { _id: 'ai', name: x.artistName, username: x.artistName },
       duration: x.durationSec || 120,
       audioUrl: x.audioUrl || '',
-      coverUrl: x.coverUrl || '/synaura_symbol.svg',
+      coverUrl: x.coverUrl || '/brand/2026/synaura-symbol-2026-white.png',
       genre: ['IA', 'Généré'],
       plays: 0,
       likes: [],

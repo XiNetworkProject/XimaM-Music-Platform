@@ -1014,7 +1014,7 @@ export const useAudioService = () => {
       title: 'Publicité',
       artist: { _id: 'sponsor', name: 'Sponsor', username: 'sponsor' },
       audioUrl: url,
-      coverUrl: '/synaura_symbol.svg',
+      coverUrl: '/brand/2026/synaura-symbol-2026-white.png',
       duration: 30,
       likes: [],
       comments: [],

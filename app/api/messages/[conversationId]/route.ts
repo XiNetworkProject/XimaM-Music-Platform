@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin as supabase } from '@/lib/supabase';
+import { notifyNewMessage } from '@/lib/notifications';
 
 export async function GET(
   request: NextRequest,
@@ -140,6 +141,19 @@ export async function POST(
       .select('id, name, username, avatar')
       .eq('id', session.user.id)
       .single();
+
+    const { data: recipients } = await supabase
+      .from('conversation_participants')
+      .select('user_id')
+      .eq('conversation_id', conversationId)
+      .neq('user_id', session.user.id);
+
+    const senderName = profile?.name || profile?.username || 'Quelqu’un';
+    (recipients || []).forEach((recipient: any) => {
+      if (recipient?.user_id) {
+        notifyNewMessage(session.user.id, recipient.user_id, senderName).catch(() => {});
+      }
+    });
 
     return NextResponse.json({
       message: {

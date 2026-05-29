@@ -1,23 +1,27 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
+  ArrowDown,
   Calendar,
-  Clock,
+  Check,
   Coins,
+  CreditCard,
+  HelpCircle,
+  Music2,
   Shield,
   Sparkles,
-  Check,
-  HelpCircle,
-  CreditCard,
-  ArrowDown,
+  Upload,
+  Wand2,
+  X,
+  Zap,
 } from 'lucide-react';
 import PaymentElementCard from './PaymentElementCard';
-import PaymentUpdateCard from './PaymentUpdateCard';
-import { PLAN_ENTITLEMENTS } from '@/lib/entitlements';
 import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { fetchCreditsBalance } from '@/lib/credits';
-import { PLANS, WELCOME_CREDITS, CREDITS_PER_GENERATION, yearlyDiscount, effectiveMonthlyPrice } from '@/lib/billing/pricing';
+import { CREDITS_PER_GENERATION, PLANS, WELCOME_CREDITS } from '@/lib/billing/pricing';
+import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 
 type UsageInfo = {
   tracks: { used: number; limit: number; percentage: number };
@@ -34,139 +38,53 @@ type CurrentSubscription = {
     interval: 'month' | 'year' | string;
   } | null;
   userSubscription: {
-    status: 'active' | 'trial' | 'canceled' | 'expired';
+    status: 'active' | 'trial' | 'canceled' | 'expired' | 'past_due' | 'unpaid';
     currentPeriodEnd?: string;
   } | null;
 } | null;
 
-// Fond global Synaura pour la page abonnements
-function SubscriptionsBackground() {
-  return null;
+function formatEuro(value: number) {
+  return value.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+}
+
+function formatLimit(value: number, suffix = '') {
+  if (value < 0) return 'Illimité';
+  return `${value}${suffix}`;
 }
 
 export default function SubscriptionsPage() {
   const [usage, setUsage] = useState<UsageInfo | null>(null);
   const [current, setCurrent] = useState<CurrentSubscription>(null);
   const [period, setPeriod] = useState<'month' | 'year'>('year');
-  const [selectedPriceId, setSelectedPriceId] = useState<string>('');
+  const [selectedPriceId, setSelectedPriceId] = useState('');
   const [paid, setPaid] = useState(false);
-  const [creditsBalance, setCreditsBalance] = useState<number>(0);
+  const [creditsBalance, setCreditsBalance] = useState(0);
   const [showBuyCredits, setShowBuyCredits] = useState(false);
-  const payRef = useRef<HTMLDivElement>(null);
-  const pmRef = useRef<HTMLDivElement>(null);
-  const [pmList, setPmList] = useState<any[]>([]);
-  const [pmDefault, setPmDefault] = useState<string | null>(null);
-  const [pmLoading, setPmLoading] = useState(false);
-  const [preview, setPreview] = useState<{
-    total: number;
-    currency: string;
-    lines: { amount: number; description?: string | null }[];
-  } | null>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
-  const plansRef = useRef<HTMLDivElement>(null);
+  const [preview, setPreview] = useState<{ total: number; currency: string; lines: { amount: number; description?: string | null }[] } | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
-  const [updateClientSecret, setUpdateClientSecret] = useState<string>('');
 
-  // Compte à rebours pour l'offre de lancement (30 jours à partir du 8 octobre 2025)
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const payRef = useRef<HTMLDivElement>(null);
+  const plansRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   const fetchAll = useMemo(() => {
     return async () => {
       try {
         const [u, c, b] = await Promise.all([
-          fetch('/api/subscriptions/usage', { headers: { 'Cache-Control': 'no-store' } })
-            .then((r) => (r.ok ? r.json() : null))
-            .catch(() => null),
-          fetch('/api/subscriptions/my-subscription', { headers: { 'Cache-Control': 'no-store' } })
-            .then((r) => (r.ok ? r.json() : null))
-            .catch(() => null),
+          fetch('/api/subscriptions/usage', { headers: { 'Cache-Control': 'no-store' } }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+          fetch('/api/subscriptions/my-subscription', { headers: { 'Cache-Control': 'no-store' } }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
           fetchCreditsBalance().catch(() => ({ balance: 0 })),
         ]);
         if (u) setUsage(u);
         if (c) setCurrent(c);
         if (b && typeof (b as any).balance === 'number') setCreditsBalance((b as any).balance);
       } catch {
-        // silencieux
+        // silent
       }
     };
   }, []);
 
-  const priceMap = useMemo(
-    () => ({
-      Starter: {
-        month: PLANS.starter.stripePriceIds.month,
-        year: PLANS.starter.stripePriceIds.year,
-      },
-      Pro: {
-        month: PLANS.pro.stripePriceIds.month,
-        year: PLANS.pro.stripePriceIds.year,
-      },
-    }),
-    [],
-  );
-
-  const activePlanName = (current?.subscription?.name || 'Free').toLowerCase();
-  const isFreeActive = activePlanName === 'free';
-  const isStarterActive = activePlanName === 'starter';
-  const isProActive = activePlanName === 'pro';
-
-  const selectedPlanLabel = useMemo(() => {
-    if (!selectedPriceId) return null;
-    if (selectedPriceId === priceMap.Starter[period]) return 'Starter';
-    if (selectedPriceId === priceMap.Pro[period]) return 'Pro';
-    return 'Plan';
-  }, [period, priceMap.Pro, priceMap.Starter, selectedPriceId]);
-
-  const selectedPlanPriceText = useMemo(() => {
-    if (!selectedPlanLabel) return null;
-    const plan = selectedPlanLabel === 'Starter' ? PLANS.starter : PLANS.pro;
-    if (period === 'year') {
-      return `${plan.priceYearly.toFixed(2)}€ / an`;
-    }
-    return `${plan.priceMonthly.toFixed(2)}€ / mois`;
-  }, [period, selectedPlanLabel]);
-
-  const choosePlan = (priceId: string) => {
-    if (!priceId) return;
-    setSelectedPriceId(priceId);
-    setPaid(false);
-
-    // Aperçu proration si déjà abonné
-    if (!isFreeActive) {
-      (async () => {
-        try {
-          const res = await fetch('/api/billing/preview-proration', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ priceId }),
-          });
-          if (res.ok) {
-            const j = await res.json();
-            setPreview(j);
-            requestAnimationFrame(() => {
-              (previewRef.current || payRef.current)?.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start',
-              });
-            });
-            return;
-          }
-        } catch {
-          // ignore
-        }
-        requestAnimationFrame(() => {
-          payRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-      })();
-      return;
-    }
-    requestAnimationFrame(() => {
-      payRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  };
-
   useEffect(() => {
-    // Vérifier si on revient d'une Checkout Session
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('session_id');
 
@@ -178,15 +96,14 @@ export default function SubscriptionsPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sessionId }),
           });
-
-          if (res.ok) {
-            setToast({ type: 'success', msg: 'Abonnement activé avec succès !' });
-            window.history.replaceState({}, '', '/subscriptions');
-          } else {
-            setToast({ type: 'error', msg: "Erreur lors de l'activation de l'abonnement" });
-          }
-        } catch (e) {
-          setToast({ type: 'error', msg: 'Erreur de vérification du paiement' });
+          setToast(
+            res.ok
+              ? { type: 'success', msg: 'Abonnement activé avec succès.' }
+              : { type: 'error', msg: "Erreur lors de l'activation de l'abonnement." },
+          );
+          window.history.replaceState({}, '', '/subscriptions');
+        } catch {
+          setToast({ type: 'error', msg: 'Erreur de vérification du paiement.' });
         } finally {
           fetchAll();
         }
@@ -194,48 +111,7 @@ export default function SubscriptionsPage() {
     } else {
       fetchAll();
     }
-
-    // charger moyens de paiement
-    (async () => {
-      try {
-        setPmLoading(true);
-        const res = await fetch('/api/billing/payment-methods', {
-          headers: { 'Cache-Control': 'no-store' },
-        });
-        if (res.ok) {
-          const j = await res.json();
-          setPmList(j.paymentMethods || []);
-          setPmDefault(j.defaultPaymentMethod || null);
-        }
-      } finally {
-        setPmLoading(false);
-      }
-    })();
   }, [fetchAll]);
-
-  // Compte à rebours dynamique
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      const endDate = new Date('2025-11-07T23:59:59').getTime();
-      const now = new Date().getTime();
-      const difference = endDate - now;
-
-      if (difference > 0) {
-        setTimeLeft({
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60),
-        });
-      } else {
-        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-      }
-    };
-
-    calculateTimeLeft();
-    const timer = setInterval(calculateTimeLeft, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     let lastFetch = Date.now();
@@ -246,683 +122,454 @@ export default function SubscriptionsPage() {
       }
     };
     document.addEventListener('visibilitychange', onVis);
-    const id = setInterval(() => { lastFetch = Date.now(); fetchAll(); }, 120000);
+    const id = setInterval(() => {
+      lastFetch = Date.now();
+      fetchAll();
+    }, 120000);
     return () => {
       document.removeEventListener('visibilitychange', onVis);
       clearInterval(id);
     };
   }, [fetchAll]);
 
-  const planName = useMemo(() => current?.subscription?.name || 'Free Plan', [current]);
-  const billingPeriod = useMemo(() => {
-    const i = current?.subscription?.interval;
-    if (i === 'month') return 'Mois';
-    if (i === 'year') return 'Année';
-    return '—';
-  }, [current?.subscription?.interval]);
+  const priceMap = useMemo(
+    () => ({
+      Starter: { month: PLANS.starter.stripePriceIds.month, year: PLANS.starter.stripePriceIds.year },
+      Pro: { month: PLANS.pro.stripePriceIds.month, year: PLANS.pro.stripePriceIds.year },
+    }),
+    [],
+  );
 
-  const subscriptionStatus = (current?.userSubscription?.status as any) || 'none';
+  const activePlanName = (current?.subscription?.name || 'Free').toLowerCase();
+  const isFreeActive = activePlanName === 'free';
+  const isStarterActive = activePlanName === 'starter';
+  const isProActive = activePlanName === 'pro';
+  const subscriptionStatus = (current?.userSubscription?.status as string) || 'none';
   const hasPaymentIssue = subscriptionStatus === 'past_due' || subscriptionStatus === 'unpaid';
 
-  const quotaWarnings = useMemo(() => {
-    if (!usage) return [] as string[];
-    const warns: string[] = [];
-    if (usage.tracks.percentage >= 90) warns.push('Vos pistes sont presque au maximum.');
-    if (usage.playlists.percentage >= 90) warns.push('Vos playlists sont presque au maximum.');
-    return warns;
-  }, [usage]);
+  const selectedPlanLabel = useMemo(() => {
+    if (!selectedPriceId) return null;
+    if (selectedPriceId === priceMap.Starter[period]) return 'Starter';
+    if (selectedPriceId === priceMap.Pro[period]) return 'Pro';
+    return 'Plan';
+  }, [period, priceMap.Pro, priceMap.Starter, selectedPriceId]);
 
+  const selectedPlanPriceText = useMemo(() => {
+    if (!selectedPlanLabel) return null;
+    const plan = selectedPlanLabel === 'Starter' ? PLANS.starter : PLANS.pro;
+    return period === 'year' ? `${formatEuro(plan.priceYearly)} / an` : `${formatEuro(plan.priceMonthly)} / mois`;
+  }, [period, selectedPlanLabel]);
+
+  const planName = current?.subscription?.name || 'Free';
+  const billingPeriod = current?.subscription?.interval === 'year' ? 'Annuel' : current?.subscription?.interval === 'month' ? 'Mensuel' : '—';
   const nextBilling = useMemo(() => {
     const dateStr = current?.userSubscription?.currentPeriodEnd;
     if (!dateStr) return '—';
     try {
-      return new Date(dateStr).toLocaleDateString('fr-FR', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      });
+      return new Date(dateStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
     } catch {
       return '—';
     }
   }, [current?.userSubscription?.currentPeriodEnd]);
 
-  const uploadsText = useMemo(() => {
-    if (!usage) return '—';
-    return `${usage.tracks.used}/${usage.tracks.limit}`;
+  const quotaWarnings = useMemo(() => {
+    if (!usage) return [] as string[];
+    const warns: string[] = [];
+    if (usage.tracks.percentage >= 90) warns.push('Tes pistes sont presque au maximum.');
+    if (usage.playlists.percentage >= 90) warns.push('Tes playlists sont presque au maximum.');
+    return warns;
   }, [usage]);
 
-  const playlistsText = useMemo(() => {
-    if (!usage) return '—';
-    return `${usage.playlists.used}/${usage.playlists.limit}`;
-  }, [usage]);
+  const choosePlan = (priceId: string) => {
+    if (!priceId) {
+      setToast({ type: 'error', msg: 'Ce prix Stripe n’est pas configuré.' });
+      return;
+    }
+    setSelectedPriceId(priceId);
+    setPaid(false);
+
+    if (!isFreeActive) {
+      (async () => {
+        try {
+          const res = await fetch('/api/billing/preview-proration', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ priceId }),
+          });
+          if (res.ok) {
+            setPreview(await res.json());
+            requestAnimationFrame(() => (previewRef.current || payRef.current)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+            return;
+          }
+        } catch {
+          // ignore
+        }
+        requestAnimationFrame(() => payRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      })();
+      return;
+    }
+
+    requestAnimationFrame(() => payRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+
+  const cancelSubscription = async () => {
+    if (!window.confirm("Confirmer l'annulation à la fin de la période ?")) return;
+    const res = await fetch('/api/billing/cancel-subscription', { method: 'POST' });
+    if (res.ok) {
+      await fetchAll();
+      setToast({ type: 'success', msg: 'Annulation enregistrée.' });
+    } else {
+      setToast({ type: 'error', msg: "Impossible d'annuler l'abonnement." });
+    }
+  };
+
+  const downgradeToFree = async () => {
+    if (!window.confirm('Revenir au plan gratuit ?')) return;
+    const res = await fetch('/api/billing/downgrade-to-free', { method: 'POST' });
+    if (res.ok) {
+      await fetchAll();
+      setToast({ type: 'success', msg: 'Plan gratuit appliqué.' });
+    } else {
+      setToast({ type: 'error', msg: 'Échec du passage au plan gratuit.' });
+    }
+  };
 
   return (
-    <div className="relative min-h-screen w-full bg-background-primary text-foreground-primary overflow-hidden">
-      <SubscriptionsBackground />
+    <SynauraAppShell contentClassName="max-w-7xl">
+      <SynauraTopBar searchLabel="Rechercher un son, un post ou un profil..." primaryHref="/upload" primaryLabel="Publier" secondaryHref="/settings?tab=compte" secondaryLabel="Compte" />
 
-      <main className="relative z-10 mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 pt-6 md:pt-10 pb-28 space-y-6">
-
-        {/* HERO */}
-        <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 md:p-10 overflow-hidden relative">
-          <div className="pointer-events-none absolute inset-[1px] rounded-[inherit] bg-gradient-to-r from-violet-500/15 via-fuchsia-500/10 to-cyan-400/15 opacity-60 mix-blend-soft-light" />
-          <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <div className="lg:col-span-7">
-              <div className="inline-flex items-center gap-2 rounded-full border border-border-secondary bg-white/5 px-3 py-1 text-xs text-foreground-secondary">
-                <Shield className="w-4 h-4" />
-                Paiement sécurisé • Annulable à tout moment
-              </div>
-              <h1 className="mt-4 text-3xl md:text-4xl font-bold tracking-tight">
-                Passe en Premium, garde le flow.
-              </h1>
-              <p className="mt-3 text-sm md:text-base text-foreground-secondary max-w-2xl">
-                Plus de crédits IA, meilleure qualité audio et fonctionnalités créateurs.
-                Choisis un plan, paye en 30 secondes, et reprends la musique.
+      <main className="space-y-5 pb-28">
+        <SynauraInkPanel className="p-5 sm:p-7 lg:p-8">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(255,111,97,0.28),transparent_32%),radial-gradient(circle_at_88%_10%,rgba(124,92,255,0.24),transparent_34%),radial-gradient(circle_at_62%_100%,rgba(0,194,203,0.18),transparent_34%)]" />
+          <div className="relative grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+              <p className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white/58">
+                <Shield className="h-3.5 w-3.5" />
+                Paiement sécurisé · annulable
               </p>
-
-              <div className="mt-5 flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() =>
-                    plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  }
-                  className="h-11 px-4 inline-flex items-center justify-center rounded-full bg-white text-black font-semibold hover:bg-white/90 transition"
-                >
+              <h1 className="mt-5 max-w-3xl text-5xl font-black leading-[0.92] tracking-tight text-white sm:text-6xl">
+                Choisis le plan qui suit ton rythme.
+              </h1>
+              <p className="mt-5 max-w-2xl text-base font-semibold leading-7 text-white/62">
+                Plus de crédits, plus de place pour publier, une meilleure qualité audio et les outils créateur quand tu en as besoin.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button onClick={() => plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]">
                   Voir les plans
+                  <ArrowDown className="h-4 w-4" />
                 </button>
-                <button
-                  onClick={() => setShowBuyCredits(true)}
-                  className="h-11 px-4 inline-flex items-center justify-center rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition"
-                >
+                <button onClick={() => setShowBuyCredits(true)} className="inline-flex h-12 items-center gap-2 rounded-full bg-white/10 px-5 text-sm font-black text-white transition hover:bg-white/16">
+                  <Coins className="h-4 w-4" />
                   Acheter des crédits
                 </button>
-                <div className="text-xs text-foreground-tertiary">
-                  1 génération = {CREDITS_PER_GENERATION} crédits • Les crédits non utilisés sont conservés
+              </div>
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.08 }} className="rounded-[2rem] border border-white/12 bg-white/10 p-4 backdrop-blur">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Ton plan actuel</p>
+                  <h2 className="mt-1 text-3xl font-black text-white">{planName}</h2>
                 </div>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#171313]">{subscriptionStatus === 'none' ? 'Free' : subscriptionStatus}</span>
               </div>
 
-              {(timeLeft.days + timeLeft.hours + timeLeft.minutes + timeLeft.seconds) > 0 && (
-                <div className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-border-secondary bg-white/5 px-3 py-2 text-sm">
-                  <Sparkles className="w-4 h-4 text-foreground-tertiary" />
-                  <span className="font-semibold">Offre de lancement</span>
-                  <span className="text-foreground-tertiary">
-                    se termine dans {timeLeft.days}j {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s
-                  </span>
-                </div>
-              )}
-            </div>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <Kpi label="Période" value={billingPeriod} />
+                <Kpi label="Prochain paiement" value={nextBilling} icon={<Calendar className="h-4 w-4" />} />
+                <Kpi label="Crédits" value={`${creditsBalance}`} icon={<Coins className="h-4 w-4" />} />
+                <Kpi label="Uploads" value={usage ? `${usage.tracks.used}/${usage.tracks.limit}` : '—'} />
+                <Kpi label="Playlists" value={usage ? `${usage.playlists.used}/${usage.playlists.limit}` : '—'} />
+                <Kpi label="Générations" value={`≈ ${Math.floor(creditsBalance / CREDITS_PER_GENERATION)}`} icon={<Wand2 className="h-4 w-4" />} />
+              </div>
 
-            <div className="lg:col-span-5">
-              <div className="rounded-3xl border border-border-secondary bg-white/5 p-4 md:p-5">
-                <div className="text-sm font-semibold">Ton plan actuel</div>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Kpi label="Plan" value={planName} />
-                  <Kpi label="Période" value={billingPeriod} />
-                  <Kpi label="Prochain prélèvement" value={nextBilling} icon={<Calendar className="w-4 h-4" />} />
-                  <Kpi label="Crédits restants" value={`${creditsBalance}`} icon={<Coins className="w-4 h-4" />} />
-                  <Kpi label="Pistes uploadées" value={uploadsText} />
-                  <Kpi label="Playlists" value={playlistsText} />
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {!isFreeActive && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!window.confirm("Confirmer l'annulation à la fin de la période ?")) return;
-                        const res = await fetch('/api/billing/cancel-subscription', { method: 'POST' });
-                        if (res.ok) await fetchAll();
-                      }}
-                      className="h-10 px-3 rounded-full bg-rose-500/10 text-rose-400 font-medium hover:bg-rose-500/20 transition text-sm"
-                    >
+              <div className="mt-4 flex flex-wrap gap-2">
+                {!isFreeActive ? (
+                  <>
+                    <button onClick={cancelSubscription} className="h-10 rounded-full bg-red-500/12 px-4 text-xs font-black text-red-100 transition hover:bg-red-500/20">
                       Annuler
                     </button>
-                  )}
-                  {!isFreeActive && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!window.confirm('Revenir immédiatement au plan gratuit ?')) return;
-                        const res = await fetch('/api/billing/downgrade-to-free', { method: 'POST' });
-                        if (res.ok) {
-                          await fetchAll();
-                          setToast({ type: 'success', msg: 'Rétrogradation appliquée au plan gratuit.' });
-                        } else {
-                          setToast({ type: 'error', msg: 'Échec de la rétrogradation.' });
-                        }
-                      }}
-                      className="h-10 px-3 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition text-sm"
-                    >
+                    <button onClick={downgradeToFree} className="h-10 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/16">
                       Plan gratuit
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowBuyCredits(true)}
-                    className="h-10 px-3 rounded-full bg-white text-black font-semibold hover:bg-white/90 transition text-sm"
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <Coins className="w-4 h-4" />
-                      Crédits
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                    }
-                    className="h-10 px-3 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition text-sm"
-                  >
-                    Choisir un plan
-                  </button>
-                </div>
-
-                <div className="mt-4 text-xs text-foreground-tertiary">
-                  Besoin d&apos;aide ?{' '}
-                  <a className="underline" href="mailto:contact.syn@synaura.fr">
-                    contact.syn@synaura.fr
-                  </a>
-                </div>
+                  </>
+                ) : null}
+                <button onClick={() => setShowBuyCredits(true)} className="h-10 rounded-full bg-white px-4 text-xs font-black text-[#171313] transition hover:scale-[1.02]">
+                  Acheter des crédits
+                </button>
               </div>
-            </div>
+            </motion.div>
           </div>
-        </section>
+        </SynauraInkPanel>
 
-        {/* Alertes (paiement / quotas) */}
-        <div className="flex w-full flex-col gap-3">
-          {hasPaymentIssue && (
-            <div className="w-full rounded-3xl p-4 border border-border-secondary bg-yellow-500/10 text-foreground-primary">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm">
-                  Problème de paiement détecté ({subscriptionStatus}). Mettez à jour votre moyen
-                  de paiement pour éviter l’interruption.
-                </div>
-                <div className="flex items-center gap-2">
+        {(hasPaymentIssue || quotaWarnings.length > 0) && (
+          <div className="grid gap-3">
+            {hasPaymentIssue ? (
+              <SynauraPanel className="border-amber-300/40 bg-amber-50 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-bold text-amber-900">Problème de paiement détecté. Mets à jour ou retente le paiement pour éviter l’interruption.</p>
                   <button
                     onClick={async () => {
                       const res = await fetch('/api/billing/retry-payment', { method: 'POST' });
                       if (res.ok) {
                         const j = await res.json();
-                        if (j.ok) {
-                          setToast({ type: 'success', msg: 'Paiement relancé avec succès.' });
-                          await fetchAll();
-                        } else {
-                          setToast({
-                            type: 'error',
-                            msg: `Échec (statut: ${j.status || 'inconnu'})`,
-                          });
-                        }
+                        setToast(j.ok ? { type: 'success', msg: 'Paiement relancé.' } : { type: 'error', msg: `Échec (${j.status || 'inconnu'}).` });
+                        await fetchAll();
                       } else {
                         setToast({ type: 'error', msg: 'Échec de la relance.' });
                       }
                     }}
-                    className="h-10 px-3 rounded-full bg-white text-black font-semibold hover:bg-white/90 transition text-sm"
+                    className="h-10 rounded-full bg-[#171313] px-4 text-xs font-black text-white"
                   >
-                    Retenter le paiement
+                    Retenter
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
+              </SynauraPanel>
+            ) : null}
 
-          {quotaWarnings.length > 0 && (
-            <div className="w-full rounded-3xl p-4 border border-border-secondary bg-cyan-500/10 text-foreground-primary">
-              <div className="flex flex-col gap-2">
-                {quotaWarnings.map((w, i) => (
-                  <div key={i} className="text-sm">
-                    {w}
-                  </div>
-                ))}
-                <div>
-                  <button
-                    onClick={() =>
-                      plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                    }
-                    className="h-10 px-3 rounded-full bg-white text-black font-semibold hover:bg-white/90 transition text-sm"
-                  >
+            {quotaWarnings.map((warning) => (
+              <SynauraPanel key={warning} className="border-[#00c2cb]/22 bg-[#00c2cb]/10 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-bold text-[#17484c]">{warning}</p>
+                  <button onClick={() => plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="h-10 rounded-full bg-[#171313] px-4 text-xs font-black text-white">
                     Voir les plans
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
-        </div>
+              </SynauraPanel>
+            ))}
+          </div>
+        )}
 
-        {/* Plans */}
-        <div
-          ref={plansRef}
-          className="relative z-10 w-full max-w-none mx-auto"
-        >
-          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 md:p-10">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <section ref={plansRef} className="scroll-mt-28">
+          <SynauraPanel className="p-5 sm:p-7">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <div className="text-xs text-foreground-tertiary">Étape 1</div>
-                <h2 className="mt-1 text-2xl md:text-3xl font-bold tracking-tight">
-                  Choisis ton plan
-                </h2>
-                <p className="mt-2 text-sm text-foreground-secondary max-w-2xl">
-                  Annuel = ~20% d’économie. Starter est le meilleur pour créer régulièrement.
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">Plans</p>
+                <h2 className="mt-1 text-3xl font-black tracking-tight text-[#171313]">Free, Starter ou Pro</h2>
+                <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-black/54">
+                  L’annuel revient moins cher. Les crédits non utilisés sont conservés.
                 </p>
               </div>
-              <div className="flex items-center justify-start md:justify-end">
-                <PeriodToggle value={period} onChange={setPeriod} />
-              </div>
+              <PeriodToggle value={period} onChange={setPeriod} />
             </div>
 
-            {/* Grille des plans */}
-            <div className="mt-6 grid w-full grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
-            {/* FREE */}
-            <PlanCard
-              title="Free"
-              highlight={false}
-              badge={isFreeActive ? 'Actif' : undefined}
-              priceMonthly={0}
-              period={period}
-              disabled={isFreeActive}
-              isActive={isFreeActive}
-              limits={{
-                tracks: `${PLANS.free.limits.maxTracks}/mois`,
-                playlists: `${PLANS.free.limits.maxPlaylists}`,
-                quality: `${PLANS.free.limits.audioQualityKbps} kbps`,
-                credits: `${WELCOME_CREDITS} bienvenue + 0/mois`,
-                file: `${PLANS.free.limits.maxFileMb} MB`,
-              }}
-              monthlyCredits={0}
-              welcomeCredits={WELCOME_CREDITS}
-              features={PLANS.free.features}
-              onChoose={async () => {
-                if (isFreeActive) return;
-                if (!window.confirm('Confirmer le passage au plan gratuit ?')) return;
-                const res = await fetch('/api/billing/downgrade-to-free', { method: 'POST' });
-                if (res.ok) {
-                  await fetchAll();
-                  setToast({ type: 'success', msg: 'Vous êtes repassé sur le plan gratuit.' });
-                } else {
-                  setToast({ type: 'error', msg: 'Échec du passage au plan gratuit.' });
-                }
-              }}
-            />
-
-            {/* STARTER */}
-            <PlanCard
-              title="Starter"
-              highlight
-              badge={isStarterActive ? 'Actif' : PLANS.starter.badge}
-              priceMonthly={PLANS.starter.priceMonthly}
-              priceYearly={PLANS.starter.priceYearly}
-              period={period}
-              disabled={isStarterActive}
-              isActive={isStarterActive}
-              limits={{
-                tracks: `${PLANS.starter.limits.maxTracks}/mois`,
-                playlists: `${PLANS.starter.limits.maxPlaylists}`,
-                quality: `${PLANS.starter.limits.audioQualityKbps} kbps`,
-                credits: `${PLANS.starter.monthlyCredits} (≈ ${Math.floor(PLANS.starter.monthlyCredits / CREDITS_PER_GENERATION)} gen)`,
-                file: `${PLANS.starter.limits.maxFileMb} MB`,
-              }}
-              monthlyCredits={PLANS.starter.monthlyCredits}
-              features={PLANS.starter.features}
-              onChoose={() => choosePlan(priceMap.Starter[period])}
-            />
-
-            {/* PRO */}
-            <PlanCard
-              title="Pro"
-              highlight={false}
-              badge={isProActive ? 'Actif' : undefined}
-              priceMonthly={PLANS.pro.priceMonthly}
-              priceYearly={PLANS.pro.priceYearly}
-              period={period}
-              disabled={isProActive}
-              isActive={isProActive}
-              limits={{
-                tracks: `${PLANS.pro.limits.maxTracks}/mois`,
-                playlists: 'Illimité',
-                quality: `${PLANS.pro.limits.audioQualityKbps} kbps`,
-                credits: `${PLANS.pro.monthlyCredits.toLocaleString()} (≈ ${Math.floor(PLANS.pro.monthlyCredits / CREDITS_PER_GENERATION)} gen)`,
-                file: `${PLANS.pro.limits.maxFileMb} MB`,
-              }}
-              monthlyCredits={PLANS.pro.monthlyCredits}
-              features={PLANS.pro.features}
-              onChoose={() => choosePlan(priceMap.Pro[period])}
-            />
-
+            <div className="mt-6 grid gap-4 lg:grid-cols-3">
+              <PlanCard
+                title="Free"
+                description="Pour découvrir Synaura et publier doucement."
+                priceText="Gratuit"
+                badge={isFreeActive ? 'Actif' : undefined}
+                active={isFreeActive}
+                features={PLANS.free.features}
+                limits={[
+                  ['Pistes', `${PLANS.free.limits.maxTracks}/mois`],
+                  ['Playlists', `${PLANS.free.limits.maxPlaylists}`],
+                  ['Qualité', `${PLANS.free.limits.audioQualityKbps} kbps`],
+                  ['Crédits', `${WELCOME_CREDITS} bienvenue`],
+                ]}
+                onChoose={isFreeActive ? undefined : downgradeToFree}
+              />
+              <PlanCard
+                title="Starter"
+                description="Le meilleur choix pour créer régulièrement."
+                priceText={period === 'year' ? `${formatEuro(PLANS.starter.priceYearly)} / an` : `${formatEuro(PLANS.starter.priceMonthly)} / mois`}
+                subPrice={period === 'year' ? `soit ${formatEuro(PLANS.starter.priceYearly / 12)}/mois` : 'Taxes calculées au paiement'}
+                badge={isStarterActive ? 'Actif' : PLANS.starter.badge}
+                active={isStarterActive}
+                highlight
+                features={PLANS.starter.features}
+                limits={[
+                  ['Pistes', `${PLANS.starter.limits.maxTracks}/mois`],
+                  ['Playlists', `${PLANS.starter.limits.maxPlaylists}`],
+                  ['Qualité', `${PLANS.starter.limits.audioQualityKbps} kbps`],
+                  ['Crédits', `${PLANS.starter.monthlyCredits}/mois`],
+                ]}
+                onChoose={isStarterActive ? undefined : () => choosePlan(priceMap.Starter[period])}
+              />
+              <PlanCard
+                title="Pro"
+                description="Pour les créateurs qui veulent tout débloquer."
+                priceText={period === 'year' ? `${formatEuro(PLANS.pro.priceYearly)} / an` : `${formatEuro(PLANS.pro.priceMonthly)} / mois`}
+                subPrice={period === 'year' ? `soit ${formatEuro(PLANS.pro.priceYearly / 12)}/mois` : 'Taxes calculées au paiement'}
+                badge={isProActive ? 'Actif' : undefined}
+                active={isProActive}
+                features={PLANS.pro.features}
+                limits={[
+                  ['Pistes', `${PLANS.pro.limits.maxTracks}/mois`],
+                  ['Playlists', formatLimit(PLANS.pro.limits.maxPlaylists)],
+                  ['Qualité', `${PLANS.pro.limits.audioQualityKbps} kbps`],
+                  ['Crédits', `${PLANS.pro.monthlyCredits.toLocaleString()}/mois`],
+                ]}
+                onChoose={isProActive ? undefined : () => choosePlan(priceMap.Pro[period])}
+              />
             </div>
-
-            <div className="mt-5 text-xs text-foreground-tertiary flex flex-wrap gap-2 items-center">
-              <span className="inline-flex items-center gap-2">
-                <Check className="w-4 h-4" /> Sans engagement long
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <Check className="w-4 h-4" /> Annulation en 1 clic
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <Check className="w-4 h-4" /> Support: contact.syn@synaura.fr
-              </span>
-            </div>
-          </section>
-        </div>
-
-        {/* Comparateur compact */}
-        <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 overflow-x-auto">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-xs text-foreground-tertiary">Comparaison</div>
-              <div className="text-lg font-semibold">Ce que tu débloques</div>
-            </div>
-            <div className="text-xs text-foreground-tertiary hidden sm:block">
-              1 génération = {CREDITS_PER_GENERATION} crédits • Les crédits non utilisés sont conservés
-            </div>
-          </div>
-
-          <div className="mt-4 min-w-[760px] grid grid-cols-4 gap-2 text-sm text-foreground-secondary">
-            <div className="text-foreground-tertiary">Caractéristiques</div>
-            <div className="text-foreground-secondary font-semibold">Free</div>
-            <div className="text-foreground-secondary font-semibold">Starter</div>
-            <div className="text-foreground-secondary font-semibold">Pro</div>
-
-            <div className="text-foreground-tertiary mt-2">Pistes/mois</div>
-            <div className="mt-2">{PLANS.free.limits.maxTracks}</div>
-            <div className="mt-2">{PLANS.starter.limits.maxTracks}</div>
-            <div className="mt-2">{PLANS.pro.limits.maxTracks}</div>
-
-            <div className="text-foreground-tertiary mt-1">Playlists</div>
-            <div className="mt-1">{PLANS.free.limits.maxPlaylists}</div>
-            <div className="mt-1">{PLANS.starter.limits.maxPlaylists}</div>
-            <div className="mt-1">Illimité</div>
-
-            <div className="text-foreground-tertiary mt-1">Crédits/mois (≈ gen)</div>
-            <div className="mt-1">{WELCOME_CREDITS} bienvenue</div>
-            <div className="mt-1">
-              {PLANS.starter.monthlyCredits} (≈ {Math.floor(PLANS.starter.monthlyCredits / CREDITS_PER_GENERATION)})
-            </div>
-            <div className="mt-1">
-              {PLANS.pro.monthlyCredits.toLocaleString()} (≈ {Math.floor(PLANS.pro.monthlyCredits / CREDITS_PER_GENERATION)})
-            </div>
-
-            <div className="text-foreground-tertiary mt-1">Qualité audio</div>
-            <div className="mt-1">{PLANS.free.limits.audioQualityKbps} kbps</div>
-            <div className="mt-1">{PLANS.starter.limits.audioQualityKbps} kbps</div>
-            <div className="mt-1">{PLANS.pro.limits.audioQualityKbps} kbps</div>
-
-            <div className="text-foreground-tertiary mt-1">Téléchargement</div>
-            <div className="mt-1">—</div>
-            <div className="mt-1">—</div>
-            <div className="mt-1">{PLANS.pro.featureFlags.download ? 'Oui' : '—'}</div>
-
-            <div className="text-foreground-tertiary mt-1">Messagerie</div>
-            <div className="mt-1">—</div>
-            <div className="mt-1">{PLANS.starter.featureFlags.messaging ? 'Oui' : '—'}</div>
-            <div className="mt-1">{PLANS.pro.featureFlags.messaging ? 'Oui' : '—'}</div>
-
-            <div className="text-foreground-tertiary mt-1">Statistiques avancées</div>
-            <div className="mt-1">—</div>
-            <div className="mt-1">—</div>
-            <div className="mt-1">{PLANS.pro.featureFlags.analyticsAdvanced ? 'Oui' : '—'}</div>
-          </div>
+          </SynauraPanel>
         </section>
 
-        {/* Aperçu proration */}
-        {preview && (
-          <div
-            ref={previewRef}
-            className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 text-sm"
-          >
-            <div className="text-sm font-semibold">
-              Aperçu du changement de plan
-            </div>
-            <ul className="mt-2 space-y-1">
-              {preview.lines?.map((l, i) => (
-                <li key={i} className="flex justify-between">
-                  <span>{l.description || 'Ligne'}</span>
-                  <span>{(l.amount / 100).toFixed(2)} €</span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-2 flex justify-between font-semibold">
-              <span>Total dû maintenant</span>
-              <span>{(preview.total / 100).toFixed(2)} €</span>
-            </div>
-          </div>
-        )}
-
-        {/* PaymentElement / UpdateCard */}
-        {selectedPriceId && !paid && (
-          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6" ref={payRef}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-xs text-foreground-tertiary">Étape 2</div>
-                <div className="mt-1 text-lg font-semibold">Paiement</div>
-                <div className="mt-1 text-sm text-foreground-secondary">
-                  {selectedPlanLabel ? (
-                    <>
-                      Plan <span className="font-semibold">{selectedPlanLabel}</span> •{' '}
-                      <span className="text-foreground-tertiary">{selectedPlanPriceText}</span>
-                    </>
-                  ) : (
-                    'Finalise ton abonnement.'
-                  )}
-                </div>
-              </div>
-              <div className="hidden sm:flex items-center gap-2 text-xs text-foreground-tertiary">
-                <CreditCard className="w-4 h-4" /> Paiement Stripe
-              </div>
-            </div>
-
-            <PaymentElementCard
-              priceId={selectedPriceId}
-              onSuccess={() => {
-                setPaid(true);
-                fetchAll();
-              }}
-            />
-          </section>
-        )}
-
-        {paid && (
-          <section className="rounded-3xl border border-border-secondary bg-emerald-500/10 p-6">
-            <div className="text-xs text-foreground-tertiary">Étape 3</div>
-            <div className="mt-1 text-lg font-semibold">Abonnement activé</div>
-            <div className="mt-2 text-sm text-foreground-secondary">
-              C’est bon. Tes avantages Premium sont actifs.
-            </div>
-            <div className="mt-4 flex gap-2 flex-wrap">
-              <button
-                onClick={() => window.location.href = '/'}
-                className="h-11 px-4 inline-flex items-center justify-center rounded-full bg-white text-black font-semibold hover:bg-white/90 transition"
-              >
-                Retour musique
-              </button>
-              <button
-                onClick={() => window.location.href = '/settings'}
-                className="h-11 px-4 inline-flex items-center justify-center rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition"
-              >
-                Gérer mon compte
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* FAQ */}
-        <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 md:p-10">
+        <SynauraPanel className="p-5 sm:p-7">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-xs text-foreground-tertiary">FAQ</div>
-              <div className="mt-1 text-2xl font-bold tracking-tight">Questions fréquentes</div>
-              <div className="mt-2 text-sm text-foreground-secondary">
-                Réponses rapides sur la facturation et les crédits.
-              </div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">Comparaison</p>
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-[#171313]">Ce que tu débloques</h2>
             </div>
-            <HelpCircle className="w-5 h-5 text-foreground-tertiary" />
+            <Sparkles className="h-5 w-5 text-black/24" />
           </div>
 
-          <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-3">
-            <FaqItem
-              q="Les crédits expirent ?"
-              a="Non. Les crédits non utilisés sont conservés."
-            />
-            <FaqItem
-              q="Je peux annuler quand je veux ?"
-              a="Oui. Tu peux annuler à tout moment et garder l’accès jusqu’à la fin de la période."
-            />
-            <FaqItem
-              q="Combien coûte une génération ?"
-              a={`Une génération consomme ${CREDITS_PER_GENERATION} crédits.`}
-            />
-            <FaqItem
-              q="Je change de plan en cours de période ?"
-              a="Si tu es déjà abonné, on te montre un aperçu de proration avant de payer."
-            />
+          <div className="mt-5 overflow-x-auto">
+            <div className="grid min-w-[760px] grid-cols-4 gap-2 text-sm">
+              <CompareCell muted>Caractéristiques</CompareCell>
+              <CompareCell strong>Free</CompareCell>
+              <CompareCell strong>Starter</CompareCell>
+              <CompareCell strong>Pro</CompareCell>
+              <CompareRow label="Pistes / mois" free={String(PLANS.free.limits.maxTracks)} starter={String(PLANS.starter.limits.maxTracks)} pro={String(PLANS.pro.limits.maxTracks)} />
+              <CompareRow label="Playlists" free={String(PLANS.free.limits.maxPlaylists)} starter={String(PLANS.starter.limits.maxPlaylists)} pro="Illimité" />
+              <CompareRow label="Crédits" free={`${WELCOME_CREDITS} bienvenue`} starter={`${PLANS.starter.monthlyCredits}/mois`} pro={`${PLANS.pro.monthlyCredits.toLocaleString()}/mois`} />
+              <CompareRow label="Qualité audio" free={`${PLANS.free.limits.audioQualityKbps} kbps`} starter={`${PLANS.starter.limits.audioQualityKbps} kbps`} pro={`${PLANS.pro.limits.audioQualityKbps} kbps`} />
+              <CompareRow label="Messagerie" free="—" starter={PLANS.starter.featureFlags.messaging ? 'Oui' : '—'} pro={PLANS.pro.featureFlags.messaging ? 'Oui' : '—'} />
+              <CompareRow label="Statistiques avancées" free="—" starter="—" pro={PLANS.pro.featureFlags.analyticsAdvanced ? 'Oui' : '—'} />
+              <CompareRow label="Téléchargement" free="—" starter="—" pro={PLANS.pro.featureFlags.download ? 'Oui' : '—'} />
+            </div>
           </div>
-        </section>
+        </SynauraPanel>
+
+        {preview ? (
+          <div ref={previewRef}>
+            <SynauraPanel className="p-5 sm:p-6">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">Changement de plan</p>
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-[#171313]">Aperçu de proration</h2>
+              <div className="mt-4 space-y-2">
+                {preview.lines?.map((line, index) => (
+                  <div key={index} className="flex justify-between gap-4 rounded-2xl bg-black/[0.035] px-4 py-3 text-sm font-semibold text-black/56">
+                    <span>{line.description || 'Ligne'}</span>
+                    <span className="font-black text-[#171313]">{formatEuro(line.amount / 100)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex justify-between rounded-2xl bg-[#171313] px-4 py-3 text-sm font-black text-white">
+                <span>Total dû maintenant</span>
+                <span>{formatEuro(preview.total / 100)}</span>
+              </div>
+            </SynauraPanel>
+          </div>
+        ) : null}
+
+        {selectedPriceId && !paid ? (
+          <div ref={payRef}>
+            <SynauraPanel className="p-5 sm:p-6">
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">Paiement</p>
+                  <h2 className="mt-1 text-2xl font-black tracking-tight text-[#171313]">
+                    {selectedPlanLabel ? `Plan ${selectedPlanLabel}` : 'Finaliser'}
+                  </h2>
+                  <p className="mt-2 text-sm font-semibold text-black/50">{selectedPlanPriceText || 'Finalise ton abonnement.'}</p>
+                </div>
+                <div className="hidden items-center gap-2 rounded-full bg-black/[0.05] px-3 py-2 text-xs font-black text-black/44 sm:inline-flex">
+                  <CreditCard className="h-4 w-4" />
+                  Stripe
+                </div>
+              </div>
+              <PaymentElementCard
+                priceId={selectedPriceId}
+                onSuccess={() => {
+                  setPaid(true);
+                  fetchAll();
+                }}
+              />
+            </SynauraPanel>
+          </div>
+        ) : null}
+
+        {paid ? (
+          <SynauraPanel className="border-emerald-300/40 bg-emerald-50 p-6">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Activé</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-[#171313]">Ton abonnement est actif</h2>
+            <p className="mt-2 text-sm font-semibold text-black/56">Tes avantages Premium sont disponibles.</p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button onClick={() => { window.location.href = '/'; }} className="h-11 rounded-full bg-[#171313] px-5 text-sm font-black text-white">Retour musique</button>
+              <button onClick={() => { window.location.href = '/settings'; }} className="h-11 rounded-full bg-white px-5 text-sm font-black text-black/60 transition hover:bg-black hover:text-white">Gérer mon compte</button>
+            </div>
+          </SynauraPanel>
+        ) : null}
+
+        <SynauraPanel className="p-5 sm:p-7">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">FAQ</p>
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-[#171313]">Questions fréquentes</h2>
+            </div>
+            <HelpCircle className="h-5 w-5 text-black/24" />
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            <FaqItem q="Les crédits expirent ?" a="Non. Les crédits non utilisés sont conservés." />
+            <FaqItem q="Je peux annuler quand je veux ?" a="Oui. Tu gardes l’accès jusqu’à la fin de la période." />
+            <FaqItem q="Combien coûte une génération ?" a={`Une génération consomme ${CREDITS_PER_GENERATION} crédits.`} />
+            <FaqItem q="Je change de plan en cours de période ?" a="Si tu es déjà abonné, un aperçu de proration est affiché avant paiement." />
+          </div>
+        </SynauraPanel>
       </main>
 
-      {/* Sticky CTA mobile */}
-      {selectedPriceId && !paid && (
-        <div className="sm:hidden fixed bottom-3 left-3 right-3 z-40">
-          <div className="rounded-3xl border border-border-secondary bg-background-fog-thin backdrop-blur-xl p-3 flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="text-xs text-foreground-tertiary truncate">Plan sélectionné</div>
-              <div className="text-sm font-semibold truncate">
-                {selectedPlanLabel || 'Plan'} {selectedPlanPriceText ? `• ${selectedPlanPriceText}` : ''}
+      {selectedPriceId && !paid ? (
+        <div className="fixed bottom-3 left-3 right-3 z-40 sm:hidden">
+          <div className="rounded-3xl border border-[#dccfbb] bg-[#fff7ec] p-3 shadow-[0_18px_60px_rgba(30,25,20,0.18)]">
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-black/38">Plan sélectionné</p>
+                <p className="truncate text-sm font-black text-[#171313]">{selectedPlanLabel || 'Plan'} {selectedPlanPriceText ? `· ${selectedPlanPriceText}` : ''}</p>
               </div>
+              <button onClick={() => payRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="h-10 rounded-full bg-[#171313] px-4 text-xs font-black text-white">
+                Payer
+              </button>
             </div>
-            <button
-              onClick={() => payRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              className="h-10 px-3 rounded-full bg-white text-black font-semibold hover:bg-white/90 inline-flex items-center gap-2 transition"
-            >
-              Payer <ArrowDown className="w-4 h-4" />
-            </button>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {/* Toast global */}
-      {toast && (
-        <div
-          className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-sm ${
-            toast.type === 'success'
-              ? 'bg-green-500/20 text-green-200 ring-1 ring-green-400/30'
-              : 'bg-red-500/20 text-red-200 ring-1 ring-red-400/30'
-          }`}
-        >
-          <div className="flex items-center gap-2">
+      {toast ? (
+        <div className={`fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-2xl px-4 py-3 text-sm font-bold shadow-xl ${toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
+          <div className="flex items-center gap-3">
             <span>{toast.msg}</span>
-            <button className="opacity-80 hover:opacity-100" onClick={() => setToast(null)}>
-              OK
+            <button onClick={() => setToast(null)} className="rounded-full bg-white/16 p-1">
+              <X className="h-4 w-4" />
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
       <BuyCreditsModal isOpen={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
-    </div>
+    </SynauraAppShell>
   );
 }
 
-/** Petit chip réutilisable pour les infos plan actuel */
-function InfoChip({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-}) {
+function Kpi({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
-    <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0 py-2 sm:py-0">
-      <span className="text-xs text-white/60">{label}</span>
-      <span className="text-sm text-white">
-        <span className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/5 px-2 py-0.5">
-          {icon}
-          <span>{value}</span>
-        </span>
-      </span>
-    </div>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border border-border-secondary bg-white/5 p-3">
-      <div className="text-xs text-foreground-tertiary">{label}</div>
-      <div className="mt-1 text-sm font-semibold inline-flex items-center gap-2">
-        {icon ? <span className="text-foreground-tertiary">{icon}</span> : null}
+    <div className="rounded-2xl border border-white/10 bg-white/10 p-3">
+      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-white/38">{label}</p>
+      <p className="mt-1 inline-flex min-w-0 items-center gap-2 text-sm font-black text-white">
+        {icon ? <span className="text-white/45">{icon}</span> : null}
         <span className="truncate">{value}</span>
-      </div>
+      </p>
     </div>
   );
 }
 
-function FaqItem({ q, a }: { q: string; a: string }) {
+function PeriodToggle({ value, onChange }: { value: 'month' | 'year'; onChange: (v: 'month' | 'year') => void }) {
   return (
-    <div className="rounded-3xl border border-border-secondary bg-white/5 p-4">
-      <div className="text-sm font-semibold">{q}</div>
-      <div className="mt-2 text-sm text-foreground-secondary">{a}</div>
-    </div>
-  );
-}
-
-// Sélecteur période
-function PeriodToggle({
-  value,
-  onChange,
-}: {
-  value: 'month' | 'year';
-  onChange: (v: 'month' | 'year') => void;
-}) {
-  return (
-    <div
-      role="radiogroup"
-      aria-required="false"
-      className="mt-4 flex flex-row gap-3"
-      tabIndex={0}
-      style={{ outline: 'none' }}
-    >
+    <div className="inline-flex rounded-full border border-[#dccfbb] bg-[#efe4d4] p-1">
       {[
         { v: 'month', label: 'Mensuel' },
-        { v: 'year', label: 'Annuel', badge: 'économisez 20%' as string | undefined },
-      ].map(({ v, label, badge }) => {
-        const checked = value === v;
+        { v: 'year', label: 'Annuel', hint: '-20%' },
+      ].map((item) => {
+        const active = value === item.v;
         return (
           <button
+            key={item.v}
             type="button"
-            key={v}
-            role="radio"
-            aria-checked={checked}
-            data-state={checked ? 'checked' : 'unchecked'}
-            value={v}
-            className="group flex cursor-pointer items-center gap-2 outline-none"
-            tabIndex={-1}
-            onClick={() => onChange(v as 'month' | 'year')}
+            onClick={() => onChange(item.v as 'month' | 'year')}
+            className={`inline-flex h-10 items-center gap-2 rounded-full px-4 text-xs font-black transition ${active ? 'bg-[#171313] text-white shadow-lg' : 'text-black/50 hover:text-[#171313]'}`}
           >
-            <div className="relative flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-white/5">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="1em"
-                height="1em"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="opacity-0 group-data-[state=checked]:opacity-100 text-white transition-opacity"
-              >
-                <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z" />
-              </svg>
-            </div>
-            <label className="flex cursor-pointer items-center gap-2 text-white/90">
-              {label}
-              {badge && (
-                <span className="inline-flex items-center gap-1 rounded-xl px-2 py-0.5 text-[10px] font-medium uppercase bg-white/10 text-white/85 ring-1 ring-white/10">
-                  <span>{badge}</span>
-                </span>
-              )}
-            </label>
+            {item.label}
+            {item.hint ? <span className={`rounded-full px-2 py-0.5 text-[10px] ${active ? 'bg-white/16 text-white' : 'bg-white text-black/46'}`}>{item.hint}</span> : null}
           </button>
         );
       })}
@@ -932,159 +579,113 @@ function PeriodToggle({
 
 function PlanCard({
   title,
+  description,
+  priceText,
+  subPrice,
   badge,
+  active,
   highlight,
-  priceMonthly,
-  priceYearly,
-  period,
-  disabled,
-  isActive,
   limits,
   features,
   onChoose,
-  monthlyCredits,
-  welcomeCredits,
 }: {
   title: string;
+  description: string;
+  priceText: string;
+  subPrice?: string;
   badge?: string;
+  active?: boolean;
   highlight?: boolean;
-  priceMonthly: number;
-  priceYearly?: number;
-  period: 'month' | 'year';
-  disabled?: boolean;
-  isActive?: boolean;
-  limits: {
-    tracks: string;
-    playlists: string;
-    quality: string;
-    ai?: string;
-    credits?: string;
-    file?: string;
-  };
-  features?: string[];
+  limits: Array<[string, string]>;
+  features: string[];
   onChoose?: () => void;
-  monthlyCredits?: number;
-  welcomeCredits?: number;
 }) {
-  const pricing = useMemo(() => {
-    const monthly = priceMonthly;
-    const yearly = priceYearly ?? priceMonthly * 12 * 0.8;
-    const price = period === 'year' ? yearly : monthly;
-
-    const format = (n: number) =>
-      n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
-
-    const yearSavings = priceMonthly > 0 ? Math.round((priceMonthly * 12 - yearly) * 100) / 100 : 0;
-    const effectiveMonthly = period === 'year' ? Math.round((yearly / 12) * 100) / 100 : monthly;
-
-    return {
-      price,
-      label: period === 'year' ? `${format(price)} / an` : `${format(price)} / mois`,
-      yearSavings,
-      effectiveMonthly,
-      effectiveMonthlyLabel: `soit ${format(effectiveMonthly)}/mois`,
-    };
-  }, [priceMonthly, priceYearly, period]);
-
-  const isFree = priceMonthly === 0;
-
   return (
-    <div
-      className={`flex h-full w-full flex-col rounded-2xl border overflow-hidden transition hover:-translate-y-0.5 hover:bg-white/[0.05] ${
-        highlight
-          ? 'border-white/[0.12] shadow-[0_0_60px_rgba(168,85,247,0.15)]'
-          : 'border-white/[0.06]'
+    <motion.article
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`relative flex h-full flex-col overflow-hidden rounded-[2rem] border p-5 transition hover:-translate-y-1 ${
+        highlight ? 'border-[#ff6f61]/28 bg-[#171313] text-white shadow-[0_24px_70px_rgba(23,19,19,0.20)]' : 'border-[#dccfbb] bg-white/72 text-[#171313]'
       }`}
     >
-      <div className={`h-1 w-full ${highlight ? 'bg-gradient-to-r from-purple-500 to-cyan-400' : 'bg-white/[0.06]'}`} />
-      <div className="flex h-full flex-col bg-white/[0.02] backdrop-blur-xl p-6">
-        <div className="flex flex-col gap-6 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-[20px] lg:text-[24px] font-light text-white/90 truncate">
-              {title}
-            </h3>
-            {badge && (
-              <span className="inline-flex items-center gap-1 rounded-xl px-2 py-0.5 text-[10px] uppercase bg-white/10 text-white/80 ring-1 ring-white/10">
-                {badge}
-              </span>
-            )}
+      {highlight ? <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_0%,rgba(255,111,97,0.26),transparent_32%),radial-gradient(circle_at_90%_12%,rgba(124,92,255,0.22),transparent_32%)]" /> : null}
+      <div className="relative flex h-full flex-col">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-2xl font-black tracking-tight">{title}</h3>
+            <p className={`mt-2 text-sm font-semibold leading-6 ${highlight ? 'text-white/58' : 'text-black/52'}`}>{description}</p>
           </div>
-
-          <div className="flex flex-col gap-1 text-white/85">
-            {isFree ? (
-              <>
-                <div className="text-2xl">Gratuit</div>
-                {typeof welcomeCredits === 'number' && welcomeCredits > 0 && (
-                  <div className="text-xs text-emerald-400 font-medium">
-                    {welcomeCredits} crédits de bienvenue (≈ {Math.floor(welcomeCredits / CREDITS_PER_GENERATION)} gén.) + 0/mois ensuite
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="flex flex-col gap-1">
-                <div className="text-2xl">{pricing.label}</div>
-                {typeof monthlyCredits === 'number' && monthlyCredits > 0 && (
-                  <div className="text-xs text-white/70">
-                    {monthlyCredits.toLocaleString()} crédits / mois (≈ {Math.floor(monthlyCredits / CREDITS_PER_GENERATION)} gén.)
-                  </div>
-                )}
-                {period === 'year' && pricing.yearSavings > 0 && (
-                  <div className="text-xs text-emerald-400 font-medium">
-                    {pricing.effectiveMonthlyLabel} — Économise {pricing.yearSavings.toFixed(2)}€/an
-                  </div>
-                )}
-                {period === 'month' && (
-                  <div className="text-xs text-white/50">Taxes calculées au paiement</div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 gap-2 text-sm text-white/80 mt-2">
-            <PlanLimitRow label="Pistes" value={limits.tracks} />
-            <PlanLimitRow label="Playlists" value={limits.playlists} />
-            <PlanLimitRow label="Qualité" value={limits.quality} />
-            {limits.credits && (
-              <PlanLimitRow label="Crédits / mois (≈ gen)" value={limits.credits} />
-            )}
-            {limits.file && <PlanLimitRow label="Taille max fichier" value={limits.file} />}
-          </div>
-
-          {features && features.length > 0 && (
-            <ul className="mt-3 space-y-1 text-sm text-white/75">
-              {features.filter(Boolean).map((f, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-gradient-to-r from-purple-400 to-cyan-300" />
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="mt-3">
-            <button
-              disabled={disabled}
-              onClick={onChoose}
-              className={`w-full px-6 py-3 rounded-full font-semibold transition ${
-                disabled
-                  ? 'bg-white/[0.06] text-white/30 cursor-not-allowed'
-                  : 'bg-white text-black hover:bg-white/90'
-              }`}
-            >
-              {disabled ? (isActive ? 'Actif' : 'À venir') : 'Choisir ce plan'}
-            </button>
-          </div>
+          {badge ? <span className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${highlight ? 'bg-white text-[#171313]' : 'bg-[#171313] text-white'}`}>{badge}</span> : null}
         </div>
+
+        <div className="mt-6">
+          <p className="text-3xl font-black">{priceText}</p>
+          {subPrice ? <p className={`mt-1 text-xs font-bold ${highlight ? 'text-white/48' : 'text-black/42'}`}>{subPrice}</p> : null}
+        </div>
+
+        <div className="mt-5 grid gap-2">
+          {limits.map(([label, value]) => (
+            <div key={label} className={`flex items-center justify-between gap-4 rounded-2xl px-3 py-2 text-sm ${highlight ? 'bg-white/10 text-white/72' : 'bg-[#f4eadc] text-black/54'}`}>
+              <span className="font-semibold">{label}</span>
+              <span className={`font-black ${highlight ? 'text-white' : 'text-[#171313]'}`}>{value}</span>
+            </div>
+          ))}
+        </div>
+
+        <ul className="mt-5 space-y-2">
+          {features.filter(Boolean).slice(0, 6).map((feature) => (
+            <li key={feature} className={`flex items-start gap-2 text-sm font-semibold ${highlight ? 'text-white/72' : 'text-black/56'}`}>
+              <Check className={`mt-0.5 h-4 w-4 shrink-0 ${highlight ? 'text-[#00c2cb]' : 'text-[#ff6f61]'}`} />
+              {feature}
+            </li>
+          ))}
+        </ul>
+
+        <button
+          type="button"
+          disabled={!onChoose}
+          onClick={onChoose}
+          className={`mt-auto h-12 rounded-2xl text-sm font-black transition ${
+            !onChoose
+              ? highlight
+                ? 'bg-white/10 text-white/35'
+                : 'bg-black/[0.05] text-black/32'
+              : highlight
+                ? 'bg-white text-[#171313] hover:scale-[1.02]'
+                : 'bg-[#171313] text-white hover:scale-[1.02]'
+          }`}
+        >
+          {active ? 'Plan actif' : 'Choisir ce plan'}
+        </button>
       </div>
+    </motion.article>
+  );
+}
+
+function CompareCell({ children, strong, muted }: { children: React.ReactNode; strong?: boolean; muted?: boolean }) {
+  return (
+    <div className={`rounded-2xl px-3 py-2 ${strong ? 'bg-[#171313] font-black text-white' : muted ? 'bg-black/[0.03] font-black text-black/38' : 'bg-black/[0.03] font-semibold text-black/56'}`}>
+      {children}
     </div>
   );
 }
 
-function PlanLimitRow({ label, value }: { label: string; value: string }) {
+function CompareRow({ label, free, starter, pro }: { label: string; free: string; starter: string; pro: string }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-white/70">{label}</span>
-      <span className="font-medium text-white">{value}</span>
+    <>
+      <CompareCell muted>{label}</CompareCell>
+      <CompareCell>{free}</CompareCell>
+      <CompareCell>{starter}</CompareCell>
+      <CompareCell>{pro}</CompareCell>
+    </>
+  );
+}
+
+function FaqItem({ q, a }: { q: string; a: string }) {
+  return (
+    <div className="rounded-[1.5rem] border border-[#dccfbb] bg-white/72 p-4">
+      <h3 className="text-sm font-black text-[#171313]">{q}</h3>
+      <p className="mt-2 text-sm font-semibold leading-6 text-black/52">{a}</p>
     </div>
   );
 }

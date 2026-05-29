@@ -4,8 +4,11 @@ import type { CSSProperties, ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
-import { Bell, Compass, Home, Library, Search, Sparkles, Upload, Users } from 'lucide-react';
+import { Compass, Home, Library, LogIn, Sparkles, Upload, UserPlus, Users } from 'lucide-react';
+import NotificationCenter from '@/components/NotificationCenter';
+import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -13,7 +16,7 @@ function cx(...classes: Array<string | false | null | undefined>) {
 }
 
 const SYNAURA_SHELL_BRAND = {
-  appLogo: '/brand/2026/app-logo.png',
+  appLogo: '/brand/2026/synaura-symbol-2026.png',
   logotype: '/brand/2026/synaura-logotype.png',
 } as const;
 
@@ -126,7 +129,6 @@ export function SynauraInkPanel({
 }
 
 export function SynauraTopBar({
-  searchHref = '/discover',
   searchLabel = 'Rechercher un son, post, playlist, créateur...',
   secondaryHref = '/ai-generator',
   secondaryLabel = 'Studio',
@@ -140,17 +142,20 @@ export function SynauraTopBar({
   primaryHref?: string;
   primaryLabel?: string;
 }) {
+  const { data: session, status } = useSession();
+  const isGuest = status !== 'loading' && !session?.user;
+
   return (
     <header className="sticky top-2 z-40 mb-4 rounded-[1.6rem] border border-black/[0.08] bg-[#fffaf2]/90 px-3 py-3 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:top-3 sm:rounded-[2rem] sm:px-4">
       <div className="flex items-center justify-between gap-2 sm:gap-3">
         <Link href="/" className="flex min-w-0 items-center gap-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#171313] p-1.5">
+          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[1.25rem] border border-black/[0.08] bg-white shadow-[0_10px_26px_rgba(30,25,20,0.10)]">
             <Image
               src={SYNAURA_SHELL_BRAND.appLogo}
               alt="Synaura"
-              width={36}
-              height={36}
-              className="h-9 w-9 object-contain"
+              width={52}
+              height={52}
+              className="h-12 w-12 object-contain"
               unoptimized
               priority
             />
@@ -172,52 +177,69 @@ export function SynauraTopBar({
           </div>
         </Link>
 
-        <Link
-          href={searchHref}
-          className="hidden h-11 max-w-2xl flex-1 items-center gap-3 rounded-full bg-black/[0.055] px-4 lg:flex"
-        >
-          <Search className="h-4 w-4 text-black/35" />
-          <span className="truncate text-sm font-semibold text-black/35">{searchLabel}</span>
-        </Link>
+        <SynauraUniversalSearch placeholder={searchLabel} />
 
         <div className="flex items-center gap-2">
+          {isGuest ? (
+            <Link
+              href="/auth/signin"
+              className="hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex"
+            >
+              <LogIn className="h-4 w-4" /> Connexion
+            </Link>
+          ) : (
+            <>
+              <NotificationCenter className="bg-black/[0.06] text-black/60 hover:bg-black hover:text-white sm:h-11 sm:w-11" />
+              <Link
+                href={secondaryHref}
+                className="hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex"
+              >
+                <Sparkles className="h-4 w-4" /> {secondaryLabel}
+              </Link>
+            </>
+          )}
           <Link
-            href="/settings"
-            className="grid h-10 w-10 place-items-center rounded-full bg-black/[0.06] text-black/60 transition hover:bg-black hover:text-white sm:h-11 sm:w-11"
+            href={isGuest ? '/auth/signup' : primaryHref}
+            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-[#171313] px-3 text-xs font-black text-white shadow-[0_12px_28px_rgba(23,19,19,0.18)] transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm"
           >
-            <Bell className="h-5 w-5" />
-          </Link>
-          <Link
-            href={secondaryHref}
-            className="hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex"
-          >
-            <Sparkles className="h-4 w-4" /> {secondaryLabel}
-          </Link>
-          <Link
-            href={primaryHref}
-            className="inline-flex h-10 items-center justify-center rounded-full bg-[#171313] px-3 text-xs font-black text-white transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm"
-          >
-            {primaryLabel}
+            {isGuest ? <UserPlus className="h-4 w-4" /> : null}
+            {isGuest ? 'Créer un compte' : primaryLabel}
           </Link>
         </div>
       </div>
 
       <div className="mt-2.5 flex gap-2 lg:hidden">
+        <SynauraUniversalSearch compact placeholder={searchLabel} />
         <Link
-          href={searchHref}
-          className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full bg-black/[0.055] px-3"
-        >
-          <Search className="h-4 w-4 shrink-0 text-black/35" />
-          <span className="truncate text-xs font-semibold text-black/35 sm:text-sm">{searchLabel}</span>
-        </Link>
-        <Link
-          href={secondaryHref}
+          href={isGuest ? '/auth/signin' : secondaryHref}
           className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-black/[0.06] px-3 text-xs font-black text-black/60 transition hover:bg-black hover:text-white sm:hidden"
         >
-          <Sparkles className="h-4 w-4" />
-          {secondaryLabel}
+          {isGuest ? <LogIn className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+          {isGuest ? 'Connexion' : secondaryLabel}
         </Link>
       </div>
+
+      {isGuest ? (
+        <div className="mt-3 overflow-hidden rounded-[1.25rem] border border-[#ff6f61]/18 bg-[#ff6f61]/10 px-3 py-3 sm:px-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#ff6f61]">Tu visites Synaura</p>
+              <p className="mt-1 text-sm font-bold text-[#171313]">
+                Crée ton compte pour publier, suivre des artistes, commenter et recevoir tes notifications.
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Link href="/auth/signup" className="inline-flex h-10 items-center gap-2 rounded-full bg-[#171313] px-4 text-xs font-black text-white transition hover:scale-[1.02]">
+                <UserPlus className="h-4 w-4" />
+                S'inscrire
+              </Link>
+              <Link href="/auth/signin" className="inline-flex h-10 items-center rounded-full bg-white px-4 text-xs font-black text-black/60 transition hover:bg-black hover:text-white">
+                Connexion
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </header>
   );
 }

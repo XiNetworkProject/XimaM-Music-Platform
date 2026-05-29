@@ -1,6 +1,7 @@
 'use client';
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Check, AlertCircle, Mail, Lock, KeyRound } from 'lucide-react';
@@ -43,8 +44,16 @@ function ResetPasswordInner() {
     return (
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="w-full max-w-[420px]">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <h1 className="text-3xl font-black tracking-tight text-white">Synaura</h1>
+          <Link href="/" className="inline-block rounded-[1.75rem] bg-white p-2 shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
+            <Image
+              src="/brand/2026/synaura-brand-lockup.png"
+              alt="Synaura - Share sound, connect creations"
+              width={360}
+              height={180}
+              className="h-28 w-[min(340px,82vw)] rounded-[1.35rem] object-cover"
+              unoptimized
+              priority
+            />
           </Link>
         </div>
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 sm:p-8 text-center">
@@ -73,8 +82,16 @@ function ResetPasswordInner() {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="w-full max-w-[420px]">
       <div className="text-center mb-8">
-        <Link href="/" className="inline-block">
-          <h1 className="text-3xl font-black tracking-tight text-white">Synaura</h1>
+        <Link href="/" className="inline-block rounded-[1.75rem] bg-white p-2 shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
+          <Image
+            src="/brand/2026/synaura-brand-lockup.png"
+            alt="Synaura - Share sound, connect creations"
+            width={360}
+            height={180}
+            className="h-28 w-[min(340px,82vw)] rounded-[1.35rem] object-cover"
+            unoptimized
+            priority
+          />
         </Link>
         <p className="text-sm text-white/40 mt-2">Réinitialise ton mot de passe</p>
       </div>

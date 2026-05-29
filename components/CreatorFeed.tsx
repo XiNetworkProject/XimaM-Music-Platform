@@ -5,7 +5,6 @@ import { Loader2, RefreshCw, Users } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import PostCard, { type Post } from '@/components/PostCard';
 import PostComposer from '@/components/PostComposer';
-import PostCommentsSheet from '@/components/PostCommentsSheet';
 
 interface CreatorFeedProps {
   creatorId?: string;
@@ -18,8 +17,6 @@ export default function CreatorFeed({ creatorId, showComposer = true }: CreatorF
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [activePost, setActivePost] = useState<Post | null>(null);
-  const [commentsOpen, setCommentsOpen] = useState(false);
   const loaderRef = useRef<HTMLDivElement>(null);
   const hasFetched = useRef(false);
 
@@ -84,20 +81,9 @@ export default function CreatorFeed({ creatorId, showComposer = true }: CreatorF
     setPosts(prev => prev.filter(p => p.id !== postId));
   }, []);
 
-  const handleCommentClick = useCallback((post: Post) => {
-    setActivePost(post);
-    setCommentsOpen(true);
-  }, []);
-
-  const handleCommentCountChange = useCallback((postId: string, delta: number) => {
-    setPosts(prev => prev.map(p =>
-      p.id === postId ? { ...p, comments_count: Math.max(0, p.comments_count + delta) } : p
-    ));
-  }, []);
-
   return (
     <>
-      <div className="space-y-3">
+      <div className="space-y-4 px-4 py-4 sm:px-5 sm:py-5">
         {/* Composer */}
         {showComposer && session && (
           <PostComposer onPostCreated={handlePostCreated} />
@@ -106,19 +92,19 @@ export default function CreatorFeed({ creatorId, showComposer = true }: CreatorF
         {/* Loading state */}
         {loading && (
           <div className="flex justify-center py-10">
-            <Loader2 className="w-6 h-6 text-white/20 animate-spin" />
+            <Loader2 className="w-6 h-6 text-black/25 animate-spin" />
           </div>
         )}
 
         {/* Empty state */}
         {!loading && posts.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-14 text-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center">
-              <Users className="w-7 h-7 text-white/15" />
+          <div className="flex flex-col items-center justify-center rounded-[1.6rem] border border-black/[0.06] bg-black/[0.02] py-14 text-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-black/[0.05] border border-black/[0.06]">
+              <Users className="w-7 h-7 text-black/18" />
             </div>
             <div>
-              <p className="text-[14px] font-medium text-white/40">Aucun post pour l'instant</p>
-              <p className="text-[12px] text-white/20 mt-1">
+              <p className="text-[14px] font-semibold text-black/60">Aucun post pour l'instant</p>
+              <p className="text-[12px] text-black/35 mt-1">
                 {creatorId
                   ? 'Ce créateur n\'a pas encore publié de post'
                   : 'Suis des créateurs pour voir leurs posts ici'}
@@ -127,7 +113,7 @@ export default function CreatorFeed({ creatorId, showComposer = true }: CreatorF
             {!creatorId && (
               <button
                 onClick={() => { hasFetched.current = false; fetchPosts(); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] text-white/30 hover:text-white/50 hover:bg-white/[0.05] transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] text-black/42 hover:text-[#171313] hover:bg-black/[0.05] transition-all"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 Actualiser
@@ -142,25 +128,17 @@ export default function CreatorFeed({ creatorId, showComposer = true }: CreatorF
             key={post.id}
             post={post}
             onDelete={handlePostDeleted}
-            onCommentClick={handleCommentClick}
+            onPostCreated={handlePostCreated}
           />
         ))}
 
         {/* Infinite scroll trigger */}
         {nextCursor && (
           <div ref={loaderRef} className="py-4 flex justify-center">
-            {loadingMore && <Loader2 className="w-5 h-5 text-white/20 animate-spin" />}
+            {loadingMore && <Loader2 className="w-5 h-5 text-black/25 animate-spin" />}
           </div>
         )}
       </div>
-
-      {/* Comments sheet */}
-      <PostCommentsSheet
-        post={activePost}
-        isOpen={commentsOpen}
-        onClose={() => setCommentsOpen(false)}
-        onCommentCountChange={handleCommentCountChange}
-      />
     </>
   );
 }

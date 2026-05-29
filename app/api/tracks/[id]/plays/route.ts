@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
+import { checkMilestone, notifyViewMilestone } from '@/lib/notifications';
 
 export async function GET(
   request: NextRequest,
@@ -51,7 +52,7 @@ export async function GET(
     // Récupérer le nombre de lectures de la piste
     const { data: track, error } = await supabaseAdmin
       .from('tracks')
-      .select('plays')
+      .select('plays, title, creator_id')
       .eq('id', trackId)
       .maybeSingle();
 
@@ -144,7 +145,7 @@ export async function POST(
     // Incrémenter le nombre de lectures de la piste
     const { data: track, error } = await supabaseAdmin
       .from('tracks')
-      .select('plays')
+      .select('plays, title, creator_id')
       .eq('id', trackId)
       .maybeSingle();
 
@@ -175,6 +176,11 @@ export async function POST(
         { error: 'Erreur lors de la mise à jour des lectures' },
         { status: 500 }
       );
+    }
+
+    const milestone = checkMilestone(newPlays);
+    if (milestone && track.creator_id) {
+      notifyViewMilestone(track.creator_id, track.title || 'Ton son', milestone, trackId).catch(() => {});
     }
 
     // Enregistrer la vue pour les stats (y compris anonymes)

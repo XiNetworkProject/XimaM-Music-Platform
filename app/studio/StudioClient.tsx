@@ -56,7 +56,7 @@ function makeId() {
 }
 
 export default function StudioClient() {
-  const { audioState, play, pause, nextTrack, previousTrack, playTrack } = useAudioPlayer();
+  const { audioState, play, pause, nextTrack, previousTrack, playTrack, setQueueAndPlay } = useAudioPlayer();
   const { quota } = useAIQuota();
   const searchParams = useSearchParams();
 
@@ -219,27 +219,45 @@ export default function StudioClient() {
     async (trackId: string) => {
       const found = visibleTracks.find((x) => x.id === trackId);
       if (!found) return;
-      const playerTrack: any = {
-        _id: `ai-${found.id}`,
-        title: found.title,
-        artist: { _id: 'ai', name: found.artistName, username: found.artistName },
-        duration: found.durationSec || 120,
-        audioUrl: found.audioUrl || '',
-        coverUrl: found.coverUrl || '/synaura_symbol.svg',
-        genre: ['IA', 'Genere'],
-        plays: 0,
-        likes: [],
-        comments: [],
-        lyrics: (found.lyrics || found.prompt || '').trim(),
-      };
+      const queue = visibleTracks
+        .filter((track) => track.audioUrl)
+        .map((track) => ({
+          _id: `ai-${track.id}`,
+          title: track.title,
+          artist: { _id: 'ai', name: track.artistName, username: track.artistName },
+          duration: track.durationSec || 120,
+          audioUrl: track.audioUrl || '',
+          coverUrl: track.coverUrl || '/brand/2026/synaura-symbol-2026-white.png',
+          genre: ['IA', 'Genere'],
+          plays: 0,
+          likes: [],
+          comments: [],
+          lyrics: (track.lyrics || track.prompt || '').trim(),
+          source: 'studio',
+        }));
+      const startIndex = Math.max(0, queue.findIndex((track) => track._id === `ai-${found.id}`));
       try {
-        await playTrack(playerTrack);
+        if (queue.length > 0) setQueueAndPlay(queue as any, startIndex);
+        else await playTrack({
+          _id: `ai-${found.id}`,
+          title: found.title,
+          artist: { _id: 'ai', name: found.artistName, username: found.artistName },
+          duration: found.durationSec || 120,
+          audioUrl: found.audioUrl || '',
+          coverUrl: found.coverUrl || '/brand/2026/synaura-symbol-2026-white.png',
+          genre: ['IA', 'Genere'],
+          plays: 0,
+          likes: [],
+          comments: [],
+          lyrics: (found.lyrics || found.prompt || '').trim(),
+          source: 'studio',
+        } as any);
         pushLog('info', `Lecture: ${found.title}`);
       } catch (e: any) {
         pushLog('error', e?.message || 'Erreur lecture');
       }
     },
-    [playTrack, pushLog, visibleTracks]
+    [playTrack, pushLog, setQueueAndPlay, visibleTracks]
   );
 
   useEffect(() => {

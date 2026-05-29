@@ -8,20 +8,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronRight } from 'lucide-react';
 import PostCard, { type Post } from '@/components/PostCard';
-import PostCommentsSheet from '@/components/PostCommentsSheet';
 
 interface PostInlineStripProps {
   count?: number;
   label?: string;
-  postType?: 'text' | 'photo' | 'track_share';
+  postType?: 'text' | 'photo' | 'track_share' | 'repost';
 }
 
 export default function PostInlineStrip({ count = 2, label, postType }: PostInlineStripProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [activePost, setActivePost] = useState<Post | null>(null);
-  const [commentsOpen, setCommentsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const fetchPosts = useCallback(async () => {
@@ -49,10 +46,6 @@ export default function PostInlineStrip({ count = 2, label, postType }: PostInli
     return () => obs.disconnect();
   }, [fetchPosts]);
 
-  const handleCommentCountChange = useCallback((postId: string, delta: number) => {
-    setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments_count: Math.max(0, p.comments_count + delta) } : p));
-  }, []);
-
   if (loaded && posts.length === 0) return null;
 
   return (
@@ -73,7 +66,6 @@ export default function PostInlineStrip({ count = 2, label, postType }: PostInli
               key={post.id}
               post={post}
               compact
-              onCommentClick={p => { setActivePost(p); setCommentsOpen(true); }}
             />
           ))}
         </div>
@@ -86,13 +78,6 @@ export default function PostInlineStrip({ count = 2, label, postType }: PostInli
           ))}
         </div>
       )}
-
-      <PostCommentsSheet
-        post={activePost}
-        isOpen={commentsOpen}
-        onClose={() => setCommentsOpen(false)}
-        onCommentCountChange={handleCommentCountChange}
-      />
     </div>
   );
 }

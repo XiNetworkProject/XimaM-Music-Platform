@@ -7,10 +7,12 @@
 CREATE TABLE IF NOT EXISTS creator_posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   creator_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  post_type TEXT NOT NULL CHECK (post_type IN ('text','photo','track_share')),
+  post_type TEXT NOT NULL CHECK (post_type IN ('text','photo','track_share','repost')),
   content TEXT,
   image_url TEXT,
   track_id TEXT,
+  original_post_id UUID REFERENCES creator_posts(id) ON DELETE SET NULL,
+  include_original_track BOOLEAN DEFAULT true,
   likes_count INT DEFAULT 0,
   comments_count INT DEFAULT 0,
   is_public BOOLEAN DEFAULT true,
@@ -39,6 +41,7 @@ CREATE TABLE IF NOT EXISTS post_comments (
 -- Index de performance
 CREATE INDEX IF NOT EXISTS idx_creator_posts_creator ON creator_posts(creator_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_creator_posts_public ON creator_posts(is_public, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_creator_posts_original_post ON creator_posts(original_post_id);
 CREATE INDEX IF NOT EXISTS idx_post_likes_post ON post_likes(post_id);
 CREATE INDEX IF NOT EXISTS idx_post_likes_user ON post_likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_post_comments_post ON post_comments(post_id, created_at DESC);

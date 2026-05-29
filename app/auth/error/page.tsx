@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { AlertTriangle, ArrowLeft, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
@@ -32,8 +33,16 @@ function AuthErrorContent() {
       className="w-full max-w-[420px]"
     >
       <div className="text-center mb-8">
-        <Link href="/" className="inline-block">
-          <h1 className="text-3xl font-black tracking-tight text-white">Synaura</h1>
+        <Link href="/" className="inline-block rounded-[1.75rem] bg-white p-2 shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
+          <Image
+            src="/brand/2026/synaura-brand-lockup.png"
+            alt="Synaura - Share sound, connect creations"
+            width={360}
+            height={180}
+            className="h-28 w-[min(340px,82vw)] rounded-[1.35rem] object-cover"
+            unoptimized
+            priority
+          />
         </Link>
       </div>
 

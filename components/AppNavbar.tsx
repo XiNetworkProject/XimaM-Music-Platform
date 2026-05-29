@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
@@ -270,13 +270,14 @@ export default function AppNavbar() {
             >
               <div className="relative">
                 <div className="absolute inset-0 rounded-2xl bg-accent-brand/60 blur-xl opacity-60" />
-                <div className="relative w-9 h-9 rounded-2xl bg-black/30 border border-white/15 flex items-center justify-center overflow-hidden backdrop-blur-sm">
+                <div className="relative w-11 h-11 rounded-2xl bg-white border border-white/40 flex items-center justify-center overflow-hidden shadow-lg">
                   <Image
-                    src="/synaura_symbol.svg"
+                    src="/brand/2026/synaura-symbol-2026.png"
                     alt="Synaura"
-                    width={32}
-                    height={32}
-                    className="w-5 h-5"
+                    width={44}
+                    height={44}
+                    className="h-10 w-10 object-contain"
+                    unoptimized
                     priority
                   />
                 </div>

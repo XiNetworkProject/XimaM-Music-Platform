@@ -37,10 +37,10 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/brand/2026/app-logo.png', type: 'image/png' },
+      { url: '/brand/2026/synaura-symbol-2026-white.png', type: 'image/png' },
       { url: '/favicon.svg', type: 'image/svg+xml' },
     ],
-    apple: '/brand/2026/app-logo.png',
+    apple: '/brand/2026/synaura-symbol-2026-white.png',
   },
 };
 

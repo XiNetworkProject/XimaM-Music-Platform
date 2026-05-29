@@ -944,7 +944,7 @@ export default function AIGenerator() {
       duration: track.duration,
       audioUrl: playableUrl,
       backupAudioUrls,
-      coverUrl: media.imageUrl || '/synaura_symbol.svg',
+      coverUrl: media.imageUrl || '/brand/2026/synaura-symbol-2026-white.png',
       createdAt: createdAt || track.created_at,
       genre: ['IA', 'Généré'],
       plays: track.play_count || 0,
@@ -1743,7 +1743,7 @@ export default function AIGenerator() {
             (u) => typeof u === 'string' && u.trim().length > 0 && u.trim() !== playableDirect && !isPotentiallyExpiredProviderUrl(u, gt.createdAt)
           )
         : [],
-      coverUrl: gt.imageUrl || '/synaura_symbol.svg',
+      coverUrl: gt.imageUrl || '/brand/2026/synaura-symbol-2026-white.png',
       duration: gt.duration || 120,
       likes: [],
       comments: [],
@@ -1990,7 +1990,7 @@ export default function AIGenerator() {
       isInstrumental: aiTrack.prompt?.toLowerCase().includes('instrumental') || false,
       duration: aiTrack.duration || 120,
       createdAt: createdAt || aiTrack.created_at,
-      imageUrl: media.imageUrl || '/synaura_symbol.svg'
+      imageUrl: media.imageUrl || '/brand/2026/synaura-symbol-2026-white.png'
     };
   };
 

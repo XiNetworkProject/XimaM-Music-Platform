@@ -3,6 +3,7 @@
 import { useCallback, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { notify } from '@/components/NotificationCenter';
+import { registerPushSubscription as registerBrowserPushSubscription } from '@/lib/pushClient';
 
 const POLL_INTERVAL = 5 * 60 * 1000; // 5 min
 const SEEN_KEY = 'boost-notif-seen';
@@ -30,37 +31,8 @@ function markSeen(key: string) {
 }
 
 export async function registerPushSubscription(): Promise<boolean> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
-  const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!vapidKey) return false;
-
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
-
-    if (!sub) {
-      if (Notification.permission === 'denied') return false;
-      const perm = Notification.permission === 'granted'
-        ? 'granted'
-        : await Notification.requestPermission();
-      if (perm !== 'granted') return false;
-
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: vapidKey,
-      });
-    }
-
-    const subJson = sub.toJSON();
-    const res = await fetch('/api/notifications/push/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ endpoint: subJson.endpoint, keys: subJson.keys }),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
+  const status = await registerBrowserPushSubscription();
+  return status === 'granted' || status === 'already';
 }
 
 async function sendPushIfBackground(userId: string, title: string, body: string) {

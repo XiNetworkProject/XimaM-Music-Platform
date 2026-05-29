@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -7,6 +7,7 @@ import { Search, Play, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAudioPlayer } from '@/app/providers';
 import Avatar from '@/components/Avatar';
+import NotificationCenter from '@/components/NotificationCenter';
 
 interface Track {
   _id: string;
@@ -134,7 +135,14 @@ export default function TopSearchBar() {
     if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => Math.max(-1, i - 1)); return; }
     if (e.key === 'Enter') {
       const item = flat[activeIdx];
-      if (!item) return;
+      if (!item) {
+        if (query.trim()) {
+          e.preventDefault();
+          setShowResults(false);
+          router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+        }
+        return;
+      }
       e.preventDefault();
       setShowResults(false); setActiveIdx(-1);
       if (item.kind === 'track') { playTrack(item.track as any); return; }
@@ -148,7 +156,8 @@ export default function TopSearchBar() {
   return (
     <div className="sticky top-0 z-40 bg-[#0a0a0e] border-b border-white/[0.06]">
       <div className="px-3 md:px-4 py-3">
-        <div className="relative search-root">
+        <div className="flex items-start gap-2">
+        <div className="relative search-root flex-1">
           {/* Input */}
           <div className="relative h-12 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center focus-within:border-neutral-600 transition-colors">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-neutral-500 pointer-events-none" />
@@ -281,11 +290,25 @@ export default function TopSearchBar() {
                         <p className="text-[12px] text-neutral-500 mt-1">Essayez d&apos;autres mots-clés</p>
                           </div>
                         )}
+                    {!loading && results.total > 0 && query.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowResults(false);
+                          router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+                        }}
+                        className="mt-1 w-full rounded-lg bg-neutral-800 px-3 py-2 text-sm font-semibold text-white transition hover:bg-neutral-700"
+                      >
+                        Voir tous les résultats
+                      </button>
+                    )}
                     </div>
                   </motion.div>
                 </>
               )}
             </AnimatePresence>
+        </div>
+        <NotificationCenter className="mt-0 bg-neutral-900 text-white/70 hover:bg-neutral-800 hover:text-white" />
         </div>
       </div>
     </div>

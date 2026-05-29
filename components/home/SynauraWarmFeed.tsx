@@ -1,24 +1,24 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
-import { notify } from '@/components/NotificationCenter';
-import type { Post as BasePost } from '@/components/PostCard';
+import NotificationCenter, { notify } from '@/components/NotificationCenter';
+import SharedPostCard, { type Post as BasePost } from '@/components/PostCard';
 import { SynauraMobileDock as SharedSynauraMobileDock } from '@/components/synaura/SynauraShell';
+import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { sendTrackEvents } from '@/lib/analyticsClient';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
 import {
-  Bell,
   Bookmark,
   ChevronLeft,
   ChevronRight,
   Compass,
-  Disc3,
   Heart,
   Home,
   Image as ImageIcon,
@@ -38,6 +38,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  UserPlus,
   Users,
   Wand2,
   X,
@@ -406,10 +407,12 @@ function normalizePost(raw: any) {
   const authorHref = username ? `/profile/${encodeURIComponent(username)}` : '/community';
   const entity: BasePost = {
     id,
-    type: raw?.type === 'track_share' ? 'track_share' : raw?.type === 'photo' ? 'photo' : 'text',
+    type: raw?.type === 'track_share' ? 'track_share' : raw?.type === 'photo' ? 'photo' : raw?.type === 'repost' ? 'repost' : 'text',
     content: typeof raw?.content === 'string' ? raw.content : undefined,
     image_url: typeof raw?.image_url === 'string' ? raw.image_url : undefined,
     track_id: typeof raw?.track_id === 'string' ? raw.track_id : undefined,
+    original_post_id: typeof raw?.original_post_id === 'string' ? raw.original_post_id : undefined,
+    include_original_track: raw?.include_original_track !== false,
     likes_count: Number(raw?.likes_count || 0),
     comments_count: Number(raw?.comments_count || 0),
     created_at: safeString(raw?.created_at, new Date().toISOString()),
@@ -430,6 +433,8 @@ function normalizePost(raw: any) {
           duration: Number(raw.track.duration || 0),
         }
       : null,
+    original_post: raw?.original_post || null,
+    track_hidden: Boolean(raw?.track_hidden),
     isLiked: Boolean(raw?.isLiked),
   };
 
@@ -1019,8 +1024,16 @@ function TopBar() {
     <header className="sticky top-2 z-40 mb-4 rounded-[1.6rem] border border-black/[0.08] bg-[#fffaf2]/90 px-3 py-3 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:top-3 sm:rounded-[2rem] sm:px-4">
       <div className="flex items-center justify-between gap-2 sm:gap-3">
         <Link href="/" className="flex min-w-0 items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#171313] text-[#fffaf2]">
-            <Disc3 className="h-6 w-6" />
+          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[1.25rem] border border-black/[0.08] bg-white shadow-[0_10px_26px_rgba(30,25,20,0.10)]">
+            <Image
+              src="/brand/2026/synaura-symbol-2026.png"
+              alt="Synaura"
+              width={52}
+              height={52}
+              className="h-12 w-12 object-contain"
+              unoptimized
+              priority
+            />
           </div>
           <div className="min-w-0">
             <p className="text-xl font-black tracking-tight">Synaura</p>
@@ -1033,15 +1046,10 @@ function TopBar() {
           </div>
         </Link>
 
-        <HomeSearchBox />
+        <SynauraUniversalSearch />
 
         <div className="flex items-center gap-2">
-          <Link
-            href="/settings"
-            className="grid h-10 w-10 place-items-center rounded-full bg-black/[0.06] text-black/60 transition hover:bg-black hover:text-white sm:h-11 sm:w-11"
-          >
-            <Bell className="h-5 w-5" />
-          </Link>
+          <NotificationCenter className="bg-black/[0.06] text-black/60 hover:bg-black hover:text-white sm:h-11 sm:w-11" />
           <Link
             href="/ai-generator"
             className="hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex"
@@ -1058,7 +1066,7 @@ function TopBar() {
       </div>
 
       <div className="mt-2.5 flex gap-2 lg:hidden">
-        <HomeSearchBox compact />
+        <SynauraUniversalSearch compact />
         <Link
           href="/ai-generator"
           className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-black/[0.06] px-3 text-xs font-black text-black/60 transition hover:bg-black hover:text-white sm:hidden"
@@ -1326,12 +1334,28 @@ function ComposerCard({ onPostCreated }: { onPostCreated: (post: PostItem) => vo
               </div>
             </div>
           ) : (
-            <Link
-              href="/auth/signin"
-              className="flex h-12 w-full items-center rounded-[1.15rem] bg-black/[0.055] px-4 text-sm font-semibold text-black/38 transition hover:bg-black/[0.08]"
-            >
-              Connecte-toi pour publier et reagir...
-            </Link>
+            <div className="overflow-hidden rounded-[1.25rem] border border-[#ff6f61]/18 bg-[#ff6f61]/10 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#ff6f61]">Tu n'as pas encore de compte</p>
+              <h3 className="mt-2 text-xl font-black tracking-tight text-[#171313]">Rejoins le feed Synaura</h3>
+              <p className="mt-2 text-sm font-semibold leading-6 text-black/54">
+                Inscris-toi pour publier tes sons, commenter les posts, suivre des artistes et garder tes notifications.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link
+                  href="/auth/signup"
+                  className="inline-flex h-11 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Créer un compte
+                </Link>
+                <Link
+                  href="/auth/signin"
+                  className="inline-flex h-11 items-center rounded-full bg-white px-5 text-sm font-black text-black/58 transition hover:bg-black hover:text-white"
+                >
+                  Connexion
+                </Link>
+              </div>
+            </div>
           )}
           <input
             ref={fileInputRef}
@@ -2033,219 +2057,17 @@ function MiniPlayer({ track, withActions = true }: { track: Track; withActions?:
 }
 
 function PostCard({ item, onDeleted }: { item: PostItem; onDeleted: (postId: string) => void }) {
-  const { data: session } = useSession();
-  const [liked, setLiked] = useState(item.isLiked);
-  const [likesCount, setLikesCount] = useState(item.likesCount);
-  const [commentsCount, setCommentsCount] = useState(item.commentsCount);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const currentUserId = String((session?.user as any)?.id || '');
-  const currentUsername = String((session?.user as any)?.username || '');
-  const isOwnPost = Boolean(currentUserId && currentUserId === item.creatorId) || Boolean(currentUsername && item.handle === `@${currentUsername}`);
-
-  useEffect(() => {
-    setLiked(item.isLiked);
-    setLikesCount(item.likesCount);
-    setCommentsCount(item.commentsCount);
-    setCommentsOpen(false);
-    setShareOpen(false);
-    setMenuOpen(false);
-  }, [item.commentsCount, item.id, item.isLiked, item.likesCount]);
-
-  const handleLike = useCallback(async () => {
-    if (!session) {
-      notify.error('', 'Connecte-toi pour liker');
-      return;
-    }
-
-    const nextLiked = !liked;
-    setLiked(nextLiked);
-    setLikesCount((current) => Math.max(0, current + (nextLiked ? 1 : -1)));
-
-    try {
-      const response = await fetch(`/api/posts/${encodeURIComponent(item.id)}/like`, {
-        method: nextLiked ? 'POST' : 'DELETE',
-      });
-
-      if (!response.ok && response.status !== 409) {
-        throw new Error('post-like-failed');
-      }
-    } catch {
-      setLiked(!nextLiked);
-      setLikesCount((current) => Math.max(0, current + (nextLiked ? -1 : 1)));
-      notify.error('', 'Impossible de mettre a jour le post');
-    }
-  }, [item.id, liked, session]);
-
-  const handleDeletePost = useCallback(async () => {
-    if (!session?.user) {
-      notify.error('', 'Connecte-toi pour supprimer ce post');
-      return;
-    }
-    if (!isOwnPost || deleting) return;
-    const ok = window.confirm('Supprimer ce post ?');
-    if (!ok) return;
-
-    setDeleting(true);
-    try {
-      const response = await fetch(`/api/posts/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(payload?.error || 'Suppression impossible');
-      onDeleted(item.id);
-      notify.success('', 'Post supprime');
-    } catch (error: any) {
-      notify.error('', error?.message || 'Impossible de supprimer le post');
-    } finally {
-      setDeleting(false);
-      setMenuOpen(false);
-    }
-  }, [deleting, isOwnPost, item.id, onDeleted, session?.user]);
+  const feedActions = React.useContext(HomeFeedActionsContext);
 
   return (
-    <Card className="p-3 sm:p-5">
-        <div className="flex gap-2.5 sm:gap-3">
-          <AvatarBubble value={item.avatar} size="sm" tint={item.track?.tint ?? '#ff7a66'} />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <Link href={item.authorHref || '/community'} className="font-black hover:underline">
-                    {item.author}
-                  </Link>
-                  <span className="text-xs font-semibold text-black/38 sm:text-sm">{item.handle}</span>
-                  <span className="text-xs font-semibold text-black/28 sm:text-sm">· {item.time}</span>
-                </div>
-                <span className="mt-2 inline-flex rounded-full bg-black/[0.055] px-2 py-1 text-[9px] font-black uppercase tracking-wide text-black/46 sm:px-2.5 sm:text-[10px]">
-                  {item.mood}
-                </span>
-                <p className="mt-3 text-[14px] leading-6 text-black/72 sm:text-[15px] sm:leading-7">{item.text}</p>
-            </div>
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setMenuOpen((current) => !current)}
-                className="grid h-8 w-8 place-items-center rounded-full bg-black/[0.055] text-black/42 transition hover:bg-black/[0.1] hover:text-black sm:h-9 sm:w-9"
-                title="Actions du post"
-              >
-                <MoreHorizontal className="h-5 w-5" />
-              </button>
-              {menuOpen ? (
-                <div className="absolute right-0 top-[calc(100%+0.45rem)] z-20 w-52 rounded-[1rem] border border-black/[0.08] bg-[#fffaf2] p-1.5 shadow-[0_16px_48px_rgba(30,25,20,0.18)]">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCommentsOpen(true);
-                      setMenuOpen(false);
-                    }}
-                    className="flex h-9 w-full items-center rounded-[0.75rem] px-3 text-left text-xs font-black text-black/58 transition hover:bg-black/[0.055] hover:text-black"
-                  >
-                    Voir les commentaires
-                  </button>
-                  {isOwnPost ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleDeletePost()}
-                      disabled={deleting}
-                      className="flex h-9 w-full items-center gap-2 rounded-[0.75rem] px-3 text-left text-xs font-black text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-                    >
-                      {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                      {deleting ? 'Suppression...' : 'Supprimer'}
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          {item.track ? <MiniPlayer track={item.track} /> : null}
-
-          {!item.track && item.image ? (
-            <div className="mt-4 overflow-hidden rounded-[1.35rem] bg-black/[0.055]">
-              <img src={item.image} alt="" className="max-h-[220px] w-full object-cover sm:max-h-[360px]" />
-            </div>
-          ) : null}
-
-          {!item.track && !item.image ? (
-            <div className="mt-4 rounded-[1.2rem] bg-black/[0.045] p-3 sm:rounded-[1.35rem] sm:p-4">
-              <p className="text-sm font-semibold leading-6 text-black/52">Publication sociale issue du vrai flux createur.</p>
-            </div>
-          ) : null}
-
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-            <button
-              type="button"
-              onClick={handleLike}
-              className={`inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full px-3 text-xs font-black transition sm:h-10 sm:w-auto sm:px-4 sm:text-sm ${
-                liked ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/62 hover:bg-black/[0.1] hover:text-black'
-              }`}
-            >
-              <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} />
-              {likesCount ? formatCompact(likesCount) : 'Liker'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setCommentsOpen((current) => !current);
-                setShareOpen(false);
-              }}
-              className="inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-3 text-xs font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black sm:h-10 sm:w-auto sm:px-4 sm:text-sm"
-            >
-              <MessageCircle className="h-4 w-4" />
-              {commentsCount ? formatCompact(commentsCount) : 'Commenter'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setShareOpen((current) => !current);
-                setCommentsOpen(false);
-              }}
-              className="inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-3 text-xs font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black sm:h-10 sm:w-auto sm:px-4 sm:text-sm"
-            >
-              <Share2 className="h-4 w-4" />
-              Partager
-            </button>
-
-            <Link
-              href={item.authorHref || '/community'}
-              className="col-span-2 inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full px-3 text-xs font-black text-black/42 transition hover:bg-black/[0.055] hover:text-black sm:ml-auto sm:h-10 sm:w-auto sm:px-4 sm:text-sm"
-            >
-              <Bookmark className="h-4 w-4" />
-              Profil
-            </Link>
-          </div>
-
-          {commentsOpen ? (
-            <InlineCommentsPanel
-              kind="post"
-              targetId={item.id}
-              ownerId={item.creatorId}
-              onCountChange={(delta) => setCommentsCount((current) => Math.max(0, current + delta))}
-            />
-          ) : null}
-
-          {shareOpen ? (
-            item.track ? (
-              <InlineTrackSharePanel
-                url={`${typeof window !== 'undefined' ? window.location.origin : ''}/track/${encodeURIComponent(item.track.id)}`}
-                text={`Ecoute ${item.track.title} par ${item.track.artist} sur Synaura`}
-                track={item.track}
-                onClose={() => setShareOpen(false)}
-              />
-            ) : (
-              <InlineSharePanel
-                url={`${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${encodeURIComponent(item.id)}`}
-                text={item.text || `Regarde ce post de ${item.author} sur Synaura`}
-                onClose={() => setShareOpen(false)}
-              />
-            )
-          ) : null}
-          </div>
-        </div>
-      </Card>
+    <SharedPostCard
+      post={item.entity}
+      onDelete={onDeleted}
+      onPostCreated={(post) => {
+        const normalized = normalizePost(post);
+        if (normalized) feedActions?.onPostCreated(normalized);
+      }}
+    />
   );
 }
 

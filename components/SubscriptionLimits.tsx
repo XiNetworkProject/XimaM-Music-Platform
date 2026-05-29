@@ -117,8 +117,8 @@ export default function SubscriptionLimits() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-4">
-        <div className="flex items-center gap-2 text-sm text-foreground-inactive">
+      <div className="rounded-[1.35rem] border border-[#dccfbb] bg-[#f7efe2] p-5 shadow-[0_10px_24px_rgba(44,33,19,0.04)]">
+        <div className="flex items-center gap-2 text-sm font-semibold text-[#6a5d53]">
           <Loader2 className="h-4 w-4 animate-spin" />
           Chargement de l’abonnement…
         </div>
@@ -128,9 +128,9 @@ export default function SubscriptionLimits() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-4">
-        <div className="text-sm text-foreground-secondary">{error}</div>
-        <Link href="/subscriptions" className="mt-3 inline-flex items-center gap-2 text-sm text-[var(--accent-brand)] hover:opacity-90">
+      <div className="rounded-[1.35rem] border border-[#dccfbb] bg-[#f7efe2] p-5 shadow-[0_10px_24px_rgba(44,33,19,0.04)]">
+        <div className="text-sm font-semibold leading-6 text-[#6a5d53]">{error}</div>
+        <Link href="/subscriptions" className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#d6c8b3] bg-[#efe4d4] px-4 py-2 text-sm font-black text-[#171313] transition hover:bg-[#e7dac8]">
           Ouvrir la page abonnements <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
@@ -138,16 +138,16 @@ export default function SubscriptionLimits() {
   }
 
   return (
-    <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-4">
+    <div className="rounded-[1.35rem] border border-[#dccfbb] bg-[#f7efe2] p-5 shadow-[0_10px_24px_rgba(44,33,19,0.04)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border-secondary bg-background-tertiary">
-              <Crown className="h-4 w-4 text-[var(--accent-brand)]" />
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-[1rem] border border-[#d9ccb7] bg-[#fff8ee]">
+              <Crown className="h-4 w-4 text-[#7c5cff]" />
             </span>
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground-primary">Plan {planLabel}</div>
-              <div className="text-xs text-foreground-inactive">
+              <div className="text-sm font-black text-[#171313]">Plan {planLabel}</div>
+              <div className="text-xs font-semibold text-[#6a5d53]">
                 {periodEndText ? periodEndText : `Qualité max: ${ent.audio.maxQualityKbps}kbps`}
               </div>
             </div>
@@ -156,12 +156,12 @@ export default function SubscriptionLimits() {
 
         <span
           className={[
-            'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold',
-            statusLabel.tone === 'success' ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-200' : '',
-            statusLabel.tone === 'info' ? 'bg-sky-500/10 border-sky-500/25 text-sky-200' : '',
-            statusLabel.tone === 'warn' ? 'bg-amber-500/10 border-amber-500/25 text-amber-200' : '',
-            statusLabel.tone === 'danger' ? 'bg-red-500/10 border-red-500/25 text-red-200' : '',
-            statusLabel.tone === 'neutral' ? 'bg-white/5 border-border-secondary text-foreground-secondary' : '',
+            'shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.08em]',
+            statusLabel.tone === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : '',
+            statusLabel.tone === 'info' ? 'border-sky-200 bg-sky-50 text-sky-700' : '',
+            statusLabel.tone === 'warn' ? 'border-amber-200 bg-amber-50 text-amber-700' : '',
+            statusLabel.tone === 'danger' ? 'border-red-200 bg-red-50 text-red-700' : '',
+            statusLabel.tone === 'neutral' ? 'border-[#d6c8b3] bg-[#fff8ee] text-[#6a5d53]' : '',
           ].join(' ')}
         >
           {statusLabel.text}
@@ -175,18 +175,18 @@ export default function SubscriptionLimits() {
             const label = key === 'tracks' ? 'Pistes' : 'Playlists';
             const pct = Math.min(100, Math.max(0, Number(d?.percentage || 0)));
             return (
-              <div key={key} className="space-y-2">
+              <div key={key} className="rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-foreground-secondary">{label}</span>
+                  <span className="font-black uppercase tracking-[0.1em] text-[#6a5d53]">{label}</span>
                   <span className={['tabular-nums font-semibold', getUsageText(pct)].join(' ')}>
                     {d?.used ?? 0} / {d?.limit ?? 0}
                   </span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[#eadfce]">
                   <div className={['h-2 rounded-full bg-gradient-to-r', getUsageColor(pct)].join(' ')} style={{ width: `${pct}%` }} />
                 </div>
                 {pct >= 90 ? (
-                  <div className="flex items-center gap-2 text-[11px] text-red-300">
+                  <div className="mt-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.08em] text-red-600">
                     <AlertTriangle className="h-4 w-4" />
                     Limite bientôt atteinte
                   </div>
@@ -198,18 +198,18 @@ export default function SubscriptionLimits() {
       ) : null}
 
       {typeof credits === 'number' ? (
-        <div className="mt-4 rounded-xl border border-border-secondary bg-background-tertiary px-3 py-2">
+        <div className="mt-4 rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] px-4 py-3">
           <div className="flex items-center justify-between gap-3 text-xs">
-            <span className="text-foreground-secondary">Crédits IA</span>
-            <span className="font-semibold tabular-nums text-foreground-primary">
-              {credits} <span className="text-foreground-inactive font-normal">(~{generationsApprox(credits)} gén.)</span>
+            <span className="font-black uppercase tracking-[0.1em] text-[#6a5d53]">Crédits IA</span>
+            <span className="font-black tabular-nums text-[#171313]">
+              {credits} <span className="font-semibold text-[#6a5d53]">(~{generationsApprox(credits)} gén.)</span>
             </span>
           </div>
         </div>
       ) : null}
 
-      <div className="mt-4 pt-3 border-t border-border-secondary/60">
-        <Link href="/subscriptions" className="inline-flex items-center gap-2 text-sm text-[var(--accent-brand)] hover:opacity-90">
+      <div className="mt-4 border-t border-[#dccfbb] pt-4">
+        <Link href="/subscriptions" className="inline-flex items-center gap-2 rounded-full border border-[#d6c8b3] bg-[#efe4d4] px-4 py-2 text-sm font-black text-[#171313] transition hover:bg-[#e7dac8]">
           Voir / gérer mon abonnement <ArrowRight className="h-4 w-4" />
         </Link>
       </div>

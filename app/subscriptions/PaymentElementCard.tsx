@@ -45,10 +45,10 @@ function InnerPayment({ priceId, customerId, onSuccess }: { priceId: string; cus
   };
 
   return (
-    <div className="panel-suno border border-[var(--border)] rounded-2xl p-4">
-      {error && <div className="mb-3 text-sm text-red-400">{error}</div>}
+    <div className="rounded-[1.5rem] border border-[#dccfbb] bg-white p-4">
+      {error && <div className="mb-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-bold text-red-700">{error}</div>}
       <PaymentElement />
-      <button disabled={!stripe || loading} onClick={handleSubmit} className="mt-4 w-full rounded-xl px-4 py-2 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white disabled:opacity-60">
+      <button disabled={!stripe || loading} onClick={handleSubmit} className="mt-4 h-11 w-full rounded-2xl bg-[#171313] px-4 text-sm font-black text-white transition hover:scale-[1.01] disabled:opacity-60">
         {loading ? 'Traitement…' : 'Payer et activer'}
       </button>
     </div>
@@ -66,16 +66,16 @@ export default function PaymentElementCard({ priceId, onSuccess }: { priceId: st
     setLoading(false);
   }, [priceId]);
 
-  if (error) return <div className="panel-suno border border-[var(--border)] rounded-2xl p-4 text-red-400">{error}</div>;
+  if (error) return <div className="rounded-[1.5rem] border border-red-500/20 bg-red-500/10 p-4 text-sm font-bold text-red-700">{error}</div>;
   
   return (
-    <div className="panel-suno border border-[var(--border)] rounded-2xl p-6">
+    <div className="rounded-[1.5rem] border border-[#dccfbb] bg-white/72 p-4 sm:p-5">
       <div className="flex flex-col sm:flex-row gap-3 items-center">
         <input
           value={code}
           onChange={e => setCode(e.target.value)}
           placeholder="Code promo (optionnel)"
-          className="flex-1 w-full px-3 py-2 rounded-lg bg-white/5 border border-[var(--border)] text-white placeholder-white/50"
+          className="h-11 w-full flex-1 rounded-2xl border border-[#dccfbb] bg-white px-4 text-sm font-semibold text-[#171313] outline-none placeholder:text-black/28 focus:border-[#ff6f61] focus:ring-4 focus:ring-[#ff6f61]/14"
         />
         <button
           onClick={async () => {
@@ -96,17 +96,17 @@ export default function PaymentElementCard({ priceId, onSuccess }: { priceId: st
               setLoading(false);
             }
           }}
-          className="px-4 py-2 rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white"
+          className="h-11 rounded-2xl bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.01]"
         >
-          Appliquer et payer
+          Payer
         </button>
       </div>
 
       {loading && (
         <div className="mt-4 text-center">
-          <div className="w-12 h-12 border-4 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin mx-auto" />
-          <div className="text-white/90 mt-2">Redirection vers le paiement sécurisé...</div>
-          <div className="text-white/60 text-sm">Vous allez être redirigé vers Stripe</div>
+          <div className="w-10 h-10 border-4 border-[#171313]/25 border-t-[#171313] rounded-full animate-spin mx-auto" />
+          <div className="mt-2 text-sm font-black text-[#171313]">Redirection vers le paiement sécurisé...</div>
+          <div className="text-xs font-semibold text-black/42">Tu vas être redirigé vers Stripe</div>
         </div>
       )}
     </div>

@@ -403,8 +403,8 @@ export default function StarAcademyLandingPage() {
               <div className="flex items-start gap-4">
                 <div className="h-10 w-10 rounded-xl shrink-0 flex items-center justify-center"
                   style={{ background: "rgba(147,51,234,0.1)", border: "1px solid rgba(147,51,234,0.2)" }}>
-                  <Image src="/synaura_symbol.svg" alt="" width={18} height={18}
-                    style={{ filter: "brightness(0) invert(1) opacity(0.7)" }} />
+                  <Image src="/brand/2026/synaura-symbol-2026.png" alt="" width={28} height={28}
+                    className="h-7 w-7 object-contain opacity-90" unoptimized />
                 </div>
                 <div>
                   <p className="text-sm font-black text-white mb-0.5">Mise en avant Artiste</p>

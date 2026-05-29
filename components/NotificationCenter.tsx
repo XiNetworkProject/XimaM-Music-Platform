@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import {
   Bell,
   BellOff,
@@ -23,10 +24,12 @@ import {
   Trash2,
   Loader2,
 } from 'lucide-react';
+import { getBrowserNotificationStatus, registerPushSubscription } from '@/lib/pushClient';
 
 export type NotificationType = 'success' | 'error' | 'info' | 'warning' | 'music' | 'like' | 'message' | 'follow'
   | 'new_follower' | 'new_like' | 'like_milestone' | 'new_comment' | 'new_message'
-  | 'new_track_followed' | 'view_milestone' | 'boost_reminder' | 'admin_broadcast' | 'general';
+  | 'new_track_followed' | 'view_milestone' | 'boost_reminder' | 'admin_broadcast' | 'general'
+  | 'post_like' | 'post_comment';
 
 export interface Notification {
   id: string;
@@ -119,28 +122,31 @@ const NOTIF_ICONS: Record<string, any> = {
   new_follower: UserPlus, new_like: Heart, like_milestone: TrendingUp,
   new_comment: MessageCircle, new_message: MessageCircle,
   new_track_followed: Music, view_milestone: Eye,
+  post_like: Heart, post_comment: MessageCircle,
   boost_reminder: Zap, admin_broadcast: Megaphone, general: Info,
 };
 
 const NOTIF_COLORS: Record<string, string> = {
-  success: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-  error: 'text-red-400 bg-red-400/10 border-red-400/20',
-  info: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
-  warning: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
-  music: 'text-violet-400 bg-violet-400/10 border-violet-400/20',
-  like: 'text-pink-400 bg-pink-400/10 border-pink-400/20',
-  message: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
-  follow: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-  new_follower: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-  new_like: 'text-pink-400 bg-pink-400/10 border-pink-400/20',
-  like_milestone: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
-  new_comment: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
-  new_message: 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20',
-  new_track_followed: 'text-violet-400 bg-violet-400/10 border-violet-400/20',
-  view_milestone: 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20',
-  boost_reminder: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
-  admin_broadcast: 'text-violet-400 bg-violet-400/10 border-violet-400/20',
-  general: 'text-white/60 bg-white/5 border-white/10',
+  success: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+  error: 'text-red-700 bg-red-50 border-red-200',
+  info: 'text-blue-700 bg-blue-50 border-blue-200',
+  warning: 'text-amber-700 bg-amber-50 border-amber-200',
+  music: 'text-[#7c5cff] bg-[#7c5cff]/8 border-[#7c5cff]/18',
+  like: 'text-pink-700 bg-pink-50 border-pink-200',
+  message: 'text-blue-700 bg-blue-50 border-blue-200',
+  follow: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+  new_follower: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+  new_like: 'text-pink-700 bg-pink-50 border-pink-200',
+  like_milestone: 'text-amber-700 bg-amber-50 border-amber-200',
+  new_comment: 'text-blue-700 bg-blue-50 border-blue-200',
+  new_message: 'text-indigo-700 bg-indigo-50 border-indigo-200',
+  new_track_followed: 'text-[#7c5cff] bg-[#7c5cff]/8 border-[#7c5cff]/18',
+  view_milestone: 'text-cyan-700 bg-cyan-50 border-cyan-200',
+  post_like: 'text-pink-700 bg-pink-50 border-pink-200',
+  post_comment: 'text-blue-700 bg-blue-50 border-blue-200',
+  boost_reminder: 'text-orange-700 bg-orange-50 border-orange-200',
+  admin_broadcast: 'text-[#7c5cff] bg-[#7c5cff]/8 border-[#7c5cff]/18',
+  general: 'text-[#5f5650] bg-[#fff8ee] border-[#dccfbb]',
 };
 
 const CATEGORIES = [
@@ -149,6 +155,7 @@ const CATEGORIES = [
   { key: 'music', label: 'Musique' },
   { key: 'message', label: 'Messages' },
   { key: 'milestone', label: 'Milestones' },
+  { key: 'boost', label: 'Boost' },
   { key: 'admin', label: 'Annonces' },
 ];
 
@@ -262,8 +269,10 @@ function DBNotifItem({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`group relative rounded-xl p-3 transition cursor-pointer ${
-        n.is_read ? 'bg-transparent hover:bg-white/[0.03]' : 'bg-white/[0.04] hover:bg-white/[0.06]'
+      className={`group relative cursor-pointer rounded-[1rem] border p-3 transition ${
+        n.is_read
+          ? 'border-[#dccfbb] bg-[#fff8ee] hover:bg-[#fff3e4]'
+          : 'border-[#7c5cff]/18 bg-[#7c5cff]/8 hover:bg-[#7c5cff]/12'
       }`}
       onClick={() => {
         if (!n.is_read) onMarkRead(n.id);
@@ -274,63 +283,26 @@ function DBNotifItem({
         <NotificationIcon type={n.type} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className={`text-[13px] font-semibold ${n.is_read ? 'text-white/50' : 'text-white/90'}`}>
+            <span className={`text-[13px] font-black ${n.is_read ? 'text-[#5f5650]' : 'text-[#171313]'}`}>
               {n.title}
             </span>
-            {!n.is_read && <div className="w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />}
+            {!n.is_read && <div className="w-1.5 h-1.5 rounded-full bg-[#7c5cff] flex-shrink-0" />}
           </div>
-          <p className={`text-xs mt-0.5 line-clamp-2 ${n.is_read ? 'text-white/30' : 'text-white/50'}`}>
+          <p className={`text-xs mt-0.5 line-clamp-2 font-semibold ${n.is_read ? 'text-black/42' : 'text-black/58'}`}>
             {n.message}
           </p>
-          <span className="text-[11px] text-white/25 mt-1 block">{timeAgo(n.created_at)}</span>
+          <span className="text-[11px] text-black/34 mt-1 block font-black uppercase tracking-[0.08em]">{timeAgo(n.created_at)}</span>
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(n.id); }}
-          className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all flex-shrink-0"
+          className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-black/[0.06] transition-all flex-shrink-0"
           aria-label="Supprimer"
         >
-          <X className="w-3.5 h-3.5 text-white/30" />
+          <X className="w-3.5 h-3.5 text-black/38" />
         </button>
       </div>
     </motion.div>
   );
-}
-
-async function registerPush(): Promise<'granted' | 'denied' | 'unsupported' | 'already'> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported';
-  const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!vapidKey) return 'unsupported';
-
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    const existing = await reg.pushManager.getSubscription();
-    if (existing) {
-      const sub = existing.toJSON();
-      await fetch('/api/notifications/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ endpoint: sub.endpoint, keys: sub.keys }),
-      });
-      return 'already';
-    }
-
-    const perm = await Notification.requestPermission();
-    if (perm !== 'granted') return 'denied';
-
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: vapidKey,
-    });
-    const subJson = sub.toJSON();
-    await fetch('/api/notifications/push/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ endpoint: subJson.endpoint, keys: subJson.keys }),
-    });
-    return 'granted';
-  } catch {
-    return 'denied';
-  }
 }
 
 export default function NotificationCenter({ className = '' }: NotificationCenterProps) {
@@ -343,7 +315,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState('all');
-  const [pushStatus, setPushStatus] = useState<'unknown' | 'granted' | 'denied' | 'unsupported'>('unknown');
+  const [pushStatus, setPushStatus] = useState<'unknown' | 'granted' | 'denied' | 'unsupported' | 'unavailable'>('unknown');
   const [pushLoading, setPushLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -354,9 +326,8 @@ export default function NotificationCenter({ className = '' }: NotificationCente
   // Detecter le statut de permission push
   useEffect(() => {
     if (!isAuthenticated || typeof window === 'undefined') return;
-    if (!('Notification' in window)) { setPushStatus('unsupported'); return; }
-    if (!('PushManager' in window)) { setPushStatus('unsupported'); return; }
-    const perm = Notification.permission;
+    const perm = getBrowserNotificationStatus();
+    if (perm === 'unsupported') { setPushStatus('unsupported'); return; }
     if (perm === 'granted') setPushStatus('granted');
     else if (perm === 'denied') setPushStatus('denied');
     else setPushStatus('unknown');
@@ -364,15 +335,20 @@ export default function NotificationCenter({ className = '' }: NotificationCente
 
   const handleEnablePush = useCallback(async () => {
     setPushLoading(true);
-    const result = await registerPush();
+    const result = await registerPushSubscription();
     setPushLoading(false);
     if (result === 'granted' || result === 'already') {
       setPushStatus('granted');
       notify.success('Notifications activees', 'Tu recevras les notifications meme hors du site');
     } else if (result === 'denied') {
       setPushStatus('denied');
+      notify.warning('Notifications', 'Permission refusée par le navigateur.');
+    } else if (result === 'unavailable') {
+      setPushStatus('unavailable');
+      notify.warning('Notifications', 'Le service push du navigateur est indisponible pour le moment.');
     } else {
       setPushStatus('unsupported');
+      notify.warning('Notifications', 'Notifications navigateur non supportées sur cet environnement.');
     }
   }, []);
 
@@ -502,14 +478,14 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-full mt-2 w-[380px] max-h-[580px] flex flex-col bg-[#121218] border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/50 z-50 overflow-hidden"
+              className="fixed left-3 right-3 top-[5.25rem] z-[1000] flex max-h-[min(72vh,650px)] flex-col overflow-hidden rounded-[1.6rem] border border-[#d8cbb8] bg-[#fff7ec] shadow-[0_28px_90px_rgba(30,25,20,0.28)] sm:left-auto sm:right-4 sm:w-[440px]"
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+              <div className="flex items-center justify-between border-b border-[#e2d6c4] bg-[#fffaf2] px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-[15px] font-semibold text-white/90">Notifications</h3>
+                  <h3 className="text-[15px] font-black text-[#171313]">Notifications</h3>
                   {unreadCount > 0 && (
-                    <span className="px-2 py-0.5 text-[11px] font-medium bg-violet-500/20 text-violet-300 rounded-full">
+                    <span className="px-2 py-0.5 text-[11px] font-black bg-[#7c5cff]/12 text-[#7c5cff] rounded-full">
                       {unreadCount}
                     </span>
                   )}
@@ -517,14 +493,14 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                 <div className="flex items-center gap-1">
                   {unreadCount > 0 && (
                     <button onClick={markAllRead}
-                      className="p-1.5 rounded-lg hover:bg-white/[0.06] text-white/40 hover:text-white/70 transition"
+                      className="p-1.5 rounded-lg text-black/38 transition hover:bg-black/[0.06] hover:text-[#171313]"
                       title="Tout marquer comme lu">
                       <CheckCheck className="w-4 h-4" />
                     </button>
                   )}
                   {dbNotifs.length > 0 && (
                     <button onClick={clearAll}
-                      className="p-1.5 rounded-lg hover:bg-white/[0.06] text-white/40 hover:text-red-400/70 transition"
+                      className="p-1.5 rounded-lg text-black/38 transition hover:bg-[#ff6f61]/10 hover:text-[#8f3d34]"
                       title="Tout supprimer">
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -534,13 +510,13 @@ export default function NotificationCenter({ className = '' }: NotificationCente
 
               {/* Push notification opt-in banner */}
               {isAuthenticated && pushStatus === 'unknown' && (
-                <div className="mx-3 mt-3 px-3 py-2.5 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center gap-2.5">
-                  <BellRing className="w-4 h-4 text-violet-400 flex-shrink-0" />
-                  <p className="text-[12px] text-violet-200/80 flex-1">Activer les notifs meme hors du site</p>
+                <div className="mx-3 mt-3 px-3 py-2.5 rounded-[1rem] bg-[#7c5cff]/8 border border-[#7c5cff]/18 flex items-center gap-2.5">
+                  <BellRing className="w-4 h-4 text-[#7c5cff] flex-shrink-0" />
+                  <p className="text-[12px] font-semibold text-[#4d3aa0] flex-1">Activer les notifs même hors du site</p>
                   <button
                     onClick={handleEnablePush}
                     disabled={pushLoading}
-                    className="px-3 py-1 text-[11px] font-semibold bg-violet-500 hover:bg-violet-400 text-white rounded-full transition flex-shrink-0"
+                    className="px-3 py-1 text-[11px] font-black bg-[#171313] hover:scale-[1.02] text-white rounded-full transition flex-shrink-0"
                   >
                     {pushLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Activer'}
                   </button>
@@ -548,24 +524,33 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               )}
 
               {isAuthenticated && pushStatus === 'denied' && (
-                <div className="mx-3 mt-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
-                  <BellOff className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                  <p className="text-[11px] text-amber-200/70 flex-1">
-                    Notifs bloquees — autoriser dans les reglages du navigateur
+                <div className="mx-3 mt-3 px-3 py-2 rounded-[1rem] bg-amber-50 border border-amber-200 flex items-center gap-2">
+                  <BellOff className="w-4 h-4 text-amber-700 flex-shrink-0" />
+                  <p className="text-[11px] font-semibold text-amber-800 flex-1">
+                    Notifs bloquées — autoriser dans les réglages du navigateur
+                  </p>
+                </div>
+              )}
+
+              {isAuthenticated && pushStatus === 'unavailable' && (
+                <div className="mx-3 mt-3 px-3 py-2 rounded-[1rem] bg-amber-50 border border-amber-200 flex items-center gap-2">
+                  <BellOff className="w-4 h-4 text-amber-700 flex-shrink-0" />
+                  <p className="text-[11px] font-semibold text-amber-800 flex-1">
+                    Service push indisponible sur ce navigateur pour le moment.
                   </p>
                 </div>
               )}
 
               {/* Category filter */}
-              <div className="flex gap-1 px-3 py-2 border-b border-white/[0.04] overflow-x-auto scrollbar-hide mt-1">
+              <div className="flex gap-1 px-3 py-2 border-b border-[#e2d6c4] overflow-x-auto scrollbar-hide mt-1">
                 {CATEGORIES.map(c => (
                   <button
                     key={c.key}
                     onClick={() => setCategory(c.key)}
-                    className={`px-3 py-1 text-[12px] font-medium rounded-full whitespace-nowrap transition ${
+                    className={`px-3 py-1.5 text-[12px] font-black rounded-full whitespace-nowrap transition ${
                       category === c.key
-                        ? 'bg-violet-500/20 text-violet-300'
-                        : 'text-white/35 hover:text-white/60 hover:bg-white/[0.04]'
+                        ? 'bg-[#171313] text-white'
+                        : 'bg-[#efe4d4] text-[#5f5650] hover:bg-[#e7dac8] hover:text-[#171313]'
                     }`}
                   >
                     {c.label}
@@ -577,18 +562,18 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               <div className="flex-1 overflow-y-auto overscroll-contain">
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-5 h-5 text-white/30 animate-spin" />
+                    <Loader2 className="w-5 h-5 text-black/35 animate-spin" />
                   </div>
                 ) : dbNotifs.length === 0 ? (
                   <div className="text-center py-12 px-4">
-                    <div className="w-12 h-12 rounded-2xl bg-white/[0.04] flex items-center justify-center mx-auto mb-3">
-                      <Bell className="w-6 h-6 text-white/20" />
+                    <div className="w-12 h-12 rounded-2xl bg-[#efe4d4] flex items-center justify-center mx-auto mb-3">
+                      <Bell className="w-6 h-6 text-black/24" />
                     </div>
-                    <p className="text-sm text-white/30">Aucune notification</p>
-                    <p className="text-xs text-white/15 mt-1">Les notifications apparaitront ici</p>
+                    <p className="text-sm font-black text-black/45">Aucune notification</p>
+                    <p className="text-xs font-semibold text-black/28 mt-1">Les notifications apparaîtront ici</p>
                   </div>
                 ) : (
-                  <div className="p-2 space-y-0.5">
+                  <div className="p-3 space-y-2">
                     {dbNotifs.map(n => (
                       <DBNotifItem
                         key={n.id}
@@ -602,13 +587,21 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               </div>
 
               {/* Footer */}
-              <div className="border-t border-white/[0.04] px-4 py-2.5 text-center">
-                <button
-                  onClick={() => { window.location.href = '/settings?tab=preferences'; setShowPanel(false); }}
-                  className="text-xs text-white/30 hover:text-violet-400 transition"
+              <div className="flex items-center justify-between gap-3 border-t border-[#e2d6c4] bg-[#fffaf2] px-4 py-3">
+                <Link
+                  href="/notifications"
+                  onClick={() => setShowPanel(false)}
+                  className="text-xs font-black text-[#171313] transition hover:text-[#7c5cff]"
                 >
-                  Gerer les preferences
-                </button>
+                  Voir toutes
+                </Link>
+                <Link
+                  href="/settings?tab=preferences"
+                  onClick={() => setShowPanel(false)}
+                  className="text-xs font-semibold text-black/40 transition hover:text-[#7c5cff]"
+                >
+                  Préférences
+                </Link>
               </div>
             </motion.div>
           )}

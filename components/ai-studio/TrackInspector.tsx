@@ -220,8 +220,8 @@ function InspectorContent({
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   const img = e.currentTarget;
-                  if (img.src.endsWith('/synaura_symbol.svg')) return;
-                  img.src = '/synaura_symbol.svg';
+                  if (img.src.endsWith('/brand/2026/synaura-symbol-2026-white.png')) return;
+                  img.src = '/brand/2026/synaura-symbol-2026-white.png';
                 }}
               />
             ) : (

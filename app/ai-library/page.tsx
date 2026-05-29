@@ -109,7 +109,7 @@ export default function AILibrary() {
       },
       duration: track.duration,
       audioUrl: track.audio_url,
-      coverUrl: track.image_url || '/synaura_symbol.svg',
+      coverUrl: track.image_url || '/brand/2026/synaura-symbol-2026-white.png',
       genre: ['IA', 'Généré'],
       plays: track.play_count,
       likes: [],

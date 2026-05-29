@@ -1,5 +1,6 @@
 'use client';
 
+import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -20,13 +21,15 @@ import {
   Sparkles,
   Trash2,
   User,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import SubscriptionLimits from '@/components/SubscriptionLimits';
 import { notify } from '@/components/NotificationCenter';
 import { useAudioPlayer } from '@/app/providers';
-import BottomNav from '@/components/BottomNav';
 import { UModal, UModalBody } from '@/components/ui/UnifiedUI';
+import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import { registerPushSubscription, unregisterPushSubscription } from '@/lib/pushClient';
 
 type SettingsTab = 'profil' | 'compte' | 'parrainage' | 'preferences' | 'securite' | 'legal';
 
@@ -82,16 +85,132 @@ function SettingsNavItem({
       type="button"
       onClick={onClick}
       className={cx(
-        'w-full text-left rounded-xl border px-3 py-2.5 transition',
+        'w-full text-left rounded-[1rem] border px-3 py-3 transition',
         active
-          ? 'bg-background-tertiary border-border-primary text-foreground-primary shadow-[0_10px_24px_rgba(0,0,0,0.25)]'
-          : 'bg-background-fog-thin border-border-secondary text-foreground-secondary hover:text-foreground-primary hover:bg-overlay-on-primary'
+          ? 'border-transparent bg-[#171313] text-white shadow-[0_16px_36px_rgba(30,25,20,0.18)]'
+          : 'border-[#d8ccb8] bg-[#f5ecde] text-[#5f5650] hover:border-[#cbbca5] hover:bg-[#efe4d3] hover:text-[#171313]'
       )}
     >
       <span className="flex items-center gap-2">
-        <Icon className={cx('h-4 w-4', active ? 'text-foreground-primary' : 'text-foreground-inactive')} />
-        <span className="text-[14px] font-medium">{label}</span>
+        <Icon className={cx('h-4 w-4', active ? 'text-white' : 'text-black/36')} />
+        <span className="text-[14px] font-black">{label}</span>
       </span>
+    </button>
+  );
+}
+
+function WarmCard({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <SynauraPanel className={`p-4 sm:p-5 ${className}`}>{children}</SynauraPanel>;
+}
+
+function InnerCard({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <div className={`rounded-[1.35rem] border border-[#dccfbb] bg-[#f4ecdf] p-4 shadow-[0_10px_24px_rgba(44,33,19,0.04)] ${className}`}>{children}</div>;
+}
+
+function SectionHeader({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div>
+      <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">{eyebrow}</div>
+      <div className="mt-2 text-[1.65rem] font-black tracking-[-0.05em] text-[#171313]">{title}</div>
+      <div className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-black/46">{description}</div>
+    </div>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string;
+  value: ReactNode;
+  tone?: 'default' | 'violet' | 'emerald';
+}) {
+  const toneClass =
+    tone === 'violet'
+      ? 'text-[#7c5cff]'
+      : tone === 'emerald'
+        ? 'text-[#0f8b6d]'
+        : 'text-[#171313]';
+
+  return (
+    <div className="rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4 text-center">
+      <div className={`text-2xl font-black tracking-[-0.04em] ${toneClass}`}>{value}</div>
+      <div className="mt-1 text-[11px] font-black uppercase tracking-[0.12em] text-black/38">{label}</div>
+    </div>
+  );
+}
+
+function ToggleCard({
+  checked,
+  onChange,
+  label,
+  description,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4">
+      <Toggle checked={checked} onChange={onChange} label={label} description={description} />
+    </div>
+  );
+}
+
+function LegalLinkCard({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center justify-between gap-3 rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] px-4 py-3 text-sm font-black text-[#171313] transition hover:bg-[#fff3e4]"
+    >
+      <span>{label}</span>
+      <ExternalLink className="h-4 w-4 text-black/32" />
+    </Link>
+  );
+}
+
+function PrimaryButton({
+  children,
+  className = '',
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode; className?: string }) {
+  return (
+    <button
+      {...props}
+      className={cx(
+        'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-45',
+        className,
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SecondaryButton({
+  children,
+  className = '',
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode; className?: string }) {
+  return (
+    <button
+      {...props}
+      className={cx(
+        'inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#d6c8b3] bg-[#efe4d4] px-4 text-sm font-black text-[#5f5650] transition hover:bg-[#e7dac8] hover:text-[#171313] disabled:cursor-not-allowed disabled:opacity-45',
+        className,
+      )}
+    >
+      {children}
     </button>
   );
 }
@@ -103,13 +222,13 @@ function Field({
 }: {
   label: string;
   hint?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <label className="block">
       <div className="flex items-end justify-between gap-3">
-        <span className="text-sm font-semibold text-foreground-primary">{label}</span>
-        {hint ? <span className="text-xs text-foreground-inactive">{hint}</span> : null}
+        <span className="text-sm font-black text-[#171313]">{label}</span>
+        {hint ? <span className="text-xs font-semibold text-black/38">{hint}</span> : null}
       </div>
       <div className="mt-2">{children}</div>
     </label>
@@ -130,24 +249,28 @@ function Toggle({
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="min-w-0">
-        <div className="text-sm font-semibold text-foreground-primary">{label}</div>
-        {description ? <div className="text-xs text-foreground-inactive mt-0.5">{description}</div> : null}
+        <div className="text-sm font-black text-[#171313]">{label}</div>
+        {description ? <div className="mt-0.5 text-xs font-semibold text-black/42">{description}</div> : null}
       </div>
       <button
         type="button"
         onClick={() => onChange(!checked)}
+        role="switch"
+        aria-checked={checked}
         className={cx(
-          'relative h-7 w-14 rounded-full border transition',
-          checked ? 'bg-[var(--accent-brand)]/30 border-border-primary' : 'bg-background-tertiary border-border-secondary'
+          'relative inline-flex h-8 w-[4.35rem] shrink-0 items-center rounded-full border px-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#171313]/20',
+          checked ? 'border-[#171313] bg-[#171313]' : 'border-[#cfc0aa] bg-[#e6dac8]'
         )}
-        aria-pressed={checked}
       >
         <span
           className={cx(
-            'absolute top-0.5 h-6 w-6 rounded-full bg-white transition-transform shadow',
-            checked ? 'translate-x-7' : 'translate-x-0.5'
+            'absolute left-1 top-1 h-6 w-6 rounded-full transition-transform shadow-[0_6px_14px_rgba(23,19,19,0.18)]',
+            checked ? 'translate-x-[2.2rem] bg-[#fff8ee]' : 'translate-x-0 bg-white'
           )}
         />
+        <span className={cx('ml-auto pr-2 text-[10px] font-black uppercase tracking-[0.1em]', checked ? 'text-white' : 'text-[#6c6157]')}>
+          {checked ? 'On' : 'Off'}
+        </span>
       </button>
     </div>
   );
@@ -241,6 +364,19 @@ export default function SettingsClient() {
     setNotifPrefs(p => ({ ...p, [key]: value }));
     setNotifPrefsSaving(true);
     try {
+      if (key === 'push_enabled') {
+        const pushResult = value ? await registerPushSubscription() : await unregisterPushSubscription();
+        if (value && pushResult !== 'granted' && pushResult !== 'already') {
+          throw new Error(
+            pushResult === 'unavailable'
+              ? 'Le service push du navigateur est indisponible pour le moment'
+              : pushResult === 'unsupported'
+                ? 'Notifications navigateur non supportées ou VAPID manquant'
+                : 'Autorisation navigateur refusée',
+          );
+        }
+      }
+
       const res = await fetch('/api/notifications/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -248,9 +384,9 @@ export default function SettingsClient() {
       });
       if (!res.ok) throw new Error();
       notify.success('Preference mise a jour');
-    } catch {
+    } catch (error: any) {
       setNotifPrefs(prev);
-      notify.error('Erreur de sauvegarde');
+      notify.error('Erreur de sauvegarde', error?.message || 'Impossible de mettre à jour cette préférence');
     } finally {
       setNotifPrefsSaving(false);
     }
@@ -335,6 +471,11 @@ export default function SettingsClient() {
     return JSON.stringify(init) !== JSON.stringify(profile);
   }, [profile]);
 
+  const resetProfileForm = () => {
+    if (!initialProfileRef.current) return;
+    setProfile(initialProfileRef.current);
+  };
+
   const saveProfile = async () => {
     if (!username) return;
     setProfileSaving(true);
@@ -417,9 +558,26 @@ export default function SettingsClient() {
 
   const requestNotif = async () => {
     try {
-      const ok = await requestNotificationPermission();
-      if (!ok) notify.warning('Notifications', 'Permission refusée par le navigateur');
-      else notify.success('Notifications', 'Autorisation activée');
+      const result = await registerPushSubscription();
+      if (result === 'granted' || result === 'already') {
+        setNotifPrefs((p) => ({ ...p, push_enabled: true }));
+        await fetch('/api/notifications/preferences', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ push_enabled: true }),
+        }).catch(() => {});
+        notify.success('Notifications', 'Notifications navigateur activées');
+      } else {
+        if (result === 'unavailable') {
+          notify.warning('Notifications', 'Le service push du navigateur est indisponible pour le moment');
+        } else if (result === 'unsupported') {
+          notify.warning('Notifications', 'Notifications navigateur non supportées sur cet environnement');
+        } else {
+          const ok = await requestNotificationPermission();
+          if (!ok) notify.warning('Notifications', 'Permission refusée par le navigateur');
+          else notify.success('Notifications', 'Autorisation activée');
+        }
+      }
       if (typeof window !== 'undefined' && 'Notification' in window) setNotifPerm(Notification.permission);
     } catch {
       notify.error('Notifications', 'Impossible de demander la permission');
@@ -470,70 +628,105 @@ export default function SettingsClient() {
 
   if (user === null) {
     return (
-      <div className="min-h-screen w-full px-4 pt-10 pb-24 text-foreground-primary">
-        <div className="mx-auto max-w-md">
-          <div className="panel-suno border border-border-secondary rounded-2xl p-6 text-center">
-            <div className="mx-auto w-fit rounded-xl bg-background-tertiary border border-border-secondary p-3">
-              <Settings className="h-7 w-7" />
-            </div>
-            <h1 className="mt-4 text-2xl font-bold">Paramètres</h1>
-            <p className="mt-2 text-sm text-foreground-inactive">Connectez-vous pour accéder à vos paramètres.</p>
-            <button type="button" onClick={() => router.push('/auth/signin', { scroll: false })} className="btn-suno mt-5 w-full">
-              Se connecter
-            </button>
+      <SynauraAppShell contentClassName="max-w-[1100px]">
+        <SynauraTopBar searchHref="/discover" searchLabel="Rechercher un son, un profil ou un post..." />
+        <WarmCard className="mx-auto max-w-md text-center">
+          <div className="mx-auto w-fit rounded-[1.2rem] bg-black/[0.05] p-3 text-black/42">
+            <Settings className="h-7 w-7" />
           </div>
-        </div>
-      </div>
+          <h1 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#171313]">Parametres</h1>
+          <p className="mt-2 text-sm font-semibold text-black/45">Connecte-toi pour acceder a tes parametres.</p>
+          <button type="button" onClick={() => router.push('/auth/signin', { scroll: false })} className="mt-5 inline-flex h-11 items-center justify-center rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]">
+            Se connecter
+          </button>
+        </WarmCard>
+      </SynauraAppShell>
     );
   }
 
   const avatarSrc = profile.avatar || '/default-avatar.png';
+  const bannerSrc = profile.banner || null;
+  const profileGenres = parseGenres(profile.genreText);
+  const displayName = safeTrim(profile.name) || safeTrim((user as any)?.name) || 'Votre profil';
+  const websiteLabel = safeTrim(profile.website).replace(/^https?:\/\//, '');
+  const inputClassName =
+    'h-12 w-full rounded-[1rem] border border-[#d7cab6] bg-[#fff8ef] px-4 text-sm font-semibold text-[#171313] outline-none transition placeholder:text-black/25 focus:border-[#171313]/18 focus:bg-[#fffdf8]';
+  const textAreaClassName =
+    'w-full min-h-[130px] rounded-[1rem] border border-[#d7cab6] bg-[#fff8ef] px-4 py-3 text-sm font-semibold text-[#171313] outline-none transition placeholder:text-black/25 focus:border-[#171313]/18 focus:bg-[#fffdf8] resize-y';
 
   return (
-    <div className="min-h-screen w-full px-3 sm:px-5 pt-6 pb-24 text-foreground-primary">
-      <div className="mx-auto w-full max-w-6xl">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-background-tertiary border border-border-secondary">
-              <Settings className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Paramètres</h1>
-              <p className="text-sm text-foreground-inactive">Profil, préférences et sécurité.</p>
+    <SynauraAppShell contentClassName="max-w-[1400px]">
+      <SynauraTopBar searchHref="/discover" searchLabel="Rechercher un son, un profil ou un post..." />
+
+      <div className="space-y-4 pb-24">
+        <button
+          onClick={() => router.back()}
+          className="inline-flex h-11 items-center gap-2 rounded-full border border-black/[0.08] bg-[#fffaf2]/88 px-4 text-sm font-black text-black/56 shadow-[0_14px_36px_rgba(30,25,20,0.08)] transition hover:bg-[#171313] hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour
+        </button>
+
+        <SynauraInkPanel className="overflow-hidden">
+          <div className="px-5 py-6 sm:px-7 sm:py-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/46">Synaura</p>
+                <h1 className="mt-3 text-3xl font-black leading-[0.95] tracking-[-0.06em] text-white sm:text-5xl">Parametres</h1>
+                <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/58">
+                  Profil, compte, notifications, securite et preferences du nouveau Synaura.
+                </p>
+              </div>
+
+              <Link
+                href={username ? `/profile/${encodeURIComponent(username)}` : '/'}
+                className="inline-flex h-11 items-center gap-2 rounded-full border border-white/12 bg-white/8 px-4 text-sm font-black text-white/76 transition hover:bg-white/12 hover:text-white"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Voir mon profil
+              </Link>
             </div>
           </div>
+        </SynauraInkPanel>
 
-          <Link
-            href={username ? `/profile/${encodeURIComponent(username)}` : '/'}
-            className="hidden sm:inline-flex items-center gap-2 rounded-full border border-border-secondary bg-background-fog-thin px-3 py-2 text-sm text-foreground-secondary hover:text-foreground-primary hover:bg-overlay-on-primary transition"
-          >
-            <ExternalLink className="h-4 w-4" />
-            Voir mon profil
-          </Link>
-        </div>
-
-        <div className="mt-6 grid gap-4 lg:grid-cols-[260px_1fr]">
+        <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
           {/* NAV */}
           <div className="lg:sticky lg:top-24 h-fit">
-            <div className="panel-suno border border-border-secondary rounded-2xl p-3">
-              <div className="flex items-center gap-3 px-2 py-2">
+            <SynauraPanel className="overflow-hidden p-3">
+              <div className="rounded-[1.5rem] border border-black/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(255,111,97,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(124,92,255,0.16),transparent_38%),rgba(0,0,0,0.03)] px-3 py-3">
+                <div className="flex items-center gap-3">
                 <div className="relative">
                   <img
                     src={avatarSrc}
                     alt="Avatar"
-                    className="h-10 w-10 rounded-full object-cover border border-border-secondary"
+                    className="h-12 w-12 rounded-full object-cover border border-black/[0.08]"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
                     }}
                   />
-                  <span className="absolute -bottom-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-background-tertiary border border-border-secondary">
-                    <Crown className="h-3 w-3 text-foreground-secondary" />
+                  <span className="absolute -bottom-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/70 bg-white text-[#171313] shadow-[0_10px_20px_rgba(30,25,20,0.1)]">
+                    <Crown className="h-3 w-3" />
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold line-clamp-1">{safeTrim((user as any)?.name) || 'Compte'}</div>
-                  <div className="text-xs text-foreground-inactive line-clamp-1">@{username}</div>
+                  <div className="text-sm font-black line-clamp-1 text-[#171313]">{displayName}</div>
+                  <div className="text-xs font-semibold text-black/45 line-clamp-1">@{username}</div>
                 </div>
+              </div>
+
+                <div className="mt-3 grid gap-2">
+                  <Link
+                    href={username ? `/profile/${encodeURIComponent(username)}` : '/'}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#d6c8b3] bg-[#fff8ee] px-4 text-sm font-black text-[#171313] transition hover:bg-[#fff3e4]"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Voir mon profil
+                  </Link>
+                </div>
+              </div>
+
+              <div className="mt-3 px-1">
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">Sections</div>
               </div>
 
               <div className="mt-2 grid gap-2">
@@ -551,243 +744,377 @@ export default function SettingsClient() {
                 <SettingsNavItem active={tab === 'legal'} icon={FileText} label="Légal" onClick={() => setTabAndUrl('legal')} />
               </div>
 
-              <div className="mt-3 border-t border-border-secondary/60 pt-3">
+              <div className="mt-3 rounded-[1.25rem] border border-[#dccfbb] bg-[#f4ecdf] p-3">
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-black/34">Raccourci</div>
+                <div className="mt-2 text-sm font-semibold text-black/56">
+                  Tout ce qui etait dans le petit modal profil est maintenant centralise ici.
+                </div>
+              </div>
+
+              <div className="mt-3 border-t border-black/[0.08] pt-3">
                 <button
                   type="button"
                   onClick={async () => {
                     await logout();
                   }}
-                  className="w-full rounded-xl border border-red-500/30 bg-background-fog-thin px-3 py-2 text-sm text-red-300 hover:bg-red-500/10 transition flex items-center gap-2 justify-center"
+                  className="w-full rounded-[1rem] border border-[#ff6f61]/20 bg-[#ff6f61]/8 px-3 py-3 text-sm font-black text-[#9a3e34] transition hover:bg-[#ff6f61]/14 flex items-center gap-2 justify-center"
                 >
                   <LogOut className="h-4 w-4" />
                   Se déconnecter
                 </button>
               </div>
-            </div>
+            </SynauraPanel>
           </div>
 
           {/* CONTENT */}
           <div className="min-w-0 space-y-4">
             {/* Abonnement */}
-            <div className="panel-suno border border-border-secondary rounded-2xl p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold">Abonnement</div>
-                  <div className="text-xs text-foreground-inactive">Consultez vos limites et gérez votre plan.</div>
-                </div>
-                <Link
-                  href="/subscriptions"
-                  className="rounded-full border border-border-secondary bg-background-fog-thin px-3 py-2 text-xs text-foreground-secondary hover:text-foreground-primary hover:bg-overlay-on-primary transition"
-                >
-                  Gérer
-                </Link>
+            <WarmCard className="space-y-4 border-black/[0.08]">
+              <SectionHeader
+                eyebrow="Abonnement"
+                title="Plan et limites"
+                description="Retrouve ici ton niveau d’accès actuel et ouvre la gestion de ton abonnement si tu veux faire évoluer ton plan."
+              />
+
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+                <InnerCard>
+                  <SubscriptionLimits />
+                </InnerCard>
+
+                <InnerCard>
+                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">Gestion</div>
+                  <div className="mt-3 rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4">
+                    <div className="text-sm font-black text-[#171313]">Modifier mon plan</div>
+                    <div className="mt-2 text-sm font-semibold leading-6 text-black/52">
+                      Ouvre la page d’abonnement pour voir les offres, limites et options disponibles.
+                    </div>
+                    <Link
+                      href="/subscriptions"
+                      className="mt-4 inline-flex h-11 items-center justify-center rounded-full border border-[#d6c8b3] bg-[#efe4d4] px-4 text-sm font-black text-[#5f5650] transition hover:bg-[#e7dac8] hover:text-[#171313]"
+                    >
+                      Gérer l’abonnement
+                    </Link>
+                  </div>
+                </InnerCard>
               </div>
-              <div className="mt-3">
-                <SubscriptionLimits />
-              </div>
-            </div>
+            </WarmCard>
 
             {tab === 'profil' && (
-              <div className="panel-suno border border-border-secondary rounded-2xl p-4">
-                <div className="flex items-start justify-between gap-3">
+              <WarmCard className="space-y-4">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div>
-                    <div className="text-base font-semibold">Profil</div>
-                    <div className="text-xs text-foreground-inactive">Nom, bio, liens et images.</div>
+                    <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">Edition</div>
+                    <div className="mt-2 text-[1.65rem] font-black tracking-[-0.05em] text-[#171313]">Profil</div>
+                    <div className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-black/54">
+                      Nom, bio, visuels, lien, localisation et identité artiste. Tout ce qui était dans le petit modal est ici.
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={saveProfile}
-                    disabled={!isProfileDirty || profileSaving}
-                    className={cx(
-                      'rounded-full px-4 py-2 text-sm font-semibold border transition inline-flex items-center gap-2',
-                      isProfileDirty && !profileSaving
-                        ? 'bg-background-tertiary border-border-primary hover:bg-overlay-on-primary'
-                        : 'bg-background-fog-thin border-border-secondary text-foreground-inactive cursor-not-allowed'
-                    )}
-                  >
-                    {profileSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    Enregistrer
-                  </button>
+
+                  <div className="flex flex-wrap gap-2">
+                    <SecondaryButton type="button" onClick={resetProfileForm} disabled={!isProfileDirty || profileSaving || profileLoading}>
+                      Réinitialiser
+                    </SecondaryButton>
+                    <PrimaryButton type="button" onClick={saveProfile} disabled={!isProfileDirty || profileSaving || profileLoading}>
+                      {profileSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      Enregistrer
+                    </PrimaryButton>
+                  </div>
                 </div>
 
                 {profileLoading ? (
-                  <div className="mt-4 text-sm text-foreground-inactive">Chargement…</div>
+                  <div className="rounded-[1.35rem] border border-[#dccfbb] bg-[#f4ecdf] px-4 py-5 text-sm font-semibold text-black/52">
+                    Chargement…
+                  </div>
                 ) : (
-                  <div className="mt-4 grid gap-4">
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <div className="text-sm font-semibold">Avatar</div>
-                        <div className="mt-3 flex items-center gap-3">
-                          <img
-                            src={avatarSrc}
-                            alt="Avatar"
-                            className="h-14 w-14 rounded-full object-cover border border-border-secondary"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
-                            }}
-                          />
-                          <div className="min-w-0">
-                            <div className="text-xs text-foreground-inactive">PNG/JPG — recommandé 512×512</div>
-                            <label className="mt-2 inline-flex items-center gap-2 rounded-full border border-border-secondary bg-background-tertiary px-3 py-2 text-xs hover:bg-overlay-on-primary cursor-pointer transition">
-                              {uploading.avatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                              Changer
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_360px]">
+                    <div className="space-y-4">
+                      <InnerCard className="overflow-hidden p-0">
+                        <div className="relative h-40 sm:h-48">
+                          {bannerSrc ? (
+                            <img src={bannerSrc} alt="Bannière" className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,rgba(255,111,97,0.36),transparent_28%),radial-gradient(circle_at_top_right,rgba(124,92,255,0.3),transparent_32%),radial-gradient(circle_at_bottom,rgba(0,194,203,0.18),transparent_42%),linear-gradient(135deg,#171313_0%,#2b2320_100%)]" />
+                          )}
+                          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(23,19,19,0.1)_0%,rgba(23,19,19,0.62)_100%)]" />
+                          <div className="absolute right-4 top-4">
+                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/14 bg-black/24 px-3 py-2 text-xs font-black text-white backdrop-blur-xl transition hover:bg-black/36">
+                              {uploading.banner ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                              Changer la bannière
                               <input
                                 type="file"
                                 accept="image/*"
                                 className="hidden"
-                                disabled={uploading.avatar}
+                                disabled={uploading.banner}
                                 onChange={(e) => {
                                   const f = e.currentTarget.files?.[0];
                                   e.currentTarget.value = '';
-                                  if (f) uploadProfileImage('avatar', f);
+                                  if (f) uploadProfileImage('banner', f);
                                 }}
                               />
                             </label>
                           </div>
-                        </div>
-                      </div>
+                          <div className="absolute left-4 right-4 bottom-4 flex items-end gap-4">
+                            <div className="relative shrink-0">
+                              <img
+                                src={avatarSrc}
+                                alt="Avatar"
+                                className="h-24 w-24 rounded-[1.75rem] border border-white/16 object-cover shadow-[0_18px_40px_rgba(0,0,0,0.25)]"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
+                                }}
+                              />
+                              <label className="absolute -bottom-2 -right-2 inline-flex cursor-pointer items-center justify-center rounded-full border border-white/70 bg-white p-2 text-[#171313] shadow-[0_10px_20px_rgba(30,25,20,0.12)] transition hover:scale-[1.03]">
+                                {uploading.avatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  disabled={uploading.avatar}
+                                  onChange={(e) => {
+                                    const f = e.currentTarget.files?.[0];
+                                    e.currentTarget.value = '';
+                                    if (f) uploadProfileImage('avatar', f);
+                                  }}
+                                />
+                              </label>
+                            </div>
 
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <div className="text-sm font-semibold">Bannière</div>
-                        <div className="mt-3">
-                          <div className="h-20 w-full overflow-hidden rounded-xl border border-border-secondary bg-background-tertiary">
-                            {profile.banner ? (
-                              <img src={profile.banner} alt="Bannière" className="h-full w-full object-cover" />
-                            ) : (
-                              <div className="h-full w-full [background:radial-gradient(120%_60%_at_20%_0%,rgba(110,86,207,0.35),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(0,211,167,0.18),transparent)]" />
-                            )}
+                            <div className="min-w-0 pb-1 text-white">
+                              <div className="text-2xl font-black tracking-[-0.05em]">{displayName}</div>
+                              <div className="mt-1 text-sm font-semibold text-white/70">@{username}</div>
+                              {profile.isArtist && safeTrim(profile.artistName) ? (
+                                <div className="mt-2 inline-flex rounded-full border border-white/14 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-white/82">
+                                  {profile.artistName}
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
-                          <label className="mt-2 inline-flex items-center gap-2 rounded-full border border-border-secondary bg-background-tertiary px-3 py-2 text-xs hover:bg-overlay-on-primary cursor-pointer transition">
-                            {uploading.banner ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                            Changer
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              disabled={uploading.banner}
-                              onChange={(e) => {
-                                const f = e.currentTarget.files?.[0];
-                                e.currentTarget.value = '';
-                                if (f) uploadProfileImage('banner', f);
-                              }}
-                            />
-                          </label>
                         </div>
-                      </div>
-                    </div>
+                      </InnerCard>
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <Field label="Nom d’affichage">
-                        <input
-                          value={profile.name}
-                          onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
-                          className="w-full rounded-xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-sm outline-none focus:border-border-primary"
-                          placeholder="Votre nom"
-                        />
-                      </Field>
-
-                      <Field label="Site web" hint="optionnel">
-                        <input
-                          value={profile.website}
-                          onChange={(e) => setProfile((p) => ({ ...p, website: e.target.value }))}
-                          className="w-full rounded-xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-sm outline-none focus:border-border-primary"
-                          placeholder="https://…"
-                        />
-                      </Field>
-
-                      <Field label="Localisation" hint="optionnel">
-                        <input
-                          value={profile.location}
-                          onChange={(e) => setProfile((p) => ({ ...p, location: e.target.value }))}
-                          className="w-full rounded-xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-sm outline-none focus:border-border-primary"
-                          placeholder="Ville, pays"
-                        />
-                      </Field>
-
-                      <Field label="Genres" hint="séparés par des virgules">
-                        <input
-                          value={profile.genreText}
-                          onChange={(e) => setProfile((p) => ({ ...p, genreText: e.target.value }))}
-                          className="w-full rounded-xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-sm outline-none focus:border-border-primary"
-                          placeholder="Pop, Electro, Rap…"
-                        />
-                      </Field>
-                    </div>
-
-                    <Field label="Bio" hint="optionnel">
-                      <textarea
-                        value={profile.bio}
-                        onChange={(e) => setProfile((p) => ({ ...p, bio: e.target.value }))}
-                        className="w-full min-h-[110px] rounded-xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-sm outline-none focus:border-border-primary resize-y"
-                        placeholder="Présente-toi en quelques lignes…"
-                      />
-                    </Field>
-
-                    <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                      <Toggle
-                        checked={profile.isArtist}
-                        onChange={(v) => setProfile((p) => ({ ...p, isArtist: v }))}
-                        label="Compte artiste"
-                        description="Affiche une identité d’artiste sur votre profil."
-                      />
-                      {profile.isArtist && (
-                        <div className="mt-3">
-                          <Field label="Nom d’artiste">
+                      <InnerCard>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <Field label="Nom d’affichage">
                             <input
-                              value={profile.artistName}
-                              onChange={(e) => setProfile((p) => ({ ...p, artistName: e.target.value }))}
-                              className="w-full rounded-xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-sm outline-none focus:border-border-primary"
-                              placeholder="Nom de scène"
+                              value={profile.name}
+                              onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
+                              className={inputClassName}
+                              placeholder="Votre nom"
+                            />
+                          </Field>
+
+                          <Field label="Site web" hint="optionnel">
+                            <input
+                              value={profile.website}
+                              onChange={(e) => setProfile((p) => ({ ...p, website: e.target.value }))}
+                              className={inputClassName}
+                              placeholder="https://…"
+                            />
+                          </Field>
+
+                          <Field label="Localisation" hint="optionnel">
+                            <input
+                              value={profile.location}
+                              onChange={(e) => setProfile((p) => ({ ...p, location: e.target.value }))}
+                              className={inputClassName}
+                              placeholder="Ville, pays"
+                            />
+                          </Field>
+
+                          <Field label="Genres" hint="séparés par des virgules">
+                            <input
+                              value={profile.genreText}
+                              onChange={(e) => setProfile((p) => ({ ...p, genreText: e.target.value }))}
+                              className={inputClassName}
+                              placeholder="Pop, Electro, Rap…"
                             />
                           </Field>
                         </div>
-                      )}
+
+                        <div className="mt-4">
+                          <Field label="Bio" hint="optionnel">
+                            <textarea
+                              value={profile.bio}
+                              onChange={(e) => setProfile((p) => ({ ...p, bio: e.target.value }))}
+                              className={textAreaClassName}
+                              placeholder="Présente-toi en quelques lignes…"
+                            />
+                          </Field>
+                        </div>
+                      </InnerCard>
+
+                      <InnerCard>
+                        <Toggle
+                          checked={profile.isArtist}
+                          onChange={(v) => setProfile((p) => ({ ...p, isArtist: v }))}
+                          label="Compte artiste"
+                          description="Affiche une identité d’artiste sur votre profil."
+                        />
+                        {profile.isArtist ? (
+                          <div className="mt-4">
+                            <Field label="Nom d’artiste">
+                              <input
+                                value={profile.artistName}
+                                onChange={(e) => setProfile((p) => ({ ...p, artistName: e.target.value }))}
+                                className={inputClassName}
+                                placeholder="Nom de scène"
+                              />
+                            </Field>
+                          </div>
+                        ) : null}
+                      </InnerCard>
+                    </div>
+
+                    <div className="space-y-4">
+                      <InnerCard>
+                        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">Aperçu</div>
+                        <div className="mt-3 rounded-[1.35rem] border border-[#dbcdb8] bg-[#fff8ee] p-4">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={avatarSrc}
+                              alt="Avatar"
+                              className="h-14 w-14 rounded-full border border-black/[0.08] object-cover"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
+                              }}
+                            />
+                            <div className="min-w-0">
+                              <div className="truncate text-base font-black text-[#171313]">{displayName}</div>
+                              <div className="truncate text-xs font-semibold text-black/42">@{username}</div>
+                            </div>
+                          </div>
+
+                          {safeTrim(profile.bio) ? (
+                            <p className="mt-4 whitespace-pre-line text-sm font-semibold leading-6 text-black/62">{profile.bio}</p>
+                          ) : (
+                            <p className="mt-4 text-sm font-semibold leading-6 text-black/34">Ajoute une bio pour donner du contexte à ton profil.</p>
+                          )}
+
+                          {(safeTrim(profile.location) || safeTrim(profile.website)) ? (
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              {safeTrim(profile.location) ? (
+                                <span className="inline-flex rounded-full border border-[#d6c8b3] bg-[#efe4d4] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.08em] text-[#5f5650]">
+                                  {profile.location}
+                                </span>
+                              ) : null}
+                              {safeTrim(profile.website) ? (
+                                <span className="inline-flex rounded-full border border-[#d6c8b3] bg-[#efe4d4] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.08em] text-[#5f5650]">
+                                  {websiteLabel}
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
+
+                          {profileGenres.length > 0 ? (
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              {profileGenres.map((genre) => (
+                                <span key={genre} className="inline-flex rounded-full border border-[#7c5cff]/18 bg-[#7c5cff]/8 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.08em] text-[#7c5cff]">
+                                  {genre}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      </InnerCard>
+
+                      <InnerCard>
+                        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">Images</div>
+                        <div className="mt-3 space-y-3">
+                          <div className="rounded-[1rem] border border-[#dbcdb8] bg-[#fff8ee] p-3">
+                            <div className="text-sm font-black text-[#171313]">Avatar</div>
+                            <div className="mt-1 text-xs font-semibold text-black/42">PNG ou JPG, idéalement carré.</div>
+                          </div>
+                          <div className="rounded-[1rem] border border-[#dbcdb8] bg-[#fff8ee] p-3">
+                            <div className="text-sm font-black text-[#171313]">Bannière</div>
+                            <div className="mt-1 text-xs font-semibold text-black/42">Choisis une image large pour habiller la tête du profil.</div>
+                          </div>
+                        </div>
+                      </InnerCard>
                     </div>
                   </div>
                 )}
-              </div>
+              </WarmCard>
             )}
 
             {tab === 'compte' && (
-              <div className="panel-suno border border-border-secondary rounded-2xl p-4">
-                <div className="text-base font-semibold">Compte</div>
-                <div className="mt-1 text-xs text-foreground-inactive">Informations liées à votre session.</div>
+              <WarmCard className="space-y-4">
+                <SectionHeader
+                  eyebrow="Compte"
+                  title="Identité du compte"
+                  description="Retrouve ici les informations rattachées à ta session et les accès principaux de ton compte."
+                />
 
-                <div className="mt-4 grid gap-3">
-                  <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                    <div className="text-xs text-foreground-inactive">Nom d’utilisateur</div>
-                    <div className="text-sm font-semibold">@{username}</div>
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                  <div className="space-y-4">
+                    <InnerCard>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4">
+                          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-black/34">Nom d’utilisateur</div>
+                          <div className="mt-2 text-lg font-black tracking-[-0.04em] text-[#171313]">@{username}</div>
+                        </div>
+                        <div className="rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4">
+                          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-black/34">Email</div>
+                          <div className="mt-2 break-all text-lg font-black tracking-[-0.04em] text-[#171313]">{email || '—'}</div>
+                        </div>
+                      </div>
+                    </InnerCard>
+
+                    <InnerCard>
+                      <div className="text-sm font-black text-[#171313]">Accès rapides</div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Link
+                          href={username ? `/profile/${encodeURIComponent(username)}` : '/'}
+                          className="inline-flex h-11 items-center justify-center rounded-full border border-[#d6c8b3] bg-[#fff8ee] px-4 text-sm font-black text-[#171313] transition hover:bg-[#fff3e4]"
+                        >
+                          Voir mon profil
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => setTabAndUrl('securite')}
+                          className="inline-flex h-11 items-center justify-center rounded-full border border-[#d6c8b3] bg-[#efe4d4] px-4 text-sm font-black text-[#5f5650] transition hover:bg-[#e7dac8] hover:text-[#171313]"
+                        >
+                          Gérer la sécurité
+                        </button>
+                      </div>
+                    </InnerCard>
                   </div>
-                  <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                    <div className="text-xs text-foreground-inactive">Email</div>
-                    <div className="text-sm font-semibold">{email || '—'}</div>
+
+                  <div className="space-y-4">
+                    <InnerCard>
+                      <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">Résumé</div>
+                      <div className="mt-3 rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4">
+                        <div className="text-sm font-black text-[#171313]">{displayName}</div>
+                        <div className="mt-1 text-xs font-semibold text-black/42">@{username}</div>
+                        <div className="mt-3 text-sm font-semibold leading-6 text-black/52">
+                          Ce bloc regroupe l’identité de connexion. Les informations de présentation publique se modifient dans l’onglet profil.
+                        </div>
+                      </div>
+                    </InnerCard>
                   </div>
                 </div>
-              </div>
+              </WarmCard>
             )}
 
             {tab === 'parrainage' && (
-              <div className="panel-suno border border-border-secondary rounded-2xl p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <Gift className="h-5 w-5 text-violet-400" />
-                  <div className="text-base font-semibold">Programme de parrainage</div>
-                </div>
-                <div className="text-xs text-foreground-inactive mb-4">Invite tes amis et gagnez tous les deux 50 crédits IA.</div>
+              <WarmCard className="space-y-4">
+                <SectionHeader
+                  eyebrow="Parrainage"
+                  title="Inviter et suivre"
+                  description="Invite tes proches, partage ton lien et garde un œil clair sur les crédits obtenus."
+                />
 
                 {referralLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-5 w-5 animate-spin text-foreground-inactive" />
-                  </div>
+                  <InnerCard className="flex items-center justify-center py-10">
+                    <Loader2 className="h-5 w-5 animate-spin text-black/35" />
+                  </InnerCard>
                 ) : referralData ? (
                   <div className="space-y-4">
-                    <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
-                      <div className="text-xs text-foreground-inactive mb-2">Ton lien de parrainage</div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          readOnly
-                          value={referralData.referralLink || ''}
-                          className="flex-1 text-sm bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white truncate"
-                        />
+                    <InnerCard className="bg-[radial-gradient(circle_at_top_left,rgba(124,92,255,0.12),transparent_36%),rgba(0,0,0,0.03)]">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">Lien de parrainage</div>
+                          <div className="mt-2 text-sm font-semibold text-black/52">Partage ce lien pour inviter quelqu’un sur Synaura.</div>
+                        </div>
                         <button
                           type="button"
                           onClick={() => {
@@ -795,227 +1122,222 @@ export default function SettingsClient() {
                             setReferralCopied(true);
                             setTimeout(() => setReferralCopied(false), 2000);
                           }}
-                          className="px-3 py-2 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-300 text-xs font-medium hover:bg-violet-500/30 transition flex items-center gap-1.5"
+                          className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#7c5cff]/18 bg-[#7c5cff]/8 px-4 text-sm font-black text-[#7c5cff] transition hover:bg-[#7c5cff]/14"
                         >
-                          {referralCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                          {referralCopied ? 'Copié !' : 'Copier'}
+                          {referralCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          {referralCopied ? 'Copié' : 'Copier le lien'}
                         </button>
                       </div>
-                      <div className="mt-2 text-[11px] text-foreground-inactive">Code : <span className="text-white/70 font-mono">{referralData.referralCode}</span></div>
+
+                      <div className="mt-4 rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4">
+                        <div className="break-all text-sm font-black text-[#171313]">{referralData.referralLink || ''}</div>
+                        <div className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-black/34">
+                          Code <span className="ml-1 rounded-full bg-[#eadfce] px-2 py-1 font-mono tracking-normal text-[#5f5650]">{referralData.referralCode}</span>
+                        </div>
+                      </div>
+                    </InnerCard>
+
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <MetricCard label="Filleuls" value={referralData.totalReferrals || 0} />
+                      <MetricCard label="Crédits gagnés" value={referralData.totalCreditsEarned || 0} tone="violet" />
+                      <MetricCard label="Places restantes" value={referralData.remainingSlots ?? 20} tone="emerald" />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="rounded-xl border border-border-secondary bg-background-fog-thin p-3 text-center">
-                        <div className="text-lg font-bold text-white">{referralData.totalReferrals || 0}</div>
-                        <div className="text-[11px] text-foreground-inactive">Filleuls</div>
-                      </div>
-                      <div className="rounded-xl border border-border-secondary bg-background-fog-thin p-3 text-center">
-                        <div className="text-lg font-bold text-violet-300">{referralData.totalCreditsEarned || 0}</div>
-                        <div className="text-[11px] text-foreground-inactive">Crédits gagnés</div>
-                      </div>
-                      <div className="rounded-xl border border-border-secondary bg-background-fog-thin p-3 text-center">
-                        <div className="text-lg font-bold text-emerald-300">{referralData.remainingSlots ?? 20}</div>
-                        <div className="text-[11px] text-foreground-inactive">Places restantes</div>
-                      </div>
-                    </div>
-
-                    {referralData.referrals?.length > 0 && (
-                      <div>
-                        <div className="text-sm font-semibold mb-2">Tes filleuls</div>
-                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                    <InnerCard>
+                      <div className="text-sm font-black text-[#171313]">Tes filleuls</div>
+                      {referralData.referrals?.length > 0 ? (
+                        <div className="mt-3 space-y-2">
                           {referralData.referrals.map((r: any) => (
-                            <div key={r.id} className="flex items-center gap-3 rounded-xl border border-border-secondary bg-background-fog-thin p-2.5">
-                              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold">
-                                {r.avatar ? <img src={r.avatar} alt="" className="w-8 h-8 rounded-full object-cover" /> : (r.username?.[0] || '?').toUpperCase()}
+                            <div key={r.id} className="flex items-center gap-3 rounded-[1rem] border border-[#dbcdb8] bg-[#fff8ee] p-3">
+                              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[#d6c8b3] bg-[#eadfce] text-xs font-black text-[#171313]">
+                                {r.avatar ? <img src={r.avatar} alt="" className="h-10 w-10 object-cover" /> : (r.username?.[0] || '?').toUpperCase()}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="text-sm font-medium truncate">@{r.username}</div>
-                                <div className="text-[11px] text-foreground-inactive">{new Date(r.date).toLocaleDateString('fr-FR')}</div>
+                                <div className="truncate text-sm font-black text-[#171313]">@{r.username}</div>
+                                <div className="text-xs font-semibold text-black/42">{new Date(r.date).toLocaleDateString('fr-FR')}</div>
                               </div>
-                              <div className="text-xs text-emerald-300 font-medium">+{r.creditsGranted} cr.</div>
+                              <div className="text-xs font-black uppercase tracking-[0.08em] text-[#0f8b6d]">+{r.creditsGranted} crédits</div>
                             </div>
                           ))}
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="mt-3 rounded-[1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4 text-sm font-semibold text-black/50">
+                          Aucun filleul pour le moment.
+                        </div>
+                      )}
+                    </InnerCard>
                   </div>
                 ) : (
-                  <div className="text-sm text-foreground-inactive text-center py-8">Erreur de chargement</div>
+                  <InnerCard className="text-center py-10 text-sm font-semibold text-black/42">Erreur de chargement</InnerCard>
                 )}
-              </div>
+              </WarmCard>
             )}
 
             {tab === 'preferences' && (
-              <div className="panel-suno border border-border-secondary rounded-2xl p-4">
-                <div className="text-base font-semibold">Préférences</div>
-                <div className="mt-1 text-xs text-foreground-inactive">Ces préférences sont stockées sur cet appareil.</div>
+              <WarmCard className="space-y-4">
+                <SectionHeader
+                  eyebrow="Préférences"
+                  title="Ecoute et notifications"
+                  description="Régle l’expérience locale sur cet appareil et choisis quelles notifications tu veux recevoir."
+                />
 
-                <div className="mt-4 grid gap-3">
-                  <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                    <Toggle
-                      checked={prefs.autoplay}
-                      onChange={(v) => setPrefs((p) => ({ ...p, autoplay: v }))}
-                      label="Lecture automatique"
-                      description="Active le démarrage automatique quand c’est possible."
-                    />
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+                  <div className="space-y-4">
+                    <InnerCard>
+                      <div className="text-sm font-black text-[#171313]">Préférences locales</div>
+                      <div className="mt-3 grid gap-3">
+                        <ToggleCard checked={prefs.autoplay} onChange={(v) => setPrefs((p) => ({ ...p, autoplay: v }))} label="Lecture automatique" description="Active le démarrage automatique quand c’est possible." />
+                        <ToggleCard checked={prefs.highQuality} onChange={(v) => setPrefs((p) => ({ ...p, highQuality: v }))} label="Qualité audio élevée" description="Préférence de qualité quand plusieurs flux sont disponibles." />
+                        <ToggleCard checked={prefs.activityVisible} onChange={(v) => setPrefs((p) => ({ ...p, activityVisible: v }))} label="Afficher mon activité" description="Affichage de votre activité récente sur cet appareil." />
+                      </div>
+                    </InnerCard>
+
+                    <InnerCard>
+                      <div className="text-sm font-black text-[#171313]">Notifications navigateur</div>
+                      <div className="mt-3 flex flex-col gap-3 rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <div className="text-sm font-black text-[#171313]">Permission navigateur</div>
+                          <div className="mt-1 text-xs font-semibold text-black/42">Statut actuel : {notifPerm}</div>
+                        </div>
+                        <SecondaryButton type="button" onClick={requestNotif} className="min-w-[160px]">
+                          <Bell className="h-4 w-4" />
+                          Activer
+                        </SecondaryButton>
+                      </div>
+                    </InnerCard>
+
+                    <InnerCard>
+                      <div className="text-sm font-black text-[#171313]">Notifications détaillées</div>
+                      <div className="mt-1 text-xs font-semibold text-black/42">Ces préférences sont enregistrées côté serveur.</div>
+
+                      {notifPrefsLoading ? (
+                        <div className="mt-4 flex items-center gap-2 text-sm font-semibold text-black/42">
+                          <Loader2 className="h-4 w-4 animate-spin" /> Chargement…
+                        </div>
+                      ) : (
+                        <div className="mt-4 space-y-4">
+                          <div>
+                            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-black/34">Canaux</div>
+                            <div className="mt-2 grid gap-3">
+                              <ToggleCard checked={notifPrefs.push_enabled} onChange={(v) => updateNotifPref('push_enabled', v)} label="Notifications push" description="Recevez des notifications même quand vous n’êtes pas sur le site." />
+                              <ToggleCard checked={notifPrefs.in_app_enabled} onChange={(v) => updateNotifPref('in_app_enabled', v)} label="Notifications in-app" description="Notifications dans le panneau de la cloche." />
+                              <ToggleCard checked={notifPrefs.email_enabled} onChange={(v) => updateNotifPref('email_enabled', v)} label="Notifications par email" description="Recevez un résumé par email." />
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-black/34">Social</div>
+                            <div className="mt-2 grid gap-3">
+                              <ToggleCard checked={notifPrefs.new_follower} onChange={(v) => updateNotifPref('new_follower', v)} label="Nouvel abonné" description="Quand quelqu’un commence à vous suivre." />
+                              <ToggleCard checked={notifPrefs.new_like} onChange={(v) => updateNotifPref('new_like', v)} label="Nouveau like" description="Quand quelqu’un aime votre musique." />
+                              <ToggleCard checked={notifPrefs.new_comment} onChange={(v) => updateNotifPref('new_comment', v)} label="Nouveau commentaire" description="Quand quelqu’un commente votre musique." />
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-black/34">Musique et messages</div>
+                            <div className="mt-2 grid gap-3">
+                              <ToggleCard checked={notifPrefs.new_track_followed} onChange={(v) => updateNotifPref('new_track_followed', v)} label="Nouvelle musique d’un artiste suivi" description="Quand un artiste suivi publie un nouveau son." />
+                              <ToggleCard checked={notifPrefs.new_message} onChange={(v) => updateNotifPref('new_message', v)} label="Nouveau message" description="Quand vous recevez un message privé." />
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-black/34">Paliers et rappels</div>
+                            <div className="mt-2 grid gap-3">
+                              <ToggleCard checked={notifPrefs.like_milestone} onChange={(v) => updateNotifPref('like_milestone', v)} label="Palier de likes" description="10, 50, 100, 500, 1000 likes atteints." />
+                              <ToggleCard checked={notifPrefs.view_milestone} onChange={(v) => updateNotifPref('view_milestone', v)} label="Palier d’écoutes" description="10, 50, 100, 500, 1000 écoutes atteintes." />
+                              <ToggleCard checked={notifPrefs.boost_reminder} onChange={(v) => updateNotifPref('boost_reminder', v)} label="Rappels de boost" description="Rappels quotidiens pour vos boosts disponibles." />
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-black/34">Plateforme</div>
+                            <div className="mt-2 grid gap-3">
+                              <ToggleCard checked={notifPrefs.admin_broadcast} onChange={(v) => updateNotifPref('admin_broadcast', v)} label="Annonces Synaura" description="Infos officielles et mises à jour de la plateforme." />
+                              <ToggleCard checked={notifPrefs.weekly_recap} onChange={(v) => updateNotifPref('weekly_recap', v)} label="Résumé hebdomadaire" description="Recevez un résumé de vos stats chaque semaine." />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </InnerCard>
                   </div>
-                  <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                    <Toggle
-                      checked={prefs.highQuality}
-                      onChange={(v) => setPrefs((p) => ({ ...p, highQuality: v }))}
-                      label="Qualité audio élevée"
-                      description="Préférence de qualité (si plusieurs flux disponibles)."
-                    />
-                  </div>
-                  <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                    <Toggle
-                      checked={prefs.activityVisible}
-                      onChange={(v) => setPrefs((p) => ({ ...p, activityVisible: v }))}
-                      label="Afficher mon activité"
-                      description="Affichage de votre activité récente (local)."
-                    />
-                  </div>
-                  <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold">Notifications navigateur</div>
-                        <div className="text-xs text-foreground-inactive mt-0.5">
-                          Statut: <span className="font-medium">{notifPerm}</span>
+
+                  <div className="space-y-4">
+                    <InnerCard>
+                      <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">Cet appareil</div>
+                      <div className="mt-3 rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4">
+                        <div className="text-sm font-black text-[#171313]">Préférences locales</div>
+                        <div className="mt-2 text-sm font-semibold leading-6 text-black/52">
+                          Lecture automatique, qualité et visibilité d’activité sont sauvegardées sur cet appareil.
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={requestNotif}
-                        className="rounded-full border border-border-secondary bg-background-tertiary px-3 py-2 text-xs hover:bg-overlay-on-primary transition inline-flex items-center gap-2"
-                      >
-                        <Bell className="h-4 w-4" />
-                        Activer
-                      </button>
-                    </div>
+                    </InnerCard>
                   </div>
                 </div>
-
-                {/* ─── Preferences de notification granulaires ─── */}
-                <div className="mt-6 text-base font-semibold">Notifications</div>
-                <div className="mt-1 text-xs text-foreground-inactive">Choisissez les notifications que vous souhaitez recevoir.</div>
-
-                {notifPrefsLoading ? (
-                  <div className="mt-4 text-sm text-foreground-inactive flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Chargement…
-                  </div>
-                ) : (
-                  <>
-                    <div className="mt-3 text-xs text-foreground-inactive font-semibold uppercase tracking-wider">Canaux</div>
-                    <div className="mt-2 grid gap-2">
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <Toggle checked={notifPrefs.push_enabled} onChange={(v) => updateNotifPref('push_enabled', v)} label="Notifications push" description="Recevez des notifications meme quand vous n'etes pas sur le site." />
-                      </div>
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <Toggle checked={notifPrefs.in_app_enabled} onChange={(v) => updateNotifPref('in_app_enabled', v)} label="Notifications in-app" description="Notifications dans le panneau de la cloche." />
-                      </div>
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <Toggle checked={notifPrefs.email_enabled} onChange={(v) => updateNotifPref('email_enabled', v)} label="Notifications par email" description="Recevez un resume par email (hebdomadaire)." />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 text-xs text-foreground-inactive font-semibold uppercase tracking-wider">Social</div>
-                    <div className="mt-2 grid gap-2">
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <Toggle checked={notifPrefs.new_follower} onChange={(v) => updateNotifPref('new_follower', v)} label="Nouvel abonne" description="Quand quelqu'un commence a vous suivre." />
-                      </div>
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <Toggle checked={notifPrefs.new_like} onChange={(v) => updateNotifPref('new_like', v)} label="Nouveau like" description="Quand quelqu'un aime votre musique." />
-                      </div>
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <Toggle checked={notifPrefs.new_comment} onChange={(v) => updateNotifPref('new_comment', v)} label="Nouveau commentaire" description="Quand quelqu'un commente votre musique." />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 text-xs text-foreground-inactive font-semibold uppercase tracking-wider">Musique</div>
-                    <div className="mt-2 grid gap-2">
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <Toggle checked={notifPrefs.new_track_followed} onChange={(v) => updateNotifPref('new_track_followed', v)} label="Nouvelle musique d'un artiste suivi" description="Quand un artiste que vous suivez publie une nouvelle musique." />
-                      </div>
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <Toggle checked={notifPrefs.new_message} onChange={(v) => updateNotifPref('new_message', v)} label="Nouveau message" description="Quand vous recevez un message prive." />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 text-xs text-foreground-inactive font-semibold uppercase tracking-wider">Milestones & Boosts</div>
-                    <div className="mt-2 grid gap-2">
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <Toggle checked={notifPrefs.like_milestone} onChange={(v) => updateNotifPref('like_milestone', v)} label="Palier de likes" description="10, 50, 100, 500, 1000 likes atteints." />
-                      </div>
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <Toggle checked={notifPrefs.view_milestone} onChange={(v) => updateNotifPref('view_milestone', v)} label="Palier d'ecoutes" description="10, 50, 100, 500, 1000 ecoutes atteintes." />
-                      </div>
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <Toggle checked={notifPrefs.boost_reminder} onChange={(v) => updateNotifPref('boost_reminder', v)} label="Rappels de boost" description="Rappels quotidiens pour vos boosts disponibles." />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 text-xs text-foreground-inactive font-semibold uppercase tracking-wider">Plateforme</div>
-                    <div className="mt-2 grid gap-2">
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <Toggle checked={notifPrefs.admin_broadcast} onChange={(v) => updateNotifPref('admin_broadcast', v)} label="Annonces Synaura" description="Annonces officielles et mises a jour de la plateforme." />
-                      </div>
-                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                        <Toggle checked={notifPrefs.weekly_recap} onChange={(v) => updateNotifPref('weekly_recap', v)} label="Resume hebdomadaire" description="Recevez un resume de vos stats chaque semaine." />
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+              </WarmCard>
             )}
 
             {tab === 'securite' && (
-              <div className="panel-suno border border-border-secondary rounded-2xl p-4">
-                <div className="text-base font-semibold">Sécurité</div>
-                <div className="mt-1 text-xs text-foreground-inactive">Mot de passe et accès.</div>
+              <WarmCard className="space-y-4">
+                <SectionHeader
+                  eyebrow="Sécurité"
+                  title="Accès et suppression"
+                  description="Gère la récupération du mot de passe et l’action irréversible de suppression de compte."
+                />
 
-                <div className="mt-4 grid gap-3">
-                  <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold">Réinitialiser mon mot de passe</div>
-                        <div className="text-xs text-foreground-inactive mt-0.5">
-                          Envoie un email à <span className="font-medium">{email || 'votre adresse'}</span>.
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+                  <div className="space-y-4">
+                    <InnerCard>
+                      <div className="text-sm font-black text-[#171313]">Réinitialiser le mot de passe</div>
+                      <div className="mt-3 flex flex-col gap-3 rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="text-sm font-black text-[#171313]">Envoyer un email</div>
+                          <div className="mt-1 text-xs font-semibold text-black/42">Un email sera envoyé à {email || 'votre adresse'}.</div>
                         </div>
+                        <PrimaryButton type="button" onClick={sendResetPassword} className="min-w-[170px]">
+                          Envoyer le lien
+                        </PrimaryButton>
+                      </div>
+                    </InnerCard>
+
+                    <InnerCard className="border-[#ff6f61]/20 bg-[#ff6f61]/6">
+                      <div className="text-sm font-black text-[#8f3d34]">Zone dangereuse</div>
+                      <div className="mt-2 text-sm font-semibold leading-6 text-[#8f3d34]/78">
+                        Supprime définitivement votre compte, votre profil, vos pistes, playlists, commentaires, médias et autres données associées.
                       </div>
                       <button
                         type="button"
-                        onClick={sendResetPassword}
-                        className="rounded-full border border-border-secondary bg-background-tertiary px-3 py-2 text-xs hover:bg-overlay-on-primary transition"
+                        onClick={() => setDeleteAccountModalOpen(true)}
+                        className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#ff6f61]/28 bg-[#fff1ec] px-4 text-sm font-black text-[#8f3d34] transition hover:bg-[#ffe7df]"
                       >
-                        Envoyer
+                        <Trash2 className="h-4 w-4" />
+                        Supprimer mon compte
                       </button>
-                    </div>
+                    </InnerCard>
                   </div>
 
-                  <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-3 mt-4">
-                    <div className="text-sm font-semibold text-red-300">Supprimer mon compte</div>
-                    <div className="text-xs text-foreground-inactive mt-0.5">
-                      Suppression définitive de votre compte, de toutes vos données (profil, pistes, playlists, commentaires, médias sur Cloudinary, etc.). Conforme aux exigences de suppression de données (ex. Google Play).
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteAccountModalOpen(true)}
-                      className="mt-3 w-full rounded-xl border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-500/20 transition inline-flex items-center justify-center gap-2"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Supprimer mon compte
-                    </button>
+                  <div className="space-y-4">
+                    <InnerCard>
+                      <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">Conseil</div>
+                      <div className="mt-3 rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4 text-sm font-semibold leading-6 text-black/58">
+                        Commence toujours par la réinitialisation du mot de passe si tu veux simplement reprendre le contrôle du compte. La suppression est irréversible.
+                      </div>
+                    </InnerCard>
                   </div>
                 </div>
-              </div>
+              </WarmCard>
             )}
 
             {tab === 'legal' && (
-              <div className="panel-suno border border-border-secondary rounded-2xl p-4">
-                <div className="text-base font-semibold">Légal</div>
-                <div className="mt-1 text-xs text-foreground-inactive">Documents et politiques.</div>
+              <WarmCard className="space-y-4">
+                <SectionHeader
+                  eyebrow="Légal"
+                  title="Documents et politiques"
+                  description="Accède rapidement aux pages de référence concernant l’utilisation de la plateforme et la confidentialité."
+                />
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="grid gap-3 md:grid-cols-2">
                   {[
                     { href: '/legal', label: 'Centre légal' },
                     { href: '/legal/mentions-legales', label: 'Mentions légales' },
@@ -1025,42 +1347,36 @@ export default function SettingsClient() {
                     { href: '/legal/cookies', label: 'Cookies' },
                     { href: '/legal/rgpd', label: 'RGPD' },
                   ].map((l) => (
-                    <Link
-                      key={l.href}
-                      href={l.href}
-                      className="rounded-full border border-border-secondary bg-background-tertiary px-3 py-2 text-xs hover:bg-overlay-on-primary transition"
-                    >
-                      {l.label}
-                    </Link>
+                    <LegalLinkCard key={l.href} href={l.href} label={l.label} />
                   ))}
                 </div>
-              </div>
+              </WarmCard>
             )}
           </div>
         </div>
       </div>
 
       {/* Modal confirmation suppression de compte */}
-      <UModal open={deleteAccountModalOpen} onClose={() => { if (!deleteAccountLoading) { setDeleteAccountModalOpen(false); setDeleteAccountConfirm(''); } }} size="md" className="border-red-500/20">
+      <UModal open={deleteAccountModalOpen} onClose={() => { if (!deleteAccountLoading) { setDeleteAccountModalOpen(false); setDeleteAccountConfirm(''); } }} size="md" className="border-[#ff6f61]/18">
         <UModalBody>
-          <div className="flex items-center gap-3 text-red-300">
-            <span className="rounded-full bg-red-500/20 p-2">
+          <div className="flex items-center gap-3 text-[#8f3d34]">
+            <span className="rounded-full bg-[#ff6f61]/12 p-2">
               <AlertTriangle className="h-5 w-5" />
             </span>
-            <h2 className="text-lg font-bold">Supprimer définitivement mon compte</h2>
+            <h2 className="text-lg font-black text-[#171313]">Supprimer définitivement mon compte</h2>
           </div>
-          <p className="mt-3 text-sm text-white/60">
+          <p className="mt-3 text-sm font-semibold leading-6 text-black/58">
             Cette action est <strong>irréversible</strong>. Seront supprimés : votre profil, vos pistes, playlists, commentaires, likes, abonnements, messages, et tous les médias associés (Cloudinary). Votre compte d’authentification sera également supprimé.
           </p>
-          <p className="mt-2 text-xs text-white/35">
-            Pour confirmer, saisissez exactement : <code className="bg-white/[0.06] px-1 rounded">{DELETE_CONFIRM_PHRASE}</code>
+          <p className="mt-2 text-xs font-semibold text-black/38">
+            Pour confirmer, saisissez exactement : <code className="rounded bg-black/[0.05] px-1.5 py-0.5 text-black/62">{DELETE_CONFIRM_PHRASE}</code>
           </p>
           <input
             type="text"
             value={deleteAccountConfirm}
             onChange={(e) => setDeleteAccountConfirm(e.target.value)}
             placeholder={DELETE_CONFIRM_PHRASE}
-            className="mt-3 w-full h-10 px-3.5 rounded-xl border border-white/[0.08] bg-white/[0.04] text-sm text-white outline-none focus:border-red-500/40 focus:ring-1 focus:ring-red-500/20 placeholder:text-white/20 transition"
+            className="mt-3 h-11 w-full rounded-[1rem] border border-[#dccfbb] bg-[#f7efe2] px-4 text-sm font-semibold text-[#171313] outline-none transition placeholder:text-black/24 focus:border-[#ff6f61]/35"
             disabled={deleteAccountLoading}
             autoComplete="off"
           />
@@ -1069,7 +1385,7 @@ export default function SettingsClient() {
               type="button"
               onClick={() => { setDeleteAccountModalOpen(false); setDeleteAccountConfirm(''); }}
               disabled={deleteAccountLoading}
-              className="flex-1 inline-flex items-center justify-center rounded-full h-9 px-4 text-sm font-medium bg-white/[0.06] text-white/70 hover:bg-white/[0.1] transition"
+              className="flex-1 inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-black bg-[#efe4d4] text-[#5f5650] transition hover:bg-[#e7dac8] hover:text-[#171313]"
             >
               Annuler
             </button>
@@ -1077,7 +1393,7 @@ export default function SettingsClient() {
               type="button"
               onClick={handleDeleteAccount}
               disabled={deleteAccountConfirm !== DELETE_CONFIRM_PHRASE || deleteAccountLoading}
-              className="flex-1 inline-flex items-center justify-center gap-2 rounded-full h-9 px-4 text-sm font-medium bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-1 inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-black bg-[#ff6f61]/10 text-[#8f3d34] transition hover:bg-[#ff6f61]/18 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {deleteAccountLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               Supprimer définitivement
@@ -1085,9 +1401,7 @@ export default function SettingsClient() {
           </div>
         </UModalBody>
       </UModal>
-
-      <BottomNav />
-    </div>
+    </SynauraAppShell>
   );
 }
 

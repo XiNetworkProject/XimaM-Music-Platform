@@ -362,7 +362,7 @@ export default function DailySpinModal({ isOpen, onClose }: Props) {
               {/* Center cap */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="h-16 w-16 rounded-full border-2 border-amber-500/30 bg-[#0f0a20] grid place-items-center shadow-lg shadow-amber-500/10">
-                  <Image src="/synaura_symbol.svg" alt="" width={20} height={20} style={{ filter: 'brightness(0) invert(1) opacity(0.5)' }} />
+                  <Image src="/brand/2026/synaura-symbol-2026.png" alt="" width={30} height={30} className="h-7 w-7 object-contain opacity-80" unoptimized />
                 </div>
               </div>
             </div>

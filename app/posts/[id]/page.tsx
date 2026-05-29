@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Heart, MessageCircle, Play, Pause, Share2,
-  Music2, Camera, Loader2, Send, MoreHorizontal, Trash2,
+  Music2, Camera, Loader2, Send, Trash2, Repeat2, UserPlus,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
@@ -14,8 +14,9 @@ import { fr } from 'date-fns/locale';
 import { useAudioPlayer } from '@/app/providers';
 import { notify } from '@/components/NotificationCenter';
 import { getCdnUrl } from '@/lib/cdn';
+import TrackCover from '@/components/TrackCover';
 import type { Post } from '@/components/PostCard';
-import { SynauraAppShell, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import { SynauraAppShell, SynauraPanel, SynauraInkPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 
 interface Comment {
   id: string;
@@ -41,20 +42,35 @@ function Avatar({ user, size = 'md' }: { user: { username: string; name?: string
 
 function Skeleton() {
   return (
-    <div className="min-h-screen bg-[#0a0a14] text-white">
-      <div className="max-w-2xl mx-auto px-4 pt-16 pb-32 space-y-6">
-        <div className="h-4 w-24 bg-white/5 rounded animate-pulse" />
-        <div className="w-full aspect-[4/3] rounded-2xl bg-white/[0.04] animate-pulse" />
+    <div className="space-y-4 pb-24">
+      <div className="h-12 w-40 rounded-full bg-black/[0.05] animate-pulse" />
+      <div className="rounded-[2rem] bg-black/[0.05] p-6 animate-pulse">
+        <div className="h-5 w-24 rounded bg-white/20" />
+        <div className="mt-4 h-10 w-3/4 rounded bg-white/20" />
+        <div className="mt-3 h-5 w-1/2 rounded bg-white/15" />
+      </div>
+      <div className="rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/88 p-6 shadow-[0_18px_60px_rgba(30,25,20,0.10)]">
+        <div className="h-5 w-40 rounded bg-black/[0.06] animate-pulse" />
+        <div className="mt-4 h-28 rounded-[1.5rem] bg-black/[0.05] animate-pulse" />
+        <div className="mt-4 h-40 rounded-[1.5rem] bg-black/[0.05] animate-pulse" />
+      </div>
+      <div className="rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/88 p-6 shadow-[0_18px_60px_rgba(30,25,20,0.10)]">
+        <div className="h-5 w-32 rounded bg-black/[0.06] animate-pulse" />
         <div className="space-y-3">
-          <div className="h-5 w-48 bg-white/5 rounded animate-pulse" />
-          <div className="h-4 w-64 bg-white/5 rounded animate-pulse" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="mt-3 h-16 rounded-[1.1rem] bg-black/[0.05] animate-pulse" />
+          ))}
         </div>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-14 rounded-xl bg-white/[0.03] animate-pulse" />
-        ))}
       </div>
     </div>
   );
+}
+
+function typeLabel(post: Post) {
+  if (post.type === 'track_share') return 'partage de son';
+  if (post.type === 'photo') return 'post image';
+  if (post.type === 'repost') return 'post partage';
+  return 'discussion';
 }
 
 export default function PostPage() {
@@ -182,23 +198,35 @@ export default function PostPage() {
     ? (imgError ? null : post.image_url)
     : post?.type === 'track_share'
     ? post.track?.cover_url
+    : post?.type === 'repost'
+    ? post.original_post?.track?.cover_url || post.original_post?.image_url || null
     : null;
 
   if (loading) return <Skeleton />;
   if (error || !post) {
     return (
-      <div className="min-h-screen bg-[#0a0a14] text-white flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Camera className="w-16 h-16 text-white/10 mx-auto" />
-          <h1 className="text-xl font-bold text-white/60">{error || 'Post introuvable'}</h1>
-          <button onClick={() => router.push('/')} className="px-4 py-2 rounded-full bg-white/[0.06] text-white/60 text-sm hover:bg-white/[0.1] transition">Retour</button>
-        </div>
-      </div>
+      <SynauraAppShell contentClassName="max-w-[980px]">
+        <SynauraTopBar
+          searchLabel="Rechercher un post, un son ou un createur..."
+          secondaryHref="/upload"
+          secondaryLabel="Upload"
+          primaryHref="/ai-generator"
+          primaryLabel="Studio"
+        />
+        <SynauraPanel className="px-6 py-14 text-center sm:px-8">
+          <Camera className="mx-auto h-14 w-14 text-black/16" />
+          <h1 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#171313]">{error || 'Post introuvable'}</h1>
+          <p className="mt-2 text-sm font-semibold text-black/45">Le post n'est plus disponible ou a ete supprime.</p>
+          <button onClick={() => router.push('/posts')} className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]">
+            Retour aux posts
+          </button>
+        </SynauraPanel>
+      </SynauraAppShell>
     );
   }
 
   return (
-    <SynauraAppShell contentClassName="max-w-[860px]">
+    <SynauraAppShell contentClassName="max-w-[980px]">
       <SynauraTopBar
         searchLabel="Rechercher un post, un son ou un createur..."
         secondaryHref="/upload"
@@ -206,162 +234,256 @@ export default function PostPage() {
         primaryHref="/ai-generator"
         primaryLabel="Studio"
       />
-      <SynauraRouteNav />
-      <div className="overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-[#0a0a14] text-white pb-32 shadow-[0_28px_80px_rgba(20,15,10,0.18)]">
-      {/* Background glow depuis la cover/image */}
-      {coverSrc && (
-        <div className="fixed inset-0 pointer-events-none z-0">
-          <img src={coverSrc} alt="" className="w-full h-96 object-cover blur-[80px] opacity-15 scale-110" />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a14]/60 via-[#0a0a14]/85 to-[#0a0a14]" />
-        </div>
-      )}
-
-      <div className="relative z-10 max-w-2xl mx-auto px-4 pt-6 sm:pt-10">
-        {/* Retour */}
-        <button onClick={() => router.back()} className="mb-6 flex items-center gap-2 text-sm text-white/40 hover:text-white/70 transition">
-          <ArrowLeft className="w-4 h-4" /> Retour
+      <div className="space-y-4 pb-24">
+        <button
+          onClick={() => router.back()}
+          className="inline-flex h-11 items-center gap-2 rounded-full border border-black/[0.08] bg-[#fffaf2]/88 px-4 text-sm font-black text-black/56 shadow-[0_14px_36px_rgba(30,25,20,0.08)] transition hover:bg-[#171313] hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour
         </button>
 
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-
-          {/* ─── Hero image / cover ─── */}
-          {post.type === 'photo' && post.image_url && !imgError && (
-            <div className="rounded-2xl overflow-hidden mb-6 border border-white/[0.06] shadow-2xl shadow-black/40">
-              <img
-                src={post.image_url}
-                alt=""
-                className="w-full max-h-[520px] object-cover"
-                onError={() => setImgError(true)}
-              />
-            </div>
-          )}
-
-          {post.type === 'track_share' && post.track && (
-            <div className="relative rounded-2xl overflow-hidden mb-6 border border-white/[0.06] shadow-2xl shadow-black/40">
-              {post.track.cover_url && (
-                <div className="absolute inset-0">
-                  <img src={post.track.cover_url} alt="" className="w-full h-full object-cover blur-2xl scale-150 opacity-30" />
-                  <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/50 to-[#0a0a14]" />
-                </div>
-              )}
-              <div className="relative flex items-center gap-5 p-6">
-                <div className="shrink-0 w-24 h-24 rounded-2xl overflow-hidden shadow-2xl border border-white/10">
-                  {post.track.cover_url ? (
-                    <img src={post.track.cover_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-indigo-900/60 to-violet-900/40 flex items-center justify-center">
-                      <Music2 className="w-10 h-10 text-white/20" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] uppercase tracking-widest text-violet-400 font-semibold mb-1">Son partagé</p>
-                  <h2 className="text-xl font-black text-white truncate">{post.track.title}</h2>
-                  {post.track.artist_name && (
-                    <p className="text-[13px] text-white/50 mt-1 truncate">{post.track.artist_name}</p>
-                  )}
-                </div>
-                <button
-                  onClick={handlePlayTrack}
-                  className="shrink-0 w-14 h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-white/10"
-                >
-                  {isPlayingThis ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-                </button>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-4">
+          <SynauraInkPanel className="overflow-hidden">
+            {coverSrc ? (
+              <div className="absolute inset-0">
+                <img src={coverSrc} alt="" className="h-full w-full object-cover opacity-18 blur-[18px] scale-110" />
+                <div className="absolute inset-0 bg-gradient-to-br from-[#171313]/68 via-[#171313]/82 to-[#171313]" />
               </div>
+            ) : null}
+            <div className="relative px-5 py-6 sm:px-7 sm:py-8">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/48">Post</p>
+              <h1 className="mt-3 max-w-3xl text-3xl font-black leading-[0.95] tracking-[-0.06em] text-white sm:text-5xl">
+                {post.type === 'repost'
+                  ? 'Post partage'
+                  : post.type === 'track_share'
+                    ? 'Post avec son'
+                    : post.type === 'photo'
+                      ? 'Post image'
+                      : 'Post texte'}
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/58">
+                {post.creator.name || post.creator.username} · {timeAgo(post.created_at)} · {typeLabel(post)}
+              </p>
             </div>
-          )}
+          </SynauraInkPanel>
 
-          {/* ─── Infos créateur + actions ─── */}
-          <div className="flex items-start gap-3 mb-4">
-            <Link href={`/profile/${post.creator.username}`}>
-              <Avatar user={post.creator} size="lg" />
-            </Link>
-            <div className="flex-1 min-w-0">
-              <Link href={`/profile/${post.creator.username}`} className="text-[14px] font-bold text-white/90 hover:text-white transition-colors block truncate">
-                {post.creator.name || post.creator.username}
-              </Link>
-              <p className="text-[12px] text-white/30">{timeAgo(post.created_at)}</p>
+          <SynauraPanel className="p-4 sm:p-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-start gap-3">
+                <Link href={`/profile/${post.creator.username}`}>
+                  <Avatar user={post.creator} size="lg" />
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <Link href={`/profile/${post.creator.username}`} className="block truncate text-[15px] font-black text-[#171313] hover:underline">
+                    {post.creator.name || post.creator.username}
+                  </Link>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] font-semibold text-black/38">
+                    <span>@{post.creator.username}</span>
+                    <span>·</span>
+                    <span>{timeAgo(post.created_at)}</span>
+                  </div>
+                  <span className="mt-2 inline-flex rounded-full bg-black/[0.055] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-black/46">
+                    {typeLabel(post)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleLike}
+                    className={`inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-black transition ${
+                      liked ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/60 hover:bg-black/[0.1] hover:text-black'
+                    }`}
+                  >
+                    <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} />
+                    {likesCount > 0 ? likesCount : 'Liker'}
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className="grid h-10 w-10 place-items-center rounded-full bg-black/[0.055] text-black/52 transition hover:bg-black/[0.1] hover:text-black"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </button>
+                  {isOwn ? (
+                    <button
+                      onClick={async () => {
+                        if (!confirm('Supprimer ce post ?')) return;
+                        const res = await fetch(`/api/posts/${post.id}`, { method: 'DELETE' });
+                        if (res.ok) {
+                          notify.success('', 'Post supprime');
+                          router.push('/posts');
+                        } else {
+                          notify.error('', 'Erreur suppression');
+                        }
+                      }}
+                      className="grid h-10 w-10 place-items-center rounded-full bg-red-50 text-red-600 transition hover:bg-red-100"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              {post.content ? (
+                <div className="rounded-[1.35rem] bg-black/[0.03] p-4">
+                  <p className="text-[15px] leading-7 text-black/72 whitespace-pre-wrap break-words">{post.content}</p>
+                </div>
+              ) : null}
+
+              {post.type === 'photo' && post.image_url && !imgError ? (
+                <div className="overflow-hidden rounded-[1.5rem] bg-black/[0.05]">
+                  <img
+                    src={post.image_url}
+                    alt=""
+                    className="max-h-[640px] w-full object-cover"
+                    onError={() => setImgError(true)}
+                  />
+                </div>
+              ) : null}
+
+              {post.type === 'track_share' && post.track ? (
+                <div className="overflow-hidden rounded-[1.5rem] bg-[#171313] text-white">
+                  <div className="relative">
+                    {post.track.cover_url ? (
+                      <div className="absolute inset-0 overflow-hidden">
+                        <img src={post.track.cover_url} alt="" className="h-full w-full scale-150 object-cover opacity-20 blur-2xl" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-[#171313]" />
+                      </div>
+                    ) : null}
+                    <div className="relative flex items-center gap-4 p-5">
+                      <TrackCover src={post.track.cover_url || null} title={post.track.title} className="h-20 w-20 shrink-0 shadow-2xl" rounded="rounded-2xl" objectFit="cover" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/42">Son partage</p>
+                        <p className="mt-2 truncate text-xl font-black text-white">{post.track.title}</p>
+                        <p className="truncate text-sm font-semibold text-white/55">{post.track.artist_name || 'Artiste inconnu'}</p>
+                      </div>
+                      <button
+                        onClick={handlePlayTrack}
+                        className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-black shadow-xl shadow-white/10 transition hover:scale-105 active:scale-95"
+                      >
+                        {isPlayingThis ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {post.type === 'repost' ? (
+                post.original_post ? (
+                  <div className="overflow-hidden rounded-[1.5rem] border border-black/[0.08] bg-black/[0.03]">
+                    <div className="border-b border-black/[0.08] px-4 py-3">
+                      <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-black/40">
+                        <Repeat2 className="h-3.5 w-3.5" />
+                        Post d'origine
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                        <Link href={`/profile/${post.original_post.creator.username}`} className="font-black text-[#171313] hover:underline">
+                          {post.original_post.creator.name || post.original_post.creator.username}
+                        </Link>
+                        <span className="font-semibold text-black/38">@{post.original_post.creator.username}</span>
+                        <span className="font-semibold text-black/28">· {timeAgo(post.original_post.created_at)}</span>
+                      </div>
+                      {post.original_post.content ? (
+                        <p className="mt-3 text-[14px] leading-7 text-black/68 whitespace-pre-wrap break-words">{post.original_post.content}</p>
+                      ) : null}
+                    </div>
+
+                    {post.original_post.track ? (
+                      <div className="bg-[#171313] p-4 text-white">
+                        <div className="relative overflow-hidden rounded-[1.1rem]">
+                          {post.original_post.track.cover_url ? (
+                            <div className="absolute inset-0 overflow-hidden">
+                              <img src={post.original_post.track.cover_url} alt="" className="h-full w-full scale-150 object-cover opacity-20 blur-2xl" />
+                              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-[#171313]" />
+                            </div>
+                          ) : null}
+                          <div className="relative flex items-center gap-4 p-4">
+                            <TrackCover src={post.original_post.track.cover_url || null} title={post.original_post.track.title} className="h-16 w-16 shrink-0 shadow-2xl" rounded="rounded-xl" objectFit="cover" />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[15px] font-bold text-white">{post.original_post.track.title}</p>
+                              <p className="truncate text-[12px] text-white/55">{post.original_post.track.artist_name || 'Artiste inconnu'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : post.original_post.track_hidden ? (
+                      <div className="border-t border-black/[0.08] px-4 py-3 text-sm font-semibold text-black/46">
+                        La musique du post d'origine n'a pas ete incluse.
+                      </div>
+                    ) : null}
+
+                    {!post.original_post.track && post.original_post.image_url ? (
+                      <img src={post.original_post.image_url} alt="" className="max-h-[640px] w-full object-cover border-t border-black/[0.08]" />
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="rounded-[1.35rem] border border-black/[0.08] bg-black/[0.03] p-4 text-sm font-semibold text-black/46">
+                    Le post d'origine n'est plus disponible.
+                  </div>
+                )
+              ) : null}
             </div>
+          </SynauraPanel>
 
-            {/* Actions */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button onClick={handleLike}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[13px] font-medium transition-all active:scale-95 ${liked ? 'bg-rose-500/15 text-rose-400' : 'bg-white/[0.05] text-white/40 hover:text-white/70 hover:bg-white/[0.08]'}`}>
-                <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
-                <span className="tabular-nums">{likesCount > 0 ? likesCount : ''}</span>
-              </button>
-              <button onClick={handleShare}
-                className="w-9 h-9 rounded-full bg-white/[0.05] text-white/40 hover:text-white/70 hover:bg-white/[0.08] flex items-center justify-center transition-all">
-                <Share2 className="w-4 h-4" />
-              </button>
-              {isOwn && (
-                <button
-                  onClick={async () => {
-                    if (!confirm('Supprimer ce post ?')) return;
-                    const res = await fetch(`/api/posts/${post.id}`, { method: 'DELETE' });
-                    if (res.ok) { notify.success('', 'Post supprimé'); router.back(); }
-                    else notify.error('', 'Erreur suppression');
-                  }}
-                  className="w-9 h-9 rounded-full bg-white/[0.05] text-white/30 hover:text-rose-400 hover:bg-rose-500/10 flex items-center justify-center transition-all"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Contenu texte */}
-          {post.content && (
-            <p className="text-[15px] text-white/75 leading-relaxed whitespace-pre-wrap break-words mb-6 pl-1">
-              {post.content}
-            </p>
-          )}
-
-          {/* ─── Commentaires ─── */}
-          <div className="border-t border-white/[0.06] pt-5">
-            <h3 className="text-[13px] font-bold text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <MessageCircle className="w-4 h-4" />
+          <SynauraPanel className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 text-[13px] font-black uppercase tracking-[0.18em] text-black/40">
+              <MessageCircle className="h-4 w-4" />
               {(post.comments_count || comments.length)} commentaire{(post.comments_count || comments.length) !== 1 ? 's' : ''}
-            </h3>
+            </div>
 
-            {/* Zone de saisie */}
-            {session && (
-              <div className="flex gap-3 mb-5">
+            {session ? (
+              <div className="mt-4 flex gap-3">
                 <Avatar user={{ username: (session.user as any)?.username || session.user?.name || 'Moi', name: session.user?.name || undefined, avatar: session.user?.image || undefined }} size="sm" />
-                <div className="flex-1 flex items-center gap-2 bg-white/[0.04] rounded-2xl px-3 py-2 border border-white/[0.06] focus-within:border-white/[0.12] transition-all">
-                  <input
-                    type="text"
-                    placeholder="Ajouter un commentaire…"
+                <div className="flex-1 rounded-[1.35rem] border border-black/[0.08] bg-black/[0.03] p-3">
+                  <textarea
+                    placeholder="Ajouter un commentaire..."
                     value={commentText}
                     onChange={e => setCommentText(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleComment(); } }}
-                    className="flex-1 bg-transparent text-[13px] text-white/80 placeholder-white/20 focus:outline-none"
+                    className="min-h-[84px] w-full resize-none bg-transparent text-sm text-[#171313] outline-none placeholder:text-black/30"
                     maxLength={500}
                   />
-                  <button
-                    onClick={handleComment}
-                    disabled={!commentText.trim() || submittingComment}
-                    className="shrink-0 text-violet-400 disabled:opacity-30 hover:text-violet-300 transition-all active:scale-95"
-                  >
-                    {submittingComment
-                      ? <Loader2 className="w-4 h-4 animate-spin" />
-                      : <Send className="w-4 h-4" />
-                    }
-                  </button>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold text-black/35">{commentText.length}/500</p>
+                    <button
+                      onClick={handleComment}
+                      disabled={!commentText.trim() || submittingComment}
+                      className="inline-flex h-10 items-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-white transition hover:opacity-92 disabled:opacity-50"
+                    >
+                      {submittingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      {submittingComment ? 'Envoi...' : 'Publier'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-[1.35rem] border border-[#ff6f61]/18 bg-[#ff6f61]/10 p-4">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#ff6f61]">Envie de répondre ?</p>
+                <h3 className="mt-2 text-xl font-black tracking-tight text-[#171313]">Inscris-toi pour commenter</h3>
+                <p className="mt-2 text-sm font-semibold leading-6 text-black/54">
+                  Crée ton compte pour liker, commenter, partager ce post et suivre les créateurs qui t'intéressent.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link href={`/auth/signup?callbackUrl=/posts/${post.id}`} className="inline-flex h-11 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]">
+                    <UserPlus className="h-4 w-4" />
+                    Créer un compte
+                  </Link>
+                  <Link href={`/auth/signin?callbackUrl=/posts/${post.id}`} className="inline-flex h-11 items-center rounded-full bg-white px-5 text-sm font-black text-black/58 transition hover:bg-black hover:text-white">
+                    Connexion
+                  </Link>
                 </div>
               </div>
             )}
 
-            {/* Liste commentaires */}
-            {commentsLoading ? (
-              <div className="flex justify-center py-6">
-                <Loader2 className="w-5 h-5 text-white/20 animate-spin" />
-              </div>
-            ) : comments.length === 0 ? (
-              <p className="text-center py-8 text-[13px] text-white/20">Sois le premier à commenter</p>
-            ) : (
-              <div className="space-y-1">
-                {comments.filter(c => c?.user).map(comment => {
+            <div className="mt-5 space-y-3">
+              {commentsLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-black/20" />
+                </div>
+              ) : comments.length === 0 ? (
+                <div className="rounded-[1.35rem] bg-black/[0.03] px-4 py-8 text-center text-sm font-semibold text-black/40">
+                  Aucun commentaire pour le moment.
+                </div>
+              ) : (
+                comments.filter(c => c?.user).map(comment => {
                   const isMine = (session?.user as any)?.id === comment.user.id
                     || (session?.user as any)?.username === comment.user.username;
                   return (
@@ -369,36 +491,35 @@ export default function PostPage() {
                       key={comment.id}
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="flex gap-3 p-3 rounded-xl hover:bg-white/[0.03] transition-colors group/comment"
+                      className="flex gap-3 rounded-[1.2rem] bg-black/[0.03] p-4 transition-colors"
                     >
                       <Link href={`/profile/${comment.user.username}`} className="shrink-0">
                         <Avatar user={comment.user} size="sm" />
                       </Link>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <Link href={`/profile/${comment.user.username}`} className="text-[12px] font-semibold text-white/70 hover:text-white transition-colors">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link href={`/profile/${comment.user.username}`} className="text-[13px] font-black text-[#171313] hover:underline">
                             {comment.user.name || comment.user.username}
                           </Link>
-                          <span className="text-[11px] text-white/20">{timeAgo(comment.created_at)}</span>
+                          <span className="text-[11px] font-semibold text-black/30">{timeAgo(comment.created_at)}</span>
                         </div>
-                        <p className="text-[13px] text-white/65 leading-snug">{comment.content}</p>
+                        <p className="mt-1 text-[14px] leading-6 text-black/66">{comment.content}</p>
                       </div>
-                      {isMine && (
+                      {isMine ? (
                         <button
                           onClick={() => handleDeleteComment(comment.id)}
-                          className="shrink-0 opacity-0 group-hover/comment:opacity-100 text-white/20 hover:text-rose-400 transition-all"
+                          className="shrink-0 text-black/26 transition hover:text-red-600"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="h-4 w-4" />
                         </button>
-                      )}
+                      ) : null}
                     </motion.div>
                   );
-                })}
-              </div>
-            )}
-          </div>
+                })
+              )}
+            </div>
+          </SynauraPanel>
         </motion.div>
-      </div>
       </div>
     </SynauraAppShell>
   );

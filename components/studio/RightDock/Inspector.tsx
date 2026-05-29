@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Copy, Download, Globe2, Heart, Loader2, Lock, Play, RefreshCw, Repeat2, Share2, Wand2 } from 'lucide-react';
+import { Copy, Download, Globe2, Heart, Loader2, Lock, Pause, Play, RefreshCw, Repeat2, Share2, Wand2 } from 'lucide-react';
 import { useStudioStore } from '@/lib/studio/store';
 import { getSelectedTrack } from '@/lib/studio/selectors';
 import { useAudioPlayer } from '@/app/providers';
@@ -30,27 +30,47 @@ export default function Inspector({
   const setTracks = useStudioStore((s) => s.setTracks);
 
   const t = getSelectedTrack(tracks, selectedTrackId);
-  const { playTrack } = useAudioPlayer();
+  const { audioState, play, pause, setQueueAndPlay } = useAudioPlayer();
 
   const [tab, setTab] = useState<'details' | 'prompt' | 'lyrics' | 'ab'>('details');
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
-  const playerTrack = useMemo(() => {
-    if (!t) return null;
-    return {
-      _id: `ai-${t.id}`,
-      title: t.title,
-      artist: { _id: 'ai', name: t.artistName, username: t.artistName },
-      duration: t.durationSec || 120,
-      audioUrl: t.audioUrl || '',
-      coverUrl: t.coverUrl || '/synaura_symbol.svg',
-      genre: ['IA', 'Généré'],
-      plays: 0,
-      likes: [],
-      comments: [],
-      lyrics: (t.lyrics || t.prompt || '').trim(),
-    } as any;
-  }, [t]);
+  const studioQueue = useMemo(
+    () =>
+      tracks
+        .filter((track) => track.audioUrl)
+        .map((track) => ({
+          _id: `ai-${track.id}`,
+          title: track.title,
+          artist: { _id: 'ai', name: track.artistName, username: track.artistName },
+          duration: track.durationSec || 120,
+          audioUrl: track.audioUrl || '',
+          coverUrl: track.coverUrl || '/brand/2026/synaura-symbol-2026-white.png',
+          genre: ['IA', 'Généré'],
+          plays: 0,
+          likes: [],
+          comments: [],
+          lyrics: (track.lyrics || track.prompt || '').trim(),
+          source: 'studio',
+        })),
+    [tracks],
+  );
+  const currentTrackId = audioState.tracks[audioState.currentTrackIndex]?._id;
+  const isPlayingSelected = !!t && currentTrackId === `ai-${t.id}` && audioState.isPlaying;
+
+  const playSelectedTrack = () => {
+    if (!t) return;
+    if (isPlayingSelected) {
+      pause();
+      return;
+    }
+    if (currentTrackId === `ai-${t.id}`) {
+      void play();
+      return;
+    }
+    const idx = studioQueue.findIndex((track) => track._id === `ai-${t.id}`);
+    if (idx >= 0) setQueueAndPlay(studioQueue as any, idx);
+  };
 
   const updateLocalTrack = (trackId: string, patch: Record<string, unknown>) => {
     setTracks(tracks.map((track) => (track.id === trackId ? { ...track, ...patch } : track)));
@@ -169,7 +189,7 @@ export default function Inspector({
           <div className="p-3 border-b border-border-secondary flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl border border-border-secondary bg-white/5 overflow-hidden shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={t.coverUrl || '/synaura_symbol.svg'} alt={t.title} className="w-full h-full object-cover" />
+              <img src={t.coverUrl || '/brand/2026/synaura-symbol-2026-white.png'} alt={t.title} className="w-full h-full object-cover" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[13px] font-semibold text-foreground-primary truncate">{t.title}</div>
@@ -178,10 +198,10 @@ export default function Inspector({
             <button
               type="button"
               className="h-9 w-9 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition flex items-center justify-center"
-              onClick={() => playerTrack && playTrack(playerTrack)}
-              title="Play"
+              onClick={playSelectedTrack}
+              title={isPlayingSelected ? 'Pause' : 'Play'}
             >
-              <Play className="w-4 h-4" />
+              {isPlayingSelected ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
             </button>
             <button
               type="button"

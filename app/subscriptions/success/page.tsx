@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CheckCircle, Crown, Star, Music, Loader2 } from 'lucide-react';
-import BottomNav from '@/components/BottomNav';
+import { CheckCircle, Crown, Loader2, Music, Settings, Sparkles } from 'lucide-react';
+import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 
 function SubscriptionSuccessContent() {
   const router = useRouter();
@@ -18,7 +18,7 @@ function SubscriptionSuccessContent() {
     status: string;
     nextBilling: string | null;
   } | null>(null);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
@@ -28,7 +28,6 @@ function SubscriptionSuccessContent() {
         setLoading(true);
         setError('');
 
-        // Vérifier le checkout si on a un session_id
         if (sessionId) {
           const verifyRes = await fetch('/api/billing/verify-checkout', {
             method: 'POST',
@@ -40,12 +39,10 @@ function SubscriptionSuccessContent() {
           }
         }
 
-        // Charger le plan actuel réel
         const subRes = await fetch('/api/subscriptions/my-subscription', {
           headers: { 'Cache-Control': 'no-store' },
         });
         const subJson = await subRes.json().catch(() => null);
-
         const plan = subJson?.subscription || null;
         const userSub = subJson?.userSubscription || null;
 
@@ -79,154 +76,115 @@ function SubscriptionSuccessContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background-primary text-foreground-primary flex items-center justify-center px-4">
-        <div className="w-full max-w-md rounded-3xl border border-border-secondary bg-background-fog-thin p-6 text-center">
-          <Loader2 className="w-6 h-6 animate-spin mx-auto text-foreground-tertiary" />
-          <h2 className="mt-4 text-lg font-semibold">Activation en cours…</h2>
-          <p className="mt-1 text-sm text-foreground-tertiary">
-            On vérifie ton paiement et on charge ton abonnement.
-          </p>
-        </div>
-      </div>
+      <SynauraAppShell contentClassName="flex min-h-screen items-center justify-center">
+        <SynauraPanel className="max-w-md p-8 text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#171313]" />
+          <h2 className="mt-4 text-xl font-black text-[#171313]">Activation en cours...</h2>
+          <p className="mt-2 text-sm font-semibold text-black/48">On vérifie ton paiement et ton abonnement.</p>
+        </SynauraPanel>
+      </SynauraAppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background-primary text-foreground-primary">
-      <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 pt-10 pb-32">
-        <div className="max-w-3xl mx-auto">
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-8"
-          >
-            <div className="flex items-center justify-center mb-6">
-              <div className="p-4 rounded-3xl border border-border-secondary bg-emerald-500/10">
-                <CheckCircle size={32} className="text-white" />
+    <SynauraAppShell contentClassName="max-w-5xl">
+      <SynauraTopBar searchLabel="Rechercher un son, un post ou un profil..." primaryHref="/upload" primaryLabel="Publier" secondaryHref="/settings?tab=compte" secondaryLabel="Compte" />
+
+      <main className="space-y-5 pb-24">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+          <SynauraInkPanel className="p-6 text-center sm:p-10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(16,185,129,0.26),transparent_32%),radial-gradient(circle_at_82%_18%,rgba(124,92,255,0.24),transparent_34%),radial-gradient(circle_at_55%_100%,rgba(0,194,203,0.18),transparent_34%)]" />
+            <div className="relative">
+              <div className="mx-auto grid h-20 w-20 place-items-center rounded-[1.6rem] bg-white text-[#171313] shadow-[0_16px_34px_rgba(255,255,255,0.16)]">
+                <CheckCircle className="h-10 w-10 text-emerald-600" />
               </div>
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-              Abonnement activé
-            </h1>
-            <p className="mt-2 text-sm md:text-base text-foreground-secondary">
-              Tes avantages Premium sont maintenant disponibles.
-            </p>
-          </motion.div>
-
-          {/* Subscription Details */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 md:p-8"
-          >
-            {error && (
-              <div className="mb-4 rounded-2xl border border-border-secondary bg-yellow-500/10 p-4 text-sm">
-                {error}
-              </div>
-            )}
-
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-2xl bg-white/5 border border-border-secondary">
-                <Crown size={22} className="text-white" />
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-xl md:text-2xl font-bold truncate">
-                  {subscriptionData ? `Plan ${subscriptionData.name}` : 'Plan activé'}
-                </h2>
-                <p className="text-sm text-foreground-tertiary">
-                  {subscriptionData ? `Statut: ${subscriptionData.status}` : 'Statut: actif'}
-                </p>
-              </div>
-            </div>
-
-            {subscriptionData && (
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="rounded-2xl border border-border-secondary bg-white/5 p-4 text-center">
-                  <div className="text-xs text-foreground-tertiary">Prix</div>
-                  <div className="mt-1 text-lg font-semibold">
-                    {Number.isFinite(subscriptionData.price) ? subscriptionData.price : 0}€
-                    <span className="text-foreground-tertiary text-sm">
-                      /{subscriptionData.interval || 'mois'}
-                    </span>
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-border-secondary bg-white/5 p-4 text-center">
-                  <div className="text-xs text-foreground-tertiary">Prochain paiement</div>
-                  <div className="mt-1 text-lg font-semibold">
-                    {subscriptionData.nextBilling || '—'}
-                  </div>
-                </div>
-                <div className="rounded-2xl border border-border-secondary bg-white/5 p-4 text-center">
-                  <div className="text-xs text-foreground-tertiary">Avantages</div>
-                  <div className="mt-1 text-lg font-semibold">Débloqués</div>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-6 border-t border-border-secondary pt-6">
-              <h3 className="text-sm font-semibold mb-3">Prochaines étapes</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-foreground-secondary">
-                <div className="rounded-2xl border border-border-secondary bg-white/5 p-4">
-                  Va dans <span className="font-semibold">Studio</span> pour générer avec tes crédits.
-                </div>
-                <div className="rounded-2xl border border-border-secondary bg-white/5 p-4">
-                  Tu peux gérer ton compte dans <span className="font-semibold">Réglages</span>.
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Action Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.35 }}
-            className="mt-6 flex flex-col sm:flex-row gap-3 justify-center"
-          >
-            <button
-              onClick={() => router.push('/')}
-              className="h-11 px-5 rounded-2xl bg-overlay-on-primary text-foreground-primary border border-border-secondary font-semibold inline-flex items-center justify-center gap-2"
-            >
-              <Music size={18} />
-              Retour à la musique
-            </button>
-
-            <button
-              onClick={() => router.push('/subscriptions')}
-              className="h-11 px-5 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition inline-flex items-center justify-center gap-2"
-            >
-              <Star size={18} />
-              Gérer l’abonnement
-            </button>
-          </motion.div>
-
-          {/* Additional Info */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-            className="mt-8 text-center"
-          >
-            <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6">
-              <h3 className="text-sm font-semibold">Merci pour ton soutien.</h3>
-              <p className="mt-2 text-sm text-foreground-tertiary">
-                Si tu as un souci de facturation, écris à{' '}
-                <a className="underline" href="mailto:contact.syn@synaura.fr">
-                  contact.syn@synaura.fr
-                </a>
-                .
+              <p className="mt-6 text-xs font-black uppercase tracking-[0.18em] text-white/48">Abonnement activé</p>
+              <h1 className="mx-auto mt-3 max-w-2xl text-5xl font-black leading-[0.95] tracking-tight text-white sm:text-6xl">
+                Tes avantages sont prêts.
+              </h1>
+              <p className="mx-auto mt-4 max-w-xl text-sm font-semibold leading-6 text-white/60">
+                Tu peux retourner créer, publier ou gérer ton abonnement depuis les paramètres.
               </p>
             </div>
-          </motion.div>
+          </SynauraInkPanel>
+        </motion.div>
 
+        <SynauraPanel className="p-5 sm:p-7">
+          {error ? (
+            <div className="mb-5 rounded-2xl border border-amber-300/40 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
+              {error}
+            </div>
+          ) : null}
+
+          <div className="flex items-center gap-3">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#171313] text-white">
+              <Crown className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="truncate text-2xl font-black text-[#171313]">
+                {subscriptionData ? `Plan ${subscriptionData.name}` : 'Plan activé'}
+              </h2>
+              <p className="text-sm font-semibold text-black/44">
+                Statut: {subscriptionData?.status || 'actif'}
+              </p>
+            </div>
+          </div>
+
+          {subscriptionData ? (
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <Metric label="Prix" value={`${Number.isFinite(subscriptionData.price) ? subscriptionData.price : 0}€/${subscriptionData.interval || 'mois'}`} />
+              <Metric label="Prochain paiement" value={subscriptionData.nextBilling || '—'} />
+              <Metric label="Avantages" value="Débloqués" />
+            </div>
+          ) : null}
+
+          <div className="mt-6 grid gap-3 md:grid-cols-2">
+            <NextStep icon={<Sparkles className="h-5 w-5" />} title="Créer avec tes crédits" text="Va dans le Studio pour utiliser tes avantages." />
+            <NextStep icon={<Settings className="h-5 w-5" />} title="Gérer ton compte" text="Retrouve abonnement, sécurité et préférences dans les paramètres." />
+          </div>
+        </SynauraPanel>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <button onClick={() => router.push('/')} className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]">
+            <Music className="h-4 w-4" />
+            Retour à la musique
+          </button>
+          <button onClick={() => router.push('/subscriptions')} className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-black text-black/60 shadow-[0_14px_36px_rgba(30,25,20,0.08)] transition hover:bg-black hover:text-white">
+            <Crown className="h-4 w-4" />
+            Gérer l'abonnement
+          </button>
         </div>
-      </main>
 
-      {/* Bottom Navigation */}
-      <BottomNav />
+        <SynauraPanel className="p-5 text-center">
+          <h3 className="text-sm font-black text-[#171313]">Merci pour ton soutien.</h3>
+          <p className="mt-2 text-sm font-semibold text-black/48">
+            Pour un souci de facturation: <a className="font-black underline" href="mailto:contact.syn@synaura.fr">contact.syn@synaura.fr</a>
+          </p>
+        </SynauraPanel>
+      </main>
+    </SynauraAppShell>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[#dccfbb] bg-white/72 p-4 text-center">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-black/34">{label}</p>
+      <p className="mt-1 text-lg font-black text-[#171313]">{value}</p>
+    </div>
+  );
+}
+
+function NextStep({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
+  return (
+    <div className="flex gap-3 rounded-2xl border border-[#dccfbb] bg-white/72 p-4">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#ff6f61]/12 text-[#ff6f61]">
+        {icon}
+      </div>
+      <div>
+        <h3 className="text-sm font-black text-[#171313]">{title}</h3>
+        <p className="mt-1 text-sm font-semibold leading-5 text-black/48">{text}</p>
+      </div>
     </div>
   );
 }
@@ -235,15 +193,12 @@ export default function SubscriptionSuccess() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-background-primary text-foreground-primary flex items-center justify-center px-4">
-          <div className="w-full max-w-md rounded-3xl border border-border-secondary bg-background-fog-thin p-6 text-center">
-            <Loader2 className="w-6 h-6 animate-spin mx-auto text-foreground-tertiary" />
-            <h2 className="mt-4 text-lg font-semibold">Chargement…</h2>
-            <p className="mt-1 text-sm text-foreground-tertiary">
-              Préparation de ta page.
-            </p>
-          </div>
-        </div>
+        <SynauraAppShell contentClassName="flex min-h-screen items-center justify-center">
+          <SynauraPanel className="max-w-md p-8 text-center">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#171313]" />
+            <h2 className="mt-4 text-xl font-black text-[#171313]">Chargement...</h2>
+          </SynauraPanel>
+        </SynauraAppShell>
       }
     >
       <SubscriptionSuccessContent />

@@ -9,13 +9,13 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/brand/2026/app-logo.png",
+      "src": "/brand/2026/synaura-symbol-2026-white.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/brand/2026/app-logo.png",
+      "src": "/brand/2026/synaura-symbol-2026-white.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

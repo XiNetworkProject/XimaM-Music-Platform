@@ -141,8 +141,8 @@ export function LibraryClipsList({
                 } catch {}
               }
               const mediaFreshAt = links?.provider_urls_refreshed_at || links?.media_cached_at || t.created_at;
-              let cover = sanitizeCoverUrl(t.image_url, mediaFreshAt) || '/synaura_symbol.svg';
-              if ((!cover || cover === '/synaura_symbol.svg') && (t as any).source_links) {
+              let cover = sanitizeCoverUrl(t.image_url, mediaFreshAt) || '/brand/2026/synaura-symbol-2026-white.png';
+              if ((!cover || cover === '/brand/2026/synaura-symbol-2026-white.png') && (t as any).source_links) {
                 cover = sanitizeCoverUrl(
                   links?.image || links?.image_url || links?.imageUrl || links?.cover || links?.cover_url || links?.provider_image_url,
                   mediaFreshAt
@@ -169,7 +169,7 @@ export function LibraryClipsList({
                     onKeyDown={(e) => e.key === 'Enter' && onPlayTrack(t, gen)}
                     aria-label={`Lire ${title}`}
                   >
-                    {cover && cover !== '/synaura_symbol.svg' ? (
+                    {cover && cover !== '/brand/2026/synaura-symbol-2026-white.png' ? (
                       <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -178,8 +178,8 @@ export function LibraryClipsList({
                           className="h-full w-full object-cover"
                           onError={(e) => {
                             const img = e.currentTarget;
-                            if (img.src.endsWith('/synaura_symbol.svg')) return;
-                            img.src = '/synaura_symbol.svg';
+                            if (img.src.endsWith('/brand/2026/synaura-symbol-2026-white.png')) return;
+                            img.src = '/brand/2026/synaura-symbol-2026-white.png';
                           }}
                         />
                         <div className="absolute inset-0 hidden items-center justify-center bg-black/50 group-hover:flex">

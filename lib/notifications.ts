@@ -207,8 +207,8 @@ async function sendPushInBackground(
     const payload = JSON.stringify({
       title,
       body,
-      icon: '/synaura_symbol.svg',
-      badge: '/synaura_symbol.svg',
+      icon: '/brand/2026/synaura-symbol-2026-white.png',
+      badge: '/brand/2026/synaura-symbol-2026-white.png',
       url: url || '/',
       tag: `synaura-${type}-${Date.now()}`,
       data: { type },
@@ -396,7 +396,7 @@ export async function notifyPostLike(likerId: string, postOwnerId: string, liker
     type: 'post_like',
     title: 'Nouveau like',
     message: `${likerName} a aimé ton post`,
-    actionUrl: `/`,
+    actionUrl: `/posts/${postId}`,
     senderId: likerId,
     relatedId: postId,
   });
@@ -408,7 +408,7 @@ export async function notifyPostComment(commenterId: string, postOwnerId: string
     type: 'post_comment',
     title: 'Nouveau commentaire',
     message: `${commenterName} a commenté ton post`,
-    actionUrl: `/`,
+    actionUrl: `/posts/${postId}`,
     senderId: commenterId,
     relatedId: postId,
   });

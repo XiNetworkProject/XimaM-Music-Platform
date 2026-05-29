@@ -5,7 +5,6 @@ import { ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import PostCard, { type Post } from '@/components/PostCard';
-import PostCommentsSheet from '@/components/PostCommentsSheet';
 import PostComposer from '@/components/PostComposer';
 import { useSession } from 'next-auth/react';
 import { SynauraAppShell, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
@@ -18,8 +17,6 @@ export default function PostsFeedPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
-  const [activePost, setActivePost] = useState<Post | null>(null);
-  const [commentsOpen, setCommentsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const fetchPosts = useCallback(async (cursorParam?: string, replace = false) => {
@@ -71,14 +68,6 @@ export default function PostsFeedPage() {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
   }, []);
 
-  const handleCommentCountChange = useCallback((postId: string, delta: number) => {
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId ? { ...p, comments_count: Math.max(0, p.comments_count + delta) } : p
-      )
-    );
-  }, []);
-
   return (
     <SynauraAppShell contentClassName="max-w-[980px]">
       <SynauraTopBar
@@ -103,7 +92,7 @@ export default function PostsFeedPage() {
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/46">Posts</p>
             <h1 className="mt-2 text-3xl font-black leading-[0.95] tracking-[-0.06em] sm:text-5xl">Le fil des createurs.</h1>
             <p className="mt-3 max-w-xl text-sm font-semibold leading-6 text-white/55">
-              Publie, commente et partage sans quitter le nouveau Synaura.
+              Tous les posts au meme endroit.
             </p>
           </div>
           <button
@@ -150,10 +139,7 @@ export default function PostsFeedPage() {
                 <PostCard
                   post={post}
                   onDelete={handleDelete}
-                  onCommentClick={(p) => {
-                    setActivePost(p);
-                    setCommentsOpen(true);
-                  }}
+                  onPostCreated={handlePostCreated}
                 />
               </motion.div>
             ))}
@@ -167,13 +153,6 @@ export default function PostsFeedPage() {
           )}
         </div>
       </div>
-
-      <PostCommentsSheet
-        post={activePost}
-        isOpen={commentsOpen}
-        onClose={() => setCommentsOpen(false)}
-        onCommentCountChange={handleCommentCountChange}
-      />
     </SynauraAppShell>
   );
 }

@@ -1,390 +1,345 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Image as ImageIcon, Music2, X, Loader2, Pencil } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { Image as ImageIcon, Loader2, MessageCircle, Music2, Search, Send, Wand2, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { notify } from '@/components/NotificationCenter';
-import TrackCover from '@/components/TrackCover';
 import { getCdnUrl } from '@/lib/cdn';
+import TrackCover from '@/components/TrackCover';
 import type { Post } from '@/components/PostCard';
-
-interface UserTrack {
-  id: string; title: string;
-  artist_name?: string; cover_url?: string;
-  audio_url?: string; duration?: number;
-}
 
 interface PostComposerProps {
   onPostCreated: (post: Post) => void;
 }
 
-type Step = 'idle' | 'compose' | 'track_picker';
-type Mode = 'text' | 'photo' | 'track_share';
+interface UserTrack {
+  id: string;
+  title: string;
+  artist_name?: string;
+  cover_url?: string | null;
+  audio_url?: string | null;
+  duration?: number;
+}
+
+type ComposerMode = 'text' | 'photo' | 'track_share';
+
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(' ');
+}
 
 export default function PostComposer({ onPostCreated }: PostComposerProps) {
   const { data: session } = useSession();
-  const [step, setStep] = useState<Step>('idle');
-  const [mode, setMode] = useState<Mode>('text');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [mode, setMode] = useState<ComposerMode>('text');
   const [content, setContent] = useState('');
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [selectedTrack, setSelectedTrack] = useState<UserTrack | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [userTracks, setUserTracks] = useState<UserTrack[]>([]);
   const [loadingTracks, setLoadingTracks] = useState(false);
   const [trackSearch, setTrackSearch] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // Empêche la fermeture du sheet pendant/juste après un pick de fichier
-  const preventCloseRef = useRef(false);
+  const [selectedTrack, setSelectedTrack] = useState<UserTrack | null>(null);
 
   const avatarUrl = (session?.user as any)?.image
     ? getCdnUrl((session?.user as any).image) || (session?.user as any).image
     : null;
-  const displayName = (session?.user as any)?.username || session?.user?.name || 'Moi';
-
-  const open = (m: Mode) => {
-    setMode(m);
-    setStep('compose');
-    if (m === 'track_share') {
-      setStep('track_picker');
-      loadUserTracks();
-    }
-  };
-
-  const close = useCallback(() => {
-    if (preventCloseRef.current) return;
-    setStep('idle');
-    setContent('');
-    setImageUrl(null);
-    setImagePreview(null);
-    setSelectedTrack(null);
-    setMode('text');
-    setTrackSearch('');
-  }, []);
+  const initial =
+    (session?.user as { name?: string; username?: string })?.name?.slice(0, 1) ||
+    (session?.user as { username?: string })?.username?.slice(0, 1) ||
+    'M';
 
   useEffect(() => {
-    if (step === 'compose') {
-      setTimeout(() => textareaRef.current?.focus(), 150);
+    if (!imageFile) {
+      setImagePreview('');
+      return;
     }
-  }, [step]);
+    const url = URL.createObjectURL(imageFile);
+    setImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
 
   const loadUserTracks = useCallback(async () => {
     if (loadingTracks || userTracks.length > 0) return;
     setLoadingTracks(true);
     try {
       const res = await fetch('/api/users/tracks?limit=50');
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       const tracks = Array.isArray(data?.tracks) ? data.tracks : Array.isArray(data) ? data : [];
-      setUserTracks(tracks.map((t: any) => ({
-        id: t.id || t._id,
-        title: t.title,
-        artist_name: t.artist?.name || t.artist_name || t.creator_name || '',
-        cover_url: t.cover_url || t.coverUrl || null,
-        audio_url: t.audio_url || t.audioUrl || null,
-        duration: t.duration,
-      })));
-    } catch { /* ignore */ }
-    finally { setLoadingTracks(false); }
+      setUserTracks(
+        tracks.map((t: any) => ({
+          id: String(t.id || t._id || ''),
+          title: String(t.title || 'Titre'),
+          artist_name: t.artist?.name || t.artist_name || t.creator_name || '',
+          cover_url: t.cover_url || t.coverUrl || null,
+          audio_url: t.audio_url || t.audioUrl || null,
+          duration: t.duration,
+        })).filter((t: UserTrack) => t.id)
+      );
+    } catch {
+      notify.error('', 'Impossible de charger tes sons');
+    } finally {
+      setLoadingTracks(false);
+    }
   }, [loadingTracks, userTracks.length]);
 
-  const triggerImagePicker = useCallback(() => {
-    preventCloseRef.current = true;
-    fileInputRef.current?.click();
-  }, []);
+  const filteredTracks = useMemo(() => {
+    const q = trackSearch.trim().toLowerCase();
+    if (!q) return userTracks;
+    return userTracks.filter((track) =>
+      track.title.toLowerCase().includes(q) || String(track.artist_name || '').toLowerCase().includes(q)
+    );
+  }, [trackSearch, userTracks]);
 
-  const handleImagePick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) { preventCloseRef.current = false; return; }
+  const chips = useMemo(() => [
+    { label: 'Son', icon: Music2, action: () => { setMode('track_share'); setImageFile(null); void loadUserTracks(); }, active: mode === 'track_share' },
+    { label: 'Image', icon: ImageIcon, action: () => { setMode('photo'); setSelectedTrack(null); fileInputRef.current?.click(); }, active: mode === 'photo' },
+    { label: 'Texte', icon: MessageCircle, action: () => { setMode('text'); setSelectedTrack(null); setImageFile(null); }, active: mode === 'text' },
+    { label: 'Studio', icon: Wand2, href: '/ai-generator', active: false },
+  ], [loadUserTracks, mode]);
 
-    if (!file.type.startsWith('image/')) {
-      notify.error('', 'Seules les images sont acceptées');
-      preventCloseRef.current = false;
+  const handlePublish = useCallback(async () => {
+    if (!session?.user) {
+      notify.error('', 'Connecte-toi pour publier');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      notify.error('', 'Image trop volumineuse (max 5MB)');
-      preventCloseRef.current = false;
+
+    const trimmed = content.trim();
+    if (mode === 'text' && !trimmed) {
+      notify.error('', 'Ecris quelque chose avant de publier');
+      return;
+    }
+    if (mode === 'photo' && !imageFile) {
+      notify.error('', 'Ajoute une image pour publier ce post');
+      return;
+    }
+    if (mode === 'track_share' && !selectedTrack) {
+      notify.error('', 'Choisis un son a partager');
       return;
     }
 
-    // Lire le fichier localement d'abord, puis ouvrir la sheet
-    // → la sheet n'existe PAS encore pendant que le file picker était ouvert
-    //   donc aucun "fantôme de clic" ne peut toucher le backdrop
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const dataUrl = ev.target?.result as string;
-      setImagePreview(dataUrl);
-      setMode('photo');
-      setStep('compose');
-      // Libérer le verrou légèrement après l'ouverture de la sheet
-      setTimeout(() => { preventCloseRef.current = false; }, 300);
-    };
-    reader.readAsDataURL(file);
-
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch('/api/posts/upload-image', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (res.ok && data.url) {
-        setImageUrl(data.url);
-      } else {
-        // On garde le preview visible — l'utilisateur peut réessayer ou l'enlever manuellement
-        notify.error('', data.error || 'Erreur upload image');
-      }
-    } catch {
-      notify.error('', 'Erreur réseau — réessaie');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  }, []);
-
-  const handleTrackSelect = (track: UserTrack) => {
-    setSelectedTrack(track); setMode('track_share'); setStep('compose'); setTrackSearch('');
-  };
-
-  const canSubmit = !submitting && !uploading && (
-    (mode === 'text' && content.trim().length > 0) ||
-    (mode === 'photo' && !!imageUrl) ||
-    (mode === 'track_share' && !!selectedTrack)
-  );
-
-  const handleSubmit = useCallback(async () => {
-    if (!canSubmit || !session) return;
     setSubmitting(true);
     try {
-      const body: any = { type: mode };
-      if (content.trim()) body.content = content.trim();
-      if (mode === 'photo') body.image_url = imageUrl;
+      let imageUrl = '';
+      if (mode === 'photo' && imageFile) {
+        const formData = new FormData();
+        formData.append('file', imageFile);
+        const uploadResponse = await fetch('/api/posts/upload-image', { method: 'POST', body: formData });
+        const uploadPayload = await uploadResponse.json().catch(() => null);
+        if (!uploadResponse.ok) throw new Error(uploadPayload?.error || 'Upload image impossible');
+        imageUrl = uploadPayload?.url || '';
+      }
+
+      const body: any = {
+        type: mode === 'photo' ? 'photo' : mode === 'track_share' ? 'track_share' : 'text',
+        content: trimmed || undefined,
+      };
+      if (mode === 'photo') body.image_url = imageUrl || undefined;
       if (mode === 'track_share') body.track_id = selectedTrack?.id;
-      const res = await fetch('/api/posts', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+
+      const response = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
-      const data = await res.json();
-      if (res.ok) { onPostCreated(data as Post); close(); notify.success('', 'Post publié !'); }
-      else notify.error('', data.error || 'Erreur publication');
-    } catch { notify.error('', 'Erreur réseau'); }
-    finally { setSubmitting(false); }
-  }, [canSubmit, mode, content, imageUrl, selectedTrack, session, onPostCreated]);
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || 'Publication impossible');
 
-  const filteredTracks = userTracks.filter(t =>
-    !trackSearch || t.title.toLowerCase().includes(trackSearch.toLowerCase())
-  );
+      onPostCreated(payload as Post);
+      setContent('');
+      setImageFile(null);
+      setSelectedTrack(null);
+      setTrackSearch('');
+      setMode('text');
+      notify.success('Post publie', 'Il est deja dans le feed.');
+    } catch (error: any) {
+      notify.error('', error?.message || 'Impossible de publier');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [content, imageFile, mode, onPostCreated, selectedTrack, session?.user]);
 
-  if (!session) return null;
+  const publishDisabled =
+    submitting ||
+    (mode === 'text' ? !content.trim() : mode === 'photo' ? !imageFile : !selectedTrack);
 
   return (
-    <>
-      {/* ── TRIGGER BAR ── */}
-      <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.05] hover:border-white/[0.09] transition-all">
+    <div className="rounded-[1.5rem] border border-black/[0.06] bg-[#fffaf2]/82 p-3 shadow-[0_16px_50px_rgba(30,25,20,0.08)] backdrop-blur-xl sm:rounded-[1.8rem] sm:p-4">
+      <div className="flex gap-3">
         {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+          <img src={avatarUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover sm:h-9 sm:w-9" />
         ) : (
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-            {(displayName[0] || '?').toUpperCase()}
+          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#171313] text-xs font-black text-[#fffaf2] sm:h-9 sm:w-9 sm:text-sm">
+            {initial}
           </div>
         )}
+        <div className="min-w-0 flex-1">
+          {session?.user ? (
+            <div className="rounded-[1.15rem] bg-black/[0.055] p-2">
+              <textarea
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                rows={mode === 'photo' ? 2 : 3}
+                className="min-h-[76px] w-full resize-none rounded-[0.95rem] border border-transparent bg-white/58 px-3 py-3 text-sm font-semibold text-[#171313] outline-none placeholder:text-black/34 focus:border-black/[0.1]"
+                placeholder={
+                  mode === 'photo'
+                    ? 'Ajoute une legende a ton image...'
+                    : mode === 'track_share'
+                      ? 'Ajoute un texte pour accompagner le son...'
+                      : 'Partager un texte directement depuis ce profil...'
+                }
+              />
 
-        <button onClick={() => open('text')} className="flex-1 text-left text-[13px] text-white/20 hover:text-white/35 transition-colors py-1">
-          Partage quelque chose…
-        </button>
-
-        {/* Type buttons */}
-        <div className="flex items-center gap-0.5 shrink-0">
-          <button onClick={() => open('text')}
-            title="Message"
-            className="p-2 rounded-xl text-white/25 hover:text-violet-300 hover:bg-violet-500/10 transition-all">
-            <Pencil className="w-4 h-4" />
-          </button>
-          <button onClick={triggerImagePicker}
-            title="Photo"
-            className="p-2 rounded-xl text-white/25 hover:text-blue-300 hover:bg-blue-500/10 transition-all">
-            <ImageIcon className="w-4 h-4" />
-          </button>
-          <button onClick={() => open('track_share')}
-            title="Son"
-            className="p-2 rounded-xl text-white/25 hover:text-emerald-300 hover:bg-emerald-500/10 transition-all">
-            <Music2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImagePick} />
-
-      {/* ── COMPOSE SHEET ── */}
-      <AnimatePresence>
-        {step === 'compose' && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm" onClick={close} />
-            <motion.div
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 32, stiffness: 380 }}
-              className="fixed inset-x-0 bottom-0 z-[301] rounded-t-3xl bg-[#0e0e1a] border-t border-white/[0.07] sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:bottom-8 sm:w-[520px] sm:rounded-2xl sm:border"
-            >
-              {/* Handle */}
-              <div className="flex justify-center pt-3 pb-1 sm:hidden">
-                <div className="w-10 h-1 rounded-full bg-white/[0.1]" />
-              </div>
-
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-                <div className="flex items-center gap-1.5">
-                  {/* Mode pills */}
-                  {(['text', 'photo', 'track_share'] as Mode[]).map(m => {
-                    const labels = { text: 'Texte', photo: 'Photo', track_share: 'Son' };
-                    const icons = { text: Pencil, photo: ImageIcon, track_share: Music2 };
-                    const Icon = icons[m];
-                    return (
-                      <button key={m} onClick={() => {
-                        if (m === 'track_share') { setStep('track_picker'); loadUserTracks(); }
-                        else if (m === 'photo') { triggerImagePicker(); }
-                        else setMode(m);
-                      }}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-medium transition-all ${
-                          mode === m ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30' : 'text-white/30 hover:text-white/50'
-                        }`}>
-                        <Icon className="w-3.5 h-3.5" />
-                        {labels[m]}
-                      </button>
-                    );
-                  })}
+              {imagePreview ? (
+                <div className="relative mt-2 overflow-hidden rounded-[1rem] bg-black/[0.06]">
+                  <img src={imagePreview} alt="" className="max-h-56 w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImageFile(null);
+                      setMode('text');
+                    }}
+                    className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/65 text-white"
+                    aria-label="Retirer l'image"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
-                <button onClick={close} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/70 transition-all">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+              ) : null}
 
-              {/* Body */}
-              <div className="p-4">
-                <div className="flex gap-3">
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover shrink-0 mt-0.5" />
-                  ) : (
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shrink-0 mt-0.5">
-                      {(displayName[0] || '?').toUpperCase()}
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0 space-y-3">
-                    <textarea ref={textareaRef} value={content}
-                      onChange={e => {
-                        setContent(e.target.value);
-                        e.target.style.height = 'auto';
-                        e.target.style.height = `${e.target.scrollHeight}px`;
-                      }}
-                      placeholder={mode === 'track_share' ? 'Dis quelque chose sur ce son…' : mode === 'photo' ? 'Ajoute une légende…' : 'Partage quelque chose…'}
-                      className="w-full bg-transparent text-[15px] text-white/80 placeholder-white/20 resize-none focus:outline-none leading-relaxed min-h-[72px] max-h-48"
-                      rows={3}
-                    />
-
-                    {/* Image preview */}
-                    {imagePreview && (
-                      <div className="relative rounded-xl overflow-hidden">
-                        {uploading && (
-                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10 rounded-xl">
-                            <Loader2 className="w-6 h-6 text-white animate-spin" />
-                          </div>
-                        )}
-                        <img src={imagePreview} alt="" className="w-full max-h-56 object-cover rounded-xl" />
-                        <button onClick={() => { setImageUrl(null); setImagePreview(null); setMode('text'); }}
-                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80">
-                          <X className="w-3.5 h-3.5" />
-                        </button>
+              {mode === 'track_share' ? (
+                <div className="mt-2 rounded-[1rem] border border-black/[0.08] bg-white/60 p-3">
+                  {selectedTrack ? (
+                    <div className="flex items-center gap-3 rounded-[0.95rem] bg-black/[0.04] p-2.5">
+                      <TrackCover src={selectedTrack.cover_url || null} title={selectedTrack.title} className="h-11 w-11 shrink-0" rounded="rounded-lg" objectFit="cover" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-black text-[#171313]">{selectedTrack.title}</p>
+                        <p className="truncate text-xs font-semibold text-black/40">{selectedTrack.artist_name || 'Artiste'}</p>
                       </div>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTrack(null)}
+                        className="grid h-8 w-8 place-items-center rounded-full bg-black/[0.055] text-black/42 transition hover:bg-black/[0.09] hover:text-black"
+                        aria-label="Retirer le son"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : null}
 
-                    {/* Track preview */}
-                    {selectedTrack && (
-                      <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.05] border border-white/[0.08]">
-                        <TrackCover src={selectedTrack.cover_url || null} title={selectedTrack.title}
-                          className="w-10 h-10 shrink-0" rounded="rounded-lg" objectFit="cover" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[13px] font-semibold text-white/85 truncate">{selectedTrack.title}</p>
-                          <p className="text-[11px] text-white/35 truncate">{selectedTrack.artist_name}</p>
-                        </div>
-                        <button onClick={() => { setSelectedTrack(null); setMode('text'); }}
-                          className="text-white/25 hover:text-white/50 transition-colors">
-                          <X className="w-4 h-4" />
+                  <div className="mt-3 flex items-center gap-2 rounded-[0.9rem] bg-black/[0.045] px-3 py-2">
+                    <Search className="h-4 w-4 text-black/34" />
+                    <input
+                      value={trackSearch}
+                      onChange={(event) => setTrackSearch(event.target.value)}
+                      placeholder="Rechercher dans tes sons..."
+                      className="h-8 w-full bg-transparent text-sm font-semibold text-[#171313] outline-none placeholder:text-black/32"
+                    />
+                  </div>
+
+                  <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
+                    {loadingTracks ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-5 w-5 animate-spin text-black/28" />
+                      </div>
+                    ) : filteredTracks.length > 0 ? (
+                      filteredTracks.map((track) => (
+                        <button
+                          key={track.id}
+                          type="button"
+                          onClick={() => setSelectedTrack(track)}
+                          className={cx(
+                            'flex w-full items-center gap-3 rounded-[0.95rem] border px-3 py-2.5 text-left transition',
+                            selectedTrack?.id === track.id
+                              ? 'border-[#171313] bg-black/[0.08]'
+                              : 'border-black/[0.06] bg-white/72 hover:border-black/[0.12] hover:bg-black/[0.04]'
+                          )}
+                        >
+                          <TrackCover src={track.cover_url || null} title={track.title} className="h-10 w-10 shrink-0" rounded="rounded-lg" objectFit="cover" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-black text-[#171313]">{track.title}</p>
+                            <p className="truncate text-xs font-semibold text-black/40">{track.artist_name || 'Artiste'}</p>
+                          </div>
+                          {selectedTrack?.id === track.id ? <span className="text-[10px] font-black uppercase tracking-[0.12em] text-black/52">Selectionne</span> : null}
                         </button>
+                      ))
+                    ) : (
+                      <div className="rounded-[0.95rem] bg-black/[0.04] px-4 py-5 text-center">
+                        <p className="text-sm font-semibold text-black/50">
+                          {userTracks.length === 0 ? 'Tu n’as encore aucun son a partager.' : 'Aucun son ne correspond a ta recherche.'}
+                        </p>
                       </div>
                     )}
                   </div>
                 </div>
-              </div>
+              ) : null}
 
-              {/* Footer */}
-              <div className="flex items-center justify-between px-4 pb-5 pt-1 border-t border-white/[0.04]">
-                <span className="text-[12px] text-white/20">
-                  {content.length > 0 && `${content.length} caractères`}
-                </span>
-                <button onClick={handleSubmit} disabled={!canSubmit}
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[14px] font-semibold hover:from-violet-500 hover:to-indigo-500 transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 flex items-center gap-2 shadow-lg shadow-violet-500/20">
-                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Publier
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-semibold text-black/35">
+                  {mode === 'track_share' ? 'Choisis un de tes sons.' : 'Publie un post.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={handlePublish}
+                  disabled={publishDisabled}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-white transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {submitting ? 'Publication...' : 'Publier'}
                 </button>
               </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* ── TRACK PICKER SHEET ── */}
-      <AnimatePresence>
-        {step === 'track_picker' && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm" onClick={close} />
-            <motion.div
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 32, stiffness: 380 }}
-              className="fixed inset-x-0 bottom-0 z-[301] max-h-[80dvh] flex flex-col rounded-t-3xl bg-[#0e0e1a] border-t border-white/[0.07] sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:bottom-8 sm:w-[440px] sm:max-h-[70dvh] sm:rounded-2xl sm:border"
+            </div>
+          ) : (
+            <Link
+              href="/auth/signin"
+              className="flex h-12 w-full items-center rounded-[1.15rem] bg-black/[0.055] px-4 text-sm font-semibold text-black/38 transition hover:bg-black/[0.08]"
             >
-              <div className="flex justify-center pt-3 pb-1 sm:hidden">
-                <div className="w-10 h-1 rounded-full bg-white/[0.1]" />
-              </div>
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-                <h3 className="text-[15px] font-semibold text-white/85">Choisir un son</h3>
-                <button onClick={close} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white/70 transition-all">
-                  <X className="w-4 h-4" />
+              Connecte-toi pour publier et reagir...
+            </Link>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0] || null;
+              if (file) {
+                setMode('photo');
+                setSelectedTrack(null);
+                setImageFile(file);
+              }
+              event.currentTarget.value = '';
+            }}
+          />
+
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+            {chips.map((chip) => {
+              const className = cx(
+                'inline-flex h-10 w-full min-w-0 items-center justify-center gap-2 rounded-full px-3 text-[11px] font-black transition sm:h-9 sm:w-auto sm:text-xs',
+                chip.active ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/56 hover:bg-black/[0.09]'
+              );
+
+              if ('href' in chip && chip.href) {
+                return (
+                  <Link key={chip.label} href={chip.href} className={className}>
+                    <chip.icon className="h-3.5 w-3.5" />
+                    {chip.label}
+                  </Link>
+                );
+              }
+
+              return (
+                <button key={chip.label} type="button" onClick={chip.action} className={className}>
+                  <chip.icon className="h-3.5 w-3.5" />
+                  {chip.label}
                 </button>
-              </div>
-              <div className="px-4 py-2.5 border-b border-white/[0.04]">
-                <input type="text" placeholder="Rechercher…" value={trackSearch}
-                  onChange={e => setTrackSearch(e.target.value)}
-                  className="w-full bg-white/[0.05] rounded-xl px-3 py-2 text-[13px] text-white/80 placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-white/10 transition-all" />
-              </div>
-              <div className="flex-1 overflow-y-auto py-1 min-h-0">
-                {loadingTracks && (
-                  <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 text-white/20 animate-spin" /></div>
-                )}
-                {!loadingTracks && filteredTracks.length === 0 && (
-                  <p className="text-center py-10 text-[13px] text-white/20">
-                    {userTracks.length === 0 ? 'Aucun son publié' : 'Aucun résultat'}
-                  </p>
-                )}
-                {filteredTracks.map(track => (
-                  <button key={track.id} onClick={() => handleTrackSelect(track)}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.04] transition-colors text-left">
-                    <TrackCover src={track.cover_url || null} title={track.title}
-                      className="w-10 h-10 shrink-0" rounded="rounded-lg" objectFit="cover" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-medium text-white/80 truncate">{track.title}</p>
-                      <p className="text-[11px] text-white/35 truncate">{track.artist_name}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-    </>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
