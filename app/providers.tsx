@@ -296,10 +296,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [audioService]);
 
   const mergeQueueWithUpNext = useCallback(
-    (baseTracks: Track[], baseCurrentId: string | null) => {
+    (baseTracks: Track[], baseCurrentId: string | null, overrideUpNext?: Track[]) => {
       const base = Array.isArray(baseTracks) ? baseTracks : [];
-      const up = Array.isArray(upNextTracks) ? upNextTracks : [];
-      if (!upNextEnabled || up.length === 0) {
+      const up = Array.isArray(overrideUpNext) ? overrideUpNext : Array.isArray(upNextTracks) ? upNextTracks : [];
+      const enabled = Array.isArray(overrideUpNext) ? true : upNextEnabled;
+      if (!enabled || up.length === 0) {
         const idx = baseCurrentId ? base.findIndex((t) => t?._id === baseCurrentId) : -1;
         return { tracks: base, currentIndex: idx >= 0 ? idx : 0 };
       }
@@ -350,6 +351,23 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     [audioService.actions],
   );
 
+  const applyQueueWithUpNextList = useCallback(
+    (nextUpNext: Track[]) => {
+      applyingUpNextRef.current = true;
+      try {
+        const currentId =
+          ((audioService.state.currentTrack as any)?._id as string | undefined) ||
+          audioState.tracks[audioState.currentTrackIndex]?._id ||
+          null;
+        const merged = mergeQueueWithUpNext(audioState.tracks, currentId, nextUpNext);
+        rawSetQueueOnly(merged.tracks, merged.currentIndex);
+      } finally {
+        applyingUpNextRef.current = false;
+      }
+    },
+    [audioService.state.currentTrack, audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly],
+  );
+
   // Public queue setters: inject upNext (if enabled) without being overwritten by feed changes
   const setQueueOnly = useCallback(
     (tracks: Track[], startIndex: number = 0) => {
@@ -397,89 +415,60 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const addToUpNext = useCallback(
     (track: Track, mode: 'next' | 'end' = 'end') => {
       if (!track?._id) return;
-      setUpNextTracks((prev) => {
-        const list = Array.isArray(prev) ? prev : [];
-        const without = list.filter((t) => t?._id !== track._id);
-        return mode === 'next' ? [track, ...without] : [...without, track];
-      });
+      const list = Array.isArray(upNextTracks) ? upNextTracks : [];
+      const without = list.filter((t) => t?._id !== track._id);
+      const nextList = mode === 'next' ? [track, ...without] : [...without, track];
+      setUpNextTracks(nextList);
 
       // Auto-enable when adding a track
       if (!upNextEnabled) {
         setUpNextEnabled(true);
       }
 
-      // Re-apply merge so the queue updates immediately
-      applyingUpNextRef.current = true;
-      try {
-        const currentId =
-          ((audioService.state.currentTrack as any)?._id as string | undefined) ||
-          audioState.tracks[audioState.currentTrackIndex]?._id ||
-          null;
-        const merged = mergeQueueWithUpNext(audioState.tracks, currentId);
-        rawSetQueueOnly(merged.tracks, merged.currentIndex);
-      } finally {
-        applyingUpNextRef.current = false;
-      }
+      // Re-apply merge with the fresh list so audio and UI update immediately.
+      applyQueueWithUpNextList(nextList);
     },
-    [audioService.state.currentTrack, audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly, upNextEnabled],
+    [applyQueueWithUpNextList, upNextEnabled, upNextTracks],
   );
 
   const reorderUpNext = useCallback((tracks: Track[]) => {
-    setUpNextTracks(Array.isArray(tracks) ? tracks : []);
-  }, []);
+    const nextList = Array.isArray(tracks) ? tracks : [];
+    setUpNextTracks(nextList);
+    if (upNextEnabled) applyQueueWithUpNextList(nextList);
+  }, [applyQueueWithUpNextList, upNextEnabled]);
 
   const moveUpNext = useCallback((trackId: string, direction: 'up' | 'down') => {
     if (!trackId) return;
-    setUpNextTracks((prev) => {
-      const list = Array.isArray(prev) ? [...prev] : [];
+      const list = Array.isArray(upNextTracks) ? [...upNextTracks] : [];
       const i = list.findIndex((t) => t?._id === trackId);
-      if (i === -1) return list;
+      if (i === -1) return;
       const j = direction === 'up' ? i - 1 : i + 1;
-      if (j < 0 || j >= list.length) return list;
+      if (j < 0 || j >= list.length) return;
       const tmp = list[i];
       list[i] = list[j];
       list[j] = tmp;
-      return list;
-    });
-  }, []);
+      setUpNextTracks(list);
+      if (upNextEnabled) applyQueueWithUpNextList(list);
+  }, [applyQueueWithUpNextList, upNextEnabled, upNextTracks]);
 
   const removeFromUpNext = useCallback(
     (trackId: string) => {
       if (!trackId) return;
-      setUpNextTracks((prev) => (Array.isArray(prev) ? prev.filter((t) => t?._id !== trackId) : []));
+      const nextList = (Array.isArray(upNextTracks) ? upNextTracks : []).filter((t) => t?._id !== trackId);
+      setUpNextTracks(nextList);
       if (upNextEnabled) {
-        applyingUpNextRef.current = true;
-        try {
-          const currentId =
-            ((audioService.state.currentTrack as any)?._id as string | undefined) ||
-            audioState.tracks[audioState.currentTrackIndex]?._id ||
-            null;
-          const merged = mergeQueueWithUpNext(audioState.tracks, currentId);
-          rawSetQueueOnly(merged.tracks, merged.currentIndex);
-        } finally {
-          applyingUpNextRef.current = false;
-        }
+        applyQueueWithUpNextList(nextList);
       }
     },
-    [audioService.state.currentTrack, audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly, upNextEnabled],
+    [applyQueueWithUpNextList, upNextEnabled, upNextTracks],
   );
 
   const clearUpNext = useCallback(() => {
     setUpNextTracks([]);
     if (upNextEnabled) {
-      applyingUpNextRef.current = true;
-      try {
-        const currentId =
-          ((audioService.state.currentTrack as any)?._id as string | undefined) ||
-          audioState.tracks[audioState.currentTrackIndex]?._id ||
-          null;
-        const merged = mergeQueueWithUpNext(audioState.tracks, currentId);
-        rawSetQueueOnly(merged.tracks, merged.currentIndex);
-      } finally {
-        applyingUpNextRef.current = false;
-      }
+      applyQueueWithUpNextList([]);
     }
-  }, [audioService.state.currentTrack, audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly, upNextEnabled]);
+  }, [applyQueueWithUpNextList, upNextEnabled]);
 
   const toggleUpNextEnabled = useCallback(() => {
     setUpNextEnabled((prev) => {

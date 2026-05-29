@@ -1,10 +1,23 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, GripVertical, ListMusic, Play, Plus, Save, Trash2, X, Music2 } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  Clock3,
+  GripVertical,
+  ListMusic,
+  Pause,
+  Play,
+  Plus,
+  Save,
+  Sparkles,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { notify } from '@/components/NotificationCenter';
 import { useAudioPlayer } from '@/app/providers';
-import { UModal, UButton } from '@/components/ui/UnifiedUI';
+import { UModal } from '@/components/ui/UnifiedUI';
 import TrackCover from '@/components/TrackCover';
 
 type Props = {
@@ -12,304 +25,422 @@ type Props = {
   onClose: () => void;
 };
 
-export default function QueueDialog({ isOpen, onClose }: Props) {
-  const { audioState, playTrack, setTracks, upNextEnabled, upNextTracks, toggleUpNextEnabled, removeFromUpNext, clearUpNext, addToUpNext, reorderUpNext, moveUpNext } =
-    useAudioPlayer();
+type QueueTrackRowProps = {
+  track: any;
+  index: number;
+  draggable?: boolean;
+  isPlaying?: boolean;
+  onPlay: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  onRemove?: () => void;
+  removeIcon?: 'trash' | 'plus';
+  onDragStart?: () => void;
+  onDrop?: () => void;
+};
 
-  const { current } = useMemo(() => {
-    const idx = Math.max(0, audioState.currentTrackIndex || 0);
-    const tracks = Array.isArray(audioState.tracks) ? audioState.tracks : [];
-    const current = tracks[idx] || null;
-    return { current };
-  }, [audioState.currentTrackIndex, audioState.tracks]);
+function formatDuration(seconds?: number) {
+  const value = Number(seconds || 0);
+  if (!Number.isFinite(value) || value <= 0) return '';
+  const mins = Math.floor(value / 60);
+  const secs = Math.floor(value % 60);
+  return `${mins}:${String(secs).padStart(2, '0')}`;
+}
+
+function formatTotal(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '';
+  const mins = Math.round(seconds / 60);
+  if (mins < 60) return `${mins} min`;
+  return `${Math.floor(mins / 60)}h${String(mins % 60).padStart(2, '0')}`;
+}
+
+function artistName(track: any) {
+  return track?.artist?.name || track?.artist?.username || 'Artiste';
+}
+
+function QueueTrackRow({
+  track,
+  index,
+  draggable,
+  isPlaying,
+  onPlay,
+  onMoveUp,
+  onMoveDown,
+  onRemove,
+  removeIcon = 'trash',
+  onDragStart,
+  onDrop,
+}: QueueTrackRowProps) {
+  return (
+    <div
+      className={`group flex items-center gap-3 rounded-[1.2rem] border p-2.5 transition ${
+        isPlaying
+          ? 'border-[#ff6f61]/30 bg-[#ff6f61]/10'
+          : 'border-black/[0.06] bg-white/72 hover:bg-white'
+      }`}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={onDrop}
+    >
+      <div className="hidden w-6 shrink-0 cursor-grab justify-center text-black/24 group-hover:text-black/42 sm:flex">
+        {draggable ? <GripVertical className="h-4 w-4" /> : <span className="text-xs font-black tabular-nums">{index + 1}</span>}
+      </div>
+      <button type="button" onClick={onPlay} className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[1rem] bg-black/[0.06]">
+        <TrackCover src={track.coverUrl} title={track.title} className="h-full w-full" rounded="rounded-none" objectFit="cover" />
+        <span className="absolute inset-0 grid place-items-center bg-black/24 text-white opacity-0 transition group-hover:opacity-100">
+          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
+        </span>
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-black text-[#171313]">{track.title || 'Titre'}</p>
+        <p className="truncate text-xs font-bold text-black/42">{artistName(track)}</p>
+      </div>
+      {formatDuration(track.duration) ? (
+        <span className="hidden shrink-0 text-xs font-black tabular-nums text-black/30 sm:inline">{formatDuration(track.duration)}</span>
+      ) : null}
+      <div className="flex shrink-0 items-center gap-1">
+        {onMoveUp ? (
+          <button type="button" onClick={onMoveUp} className="grid h-8 w-8 place-items-center rounded-full bg-black/[0.04] text-black/42 transition hover:bg-black/[0.08]">
+            <ArrowUp className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+        {onMoveDown ? (
+          <button type="button" onClick={onMoveDown} className="grid h-8 w-8 place-items-center rounded-full bg-black/[0.04] text-black/42 transition hover:bg-black/[0.08]">
+            <ArrowDown className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+        {onRemove ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            className={`grid h-8 w-8 place-items-center rounded-full transition ${
+              removeIcon === 'plus'
+                ? 'bg-[#171313] text-white hover:opacity-90'
+                : 'bg-red-500/10 text-red-600 hover:bg-red-500/16'
+            }`}
+          >
+            {removeIcon === 'plus' ? <Plus className="h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export default function QueueDialog({ isOpen, onClose }: Props) {
+  const {
+    audioState,
+    playTrack,
+    setTracks,
+    upNextEnabled,
+    upNextTracks,
+    toggleUpNextEnabled,
+    removeFromUpNext,
+    clearUpNext,
+    addToUpNext,
+    reorderUpNext,
+    moveUpNext,
+  } = useAudioPlayer();
 
   const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [loadingSug, setLoadingSug] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const totalDuration = useMemo(() => {
-    const secs = upNextTracks.reduce((sum, t: any) => sum + (t?.duration || 0), 0);
-    const mins = Math.floor(secs / 60);
-    return mins > 0 ? `${mins} min` : '';
+  const current = useMemo(() => {
+    const tracks = Array.isArray(audioState.tracks) ? audioState.tracks : [];
+    return tracks[Math.max(0, audioState.currentTrackIndex || 0)] || null;
+  }, [audioState.currentTrackIndex, audioState.tracks]);
+
+  const queueMeta = useMemo(() => {
+    const totalSeconds = upNextTracks.reduce((sum: number, track: any) => sum + Number(track?.duration || 0), 0);
+    return {
+      total: upNextTracks.length,
+      duration: formatTotal(totalSeconds),
+    };
   }, [upNextTracks]);
+
+  const upcomingFromMainQueue = useMemo(() => {
+    const tracks = Array.isArray(audioState.tracks) ? audioState.tracks : [];
+    const start = Math.max(0, (audioState.currentTrackIndex || 0) + 1);
+    const upIds = new Set(upNextTracks.map((track: any) => track?._id).filter(Boolean));
+    return tracks.slice(start).filter((track: any) => track?._id && !upIds.has(track._id)).slice(0, 6);
+  }, [audioState.currentTrackIndex, audioState.tracks, upNextTracks]);
 
   useEffect(() => {
     if (!isOpen) return;
-    if (upNextTracks.length > 0) return;
     let cancelled = false;
     (async () => {
-      setLoadingSug(true);
+      setLoadingSuggestions(true);
       try {
-        const res = await fetch('/api/recommendations/feed?limit=20', { cache: 'no-store' });
+        const res = await fetch('/api/recommendations/feed?limit=24', { cache: 'no-store' });
         const json = await res.json().catch(() => ({}));
         if (cancelled) return;
-        setSuggestions(Array.isArray(json?.tracks) ? json.tracks.filter(Boolean) : []);
+        const existing = new Set([
+          current?._id,
+          ...upNextTracks.map((track: any) => track?._id),
+          ...audioState.tracks.map((track: any) => track?._id),
+        ].filter(Boolean));
+        const next = (Array.isArray(json?.tracks) ? json.tracks : []).filter((track: any) => track?._id && !existing.has(track._id));
+        setSuggestions(next.slice(0, 10));
       } catch {
         if (!cancelled) setSuggestions([]);
       } finally {
-        if (!cancelled) setLoadingSug(false);
+        if (!cancelled) setLoadingSuggestions(false);
       }
     })();
-    return () => { cancelled = true; };
-  }, [isOpen, upNextTracks.length]);
+    return () => {
+      cancelled = true;
+    };
+  }, [audioState.tracks, current?._id, isOpen, upNextTracks]);
 
-  if (typeof document === 'undefined') return null;
-
-  const handlePlayFromQueue = (track: any) => {
-    if (!track) return;
-    const exists = audioState.tracks.some((t: any) => t?._id === track._id);
-    if (!exists) {
-      setTracks([...audioState.tracks, track]);
-    }
-    playTrack(track);
+  const playFromQueue = (track: any) => {
+    if (!track?._id) return;
+    const exists = audioState.tracks.some((item: any) => item?._id === track._id);
+    if (!exists) setTracks([...audioState.tracks, track]);
+    void playTrack(track);
   };
 
   const saveAsPlaylist = async () => {
-    if (!upNextTracks.length) return;
-    const defaultName = `À suivre — ${new Date().toLocaleDateString('fr-FR')}`;
-    const name = window.prompt('Nom du dossier', defaultName);
-    if (!name || !name.trim()) return;
+    if (!upNextTracks.length || saving) return;
+    const defaultName = `File Synaura - ${new Date().toLocaleDateString('fr-FR')}`;
+    const name = window.prompt('Nom de la playlist', defaultName);
+    if (!name?.trim()) return;
     setSaving(true);
     try {
       const res = await fetch('/api/playlists', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), description: 'Enregistré depuis "À suivre"', isPublic: false }),
+        body: JSON.stringify({ name: name.trim(), description: 'Enregistrée depuis la file d’attente Synaura', isPublic: false }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.error || 'Erreur création dossier');
+      if (!res.ok) throw new Error(json?.error || 'Erreur création playlist');
       const playlistId = String((json as any)?._id || '');
-      if (!playlistId) throw new Error('ID dossier invalide');
+      if (!playlistId) throw new Error('Playlist invalide');
 
-      for (const t of upNextTracks) {
-        if (!t?._id) continue;
+      for (const track of upNextTracks) {
+        if (!track?._id) continue;
         await fetch(`/api/playlists/${encodeURIComponent(playlistId)}/tracks`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ trackId: t._id }),
+          body: JSON.stringify({ trackId: track._id }),
         });
       }
-
-      notify.success('OK', 'File enregistrée dans un dossier');
-    } catch (e: any) {
-      notify.error('Erreur', e?.message || 'Erreur');
+      notify.success('OK', 'File enregistrée en playlist');
+    } catch (error: any) {
+      notify.error('Erreur', error?.message || 'Impossible de sauvegarder');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <UModal open={isOpen} onClose={onClose} size="lg" zClass="z-[200]" showClose={false} className="flex flex-col !overflow-hidden !max-h-[85vh]">
-          {/* Header */}
-          <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-3 shrink-0">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-[#fffaf2] text-[#171313] flex items-center justify-center shadow-lg shadow-black/20 shrink-0">
-                <ListMusic className="w-4 h-4 text-[#171313]" />
+    <UModal open={isOpen} onClose={onClose} size="full" zClass="z-[200]" showClose={false} className="!max-h-[90vh] !overflow-hidden">
+      <div className="flex max-h-[90vh] flex-col overflow-hidden bg-[#fffaf2] text-[#171313]">
+        <div className="relative overflow-hidden border-b border-black/[0.08] px-5 py-5 sm:px-6">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_10%,rgba(255,111,97,0.18),transparent_34%),radial-gradient(circle_at_92%_30%,rgba(124,92,255,0.12),transparent_36%)]" />
+          <div className="relative flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[1.2rem] bg-[#171313] text-[#fffaf2] shadow-[0_14px_36px_rgba(23,19,19,0.22)]">
+                <ListMusic className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-sm font-black text-white">File d’attente</h2>
-                <p className="text-[11px] text-white/40">
-                  {upNextTracks.length} titre{upNextTracks.length !== 1 ? 's' : ''}
-                  {totalDuration && ` · ${totalDuration}`}
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-black/36">Système de lecture</p>
+                <h2 className="mt-1 text-2xl font-black tracking-tight">File d’attente</h2>
+                <p className="mt-1 text-sm font-semibold text-black/48">
+                  Décide ce qui passe après, garde le fil principal intact, puis sauvegarde si la sélection est bonne.
                 </p>
               </div>
             </div>
+            <button type="button" onClick={onClose} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-black/[0.06] text-black/54 transition hover:bg-black/[0.1]">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="relative mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[1.1rem] bg-white/80 p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/34">État</p>
+              <p className="mt-1 text-lg font-black">{upNextEnabled ? 'Active' : 'En pause'}</p>
+            </div>
+            <div className="rounded-[1.1rem] bg-white/80 p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/34">À suivre</p>
+              <p className="mt-1 text-lg font-black">{queueMeta.total} titre{queueMeta.total !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="rounded-[1.1rem] bg-white/80 p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/34">Durée</p>
+              <p className="mt-1 text-lg font-black">{queueMeta.duration || '—'}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+          {current ? (
+            <div className="mb-5 rounded-[1.4rem] border border-black/[0.08] bg-white p-3 shadow-[0_16px_44px_rgba(44,33,19,0.06)]">
+              <div className="flex items-center gap-3">
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[1.1rem]">
+                  <TrackCover src={current.coverUrl} title={current.title} className="h-full w-full" rounded="rounded-none" objectFit="cover" />
+                  {audioState.isPlaying ? (
+                    <span className="absolute inset-0 grid place-items-center bg-black/22 text-white">
+                      <Pause className="h-4 w-4" />
+                    </span>
+                  ) : null}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#ff6f61]">En cours</p>
+                  <p className="truncate text-base font-black">{current.title}</p>
+                  <p className="truncate text-xs font-bold text-black/42">{artistName(current)}</p>
+                </div>
+                <button type="button" onClick={() => playFromQueue(current)} className="grid h-10 w-10 place-items-center rounded-full bg-[#171313] text-white">
+                  {audioState.isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
+            <section className="min-w-0">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Priorité</p>
+                  <h3 className="text-xl font-black">À suivre</h3>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleUpNextEnabled}
+                    className={`h-10 rounded-full px-4 text-xs font-black transition ${
+                      upNextEnabled ? 'bg-[#171313] text-white' : 'bg-black/[0.06] text-black/54 hover:bg-black/[0.1]'
+                    }`}
+                  >
+                    {upNextEnabled ? 'File active' : 'Activer la file'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { clearUpNext(); notify.success('OK', 'File vidée'); }}
+                    disabled={!upNextTracks.length}
+                    className="h-10 rounded-full bg-black/[0.06] px-4 text-xs font-black text-black/54 transition hover:bg-black/[0.1] disabled:opacity-40"
+                  >
+                    Vider
+                  </button>
+                </div>
+              </div>
+
+              {upNextTracks.length ? (
+                <div className="space-y-2">
+                  {upNextTracks.map((track: any, index: number) => (
+                    <QueueTrackRow
+                      key={`${track._id}-${index}`}
+                      track={track}
+                      index={index}
+                      draggable
+                      isPlaying={current?._id === track._id}
+                      onPlay={() => playFromQueue(track)}
+                      onMoveUp={() => moveUpNext(track._id, 'up')}
+                      onMoveDown={() => moveUpNext(track._id, 'down')}
+                      onRemove={() => {
+                        removeFromUpNext(track._id);
+                        notify.success('OK', 'Retiré de la file');
+                      }}
+                      onDragStart={() => setDragId(track._id)}
+                      onDrop={() => {
+                        if (!dragId || dragId === track._id) return;
+                        const from = upNextTracks.findIndex((item: any) => item?._id === dragId);
+                        const to = upNextTracks.findIndex((item: any) => item?._id === track._id);
+                        if (from === -1 || to === -1) return;
+                        const next = [...upNextTracks];
+                        const [moved] = next.splice(from, 1);
+                        next.splice(to, 0, moved);
+                        reorderUpNext(next as any);
+                        setDragId(null);
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-[1.4rem] border border-dashed border-black/[0.12] bg-white/60 p-6 text-center">
+                  <Sparkles className="mx-auto h-8 w-8 text-black/22" />
+                  <p className="mt-3 text-base font-black">Aucun titre prioritaire</p>
+                  <p className="mt-1 text-sm font-semibold text-black/42">Ajoute un son pour le jouer juste après le morceau en cours.</p>
+                </div>
+              )}
+            </section>
+
+            <aside className="min-w-0 space-y-5">
+              <section>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Suite naturelle</p>
+                    <h3 className="text-lg font-black">Après la file</h3>
+                  </div>
+                  <Clock3 className="h-5 w-5 text-black/28" />
+                </div>
+                <div className="space-y-2">
+                  {upcomingFromMainQueue.length ? upcomingFromMainQueue.map((track: any, index: number) => (
+                    <QueueTrackRow
+                      key={`${track._id}-main-${index}`}
+                      track={track}
+                      index={index}
+                      onPlay={() => playFromQueue(track)}
+                    />
+                  )) : (
+                    <p className="rounded-[1.2rem] bg-white/70 p-4 text-sm font-semibold text-black/42">La suite naturelle du player est vide.</p>
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Suggestions</p>
+                    <h3 className="text-lg font-black">Ajouter rapidement</h3>
+                  </div>
+                  <Plus className="h-5 w-5 text-black/28" />
+                </div>
+                {loadingSuggestions ? (
+                  <p className="rounded-[1.2rem] bg-white/70 p-4 text-sm font-semibold text-black/42">Chargement des suggestions...</p>
+                ) : suggestions.length ? (
+                  <div className="space-y-2">
+                    {suggestions.slice(0, 6).map((track: any, index: number) => (
+                      <QueueTrackRow
+                        key={`${track._id}-suggestion-${index}`}
+                        track={track}
+                        index={index}
+                        onPlay={() => playFromQueue(track)}
+                        onRemove={() => {
+                          addToUpNext(track as any, 'end');
+                          notify.success('OK', `${track.title || 'Titre'} ajouté`);
+                        }}
+                        removeIcon="plus"
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-[1.2rem] bg-white/70 p-4 text-sm font-semibold text-black/42">Aucune suggestion disponible.</p>
+                )}
+              </section>
+            </aside>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 border-t border-black/[0.08] bg-white/76 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p className="text-xs font-bold text-black/42">La file est sauvegardée sur cet appareil et se synchronise avec le player global.</p>
+          <div className="flex gap-2">
             <button
               type="button"
-              onClick={toggleUpNextEnabled}
-              className={`hidden rounded-full px-3 py-2 text-[11px] font-black transition sm:inline-flex ${
-                upNextEnabled ? 'bg-[#fffaf2] text-[#171313]' : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.1] hover:text-white'
-              }`}
-            >
-              {upNextEnabled ? 'File active' : 'Activer'}
-            </button>
-            <button onClick={onClose} className="w-8 h-8 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] transition flex items-center justify-center" aria-label="Fermer">
-              <X className="w-4 h-4 text-white/60" />
-            </button>
-          </div>
-
-          {/* Now Playing */}
-          {current && (
-            <div className="px-5 py-3 border-b border-white/[0.04] flex items-center gap-3">
-              <div className="relative w-11 h-11 rounded-lg overflow-hidden shrink-0 ring-2 ring-indigo-500/40">
-                <TrackCover
-                  src={current.coverUrl}
-                  title={current.title}
-                  className="w-full h-full"
-                  rounded="rounded-none"
-                  objectFit="cover"
-                />
-                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                  <div className="flex gap-0.5">
-                    <span className="w-0.5 h-3 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
-                    <span className="w-0.5 h-4 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
-                    <span className="w-0.5 h-2.5 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
-                  </div>
-                </div>
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] text-indigo-400 font-semibold uppercase tracking-wider">En cours</p>
-                <p className="text-[13px] font-semibold text-white truncate">{current.title}</p>
-                <p className="text-[11px] text-white/35 truncate">{current.artist?.name || current.artist?.username || ''}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Queue content */}
-          <div className="flex-1 overflow-y-auto min-h-0">
-            {upNextTracks.length > 0 ? (
-              <div className="py-2">
-                <p className="px-5 py-1.5 text-[10px] text-white/25 uppercase tracking-wider font-semibold">
-                  Prochains titres
-                </p>
-                <div className="space-y-0.5">
-                  {upNextTracks.map((t: any, idx: number) => {
-                    const dur = t.duration || 0;
-                    const durStr = dur > 0 ? `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}` : '';
-                    return (
-                      <div
-                        key={t._id}
-                        className="px-3 mx-2 py-2 flex items-center gap-2.5 rounded-lg hover:bg-white/[0.04] transition group"
-                        draggable
-                        onDragStart={() => setDragId(t._id)}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={() => {
-                          if (!dragId || dragId === t._id) return;
-                          const from = upNextTracks.findIndex((x: any) => x?._id === dragId);
-                          const to = upNextTracks.findIndex((x: any) => x?._id === t._id);
-                          if (from === -1 || to === -1) return;
-                          const next = [...upNextTracks];
-                          const [moved] = next.splice(from, 1);
-                          next.splice(to, 0, moved);
-                          reorderUpNext(next as any);
-                          setDragId(null);
-                        }}
-                      >
-                        <div className="w-5 text-center text-[11px] text-white/15 font-semibold tabular-nums shrink-0 cursor-grab active:cursor-grabbing">
-                          <GripVertical className="w-3.5 h-3.5 text-white/15 group-hover:text-white/30 transition mx-auto" />
-                        </div>
-                        <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0 group/cover">
-                          <TrackCover
-                            src={t.coverUrl}
-                            title={t.title}
-                            className="w-full h-full"
-                            rounded="rounded-none"
-                            objectFit="cover"
-                          />
-                          <button
-                            onClick={() => handlePlayFromQueue(t)}
-                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition-opacity"
-                          >
-                            <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />
-                          </button>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[13px] text-white font-medium truncate">{t.title}</p>
-                          <p className="text-[11px] text-white/30 truncate">{t.artist?.name || t.artist?.username || ''}</p>
-                        </div>
-                        {durStr && <span className="text-[10px] text-white/20 tabular-nums shrink-0 hidden sm:block">{durStr}</span>}
-                        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => moveUpNext(t._id, 'up')} className="w-7 h-7 rounded-md hover:bg-white/[0.08] transition flex items-center justify-center" aria-label="Monter">
-                            <ArrowUp className="w-3.5 h-3.5 text-white/40" />
-                          </button>
-                          <button onClick={() => moveUpNext(t._id, 'down')} className="w-7 h-7 rounded-md hover:bg-white/[0.08] transition flex items-center justify-center" aria-label="Descendre">
-                            <ArrowDown className="w-3.5 h-3.5 text-white/40" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              removeFromUpNext(t._id);
-                              notify.success('OK', 'Retiré de la file');
-                            }}
-                            className="w-7 h-7 rounded-md hover:bg-red-500/15 transition flex items-center justify-center"
-                            aria-label="Retirer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-red-400/60" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="py-6 px-5">
-                <div className="text-center py-4">
-                  <Music2 className="w-8 h-8 text-white/10 mx-auto mb-2" />
-                  <p className="text-sm text-white/42">Rien dans “À suivre” pour le moment</p>
-                  <p className="text-[11px] text-white/22 mt-1">Ajoute un son depuis le bouton file, ou choisis une suggestion ci-dessous.</p>
-                </div>
-
-                {(loadingSug || suggestions.length > 0) && (
-                  <div className="mt-4">
-                    <p className="text-[10px] text-white/25 uppercase tracking-wider font-semibold mb-2">Suggestions</p>
-                    {loadingSug ? (
-                      <div className="py-4 text-center text-sm text-white/20">Chargement...</div>
-                    ) : (
-                      <div className="space-y-0.5">
-                        {suggestions.slice(0, 8).map((t: any) => (
-                          <div key={t._id} className="flex items-center gap-2.5 rounded-lg hover:bg-white/[0.04] transition p-2 group">
-                            <TrackCover
-                              src={t.coverUrl}
-                              title={t.title}
-                              className="w-9 h-9 shrink-0"
-                              rounded="rounded-md"
-                              objectFit="cover"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[13px] text-white truncate">{t.title}</p>
-                              <p className="text-[11px] text-white/30 truncate">{t.artist?.name || t.artist?.username || ''}</p>
-                            </div>
-                            <button
-                              onClick={() => {
-                                addToUpNext(t as any, 'end');
-                                notify.success('OK', `${t.title} ajouté`);
-                              }}
-                              className="w-7 h-7 rounded-md bg-white/[0.06] hover:bg-indigo-500/20 transition flex items-center justify-center opacity-0 group-hover:opacity-100"
-                              aria-label="Ajouter"
-                            >
-                              <Plus className="w-3.5 h-3.5 text-white/50" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="px-5 py-3 border-t border-white/[0.06] flex gap-2 shrink-0">
-            <UButton
-              variant="secondary"
-              size="lg"
-              onClick={() => { clearUpNext(); notify.success('OK', 'File vidée'); }}
-              disabled={!upNextTracks.length}
-              className="flex-1"
-            >
-              Vider
-            </UButton>
-            <UButton
-              variant="secondary"
-              size="lg"
               onClick={saveAsPlaylist}
               disabled={!upNextTracks.length || saving}
-              className="flex-1"
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-black/[0.08] bg-[#fffaf2] px-4 text-xs font-black text-black/58 transition hover:bg-white disabled:opacity-40"
             >
-              <Save className="w-3.5 h-3.5" />
-              Sauvegarder
-            </UButton>
-            <UButton
-              variant="primary"
-              size="lg"
-              onClick={onClose}
-              className="flex-1"
-            >
-              OK
-            </UButton>
+              <Save className="h-3.5 w-3.5" />
+              {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+            </button>
+            <button type="button" onClick={onClose} className="h-10 rounded-full bg-[#171313] px-5 text-xs font-black text-white">
+              Terminé
+            </button>
           </div>
+        </div>
+      </div>
     </UModal>
   );
 }

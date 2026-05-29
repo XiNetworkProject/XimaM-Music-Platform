@@ -97,19 +97,19 @@ type FeedMode = 'reco' | 'trending' | 'boost';
 const FEED_LIMIT = 120;
 const BOOSTED_LIMIT = 10;
 const BOOSTED_INTERVAL = 5;
-const PRELOAD_RANGE = 3;
-const AUDIO_PRELOAD_COUNT = 2;
-const INFINITE_SCROLL_THRESHOLD = 6;
-const WHEEL_LOCK_MS = 460;
-const SNAP_SETTLE_MS = 160;
-const SCROLL_GUARD_MS = 560;
+const PRELOAD_RANGE = 6;
+const AUDIO_PRELOAD_COUNT = 4;
+const INFINITE_SCROLL_THRESHOLD = 24;
+const WHEEL_LOCK_MS = 260;
+const SNAP_SETTLE_MS = 90;
+const SCROLL_GUARD_MS = 260;
 const DOUBLE_TAP_MS = 250;
 const AUTOPLAY_DEBOUNCE_MS = 35;
-const GESTURE_COOLDOWN_MS = 380;
+const GESTURE_COOLDOWN_MS = 220;
 const RADIO_POLL_MS = 8_000;
 
 /** Virtual window — only render activeIndex ± RENDER_BUFFER */
-const RENDER_BUFFER = 1;
+const RENDER_BUFFER = 5;
 
 const FEED_MODE_META: Record<FeedMode, { label: string; accent: string; description: string }> = {
   reco: {
@@ -574,12 +574,13 @@ interface ScrollSnapOpts {
   activeIndex: number;
   locked: boolean; // when modals are open
   onNavigate: (index: number, source: string) => void;
+  onPreviewIndex?: (index: number) => void;
   onTogglePlay: () => void;
   onClose: () => void;
 }
 
 function useScrollSnap(opts: ScrollSnapOpts) {
-  const { isOpen, trackCount, activeIndex, locked, onNavigate, onTogglePlay, onClose } = opts;
+  const { isOpen, trackCount, activeIndex, locked, onNavigate, onPreviewIndex, onTogglePlay, onClose } = opts;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -587,6 +588,7 @@ function useScrollSnap(opts: ScrollSnapOpts) {
   const isTouchingRef = useRef(false);
   const programmaticRef = useRef(false);
   const snapTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const previewRafRef = useRef<number | null>(null);
   const lastScrollAt = useRef(0);
 
   const getItemTop = useCallback((idx: number) => {
@@ -681,20 +683,29 @@ function useScrollSnap(opts: ScrollSnapOpts) {
     clearTimeout(snapTimerRef.current);
     snapTimerRef.current = setTimeout(() => {
       const idx = visibleIndex();
-      if (idx !== activeIndex) onNavigate(idx, 'tiktok-player-touch');
+      onNavigate(idx, 'tiktok-player-touch');
     }, SNAP_SETTLE_MS);
-  }, [locked, visibleIndex, activeIndex, onNavigate]);
+  }, [locked, visibleIndex, onNavigate]);
 
   // Scroll (CSS snap backup for non-touch desktop)
   const onScroll = useCallback(() => {
     lastScrollAt.current = Date.now();
-    if (programmaticRef.current || isTouchingRef.current || wheelLockRef.current || locked) return;
+    if (locked) return;
+    if (!programmaticRef.current && !wheelLockRef.current) {
+      if (previewRafRef.current != null) cancelAnimationFrame(previewRafRef.current);
+      previewRafRef.current = requestAnimationFrame(() => {
+        previewRafRef.current = null;
+        const idx = visibleIndex();
+        if (idx !== activeIndex) onPreviewIndex?.(idx);
+      });
+    }
+    if (programmaticRef.current || isTouchingRef.current || wheelLockRef.current) return;
     clearTimeout(snapTimerRef.current);
     snapTimerRef.current = setTimeout(() => {
       const idx = visibleIndex();
       if (idx !== activeIndex) onNavigate(idx, 'tiktok-player-scroll');
-    }, 110);
-  }, [locked, visibleIndex, activeIndex, onNavigate]);
+    }, 60);
+  }, [locked, visibleIndex, activeIndex, onNavigate, onPreviewIndex]);
 
   const onTouchStart = useCallback(() => {
     isTouchingRef.current = true;
@@ -715,7 +726,10 @@ function useScrollSnap(opts: ScrollSnapOpts) {
   }, [activeIndex, isOpen, locked, onNavigate, visibleIndex]);
 
   // Cleanup
-  useEffect(() => () => clearTimeout(snapTimerRef.current), []);
+  useEffect(() => () => {
+    clearTimeout(snapTimerRef.current);
+    if (previewRafRef.current != null) cancelAnimationFrame(previewRafRef.current);
+  }, []);
 
   return {
     containerRef,
@@ -2326,6 +2340,11 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     if (bootingRef.current) return;
     const t = tracks[i];
     if (!t?._id) return;
+    if (currentId === t._id) {
+      dispatch({ type: 'SET_INDEX', index: i });
+      setCurrentTrackIndex(i);
+      return;
+    }
     lastGesturePlayAtRef.current = Date.now();
     suppressAutoplayRef.current = true;
     dispatch({ type: 'SET_INDEX', index: i });
@@ -2337,7 +2356,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     } finally {
       requestAnimationFrame(() => { suppressAutoplayRef.current = false; });
     }
-  }, [playTrack, setCurrentTrackIndex, tracks]);
+  }, [currentId, playTrack, setCurrentTrackIndex, tracks]);
 
   /* ── Scroll snap ── */
   const scrollSnap = useScrollSnap({
@@ -2346,6 +2365,10 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     activeIndex,
     locked: modalsOpen,
     onNavigate: playIndexFromGesture,
+    onPreviewIndex: useCallback((index: number) => {
+      if (bootingRef.current) return;
+      dispatch({ type: 'SET_INDEX', index });
+    }, []),
     onTogglePlay: useCallback(() => { audioState.isPlaying ? pause() : play(); }, [audioState.isPlaying, pause, play]),
     onClose: useCallback(() => {
       if (prevQueueRef.current && !changedTrackRef.current) {
@@ -2544,6 +2567,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   /* ── Auto-play on index change ── */
   useEffect(() => {
     if (!isOpen || suppressAutoplayRef.current || bootingRef.current) return;
+    if (scrollSnap.isTouchingRef.current) return;
     if (Date.now() - lastGesturePlayAtRef.current < GESTURE_COOLDOWN_MS) return;
     const t = tracks[activeIndex];
     if (!t?._id || currentId === t._id) return;
