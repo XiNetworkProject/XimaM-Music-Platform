@@ -116,6 +116,8 @@ export const useAudioService = () => {
   const pendingAfterAdRef = useRef<Track | null>(null);
   const tracksSinceLastAdRef = useRef<number>(0);
   const lastAudioAdAtRef = useRef<number>(0);
+  const audioPreloadLinksRef = useRef<HTMLLinkElement[]>([]);
+  const hasWarmedAllTracksRef = useRef(false);
 
   function isAdTrack(t: Track | null | undefined) {
     const id = t?._id ? String(t._id) : '';
@@ -1231,6 +1233,72 @@ export const useAudioService = () => {
     );
   }, [allTracks, queue, readRecentlyPlayed, recommendations]);
 
+  const warmNextAudioSources = useCallback((candidates: Track[]) => {
+    if (typeof document === 'undefined') return;
+    audioPreloadLinksRef.current.forEach((link) => link.parentNode?.removeChild(link));
+    audioPreloadLinksRef.current = [];
+
+    const seen = new Set<string>();
+    const urls = candidates
+      .filter((track) => track?._id && track?.audioUrl && !isDeadMediaHost(track.audioUrl, track.createdAt))
+      .map((track) => getCdnUrl(track.audioUrl) || track.audioUrl)
+      .filter((url) => {
+        if (!url || seen.has(url)) return false;
+        seen.add(url);
+        return !url.toLowerCase().endsWith('.m3u8') && !/\/listen\//i.test(url);
+      })
+      .slice(0, 4);
+
+    for (const href of urls) {
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'audio';
+      link.href = href;
+      link.crossOrigin = 'anonymous';
+      link.setAttribute('data-synaura-audio-preload', '1');
+      document.head.appendChild(link);
+      audioPreloadLinksRef.current.push(link);
+    }
+  }, [isDeadMediaHost]);
+
+  useEffect(() => {
+    if (!state.currentTrack) return;
+    const candidates: Track[] = [];
+    if (upNextEnabled && upNextQueue.length) candidates.push(...upNextQueue.slice(0, 3));
+
+    const effectiveQueue = shuffle && shuffledQueue.length ? shuffledQueue : queue;
+    const currentId = state.currentTrack._id;
+    const queueIndex = currentId ? effectiveQueue.findIndex((track) => track?._id === currentId) : -1;
+    if (queueIndex >= 0) candidates.push(...effectiveQueue.slice(queueIndex + 1, queueIndex + 5));
+
+    const continuation = pickContinuationTrack(state.currentTrack);
+    if (continuation) candidates.push(continuation as any);
+
+    warmNextAudioSources(candidates);
+  }, [
+    pickContinuationTrack,
+    queue,
+    shuffle,
+    shuffledQueue,
+    state.currentTrack,
+    upNextEnabled,
+    upNextQueue,
+    warmNextAudioSources,
+  ]);
+
+  useEffect(() => () => {
+    audioPreloadLinksRef.current.forEach((link) => link.parentNode?.removeChild(link));
+    audioPreloadLinksRef.current = [];
+  }, []);
+
+  useEffect(() => {
+    if (!state.isPlaying || allTracks.length > 0 || hasWarmedAllTracksRef.current) return;
+    hasWarmedAllTracksRef.current = true;
+    loadAllTracks().catch(() => {
+      hasWarmedAllTracksRef.current = false;
+    });
+  }, [allTracks.length, loadAllTracks, state.isPlaying]);
+
   const nextTrack = useCallback(() => {
     const currentQueue = shuffle ? shuffledQueue : queue;
     
@@ -1743,6 +1811,7 @@ export const useAudioService = () => {
     const watchdogInterval = setInterval(() => {
       const audio = audioRef.current;
       if (!audio || !state.currentTrack) return;
+      const isHidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
       
       // Vérifier si l'audio devrait jouer mais ne joue pas
       if (state.isPlaying && audio.paused && !state.isLoading && !audio.ended) {
@@ -1769,7 +1838,7 @@ export const useAudioService = () => {
       }
       
       // Vérifier si l'audio est bloqué (timeupdate ne progresse plus)
-      if (state.isPlaying && !audio.paused && state.currentTime > 0) {
+      if (!isHidden && state.isPlaying && !audio.paused && state.currentTime > 0) {
         const lastTime = (audio as any)._lastWatchdogTime || 0;
         if (lastTime === audio.currentTime && audio.currentTime < audio.duration - 1) {
           console.warn('⚠️ Watchdog: Audio bloqué (time ne progresse plus). Reset...');
