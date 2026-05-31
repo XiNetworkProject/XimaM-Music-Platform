@@ -39,7 +39,7 @@ interface PreloadedData {
 }
 
 const CACHE_DURATION = 5 * 60 * 1000;
-const CACHE_KEY = 'xima_preload_cache';
+const CACHE_KEY = 'xima_preload_cache_v2';
 
 interface CacheEntry {
   data: PreloadedData;
@@ -311,18 +311,6 @@ export function useAppPreload() {
 
       // Précharger les premières pistes audio CDN pour le player TikTok (en arrière-plan)
       preloaded.preloadedAudios = audioUrls;
-      
-      // Ajouter les link preload pour les audios aussi
-      if (typeof document !== 'undefined') {
-        audioUrls.forEach(url => {
-          const link = document.createElement('link');
-          link.rel = 'preload';
-          link.as = 'audio';
-          link.href = url;
-          link.crossOrigin = 'anonymous';
-          document.head.appendChild(link);
-        });
-      }
       
       // Précharger les métadonnées audio pour réchauffer le cache CDN
       Promise.allSettled(

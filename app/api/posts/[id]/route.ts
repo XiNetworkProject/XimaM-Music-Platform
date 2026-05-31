@@ -23,6 +23,18 @@ type EnrichedPost = {
   isLiked: boolean;
 };
 
+function readTrackData(value: any): Record<string, any> {
+  if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string') return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 async function loadTrack(trackId?: string | null) {
   if (!trackId) return null;
 
@@ -38,6 +50,7 @@ async function loadTrack(trackId?: string | null) {
   }
 
   if (!t) return null;
+  const data = readTrackData((t as any).data);
 
   const artistName = (t as any).artist_name
     || (t as any).creator_name
@@ -48,8 +61,8 @@ async function loadTrack(trackId?: string | null) {
     title: (t as any).title,
     artist_name: artistName,
     cover_url: (t as any).cover_url,
-    cover_video_url: (t as any).cover_video_url || (t as any).data?.cover_video_url || null,
-    cover_video_poster_url: (t as any).cover_video_poster_url || (t as any).data?.cover_video_poster_url || null,
+    cover_video_url: (t as any).cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
+    cover_video_poster_url: (t as any).cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || null,
     audio_url: (t as any).audio_url,
     duration: (t as any).duration,
   };

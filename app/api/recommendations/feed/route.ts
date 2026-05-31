@@ -41,8 +41,21 @@ function profileOf(row: any) {
   return Array.isArray(row?.profiles) ? row.profiles[0] : row?.profiles;
 }
 
+function readTrackData(value: any): Record<string, any> {
+  if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string') return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function formatTrack(track: any, rankingScore: number): RecommendedTrack {
   const profile = profileOf(track);
+  const data = readTrackData(track.data);
   return {
     _id: String(track.id),
     title: track.title,
@@ -56,8 +69,8 @@ function formatTrack(track: any, rankingScore: number): RecommendedTrack {
     },
     duration: track.duration || 0,
     coverUrl: track.cover_url,
-    coverVideoUrl: track.cover_video_url || track.data?.cover_video_url || null,
-    coverVideoPosterUrl: track.cover_video_poster_url || track.data?.cover_video_poster_url || null,
+    coverVideoUrl: track.cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
+    coverVideoPosterUrl: track.cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || null,
     audioUrl: track.audio_url,
     album: track.album || null,
     genre: track.genre || [],
@@ -150,16 +163,17 @@ async function loadPostCandidates(limit: number, userId: string | null) {
       .in('id', Array.from(new Set(trackIds)));
     for (const track of tracks || []) {
       const profile = profileOf(track);
+      const data = readTrackData(track.data);
       trackMap.set(String(track.id), {
         id: track.id,
         title: track.title,
         creator_id: track.creator_id,
         artist_name: profile?.name || profile?.username || 'Artiste',
         cover_url: track.cover_url,
-        coverVideoUrl: track.cover_video_url || track.data?.cover_video_url || null,
-        cover_video_url: track.cover_video_url || track.data?.cover_video_url || null,
-        coverVideoPosterUrl: track.cover_video_poster_url || track.data?.cover_video_poster_url || null,
-        cover_video_poster_url: track.cover_video_poster_url || track.data?.cover_video_poster_url || null,
+        coverVideoUrl: track.cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
+        cover_video_url: track.cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
+        coverVideoPosterUrl: track.cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || null,
+        cover_video_poster_url: track.cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || null,
         audio_url: track.audio_url,
         duration: track.duration || 0,
         genre: track.genre || [],

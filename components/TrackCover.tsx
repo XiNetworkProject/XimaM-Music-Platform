@@ -21,11 +21,50 @@ function getGradient(seed?: string): [string, string] {
   return FALLBACK_GRADIENTS[Math.abs(hash) % FALLBACK_GRADIENTS.length]!;
 }
 
+function normalizeVideoUrl(url?: string | null): string | null {
+  if (!url) return null;
+  return url;
+}
+
+function toCloudinaryVideoUrl(url?: string | null): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes('b-cdn.net') && parsed.pathname.includes('/video/upload/')) {
+      return `https://res.cloudinary.com${parsed.pathname}${parsed.search || ''}`;
+    }
+  } catch {
+    return url;
+  }
+  return null;
+}
+
+function inferVideoUrlFromPoster(url?: string | null): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (!parsed.pathname.includes('/video/upload/') || !parsed.pathname.includes('f_jpg')) {
+      return null;
+    }
+
+    const path = parsed.pathname
+      .replace('/video/upload/so_0,f_jpg/', '/video/upload/f_mp4,q_auto/')
+      .replace('/video/upload/f_jpg,so_0/', '/video/upload/f_mp4,q_auto/')
+      .replace(/\.(jpg|jpeg|png|webp)$/i, '.mp4');
+
+    return `${parsed.origin}${path}${parsed.search || ''}`;
+  } catch {
+    return null;
+  }
+}
+
 interface TrackCoverProps {
+  trackId?: string | null;
   src?: string | null;
   videoSrc?: string | null;
   posterSrc?: string | null;
   autoPlayVideo?: boolean;
+  pauseWhenInactive?: boolean;
   playOnHover?: boolean;
   alt?: string;
   title?: string;
@@ -36,11 +75,32 @@ interface TrackCoverProps {
   objectFit?: 'cover' | 'contain';
 }
 
+type ActiveTrackMedia = {
+  id?: string | null;
+  isPlaying?: boolean;
+  coverUrl?: string | null;
+  coverVideoUrl?: string | null;
+  coverVideoPosterUrl?: string | null;
+};
+
+function sameMedia(a?: string | null, b?: string | null) {
+  if (!a || !b) return false;
+  const variants = (value: string) => {
+    const normalized = normalizeVideoUrl(value);
+    const cloudinary = toCloudinaryVideoUrl(normalized);
+    return [value, normalized, cloudinary].filter(Boolean) as string[];
+  };
+  const aVariants = new Set(variants(a));
+  return variants(b).some((value) => aVariants.has(value));
+}
+
 export default function TrackCover({
+  trackId,
   src,
   videoSrc,
   posterSrc,
   autoPlayVideo = false,
+  pauseWhenInactive = true,
   playOnHover = true,
   alt,
   title,
@@ -52,16 +112,47 @@ export default function TrackCover({
 }: TrackCoverProps) {
   const [errored, setErrored] = useState(false);
   const [videoErrored, setVideoErrored] = useState(false);
+  const [useVideoFallback, setUseVideoFallback] = useState(false);
+  const [activeMedia, setActiveMedia] = useState<ActiveTrackMedia | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [from, to] = getGradient(title);
   const imageSrc = src || posterSrc || null;
-  const showVideo = Boolean(videoSrc && !videoErrored);
+  const primaryVideoSrc = normalizeVideoUrl(videoSrc) || inferVideoUrlFromPoster(posterSrc || src);
+  const fallbackVideoSrc = toCloudinaryVideoUrl(primaryVideoSrc);
+  const activeVideoSrc = useVideoFallback && fallbackVideoSrc ? fallbackVideoSrc : primaryVideoSrc;
+  const showVideo = Boolean(activeVideoSrc && !videoErrored);
+  const isActiveTrackVideo = Boolean(
+    activeMedia?.isPlaying &&
+    (trackId
+      ? activeMedia.id && String(trackId) === String(activeMedia.id)
+      : (
+        sameMedia(activeVideoSrc, activeMedia.coverVideoUrl) ||
+        sameMedia(activeVideoSrc, activeMedia.coverVideoPosterUrl) ||
+        sameMedia(imageSrc, activeMedia.coverUrl) ||
+        sameMedia(imageSrc, activeMedia.coverVideoPosterUrl)
+      ))
+  );
+  const shouldPlayVideo = autoPlayVideo || isActiveTrackVideo;
   const showPlaceholder = !showVideo && (!imageSrc || errored);
   const letter = (title || alt || '?')[0]?.toUpperCase() ?? '♪';
 
   useEffect(() => {
     setVideoErrored(false);
-  }, [videoSrc]);
+    setUseVideoFallback(false);
+  }, [primaryVideoSrc]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const readCurrent = () => {
+      setActiveMedia(((window as any).__synauraActiveTrackMedia || null) as ActiveTrackMedia | null);
+    };
+    readCurrent();
+    const onActiveTrackMedia = (event: Event) => {
+      setActiveMedia(((event as CustomEvent<ActiveTrackMedia>).detail || null) as ActiveTrackMedia | null);
+    };
+    window.addEventListener('synaura:active-track-media', onActiveTrackMedia);
+    return () => window.removeEventListener('synaura:active-track-media', onActiveTrackMedia);
+  }, []);
 
   const playVideo = useCallback(() => {
     const video = videoRef.current;
@@ -69,14 +160,15 @@ export default function TrackCover({
     video.muted = true;
     video.loop = true;
     video.playsInline = true;
+    if (video.readyState === 0) video.load();
     video.play().catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!showVideo) return;
-    if (autoPlayVideo) playVideo();
-    else videoRef.current?.pause();
-  }, [showVideo, autoPlayVideo, videoSrc, playVideo]);
+    if (shouldPlayVideo) playVideo();
+    else if (pauseWhenInactive) videoRef.current?.pause();
+  }, [showVideo, shouldPlayVideo, pauseWhenInactive, activeVideoSrc, playVideo]);
 
   if (showPlaceholder) {
     return (
@@ -107,7 +199,7 @@ export default function TrackCover({
     return (
       <video
         ref={videoRef}
-        src={videoSrc!}
+        src={activeVideoSrc!}
         poster={posterSrc || src || undefined}
         className={`${rounded} ${className}`}
         style={{
@@ -119,10 +211,17 @@ export default function TrackCover({
         muted
         loop
         playsInline
-        autoPlay={autoPlayVideo}
-        preload={autoPlayVideo ? 'auto' : 'metadata'}
+        autoPlay={shouldPlayVideo}
+        preload="auto"
         onLoadedMetadata={() => {
-          if (autoPlayVideo) playVideo();
+          if (shouldPlayVideo) playVideo();
+        }}
+        onCanPlay={() => {
+          if (shouldPlayVideo) playVideo();
+        }}
+        onPlaying={() => {
+          const video = videoRef.current;
+          if (video) video.loop = true;
         }}
         onMouseEnter={() => {
           if (playOnHover) playVideo();
@@ -131,9 +230,15 @@ export default function TrackCover({
           if (playOnHover) playVideo();
         }}
         onMouseLeave={() => {
-          if (!autoPlayVideo) videoRef.current?.pause();
+          if (!shouldPlayVideo) videoRef.current?.pause();
         }}
-        onError={() => setVideoErrored(true)}
+        onError={() => {
+          if (!useVideoFallback && fallbackVideoSrc) {
+            setUseVideoFallback(true);
+            return;
+          }
+          setVideoErrored(true);
+        }}
         aria-label={alt || title || 'Cover video'}
       />
     );

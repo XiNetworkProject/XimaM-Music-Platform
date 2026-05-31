@@ -23,30 +23,45 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
+    const readTrackData = (value: any): Record<string, any> => {
+      if (!value) return {};
+      if (typeof value === 'object' && !Array.isArray(value)) return value;
+      if (typeof value !== 'string') return {};
+      try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+      } catch {
+        return {};
+      }
+    };
+
     // Helper pour formatter une piste normale
-    const toNormalTrack = (t: any) => ({
-      _id: t.id,
-      title: t.title,
-      artist: {
-        _id: t.creator_id,
-        username: t.profiles?.username,
-        name: t.profiles?.name,
-        avatar: t.profiles?.avatar,
-        isArtist: t.profiles?.is_artist,
-        artistName: t.profiles?.artist_name,
-      },
-      duration: t.duration || 0,
-      coverUrl: t.cover_url,
-      coverVideoUrl: t.cover_video_url || t.data?.cover_video_url || null,
-      coverVideoPosterUrl: t.cover_video_poster_url || t.data?.cover_video_poster_url || null,
-      audioUrl: t.audio_url,
-      album: t.album || null,
-      genre: Array.isArray(t.genre) ? t.genre : [],
-      likes: [],
-      plays: t.plays || 0,
-      createdAt: t.created_at,
-      isLiked: false,
-    });
+    const toNormalTrack = (t: any) => {
+      const data = readTrackData(t.data);
+      return {
+        _id: t.id,
+        title: t.title,
+        artist: {
+          _id: t.creator_id,
+          username: t.profiles?.username,
+          name: t.profiles?.name,
+          avatar: t.profiles?.avatar,
+          isArtist: t.profiles?.is_artist,
+          artistName: t.profiles?.artist_name,
+        },
+        duration: t.duration || 0,
+        coverUrl: t.cover_url,
+        coverVideoUrl: t.cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
+        coverVideoPosterUrl: t.cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || null,
+        audioUrl: t.audio_url,
+        album: t.album || null,
+        genre: Array.isArray(t.genre) ? t.genre : [],
+        likes: [],
+        plays: t.plays || 0,
+        createdAt: t.created_at,
+        isLiked: false,
+      };
+    };
 
     // Helper pour formatter une piste IA
     const toAiTrack = (t: any) => ({
@@ -287,30 +302,33 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ tracks: [] });
       }
 
-      const formattedTracks = tracks.map((t: any) => ({
-        _id: t.id,
-        title: t.title,
-            artist: {
-          _id: t.creator_id,
-          username: t.profiles?.username || 'Utilisateur',
-          name: t.profiles?.name || t.profiles?.username || 'Utilisateur',
-          avatar: t.profiles?.avatar || '',
-          isArtist: t.profiles?.is_artist || false,
-          artistName: t.profiles?.artist_name || t.profiles?.name || t.profiles?.username || 'Utilisateur'
-        },
-        genre: Array.isArray(t.genre) ? t.genre : [],
-        plays: t.plays || 0,
-        likes: Array.isArray(t.likes) ? t.likes.length : (t.likes || 0),
-        createdAt: t.created_at,
-        coverUrl: t.cover_url,
-        coverVideoUrl: t.cover_video_url || t.data?.cover_video_url || null,
-        coverVideoPosterUrl: t.cover_video_poster_url || t.data?.cover_video_poster_url || null,
-        audioUrl: t.audio_url,
-        album: t.album || null,
-        duration: t.duration || 0,
-        isFeatured: !!t.is_featured,
-        isNew: false,
-      }));
+      const formattedTracks = tracks.map((t: any) => {
+        const data = readTrackData(t.data);
+        return {
+          _id: t.id,
+          title: t.title,
+          artist: {
+            _id: t.creator_id,
+            username: t.profiles?.username || 'Utilisateur',
+            name: t.profiles?.name || t.profiles?.username || 'Utilisateur',
+            avatar: t.profiles?.avatar || '',
+            isArtist: t.profiles?.is_artist || false,
+            artistName: t.profiles?.artist_name || t.profiles?.name || t.profiles?.username || 'Utilisateur'
+          },
+          genre: Array.isArray(t.genre) ? t.genre : [],
+          plays: t.plays || 0,
+          likes: Array.isArray(t.likes) ? t.likes.length : (t.likes || 0),
+          createdAt: t.created_at,
+          coverUrl: t.cover_url,
+          coverVideoUrl: t.cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
+          coverVideoPosterUrl: t.cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || null,
+          audioUrl: t.audio_url,
+          album: t.album || null,
+          duration: t.duration || 0,
+          isFeatured: !!t.is_featured,
+          isNew: false,
+        };
+      });
 
       return NextResponse.json({ tracks: formattedTracks, total: formattedTracks.length, sort: sortKey, category: category || 'all' });
     }

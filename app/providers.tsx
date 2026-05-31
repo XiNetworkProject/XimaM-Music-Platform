@@ -148,6 +148,20 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   // Album context: set when playing from an album page
   const [albumContext, setAlbumContext] = useState<AlbumContext | null>(null);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const currentTrack = audioState.tracks[audioState.currentTrackIndex] as any;
+    const detail = {
+      id: currentTrack?._id || currentTrack?.id || null,
+      isPlaying: Boolean(audioState.isPlaying && currentTrack),
+      coverUrl: currentTrack?.coverUrl || currentTrack?.cover_url || null,
+      coverVideoUrl: currentTrack?.coverVideoUrl || currentTrack?.cover_video_url || null,
+      coverVideoPosterUrl: currentTrack?.coverVideoPosterUrl || currentTrack?.cover_video_poster_url || null,
+    };
+    (window as any).__synauraActiveTrackMedia = detail;
+    window.dispatchEvent(new CustomEvent('synaura:active-track-media', { detail }));
+  }, [audioState.currentTrackIndex, audioState.isPlaying, audioState.tracks]);
+
   // Listen for albumContext events from album page
   useEffect(() => {
     const handler = (e: any) => {

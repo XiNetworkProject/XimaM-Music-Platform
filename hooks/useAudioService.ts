@@ -116,7 +116,6 @@ export const useAudioService = () => {
   const pendingAfterAdRef = useRef<Track | null>(null);
   const tracksSinceLastAdRef = useRef<number>(0);
   const lastAudioAdAtRef = useRef<number>(0);
-  const audioPreloadLinksRef = useRef<HTMLLinkElement[]>([]);
   const hasWarmedAllTracksRef = useRef(false);
 
   function isAdTrack(t: Track | null | undefined) {
@@ -1261,9 +1260,6 @@ export const useAudioService = () => {
 
   const warmNextAudioSources = useCallback((candidates: Track[]) => {
     if (typeof document === 'undefined') return;
-    audioPreloadLinksRef.current.forEach((link) => link.parentNode?.removeChild(link));
-    audioPreloadLinksRef.current = [];
-
     const seen = new Set<string>();
     const urls = candidates
       .filter((track) => track?._id && track?.audioUrl && !isDeadMediaHost(track.audioUrl, track.createdAt))
@@ -1276,14 +1272,10 @@ export const useAudioService = () => {
       .slice(0, 4);
 
     for (const href of urls) {
-      const link = document.createElement('link');
-      link.rel = 'preload';
-      link.as = 'audio';
-      link.href = href;
-      link.crossOrigin = 'anonymous';
-      link.setAttribute('data-synaura-audio-preload', '1');
-      document.head.appendChild(link);
-      audioPreloadLinksRef.current.push(link);
+      const audio = new Audio();
+      audio.preload = 'metadata';
+      audio.crossOrigin = 'anonymous';
+      audio.src = href;
     }
   }, [isDeadMediaHost]);
 
@@ -1311,11 +1303,6 @@ export const useAudioService = () => {
     upNextQueue,
     warmNextAudioSources,
   ]);
-
-  useEffect(() => () => {
-    audioPreloadLinksRef.current.forEach((link) => link.parentNode?.removeChild(link));
-    audioPreloadLinksRef.current = [];
-  }, []);
 
   useEffect(() => {
     if (!state.isPlaying || allTracks.length > 0 || hasWarmedAllTracksRef.current) return;

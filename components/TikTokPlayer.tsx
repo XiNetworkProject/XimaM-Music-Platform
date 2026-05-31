@@ -100,7 +100,6 @@ const FEED_LIMIT = 120;
 const BOOSTED_LIMIT = 10;
 const BOOSTED_INTERVAL = 5;
 const PRELOAD_RANGE = 6;
-const AUDIO_PRELOAD_COUNT = 4;
 const INFINITE_SCROLL_THRESHOLD = 24;
 const WHEEL_LOCK_MS = 260;
 const SNAP_SETTLE_MS = 90;
@@ -525,24 +524,6 @@ function usePreloader(
     }
   }, [activeIndex, isOpen, tracks]);
 
-  // Audio <link rel="preload"> for next tracks
-  useEffect(() => {
-    if (!isOpen || !tracks.length) return;
-    const links: HTMLLinkElement[] = [];
-    const next = tracks.slice(activeIndex + 1, activeIndex + 1 + AUDIO_PRELOAD_COUNT);
-    for (const t of next) {
-      const u = t.audioUrl;
-      if (!u || u.toLowerCase().endsWith('.m3u8') || /\/listen\//i.test(u)) continue;
-      const link = document.createElement('link');
-      link.rel = 'preload';
-      link.as = 'audio';
-      link.href = u;
-      link.crossOrigin = 'anonymous';
-      document.head.appendChild(link);
-      links.push(link);
-    }
-    return () => links.forEach(l => l.parentNode?.removeChild(l));
-  }, [activeIndex, isOpen, tracks]);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1077,6 +1058,7 @@ const TrackSlide = memo(function TrackSlide(props: TrackSlideProps) {
                 />
                 <div className={`relative h-full w-full overflow-hidden rounded-[2rem] ring-1 ring-white/[0.12] shadow-[0_22px_64px_rgba(0,0,0,0.44)] transition-transform duration-300 ${isPlaying ? 'scale-[1.015]' : 'scale-100'}`}>
                   <TrackCover
+                    trackId={t._id}
                     src={cover}
                     videoSrc={videoCover}
                     posterSrc={videoPoster || cover}
@@ -1409,6 +1391,7 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
       <div className="absolute inset-0">
         {cover || videoPoster ? (
           <TrackCover
+            trackId={t._id}
             src={cover}
             videoSrc={videoCover}
             posterSrc={videoPoster || cover}
@@ -1432,6 +1415,7 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
               className="group/cover relative mx-auto block aspect-square w-[min(78vw,520px)] overflow-hidden rounded-[2rem] border border-white/[0.12] bg-white/[0.06] shadow-[0_32px_110px_rgba(0,0,0,0.44)] md:w-[min(54vh,520px)]"
             >
               <TrackCover
+                trackId={t._id}
                 src={cover}
                 videoSrc={videoCover}
                 posterSrc={videoPoster || cover}

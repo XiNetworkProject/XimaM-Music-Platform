@@ -4,6 +4,18 @@ import { authOptions } from '@/lib/authOptions';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import cloudinary from '@/lib/cloudinary';
 
+function readTrackData(value: any): Record<string, any> {
+  if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string') return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -37,14 +49,16 @@ export async function GET(
 
     console.log(`✅ Track trouvée: ${track.title}`);
 
+    const trackData = readTrackData(track.data);
+
     // Formater la réponse pour l'interface
     const formattedTrack = {
       id: track.id,
       title: track.title,
       artist: track.artist_name || track.creator_name || 'Artiste inconnu',
       coverUrl: track.cover_url,
-      coverVideoUrl: track.cover_video_url || track.data?.cover_video_url || null,
-      coverVideoPosterUrl: track.cover_video_poster_url || track.data?.cover_video_poster_url || null,
+      coverVideoUrl: track.cover_video_url || trackData.cover_video_url || trackData.coverVideoUrl || null,
+      coverVideoPosterUrl: track.cover_video_poster_url || trackData.cover_video_poster_url || trackData.coverVideoPosterUrl || null,
       audioUrl: track.audio_url,
       duration: track.duration,
       genre: track.genre || [],

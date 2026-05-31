@@ -13,9 +13,22 @@ function getPostTrackId(post: any) {
   return post?.track_id || String(post?.content || '').match(TRACK_REF_RE)?.[1] || null;
 }
 
+function readTrackData(value: any): Record<string, any> {
+  if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string') return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function normalizeAttachedTrack(track: any) {
   if (!track) return null;
   const profile = Array.isArray(track.profiles) ? track.profiles[0] : track.profiles;
+  const data = readTrackData(track.data);
   return {
     id: track.id,
     _id: track.id,
@@ -25,10 +38,10 @@ function normalizeAttachedTrack(track: any) {
     artist_username: profile?.username || '',
     coverUrl: track.cover_url || null,
     cover_url: track.cover_url || null,
-    coverVideoUrl: track.cover_video_url || track.data?.cover_video_url || null,
-    cover_video_url: track.cover_video_url || track.data?.cover_video_url || null,
-    coverVideoPosterUrl: track.cover_video_poster_url || track.data?.cover_video_poster_url || null,
-    cover_video_poster_url: track.cover_video_poster_url || track.data?.cover_video_poster_url || null,
+    coverVideoUrl: track.cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
+    cover_video_url: track.cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
+    coverVideoPosterUrl: track.cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || null,
+    cover_video_poster_url: track.cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || null,
     audioUrl: track.audio_url || null,
     audio_url: track.audio_url || null,
     duration: track.duration || 0,
