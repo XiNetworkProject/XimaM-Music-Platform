@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { notify } from '@/components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -44,6 +45,15 @@ type LogLine = {
   at: string;
   level: 'info' | 'warn' | 'error';
   msg: string;
+};
+
+type SourceContext = {
+  mode: 'style' | 'remix';
+  id: string;
+  title: string;
+  style: string;
+  audioAttached: boolean;
+  warning?: string;
 };
 
 type TimestampedWord = {
@@ -300,6 +310,8 @@ function ModelDropdownPortal({
 
 export default function AIGenerator() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const sourceParamKey = searchParams?.toString() || '';
   const { quota, loading: quotaLoading } = useAIQuota();
   const { audioState, playTrack, play, pause, seek, nextTrack, previousTrack, setQueueAndPlay } = useAudioPlayer();
   // États pour la bibliothèque des générations (même logique que ai-library)
@@ -361,6 +373,7 @@ export default function AIGenerator() {
   const [remixUploading, setRemixUploading] = useState<boolean>(false);
   const [remixSourceLabel, setRemixSourceLabel] = useState<string | null>(null);
   const [remixSourceTrackId, setRemixSourceTrackId] = useState<string | null>(null);
+  const [sourceContext, setSourceContext] = useState<SourceContext | null>(null);
   const [pendingRemixFile, setPendingRemixFile] = useState<File | null>(null);
   const [remixUploadModalOpen, setRemixUploadModalOpen] = useState(false);
   const [uploadingRemixTitle, setUploadingRemixTitle] = useState<string | null>(null);
@@ -1529,36 +1542,78 @@ export default function AIGenerator() {
   const [negativeTags, setNegativeTags] = useState<string>('');
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const mode = params.get('mode');
-    const sourceTrack = params.get('sourceTrack') || params.get('track');
+    const params = new URLSearchParams(sourceParamKey);
+    const modeParam = params.get('mode');
+    const sourceTrack = params.get('sourceTrack') || params.get('track') || '';
     const sourceTitle = params.get('title') || '';
     const sourceStyle = params.get('style') || '';
-    if (!mode && !sourceTrack && !sourceTitle && !sourceStyle) return;
+    if (!modeParam && !sourceTrack && !sourceTitle && !sourceStyle) return;
 
-    if (mode === 'remix') {
+    let cancelled = false;
+    const titleLabel = sourceTitle || 'ce son';
+    const safeStyle = sourceStyle || 'style proche';
+    const inspirationLine = `Inspiration: ${safeStyle}. Do not copy melodies, create an original track.`;
+
+    const hydrateSource = async () => {
+      if (!sourceTrack) return;
+      const isAiSource = sourceTrack.startsWith('ai-');
+      const endpoint = isAiSource
+        ? `/api/ai/tracks/${encodeURIComponent(sourceTrack.replace(/^ai-/, ''))}`
+        : `/api/tracks/${encodeURIComponent(sourceTrack)}`;
+
+      try {
+        const response = await fetch(endpoint, { cache: 'no-store' });
+        if (!response.ok) throw new Error('source unavailable');
+        const data = await response.json();
+        if (cancelled) return;
+        const audioUrl = data?.audioUrl || data?.audio_url || '';
+        const hydratedTitle = data?.title || sourceTitle;
+        const hydratedStyle = Array.isArray(data?.genre) ? data.genre.filter(Boolean).join(', ') : data?.style || sourceStyle;
+
+        if (hydratedTitle) setRemixSourceLabel(hydratedTitle);
+        if (hydratedStyle) setStyle((current) => current.trim() ? current : `${hydratedStyle}. ${inspirationLine}`);
+        if (modeParam === 'remix' && audioUrl) {
+          setRemixUploadUrl(audioUrl);
+          setRemixSourceDurationSec(Number(data?.duration || 0) || undefined);
+          setSourceContext((current) => current ? { ...current, audioAttached: true, warning: undefined } : current);
+        }
+      } catch {
+        if (!cancelled) {
+          setSourceContext((current) => current ? {
+            ...current,
+            warning: 'Source détectée, mais audio non récupéré automatiquement. Tu peux importer un fichier ou générer dans ce style.',
+          } : current);
+        }
+      }
+    };
+
+    if (modeParam === 'remix') {
       selectGenerationMode('remix');
       if (sourceTrack) setRemixSourceTrackId(sourceTrack);
       if (sourceTitle) setRemixSourceLabel(sourceTitle);
-      setDescription((current) =>
-        current.trim()
-          ? current
-          : `Remixe l'esprit de "${sourceTitle || 'ce son'}" avec une direction Synaura moderne.`,
-      );
+      setTitle((current) => current.trim() ? current : `Remix de ${titleLabel}`.slice(0, 80));
+      setStyle((current) => current.trim() ? current : `${sourceStyle || 'remix moderne Synaura'}. ${inspirationLine}`);
+      setDescription((current) => current.trim() ? current : `Remixe l'esprit de "${titleLabel}" sans copier la mélodie originale.`);
+      setSourceContext({ mode: 'remix', id: sourceTrack, title: titleLabel, style: sourceStyle, audioAttached: false });
+      void hydrateSource();
     } else {
       selectGenerationMode('simple');
-      if (sourceTitle) setTitle(`Dans le style de ${sourceTitle}`.slice(0, 80));
-      if (sourceStyle) setStyle(sourceStyle);
+      setTitle((current) => current.trim() ? current : `Inspiré par ${titleLabel}`.slice(0, 80));
+      if (sourceStyle) setStyle((current) => current.trim() ? current : `${sourceStyle}. ${inspirationLine}`);
       setDescription((current) =>
         current.trim()
           ? current
-          : `Créer un morceau inspiré par ${sourceTitle || 'ce son'}${sourceStyle ? `, ambiance ${sourceStyle}` : ''}.`,
+          : `Créer un morceau original inspiré par ${titleLabel}${sourceStyle ? `, ambiance ${sourceStyle}` : ''}. ${inspirationLine}`,
       );
+      setSourceContext({ mode: 'style', id: sourceTrack, title: titleLabel, style: sourceStyle, audioAttached: false });
     }
+
     setLeftExplorerTab('builder');
     setRightTab('inspector');
-  }, [selectGenerationMode]);
+    return () => {
+      cancelled = true;
+    };
+  }, [selectGenerationMode, sourceParamKey]);
 
   const [styleSuggestions, setStyleSuggestions] = useState<string[]>(['rock','hip hop','electronic','pop','lo-fi','house','afrobeat','ambient']);
   const [vibeSuggestions, setVibeSuggestions] = useState<string[]>(['dramatic builds','catchy beats','emotional','fast guitar','breathy vocals']);
@@ -1920,6 +1975,9 @@ export default function AIGenerator() {
     setRemixSourceDurationSec(undefined);
     setRemixSourceLabel(null);
     setRemixSourceTrackId(null);
+    setSourceContext(null);
+    setGenerationModeKind(style.trim() || title.trim() || description.trim() ? 'custom' : 'simple');
+    setCustomMode(Boolean(style.trim() || title.trim()));
     pushLog('info', 'Source remix désélectionnée');
   };
 
@@ -2603,11 +2661,14 @@ export default function AIGenerator() {
     
     try {
       let prompt = '';
-      if (generationModeKind === 'remix' && !remixUploadUrl) {
+      if (generationModeKind === 'remix' && !remixUploadUrl && !remixSourceTrackId) {
         notify.error('Audio remix requis', 'Ajoute un audio source avant de générer en mode Remix.');
         setIsGenerating(false);
         setGenerationStatus('idle');
         return;
+      }
+      if (generationModeKind === 'remix' && !remixUploadUrl && remixSourceTrackId) {
+        notify.info('Source détectée', 'Audio non récupéré automatiquement : génération lancée comme inspiration de style.');
       }
       
       if (customMode) {
@@ -2683,7 +2744,7 @@ export default function AIGenerator() {
         // Pas de title, style, styleWeight, etc. en mode Simple selon la doc Suno
       }
 
-      console.log('🎵 Requête génération:', { mode: generationModeKind, ...requestBody });
+      if (DEBUG_AI_STUDIO) console.log('🎵 Requête génération:', { mode: generationModeKind, ...requestBody });
 
       // Si un audio remix est fourni, utiliser le flux upload-cover
       const response = await fetch(remixUploadUrl ? '/api/suno/upload-cover' : '/api/suno/generate', {
@@ -3179,6 +3240,31 @@ export default function AIGenerator() {
                 })}
               </div>
               <p className="mt-3 text-xs font-semibold leading-5 text-[#7f7065]">{studioModeCopy}</p>
+              {sourceContext ? (
+                <div className="mt-3 rounded-[1rem] border border-[#7c5cff]/18 bg-white/70 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7c5cff]">
+                        {sourceContext.mode === 'remix' ? 'Remix de' : 'Création inspirée de'}
+                      </p>
+                      <p className="mt-1 truncate text-sm font-black text-[#171313]">{sourceContext.title}</p>
+                      {sourceContext.style ? <p className="mt-0.5 truncate text-xs font-semibold text-black/42">{sourceContext.style}</p> : null}
+                    </div>
+                    <button type="button" onClick={clearRemixSource} className="shrink-0 rounded-full bg-black/[0.06] px-3 py-1 text-[11px] font-black text-black/55 transition hover:bg-black hover:text-white">
+                      Retirer la source
+                    </button>
+                  </div>
+                  {sourceContext.warning ? (
+                    <p className="mt-2 rounded-[0.85rem] bg-[#fff4dc] px-3 py-2 text-xs font-semibold leading-5 text-[#8a5b00]">
+                      {sourceContext.warning}
+                    </p>
+                  ) : sourceContext.mode === 'remix' ? (
+                    <p className="mt-2 text-xs font-semibold text-black/42">
+                      {sourceContext.audioAttached ? 'Audio source attaché automatiquement.' : 'Recherche de la source audio en cours...'}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
             <div className="space-y-4 p-4">

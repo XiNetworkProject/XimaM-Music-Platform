@@ -364,7 +364,7 @@ export const useAudioService = () => {
     };
 
     const handleEnded = () => {
-      console.log('🎵 Événement ended déclenché');
+      if (DEBUG_AUDIO) console.log('🎵 Événement ended déclenché');
       // Important: quand "ended" arrive, l'élément audio est en pause.
       // Si on laisse isPlaying=true, le watchdog peut relancer la même piste en boucle.
       setState(prev => ({ ...prev, isPlaying: false }));
@@ -417,7 +417,7 @@ export const useAudioService = () => {
       
       // Tentative de récupération automatique pour certaines erreurs
       if (shouldRetry && state.currentTrack) {
-        console.log('🔄 Tentative de récupération automatique...');
+        if (DEBUG_AUDIO) console.log('🔄 Tentative de récupération automatique...');
         setTimeout(() => {
           if (audioRef.current && state.currentTrack) {
             // Réinitialiser l'élément audio
@@ -485,11 +485,10 @@ export const useAudioService = () => {
   // Charger automatiquement toutes les pistes disponibles
   const loadAllTracks = useCallback(async () => {
     try {
-      console.log('🎵 Service audio: Chargement de toutes les pistes...');
-      
       // Charger les pistes depuis les mêmes APIs que la page (sans limite)
       const apis = [
         '/api/ranking/feed?limit=200&ai=1&strategy=reco',
+        '/api/recommendations/feed?limit=60',
         '/api/tracks/popular?limit=1000',
         '/api/tracks/trending?limit=1000',
         '/api/tracks/recent?limit=1000',
@@ -502,10 +501,18 @@ export const useAudioService = () => {
           const response = await fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
           if (response.ok) {
             const data = await response.json();
-            return data.tracks || [];
+            const itemTracks = Array.isArray(data.items)
+              ? data.items.map((item: any) => item?.track).filter(Boolean)
+              : [];
+            return [
+              ...(Array.isArray(data.tracks) ? data.tracks : []),
+              ...(Array.isArray(data.dailyMix) ? data.dailyMix : []),
+              ...(Array.isArray(data.weeklyTop) ? data.weeklyTop : []),
+              ...itemTracks,
+            ];
           }
         } catch (error) {
-          console.error('Erreur chargement API:', url, error);
+          if (DEBUG_AUDIO) console.warn('Erreur chargement API audio:', url, error);
         }
         return [];
       });
@@ -516,15 +523,28 @@ export const useAudioService = () => {
       const tracksMap = new Map<string, Track>();
       
       allTracksArrays.forEach(tracks => {
-        tracks.forEach((track: Track) => {
-          if (!tracksMap.has(track._id)) {
-            tracksMap.set(track._id, track);
+        tracks.forEach((track: any) => {
+          const id = track?._id || track?.id;
+          const audioUrl = track?.audioUrl || track?.audio_url;
+          if (!id || !audioUrl) return;
+          const normalized = {
+            ...track,
+            _id: String(id),
+            audioUrl,
+            coverUrl: track.coverUrl || track.cover_url || null,
+            duration: track.duration || 0,
+            likes: Array.isArray(track.likes) ? track.likes : [],
+            comments: Array.isArray(track.comments) ? track.comments : [],
+            plays: track.plays || track.play_count || 0,
+          } as Track;
+          if (!tracksMap.has(normalized._id)) {
+            tracksMap.set(normalized._id, normalized);
           }
         });
       });
       
       const uniqueTracks = Array.from(tracksMap.values());
-      console.log('🎵 Service audio: Pistes uniques chargées:', uniqueTracks.length);
+      if (DEBUG_AUDIO) console.log('🎵 Service audio: Pistes uniques chargées:', uniqueTracks.length);
       
       setAllTracks(uniqueTracks);
       return uniqueTracks;
@@ -737,7 +757,7 @@ export const useAudioService = () => {
     // Marquer cette piste comme en cours de mise à jour
     setTrackedPlays(prev => new Set([...Array.from(prev), trackId]));
     
-    console.log(`🔄 Début incrémentation écoutes pour ${trackId}`);
+    if (DEBUG_AUDIO) console.log(`🔄 Début incrémentation écoutes pour ${trackId}`);
     
     // Utiliser un debounce pour éviter les appels multiples
     const timeoutId = setTimeout(async () => {
@@ -750,20 +770,20 @@ export const useAudioService = () => {
         });
         
         if (!response.ok) {
-          console.error(`❌ Erreur lors de la mise à jour des écoutes pour ${trackId}:`, response.status);
+          if (DEBUG_AUDIO) console.warn(`Erreur lors de la mise à jour des écoutes pour ${trackId}:`, response.status);
         } else {
           const data = await response.json();
-          console.log(`✅ Écoutes mises à jour pour la piste ${trackId}: ${data.plays}`);
+          if (DEBUG_AUDIO) console.log(`✅ Écoutes mises à jour pour la piste ${trackId}: ${data.plays}`);
         }
       } catch (error) {
-        console.error(`❌ Erreur mise à jour plays pour ${trackId}:`, error);
+        if (DEBUG_AUDIO) console.warn(`Erreur mise à jour plays pour ${trackId}:`, error);
       } finally {
         // Retirer la piste du suivi après un délai plus long
         setTimeout(() => {
           setTrackedPlays(prev => {
             const newSet = new Set(prev);
             newSet.delete(trackId);
-            console.log(`🔓 Verrou libéré pour ${trackId}`);
+            if (DEBUG_AUDIO) console.log(`🔓 Verrou libéré pour ${trackId}`);
             return newSet;
           });
         }, 5000); // Attendre 5 secondes avant de permettre une nouvelle mise à jour
@@ -1565,11 +1585,13 @@ export const useAudioService = () => {
 
   // Debug: Afficher l'état des pistes
   useEffect(() => {
-    console.log('📊 État allTracks mis à jour:', {
-      count: allTracks.length,
-      hasTracks: allTracks.length > 0,
-      firstTrack: allTracks[0]?.title || 'Aucune'
-    });
+    if (DEBUG_AUDIO) {
+      console.log('📊 État allTracks mis à jour:', {
+        count: allTracks.length,
+        hasTracks: allTracks.length > 0,
+        firstTrack: allTracks[0]?.title || 'Aucune'
+      });
+    }
   }, [allTracks]);
 
   // Mémoriser l'objet retourné pour éviter les re-rendus inutiles
@@ -1689,9 +1711,7 @@ export const useAudioService = () => {
     if (repeat === 'one') {
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => {
-          console.log('Erreur lors de la répétition de la piste');
-        });
+        audioRef.current.play().catch(() => {});
       }
       return;
     }
@@ -1751,16 +1771,16 @@ export const useAudioService = () => {
     {
       // Auto-play automatique pour toutes les pistes (pas seulement les playlists)
       if (allTracks.length === 0) {
-        console.log('Chargement des pistes pour auto-play...');
+        if (DEBUG_AUDIO) console.log('Chargement des pistes pour auto-play...');
         loadAllTracks().then((loadedTracks) => {
-          console.log('Pistes chargées pour auto-play:', loadedTracks.length);
+          if (DEBUG_AUDIO) console.log('Pistes chargées pour auto-play:', loadedTracks.length);
           // Après chargement, essayer de jouer une piste aléatoire
           if (loadedTracks && loadedTracks.length > 0) {
             const randomTrack = loadedTracks[Math.floor(Math.random() * loadedTracks.length)];
-            console.log('Auto-play: Piste aléatoire sélectionnée:', randomTrack.title);
+            if (DEBUG_AUDIO) console.log('Auto-play: Piste aléatoire sélectionnée:', randomTrack.title);
             if (!maybePlayAudioAdThen(randomTrack)) playImmediate(randomTrack);
           } else {
-            console.log('Aucune piste disponible après chargement');
+            if (DEBUG_AUDIO) console.log('Aucune piste disponible après chargement');
             setState(prev => ({ ...prev, isPlaying: false }));
           }
         }).catch((error) => {
@@ -1774,13 +1794,13 @@ export const useAudioService = () => {
       
       if (autoPlayNextTrack) {
         // Charger et jouer la nouvelle piste
-        console.log('🎵 Auto-play de la piste suivante:', autoPlayNextTrack.title);
+        if (DEBUG_AUDIO) console.log('🎵 Auto-play de la piste suivante:', autoPlayNextTrack.title);
         writeRecentlyPlayed(autoPlayNextTrack._id);
         if (!maybePlayAudioAdThen(autoPlayNextTrack as any)) playImmediate(autoPlayNextTrack as any);
         setCurrentIndex(allTracks.findIndex(track => track._id === autoPlayNextTrack!._id));
       } else {
         // Aucune piste disponible, arrêter la lecture
-        console.log('Aucune piste disponible pour auto-play');
+        if (DEBUG_AUDIO) console.log('Aucune piste disponible pour auto-play');
         setState(prev => ({ ...prev, isPlaying: false }));
       }
     }

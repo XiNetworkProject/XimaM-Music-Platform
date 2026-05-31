@@ -44,6 +44,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     '/join',
     '/subscriptions',
     '/swipe',
+    '/community',
   ]);
   const isImmersivePlayer = pathname.startsWith('/swipe');
   const useFullScreenLayout = isHome || isAuth || isMeteoFullscreen || isSynauraSurface;

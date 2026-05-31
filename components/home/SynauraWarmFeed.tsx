@@ -24,6 +24,7 @@ import {
   Home,
   Image as ImageIcon,
   Library,
+  ListPlus,
   Loader2,
   MessageCircle,
   Mic2,
@@ -2013,6 +2014,7 @@ function TrackInlineActions({
   track: Track;
   dark?: boolean;
 }) {
+  const { addToUpNext } = useAudioPlayer();
   const canComment = isCommentableTrack(track.id);
   const { isLiked, likesCount, isLoading, toggleLike } = useLikeSystem({
     trackId: track.id,
@@ -2077,6 +2079,19 @@ function TrackInlineActions({
           <div className="col-span-2 sm:col-span-1">
             <TrackCreateRemixActions track={track.playerTrack as any} compact dark={dark} />
           </div>
+          {track.playerTrack.audioUrl ? (
+            <button
+              type="button"
+              onClick={() => {
+                addToUpNext(track.playerTrack as any, 'next');
+                notify.success('File', `${track.title} sera lu ensuite.`);
+              }}
+              className={defaultButtonClassName}
+            >
+              <ListPlus className="h-4 w-4" />
+              Lire ensuite
+            </button>
+          ) : null}
       </div>
 
       {commentsOpen ? (

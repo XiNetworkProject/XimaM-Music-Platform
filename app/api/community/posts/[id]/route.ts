@@ -91,7 +91,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Titre, contenu et catégorie requis' }, { status: 400 });
     }
 
-    const validCategories = ['question', 'suggestion', 'bug', 'general'];
+    const validCategories = ['feedback', 'collab', 'remix', 'prompts', 'weekly-top', 'question', 'suggestion', 'bug', 'general'];
     if (!validCategories.includes(category)) {
       return NextResponse.json({ error: 'Catégorie invalide' }, { status: 400 });
     }
@@ -111,15 +111,20 @@ export async function PUT(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 
-    const { data: post, error } = await supabase
+    const updatePayload: any = {
+      title: title.trim(),
+      content: content.trim(),
+      category,
+      tags: tags || [],
+      updated_at: new Date().toISOString()
+    };
+    if (typeof body.track_id === 'string') {
+      updatePayload.track_id = body.track_id.trim() || null;
+    }
+
+    let { data: post, error } = await supabase
       .from('forum_posts')
-      .update({
-        title: title.trim(),
-        content: content.trim(),
-        category,
-        tags: tags || [],
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('id', id)
       .select(`
         *,
@@ -131,6 +136,26 @@ export async function PUT(
         )
       `)
       .single();
+
+    if (error && 'track_id' in updatePayload) {
+      delete updatePayload.track_id;
+      const retry = await supabase
+        .from('forum_posts')
+        .update(updatePayload)
+        .eq('id', id)
+        .select(`
+          *,
+          profiles:user_id (
+            id,
+            name,
+            username,
+            avatar
+          )
+        `)
+        .single();
+      post = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error('Erreur lors de la mise à jour du post:', error);

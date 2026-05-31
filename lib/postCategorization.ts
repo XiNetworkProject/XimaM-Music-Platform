@@ -1,6 +1,22 @@
 // Fonction pour catégoriser automatiquement un post basé sur son contenu
-export function categorizePost(title: string, content: string): 'question' | 'suggestion' | 'bug' | 'general' {
+export function categorizePost(title: string, content: string): 'feedback' | 'collab' | 'remix' | 'prompts' | 'weekly-top' | 'question' | 'suggestion' | 'bug' | 'general' {
   const text = `${title} ${content}`.toLowerCase();
+
+  if (['avis', 'retour', 'feedback', 'mix', 'master', 'hook', 'refrain', 'mon son', 'morceau'].some((keyword) => text.includes(keyword))) {
+    return 'feedback';
+  }
+  if (['feat', 'collab', 'collaboration', 'topliner', 'chanteur', 'chanteuse', 'beatmaker', 'producer'].some((keyword) => text.includes(keyword))) {
+    return 'collab';
+  }
+  if (['remix', 'challenge', 'défi', 'defi', 'version', 'stem'].some((keyword) => text.includes(keyword))) {
+    return 'remix';
+  }
+  if (['prompt', 'battle', 'suno', 'udio', 'recette ia'].some((keyword) => text.includes(keyword))) {
+    return 'prompts';
+  }
+  if (['top semaine', 'top hebdo', 'découverte', 'decouverte', 'playlist'].some((keyword) => text.includes(keyword))) {
+    return 'weekly-top';
+  }
   
   // Mots-clés pour chaque catégorie
   const questionKeywords = [
@@ -113,6 +129,10 @@ export function suggestTags(title: string, content: string): string[] {
   if (text.includes('ui') || text.includes('interface') || text.includes('design')) suggestedTags.push('ui');
   if (text.includes('bug') || text.includes('erreur') || text.includes('problème')) suggestedTags.push('bug');
   if (text.includes('suggestion') || text.includes('amélioration') || text.includes('feature')) suggestedTags.push('suggestion');
+  if (text.includes('avis') || text.includes('feedback') || text.includes('mix')) suggestedTags.push('feedback');
+  if (text.includes('feat') || text.includes('collab')) suggestedTags.push('collab');
+  if (text.includes('remix') || text.includes('défi') || text.includes('defi')) suggestedTags.push('remix');
+  if (text.includes('prompt')) suggestedTags.push('prompt');
   
   // Limiter à 5 tags maximum
   return suggestedTags.slice(0, 5);

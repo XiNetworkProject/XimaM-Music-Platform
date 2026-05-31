@@ -33,7 +33,7 @@ const GENRES = [
   'Tout', 'Pop', 'Hip-Hop', 'Rap', 'Rock', 'Electronic', 'R&B', 'Jazz',
   'Lo-Fi', 'Classical', 'Indie', 'Soul', 'Funk', 'Ambient',
 ];
-const DISCOVER_TABS = ['Tendances', 'Nouveautés', 'Artistes', 'Playlists'] as const;
+const DISCOVER_TABS = ['Tout', 'Sons', 'Artistes', 'Albums', 'Playlists'] as const;
 type DiscoverTab = typeof DISCOVER_TABS[number];
 
 function uniqById<T extends { _id: string }>(arr: T[]) {
@@ -122,7 +122,7 @@ export default function DiscoverGuestClient({
   const { setQueueAndPlay } = useAudioPlayer();
   const [q, setQ] = useState('');
   const [activeGenre, setActiveGenre] = useState<string>(genreFilter || 'Tout');
-  const [activeTab, setActiveTab] = useState<DiscoverTab>('Tendances');
+  const [activeTab, setActiveTab] = useState<DiscoverTab>('Tout');
 
   const isFiltered = activeGenre !== 'Tout';
   const filteredTrending = useMemo(() => filterByGenre(trending, activeGenre), [trending, activeGenre]);
@@ -185,7 +185,7 @@ export default function DiscoverGuestClient({
                   className="inline-flex h-11 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
                 >
                   <UserPlus className="h-4 w-4" />
-                  Creer un compte
+                  Créer un compte
                 </Link>
                 <Link
                   href="/auth/signin"
@@ -264,7 +264,7 @@ export default function DiscoverGuestClient({
 
           {isSearching ? (
             <SynauraInkPanel className="p-4 sm:p-5">
-              <SectionHeader title={`Resultats pour "${q}"`} subtitle="Titres qui correspondent a ta recherche" />
+              <SectionHeader title={`Résultats pour "${q}"`} subtitle="Titres qui correspondent à ta recherche" />
               {searchResults.length ? (
                 <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 xl:grid-cols-3">
                   {searchResults.map((t, i) => (
@@ -277,11 +277,11 @@ export default function DiscoverGuestClient({
             </SynauraInkPanel>
           ) : (
             <>
-              {activeTab === 'Tendances' && topHits.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'Sons') && topHits.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader
                     title={isFiltered ? `Top ${activeGenre}` : 'Top Hits'}
-                    subtitle={isFiltered ? `Les meilleurs titres ${activeGenre}` : 'Les plus ecoutes'}
+                    subtitle={isFiltered ? `Les meilleurs titres ${activeGenre}` : 'Les plus écoutés'}
                   />
                   <div className="grid grid-cols-1 gap-1 md:grid-cols-2">
                     {topHits.map((t, i) => (
@@ -291,7 +291,7 @@ export default function DiscoverGuestClient({
                 </SynauraInkPanel>
               ) : null}
 
-              {activeTab === 'Tendances' && filteredTrending.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'Sons') && filteredTrending.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader
                     title={isFiltered ? `Tendances ${activeGenre}` : 'Tendances'}
@@ -312,11 +312,11 @@ export default function DiscoverGuestClient({
                 </SynauraInkPanel>
               ) : null}
 
-              {activeTab === 'Nouveautés' && filteredNewest.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'Sons') && filteredNewest.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader
-                    title={isFiltered ? `Nouveautes ${activeGenre}` : 'Nouveautes'}
-                    subtitle="Tout juste publie"
+                    title={isFiltered ? `Nouveautés ${activeGenre}` : 'Nouveautés'}
+                    subtitle="Tout juste publié"
                   />
                   <div className="grid grid-cols-2 gap-3 sm:hidden">
                     {filteredNewest.slice(0, 6).map((t) => (
@@ -333,7 +333,7 @@ export default function DiscoverGuestClient({
                 </SynauraInkPanel>
               ) : null}
 
-              {activeTab === 'Playlists' && !isFiltered && albums && albums.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'Albums') && !isFiltered && albums && albums.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader
                     title="Albums & EPs"
@@ -356,7 +356,7 @@ export default function DiscoverGuestClient({
                 </SynauraInkPanel>
               ) : null}
 
-              {activeTab === 'Artistes' && !isFiltered && artists.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'Artistes') && !isFiltered && artists.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader title="Artistes du moment" />
                   <div className="grid grid-cols-3 gap-3 sm:hidden">
@@ -374,7 +374,7 @@ export default function DiscoverGuestClient({
                 </SynauraInkPanel>
               ) : null}
 
-              {activeTab === 'Playlists' && !isFiltered && playlists.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'Playlists') && !isFiltered && playlists.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader title="Playlists populaires" />
                   <div className="grid grid-cols-2 gap-3 sm:hidden">
@@ -416,7 +416,7 @@ export default function DiscoverGuestClient({
                       href="/auth/signup"
                       className="inline-flex h-10 items-center gap-2 rounded-full bg-[#171313] px-6 text-sm font-bold text-white transition hover:scale-[1.02]"
                     >
-                      Creer un compte
+                      Créer un compte
                     </Link>
                     <Link
                       href="/ai-generator"

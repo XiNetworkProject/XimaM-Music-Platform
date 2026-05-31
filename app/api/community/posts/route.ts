@@ -97,22 +97,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Titre, contenu et catégorie requis' }, { status: 400 });
     }
 
-    const validCategories = ['question', 'suggestion', 'bug', 'general'];
+    const validCategories = ['feedback', 'collab', 'remix', 'prompts', 'weekly-top', 'question', 'suggestion', 'bug', 'general'];
     if (!validCategories.includes(category)) {
       return NextResponse.json({ error: 'Catégorie invalide' }, { status: 400 });
     }
 
-    const { data: post, error } = await supabase
+    const insertPayload: any = {
+      user_id: session.user.id,
+      title: title.trim(),
+      content: content.trim(),
+      category,
+      tags: tags || []
+    };
+    if (typeof body.track_id === 'string' && body.track_id.trim()) {
+      insertPayload.track_id = body.track_id.trim();
+    }
+
+    let { data: post, error } = await supabase
       .from('forum_posts')
-      .insert({
-        user_id: session.user.id,
-        title: title.trim(),
-        content: content.trim(),
-        category,
-        tags: tags || []
-      })
+      .insert(insertPayload)
       .select('*')
       .single();
+
+    if (error && 'track_id' in insertPayload) {
+      delete insertPayload.track_id;
+      const retry = await supabase
+        .from('forum_posts')
+        .insert(insertPayload)
+        .select('*')
+        .single();
+      post = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error('Erreur lors de la création du post:', error);

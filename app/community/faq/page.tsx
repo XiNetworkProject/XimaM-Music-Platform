@@ -1,79 +1,64 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import {
-  ChevronDown,
-  ChevronUp,
-  HelpCircle,
-  Search,
-  MessageSquare,
-  Lightbulb,
-  Bug,
-  Settings,
-  Sparkles,
-  ArrowRight,
-  Tag,
-  ArrowLeft,
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { notify } from '@/components/NotificationCenter';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { ArrowRight, ChevronDown, ChevronUp, HelpCircle, MessageSquare, Search, Sparkles } from 'lucide-react';
+import { notify } from '@/components/NotificationCenter';
+import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 
-interface FAQItem {
+type FAQItem = {
   id: string;
   question: string;
   answer: string;
   category: string;
-  tags: string[];
-  helpful_count: number;
-  created_at: string;
-}
+  tags?: string[];
+  helpful_count?: number;
+};
 
-const categories = [
-  { id: 'all', label: 'Toutes', icon: HelpCircle },
-  { id: 'general', label: 'General', icon: MessageSquare },
-  { id: 'player', label: 'Player', icon: Settings },
-  { id: 'upload', label: 'Upload', icon: Lightbulb },
-  { id: 'abonnement', label: 'Abonnements', icon: Settings },
-  { id: 'ia', label: 'IA', icon: Sparkles },
-  { id: 'technique', label: 'Technique', icon: Bug },
-] as const;
+const CATEGORIES = [
+  { id: 'all', label: 'Toutes' },
+  { id: 'player', label: 'Player' },
+  { id: 'upload', label: 'Publication' },
+  { id: 'ia', label: 'Studio IA' },
+  { id: 'abonnement', label: 'Abonnements' },
+  { id: 'technique', label: 'Technique' },
+  { id: 'general', label: 'Général' },
+];
 
-export default function FAQPage() {
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+export default function CommunityFAQPage() {
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('all');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const fetchFAQs = async () => {
+    const loadFaq = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        const res = await fetch('/api/community/faq?limit=100');
-        if (res.ok) {
-          const data = await res.json();
-          setFaqs(data.faqs || []);
-        }
+        const response = await fetch('/api/community/faq?limit=100', { cache: 'no-store' });
+        if (!response.ok) throw new Error('faq');
+        const data = await response.json();
+        setFaqs(Array.isArray(data.faqs) ? data.faqs : []);
       } catch {
-        notify.error('Erreur', 'Erreur chargement FAQ');
+        notify.error('FAQ', 'Impossible de charger l’aide.');
       } finally {
         setLoading(false);
       }
     };
-    fetchFAQs();
+    loadFaq();
   }, []);
 
-  const filteredFAQs = faqs.filter((faq) => {
-    const matchCat = selectedCategory === 'all' || faq.category === selectedCategory;
-    const q = searchQuery.toLowerCase();
-    const matchSearch = !q || faq.question.toLowerCase().includes(q) || faq.answer.toLowerCase().includes(q) || faq.tags.some((t) => t.toLowerCase().includes(q));
-    return matchCat && matchSearch;
+  const filteredFaqs = faqs.filter((faq) => {
+    const matchesCategory = category === 'all' || faq.category === category;
+    const q = query.trim().toLowerCase();
+    const matchesQuery = !q || faq.question.toLowerCase().includes(q) || faq.answer.toLowerCase().includes(q) || (faq.tags || []).some((tag) => tag.toLowerCase().includes(q));
+    return matchesCategory && matchesQuery;
   });
 
-  const toggleExpanded = (id: string) => {
-    setExpandedItems((prev) => {
-      const next = new Set(prev);
+  const toggle = (id: string) => {
+    setExpanded((current) => {
+      const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
@@ -81,171 +66,131 @@ export default function FAQPage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#0a0a0e] text-white overflow-hidden pb-24">
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-emerald-600/[0.05] blur-[130px] animate-[synaura-blob1_18s_ease-in-out_infinite]" />
-        <div className="absolute bottom-[-15%] right-[-5%] w-[50vw] h-[50vw] rounded-full bg-teal-600/[0.04] blur-[130px] animate-[synaura-blob2_22s_ease-in-out_infinite]" />
-      </div>
+    <SynauraAppShell contentClassName="max-w-[1080px]">
+      <SynauraTopBar
+        searchLabel="Chercher dans l’aide..."
+        secondaryHref="/community/forum"
+        secondaryLabel="Forum"
+        primaryHref="/community/forum?category=feedback"
+        primaryLabel="Demander un avis"
+      />
 
-      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 pt-8 md:pt-14">
-        {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Link href="/community" className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center hover:bg-white/[0.08] transition-colors">
-              <ArrowLeft className="w-4 h-4 text-white/60" />
-            </Link>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300">
-              <HelpCircle className="w-3.5 h-3.5" />
-              <span>Centre d&apos;aide</span>
-            </div>
-          </div>
-          <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-1">
-            <span className="bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">FAQ</span>{' '}
-            <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">Synaura</span>
-          </h1>
-          <p className="text-sm text-white/40 mt-2 flex items-center gap-2">
-            {faqs.length > 0 ? `${faqs.length} articles d'aide` : 'FAQ en construction'}
-            <span className="text-white/15">|</span>
-            <Link href="/community/forum" className="text-indigo-400 hover:text-indigo-300 transition-colors inline-flex items-center gap-1">
-              Poser sur le forum <ArrowRight className="w-3 h-3" />
-            </Link>
-          </p>
-        </motion.div>
-
-        {/* Search */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="relative mb-5">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-          <input
-            type="text"
-            placeholder="Rechercher une question..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition-all"
-          />
-        </motion.div>
-
-        {/* Categories */}
-        <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent pb-1 mb-6 rounded-full bg-white/[0.04] p-0.5">
-          {categories.map((cat) => {
-            const Icon = cat.icon;
-            const active = selectedCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs whitespace-nowrap transition-all ${
-                  active
-                    ? 'bg-white/[0.1] text-white'
-                    : 'text-white/30 hover:text-white/50'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{cat.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* FAQ items */}
-        <div className="space-y-2.5">
-          {loading ? (
-            <div className="flex flex-col items-center py-16 gap-3">
-              <div className="w-8 h-8 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
-              <p className="text-sm text-white/40">Chargement...</p>
-            </div>
-          ) : filteredFAQs.length === 0 ? (
-            <div className="text-center py-16">
-              <HelpCircle className="w-10 h-10 mx-auto text-white/15 mb-3" />
-              <h3 className="text-sm font-bold mb-2">Aucun resultat</h3>
-              <p className="text-xs text-white/35 mb-5">Modifiez votre recherche ou posez la question sur le forum</p>
-              <Link href="/community/forum" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors shadow-lg">
-                <MessageSquare className="w-4 h-4" />
-                Poser sur le forum
+      <div className="space-y-5 pb-28">
+        <SynauraInkPanel className="p-5 sm:p-7">
+          <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_300px] md:items-end">
+            <div>
+              <Link href="/community" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-white/58 transition hover:bg-white/14 hover:text-white">
+                ← Hub communauté
               </Link>
+              <h1 className="mt-5 text-5xl font-black leading-[0.92] tracking-[-0.06em] text-white sm:text-6xl">Besoin d’aide ?</h1>
+              <p className="mt-5 max-w-2xl text-sm font-semibold leading-7 text-white/54 sm:text-base">
+                La FAQ reste disponible, mais Community est d’abord un espace musical. Pour un avis, un feat ou un remix, passe par le forum.
+              </p>
             </div>
-          ) : (
-            filteredFAQs.map((faq, i) => {
-              const isExpanded = expandedItems.has(faq.id);
-              return (
-                <motion.div
-                  key={faq.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.02 }}
-                  className="rounded-2xl bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] overflow-hidden hover:bg-white/[0.04] transition-all"
-                >
-                  <button onClick={() => toggleExpanded(faq.id)} className="w-full px-4 md:px-5 py-4 text-left">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-semibold text-white pr-4 leading-snug">{faq.question}</h3>
-                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-white/30">
-                          <span className="px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] capitalize">{faq.category}</span>
-                          {faq.tags.map((tag) => (
-                            <span key={tag} className="flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.04]">
-                              <Tag className="w-2.5 h-2.5" />#{tag}
-                            </span>
-                          ))}
-                          {faq.helpful_count > 0 && (
-                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                              {faq.helpful_count} utile{faq.helpful_count > 1 ? 's' : ''}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="shrink-0 mt-0.5">
-                        {isExpanded ? <ChevronUp className="w-4 h-4 text-white/30" /> : <ChevronDown className="w-4 h-4 text-white/30" />}
-                      </div>
-                    </div>
-                  </button>
-
-                  <AnimatePresence initial={false}>
-                    {isExpanded && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="px-4 md:px-5 pb-4 pt-2 border-t border-white/[0.06]">
-                          <p className="text-xs md:text-sm text-white/55 leading-relaxed whitespace-pre-wrap">{faq.answer}</p>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              );
-            })
-          )}
-        </div>
-
-        {/* CTA */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="mt-10">
-          <div className="rounded-2xl bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-6 md:p-8">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div>
-                <h3 className="text-base font-bold mb-1">Pas trouve votre reponse ?</h3>
-                <p className="text-sm text-white/40">Contactez le support ou posez votre question sur le forum.</p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <a
-                  href="mailto:contact.syn@synaura.fr"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold shadow-lg hover:bg-white/90 transition-colors"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  Support
-                </a>
-                <Link
-                  href="/community/forum"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/[0.06] text-sm font-medium text-white/70 hover:bg-white/[0.1] transition-colors"
-                >
-                  Forum <ArrowRight className="w-3.5 h-3.5" />
+            <div className="rounded-[1.35rem] bg-[#fffaf2] p-4 text-[#171313]">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-black/36">Chemin recommandé</p>
+              <div className="mt-3 grid gap-2">
+                <Link href="/community/forum?category=feedback" className="rounded-[1rem] bg-black/[0.045] p-3 text-sm font-black transition hover:bg-black/[0.07]">
+                  Demander un avis sur mon son
+                </Link>
+                <Link href="/community/forum?category=remix" className="rounded-[1rem] bg-black/[0.045] p-3 text-sm font-black transition hover:bg-black/[0.07]">
+                  Lancer un défi remix
                 </Link>
               </div>
             </div>
           </div>
-        </motion.div>
+        </SynauraInkPanel>
+
+        <SynauraPanel className="p-4 sm:p-5">
+          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-black/36">Support secondaire</p>
+              <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#171313]">Articles utiles</h2>
+            </div>
+            <div className="relative w-full md:w-80">
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/26" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Rechercher une question..."
+                className="h-11 w-full rounded-full border border-black/[0.08] bg-white pl-10 pr-4 text-sm font-semibold outline-none placeholder:text-black/28 focus:border-[#171313]"
+              />
+            </div>
+          </div>
+
+          <div className="mb-5 flex gap-2 overflow-x-auto pb-1 synaura-no-scrollbar">
+            {CATEGORIES.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setCategory(item.id)}
+                className={`h-10 shrink-0 rounded-full px-4 text-xs font-black transition ${category === item.id ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/46 hover:bg-black/[0.08] hover:text-black'}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {loading ? (
+            <div className="grid min-h-[260px] place-items-center">
+              <div className="text-center">
+                <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-black/12 border-t-[#171313]" />
+                <p className="mt-3 text-sm font-black text-black/42">Chargement de l’aide...</p>
+              </div>
+            </div>
+          ) : filteredFaqs.length ? (
+            <div className="grid gap-2.5">
+              {filteredFaqs.map((faq) => {
+                const isOpen = expanded.has(faq.id);
+                return (
+                  <div key={faq.id} className="overflow-hidden rounded-[1.25rem] border border-black/[0.07] bg-black/[0.025]">
+                    <button type="button" onClick={() => toggle(faq.id)} className="flex w-full items-start justify-between gap-4 p-4 text-left">
+                      <div>
+                        <p className="text-sm font-black text-[#171313]">{faq.question}</p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <span className="rounded-full bg-black/[0.055] px-2 py-0.5 text-[10px] font-black text-black/38">{faq.category}</span>
+                          {(faq.tags || []).slice(0, 3).map((tag) => (
+                            <span key={tag} className="rounded-full bg-black/[0.035] px-2 py-0.5 text-[10px] font-bold text-black/30">#{tag}</span>
+                          ))}
+                        </div>
+                      </div>
+                      {isOpen ? <ChevronUp className="h-4 w-4 shrink-0 text-black/34" /> : <ChevronDown className="h-4 w-4 shrink-0 text-black/34" />}
+                    </button>
+                    {isOpen ? (
+                      <div className="border-t border-black/[0.06] px-4 pb-4 pt-3">
+                        <p className="whitespace-pre-wrap text-sm font-semibold leading-7 text-black/56">{faq.answer}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-[1.4rem] border border-dashed border-black/[0.12] p-8 text-center">
+              <HelpCircle className="mx-auto h-10 w-10 text-black/22" />
+              <p className="mt-3 text-sm font-black text-black/48">Aucun article trouvé.</p>
+              <Link href="/community/forum" className="mt-4 inline-flex h-10 items-center gap-2 rounded-full bg-[#171313] px-4 text-xs font-black text-white">
+                <MessageSquare className="h-4 w-4" />
+                Poser sur le forum
+              </Link>
+            </div>
+          )}
+        </SynauraPanel>
+
+        <SynauraInkPanel className="p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-white/42">Pas une question support ?</p>
+              <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">Fais avancer ton morceau avec la communauté.</h2>
+            </div>
+            <Link href="/community/forum?category=feedback" className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]">
+              <Sparkles className="h-4 w-4" />
+              Demander un avis
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </SynauraInkPanel>
       </div>
-    </div>
+    </SynauraAppShell>
   );
 }

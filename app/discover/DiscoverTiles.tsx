@@ -3,11 +3,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Disc3, Music, Pause, Play, Sparkles, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Disc3, ListPlus, Music, Pause, Play, Sparkles, Zap } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import TrackCover from '@/components/TrackCover';
 import TrackCreateRemixActions from '@/components/TrackCreateRemixActions';
+import { notify } from '@/components/NotificationCenter';
 
 export type DiscoverPlaylistLite = {
   _id: string;
@@ -53,6 +54,29 @@ const formatK = (n: number) => {
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
+}
+
+function toPlayerTrack(track: DiscoverTrackLite) {
+  const artistName = track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste';
+  return {
+    _id: track._id,
+    title: track.title || 'Titre inconnu',
+    artist: {
+      _id: track.artist?._id || track.artist?.username || 'artist',
+      name: artistName,
+      username: track.artist?.username || artistName,
+      avatar: track.artist?.avatar,
+    },
+    audioUrl: track.audioUrl || '',
+    coverUrl: track.coverUrl || '/default-cover.svg',
+    duration: track.duration || 0,
+    plays: track.plays || 0,
+    likes: [],
+    comments: [],
+    genre: Array.isArray((track as any).genre) ? (track as any).genre : (track as any).genre ? [(track as any).genre] : [],
+    isAI: Boolean(track.isAI || String(track._id || '').startsWith('ai-')),
+    isLiked: false,
+  };
 }
 
 export function SectionHeader({
@@ -149,7 +173,7 @@ export function HorizontalScroller({ children }: { children: React.ReactNode }) 
 }
 
 export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: boolean }) {
-  const { playTrack } = useAudioPlayer();
+  const { playTrack, addToUpNext } = useAudioPlayer();
   const artistLabel = track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste';
   const plays = track.plays || 0;
   const duration = track.duration || 0;
@@ -233,16 +257,30 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
       </div>
 
       <div className="mt-3 flex flex-col items-start gap-1.5 text-[10px] text-white/40 sm:flex-row sm:items-center sm:justify-between sm:text-[11px]">
-        <span className="rounded-full bg-white/[0.06] px-2.5 py-1 font-semibold">{formatK(plays)} ecoutes</span>
-        <span className="text-white/28">{isAI ? 'generation IA' : 'publie sur Synaura'}</span>
+        <span className="rounded-full bg-white/[0.06] px-2.5 py-1 font-semibold">{formatK(plays)} écoutes</span>
+        <span className="text-white/28">{isAI ? 'génération IA' : 'publié sur Synaura'}</span>
       </div>
-      <TrackCreateRemixActions track={track as any} compact dark className="mt-3" />
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <TrackCreateRemixActions track={track as any} compact dark />
+        <button
+          type="button"
+          onClick={() => {
+            if (!track.audioUrl) return;
+            addToUpNext(toPlayerTrack(track) as any, 'next');
+            notify.success('File', `${track.title} sera lu ensuite.`);
+          }}
+          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/12 bg-white/8 px-2.5 text-[10px] font-black text-white/74 transition hover:bg-white/14 hover:text-white"
+        >
+          <ListPlus className="h-3 w-3" />
+          Ensuite
+        </button>
+      </div>
     </div>
   );
 }
 
 export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: number }) {
-  const { playTrack } = useAudioPlayer();
+  const { playTrack, addToUpNext } = useAudioPlayer();
   const artistLabel = track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste';
   const isAI = Boolean(track.isAI || String(track._id || '').startsWith('ai-'));
   const isBoosted = Boolean((track as any)?.isBoosted);
@@ -295,8 +333,20 @@ export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: n
 
       <div className="hidden shrink-0 items-center gap-2 sm:flex" onClick={(event) => event.stopPropagation()}>
         <TrackCreateRemixActions track={track as any} compact dark />
+        <button
+          type="button"
+          onClick={() => {
+            if (!track.audioUrl) return;
+            addToUpNext(toPlayerTrack(track) as any, 'next');
+            notify.success('File', `${track.title} sera lu ensuite.`);
+          }}
+          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/12 bg-white/8 px-2.5 text-[10px] font-black text-white/74 transition hover:bg-white/14 hover:text-white"
+        >
+          <ListPlus className="h-3 w-3" />
+          Ensuite
+        </button>
         <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-[10px] font-semibold text-white/48">
-          {formatK(track.plays || 0)} ecoutes
+          {formatK(track.plays || 0)} écoutes
         </span>
       </div>
     </div>

@@ -2,10 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Music, Heart, Play, Download, Share2, Search, Filter, Star, Clock, User, Sparkles, RefreshCw, Link as LinkIcon } from 'lucide-react';
+import Link from 'next/link';
+import { Music, Heart, Play, Download, Share2, Search, Clock, Sparkles, RefreshCw, Link as LinkIcon, Repeat2, UploadCloud } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import { AIGeneration, AITrack } from '@/lib/aiGenerationService';
+import { notify } from '@/components/NotificationCenter';
+import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
 
 interface PlayerTrack {
   _id: string;
@@ -44,6 +47,16 @@ export default function AILibrary() {
   });
   const [error, setError] = useState<string | null>(null);
 
+  const studioLinkForTrack = (track: AITrack, mode: 'style' | 'remix' = 'style') => {
+    const params = new URLSearchParams({
+      mode,
+      sourceTrack: `ai-${track.id}`,
+      title: track.title || '',
+      style: track.style || track.prompt || 'IA Synaura',
+    });
+    return `/ai-generator?${params.toString()}`;
+  };
+
   // Charger la bibliothèque
   const loadLibrary = async () => {
     if (!session?.user?.id) return;
@@ -60,15 +73,13 @@ export default function AILibrary() {
         const trRes = await fetch('/api/ai/library/tracks', { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
         if (trRes.ok) {
           const trJson = await trRes.json();
-          setAllTracks(trJson.tracks || []);
+          const loadedTracks = trJson.tracks || [];
+          setAllTracks(loadedTracks);
+          const total = data.generations?.length || 0;
+          const favorites = data.generations?.filter((g: AIGeneration) => g.is_favorite).length || 0;
+          const totalDuration = loadedTracks.reduce((acc: number, t: AITrack) => acc + (Number(t.duration) || 0), 0);
+          setStats({ total, favorites, totalDuration });
         }
-        
-        // Calculer les statistiques
-        const total = data.generations?.length || 0;
-        const favorites = data.generations?.filter((g: AIGeneration) => g.is_favorite).length || 0;
-        const totalDuration = (allTracks?.reduce((acc: number, t: AITrack) => acc + (t.duration || 0), 0)) || 0;
-        
-        setStats({ total, favorites, totalDuration });
       } else {
         const txt = await response.text();
         setError(`Erreur chargement: ${txt}`);
@@ -96,6 +107,28 @@ export default function AILibrary() {
     
     return matchesSearch && matchesFilter && matchesModel;
   });
+
+  const syntheticGenerationForTrack = (track: AITrack): AIGeneration => ({
+    id: 'gen',
+    user_id: (session?.user?.id as string) || '',
+    task_id: '',
+    prompt: track.prompt || '',
+    model: track.model_name || '',
+    status: 'completed',
+    created_at: new Date().toISOString(),
+    is_favorite: false,
+    is_public: false,
+    play_count: 0,
+    like_count: 0,
+    share_count: 0,
+    metadata: { title: track.title, style: track.style },
+    tracks: [],
+  } as any);
+
+  const formatDuration = (seconds?: number) => {
+    const safe = Math.max(0, Math.floor(Number(seconds) || 0));
+    return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, '0')}`;
+  };
 
   // Jouer une track IA
   const playAITrack = (track: AITrack, generation: AIGeneration) => {
@@ -202,10 +235,25 @@ export default function AILibrary() {
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(shareData.url);
-        alert('Lien copié dans le presse-papiers');
+        notify.success('Lien copié', 'La bibliothèque IA est prête à partager.');
       }
     } catch (error) {
-      console.error('Erreur partage:', error);
+      notify.info('Partage', 'Partage annulé ou indisponible.');
+    }
+  };
+
+  const publishTrack = async (track: AITrack) => {
+    try {
+      const response = await fetch(`/api/ai/tracks/${encodeURIComponent(track.id)}/visibility`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublic: true }),
+      });
+      if (!response.ok) throw new Error('publish failed');
+      notify.success('Publié', `${track.title || 'Piste IA'} est visible sur Synaura.`);
+      loadLibrary();
+    } catch {
+      notify.error('Publication', 'Impossible de publier cette piste pour le moment.');
     }
   };
 
@@ -218,59 +266,64 @@ export default function AILibrary() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black text-white flex items-center justify-center">
+      <SynauraAppShell>
+        <SynauraRouteNav />
+        <SynauraPanel className="grid min-h-[420px] place-items-center p-8">
         <div className="text-center">
           <Music className="w-16 h-16 mx-auto mb-4 text-green-400" />
           <h2 className="text-2xl font-bold mb-2">Connexion requise</h2>
           <p className="text-gray-400">Connectez-vous pour accéder à votre bibliothèque IA</p>
         </div>
-      </div>
+        </SynauraPanel>
+      </SynauraAppShell>
     );
   }
 
   return (
-    <div className="min-h-screen text-[var(--text)] overflow-x-hidden w-full">
-      <main className="container mx-auto px-2 sm:px-4 pt-16 pb-32">
-        <div className="w-full max-w-none sm:max-w-6xl sm:mx-auto overflow-hidden">
+    <SynauraAppShell contentClassName="max-w-[1180px]">
+      <SynauraTopBar searchHref="/ai-library" searchLabel="Chercher une piste IA..." primaryHref="/ai-generator" primaryLabel="Ouvrir Studio" />
+      <SynauraRouteNav />
+      <main className="pb-32">
+        <div className="w-full overflow-hidden">
           {/* Header */}
-          <div className="mb-10">
+          <SynauraInkPanel className="mb-6 p-5 sm:p-7">
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-3xl md:text-4xl font-bold text-[var(--text)] flex items-center gap-3">
-                <Music size={28} className="text-[var(--color-primary)]" />
+              <h1 className="text-3xl md:text-4xl font-black tracking-[-0.05em] text-white flex items-center gap-3">
+                <Music size={28} className="text-[#ffcf9f]" />
                 Bibliothèque IA
               </h1>
-              <a
+              <Link
                 href="/ai-generator"
-                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-2 rounded-full font-medium transition-all shadow-lg"
+                className="flex items-center gap-2 rounded-full bg-[#fffaf2] px-4 py-2 font-black text-[#171313] transition-all shadow-lg hover:scale-[1.02]"
               >
                 <Sparkles size={16} />
                 <span>Générer</span>
-              </a>
+              </Link>
             </div>
-            <p className="text-[var(--text-muted)] text-lg">Retrouvez vos musiques générées par IA.</p>
-          </div>
+            <p className="text-white/50 text-lg">Retrouvez vos musiques générées par IA, rejouez-les, publiez-les ou relancez une variation dans le Studio.</p>
+          </SynauraInkPanel>
 
           {/* Statistiques */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 mb-8">
-            <div className="panel-suno border border-[var(--border)] rounded-xl p-6 text-center">
+            <SynauraPanel className="p-6 text-center">
               <Music className="w-8 h-8 mx-auto mb-2 text-[var(--color-primary)]" />
               <h3 className="text-2xl font-bold">{stats.total}</h3>
               <p className="text-[var(--text-muted)]">Générations</p>
-            </div>
-            <div className="panel-suno border border-[var(--border)] rounded-xl p-6 text-center">
+            </SynauraPanel>
+            <SynauraPanel className="p-6 text-center">
               <Heart className="w-8 h-8 mx-auto mb-2 text-red-400" />
               <h3 className="text-2xl font-bold">{stats.favorites}</h3>
               <p className="text-[var(--text-muted)]">Favoris</p>
-            </div>
-            <div className="panel-suno border border-[var(--border)] rounded-xl p-6 text-center">
+            </SynauraPanel>
+            <SynauraPanel className="p-6 text-center">
               <Clock className="w-8 h-8 mx-auto mb-2 text-blue-400" />
               <h3 className="text-2xl font-bold">{Math.round(stats.totalDuration / 60)}</h3>
               <p className="text-[var(--text-muted)]">Minutes</p>
-            </div>
+            </SynauraPanel>
           </div>
 
           {/* Filtres et recherche */}
-          <div className="panel-suno border border-[var(--border)] rounded-xl p-3 sm:p-6 mb-8">
+          <SynauraPanel className="p-3 sm:p-6 mb-8">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="relative flex-1 max-w-xs sm:max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-muted)]" size={20} />
@@ -327,7 +380,7 @@ export default function AILibrary() {
                 </button>
               </div>
             </div>
-          </div>
+          </SynauraPanel>
 
         {error && (
           <div className="mb-4 p-3 rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 text-sm">{error}</div>
@@ -340,15 +393,15 @@ export default function AILibrary() {
             <p className="text-[var(--text-muted)] mt-4">Chargement de votre bibliothèque...</p>
           </div>
           ) : (generations.length === 0 && allTracks.length === 0) ? (
-            <div className="panel-suno border border-[var(--border)] rounded-xl p-6 text-center">
+            <SynauraPanel className="p-6 text-center">
               <Music className="w-16 h-16 mx-auto mb-4 text-white/40" />
               <h3 className="text-xl font-semibold mb-2">Aucune musique trouvée</h3>
               <p className="text-[var(--text-muted)]">
                 {searchQuery ? 'Aucun résultat pour votre recherche' : 'Commencez par générer votre première musique IA'}
               </p>
-            </div>
+            </SynauraPanel>
           ) : (
-            <div className="panel-suno border border-[var(--border)] rounded-xl p-3 sm:p-6">
+            <SynauraPanel className="p-3 sm:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {generations.map((generation, index) => (
               <motion.div
@@ -394,7 +447,7 @@ export default function AILibrary() {
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium truncate">{track.title}</h4>
                         <p className="text-[var(--text-muted)] text-sm">
-                          {Math.round(track.duration / 60)}:{(track.duration % 60).toString().padStart(2, '0')}
+                          {formatDuration(track.duration)}
                         </p>
                       </div>
                       <div className="flex gap-2">
@@ -409,6 +462,15 @@ export default function AILibrary() {
                           className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
                         >
                           <Download className="w-4 h-4" />
+                        </button>
+                        <Link href={studioLinkForTrack(track, 'style')} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors" title="Créer une variation">
+                          <Sparkles className="w-4 h-4" />
+                        </Link>
+                        <Link href={studioLinkForTrack(track, 'remix')} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors" title="Remixer">
+                          <Repeat2 className="w-4 h-4" />
+                        </Link>
+                        <button onClick={() => publishTrack(track)} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors" title="Publier">
+                          <UploadCloud className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -439,19 +501,19 @@ export default function AILibrary() {
                   </button>
                 </div>
                 <div className="mt-3 flex items-center justify-end">
-                  <a href="/ai-generator" className="text-[var(--color-primary)] hover:opacity-90 text-sm inline-flex items-center gap-2">
-                    <LinkIcon className="w-4 h-4" /> Ouvrir dans AI Generator
-                  </a>
+                  <Link href="/ai-generator" className="text-[var(--color-primary)] hover:opacity-90 text-sm inline-flex items-center gap-2">
+                    <LinkIcon className="w-4 h-4" /> Ouvrir dans le Studio
+                  </Link>
                 </div>
               </motion.div>
             ))}
               </div>
-            </div>
+            </SynauraPanel>
           )}
 
           {/* Liste globale des pistes IA */}
           {allTracks.length > 0 && (
-            <div className="mt-8 panel-suno border border-[var(--border)] rounded-xl p-3 sm:p-6">
+            <SynauraPanel className="mt-8 p-3 sm:p-6">
               <h2 className="text-xl font-semibold mb-4">Toutes mes pistes IA</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {allTracks.map((track) => (
@@ -465,25 +527,29 @@ export default function AILibrary() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-medium truncate">{track.title}</h4>
-                    <p className="text-[var(--text-muted)] text-sm">
-                      {Math.round(track.duration / 60)}:{(track.duration % 60).toString().padStart(2, '0')}
-                    </p>
+                    <p className="text-[var(--text-muted)] text-sm">{formatDuration(track.duration)}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => playAITrack(track as any, { id: 'gen', user_id: '', task_id: '', prompt: '', model: track.model_name || '', status: 'completed', created_at: new Date().toISOString(), is_favorite: false, is_public: false, play_count: 0, like_count: 0, share_count: 0, metadata: { title: track.title, style: track.style }, tracks: [] } as any)} className="p-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
+                    <button onClick={() => playAITrack(track as any, syntheticGenerationForTrack(track))} className="p-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
                       <Play className="w-4 h-4" />
                     </button>
                     <button onClick={() => downloadTrack(track)} className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
                       <Download className="w-4 h-4" />
                     </button>
+                    <Link href={studioLinkForTrack(track, 'style')} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
+                      <Sparkles className="w-4 h-4" />
+                    </Link>
+                    <Link href={studioLinkForTrack(track, 'remix')} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
+                      <Repeat2 className="w-4 h-4" />
+                    </Link>
                   </div>
                 </div>
               ))}
               </div>
-            </div>
+            </SynauraPanel>
           )}
         </div>
       </main>
-    </div>
+    </SynauraAppShell>
   );
 }

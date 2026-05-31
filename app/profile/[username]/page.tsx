@@ -407,6 +407,9 @@ export default function SynauraProfile() {
                       <HeroActionSecondary onClick={handleShareProfile}>
                         <Share2 size={15} /> Partager le profil
                       </HeroActionSecondary>
+                      <HeroActionSecondary onClick={() => router.push('/community/forum?category=collab')}>
+                        <Mic2 size={15} /> Demander un feat
+                      </HeroActionSecondary>
                       {topProfileTracks[0] ? (
                         <HeroActionSecondary onClick={() => router.push(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(topProfileTracks[0].id)}&title=${encodeURIComponent(topProfileTracks[0].title || '')}`)}>
                           <Sparkles size={15} /> Inspiré par cet artiste
@@ -445,7 +448,20 @@ export default function SynauraProfile() {
                           <p className="truncate text-sm font-black text-[#171313]">{track.title}</p>
                         </div>
                       </div>
-                      <TrackCreateRemixActions track={{ ...track, _id: track.id, audioUrl: track.audioUrl || track.audio_url, coverUrl: track.coverUrl || track.cover_url }} compact />
+                      <div className="flex flex-wrap gap-1.5">
+                        <TrackCreateRemixActions track={{ ...track, _id: track.id, audioUrl: track.audioUrl || track.audio_url, coverUrl: track.coverUrl || track.cover_url }} compact />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            addToUpNext({ _id: track.id, title: track.title, artist: track.artist || track.artist_name || profile.artistName || profile.name, audioUrl: track.audioUrl || track.audio_url, coverUrl: track.coverUrl || track.cover_url, duration: track.duration, album: track.album || null, likes: track.likes || 0, comments: [], plays: track.plays || 0, genre: track.genre || [], isLiked: track.isLiked || false } as any, 'next');
+                            notify.success('File', `${track.title} sera lu ensuite.`);
+                          }}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-black/[0.045] px-2.5 text-[10px] font-black text-[#171313]/68 transition hover:bg-[#171313] hover:text-white"
+                        >
+                          <ListPlus size={12} />
+                          Ensuite
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -575,6 +591,16 @@ export default function SynauraProfile() {
                           <TrackCreateRemixActions track={{ ...track, _id: track.id, audioUrl: track.audioUrl || track.audio_url }} compact />
                         </div>
                         <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addToUpNext({ _id: track.id, title: track.title, artist: track.artist || track.artist_name || profile.artistName || profile.name, audioUrl: track.audioUrl || track.audio_url, coverUrl: track.coverUrl || track.cover_url, duration: track.duration, album: track.album || null, likes: track.likes || 0, comments: [], plays: track.plays || 0, genre: track.genre || [], isLiked: track.isLiked || false } as any, 'next');
+                            notify.success('File', `${track.title} sera lu ensuite.`);
+                          }}
+                          className="hidden shrink-0 rounded-full bg-black/[0.055] px-3 py-2 text-[11px] font-black text-black/52 transition hover:bg-black hover:text-white lg:inline-flex"
+                        >
+                          Lire ensuite
+                        </button>
+                        <button
                           onClick={(e) => { e.stopPropagation(); e.preventDefault(); setCtxTrack(ctxTrack?.track?.id === track.id ? null : { track, anchorEl: e.currentTarget as HTMLButtonElement }); }}
                           className="shrink-0 rounded-full p-2 text-black/36 transition hover:bg-black/[0.06] hover:text-[#171313] sm:opacity-0 sm:group-hover:opacity-100"
                         >
@@ -677,7 +703,7 @@ export default function SynauraProfile() {
             <SynauraPanel className="p-5 sm:p-6">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Vue d&apos;ensemble</p>
-                <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">A propos</h2>
+                <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">À propos</h2>
               </div>
 
               {profile.bio && (
@@ -740,12 +766,12 @@ export default function SynauraProfile() {
             <SynauraPanel className="p-5 sm:p-6">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Audience</p>
-                <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">Chiffres cles</h2>
+                <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">Chiffres clés</h2>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                 <MetricCard label="Followers" value={fmtN.format(followerCount)} accent="violet" />
                 <MetricCard label="Abonnements" value={fmtN.format(followingCount)} accent="cyan" />
-                <MetricCard label="Ecoutes totales" value={fmtN.format(totalPlays)} accent="coral" />
+                <MetricCard label="Écoutes totales" value={fmtN.format(totalPlays)} accent="coral" />
                 <MetricCard label="Likes totaux" value={fmtN.format(profile.totalLikes || 0)} accent="ink" />
               </div>
             </SynauraPanel>
@@ -753,7 +779,7 @@ export default function SynauraProfile() {
             {isOwnProfile && (
               <SynauraPanel className="p-5 sm:p-6">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Creation</p>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Création</p>
                   <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">Espace artiste</h2>
                 </div>
                 <div className="mt-4 space-y-3">
@@ -1108,11 +1134,11 @@ function TrackCtxMenu({ track, anchorEl, isOwn, onClose, onEdit, onDelete, onSta
   if (typeof document === 'undefined') return null;
   return createPortal(
     <div className="fixed z-[9999] w-[228px] rounded-[1.4rem] border border-black/[0.08] bg-[#fffaf2]/95 py-2 shadow-[0_22px_60px_rgba(30,25,20,0.18)] backdrop-blur-2xl animate-in fade-in-0 zoom-in-95 duration-100" style={{ top: pos.top, left: pos.left }} onClick={(e) => e.stopPropagation()}>
-      <CtxItem icon={Play} label="Ecouter" onClick={onPlay} />
+      <CtxItem icon={Play} label="Écouter" onClick={onPlay} />
       <CtxItem icon={ListPlus} label="Lire ensuite" onClick={handlePlayNext} />
-      <CtxItem icon={ListEnd} label="Ajouter a la file" onClick={handleQueue} />
+      <CtxItem icon={ListEnd} label="Ajouter à la file" onClick={handleQueue} />
       <div className="my-1 border-t border-black/[0.06]" />
-      <CtxItem icon={copied ? Check : Share2} label={copied ? 'Lien copie !' : 'Partager'} onClick={handleShare} />
+      <CtxItem icon={copied ? Check : Share2} label={copied ? 'Lien copié !' : 'Partager'} onClick={handleShare} />
       {isOwn && !isAi && (
         <>
           <div className="my-1 border-t border-black/[0.06]" />
@@ -1177,7 +1203,7 @@ function DrawerContent({ track, playing, onPlay, onEdit, onDelete, isOwn, onLike
       {/* Controls */}
       <div className="flex items-center gap-2 px-4 py-4">
         <button onClick={onPlay} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#171313] py-3 text-sm font-black text-white transition hover:scale-[1.01]">
-          {playing ? <Pause size={15} /> : <Play size={15} fill="white" />} {playing ? 'Pause' : 'Ecouter'}
+          {playing ? <Pause size={15} /> : <Play size={15} fill="white" />} {playing ? 'Pause' : 'Écouter'}
                 </button>
         {!isAi && <div onClick={(e) => e.stopPropagation()}><LikeButton trackId={track.id} initialIsLiked={track.isLiked || false} initialLikesCount={track.likes || 0} onUpdate={(s) => onLike(track.id, s.isLiked, s.likesCount)} showCount={false} size="md" /></div>}
               </div>

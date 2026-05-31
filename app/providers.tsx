@@ -430,7 +430,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       fetch('/api/recommendations/impressions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contentType: 'track', contentId: track._id, source: 'queue', eventType: mode === 'next' ? 'queue_next' : 'queue_end' }),
+        body: JSON.stringify({ contentType: 'track', contentId: track._id, source: 'queue', eventType: 'add_to_queue', reasons: [mode === 'next' ? 'next' : 'end'] }),
         keepalive: true,
       }).catch(() => {});
     },

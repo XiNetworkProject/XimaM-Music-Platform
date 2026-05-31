@@ -33,7 +33,7 @@ const GENRES = [
   'Lo-Fi', 'Classical', 'Indie', 'Soul', 'Funk', 'Ambient', 'Metal',
   'Reggae', 'Latin', 'Afro',
 ];
-const DISCOVER_TABS = ['Pour toi', 'Tendances', 'Nouveautés', 'IA', 'Artistes', 'Playlists'] as const;
+const DISCOVER_TABS = ['Tout', 'Sons', 'IA', 'Artistes', 'Albums', 'Playlists'] as const;
 type DiscoverTab = typeof DISCOVER_TABS[number];
 
 function greeting() {
@@ -137,7 +137,7 @@ export default function DiscoverAuthedClient({
   const { setQueueAndPlay } = useAudioPlayer();
 
   const [q, setQ] = useState('');
-  const [activeTab, setActiveTab] = useState<DiscoverTab>('Pour toi');
+  const [activeTab, setActiveTab] = useState<DiscoverTab>('Tout');
   const [activeGenre, setActiveGenre] = useState<string>(genreFilter || 'Tout');
   const [forYou, setForYou] = useState(initialForYou);
   const [trending, setTrending] = useState(initialTrending);
@@ -284,9 +284,9 @@ export default function DiscoverAuthedClient({
       <div className="mx-auto grid max-w-[1080px] gap-5">
         <main className="min-w-0 space-y-5 pb-28">
           <SynauraHero
-            eyebrow="Decouverte personnalisee"
+            eyebrow="Découverte personnalisée"
             title={`${greeting()}, ${displayName}`}
-            description="Tes recommandations, tes tendances et tes nouveautes vivent maintenant dans la meme grammaire que la home Synaura."
+            description="Tes recommandations, tes tendances et tes nouveautés vivent maintenant dans la même grammaire que la home Synaura."
             actions={
               <>
                 <button
@@ -322,7 +322,7 @@ export default function DiscoverAuthedClient({
                   <button onClick={() => handlePlayAll(filteredForYou.length ? filteredForYou : filteredTrending)} className="rounded-2xl bg-white text-left px-3 py-2 text-xs font-black text-[#171313]">
                     Mix quotidien
                   </button>
-                  <button onClick={() => { setActiveTab('Tendances'); handlePlayAll(topHits.length ? topHits : filteredTrending); }} className="rounded-2xl bg-white/10 text-left px-3 py-2 text-xs font-black text-white/70">
+                  <button onClick={() => { setActiveTab('Sons'); handlePlayAll(topHits.length ? topHits : filteredTrending); }} className="rounded-2xl bg-white/10 text-left px-3 py-2 text-xs font-black text-white/70">
                     Top hebdo
                   </button>
                 </div>
@@ -375,7 +375,7 @@ export default function DiscoverAuthedClient({
 
           {isSearching ? (
             <SynauraInkPanel className="p-4 sm:p-5">
-              <SectionHeader title={`Resultats pour "${q}"`} subtitle="Titres qui correspondent a ta recherche" />
+              <SectionHeader title={`Résultats pour "${q}"`} subtitle="Titres qui correspondent à ta recherche" />
               {searchResults.length ? (
                 <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 xl:grid-cols-3">
                   {searchResults.map((t, i) => (
@@ -388,11 +388,11 @@ export default function DiscoverAuthedClient({
             </SynauraInkPanel>
           ) : (
             <>
-              {activeTab === 'Tendances' && topHits.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'Sons') && topHits.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader
                     title={isFiltered ? `Top ${activeGenre}` : 'Top Hits'}
-                    subtitle={isFiltered ? `Les meilleurs titres ${activeGenre}` : 'Les plus ecoutes en ce moment'}
+                    subtitle={isFiltered ? `Les meilleurs titres ${activeGenre}` : 'Les plus écoutés en ce moment'}
                     actionLabel="Tout lire"
                     onAction={() => handlePlayAll(topHits)}
                   />
@@ -404,7 +404,7 @@ export default function DiscoverAuthedClient({
                 </SynauraInkPanel>
               ) : null}
 
-              {activeTab === 'Pour toi' && displayForYou.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'Sons') && displayForYou.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader
                     title={isFiltered ? `${activeGenre} pour toi` : 'Pour toi'}
@@ -425,7 +425,7 @@ export default function DiscoverAuthedClient({
                 </SynauraInkPanel>
               ) : null}
 
-              {activeTab === 'Playlists' && albums.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'Albums') && albums.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader
                     title="Albums & EPs"
@@ -448,7 +448,7 @@ export default function DiscoverAuthedClient({
                 </SynauraInkPanel>
               ) : null}
 
-              {activeTab === 'Tendances' && boostedTracks.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'Sons') && boostedTracks.length > 0 ? (
                 <SynauraPanel
                   className="p-4 sm:p-6"
                   style={{ background: 'linear-gradient(135deg, rgba(255,246,215,0.92) 0%, rgba(255,228,241,0.84) 55%, rgba(255,250,242,0.96) 100%)' }}
@@ -514,11 +514,11 @@ export default function DiscoverAuthedClient({
                 </SynauraPanel>
               ) : null}
 
-              {activeTab === 'Tendances' && displayTrending.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'Sons') && displayTrending.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader
                     title={isFiltered ? `Tendances ${activeGenre}` : 'Tendances'}
-                    subtitle="Les plus ecoutes"
+                    subtitle="Les plus écoutés"
                   />
                   <div className="grid grid-cols-2 gap-3 sm:hidden">
                     {displayTrending.slice(0, 6).map((t) => (
@@ -535,11 +535,11 @@ export default function DiscoverAuthedClient({
                 </SynauraInkPanel>
               ) : null}
 
-              {activeTab === 'Nouveautés' && displayNewest.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'Sons') && displayNewest.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader
-                    title={isFiltered ? `Nouveautes ${activeGenre}` : 'Nouveautes'}
-                    subtitle="Tout juste publie"
+                    title={isFiltered ? `Nouveautés ${activeGenre}` : 'Nouveautés'}
+                    subtitle="Tout juste publié"
                   />
                   <div className="grid grid-cols-2 gap-3 sm:hidden">
                     {displayNewest.slice(0, 6).map((t) => (
@@ -556,12 +556,12 @@ export default function DiscoverAuthedClient({
                 </SynauraInkPanel>
               ) : null}
 
-              {activeTab === 'IA' && aiTracks.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'IA') && aiTracks.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader
-                    title="Creations IA"
-                    subtitle="Genere par intelligence artificielle"
-                    actionLabel="Creer"
+                    title="Créations IA"
+                    subtitle="Généré par intelligence artificielle"
+                    actionLabel="Créer"
                     actionHref="/ai-generator"
                   />
                   <div className="grid grid-cols-2 gap-3 sm:hidden">
@@ -579,7 +579,7 @@ export default function DiscoverAuthedClient({
                 </SynauraInkPanel>
               ) : null}
 
-              {activeTab === 'Artistes' && !isFiltered && artists.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'Artistes') && !isFiltered && artists.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader title="Artistes du moment" subtitle="A suivre" />
                   <div className="grid grid-cols-3 gap-3 sm:hidden">
@@ -597,7 +597,7 @@ export default function DiscoverAuthedClient({
                 </SynauraInkPanel>
               ) : null}
 
-              {activeTab === 'Playlists' && !isFiltered && playlists.length > 0 ? (
+              {(activeTab === 'Tout' || activeTab === 'Playlists') && !isFiltered && playlists.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader title="Playlists populaires" subtitle="Compilations de la communaute" />
                   <div className="grid grid-cols-2 gap-3 sm:hidden">

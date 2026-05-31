@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ListMusic, Pause, Play, Radio, Share2, SkipBack, SkipForward, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronDown, ChevronUp, ListMusic, Pause, Play, Radio, Share2, SkipBack, SkipForward, Sparkles, Trash2, X } from 'lucide-react';
 import { useAudioPlayer, useAudioTime } from '@/app/providers';
 import TikTokPlayer from './TikTokPlayer';
 import TrackCover from './TrackCover';
@@ -14,6 +15,138 @@ function toTime(seconds: number) {
   return `${minutes}:${String(secs).padStart(2, '0')}`;
 }
 
+function trackArtist(track: any) {
+  if (!track) return 'Artiste inconnu';
+  if (typeof track.artist === 'string') return track.artist;
+  return track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste inconnu';
+}
+
+function QueueMiniRow({
+  track,
+  index,
+  editable,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+}: {
+  track: any;
+  index?: number;
+  editable?: boolean;
+  onRemove?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-[1rem] bg-black/[0.04] p-2">
+      {typeof index === 'number' ? <span className="w-5 text-center text-[10px] font-black text-black/32">{index + 1}</span> : null}
+      <TrackCover src={track?.coverUrl || track?.cover_url || null} title={track?.title || 'Titre'} className="h-9 w-9 shrink-0" rounded="rounded-[0.75rem]" objectFit="cover" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-black text-[#171313]">{track?.title || 'Titre inconnu'}</p>
+        <p className="truncate text-[10px] font-semibold text-black/38">{trackArtist(track)}</p>
+      </div>
+      {editable ? (
+        <div className="flex shrink-0 items-center gap-1">
+          <button type="button" onClick={onMoveUp} className="grid h-7 w-7 place-items-center rounded-full bg-white text-black/45 disabled:opacity-25" disabled={!onMoveUp}>
+            <ChevronUp className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" onClick={onMoveDown} className="grid h-7 w-7 place-items-center rounded-full bg-white text-black/45 disabled:opacity-25" disabled={!onMoveDown}>
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" onClick={onRemove} className="grid h-7 w-7 place-items-center rounded-full bg-red-500/10 text-red-600">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function QueuePanel({
+  currentTrack,
+  queueTracks,
+  upNextTracks,
+  upNextEnabled,
+  onToggleEnabled,
+  onRemove,
+  onClear,
+  onMove,
+  onClose,
+}: {
+  currentTrack: any;
+  queueTracks: any[];
+  upNextTracks: any[];
+  upNextEnabled: boolean;
+  onToggleEnabled: () => void;
+  onRemove: (trackId: string) => void;
+  onClear: () => void;
+  onMove: (trackId: string, direction: 'up' | 'down') => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="mx-auto mb-2 max-w-[980px] overflow-hidden rounded-[1.45rem] border border-black/[0.08] bg-[#fffaf2]/98 p-3 text-[#171313] shadow-[0_22px_60px_rgba(30,25,20,0.22)] backdrop-blur-2xl">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/34">File d'attente</p>
+          <h2 className="text-lg font-black tracking-[-0.04em]">À suivre</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={onToggleEnabled} className={`h-8 rounded-full px-3 text-[11px] font-black ${upNextEnabled ? 'bg-[#171313] text-white' : 'bg-black/[0.06] text-black/48'}`}>
+            {upNextEnabled ? 'Activée' : 'Désactivée'}
+          </button>
+          <button type="button" onClick={onClose} className="grid h-8 w-8 place-items-center rounded-full bg-black/[0.06] text-black/45">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-[1fr_1.1fr]">
+        <div>
+          <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-black/34">En cours</p>
+          <QueueMiniRow track={currentTrack} />
+          {queueTracks.length ? (
+            <div className="mt-3">
+              <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-black/34">Suite naturelle</p>
+              <div className="max-h-[150px] space-y-1.5 overflow-y-auto pr-1">
+                {queueTracks.map((track, index) => <QueueMiniRow key={`${track?._id || track?.id}-${index}`} track={track} index={index} />)}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-black/34">Priorité utilisateur</p>
+            {upNextTracks.length ? <button type="button" onClick={onClear} className="text-[11px] font-black text-red-600">Vider</button> : null}
+          </div>
+          {upNextTracks.length ? (
+            <div className="max-h-[230px] space-y-1.5 overflow-y-auto pr-1">
+              {upNextTracks.map((track, index) => {
+                const id = track?._id || track?.id || '';
+                return (
+                  <QueueMiniRow
+                    key={`${id}-${index}`}
+                    track={track}
+                    index={index}
+                    editable
+                    onRemove={() => id && onRemove(id)}
+                    onMoveUp={index > 0 && id ? () => onMove(id, 'up') : undefined}
+                    onMoveDown={index < upNextTracks.length - 1 && id ? () => onMove(id, 'down') : undefined}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-[1.15rem] border border-dashed border-black/[0.12] p-5 text-center">
+              <p className="text-sm font-black text-black/48">Aucune piste dans À suivre.</p>
+              <p className="mt-1 text-xs font-semibold text-black/34">Ajoute des sons depuis Discover, la Home ou un profil.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SynauraMiniPlayer() {
   const {
     audioState,
@@ -23,11 +156,19 @@ export default function SynauraMiniPlayer() {
     nextTrack,
     previousTrack,
     seek,
+    upNextEnabled,
+    upNextTracks,
+    setUpNextEnabled,
+    removeFromUpNext,
+    clearUpNext,
+    moveUpNext,
+    addToUpNext,
   } = useAudioPlayer();
   const { currentTime, duration } = useAudioTime();
 
   const progressRef = useRef<HTMLDivElement>(null);
   const [showTikTok, setShowTikTok] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex] || null;
   const track = useMemo(
@@ -49,6 +190,8 @@ export default function SynauraMiniPlayer() {
   );
 
   const progressPct = duration ? ((currentTime || 0) / duration) * 100 : 0;
+  const artistUsername = (currentTrack as any)?.artist?.username;
+  const nextQueueTracks = audioState.tracks.slice(Math.max(0, audioState.currentTrackIndex + 1), audioState.currentTrackIndex + 6);
 
   const togglePlay = async () => {
     if (audioState.isPlaying) pause();
@@ -117,6 +260,19 @@ export default function SynauraMiniPlayer() {
       {!showTikTok ? (
           <div className="fixed inset-x-0 bottom-0 z-[50] pointer-events-none">
             <div className="pointer-events-auto px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:px-4">
+              {showQueue ? (
+                <QueuePanel
+                  currentTrack={currentTrack as any}
+                  queueTracks={nextQueueTracks as any[]}
+                  upNextTracks={upNextTracks as any[]}
+                  upNextEnabled={upNextEnabled}
+                  onToggleEnabled={() => setUpNextEnabled(!upNextEnabled)}
+                  onRemove={removeFromUpNext}
+                  onClear={clearUpNext}
+                  onMove={moveUpNext}
+                  onClose={() => setShowQueue(false)}
+                />
+              ) : null}
               <div className="mx-auto max-w-[980px] overflow-hidden rounded-[1.45rem] border border-black/[0.08] bg-[#fffaf2]/96 text-[#171313] shadow-[0_22px_60px_rgba(30,25,20,0.22)] backdrop-blur-2xl">
                 <div
                   ref={progressRef}
@@ -183,6 +339,29 @@ export default function SynauraMiniPlayer() {
                   </div>
 
                   <div className="flex items-center gap-1">
+                    {artistUsername ? (
+                      <Link
+                        href={`/profile/${encodeURIComponent(artistUsername)}`}
+                        className="hidden h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313] lg:inline-flex"
+                        onClick={() => {
+                          fetch('/api/recommendations/impressions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ contentType: 'track', contentId: currentTrack._id, source: 'global-player', eventType: 'open_artist' }),
+                            keepalive: true,
+                          }).catch(() => {});
+                        }}
+                      >
+                        Artiste
+                      </Link>
+                    ) : null}
+                    <button
+                      onClick={() => addToUpNext(currentTrack as any, 'end')}
+                      className="hidden h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313] lg:inline-flex"
+                      aria-label="Ajouter à la file"
+                    >
+                      + File
+                    </button>
                     <button
                       onClick={handleShare}
                       className="inline-flex h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313]"
@@ -199,9 +378,28 @@ export default function SynauraMiniPlayer() {
                       <ListMusic className="w-3.5 h-3.5" />
                       Feed
                     </button>
+                    <button
+                      onClick={() => setShowQueue((value) => !value)}
+                      className="inline-flex h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313]"
+                      aria-label="À suivre"
+                    >
+                      <ListMusic className="w-3.5 h-3.5" />
+                      À suivre
+                      {upNextTracks.length ? <span className="rounded-full bg-[#171313] px-1.5 py-0.5 text-[9px] text-white">{upNextTracks.length}</span> : null}
+                    </button>
                     <TrackCreateRemixActions track={currentTrack as any} compact className="hidden xl:flex" />
                   </div>
                 </div>
+
+                {audioState.error ? (
+                  <div className="mx-3 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-[1rem] bg-red-500/10 px-3 py-2 text-xs font-bold text-red-700">
+                    <span className="line-clamp-1">Lecture impossible : {audioState.error}</span>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => void play()} className="rounded-full bg-red-600 px-3 py-1 text-white">Réessayer</button>
+                      {isAI ? <Link href="/ai-generator" className="rounded-full bg-white px-3 py-1 text-red-700">Studio</Link> : null}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="flex items-center gap-2 px-3 py-2.5 sm:hidden">
                   <button type="button" className="flex min-w-0 flex-1 items-center gap-2.5 text-left" onClick={() => setShowTikTok(true)}>
@@ -229,6 +427,14 @@ export default function SynauraMiniPlayer() {
                     aria-label="Player complet"
                   >
                     <ListMusic className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setShowQueue((value) => !value)}
+                    className="relative grid h-10 w-10 place-items-center rounded-full bg-black/[0.05] text-black/55"
+                    aria-label="À suivre"
+                  >
+                    <ListMusic className="w-4 h-4" />
+                    {upNextTracks.length ? <span className="absolute -right-1 -top-1 rounded-full bg-[#171313] px-1.5 py-0.5 text-[8px] font-black text-white">{upNextTracks.length}</span> : null}
                   </button>
                   <TrackCreateRemixActions track={currentTrack as any} compact className="hidden min-[420px]:flex" />
                 </div>
