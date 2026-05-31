@@ -518,7 +518,7 @@ export default function UploadPage() {
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-5 text-sm font-black text-white transition hover:bg-white/[0.14]"
               >
                 <Library className="h-4 w-4" />
-                Bibliotheque
+                Bibliothèque
               </button>
             </div>
           </div>

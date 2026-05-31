@@ -249,7 +249,7 @@ export default function SynauraProfile() {
             onClick={() => router.push('/discover')}
             className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-[#171313] px-6 text-sm font-black text-white transition hover:scale-[1.02]"
           >
-            Decouvrir
+            Découvrir
           </button>
         </SynauraPanel>
       </div>
@@ -489,7 +489,7 @@ export default function SynauraProfile() {
                       <Sparkles size={15} /> <span className="hidden sm:inline">Studio</span>
                     </button>
                     <button onClick={() => router.push('/library')} className="inline-flex items-center justify-center gap-2 rounded-full bg-black/[0.055] px-4 py-2.5 text-xs font-black text-black/62 transition hover:bg-black hover:text-white sm:text-sm">
-                      <Library size={15} /> <span className="hidden sm:inline">Bibliotheque</span>
+                      <Library size={15} /> <span className="hidden sm:inline">Bibliothèque</span>
                     </button>
                   </div>
                 </div>
@@ -538,7 +538,7 @@ export default function SynauraProfile() {
                   <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-[1.35rem] bg-black/[0.05] text-black/22">
                     <Music2 size={28} />
                   </div>
-                  <p className="text-sm text-black/48">{query.trim() ? 'Aucun resultat' : isOwnProfile ? 'Pas encore de titres publies' : 'Aucun titre'}</p>
+                  <p className="text-sm text-black/48">{query.trim() ? 'Aucun résultat' : isOwnProfile ? 'Pas encore de titres publiés' : 'Aucun titre'}</p>
                   {isOwnProfile && !query.trim() && (
                     <div className="mt-5 flex flex-wrap justify-center gap-3">
                       <button onClick={() => router.push('/upload')} className="inline-flex h-10 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/68 transition hover:bg-black hover:text-white"><Upload size={14} /> Uploader</button>
@@ -659,7 +659,7 @@ export default function SynauraProfile() {
               <div className="border-b border-black/[0.08] bg-[linear-gradient(135deg,#fffaf2_0%,#f4ecff_52%,#ebfbff_100%)] px-4 py-5 sm:px-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Communaute</p>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Communauté</p>
                     <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">Posts</h2>
                   </div>
                   <div className="grid grid-cols-3 gap-2 sm:flex">

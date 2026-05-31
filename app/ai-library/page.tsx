@@ -393,12 +393,18 @@ export default function AILibrary() {
             <p className="text-[var(--text-muted)] mt-4">Chargement de votre bibliothèque...</p>
           </div>
           ) : (generations.length === 0 && allTracks.length === 0) ? (
-            <SynauraPanel className="p-6 text-center">
-              <Music className="w-16 h-16 mx-auto mb-4 text-white/40" />
-              <h3 className="text-xl font-semibold mb-2">Aucune musique trouvée</h3>
-              <p className="text-[var(--text-muted)]">
-                {searchQuery ? 'Aucun résultat pour votre recherche' : 'Commencez par générer votre première musique IA'}
+            <SynauraPanel className="p-8 text-center">
+              <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-[1.3rem] bg-black/[0.055] text-black/28">
+                <Music className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-black tracking-[-0.03em] text-[#171313]">Aucune génération IA pour le moment</h3>
+              <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-black/48">
+                {searchQuery ? 'Aucun résultat pour cette recherche. Essaie un titre, un style ou un prompt différent.' : 'Ouvre le Studio IA pour créer ta première piste, puis reviens ici pour la rejouer, publier ou remixer.'}
               </p>
+              <Link href="/ai-generator" className="mt-5 inline-flex h-11 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]">
+                <Sparkles className="h-4 w-4" />
+                Ouvrir le Studio IA
+              </Link>
             </SynauraPanel>
           ) : (
             <SynauraPanel className="p-3 sm:p-6">

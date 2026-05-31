@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import {
   ArrowRight,
   Clock,
+  Disc3,
   Flame,
   Headphones,
   Heart,
@@ -148,6 +149,47 @@ function categoryTint(category?: string) {
   return musicIntents.find((item) => item.label === label)?.tint || '#7c5cff';
 }
 
+function MiniWaveform({ tint, active = false }: { tint: string; active?: boolean }) {
+  return (
+    <div className="flex h-8 items-end gap-1">
+      {[0.35, 0.7, 0.48, 0.9, 0.55, 0.78, 0.42].map((height, index) => (
+        <span
+          key={`${tint}-${index}`}
+          className={`w-1.5 rounded-full transition-all duration-300 ${active ? 'animate-pulse' : ''}`}
+          style={{
+            height: `${height * 100}%`,
+            background: tint,
+            opacity: 0.28 + index * 0.08,
+            animationDelay: `${index * 90}ms`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function IntentMusicVisual({ tint, index }: { tint: string; index: number }) {
+  return (
+    <div className="mt-4 overflow-hidden rounded-[1.15rem] border border-black/[0.06] bg-white/70 p-3">
+      <div className="flex items-center gap-3">
+        <div className="relative grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-[1rem] text-white shadow-[0_12px_28px_rgba(30,25,20,0.14)]" style={{ background: `linear-gradient(135deg, ${tint}, #171313)` }}>
+          <Disc3 className="h-5 w-5" />
+          <span className="absolute inset-2 rounded-full border border-white/20" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="rounded-full bg-black/[0.045] px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-black/36">
+              {index % 2 === 0 ? 'son attaché' : 'session live'}
+            </span>
+            <Music2 className="h-3.5 w-3.5 text-black/24" />
+          </div>
+          <MiniWaveform tint={tint} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CommunityPage() {
   const { data: session } = useSession();
   const { setQueueAndPlay } = useAudioPlayer();
@@ -245,16 +287,16 @@ export default function CommunityPage() {
       />
       <SynauraAnnouncementStrip />
 
-      <div className="space-y-5 pb-28">
-        <SynauraInkPanel className="p-4 sm:p-6 lg:p-7">
+      <div className="space-y-5 pb-36 sm:pb-28">
+        <SynauraInkPanel className="p-3 sm:p-6 lg:p-7">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.08fr)_420px] lg:items-stretch">
-            <div className="flex min-h-[360px] flex-col justify-between rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+            <div className="flex min-h-[250px] flex-col justify-between rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4 sm:min-h-[360px] sm:rounded-[1.6rem] sm:p-6">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-white/58">
                   <Music2 className="h-3.5 w-3.5 text-[#ffcf9f]" />
                   Communauté musicale
                 </div>
-                <h1 className="mt-5 max-w-3xl text-[2.7rem] font-black leading-[0.92] tracking-[-0.06em] text-white sm:text-6xl">
+                <h1 className="mt-5 max-w-3xl text-[2.25rem] font-black leading-[0.92] tracking-[-0.06em] text-white min-[380px]:text-[2.55rem] sm:text-6xl">
                   Fais décoller ton son.
                 </h1>
                 <p className="mt-5 max-w-2xl text-sm font-semibold leading-7 text-white/54 sm:text-base">
@@ -262,16 +304,16 @@ export default function CommunityPage() {
                 </p>
               </div>
 
-              <div className="mt-7 flex flex-wrap gap-2.5">
-                <Link href="/community/forum?category=feedback" className="inline-flex h-11 items-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]">
+              <div className="mt-7 grid gap-2 min-[420px]:flex min-[420px]:flex-wrap min-[420px]:gap-2.5">
+                <Link href="/community/forum?category=feedback" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-4 text-xs font-black text-[#171313] transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm">
                   <PlusCircle className="h-4 w-4" />
                   Demander un avis
                 </Link>
-                <Link href="/community/forum?category=remix" className="inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-5 text-sm font-black text-white/72 transition hover:bg-white/14 hover:text-white">
+                <Link href="/community/forum?category=remix" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-11 sm:px-5 sm:text-sm">
                   <Zap className="h-4 w-4" />
                   Lancer un défi remix
                 </Link>
-                <Link href="/community/forum?category=collab" className="inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-5 text-sm font-black text-white/72 transition hover:bg-white/14 hover:text-white">
+                <Link href="/community/forum?category=collab" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-11 sm:px-5 sm:text-sm">
                   <Users className="h-4 w-4" />
                   Trouver un feat
                 </Link>
@@ -280,7 +322,7 @@ export default function CommunityPage() {
 
             <div className="grid gap-3">
               <div className="rounded-[1.55rem] bg-[#fffaf2] p-4 text-[#171313]">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-black/36">Boucle recommandée</p>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-black/36">Boucle produit</p>
                 <div className="mt-4 grid gap-3">
                   {[
                     ['1', 'Écoute un son', 'Depuis Home, Discover ou le player global.'],
@@ -317,31 +359,32 @@ export default function CommunityPage() {
         <section>
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Entrées principales</p>
-              <h2 className="text-2xl font-black tracking-[-0.04em] text-[#171313]">Choisis ce que tu veux faire avec ta musique</h2>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Avec ton son</p>
+              <h2 className="text-2xl font-black tracking-[-0.04em] text-[#171313]">Que veux-tu faire avec ton son ?</h2>
             </div>
             <Link href="/discover" className="hidden rounded-full bg-black/[0.055] px-4 py-2 text-xs font-black text-black/52 transition hover:bg-black hover:text-white sm:inline-flex">
               Découvrir des sons
             </Link>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <div className="synaura-no-scrollbar -mx-2 flex snap-x gap-3 overflow-x-auto px-2 pb-1 md:mx-0 md:grid md:grid-cols-2 md:px-0 xl:grid-cols-5">
             {musicIntents.map((item) => {
               const Icon = item.icon;
               return (
                 <Link
                   key={item.label}
                   href={item.href}
-                  className="group relative min-h-[230px] overflow-hidden rounded-[1.6rem] border border-black/[0.08] bg-[#fffaf2]/88 p-4 shadow-[0_18px_50px_rgba(30,25,20,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_70px_rgba(30,25,20,0.14)]"
+                  className="group relative min-h-[205px] w-[min(78vw,300px)] shrink-0 snap-start overflow-hidden rounded-[1.35rem] border border-black/[0.08] bg-[#fffaf2]/88 p-3.5 shadow-[0_18px_50px_rgba(30,25,20,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(30,25,20,0.14)] md:w-auto md:rounded-[1.6rem] md:p-4 xl:min-h-[270px]"
                 >
                   <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-18 blur-2xl" style={{ background: item.tint }} />
                   <div className="relative flex h-full flex-col justify-between">
                     <div>
-                      <div className="grid h-12 w-12 place-items-center rounded-[1.05rem] text-white shadow-[0_14px_34px_rgba(30,25,20,0.16)]" style={{ background: item.tint }}>
+                      <div className="grid h-12 w-12 place-items-center rounded-[1.05rem] text-white shadow-[0_14px_34px_rgba(30,25,20,0.16)] transition duration-300 group-hover:scale-105" style={{ background: item.tint }}>
                         <Icon className="h-5 w-5" />
                       </div>
                       <h3 className="mt-4 text-lg font-black tracking-[-0.03em] text-[#171313]">{item.label}</h3>
                       <p className="mt-2 text-sm font-semibold leading-6 text-black/48">{item.desc}</p>
+                      <IntentMusicVisual tint={item.tint} index={musicIntents.indexOf(item)} />
                     </div>
                     <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-black text-black/45 transition group-hover:text-[#171313]">
                       {item.cta}
@@ -358,8 +401,8 @@ export default function CommunityPage() {
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Live musical</p>
-                <h2 className="text-2xl font-black tracking-[-0.04em] text-[#171313]">Discussions qui peuvent faire avancer un son</h2>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Avis en cours</p>
+                <h2 className="text-2xl font-black tracking-[-0.04em] text-[#171313]">Les sons qui cherchent un avis</h2>
               </div>
               <Link href="/community/forum" className="shrink-0 rounded-full bg-[#171313] px-4 py-2 text-xs font-black text-white transition hover:scale-[1.02]">
                 Tout voir
@@ -374,7 +417,7 @@ export default function CommunityPage() {
                     <Link
                       key={post.id || index}
                       href={post.id ? `/community/forum/${post.id}` : '/community/forum'}
-                      className="group rounded-[1.45rem] border border-black/[0.08] bg-[#fffaf2]/88 p-3.5 shadow-[0_16px_45px_rgba(30,25,20,0.07)] transition hover:bg-white hover:shadow-[0_20px_60px_rgba(30,25,20,0.11)]"
+                      className="group rounded-[1.45rem] border border-black/[0.08] bg-[#fffaf2]/88 p-3.5 shadow-[0_16px_45px_rgba(30,25,20,0.07)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_20px_60px_rgba(30,25,20,0.11)]"
                     >
                       <div className="flex gap-3">
                         <div className="hidden shrink-0 sm:block">
@@ -443,10 +486,13 @@ export default function CommunityPage() {
               </div>
             ) : (
               <SynauraPanel className="p-8 text-center">
-                <MessageSquare className="mx-auto h-9 w-9 text-black/22" />
-                <p className="mt-3 text-sm font-black text-black/48">Aucune discussion pour le moment.</p>
+                <div className="mx-auto grid h-14 w-14 place-items-center rounded-[1.1rem] bg-black/[0.045] text-black/30">
+                  <Music2 className="h-6 w-6" />
+                </div>
+                <p className="mt-3 text-sm font-black text-black/58">Aucun son ne cherche d’avis pour le moment.</p>
+                <p className="mx-auto mt-1 max-w-sm text-xs font-semibold leading-5 text-black/38">Lance le premier sujet avec un morceau, une intention claire ou une idée de remix.</p>
                 <Link href="/community/forum?category=feedback" className="mt-4 inline-flex h-10 items-center rounded-full bg-[#171313] px-4 text-xs font-black text-white">
-                  Lancer le premier sujet
+                  Demander un avis
                 </Link>
               </SynauraPanel>
             )}
@@ -456,8 +502,8 @@ export default function CommunityPage() {
             <SynauraPanel className="p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Rendez-vous</p>
-                  <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[#171313]">Boucles hebdo</h2>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Rituels</p>
+                  <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[#171313]">Rituels de la semaine</h2>
                 </div>
                 <Flame className="h-5 w-5 text-[#ff6f61]" />
               </div>
@@ -482,8 +528,19 @@ export default function CommunityPage() {
             </SynauraPanel>
 
             <SynauraInkPanel className="p-4 sm:p-5">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-white/42">Depuis le player</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-white/42">Depuis l’écoute</p>
               <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-white">Un son peut devenir une discussion.</h2>
+              <div className="mt-4 rounded-[1.1rem] border border-white/10 bg-white/8 p-3">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-11 w-11 place-items-center rounded-[0.95rem] bg-[#fffaf2] text-[#171313]">
+                    <Disc3 className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-black text-white">Track → discussion</p>
+                    <MiniWaveform tint="#ffcf9f" active />
+                  </div>
+                </div>
+              </div>
               <p className="mt-3 text-sm leading-6 text-white/48">
                 Écoute un titre, partage-le dans le feed, demande un avis ou lance un remix. La communauté devient la suite naturelle de l’écoute.
               </p>
@@ -502,7 +559,7 @@ export default function CommunityPage() {
             <SynauraPanel className="p-4 sm:p-5">
               <div className="flex items-center gap-2">
                 <Search className="h-4 w-4 text-black/34" />
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Support séparé</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Besoin d’aide ?</p>
               </div>
               <div className="mt-4 grid gap-2">
                 {supportLinks.map((item) => {
@@ -524,7 +581,7 @@ export default function CommunityPage() {
 
             {popularFaqs.length ? (
               <SynauraPanel className="p-4 sm:p-5">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">FAQ utile</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Aide rapide</p>
                 <div className="mt-3 grid gap-2">
                   {popularFaqs.slice(0, 3).map((faq, index) => (
                     <Link key={faq.id || index} href="/community/faq" className="rounded-[1rem] bg-black/[0.035] p-3 transition hover:bg-black/[0.06]">
@@ -542,8 +599,8 @@ export default function CommunityPage() {
         <SynauraInkPanel className="p-5 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-white/42">Dernière étape</p>
-              <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">Tu as un son presque prêt ?</h2>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-white/42">Test public</p>
+              <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">Prêt à tester ton morceau ?</h2>
               <p className="mt-2 text-sm font-semibold leading-6 text-white/50">Poste-le et reçois des avis avant la sortie.</p>
             </div>
             <Link href="/community/forum?category=feedback" className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]">

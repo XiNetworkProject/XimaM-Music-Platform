@@ -698,7 +698,7 @@ export default function LibraryClient() {
     if (tab === 'playlists') {
       return {
         eyebrow: 'Organisation vivante',
-        title: selectedPlaylist ? selectedPlaylist.name : 'Bibliotheque Synaura',
+        title: selectedPlaylist ? selectedPlaylist.name : 'Bibliothèque Synaura',
         description: selectedPlaylist
           ? 'Retrouve un dossier, relance-le, reorganise ses pistes et garde la meme sensation que depuis la home.'
           : 'Dossiers, favoris, recents et queue vivent maintenant dans la meme ambiance chaude que la home.',
@@ -1519,7 +1519,7 @@ export default function LibraryClient() {
 
         <aside className="hidden space-y-4 xl:block">
           <SynauraInkPanel className="p-4">
-            <p className="mb-3 text-sm font-black">Bibliotheque vivante</p>
+            <p className="mb-3 text-sm font-black">Bibliothèque vivante</p>
             <div className="rounded-[1.4rem] bg-white/8 p-4">
               <p className="text-3xl font-black leading-none">Queue.</p>
               <p className="text-3xl font-black leading-none text-white/55">Favorites.</p>

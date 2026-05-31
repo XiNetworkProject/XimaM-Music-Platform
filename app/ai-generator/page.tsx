@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { Suspense, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
@@ -206,6 +206,25 @@ function StudioStatusOrb({
   );
 }
 
+export default function AIGenerator() {
+  return (
+    <Suspense
+      fallback={
+        <SynauraAppShell contentClassName="max-w-[1480px]">
+          <SynauraInkPanel className="grid min-h-[520px] place-items-center p-8">
+            <div className="text-center">
+              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+              <p className="mt-4 text-sm font-black text-white/50">Chargement du Studio IA...</p>
+            </div>
+          </SynauraInkPanel>
+        </SynauraAppShell>
+      }
+    >
+      <AIGeneratorContent />
+    </Suspense>
+  );
+}
+
 /* ── Portal-based model dropdown (matches library ContextMenu style) ── */
 function ModelDropdownPortal({
   modelVersion,
@@ -308,7 +327,7 @@ function ModelDropdownPortal({
   );
 }
 
-export default function AIGenerator() {
+function AIGeneratorContent() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const sourceParamKey = searchParams?.toString() || '';
@@ -3121,8 +3140,8 @@ export default function AIGenerator() {
       <SynauraRouteNav />
       <SynauraAnnouncementStrip />
 
-      <div className="space-y-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
-        <section className="relative overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-[#171313] p-4 text-white shadow-[0_28px_80px_rgba(20,15,10,0.22)] sm:p-5 lg:p-6">
+      <div className="space-y-4 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
+        <section className="relative overflow-hidden rounded-[1.35rem] border border-black/[0.08] bg-[#171313] p-3.5 text-white shadow-[0_28px_80px_rgba(20,15,10,0.22)] sm:rounded-[1.75rem] sm:p-5 lg:p-6">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_15%,rgba(255,111,97,0.28),transparent_34%),radial-gradient(circle_at_84%_18%,rgba(0,194,203,0.18),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_42%)]" />
           <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div className="min-w-0">
@@ -3135,7 +3154,7 @@ export default function AIGenerator() {
                   </span>
                 )}
               </div>
-              <h1 className="max-w-3xl text-3xl font-black leading-[0.92] tracking-[-0.07em] text-white sm:text-5xl lg:text-6xl">
+              <h1 className="max-w-3xl text-[2.05rem] font-black leading-[0.92] tracking-[-0.07em] text-white min-[380px]:text-4xl sm:text-5xl lg:text-6xl">
                 Cree, ecoute et garde tout au meme endroit.
               </h1>
               <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-white/58 sm:text-base">
@@ -3147,30 +3166,30 @@ export default function AIGenerator() {
               <button
                 type="button"
                 onClick={() => setShowBuyCredits(true)}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-4 text-sm font-black text-white transition hover:bg-white/[0.14]"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-3 text-xs font-black text-white transition hover:bg-white/[0.14] sm:h-11 sm:px-4 sm:text-sm"
               >
                 <Coins className="h-4 w-4 text-[#ffd166]" />
                 {creditsBalance} cr.
               </button>
               <Link
                 href="/upload"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-black text-[#171313] transition hover:scale-[1.02]"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white px-3 text-xs font-black text-[#171313] transition hover:scale-[1.02] sm:h-11 sm:px-4 sm:text-sm"
               >
                 <Upload className="h-4 w-4" />
                 Upload
               </Link>
               <Link
                 href="/ai-library"
-                className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-4 text-sm font-black text-white transition hover:bg-white/[0.14] sm:col-span-1"
+                className="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-3 text-xs font-black text-white transition hover:bg-white/[0.14] sm:col-span-1 sm:h-11 sm:px-4 sm:text-sm"
               >
                 <Library className="h-4 w-4" />
-                Bibliotheque
+                Bibliothèque
               </Link>
             </div>
           </div>
         </section>
 
-        <section className="grid gap-3 md:grid-cols-3">
+        <section className="synaura-no-scrollbar -mx-2 flex snap-x gap-3 overflow-x-auto px-2 pb-1 md:mx-0 md:grid md:grid-cols-3 md:px-0">
           {[
             { label: 'Composer', detail: generationModeKind === 'simple' ? 'Idee libre' : generationModeKind === 'custom' ? 'Piece controlee' : 'Remix source', status: studioStateLabel, active: true },
             { label: 'Ecouter', detail: studioFocusTrack?.title || 'Aucun rendu', status: studioLibraryTracks.length ? `${studioLibraryTracks.length} piste(s)` : 'En attente', active: Boolean(studioFocusTrack) },
@@ -3179,7 +3198,7 @@ export default function AIGenerator() {
             <div
               key={step.label}
               className={[
-                'min-w-0 rounded-[1.35rem] border p-4 shadow-[0_16px_42px_rgba(20,15,10,0.08)]',
+                'w-[min(72vw,280px)] shrink-0 snap-start rounded-[1.2rem] border p-3.5 shadow-[0_16px_42px_rgba(20,15,10,0.08)] md:w-auto md:rounded-[1.35rem] md:p-4',
                 step.active ? 'border-black/[0.10] bg-[#fffaf2]' : 'border-black/[0.07] bg-[#fffaf2]/70',
               ].join(' ')}
             >
@@ -3637,9 +3656,9 @@ export default function AIGenerator() {
             <section className="rounded-[1.5rem] border border-black/[0.08] bg-[#fff8ed] p-4 shadow-[0_20px_70px_rgba(20,15,10,0.08)]">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7868]">Bibliotheque studio</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7868]">Bibliothèque studio</p>
                   <h2 className="text-2xl font-black tracking-[-0.05em] text-[#171313]">Toutes tes pistes</h2>
-                  <p className="mt-1 text-xs font-bold text-[#8b7868]">Chaque rendu est une piste independante, prete a ecouter, remixer ou publier.</p>
+                  <p className="mt-1 text-xs font-bold text-[#8b7868]">Chaque rendu est une piste indépendante, prête à écouter, remixer ou publier.</p>
                 </div>
                 <div className="flex gap-2">
                   <button type="button" onClick={refreshGenerations} className="inline-flex h-10 items-center gap-2 rounded-full bg-[#171313] px-4 text-xs font-black text-white">
@@ -3960,12 +3979,12 @@ export default function AIGenerator() {
         </section>
 
         <SynauraInkPanel className="overflow-hidden p-0">
-          <div className="studio-pro relative min-h-screen bg-[#07070a] text-white font-sans selection:bg-indigo-500/30">
+          <div className="studio-pro relative min-h-[calc(100dvh-9rem)] bg-[#07070a] text-white font-sans selection:bg-indigo-500/30 sm:min-h-screen">
             <StudioBackground />
 
       {/* --- HEADER : "TRANSPORT BAR" --- */}
-      <header className="sticky top-[5.25rem] z-30 border-b border-white/[0.06] bg-[linear-gradient(180deg,rgba(10,10,18,0.96),rgba(10,10,18,0.88))] backdrop-blur-2xl sm:top-[5.75rem]">
-        <div className="flex items-center justify-between h-14 px-3 sm:px-5">
+      <header className="sticky top-[4.65rem] z-30 border-b border-white/[0.06] bg-[linear-gradient(180deg,rgba(10,10,18,0.96),rgba(10,10,18,0.88))] backdrop-blur-2xl sm:top-[5.75rem]">
+        <div className="flex h-[3.25rem] items-center justify-between px-2.5 sm:h-14 sm:px-5">
           {/* Left: Logo + Play */}
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex items-center gap-2 text-white min-w-0">
@@ -3983,7 +4002,7 @@ export default function AIGenerator() {
               <button
                 type="button"
                 onClick={() => previousTrack()}
-                className="p-2 sm:p-1.5 min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center text-white/40 hover:text-white transition-colors rounded-full hover:bg-white/[0.06]"
+                className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full p-1.5 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white sm:min-h-0 sm:min-w-0"
                 aria-label="Piste précédente"
               >
                 <SkipBack className="w-4 h-4" />
@@ -3996,7 +4015,7 @@ export default function AIGenerator() {
                   if (cur) { await play(); return; }
                   if (generatedTrack) playGenerated(generatedTrack);
                 }}
-                className="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center bg-white text-black rounded-full shadow-lg shadow-white/10 hover:scale-105 transition-all"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-black shadow-lg shadow-white/10 transition-all hover:scale-105"
                 aria-label={audioState.isPlaying ? 'Pause' : 'Lecture'}
               >
                 {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
@@ -4004,7 +4023,7 @@ export default function AIGenerator() {
               <button
                 type="button"
                 onClick={() => nextTrack()}
-                className="p-2 sm:p-1.5 min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center text-white/40 hover:text-white transition-colors rounded-full hover:bg-white/[0.06]"
+                className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full p-1.5 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white sm:min-h-0 sm:min-w-0"
                 aria-label="Piste suivante"
               >
                 <SkipForward className="w-4 h-4" />
@@ -4032,7 +4051,7 @@ export default function AIGenerator() {
             <button
               type="button"
               onClick={() => setShowBuyCredits(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] sm:min-h-0 rounded-full bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all"
+              className="flex min-h-[36px] items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.04] px-2.5 py-1.5 transition-all hover:bg-white/[0.08] sm:min-h-0 sm:px-3"
               aria-label={`Crédits: ${creditsBalance}. Acheter des crédits`}
             >
               <Coins className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
@@ -4067,7 +4086,7 @@ export default function AIGenerator() {
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
-              className="p-2 min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center rounded-full text-white/30 hover:text-white/70 hover:bg-white/[0.06] transition-all"
+              className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full p-1.5 text-white/30 transition-all hover:bg-white/[0.06] hover:text-white/70 sm:min-h-0 sm:min-w-0 sm:p-2"
               aria-label="Paramètres"
             >
               <Settings className="w-4 h-4" />
@@ -4076,7 +4095,7 @@ export default function AIGenerator() {
         </div>
       </header>
 
-      <div className="relative z-10 mx-auto max-w-[1600px] px-3 sm:px-4 py-4 lg:pb-4 pb-[calc(140px+env(safe-area-inset-bottom,0px))]">
+      <div className="relative z-10 mx-auto max-w-[1600px] px-2.5 py-3 pb-[calc(150px+env(safe-area-inset-bottom,0px))] sm:px-4 sm:py-4 lg:pb-4">
         <header className="sr-only">
           <h1>Studio Synaura</h1>
         </header>
@@ -5024,7 +5043,7 @@ export default function AIGenerator() {
                   </div>
 
                   <div className="min-w-0 w-full space-y-3 lg:col-span-5">
-                    <div className="flex h-[420px] w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-3.5">
+                    <div className="flex h-[300px] w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-3.5 sm:h-[420px]">
                       <div className="mb-2.5 flex shrink-0 items-center justify-between">
                         <div className="text-[13px] font-semibold text-white/90">Lyrics</div>
                         <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isInstrumental ? 'bg-emerald-500/10 text-emerald-300/80 border-emerald-500/20' : 'bg-violet-500/10 text-violet-300/80 border-violet-500/20'}`}>{isInstrumental ? 'Instrumental' : 'Voix'}</span>

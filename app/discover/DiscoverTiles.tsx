@@ -98,7 +98,7 @@ export function SectionHeader({
   return (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/38">Synaura edit</p>
+        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/38">Sélection Synaura</p>
         <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[#fffaf2] sm:text-[1.4rem]">{title}</h2>
         {subtitle ? <p className="mt-1 text-sm leading-6 text-white/45">{subtitle}</p> : null}
       </div>

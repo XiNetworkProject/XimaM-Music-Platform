@@ -110,7 +110,7 @@ export default function FeaturingSearch({ artists, onChange }: Props) {
             {loading ? (
               <div className="px-3 py-2 text-xs text-white/40">Recherche...</div>
             ) : results.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-white/40">Aucun resultat</div>
+              <div className="px-3 py-2 text-xs text-white/40">Aucun résultat</div>
             ) : (
               results.map((u) => (
                 <button

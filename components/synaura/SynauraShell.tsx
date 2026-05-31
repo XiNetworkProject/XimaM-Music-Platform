@@ -22,9 +22,9 @@ const SYNAURA_SHELL_BRAND = {
 
 const SYNAURA_ROUTE_ITEMS = [
   { href: '/', label: 'Accueil', icon: Home },
-  { href: '/discover', label: 'Decouvrir', icon: Compass },
-  { href: '/library', label: 'Bibliotheque', icon: Library },
-  { href: '/community', label: 'Communaute', icon: Users },
+  { href: '/discover', label: 'Découvrir', icon: Compass },
+  { href: '/library', label: 'Bibliothèque', icon: Library },
+  { href: '/community', label: 'Communauté', icon: Users },
   { href: '/ai-generator', label: 'Studio', icon: Sparkles },
   { href: '/upload', label: 'Publier', icon: Upload },
 ] as const;
@@ -33,7 +33,7 @@ const SYNAURA_MOBILE_ROUTE_ITEMS = [
   { href: '/', label: 'Accueil', icon: Home },
   { href: '/discover', label: 'Explorer', icon: Compass },
   { href: '/library', label: 'Biblio', icon: Library },
-  { href: '/community', label: 'Communa', icon: Users },
+  { href: '/community', label: 'Commu', icon: Users },
   { href: '/ai-generator', label: 'Studio', icon: Sparkles },
 ] as const;
 
@@ -76,7 +76,7 @@ export function SynauraAppShell({
 
       <div
         className={cx(
-          'relative mx-auto max-w-[1480px] px-2 py-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] sm:px-5 sm:py-3 sm:pb-5 lg:px-8 lg:py-5',
+          'relative mx-auto max-w-[1480px] px-2 py-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+7.25rem)] sm:px-5 sm:py-3 sm:pb-5 lg:px-8 lg:py-5',
           contentClassName,
         )}
       >
@@ -146,16 +146,16 @@ export function SynauraTopBar({
   const isGuest = status !== 'loading' && !session?.user;
 
   return (
-    <header className="sticky top-2 z-40 mb-4 rounded-[1.6rem] border border-black/[0.08] bg-[#fffaf2]/90 px-3 py-3 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:top-3 sm:rounded-[2rem] sm:px-4">
+    <header className="sticky top-2 z-40 mb-4 rounded-[1.35rem] border border-black/[0.08] bg-[#fffaf2]/90 px-2.5 py-2.5 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:top-3 sm:rounded-[2rem] sm:px-4 sm:py-3">
       <div className="flex items-center justify-between gap-2 sm:gap-3">
         <Link href="/" className="flex min-w-0 items-center gap-3">
-          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[1.25rem] border border-black/[0.08] bg-white shadow-[0_10px_26px_rgba(30,25,20,0.10)]">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[1rem] border border-black/[0.08] bg-white shadow-[0_10px_26px_rgba(30,25,20,0.10)] sm:h-14 sm:w-14 sm:rounded-[1.25rem]">
             <Image
               src={SYNAURA_SHELL_BRAND.appLogo}
               alt="Synaura"
               width={52}
               height={52}
-              className="h-12 w-12 object-contain"
+              className="h-10 w-10 object-contain sm:h-12 sm:w-12"
               unoptimized
               priority
             />
@@ -172,8 +172,8 @@ export function SynauraTopBar({
             />
           </div>
           <div className="min-w-0 sm:hidden">
-            <p className="text-xl font-black tracking-tight">Synaura</p>
-            <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-black/36">mobile social music</p>
+            <p className="text-lg font-black tracking-tight">Synaura</p>
+            <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-black/36">écoute · crée · remix</p>
           </div>
         </Link>
 
@@ -279,10 +279,10 @@ export function SynauraMobileDock() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.7rem)] pt-2 sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.55rem)] pt-2 sm:hidden"
       aria-label="Navigation mobile Synaura"
     >
-      <div className="mx-auto max-w-xl rounded-[1.8rem] border border-black/[0.08] bg-[#fffaf2]/96 p-2 shadow-[0_18px_50px_rgba(30,25,20,0.16)] backdrop-blur-2xl">
+      <div className="mx-auto w-full max-w-[calc(100vw-1rem)] rounded-[1.45rem] border border-black/[0.08] bg-[#fffaf2]/94 p-1.5 shadow-[0_18px_50px_rgba(30,25,20,0.16)] backdrop-blur-2xl">
         <div className="grid grid-cols-5 gap-1">
           {SYNAURA_MOBILE_ROUTE_ITEMS.map((item) => {
             const Icon = item.icon;
@@ -293,7 +293,7 @@ export function SynauraMobileDock() {
                 key={item.href}
                 href={item.href}
                 className={cx(
-                  'flex min-w-0 flex-col items-center gap-1 rounded-[1.1rem] px-2 py-2 text-center transition',
+                  'flex min-w-0 flex-col items-center gap-1 rounded-[1rem] px-1.5 py-2 text-center transition',
                   isActive ? 'bg-[#171313] text-white' : 'text-black/52 hover:bg-black/[0.05] hover:text-[#171313]',
                 )}
                 aria-current={isActive ? 'page' : undefined}

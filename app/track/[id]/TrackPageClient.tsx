@@ -64,7 +64,7 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
           <h1 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#171313]">Track introuvable</h1>
           <p className="mt-2 text-sm font-semibold text-black/45">Cette musique n'existe pas ou a ete supprimee.</p>
           <Link href="/discover" className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]">
-            Decouvrir la musique
+            Découvrir la musique
           </Link>
         </SynauraPanel>
       </SynauraAppShell>

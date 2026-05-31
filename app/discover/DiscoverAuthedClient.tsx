@@ -383,7 +383,14 @@ export default function DiscoverAuthedClient({
                   ))}
                 </div>
               ) : (
-                <p className="py-8 text-center text-sm text-white/35">Aucun resultat trouve.</p>
+                <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.05] p-8 text-center">
+                  <Disc3 className="mx-auto h-10 w-10 text-white/24" />
+                  <p className="mt-3 text-sm font-black text-white/70">Aucun résultat trouvé.</p>
+                  <p className="mx-auto mt-1 max-w-sm text-xs font-semibold leading-5 text-white/38">Essaie un autre style ou crée une piste IA pour lancer une nouvelle direction.</p>
+                  <button onClick={() => router.push('/ai-generator')} className="mt-4 inline-flex h-10 items-center rounded-full bg-[#fffaf2] px-4 text-xs font-black text-[#171313]">
+                    Ouvrir le Studio IA
+                  </button>
+                </div>
               )}
             </SynauraInkPanel>
           ) : (

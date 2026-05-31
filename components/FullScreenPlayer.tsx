@@ -139,6 +139,9 @@ function QueuePanel({
             <div className="rounded-[1.15rem] border border-dashed border-black/[0.12] p-5 text-center">
               <p className="text-sm font-black text-black/48">Aucune piste dans À suivre.</p>
               <p className="mt-1 text-xs font-semibold text-black/34">Ajoute des sons depuis Discover, la Home ou un profil.</p>
+              <Link href="/discover" onClick={onClose} className="mt-3 inline-flex h-9 items-center rounded-full bg-[#171313] px-4 text-xs font-black text-white">
+                Découvrir des sons
+              </Link>
             </div>
           )}
         </div>

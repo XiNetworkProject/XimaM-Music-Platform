@@ -690,7 +690,7 @@ function HomeSearchBox({ compact = false }: { compact?: boolean }) {
         <div className="absolute left-0 right-0 top-[calc(100%+0.55rem)] z-[80] max-h-[72vh] overflow-y-auto rounded-[1.35rem] border border-black/[0.08] bg-[#fffaf2]/98 p-2 shadow-[0_24px_80px_rgba(30,25,20,0.22)] backdrop-blur-2xl">
           <div className="flex items-center justify-between px-2 py-2">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">
-              {loading ? 'Recherche...' : totalResults ? `${totalResults} resultat(s)` : 'Recherche'}
+              {loading ? 'Recherche...' : totalResults ? `${totalResults} résultat(s)` : 'Recherche'}
             </p>
             {loading ? <Loader2 className="h-4 w-4 animate-spin text-black/35" /> : null}
           </div>
@@ -698,7 +698,10 @@ function HomeSearchBox({ compact = false }: { compact?: boolean }) {
           {!loading && !totalResults ? (
             <div className="rounded-[1rem] bg-black/[0.045] p-5 text-center">
               <Search className="mx-auto h-7 w-7 text-black/24" />
-              <p className="mt-2 text-sm font-black text-black/58">Aucun resultat pour "{query}"</p>
+              <p className="mt-2 text-sm font-black text-black/58">Aucun résultat pour "{query}"</p>
+              <Link href="/ai-generator" className="mt-3 inline-flex h-9 items-center rounded-full bg-[#171313] px-4 text-xs font-black text-white">
+                Créer une piste IA
+              </Link>
             </div>
           ) : null}
 
@@ -972,7 +975,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
           transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
         />
       </div>
-      <div className="relative mx-auto max-w-[1480px] px-2 py-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] sm:px-5 sm:py-3 sm:pb-5 lg:px-8 lg:py-5">
+      <div className="relative mx-auto max-w-[1480px] px-2 py-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+7.25rem)] sm:px-5 sm:py-3 sm:pb-5 lg:px-8 lg:py-5">
         {children}
       </div>
       <SharedSynauraMobileDock />
@@ -1038,9 +1041,9 @@ function SynauraRouteNav() {
   const pathname = usePathname();
   const items = [
     { href: '/', label: 'Accueil', icon: Home },
-    { href: '/discover', label: 'Decouvrir', icon: Compass },
-    { href: '/library', label: 'Bibliotheque', icon: Library },
-    { href: '/community', label: 'Communaute', icon: Users },
+    { href: '/discover', label: 'Découvrir', icon: Compass },
+    { href: '/library', label: 'Bibliothèque', icon: Library },
+    { href: '/community', label: 'Communauté', icon: Users },
     { href: '/ai-generator', label: 'Studio', icon: Sparkles },
     { href: '/upload', label: 'Publier', icon: Upload },
   ];
@@ -1107,7 +1110,7 @@ function TopBar() {
               social music feed
             </p>
             <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-black/35 sm:hidden">
-              mobile social music
+              écoute · crée · remix
             </p>
           </div>
         </Link>
@@ -1174,23 +1177,23 @@ function MiniCarousel({ tracks }: { tracks: Track[] }) {
   const item = tracks[active] ?? tracks[0];
 
   return (
-    <Card className="mb-4 p-3 sm:p-4">
+    <Card className="mb-4 p-2.5 sm:p-4">
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_240px] sm:items-stretch">
-        <div className="relative min-h-[164px] overflow-hidden rounded-[1.3rem] bg-[#171313] p-3 text-white sm:min-h-[176px] sm:rounded-[1.55rem] sm:p-4">
+        <div className="relative min-h-[150px] overflow-hidden rounded-[1.15rem] bg-[#171313] p-3 text-white sm:min-h-[176px] sm:rounded-[1.55rem] sm:p-4">
           <img src={item.cover} alt="" className="absolute inset-0 h-full w-full object-cover opacity-32" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#171313] via-[#171313]/84 to-transparent" />
           <div className="absolute inset-y-0 right-0 w-1/2 opacity-40" style={{ background: item.tint }} />
-          <div className="relative z-10 flex min-h-[144px] flex-col justify-between">
+          <div className="relative z-10 flex min-h-[130px] flex-col justify-between sm:min-h-[144px]">
             <div className="flex items-center justify-between gap-3">
               <div className="flex flex-wrap gap-2">
-                <span className="rounded-full bg-white/12 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-white/70">
+                <span className="rounded-full bg-white/12 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/70 sm:px-3 sm:py-1.5 sm:text-[11px]">
                   Mix quotidien
                 </span>
-                <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-white/52">
+                <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/52 sm:px-3 sm:py-1.5 sm:text-[11px]">
                   Top hebdo
                 </span>
               </div>
-              <div className="flex gap-2">
+              <div className="hidden gap-2 min-[380px]:flex">
                 <button
                   type="button"
                   onClick={() => setActive((value) => (value - 1 + tracks.length) % tracks.length)}
@@ -1208,11 +1211,11 @@ function MiniCarousel({ tracks }: { tracks: Track[] }) {
               </div>
             </div>
             <div>
-              <h1 className="max-w-xl text-[2rem] font-black leading-[0.96] tracking-[-0.04em] sm:text-4xl">Découvre, remixe, publie.</h1>
-              <p className="mt-1 text-sm font-semibold text-white/62">
+              <h1 className="max-w-xl text-[1.55rem] font-black leading-[0.96] tracking-[-0.04em] sm:text-4xl">Découvre, remixe, publie.</h1>
+              <p className="mt-1 line-clamp-2 text-xs font-semibold text-white/62 sm:text-sm">
                 Lance un mix de sons IA et indés, puis crée ton univers musical à partir de ce que tu aimes.
               </p>
-              <p className="mt-2 max-w-md truncate text-xs font-bold text-white/42">
+              <p className="mt-2 max-w-md truncate text-[11px] font-bold text-white/42 sm:text-xs">
                 En tête maintenant : {item.title} · {item.artist}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -1266,16 +1269,16 @@ function MobileActions() {
   ];
 
   return (
-    <div className="mb-4 grid grid-cols-4 gap-3 lg:flex lg:gap-3 lg:overflow-x-auto lg:px-0">
+    <div className="mb-4 grid grid-cols-4 gap-2 lg:flex lg:gap-3 lg:overflow-x-auto lg:px-0">
       {items.map((item) => (
         <Link key={item.label} href={item.href} className="flex min-w-0 flex-col items-center gap-2">
           <div
-            className="grid h-14 w-14 place-items-center rounded-[1.25rem] text-white shadow-[0_12px_30px_rgba(30,25,20,0.16)]"
+            className="grid h-11 w-11 place-items-center rounded-[1rem] text-white shadow-[0_12px_30px_rgba(30,25,20,0.14)] min-[380px]:h-12 min-[380px]:w-12 sm:h-14 sm:w-14 sm:rounded-[1.25rem]"
             style={{ background: item.tint }}
           >
-            <item.icon className="h-5 w-5" />
+            <item.icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <span className="text-xs font-black text-black/58">{item.label}</span>
+          <span className="max-w-full truncate text-[10px] font-black text-black/58 sm:text-xs">{item.label}</span>
         </Link>
       ))}
     </div>
@@ -2032,15 +2035,18 @@ function TrackInlineActions({
   }, [track.commentsCount, track.id]);
 
   const defaultButtonClassName = dark
-    ? 'inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-white/10 px-3 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-10 sm:w-auto sm:px-4 sm:text-sm'
+    ? 'inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/[0.075] px-2.5 text-[11px] font-black text-white/66 transition hover:bg-white/14 hover:text-white'
     : 'inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-3 text-xs font-black text-black/62 transition hover:bg-black/[0.1] hover:text-black sm:h-10 sm:w-auto sm:px-4 sm:text-sm';
   const likedButtonClassName = dark
-    ? 'inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-3 text-xs font-black text-[#171313] transition hover:opacity-90 sm:h-10 sm:w-auto sm:px-4 sm:text-sm'
+    ? 'inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#fffaf2] px-2.5 text-[11px] font-black text-[#171313] transition hover:opacity-90'
     : 'inline-flex h-9 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-[#171313] px-3 text-xs font-black text-white transition hover:opacity-92 sm:h-10 sm:w-auto sm:px-4 sm:text-sm';
+  const actionGridClassName = dark
+    ? 'flex flex-wrap items-center gap-1.5'
+    : `grid gap-2 sm:flex sm:flex-wrap sm:items-center ${canComment ? 'grid-cols-2' : 'grid-cols-1'}`;
 
   return (
     <div className="mt-3">
-      <div className={`grid gap-2 sm:flex sm:flex-wrap sm:items-center ${canComment ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      <div className={actionGridClassName}>
         <button
           type="button"
           onClick={() => void toggleLike()}
@@ -2076,8 +2082,8 @@ function TrackInlineActions({
             <Share2 className="h-4 w-4" />
             Partager
           </button>
-          <div className="col-span-2 sm:col-span-1">
-            <TrackCreateRemixActions track={track.playerTrack as any} compact dark={dark} />
+          <div className={dark ? 'shrink-0' : 'col-span-2 sm:col-span-1'}>
+            <TrackCreateRemixActions track={track.playerTrack as any} compact dark={dark} className={dark ? 'gap-1.5' : ''} />
           </div>
           {track.playerTrack.audioUrl ? (
             <button
@@ -2165,42 +2171,76 @@ function TrackFeedCard({ item }: { item: Extract<FeedItem, { kind: 'track' }> })
   const isPlayingThis = audioState.tracks[audioState.currentTrackIndex]?._id === item.track.id && audioState.isPlaying;
 
   return (
-    <InkCard className="p-3 sm:p-5">
-      <div className="mb-3 flex flex-col items-start gap-1.5 sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <div className="min-w-0">
-          <p className="text-base font-black sm:text-lg">{item.title}</p>
-          <p className="text-xs text-white/45 sm:text-sm">{item.subtitle}</p>
-        </div>
-        <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-black text-white/62 sm:px-3 sm:py-1.5 sm:text-xs">{item.label}</span>
-      </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <img
-          src={item.track.cover}
-          alt=""
-          className="h-[112px] w-full rounded-[0.95rem] object-cover sm:h-28 sm:w-28 sm:rounded-[1.2rem] sm:shrink-0"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-base font-black sm:text-xl">{item.track.title}</p>
-          <p className="truncate text-sm font-semibold text-white/45">
-            {item.track.artist} · {item.track.style}
-          </p>
-          <div className="mt-2 grid grid-cols-2 gap-2 text-center text-[10px] font-bold text-white/50 sm:mt-3 sm:flex sm:flex-wrap sm:text-left sm:text-xs">
-            <span className="min-w-0 rounded-full bg-white/[0.06] px-2 py-1">{item.track.plays} ecoutes</span>
-            <span className="min-w-0 rounded-full bg-white/[0.06] px-2 py-1">{item.track.likes} likes</span>
-            <span className="col-span-2 min-w-0 rounded-full bg-white/[0.06] px-2 py-1 sm:col-auto">{item.track.comments} coms</span>
+    <InkCard className="p-0">
+      <div className="relative overflow-hidden">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-44 w-44 rounded-full opacity-25 blur-3xl" style={{ background: item.track.tint }} />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-white/[0.055] to-transparent" />
+
+        <div className="relative grid grid-cols-[112px_minmax(0,1fr)] gap-3 p-3.5 sm:grid-cols-[154px_minmax(0,1fr)_auto] sm:items-center sm:gap-4 sm:p-4 lg:p-5">
+          <div className="col-span-2 flex items-center justify-between gap-3 sm:hidden">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/38">{item.label}</p>
+              <h2 className="mt-0.5 text-lg font-black leading-none tracking-[-0.04em] text-white">{item.title}</h2>
+            </div>
+            <span className="shrink-0 rounded-full bg-[#fffaf2] px-2.5 py-1 text-[10px] font-black text-[#171313]">Reco</span>
           </div>
-          <div className="hidden sm:block">
-            <Wave color={item.track.tint} active={isPlayingThis} />
+
+          <div className="relative overflow-hidden rounded-[1.15rem] bg-white/8 shadow-[0_18px_45px_rgba(0,0,0,0.22)] sm:rounded-[1.3rem]">
+            <img src={item.track.cover} alt="" className="aspect-square w-full object-cover" />
+            <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/55 to-transparent" />
+            <button
+              type="button"
+              onClick={() => playTrack(item.track.playerTrack as any)}
+              className="absolute bottom-2 right-2 grid h-10 w-10 place-items-center rounded-full bg-[#fffaf2] text-[#171313] shadow-[0_14px_34px_rgba(0,0,0,0.28)] transition hover:scale-105 sm:hidden"
+              aria-label={isPlayingThis ? 'Mettre en pause' : 'Lire ce morceau'}
+            >
+              {isPlayingThis ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
+            </button>
           </div>
-          <TrackInlineActions track={item.track} dark />
+
+          <div className="min-w-0">
+            <div className="hidden sm:block">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-white/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/46">{item.label}</span>
+                <span className="rounded-full bg-[#fffaf2] px-3 py-1 text-[10px] font-black text-[#171313]">À écouter</span>
+              </div>
+              <h2 className="truncate text-2xl font-black tracking-[-0.05em] text-white">{item.title}</h2>
+              <p className="mt-1 truncate text-sm font-semibold text-white/42">{item.subtitle}</p>
+            </div>
+
+            <p className="truncate text-[1.05rem] font-black leading-tight tracking-[-0.04em] text-white sm:mt-4 sm:text-2xl">{item.track.title}</p>
+            <p className="mt-1 line-clamp-1 text-xs font-semibold text-white/48 sm:text-sm">
+              {item.track.artist} · {item.track.style}
+            </p>
+
+            <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-black text-white/52 sm:mt-3 sm:gap-2 sm:text-xs">
+              <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1">{item.track.plays} écoutes</span>
+              <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1">{item.track.likes} likes</span>
+              <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1">{item.track.comments} coms</span>
+            </div>
+
+            <div className="mt-3 hidden sm:block">
+              <Wave color={item.track.tint} active={isPlayingThis} />
+            </div>
+
+            <div className="hidden sm:block">
+              <TrackInlineActions track={item.track} dark />
+            </div>
+          </div>
+
+          <div className="col-span-2 sm:hidden">
+            <TrackInlineActions track={item.track} dark />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => playTrack(item.track.playerTrack as any)}
+            className="hidden h-14 w-14 shrink-0 place-items-center rounded-full bg-[#fffaf2] text-[#171313] shadow-[0_18px_42px_rgba(0,0,0,0.22)] transition hover:scale-105 sm:grid"
+            aria-label={isPlayingThis ? 'Mettre en pause' : 'Lire ce morceau'}
+          >
+            {isPlayingThis ? <Pause className="h-6 w-6" /> : <Play className="ml-0.5 h-6 w-6 fill-current" />}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => playTrack(item.track.playerTrack as any)}
-          className="grid h-9 w-full shrink-0 place-items-center rounded-full bg-[#fffaf2] text-black sm:h-12 sm:w-12 sm:self-auto"
-        >
-          {isPlayingThis ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
-        </button>
       </div>
     </InkCard>
   );
@@ -2218,11 +2258,11 @@ function RailCard({ item }: { item: Extract<FeedItem, { kind: 'rail' }> }) {
         </div>
         <span className="rounded-full bg-black/[0.055] px-3 py-1.5 text-xs font-black text-black/58">{item.label}</span>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:flex sm:overflow-x-auto sm:pb-1">
+      <div className="no-scrollbar -mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:gap-3 sm:px-0">
         {item.tracks.map((track) => {
           const isPlayingThis = audioState.tracks[audioState.currentTrackIndex]?._id === track.id && audioState.isPlaying;
           return (
-            <motion.div key={track.id} whileHover={{ y: -4 }} className="min-w-0 sm:min-w-[170px]">
+            <motion.div key={track.id} whileHover={{ y: -4 }} className="w-[min(42vw,168px)] shrink-0 snap-start sm:w-[170px]">
               <div className="rounded-[1.2rem] bg-black/[0.045] p-2">
                 <div className="relative overflow-hidden rounded-2xl">
                   <img src={track.cover} alt="" className="aspect-square w-full object-cover" />
@@ -2548,7 +2588,7 @@ function RightColumn({
         <p className="mb-3 text-sm font-black">Explorer Synaura</p>
         <div className="grid gap-2 text-xs font-bold text-black/58">
           <Link href="/discover" className="hover:text-black">
-            Decouvrir
+            Découvrir
           </Link>
           <Link href="/ai-generator" className="hover:text-black">
             Studio
@@ -2557,10 +2597,10 @@ function RightColumn({
             Boosters
           </Link>
           <Link href="/library" className="hover:text-black">
-            Bibliotheque
+            Bibliothèque
           </Link>
           <Link href="/community" className="hover:text-black">
-            Communaute
+            Communauté
           </Link>
         </div>
       </Card>
@@ -2978,9 +3018,9 @@ export default function SynauraWarmFeed() {
       <MiniCarousel tracks={heroTracks} />
       <MobileActions />
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,760px)_330px] xl:justify-center">
-        <main className="mx-auto w-full max-w-[760px] pb-28">
-          <div className="sticky top-[82px] z-30 -mx-2 mb-4 border-y border-black/[0.08] bg-[#F4EFE6]/88 px-2 py-3 backdrop-blur-2xl sm:-mx-3 sm:px-3 md:mx-0 md:rounded-[1.3rem] md:border">
+      <div className="grid min-w-0 gap-5 overflow-hidden xl:grid-cols-[minmax(0,760px)_330px] xl:justify-center">
+        <main className="mx-auto w-full max-w-[760px] min-w-0 pb-36 sm:pb-28">
+          <div className="-mx-2 mb-4 border-y border-black/[0.08] bg-[#F4EFE6]/88 px-2 py-3 backdrop-blur-2xl sm:-mx-3 sm:px-3 md:mx-0 md:rounded-[1.3rem] md:border">
             <div className="grid grid-cols-3 gap-2 sm:hidden">
               {FILTERS.map((item) => (
                 <button

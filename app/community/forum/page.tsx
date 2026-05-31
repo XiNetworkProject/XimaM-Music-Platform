@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -75,7 +75,7 @@ function formatDate(value?: string) {
   return new Date(value).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 }
 
-export default function CommunityForumPage() {
+function CommunityForumContent() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const initialCategory = (searchParams.get('category') || 'all') as CommunityCategory;
@@ -199,29 +199,29 @@ export default function CommunityForumPage() {
         primaryLabel="Demander un avis"
       />
 
-      <div className="space-y-5 pb-28">
-        <SynauraInkPanel className="p-5 sm:p-7">
+      <div className="space-y-5 pb-36 sm:pb-28">
+        <SynauraInkPanel className="p-3.5 sm:p-7">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_360px] lg:items-end">
             <div>
               <Link href="/community" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-white/58 transition hover:bg-white/14 hover:text-white">
                 ← Hub communauté
               </Link>
-              <h1 className="mt-5 max-w-3xl text-5xl font-black leading-[0.92] tracking-[-0.06em] text-white sm:text-6xl">
+              <h1 className="mt-5 max-w-3xl text-[2.3rem] font-black leading-[0.92] tracking-[-0.06em] text-white min-[380px]:text-[2.7rem] sm:text-6xl">
                 Discussions musicales récentes.
               </h1>
               <p className="mt-5 max-w-2xl text-sm font-semibold leading-7 text-white/54 sm:text-base">
                 Demande un avis sur ton son, trouve un feat, lance un défi remix ou compare des prompts IA. Ici, chaque discussion doit aider une création à avancer.
               </p>
-              <div className="mt-6 flex flex-wrap gap-2">
-                <button onClick={() => prefillComposer('feedback')} className="inline-flex h-11 items-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]">
+              <div className="mt-6 grid gap-2 min-[420px]:flex min-[420px]:flex-wrap">
+                <button onClick={() => prefillComposer('feedback')} className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-4 text-xs font-black text-[#171313] transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm">
                   <PlusCircle className="h-4 w-4" />
                   Demander un avis
                 </button>
-                <button onClick={() => prefillComposer('remix')} className="inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-5 text-sm font-black text-white/72 transition hover:bg-white/14 hover:text-white">
+                <button onClick={() => prefillComposer('remix')} className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-11 sm:px-5 sm:text-sm">
                   <Zap className="h-4 w-4" />
                   Créer un défi remix
                 </button>
-                <button onClick={() => prefillComposer('collab')} className="inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-5 text-sm font-black text-white/72 transition hover:bg-white/14 hover:text-white">
+                <button onClick={() => prefillComposer('collab')} className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-11 sm:px-5 sm:text-sm">
                   <Mic2 className="h-4 w-4" />
                   Trouver un feat
                 </button>
@@ -249,7 +249,7 @@ export default function CommunityForumPage() {
           </div>
         </SynauraInkPanel>
 
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <section className="synaura-no-scrollbar -mx-2 flex snap-x gap-3 overflow-x-auto px-2 pb-1 md:mx-0 md:grid md:grid-cols-2 md:px-0 xl:grid-cols-6">
           {CATEGORIES.map((item) => {
             const Icon = item.icon;
             const active = selectedCategory === item.id;
@@ -258,7 +258,7 @@ export default function CommunityForumPage() {
                 key={item.id}
                 type="button"
                 onClick={() => setSelectedCategory(item.id)}
-                className={`min-h-[132px] rounded-[1.35rem] border p-4 text-left transition hover:-translate-y-0.5 ${
+                className={`min-h-[116px] w-[min(68vw,250px)] shrink-0 snap-start rounded-[1.2rem] border p-3.5 text-left transition hover:-translate-y-0.5 md:w-auto md:rounded-[1.35rem] md:p-4 ${
                   active ? 'border-[#171313] bg-[#171313] text-white shadow-[0_18px_45px_rgba(23,19,19,0.18)]' : 'border-black/[0.08] bg-[#fffaf2]/88 text-[#171313] shadow-[0_14px_40px_rgba(30,25,20,0.08)]'
                 }`}
               >
@@ -416,5 +416,24 @@ export default function CommunityForumPage() {
         </SynauraPanel>
       </div>
     </SynauraAppShell>
+  );
+}
+
+export default function CommunityForumPage() {
+  return (
+    <Suspense
+      fallback={
+        <SynauraAppShell contentClassName="max-w-[1240px]">
+          <SynauraPanel className="grid min-h-[420px] place-items-center p-8">
+            <div className="text-center">
+              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-black/12 border-t-[#171313]" />
+              <p className="mt-4 text-sm font-black text-black/42">Chargement du forum musical...</p>
+            </div>
+          </SynauraPanel>
+        </SynauraAppShell>
+      }
+    >
+      <CommunityForumContent />
+    </Suspense>
   );
 }

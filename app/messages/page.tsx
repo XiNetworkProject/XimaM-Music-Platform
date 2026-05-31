@@ -252,7 +252,7 @@ export default function MessagesPage() {
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-white text-black hover:bg-white/90 transition-all"
                 >
                   <UserPlus className="w-4 h-4" />
-                  Decouvrir des createurs
+                  Découvrir des créateurs
                 </button>
               </motion.div>
             ) : (
