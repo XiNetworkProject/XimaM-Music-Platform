@@ -207,7 +207,7 @@ function MetricCard({
         </div>
         <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/14">
           <Icon className="h-5 w-5" />
-        </div>
+              </div>
       </div>
     </div>
   );
@@ -252,11 +252,11 @@ function MiniArea({
           <p className="mt-1 max-w-2xl text-sm font-semibold text-black/48">
             Lecture jour par jour sur la métrique active, avec comparaison quand elle est disponible.
           </p>
-        </div>
+                </div>
         <div className="rounded-full bg-black/[0.06] px-4 py-2 text-sm font-black text-black/54">
           Dernier jour: {formatMetric(metric, last)} · {direction}
-        </div>
-      </div>
+              </div>
+            </div>
       <div className="mt-5 overflow-hidden rounded-[1.35rem] border border-black/[0.06] bg-white/70 p-3">
         <svg viewBox="0 0 520 170" className="h-[210px] w-full">
           <defs>
@@ -282,9 +282,9 @@ function MiniArea({
           <div className="mt-2 flex items-center gap-2 text-xs font-black text-black/44">
             <span className="h-1 w-8 rounded-full bg-[#171313]" /> Sélection
             <span className="ml-2 h-1 w-8 rounded-full border-t-2 border-dashed border-[#7c5cff]" /> Comparaison
-          </div>
-        ) : null}
       </div>
+        ) : null}
+    </div>
     </SynauraPanel>
   );
 }
@@ -300,7 +300,7 @@ function TypeBreakdown({ data }: { data: Record<string, number> }) {
           <h3 className="mt-1 text-xl font-black">Répartition des posts</h3>
         </div>
         <FileText className="h-5 w-5 text-black/30" />
-      </div>
+        </div>
       <div className="mt-5 space-y-3">
         {rows.length ? rows.map(([label, value]) => {
           const width = total ? Math.max(5, (value / total) * 100) : 0;
@@ -312,8 +312,8 @@ function TypeBreakdown({ data }: { data: Record<string, number> }) {
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-black/[0.06]">
                 <div className="h-full rounded-full bg-[#171313]" style={{ width: `${width}%` }} />
-              </div>
-            </div>
+      </div>
+    </div>
           );
         }) : <p className="text-sm font-semibold text-black/42">Aucun post pour le moment.</p>}
       </div>
@@ -329,7 +329,7 @@ function DataQualityNotice({ overview, series }: { overview: OverviewData | null
       <div className="flex items-start gap-3">
         <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${hasRealRetention ? 'bg-emerald-500/14 text-emerald-700' : 'bg-amber-500/18 text-amber-700'}`}>
           {hasRealRetention ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-        </div>
+          </div>
         <div>
           <p className="text-sm font-black">{hasRealRetention ? 'Rétention basée sur les écoutes réelles' : 'Rétention insuffisante pour être fiable'}</p>
           <p className="mt-1 text-xs font-semibold text-black/48">
@@ -446,7 +446,7 @@ function StatsTips({
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Tips</p>
           <h3 className="mt-1 text-xl font-black">À faire maintenant</h3>
-        </div>
+      </div>
         <Sparkles className="h-5 w-5 text-black/30" />
       </div>
       <div className="mt-5 grid gap-3 md:grid-cols-2">
@@ -458,15 +458,15 @@ function StatsTips({
                 <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/18">
                   <Icon className="h-4 w-4" />
                 </div>
-                <div>
+            <div>
                   <p className="text-sm font-black">{tip.title}</p>
                   <p className="mt-1 text-xs font-semibold leading-5 opacity-62">{tip.text}</p>
-                </div>
-              </div>
             </div>
+            </div>
+          </div>
           );
         })}
-      </div>
+          </div>
     </SynauraPanel>
   );
 }
@@ -479,9 +479,9 @@ function DailyBreakdown({ trackSeries, postSeries, metric }: { trackSeries: Trac
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Jour par jour</p>
           <h3 className="mt-1 text-xl font-black">Ce qui marche vraiment</h3>
-        </div>
+              </div>
         <CalendarDays className="h-5 w-5 text-black/30" />
-      </div>
+            </div>
       <div className="mt-5 overflow-hidden rounded-[1.2rem] border border-black/[0.06]">
         <div className="grid grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_0.8fr] gap-2 bg-black/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-black/38">
           <span>Jour</span>
@@ -489,7 +489,7 @@ function DailyBreakdown({ trackSeries, postSeries, metric }: { trackSeries: Trac
           <span>Posts</span>
           <span>Likes</span>
           <span>Rétention</span>
-        </div>
+            </div>
         {rows.map(({ track, post }) => {
           const active = metricValue(metric, track, post);
           return (
@@ -502,7 +502,7 @@ function DailyBreakdown({ trackSeries, postSeries, metric }: { trackSeries: Trac
                 {track.retention == null ? '—' : `${fmt(track.retention)}%`}
               </span>
               <span className="sr-only">Métrique active: {formatMetric(metric, active)}</span>
-            </div>
+          </div>
           );
         })}
       </div>
@@ -529,9 +529,9 @@ function ComparisonPanel({
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Comparaison</p>
           <h3 className="mt-1 text-xl font-black">Comparer deux sons</h3>
-        </div>
+                      </div>
         <BarChart3 className="h-5 w-5 text-black/30" />
-      </div>
+                                </div>
       <div className="mt-5 grid gap-3">
         <label className="grid gap-1.5">
           <span className="text-xs font-black text-black/40">Son analysé</span>
@@ -562,22 +562,22 @@ function AudienceBreakdown({ audience }: { audience: any }) {
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Audience</p>
           <h3 className="mt-1 text-xl font-black">Qui écoute</h3>
-        </div>
+                                  </div>
         <Users className="h-5 w-5 text-black/30" />
-      </div>
+                            </div>
       <div className="mt-5 space-y-3">
         {rows.length ? rows.map((row) => (
           <div key={`${row.group}-${row.label}`}>
             <div className="mb-1 flex items-center justify-between text-sm font-bold text-black/58">
               <span>{row.label}</span>
               <span>{fmt(row.value)}%</span>
-            </div>
+                          </div>
             <div className="h-2 overflow-hidden rounded-full bg-black/[0.06]">
               <div className="h-full rounded-full bg-[#7c5cff]" style={{ width: `${Math.max(4, row.value)}%` }} />
-            </div>
-          </div>
+                      </div>
+                                </div>
         )) : <p className="text-sm font-semibold text-black/42">Pas assez de données audience.</p>}
-      </div>
+                        </div>
     </SynauraPanel>
   );
 }
@@ -603,14 +603,14 @@ function HeatmapPanel({ matrix }: { matrix: number[][] }) {
                   className="h-3 rounded-[3px]"
                   style={{ background: value ? `rgba(255,111,97,${0.16 + (value / max) * 0.74})` : 'rgba(0,0,0,0.05)' }}
                 />
-              ))}
-            </div>
-          </div>
+                    ))}
+                  </div>
+                </div>
         ))}
-      </div>
+                  </div>
       <div className="mt-3 flex justify-between text-[10px] font-black text-black/32">
         <span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span>
-      </div>
+                    </div>
     </SynauraPanel>
   );
 }
@@ -629,9 +629,9 @@ function FunnelPanel({ detail, selectedTrack }: { detail: TrackDetail | null; se
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Funnel d’écoute</p>
           <h3 className="mt-1 text-xl font-black">Où les gens décrochent</h3>
-        </div>
+                    </div>
         <Headphones className="h-5 w-5 text-black/30" />
-      </div>
+              </div>
       {selectedTrack === 'all' ? (
         <p className="mt-5 rounded-[1.1rem] bg-black/[0.04] p-4 text-sm font-semibold text-black/46">
           Sélectionne un son précis pour afficher le funnel détaillé et les sources de lecture.
@@ -643,11 +643,11 @@ function FunnelPanel({ detail, selectedTrack }: { detail: TrackDetail | null; se
               <div className="mb-1 flex items-center justify-between text-sm font-bold text-black/58">
                 <span>{step.label}</span>
                 <span>{fmt(step.value)}{step.suffix}</span>
-              </div>
+                </div>
               <div className="h-2 overflow-hidden rounded-full bg-black/[0.06]">
                 <div className="h-full rounded-full bg-[#171313]" style={{ width: `${Math.max(3, Math.min(100, (step.value / step.max) * 100))}%` }} />
+                  </div>
               </div>
-            </div>
           ))}
           <div className="border-t border-black/[0.06] pt-4">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-black/32">Sources</p>
@@ -656,12 +656,12 @@ function FunnelPanel({ detail, selectedTrack }: { detail: TrackDetail | null; se
                 <div key={source.source} className="flex items-center justify-between rounded-[0.9rem] bg-black/[0.04] px-3 py-2 text-sm font-bold">
                   <span>{source.source}</span>
                   <span className="text-black/42">{fmt(source.plays)} plays · {fmt(source.completes)} complets</span>
-                </div>
+                    </div>
               ))}
               {!detail?.sources?.length ? <p className="text-sm font-semibold text-black/42">Pas encore de source détectée.</p> : null}
-            </div>
-          </div>
-        </div>
+                            </div>
+                    </div>
+                </div>
       )}
     </SynauraPanel>
   );
@@ -683,15 +683,15 @@ function TrackRow({ track, maxPlays }: { track: TrackStat; maxPlays: number }) {
         <div className="flex items-center gap-2">
           <p className="truncate text-sm font-black">{track.title}</p>
           {track.isAI ? <span className="rounded-full bg-[#7c5cff]/12 px-2 py-0.5 text-[10px] font-black text-[#7c5cff]">IA</span> : null}
-        </div>
+                    </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/[0.06]">
           <div className="h-full rounded-full bg-[#ff6f61]" style={{ width: `${width}%` }} />
-        </div>
-      </div>
+                </div>
+              </div>
       <div className="hidden text-right sm:block">
         <p className="text-sm font-black">{fmt(track.plays)}</p>
         <p className="text-xs font-bold text-black/40">{fmt(track.likes)} likes</p>
-      </div>
+                    </div>
     </Link>
   );
 }
@@ -708,16 +708,16 @@ function PostRow({ post }: { post: PostStat }) {
             {post.trackTitle || post.content || 'Post sans texte'}
           </p>
           {post.content && post.trackTitle ? <p className="mt-1 line-clamp-1 text-xs font-semibold text-black/42">{post.content}</p> : null}
-        </div>
+                    </div>
         {post.imageUrl ? <img src={post.imageUrl} alt="" className="h-14 w-14 rounded-[1rem] object-cover" /> : null}
-      </div>
+                    </div>
       <div className="mt-4 flex items-center justify-between text-xs font-black text-black/42">
         <span>{safeDate(post.createdAt)}</span>
         <span className="inline-flex items-center gap-3">
           <span className="inline-flex items-center gap-1"><Heart className="h-3.5 w-3.5" /> {fmt(post.likes)}</span>
           <span className="inline-flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" /> {fmt(post.comments)}</span>
         </span>
-      </div>
+            </div>
     </Link>
   );
 }
@@ -728,7 +728,7 @@ function LoadingCard() {
       <div className="text-center">
         <Loader2 className="mx-auto h-8 w-8 animate-spin text-black/36" />
         <p className="mt-3 text-sm font-black text-black/40">Chargement des statistiques...</p>
-      </div>
+                </div>
     </SynauraPanel>
   );
 }
@@ -809,7 +809,7 @@ export default function StatsPage() {
   ));
 
   if (status === 'loading' || loading) {
-    return (
+  return (
       <SynauraAppShell>
         <SynauraTopBar primaryHref="/upload" primaryLabel="Publier" secondaryHref="/studio" secondaryLabel="Studio" />
         <LoadingCard />
@@ -818,7 +818,7 @@ export default function StatsPage() {
   }
 
   if (!session?.user) {
-    return (
+  return (
       <SynauraAppShell>
         <SynauraTopBar />
         <SynauraInkPanel className="p-8 sm:p-10">
@@ -831,7 +831,7 @@ export default function StatsPage() {
             <Link href="/auth/signin?callbackUrl=/stats" className="mt-7 inline-flex h-12 items-center gap-2 rounded-full bg-[#fffaf2] px-6 text-sm font-black text-[#171313]">
               Connexion <ArrowRight className="h-4 w-4" />
             </Link>
-          </div>
+      </div>
         </SynauraInkPanel>
       </SynauraAppShell>
     );
@@ -848,7 +848,7 @@ export default function StatsPage() {
           <p className="mt-2 max-w-2xl text-sm font-semibold text-black/48">
             Sons, posts, audience et engagement au même endroit.
           </p>
-        </div>
+          </div>
 
         <div className="flex flex-wrap gap-2">
           {RANGES.map((item) => (
@@ -862,16 +862,16 @@ export default function StatsPage() {
             >
               {item.label}
             </button>
-          ))}
-        </div>
+        ))}
       </div>
+        </div>
 
       <SynauraInkPanel className="mb-4 p-5 sm:p-6">
         <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-white/60">
               <Sparkles className="h-3.5 w-3.5" /> Score créateur
-            </div>
+        </div>
             <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-end">
               <div className="text-7xl font-black tracking-tighter sm:text-8xl">{creatorScore}</div>
               <div className="pb-3">
@@ -879,18 +879,18 @@ export default function StatsPage() {
                 <p className="mt-1 max-w-xl text-sm font-semibold text-white/52">
                   Calculée avec tes écoutes, interactions, rétention et activité sociale.
                 </p>
-              </div>
-            </div>
+      </div>
+      </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-[1.25rem] bg-white/10 p-4">
               <p className="text-2xl font-black">{fmt(overview?.followers)}</p>
               <p className="text-xs font-bold text-white/44">Abonnés</p>
-            </div>
+      </div>
             <div className="rounded-[1.25rem] bg-white/10 p-4">
               <p className="text-2xl font-black">{fmt(countryCount)}</p>
               <p className="text-xs font-bold text-white/44">Pays détectés</p>
-            </div>
+              </div>
           </div>
         </div>
       </SynauraInkPanel>
@@ -914,8 +914,8 @@ export default function StatsPage() {
           >
             {item.label}
           </button>
-        ))}
-      </div>
+            ))}
+          </div>
 
       <div className="mb-4 flex gap-2 overflow-x-auto rounded-[1.4rem] border border-black/[0.08] bg-[#fffaf2]/70 p-2">
         {METRICS.map((item) => (
@@ -930,7 +930,7 @@ export default function StatsPage() {
             {item.label}
           </button>
         ))}
-      </div>
+        </div>
 
       <div className="mb-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <ComparisonPanel
@@ -944,11 +944,11 @@ export default function StatsPage() {
           onCompareTrack={setCompareTrack}
         />
         <DataQualityNotice overview={overview} series={trackSeries} />
-      </div>
+    </div>
 
       <div className="mb-4">
         <StatsTips overview={overview} posts={posts} trackSeries={trackSeries} selectedTrack={selectedTrack} />
-      </div>
+    </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.5fr_0.8fr]">
         <MiniArea trackSeries={trackSeries} postSeries={postSeries} view={view} metric={metric} compareSeries={compareSeries} />
@@ -959,20 +959,20 @@ export default function StatsPage() {
             <div className="rounded-[1.2rem] bg-black/[0.05] p-4">
               <div className="flex items-center gap-2 text-sm font-black">
                 <Music2 className="h-4 w-4" /> Son
-              </div>
+        </div>
               <p className="mt-2 line-clamp-2 text-lg font-black">{overview?.bestTrack?.title || sortedTracks[0]?.title || 'Aucun son'}</p>
               <p className="mt-1 text-sm font-bold text-black/42">{fmt(overview?.bestTrack?.plays || sortedTracks[0]?.plays)} écoutes</p>
-            </div>
+                    </div>
             <div className="rounded-[1.2rem] bg-black/[0.05] p-4">
               <div className="flex items-center gap-2 text-sm font-black">
                 <FileText className="h-4 w-4" /> Post
-              </div>
+                  </div>
               <p className="mt-2 line-clamp-2 text-lg font-black">{posts?.bestPost?.trackTitle || posts?.bestPost?.content || 'Aucun post'}</p>
               <p className="mt-1 text-sm font-bold text-black/42">
                 {fmt(posts?.bestPost?.likes)} likes · {fmt(posts?.bestPost?.comments)} commentaires
               </p>
-            </div>
-          </div>
+        </div>
+      </div>
         </SynauraPanel>
       </div>
 
@@ -980,12 +980,12 @@ export default function StatsPage() {
         <DailyBreakdown trackSeries={trackSeries} postSeries={postSeries} metric={metric} />
 
         <HeatmapPanel matrix={heatmap.length ? heatmap : Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0))} />
-      </div>
+    </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
         <FunnelPanel detail={trackDetail} selectedTrack={selectedTrack} />
         <AudienceBreakdown audience={audience} />
-      </div>
+        </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
         <SynauraPanel className="p-5">
@@ -993,7 +993,7 @@ export default function StatsPage() {
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Classement sons</p>
               <h3 className="mt-1 text-xl font-black">Titres qui performent</h3>
-            </div>
+    </div>
             <Radio className="h-5 w-5 text-black/30" />
           </div>
           <div className="mt-5 space-y-2">
@@ -1008,7 +1008,7 @@ export default function StatsPage() {
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Classement posts</p>
               <h3 className="mt-1 text-xl font-black">Posts qui font réagir</h3>
-            </div>
+    </div>
             <Share2 className="h-5 w-5 text-black/30" />
           </div>
           <div className="mt-5 space-y-2">
@@ -1027,9 +1027,9 @@ export default function StatsPage() {
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">IA Studio</p>
               <h3 className="mt-1 text-xl font-black">Meilleurs sons IA</h3>
-            </div>
+      </div>
             <Wand2 className="h-5 w-5 text-black/30" />
-          </div>
+    </div>
           <div className="mt-5 space-y-3">
             {topAiTracks.length ? topAiTracks.map((track) => (
               <div key={track.id} className="flex items-center justify-between gap-3 rounded-[1rem] bg-black/[0.04] p-3">
@@ -1045,22 +1045,22 @@ export default function StatsPage() {
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Actions</p>
               <h3 className="mt-1 text-xl font-black">Continuer</h3>
-            </div>
+      </div>
             <TrendingUp className="h-5 w-5 text-black/30" />
           </div>
           <div className="mt-5 grid gap-2">
             <Link href="/studio" className="flex items-center justify-between rounded-[1rem] bg-[#171313] px-4 py-3 text-sm font-black text-white">
               Créer un son <ArrowRight className="h-4 w-4" />
-            </Link>
+        </Link>
             <Link href="/posts" className="flex items-center justify-between rounded-[1rem] bg-black/[0.06] px-4 py-3 text-sm font-black text-black/58">
               Voir les posts <ArrowRight className="h-4 w-4" />
             </Link>
             <Link href="/profile/me" className="flex items-center justify-between rounded-[1rem] bg-black/[0.06] px-4 py-3 text-sm font-black text-black/58">
               Ouvrir le profil <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </SynauraPanel>
+        </Link>
       </div>
+        </SynauraPanel>
+    </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-[1.3rem] border border-black/[0.08] bg-[#fffaf2]/70 p-4">

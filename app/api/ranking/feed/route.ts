@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { computeRankingScore } from '@/lib/ranking';
 import { buildAnonymousRecommendationSignals, buildUserRecommendationSignals, rerankTracks } from '@/lib/recommendation';
@@ -78,8 +78,10 @@ function normalTrackVideoMeta(track: any) {
 function aiTrackVideoMeta(track: any) {
   const sourceLinks = readJsonObject(track?.source_links);
   return {
-    coverVideoUrl: track?.cover_video_url || sourceLinks.cover_video_url || sourceLinks.coverVideoUrl || null,
+    coverVideoUrl: null,
     coverVideoPosterUrl: track?.cover_video_poster_url || sourceLinks.cover_video_poster_url || sourceLinks.coverVideoPosterUrl || track?.image_url || null,
+    musicVideoUrl: track?.music_video_url || sourceLinks.music_video_url || sourceLinks.musicVideoUrl || track?.cover_video_url || sourceLinks.cover_video_url || sourceLinks.coverVideoUrl || null,
+    musicVideoPosterUrl: track?.music_video_poster_url || sourceLinks.music_video_poster_url || sourceLinks.musicVideoPosterUrl || track?.cover_video_poster_url || sourceLinks.cover_video_poster_url || sourceLinks.coverVideoPosterUrl || track?.image_url || null,
   };
 }
 

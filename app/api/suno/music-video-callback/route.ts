@@ -35,23 +35,24 @@ export async function POST(req: NextRequest) {
 
     const posterUrl = posterFromVideoUrl(videoUrl);
     const patch = {
-      cover_video_url: videoUrl,
-      cover_video_poster_url: posterUrl,
-      video_task_id: taskId,
+      music_video_url: videoUrl,
+      music_video_poster_url: posterUrl,
+      music_video_task_id: taskId,
     };
 
-    const { error } = await supabaseAdmin.from('ai_tracks').update(patch).eq('video_task_id', taskId);
+    const { error } = await supabaseAdmin.from('ai_tracks').update(patch).eq('music_video_task_id', taskId);
     if (!error) return NextResponse.json({ received: true });
 
     const message = String(error.message || error.details || '').toLowerCase();
-    if (!message.includes('cover_video') && !message.includes('video_task_id') && !message.includes('schema cache') && !message.includes('could not find')) {
+    if (!message.includes('music_video') && !message.includes('schema cache') && !message.includes('could not find')) {
       return NextResponse.json({ received: false, error: error.message }, { status: 500 });
     }
 
     const { data: rows } = await supabaseAdmin.from('ai_tracks').select('id, source_links').limit(500);
     const match = (rows || []).find((row: any) => {
       try {
-        return JSON.parse(row.source_links || '{}')?.video_task_id === taskId;
+        const links = JSON.parse(row.source_links || '{}');
+        return links?.music_video_task_id === taskId || links?.video_task_id === taskId;
       } catch {
         return false;
       }
@@ -66,9 +67,9 @@ export async function POST(req: NextRequest) {
         .update({
           source_links: JSON.stringify({
             ...sourceLinks,
-            cover_video_url: videoUrl,
-            cover_video_poster_url: posterUrl,
-            video_task_id: taskId,
+            music_video_url: videoUrl,
+            music_video_poster_url: posterUrl,
+            music_video_task_id: taskId,
           }),
         })
         .eq('id', (match as any).id);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabase } from '@/lib/supabase';
+import { notifyForumPostReply } from '@/lib/notifications';
 
 export async function GET(request: NextRequest) {
   try {
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
     // Vérifier si le post existe
     const { data: post, error: postError } = await supabase
       .from('forum_posts')
-      .select('id')
+      .select('id, user_id, title')
       .eq('id', post_id)
       .single();
 
@@ -112,6 +113,17 @@ export async function POST(request: NextRequest) {
       ...reply,
       profiles: profile || { id: session.user.id, name: 'Utilisateur', username: 'user', avatar: null }
     };
+
+    if (post.user_id && post.user_id !== session.user.id) {
+      try {
+        const replierName = profile?.name || profile?.username || session.user.name || 'Quelqu’un';
+        notifyForumPostReply(session.user.id, post.user_id, replierName, post.id, post.title).catch((notificationError) => {
+          console.warn('[forum notifications] reply notification failed:', notificationError?.message || notificationError);
+        });
+      } catch (notificationError: any) {
+        console.warn('[forum notifications] reply notification skipped:', notificationError?.message || notificationError);
+      }
+    }
 
     return NextResponse.json(replyWithProfile, { status: 201 });
 

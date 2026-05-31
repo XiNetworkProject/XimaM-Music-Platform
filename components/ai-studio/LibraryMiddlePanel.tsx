@@ -19,6 +19,10 @@ import {
   Globe,
   Trash2,
   ArchiveRestore,
+  Video,
+  Folder,
+  FolderOpen,
+  MoveRight,
 } from 'lucide-react';
 import type { AITrack, AIGeneration } from '@/lib/aiGenerationService';
 import { isLikelyExpiredAIProviderUrl } from '@/lib/media-url-health';
@@ -28,7 +32,7 @@ type SortKey = 'newest' | 'oldest' | 'title';
 
 const CHIPS: Array<{ key: ChipKey; label: string; icon?: React.ReactNode }> = [
   { key: 'all', label: 'Tout' },
-  { key: 'liked', label: 'Likés', icon: <Heart className="w-3 h-3" /> },
+  { key: 'liked', label: 'Favoris', icon: <Heart className="w-3 h-3" /> },
   { key: 'instrumental', label: 'Instru', icon: <Music2 className="w-3 h-3" /> },
   { key: 'voix', label: 'Voix', icon: <Mic2 className="w-3 h-3" /> },
   { key: 'trashed', label: 'Corbeille', icon: <Trash2 className="w-3 h-3" /> },
@@ -47,6 +51,28 @@ function formatDuration(sec: number): string {
 
 function isInstrumentalTrack(s: string): boolean {
   return s.toLowerCase().includes('instrumental');
+}
+
+function parseSourceLinks(value?: string | null): Record<string, any> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function trackFolder(track: AITrack | any): string {
+  const links = parseSourceLinks(track?.source_links);
+  return String(links.library_folder || '').trim();
+}
+
+function formatShortDate(value?: string | null): string {
+  if (!value) return '';
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return '';
+  return new Date(time).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 }
 
 function sanitizeCoverUrl(url?: string, createdAt?: string): string {
@@ -85,6 +111,9 @@ export interface LibraryMiddlePanelProps {
   onCopyLyrics?: (track: AITrack, gen: AIGeneration | null) => void;
   onToggleLike?: (track: AITrack) => void;
   onTrashTrack?: (track: AITrack) => void;
+  onGenerateCoverVideo?: (track: AITrack, gen: AIGeneration | null) => void;
+  generatingCoverVideoTrackId?: string | null;
+  onMoveToFolder?: (track: AITrack, folder: string | null) => void;
   likedTrackIds?: Set<string>;
   trashedTrackIds?: Set<string>;
   loading?: boolean;
@@ -196,6 +225,9 @@ function TrackRow({
   onCopyLyrics,
   onToggleLike,
   onTrash,
+  onGenerateCoverVideo,
+  isGeneratingCoverVideo,
+  onMoveToFolder,
 }: {
   track: AITrack;
   gen: AIGeneration | null;
@@ -211,34 +243,44 @@ function TrackRow({
   onCopyLyrics?: () => void;
   onToggleLike?: () => void;
   onTrash?: () => void;
+  onGenerateCoverVideo?: () => void;
+  isGeneratingCoverVideo?: boolean;
+  onMoveToFolder?: (folder: string | null) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
 
   const title = track.title || 'Sans titre';
-  const subtitle = (track.prompt || gen?.prompt || '').slice(0, 90);
   const duration = formatDuration(Number(track.duration) || 0);
-  let links: any = null;
-  if ((track as any).source_links) {
-    try {
-      links = JSON.parse((track as any).source_links);
-    } catch {}
-  }
+  const links = parseSourceLinks((track as any).source_links);
+  const folder = trackFolder(track);
+  const [folderInput, setFolderInput] = useState(folder);
   const mediaFreshAt = links?.provider_urls_refreshed_at || links?.media_cached_at || track.created_at;
   let coverUrl = sanitizeCoverUrl(track.image_url, mediaFreshAt);
   if (!coverUrl && (track as any).source_links) {
     coverUrl = sanitizeCoverUrl(links?.image || links?.image_url || links?.cover || links?.provider_image_url, mediaFreshAt);
   }
   const model = (track.model_name || gen?.model || 'v5').replace(/^V/, 'v').toLowerCase();
+  const createdLabel = formatShortDate(track.created_at || gen?.created_at);
+  const status = String((track as any).status || gen?.status || '');
+
+  useEffect(() => {
+    setFolderInput(folder);
+  }, [folder]);
+
+  const commitFolderMove = useCallback(() => {
+    onMoveToFolder?.(folderInput.trim() || null);
+    closeMenu();
+  }, [closeMenu, folderInput, onMoveToFolder]);
 
   return (
     <div
       className={cn(
-        'group flex items-center gap-3 rounded-[14px] border px-3 py-2.5 transition-all cursor-pointer',
+        'group flex items-center gap-3 rounded-xl border px-2.5 py-2 transition-all cursor-pointer',
         isSource
-          ? 'border-cyan-400/20 bg-cyan-500/[0.08] hover:bg-cyan-500/[0.12]'
-          : 'border-white/[0.07] bg-white/[0.05] hover:bg-white/[0.09] hover:border-white/[0.12]'
+          ? 'border-cyan-400/25 bg-cyan-500/[0.08] hover:bg-cyan-500/[0.12]'
+          : 'border-white/[0.07] bg-white/[0.035] hover:bg-white/[0.07] hover:border-white/[0.12]'
       )}
       onClick={onPick}
     >
@@ -256,11 +298,14 @@ function TrackRow({
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
+        <div className="flex min-w-0 items-center gap-1.5">
           <span className="truncate text-[13px] font-semibold text-white/95">{title}</span>
           <span className="shrink-0 rounded-md bg-white/[0.08] px-1.5 py-px text-[9px] font-semibold text-white/50 uppercase tracking-wider">
             {model}
           </span>
+          {isLiked && (
+            <Heart className="h-3 w-3 shrink-0 fill-rose-400 text-rose-400" />
+          )}
           {isPublished && (
             <span className="shrink-0 rounded-md bg-emerald-400/15 px-1.5 py-px text-[9px] font-semibold text-emerald-300 uppercase tracking-wider flex items-center gap-0.5">
               <Globe className="w-2.5 h-2.5" /> publié
@@ -272,9 +317,24 @@ function TrackRow({
             </span>
           )}
         </div>
-        {subtitle ? (
-          <div className="mt-0.5 truncate text-[11px] text-white/40 leading-snug">{subtitle}</div>
-        ) : null}
+        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-white/36">
+          {createdLabel ? <span className="shrink-0">{createdLabel}</span> : null}
+          {folder ? (
+            <>
+              <span className="shrink-0 text-white/18">·</span>
+              <span className="inline-flex min-w-0 items-center gap-1 truncate">
+                <Folder className="h-3 w-3 shrink-0" />
+                <span className="truncate">{folder}</span>
+              </span>
+            </>
+          ) : null}
+          {status && status !== 'completed' ? (
+            <>
+              <span className="shrink-0 text-white/18">·</span>
+              <span className="shrink-0 text-amber-200/70">{status}</span>
+            </>
+          ) : null}
+        </div>
       </div>
 
       {/* Actions — like & menu always visible on mobile (touch), remix on hover only */}
@@ -342,6 +402,52 @@ function TrackRow({
               Copier les paroles
             </button>
           )}
+          {onGenerateCoverVideo && (
+            <button
+              type="button"
+              onClick={() => { onGenerateCoverVideo(); closeMenu(); }}
+              disabled={isGeneratingCoverVideo}
+              className="w-full px-3 py-2 text-left text-[13px] text-violet-100/90 hover:bg-violet-500/[0.08] disabled:cursor-wait disabled:opacity-60 flex items-center gap-2.5 rounded-lg mx-auto transition"
+            >
+              <Video className="h-4 w-4 text-violet-300/60 shrink-0" />
+              {isGeneratingCoverVideo ? 'Génération clip...' : 'Créer clip vidéo Suno'}
+            </button>
+          )}
+          {onMoveToFolder && (
+            <div className="mx-2 my-1 rounded-xl border border-sky-300/10 bg-sky-500/[0.045] p-2" onClick={(e) => e.stopPropagation()}>
+              <label className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-100/45">
+                <MoveRight className="h-3.5 w-3.5" />
+                Dossier
+              </label>
+              <input
+                value={folderInput}
+                onChange={(e) => setFolderInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitFolderMove();
+                }}
+                placeholder="Ex: Hooks, Refrains, Clients..."
+                className="h-8 w-full rounded-lg border border-white/[0.08] bg-black/25 px-2.5 text-[12px] font-medium text-white outline-none placeholder:text-white/24 focus:border-sky-300/35"
+              />
+              <div className="mt-1.5 flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={commitFolderMove}
+                  className="flex-1 rounded-lg bg-sky-400/16 px-2 py-1.5 text-[11px] font-bold text-sky-100 transition hover:bg-sky-400/22"
+                >
+                  Enregistrer
+                </button>
+                {folder && (
+                  <button
+                    type="button"
+                    onClick={() => { onMoveToFolder(null); closeMenu(); }}
+                    className="rounded-lg border border-white/[0.08] px-2 py-1.5 text-[11px] font-bold text-white/52 transition hover:bg-white/[0.07] hover:text-white/72"
+                  >
+                    Aucun
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           <div className="my-1 mx-2 h-px bg-white/[0.06]" />
           <button
             type="button"
@@ -401,6 +507,9 @@ export function LibraryMiddlePanel({
   onCopyLyrics,
   onToggleLike,
   onTrashTrack,
+  onGenerateCoverVideo,
+  generatingCoverVideoTrackId,
+  onMoveToFolder,
   likedTrackIds,
   trashedTrackIds,
   loading = false,
@@ -409,8 +518,29 @@ export function LibraryMiddlePanel({
   const PAGE_SIZE = 20;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [sortOpen, setSortOpen] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<string>('all');
   const sortRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  const folderStats = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const track of tracks) {
+      if (trashedTrackIds?.has(track.id)) continue;
+      const folder = trackFolder(track) || 'Sans dossier';
+      map.set(folder, (map.get(folder) || 0) + 1);
+    }
+    return Array.from(map.entries()).sort((a, b) => {
+      if (a[0] === 'Sans dossier') return -1;
+      if (b[0] === 'Sans dossier') return 1;
+      return a[0].localeCompare(b[0]);
+    });
+  }, [tracks, trashedTrackIds]);
+
+  const trashedCount = trashedTrackIds?.size || 0;
+  const publicCount = useMemo(
+    () => tracks.filter((track: any) => track.is_public === true || track.generation?.is_public === true).length,
+    [tracks],
+  );
 
   useEffect(() => {
     if (!sortOpen) return;
@@ -434,6 +564,10 @@ export function LibraryMiddlePanel({
 
       if (filterBy === 'trashed') return matchSearch && trashed;
       if (trashed) return false;
+      if (selectedFolder !== 'all') {
+        const folder = trackFolder(t) || 'Sans dossier';
+        if (folder !== selectedFolder) return false;
+      }
 
       const matchFilter =
         filterBy === 'all' ||
@@ -446,12 +580,12 @@ export function LibraryMiddlePanel({
     else if (sortBy === 'oldest') list = [...list].reverse();
     else list = [...list].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
     return list;
-  }, [tracks, searchQuery, filterBy, sortBy, likedTrackIds, trashedTrackIds]);
+  }, [tracks, searchQuery, filterBy, sortBy, selectedFolder, likedTrackIds, trashedTrackIds]);
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
     listRef.current?.scrollTo({ top: 0 });
-  }, [searchQuery, filterBy, sortBy]);
+  }, [searchQuery, filterBy, sortBy, selectedFolder]);
 
   const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
   const hasMore = visibleCount < filtered.length;
@@ -476,7 +610,24 @@ export function LibraryMiddlePanel({
   return (
     <div className="h-full w-full flex flex-col min-h-0">
       {/* ── Toolbar ── */}
-      <div className="shrink-0 px-4 pt-4 pb-3 space-y-2.5">
+      <div className="shrink-0 border-b border-white/[0.06] px-3 pt-3 pb-2.5 space-y-2.5">
+        <div className="flex items-center justify-between gap-3 px-1">
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-bold text-white">Bibliothèque IA</h2>
+            <p className="mt-0.5 text-[11px] font-medium text-white/38">
+              {filtered.length} affichée{filtered.length > 1 ? 's' : ''} · {tracks.length - trashedCount} active{tracks.length - trashedCount > 1 ? 's' : ''} · {publicCount} publique{publicCount > 1 ? 's' : ''}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.05] text-white/50 transition hover:bg-white/[0.1] hover:text-white"
+            aria-label="Actualiser"
+          >
+            <RefreshCcw className="h-4 w-4" />
+          </button>
+        </div>
+
         {/* Search row */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1 min-w-0">
@@ -489,15 +640,6 @@ export function LibraryMiddlePanel({
               aria-label="Rechercher"
             />
           </div>
-
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="h-10 w-10 shrink-0 rounded-xl border border-white/[0.08] bg-white/[0.06] flex items-center justify-center hover:bg-white/[0.10] transition-all text-white/50 hover:text-white"
-            aria-label="Actualiser"
-          >
-            <RefreshCcw className="h-4 w-4" />
-          </button>
 
           <div className="relative shrink-0" ref={sortRef}>
             <button
@@ -576,6 +718,53 @@ export function LibraryMiddlePanel({
 
           <span className="ml-auto text-[10px] text-white/30 tabular-nums font-medium">{filtered.length}</span>
         </div>
+
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-1.5">
+          <div className="mb-1.5 flex items-center justify-between px-1">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/32">
+              <FolderOpen className="h-3 w-3" />
+              Dossier
+            </span>
+            {selectedFolder !== 'all' ? (
+              <button type="button" onClick={() => setSelectedFolder('all')} className="text-[10px] font-bold text-white/45 hover:text-white/75">
+                Tout voir
+              </button>
+            ) : null}
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+            <button
+              type="button"
+              onClick={() => setSelectedFolder('all')}
+              className={cn(
+                'inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition',
+                selectedFolder === 'all'
+                  ? 'border-white/20 bg-white/[0.12] text-white'
+                  : 'border-white/[0.08] bg-white/[0.04] text-white/56 hover:bg-white/[0.08] hover:text-white/78'
+              )}
+            >
+              <Folder className="h-3.5 w-3.5 text-white/42" />
+              Tout
+              <span className="rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[9px]">{tracks.length - trashedCount}</span>
+            </button>
+            {folderStats.map(([folder, count]) => (
+              <button
+                key={folder}
+                type="button"
+                onClick={() => setSelectedFolder(folder)}
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition',
+                  selectedFolder === folder
+                    ? 'border-white/20 bg-white/[0.12] text-white'
+                    : 'border-white/[0.08] bg-white/[0.04] text-white/56 hover:bg-white/[0.08] hover:text-white/78'
+                )}
+              >
+                <Folder className="h-3.5 w-3.5 text-white/42" />
+                {folder}
+                <span className="rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[9px]">{count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* ── Track list ── */}
@@ -624,6 +813,9 @@ export function LibraryMiddlePanel({
                     onCopyLyrics={onCopyLyrics ? () => onCopyLyrics(t, gen) : undefined}
                     onToggleLike={onToggleLike ? () => onToggleLike(t) : undefined}
                     onTrash={onTrashTrack ? () => onTrashTrack(t) : undefined}
+                    onGenerateCoverVideo={onGenerateCoverVideo ? () => onGenerateCoverVideo(t, gen) : undefined}
+                    isGeneratingCoverVideo={generatingCoverVideoTrackId === t.id}
+                    onMoveToFolder={onMoveToFolder ? (folder) => onMoveToFolder(t, folder) : undefined}
                   />
                 );
               })}

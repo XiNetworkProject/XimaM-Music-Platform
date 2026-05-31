@@ -17,11 +17,15 @@ export async function DELETE(
     const trackId = params.id;
     const { data: track, error } = await supabaseAdmin
       .from('ai_tracks')
-      .select('id, generation_id, source_links')
+      .select('id, generation_id, source_links, generation:ai_generations!inner(user_id)')
       .eq('id', trackId)
       .single();
     if (error || !track) {
       return NextResponse.json({ error: 'Track introuvable' }, { status: 404 });
+    }
+
+    if (String((track as any).generation?.user_id || '') !== String(session.user.id)) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 
     // Supprimer du Cloudinary si on a un public_id
@@ -50,6 +54,72 @@ export async function DELETE(
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+function parseSourceLinks(value: any): Record<string, any> {
+  if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string') return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    }
+
+    const trackId = params.id;
+    const body = await request.json().catch(() => ({}));
+    const hasFolder = Object.prototype.hasOwnProperty.call(body, 'libraryFolder');
+    if (!hasFolder) {
+      return NextResponse.json({ error: 'Aucune modification fournie' }, { status: 400 });
+    }
+
+    const { data: track, error } = await supabaseAdmin
+      .from('ai_tracks')
+      .select('id, source_links, generation:ai_generations!inner(user_id)')
+      .eq('id', trackId)
+      .single();
+
+    if (error || !track) {
+      return NextResponse.json({ error: 'Piste IA non trouvée' }, { status: 404 });
+    }
+
+    if (String((track as any).generation?.user_id || '') !== String(session.user.id)) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+    }
+
+    const sourceLinks = parseSourceLinks((track as any).source_links);
+    const libraryFolder = String(body.libraryFolder || '').trim();
+    const nextSourceLinks = {
+      ...sourceLinks,
+      library_folder: libraryFolder || null,
+      library_folder_updated_at: new Date().toISOString(),
+    };
+
+    const { error: updateError } = await supabaseAdmin
+      .from('ai_tracks')
+      .update({ source_links: JSON.stringify(nextSourceLinks) })
+      .eq('id', trackId);
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message || 'Erreur mise à jour' }, { status: 500 });
+    }
+
+    return NextResponse.json({ trackId, libraryFolder: libraryFolder || null, source_links: nextSourceLinks });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message || 'Erreur interne' }, { status: 500 });
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -70,6 +140,7 @@ export async function GET(
       return NextResponse.json({ error: 'Piste IA non trouvée' }, { status: 404 });
     }
 
+    const sourceLinks = parseSourceLinks(data.source_links);
     const formatted = {
       _id: `ai-${data.id}`,
       title: data.title || 'Titre inconnu',
@@ -81,6 +152,8 @@ export async function GET(
       },
       audioUrl: data.audio_url,
       coverUrl: data.image_url || data.cover_url || null,
+      musicVideoUrl: data.music_video_url || sourceLinks.music_video_url || sourceLinks.musicVideoUrl || data.cover_video_url || sourceLinks.cover_video_url || null,
+      musicVideoPosterUrl: data.music_video_poster_url || sourceLinks.music_video_poster_url || sourceLinks.musicVideoPosterUrl || data.cover_video_poster_url || sourceLinks.cover_video_poster_url || data.image_url || data.cover_url || null,
       duration: data.duration || 0,
       likes: [],
       comments: [],

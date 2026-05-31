@@ -106,6 +106,8 @@ interface PlayerTrack {
   };
   audioUrl: string;
   coverUrl?: string;
+  musicVideoUrl?: string | null;
+  musicVideoPosterUrl?: string | null;
   duration: number;
   likes: string[];
   comments: string[];
@@ -361,6 +363,7 @@ function AIGeneratorContent() {
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [likedTrackIds, setLikedTrackIds] = useState<Set<string>>(new Set());
   const [trashedTrackIds, setTrashedTrackIds] = useState<Set<string>>(new Set());
+  const [generatingCoverVideoTrackId, setGeneratingCoverVideoTrackId] = useState<string | null>(null);
 
   const formatTime = (seconds: number) => {
     const s = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
@@ -665,6 +668,53 @@ function AIGeneratorContent() {
     loadLibrary();
   };
 
+  const moveTrackToFolder = useCallback(async (track: AITrack, folder: string | null) => {
+    const trackId = String(track.id);
+    const nextFolder = folder?.trim() || null;
+    const patchTrack = (t: any) => {
+      if (String(t.id) !== trackId) return t;
+      let sourceLinks: Record<string, any> = {};
+      try {
+        const parsed = t.source_links ? JSON.parse(t.source_links) : {};
+        sourceLinks = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+      } catch {}
+      return {
+        ...t,
+        source_links: JSON.stringify({
+          ...sourceLinks,
+          library_folder: nextFolder,
+          library_folder_updated_at: new Date().toISOString(),
+        }),
+      };
+    };
+
+    const previousTracks = allTracks;
+    const previousGenerations = generations;
+    setAllTracks((prev) => prev.map(patchTrack));
+    setGenerations((prev) =>
+      prev.map((g) => ({
+        ...g,
+        tracks: (g.tracks || []).map(patchTrack),
+      }))
+    );
+
+    try {
+      const res = await fetch(`/api/ai/tracks/${encodeURIComponent(trackId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ libraryFolder: nextFolder }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Impossible de déplacer cette piste');
+      notify.success('Dossier mis à jour', nextFolder ? `Piste déplacée dans "${nextFolder}".` : 'Piste retirée des dossiers.');
+      window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
+    } catch (error: any) {
+      setAllTracks(previousTracks);
+      setGenerations(previousGenerations);
+      notify.error('Dossier', error?.message || 'Déplacement impossible');
+    }
+  }, [allTracks, generations, notify]);
+
   // Filtrer les générations (même logique que ai-library)
   const filteredAndSortedGenerations = React.useMemo(() => {
     let filtered = generations.filter(generation => {
@@ -901,6 +951,25 @@ function AIGeneratorContent() {
       (track as any)?.sourceImageUrl,
       imageFromLinks
     ], createdAt);
+    const musicVideoUrl = pickFirstPlayableHttpMediaUrl([
+      (track as any)?.music_video_url,
+      (track as any)?.musicVideoUrl,
+      linksObj.music_video_url,
+      linksObj.musicVideoUrl,
+      (track as any)?.cover_video_url,
+      linksObj.cover_video_url,
+      linksObj.coverVideoUrl,
+    ], createdAt);
+    const musicVideoPosterUrl = pickFirstPlayableHttpMediaUrl([
+      (track as any)?.music_video_poster_url,
+      (track as any)?.musicVideoPosterUrl,
+      linksObj.music_video_poster_url,
+      linksObj.musicVideoPosterUrl,
+      (track as any)?.cover_video_poster_url,
+      linksObj.cover_video_poster_url,
+      linksObj.coverVideoPosterUrl,
+      imageUrl,
+    ], createdAt);
 
     return {
       // En bibliothèque, préférer l'URL audio finale; garder le stream en fallback.
@@ -908,6 +977,8 @@ function AIGeneratorContent() {
       audioUrl,
       streamUrl,
       imageUrl,
+      musicVideoUrl,
+      musicVideoPosterUrl,
     };
   };
 
@@ -977,6 +1048,8 @@ function AIGeneratorContent() {
       audioUrl: playableUrl,
       backupAudioUrls,
       coverUrl: media.imageUrl || '/brand/2026/synaura-symbol-2026-white.png',
+      musicVideoUrl: media.musicVideoUrl,
+      musicVideoPosterUrl: media.musicVideoPosterUrl,
       createdAt: createdAt || track.created_at,
       genre: ['IA', 'Généré'],
       plays: track.play_count || 0,
@@ -1313,6 +1386,34 @@ function AIGeneratorContent() {
       });
     } finally {
       toggleTrackTrashRef.current = false;
+    }
+  };
+
+  const generateCoverVideo = async (track: AITrack, generation: AIGeneration | null) => {
+    const taskId = generation?.task_id || (track as any).generation?.task_id || '';
+    const audioId = (track as any).suno_id || '';
+
+    if (!taskId || !audioId) {
+      notify.info('Clip vidéo indisponible', 'Cette piste ne contient pas les IDs Suno nécessaires.');
+      return;
+    }
+
+    setGeneratingCoverVideoTrackId(track.id);
+    try {
+      const res = await fetch('/api/suno/generate-music-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackId: track.id, taskId, audioId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Impossible de générer la cover animée');
+
+      notify.success('Clip vidéo lancé', 'Suno génère la vidéo verticale. Elle apparaîtra dans le TikTok player dès le callback.');
+      await loadLibrary();
+    } catch (error: any) {
+      notify.error('Clip vidéo', error?.message || 'Erreur génération vidéo');
+    } finally {
+      setGeneratingCoverVideoTrackId(null);
     }
   };
 
@@ -3656,115 +3757,57 @@ function AIGeneratorContent() {
               </div>
             </section>
 
-            <section className="rounded-[1.5rem] border border-black/[0.08] bg-[#fff8ed] p-4 shadow-[0_20px_70px_rgba(20,15,10,0.08)]">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7868]">Bibliothèque studio</p>
-                  <h2 className="text-2xl font-black tracking-[-0.05em] text-[#171313]">Toutes tes pistes</h2>
-                  <p className="mt-1 text-xs font-bold text-[#8b7868]">Chaque rendu est une piste indépendante, prête à écouter, remixer ou publier.</p>
-                </div>
-                <div className="flex gap-2">
-                  <button type="button" onClick={refreshGenerations} className="inline-flex h-10 items-center gap-2 rounded-full bg-[#171313] px-4 text-xs font-black text-white">
-                    <RefreshCw className="h-4 w-4" />
-                    Actualiser
-                  </button>
-                  <Link href="/ai-library" className="inline-flex h-10 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-xs font-black text-[#171313]">
-                    Tout voir
-                  </Link>
-                </div>
-              </div>
-
-              {generationsLoading ? (
-                <div className="rounded-[1.25rem] border border-black/[0.07] bg-white px-4 py-10 text-center text-sm font-black text-[#6e5f54]">Chargement de la bibliotheque...</div>
-              ) : generationsError ? (
-                <div className="rounded-[1.25rem] border border-red-200 bg-red-50 px-4 py-4 text-sm font-black text-red-700">{generationsError}</div>
-              ) : (
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {studioLibraryTracks.slice(0, 18).map((item) => {
-                    const isSelected = String(studioFocusTrack?.id) === String(item.track.id);
-                    const isPublic = Boolean((item.source as any).is_public || (item.generation as any).is_public);
-                    return (
-                      <article
-                        key={`studio-library-${item.id}`}
-                        className={`min-w-0 overflow-hidden rounded-[1.25rem] border transition ${
-                          isSelected ? 'border-[#171313] bg-white shadow-[0_14px_34px_rgba(20,15,10,0.10)]' : 'border-black/[0.07] bg-white/74 hover:bg-white'
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedGeneration(item.generation);
-                            setSelectedTrack(item.track);
-                            setGeneratedTrack(item.track);
-                            setShowTrackPanel(true);
-                            setRightTab('inspector');
-                          }}
-                          className="flex w-full min-w-0 gap-3 p-3 text-left"
-                        >
-                          {item.track.imageUrl ? (
-                            <img src={item.track.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-[1rem] object-cover" />
-                          ) : (
-                            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-[1rem] bg-[#171313] text-white">
-                              <Music className="h-5 w-5" />
-                            </span>
-                          )}
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-black text-[#171313]">{item.track.title || `Rendu ${item.index + 1}`}</span>
-                            <span className="mt-1 block truncate text-xs font-semibold text-[#8b7868]">
-                              {item.track.duration ? formatTime(item.track.duration) : 'Audio'} · {new Date(item.createdAt).toLocaleDateString('fr-FR')}
-                            </span>
-                            <span className="mt-2 flex flex-wrap gap-1.5">
-                              <span className="rounded-full bg-[#f5eadb] px-2 py-1 text-[10px] font-black text-[#6e5f54]">Rendu {item.index + 1}</span>
-                              {isPublic && <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-black text-emerald-700">Public</span>}
-                              {item.generation.status !== 'completed' && (
-                                <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black text-amber-700">{item.generation.status}</span>
-                              )}
-                            </span>
-                          </span>
-                        </button>
-                        <div className="grid grid-cols-3 gap-2 border-t border-black/[0.06] bg-[#fffaf2] p-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedGeneration(item.generation);
-                              setSelectedTrack(item.track);
-                              setGeneratedTrack(item.track);
-                              playAITrack(item.source, item.generation);
-                            }}
-                            className="inline-flex h-9 items-center justify-center gap-1 rounded-full bg-[#171313] px-3 text-xs font-black text-white"
-                          >
-                            <Play className="h-3.5 w-3.5 fill-current" />
-                            Lire
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleReuseTrackInfo(item.track)}
-                            className="inline-flex h-9 items-center justify-center gap-1 rounded-full border border-black/[0.08] bg-white px-3 text-xs font-black text-[#171313]"
-                          >
-                            <Wand2 className="h-3.5 w-3.5" />
-                            Reprendre
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => useLibraryTrackForRemix(item.source)}
-                            className="inline-flex h-9 items-center justify-center gap-1 rounded-full border border-[#00a6ad]/20 bg-[#eafffb] px-3 text-xs font-black text-[#087b80]"
-                          >
-                            <Repeat className="h-3.5 w-3.5" />
-                            Remix
-                          </button>
-                        </div>
-                      </article>
-                    );
-                  })}
-                  {studioLibraryTracks.length === 0 && (
-                    <div className="md:col-span-2 xl:col-span-3 rounded-[1.25rem] border border-dashed border-black/[0.12] bg-white/70 px-4 py-12 text-center">
-                      <Music className="mx-auto mb-3 h-8 w-8 text-[#8b7868]" />
-                      <p className="text-sm font-black text-[#171313]">Aucune piste pour le moment.</p>
-                      <p className="mt-1 text-xs font-semibold text-[#8b7868]">Lance une creation, chaque rendu arrivera ici comme une vraie piste.</p>
-                    </div>
-                  )}
-                </div>
-              )}
+            <section className="min-h-[720px] overflow-hidden rounded-[1.5rem] border border-black/[0.08] bg-[#0d0d13] shadow-[0_20px_70px_rgba(20,15,10,0.16)]">
+              <LibraryMiddlePanel
+                tracks={allTracks}
+                generationsById={generationsById}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                filterBy={(filterBy === 'with-lyrics' ? 'voix' : filterBy) as any}
+                onFilterByChange={(v) => setFilterBy(v === 'voix' ? 'with-lyrics' : v)}
+                sortBy={sortBy}
+                onSortByChange={setSortBy}
+                onRefresh={refreshGenerations}
+                remixMode={isRemixMode}
+                onRemixModeToggle={() => selectGenerationMode(isRemixMode ? 'simple' : 'remix')}
+                remixSourceTrackId={remixSourceTrackId}
+                onSetRemixSource={(track) => useLibraryTrackForRemix(track)}
+                onClearRemixSource={clearRemixSource}
+                onPickTrack={(track, gen) => {
+                  const converted = convertAITrackToGenerated(track as any);
+                  setSelectedTrack(converted);
+                  setGeneratedTrack(converted);
+                  setShowTrackPanel(true);
+                  setRightTab('inspector');
+                  if (gen) setSelectedGeneration(gen);
+                }}
+                onPlayTrack={(track, gen) => {
+                  const converted = convertAITrackToGenerated(track as any);
+                  setSelectedTrack(converted);
+                  setGeneratedTrack(converted);
+                  if (gen) setSelectedGeneration(gen);
+                  playGenerated(converted);
+                }}
+                onPlayQueue={playLibraryQueue}
+                onRemixTrack={(track) => useLibraryTrackForRemix(track)}
+                onReuseTrack={(track) => {
+                  const converted = convertAITrackToGenerated(track as any);
+                  handleReuseTrackInfo(converted);
+                }}
+                onCopyLyrics={(track) => {
+                  const converted = convertAITrackToGenerated(track as any);
+                  handleCopyLyrics(converted);
+                }}
+                onToggleLike={toggleTrackLike}
+                onTrashTrack={toggleTrackTrash}
+                onGenerateCoverVideo={generateCoverVideo}
+                generatingCoverVideoTrackId={generatingCoverVideoTrackId}
+                onMoveToFolder={moveTrackToFolder}
+                likedTrackIds={likedTrackIds}
+                trashedTrackIds={trashedTrackIds}
+                loading={generationsLoading}
+                error={generationsError}
+              />
             </section>
           </main>
 
@@ -4189,7 +4232,7 @@ function AIGeneratorContent() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-3 space-y-3 pb-4 lg:pb-3 pt-3">
-              {shellMode === 'ide' && (
+              {false && shellMode === 'ide' && (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2">
                   <div className="flex items-center justify-between px-1 pb-2">
                     <span className="text-[10px] uppercase tracking-[0.15em] text-white/30 font-semibold inline-flex items-center gap-1.5">
@@ -5357,7 +5400,7 @@ function AIGeneratorContent() {
                 </div>
               )}
 
-              {shellMode !== 'ide' && (
+              {shellMode && (
               <div className="flex flex-col min-h-0 flex-1 overflow-visible">
                 <LibraryMiddlePanel
                   tracks={allTracks}
@@ -5400,6 +5443,9 @@ function AIGeneratorContent() {
                   }}
                   onToggleLike={toggleTrackLike}
                   onTrashTrack={toggleTrackTrash}
+                  onGenerateCoverVideo={generateCoverVideo}
+                  generatingCoverVideoTrackId={generatingCoverVideoTrackId}
+                  onMoveToFolder={moveTrackToFolder}
                   likedTrackIds={likedTrackIds}
                   trashedTrackIds={trashedTrackIds}
                   loading={generationsLoading}

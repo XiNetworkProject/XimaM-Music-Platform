@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabase } from '@/lib/supabase';
+import { notifyForumPostLike } from '@/lib/notifications';
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     // Vérifier si le post existe
     const { data: post, error: postError } = await supabase
       .from('forum_posts')
-      .select('id')
+      .select('id, user_id, title')
       .eq('id', post_id)
       .single();
 
@@ -88,6 +89,22 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Erreur lors de l\'ajout du like:', error);
       return NextResponse.json({ error: 'Erreur lors de l\'ajout du like' }, { status: 500 });
+    }
+
+    if (post.user_id && post.user_id !== session.user.id) {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name, username')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        const likerName = profile?.name || profile?.username || session.user.name || 'Quelqu’un';
+        notifyForumPostLike(session.user.id, post.user_id, likerName, post.id, post.title).catch((notificationError) => {
+          console.warn('[forum notifications] like notification failed:', notificationError?.message || notificationError);
+        });
+      } catch (notificationError: any) {
+        console.warn('[forum notifications] like notification skipped:', notificationError?.message || notificationError);
+      }
     }
 
     return NextResponse.json(like, { status: 201 });

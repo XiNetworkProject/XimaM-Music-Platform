@@ -12,17 +12,17 @@ function getSiteUrl(req: NextRequest) {
   return (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || req.nextUrl.origin || '').replace(/\/$/, '');
 }
 
-async function updateAiTrackWithVideo(trackId: string, videoUrl: string | null, posterUrl: string | null, videoTaskId: string | null) {
+async function updateAiTrackWithMusicVideo(trackId: string, videoUrl: string | null, posterUrl: string | null, videoTaskId: string | null) {
   const patch = {
-    cover_video_url: videoUrl,
-    cover_video_poster_url: posterUrl,
-    video_task_id: videoTaskId,
+    music_video_url: videoUrl,
+    music_video_poster_url: posterUrl,
+    music_video_task_id: videoTaskId,
   };
   const { error } = await supabaseAdmin.from('ai_tracks').update(patch).eq('id', trackId);
   if (!error) return;
 
   const message = String(error.message || error.details || '').toLowerCase();
-  if (!message.includes('cover_video') && !message.includes('video_task_id') && !message.includes('schema cache') && !message.includes('could not find')) {
+  if (!message.includes('music_video') && !message.includes('schema cache') && !message.includes('could not find')) {
     throw error;
   }
 
@@ -44,9 +44,9 @@ async function updateAiTrackWithVideo(trackId: string, videoUrl: string | null, 
     .update({
       source_links: JSON.stringify({
         ...sourceLinks,
-        cover_video_url: videoUrl,
-        cover_video_poster_url: posterUrl,
-        video_task_id: videoTaskId,
+        music_video_url: videoUrl,
+        music_video_poster_url: posterUrl,
+        music_video_task_id: videoTaskId,
       }),
     })
     .eq('id', trackId);
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
       p_user_id: userId,
       p_amount: MUSIC_VIDEO_CREDIT_COST,
       p_source: 'action_spend',
-      p_description: 'Génération cover vidéo Suno',
+      p_description: 'Génération clip vidéo Suno',
     });
     if (debitError || debitOk === false) {
       return NextResponse.json({
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
       });
 
       const videoTaskId = result?.data?.taskId || (result as any)?.taskId || null;
-      await updateAiTrackWithVideo(trackId, null, null, videoTaskId);
+      await updateAiTrackWithMusicVideo(trackId, null, null, videoTaskId);
 
       const { data: newBalanceRow } = await supabaseAdmin
         .from('ai_credit_balances')
@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
           p_user_id: userId,
           p_amount: MUSIC_VIDEO_CREDIT_COST,
           p_source: 'refund',
-          p_description: 'Remboursement échec cover vidéo Suno',
+          p_description: 'Remboursement échec clip vidéo Suno',
         });
       } catch {}
       return NextResponse.json({ error: error?.message || 'Erreur Suno MP4' }, { status: 502 });

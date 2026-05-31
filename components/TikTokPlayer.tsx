@@ -55,6 +55,8 @@ interface Track {
   coverUrl?: string;
   coverVideoUrl?: string | null;
   coverVideoPosterUrl?: string | null;
+  musicVideoUrl?: string | null;
+  musicVideoPosterUrl?: string | null;
   duration: number;
   likes: number | string[];
   comments: number | string[];
@@ -207,6 +209,18 @@ function coverVideoPosterUrl(track: Track | null): string | null {
   return getCdnUrl(raw) || raw;
 }
 
+function musicVideoUrl(track: Track | null): string | null {
+  const raw = track?.musicVideoUrl || (track as any)?.music_video_url;
+  if (!raw) return null;
+  return getCdnUrl(raw) || raw;
+}
+
+function musicVideoPosterUrl(track: Track | null): string | null {
+  const raw = track?.musicVideoPosterUrl || (track as any)?.music_video_poster_url || track?.coverUrl;
+  if (!raw) return null;
+  return getCdnUrl(raw) || raw;
+}
+
 function topGenre(track: Track | null): string | null {
   const genre = (track?.genre || [])
     .map((value) => String(value || '').trim())
@@ -224,6 +238,51 @@ function uniqueTracks(tracks: Track[]): Track[] {
     result.push(track);
   }
   return result;
+}
+
+function MusicVideoLayer({
+  src,
+  poster,
+  title,
+  active,
+  playing,
+  className,
+}: {
+  src: string;
+  poster?: string | null;
+  title: string;
+  active: boolean;
+  playing: boolean;
+  className?: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (active && playing) {
+      video.muted = true;
+      video.loop = true;
+      video.playsInline = true;
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [active, playing, src]);
+
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      poster={poster || undefined}
+      className={className}
+      muted
+      loop
+      playsInline
+      preload={active ? 'auto' : 'metadata'}
+      aria-label={title}
+    />
+  );
 }
 
 function insertRadioTracks(tracks: Track[], mode: FeedMode): Track[] {
@@ -1016,6 +1075,8 @@ const TrackSlide = memo(function TrackSlide(props: TrackSlideProps) {
   const cover = useMemo(() => coverUrl(t), [t]);
   const videoCover = useMemo(() => coverVideoUrl(t), [t]);
   const videoPoster = useMemo(() => coverVideoPosterUrl(t), [t]);
+  const musicVideo = useMemo(() => musicVideoUrl(t), [t]);
+  const musicPoster = useMemo(() => musicVideoPosterUrl(t), [t]);
   const genres = useMemo(() => (t.genre || []).filter(g => g && g !== 'undefined').slice(0, 2), [t.genre]);
 
   return (
@@ -1057,16 +1118,27 @@ const TrackSlide = memo(function TrackSlide(props: TrackSlideProps) {
                     : { background: 'linear-gradient(135deg, #ff8a66, #7c5cff)' }}
                 />
                 <div className={`relative h-full w-full overflow-hidden rounded-[2rem] ring-1 ring-white/[0.12] shadow-[0_22px_64px_rgba(0,0,0,0.44)] transition-transform duration-300 ${isPlaying ? 'scale-[1.015]' : 'scale-100'}`}>
-                  <TrackCover
-                    trackId={t._id}
-                    src={cover}
-                    videoSrc={videoCover}
-                    posterSrc={videoPoster || cover}
-                    title={t.title}
-                    autoPlayVideo={isActive && isPlaying}
-                    className={`absolute inset-0 h-full w-full transition-transform duration-[10000ms] ease-linear ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
-                    rounded="rounded-none"
-                  />
+                  {musicVideo ? (
+                    <MusicVideoLayer
+                      src={musicVideo}
+                      poster={musicPoster || cover}
+                      title={t.title}
+                      active={isActive}
+                      playing={isPlaying}
+                      className="absolute inset-0 h-full w-full object-cover bg-black"
+                    />
+                  ) : (
+                    <TrackCover
+                      trackId={t._id}
+                      src={cover}
+                      videoSrc={videoCover}
+                      posterSrc={videoPoster || cover}
+                      title={t.title}
+                      autoPlayVideo={isActive && isPlaying}
+                      className={`absolute inset-0 h-full w-full transition-transform duration-[10000ms] ease-linear ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
+                      rounded="rounded-none"
+                    />
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/28 via-transparent to-black/8" />
 
                   {genres.length > 0 && !isRadio ? (
@@ -1373,6 +1445,8 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
   const cover = useMemo(() => coverUrl(t), [t]);
   const videoCover = useMemo(() => coverVideoUrl(t), [t]);
   const videoPoster = useMemo(() => coverVideoPosterUrl(t), [t]);
+  const musicVideo = useMemo(() => musicVideoUrl(t), [t]);
+  const musicPoster = useMemo(() => musicVideoPosterUrl(t), [t]);
   const genres = useMemo(() => (t.genre || []).filter(Boolean).slice(0, 2), [t.genre]);
   const isAi = Boolean(t.isAI || String(t._id).startsWith('ai-'));
 
@@ -1389,7 +1463,16 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
       }}
     >
       <div className="absolute inset-0">
-        {cover || videoPoster ? (
+        {musicVideo ? (
+          <MusicVideoLayer
+            src={musicVideo}
+            poster={musicPoster || cover}
+            title={t.title}
+            active={isActive}
+            playing={isPlaying}
+            className="h-full w-full scale-125 object-cover opacity-45 blur-3xl saturate-150"
+          />
+        ) : cover || videoPoster ? (
           <TrackCover
             trackId={t._id}
             src={cover}
@@ -1412,18 +1495,29 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
               type="button"
               onClick={e => { e.stopPropagation(); if (isActive) onCoverTap(t); }}
               onDoubleClick={e => { e.stopPropagation(); if (isActive && !isRadio) onDoubleTapLike(); }}
-              className="group/cover relative mx-auto block aspect-square w-[min(78vw,520px)] overflow-hidden rounded-[2rem] border border-white/[0.12] bg-white/[0.06] shadow-[0_32px_110px_rgba(0,0,0,0.44)] md:w-[min(54vh,520px)]"
+              className={`group/cover relative mx-auto block overflow-hidden rounded-[2rem] border border-white/[0.12] bg-white/[0.06] shadow-[0_32px_110px_rgba(0,0,0,0.44)] ${musicVideo ? 'aspect-[9/16] h-[min(72dvh,720px)] max-h-[720px] w-auto max-w-[min(88vw,420px)]' : 'aspect-square w-[min(78vw,520px)] md:w-[min(54vh,520px)]'}`}
             >
-              <TrackCover
-                trackId={t._id}
-                src={cover}
-                videoSrc={videoCover}
-                posterSrc={videoPoster || cover}
-                title={t.title}
-                autoPlayVideo={isActive && isPlaying}
-                className={`h-full w-full object-cover transition-transform duration-[12000ms] ease-linear will-change-transform ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
-                rounded="rounded-none"
-              />
+              {musicVideo ? (
+                <MusicVideoLayer
+                  src={musicVideo}
+                  poster={musicPoster || cover}
+                  title={t.title}
+                  active={isActive}
+                  playing={isPlaying}
+                  className="h-full w-full object-cover bg-black"
+                />
+              ) : (
+                <TrackCover
+                  trackId={t._id}
+                  src={cover}
+                  videoSrc={videoCover}
+                  posterSrc={videoPoster || cover}
+                  title={t.title}
+                  autoPlayVideo={isActive && isPlaying}
+                  className={`h-full w-full object-cover transition-transform duration-[12000ms] ease-linear will-change-transform ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
+                  rounded="rounded-none"
+                />
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/54 via-transparent to-black/12" />
 
               <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">

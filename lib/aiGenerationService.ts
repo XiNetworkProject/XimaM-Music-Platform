@@ -38,6 +38,9 @@ export interface AITrack {
   cover_video_url?: string | null;
   cover_video_poster_url?: string | null;
   video_task_id?: string | null;
+  music_video_url?: string | null;
+  music_video_poster_url?: string | null;
+  music_video_task_id?: string | null;
   duration: number; // En secondes, entier
   prompt?: string;
   model_name?: string;

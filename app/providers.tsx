@@ -37,6 +37,8 @@ interface Track {
   coverUrl?: string;
   coverVideoUrl?: string | null;
   coverVideoPosterUrl?: string | null;
+  musicVideoUrl?: string | null;
+  musicVideoPosterUrl?: string | null;
   duration: number;
   likes: string[];
   comments: string[];
@@ -157,6 +159,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       coverUrl: currentTrack?.coverUrl || currentTrack?.cover_url || null,
       coverVideoUrl: currentTrack?.coverVideoUrl || currentTrack?.cover_video_url || null,
       coverVideoPosterUrl: currentTrack?.coverVideoPosterUrl || currentTrack?.cover_video_poster_url || null,
+      musicVideoUrl: currentTrack?.musicVideoUrl || currentTrack?.music_video_url || null,
+      musicVideoPosterUrl: currentTrack?.musicVideoPosterUrl || currentTrack?.music_video_poster_url || null,
     };
     (window as any).__synauraActiveTrackMedia = detail;
     window.dispatchEvent(new CustomEvent('synaura:active-track-media', { detail }));

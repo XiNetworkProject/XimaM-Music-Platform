@@ -414,6 +414,32 @@ export async function notifyPostComment(commenterId: string, postOwnerId: string
   });
 }
 
+export async function notifyForumPostLike(likerId: string, postOwnerId: string, likerName: string, postId: string, postTitle?: string | null) {
+  return createNotification({
+    userId: postOwnerId,
+    type: 'post_like',
+    title: 'Nouveau like forum',
+    message: `${likerName} a aime ton sujet${postTitle ? ` "${postTitle}"` : ''}`,
+    actionUrl: `/community/forum/${postId}`,
+    senderId: likerId,
+    relatedId: postId,
+    data: { surface: 'community_forum' },
+  });
+}
+
+export async function notifyForumPostReply(replierId: string, postOwnerId: string, replierName: string, postId: string, postTitle?: string | null) {
+  return createNotification({
+    userId: postOwnerId,
+    type: 'post_comment',
+    title: 'Nouvelle reponse forum',
+    message: `${replierName} a repondu a ton sujet${postTitle ? ` "${postTitle}"` : ''}`,
+    actionUrl: `/community/forum/${postId}`,
+    senderId: replierId,
+    relatedId: postId,
+    data: { surface: 'community_forum' },
+  });
+}
+
 const MILESTONES = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
 
 export function checkMilestone(count: number): number | null {

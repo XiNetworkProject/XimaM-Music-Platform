@@ -706,7 +706,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
   const postUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${encodeURIComponent(post.id)}`;
 
   /* TEXT POST */
-  return (
+    return (
     <div className="relative overflow-hidden rounded-[1.5rem] border border-black/[0.06] bg-[#fffaf2] transition-all duration-200 hover:border-black/[0.1]">
       <div className="p-3 sm:p-5">
         <div className="flex gap-2.5 sm:gap-3">
@@ -718,8 +718,8 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <Link href={`/profile/${post.creator.username}`} className="font-black hover:underline">
-                    {post.creator.name || post.creator.username}
-                  </Link>
+                {post.creator.name || post.creator.username}
+              </Link>
                   <span className="text-xs font-semibold text-black/38 sm:text-sm">@{post.creator.username}</span>
                   <span className="text-xs font-semibold text-black/28 sm:text-sm">· {inlineTime}</span>
                 </div>
@@ -818,7 +818,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
                     {post.original_post.content ? (
                       <p className="mt-3 text-[14px] leading-6 text-black/68 whitespace-pre-wrap break-words">{post.original_post.content}</p>
                     ) : null}
-                  </div>
+          </div>
 
                   {post.original_post.track ? (
                     <div className="bg-[#171313] p-4 text-white">
@@ -860,7 +860,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
                         className="max-h-[320px] w-full object-cover"
                         onError={() => setEmbeddedImgError(true)}
                       />
-                    </div>
+        </div>
                   ) : null}
 
                   <div className="border-t border-black/[0.07] px-4 py-3">
@@ -872,27 +872,27 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
               ) : (
                 <div className="mt-4 rounded-[1.2rem] border border-black/[0.08] bg-black/[0.035] p-4 text-sm font-semibold text-black/46">
                   Le post d'origine n'est plus disponible.
-                </div>
+      </div>
               )
             ) : null}
 
             {!post.track && post.image_url && !imgError ? (
               <div className="mt-4 overflow-hidden rounded-[1.35rem] bg-black/[0.055]">
-                <img
-                  src={post.image_url}
-                  alt=""
+            <img
+              src={post.image_url}
+              alt=""
                   className={`max-h-[220px] w-full object-cover transition-opacity duration-300 sm:max-h-[360px] ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
-                  onLoad={() => setImgLoaded(true)}
-                  onError={() => setImgError(true)}
-                />
+              onLoad={() => setImgLoaded(true)}
+              onError={() => setImgError(true)}
+            />
                 {!imgLoaded && <div className="h-48 w-full animate-pulse bg-black/[0.05]" />}
-              </div>
+            </div>
             ) : null}
 
             {!post.track && !post.image_url && post.type !== 'repost' ? (
               <div className="mt-4 rounded-[1.2rem] bg-black/[0.045] p-3 sm:rounded-[1.35rem] sm:p-4">
             <p className="text-sm font-semibold leading-6 text-black/52">Post texte.</p>
-              </div>
+            </div>
             ) : null}
 
             <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
