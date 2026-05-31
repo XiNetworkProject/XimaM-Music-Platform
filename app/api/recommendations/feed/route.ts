@@ -203,6 +203,10 @@ export async function GET(request: NextRequest) {
 
     const tracks = rerankTracks(trackCandidates, signals, { strategy: 'reco', debug, maxConsecutiveArtists: 2 });
     const posts = rerankPosts(postCandidates, signals, { debug });
+    const dailyMix = tracks.slice(0, 12);
+    const weeklyTop = [...trackCandidates]
+      .sort((a: any, b: any) => (b.rankingScore || 0) - (a.rankingScore || 0))
+      .slice(0, 12);
     const mixed: Array<{ id: string; type: 'track' | 'post'; score: number; track?: RecommendedTrack; post?: RecommendedPost }> = [];
     let ti = 0;
     let pi = 0;
@@ -228,6 +232,8 @@ export async function GET(request: NextRequest) {
         items: page,
         tracks: page.filter((item) => item.type === 'track').map((item) => item.track),
         posts: page.filter((item) => item.type === 'post').map((item) => item.post),
+        dailyMix,
+        weeklyTop,
         nextCursor: nextCursor < mixed.length ? String(nextCursor) : null,
         hasMore: nextCursor < mixed.length,
       },

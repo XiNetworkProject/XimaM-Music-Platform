@@ -427,6 +427,12 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
       // Re-apply merge with the fresh list so audio and UI update immediately.
       applyQueueWithUpNextList(nextList);
+      fetch('/api/recommendations/impressions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentType: 'track', contentId: track._id, source: 'queue', eventType: mode === 'next' ? 'queue_next' : 'queue_end' }),
+        keepalive: true,
+      }).catch(() => {});
     },
     [applyQueueWithUpNextList, upNextEnabled, upNextTracks],
   );

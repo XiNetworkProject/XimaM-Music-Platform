@@ -1528,6 +1528,38 @@ export default function AIGenerator() {
   const [vocalGender, setVocalGender] = useState<string>(''); // 'm' | 'f' | ''
   const [negativeTags, setNegativeTags] = useState<string>('');
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode');
+    const sourceTrack = params.get('sourceTrack') || params.get('track');
+    const sourceTitle = params.get('title') || '';
+    const sourceStyle = params.get('style') || '';
+    if (!mode && !sourceTrack && !sourceTitle && !sourceStyle) return;
+
+    if (mode === 'remix') {
+      selectGenerationMode('remix');
+      if (sourceTrack) setRemixSourceTrackId(sourceTrack);
+      if (sourceTitle) setRemixSourceLabel(sourceTitle);
+      setDescription((current) =>
+        current.trim()
+          ? current
+          : `Remixe l'esprit de "${sourceTitle || 'ce son'}" avec une direction Synaura moderne.`,
+      );
+    } else {
+      selectGenerationMode('simple');
+      if (sourceTitle) setTitle(`Dans le style de ${sourceTitle}`.slice(0, 80));
+      if (sourceStyle) setStyle(sourceStyle);
+      setDescription((current) =>
+        current.trim()
+          ? current
+          : `Créer un morceau inspiré par ${sourceTitle || 'ce son'}${sourceStyle ? `, ambiance ${sourceStyle}` : ''}.`,
+      );
+    }
+    setLeftExplorerTab('builder');
+    setRightTab('inspector');
+  }, [selectGenerationMode]);
+
   const [styleSuggestions, setStyleSuggestions] = useState<string[]>(['rock','hip hop','electronic','pop','lo-fi','house','afrobeat','ambient']);
   const [vibeSuggestions, setVibeSuggestions] = useState<string[]>(['dramatic builds','catchy beats','emotional','fast guitar','breathy vocals']);
 

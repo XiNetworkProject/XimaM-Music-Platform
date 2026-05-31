@@ -20,6 +20,7 @@ import { AnimatePresence } from 'framer-motion';
 import { UModal, UModalBody, UModalTitle, UModalFooter, UDrawer, UButton, UInput, UTextarea } from '@/components/ui/UnifiedUI';
 import CreatorFeed from '@/components/CreatorFeed';
 import { SynauraAppShell, SynauraTopBar, SynauraInkPanel, SynauraPanel } from '@/components/synaura/SynauraShell';
+import TrackCreateRemixActions from '@/components/TrackCreateRemixActions';
 
 const BoosterOpenModal = dynamic(() => import('@/components/BoosterOpenModal'), { ssr: false });
 
@@ -96,6 +97,11 @@ export default function SynauraProfile() {
     });
   }, [query, sortBy, userTracks]);
 
+  const topProfileTracks = useMemo(
+    () => [...(userTracks || [])].sort((a, b) => (b.plays || 0) - (a.plays || 0)).slice(0, 3),
+    [userTracks],
+  );
+  const latestPost = useMemo(() => (Array.isArray(profile?.posts) ? profile.posts[0] : null), [profile?.posts]);
   const displayTracks = showAllTracks ? sortedTracks : sortedTracks.slice(0, 5);
 
   const closeCtx = useCallback(() => setCtxTrack(null), []);
@@ -156,6 +162,14 @@ export default function SynauraProfile() {
           text: `Regarde le profil de ${profile?.name || profile?.username || 'ce createur'} sur Synaura`,
           url,
         });
+        if (profile?.id) {
+          fetch('/api/recommendations/impressions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contentType: 'post', contentId: profile.id, source: 'artist-profile', eventType: 'profile_share' }),
+            keepalive: true,
+          }).catch(() => {});
+        }
         return;
       } catch {}
     }
@@ -315,6 +329,12 @@ export default function SynauraProfile() {
                         </span>
                       )}
                     </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {profile.isVerified ? <ProfileBadge label="Artiste vérifié" /> : null}
+                      {userTracks.some((t) => t?.is_ai || String(t?.id || '').startsWith('ai-')) ? <ProfileBadge label="Créateur IA" /> : null}
+                      {totalPlays > 1000 ? <ProfileBadge label="Top tendance" /> : null}
+                      {topProfileTracks.length ? <ProfileBadge label="Remix actif" /> : null}
+                    </div>
                     {profile.artistName && <p className="mt-1 text-sm font-medium text-white/56">{profile.artistName}</p>}
                     <div className="mt-3 flex flex-wrap gap-2">
                       <StatPill value={fmtK(totalPlays)} label="ecoutes" />
@@ -387,6 +407,11 @@ export default function SynauraProfile() {
                       <HeroActionSecondary onClick={handleShareProfile}>
                         <Share2 size={15} /> Partager le profil
                       </HeroActionSecondary>
+                      {topProfileTracks[0] ? (
+                        <HeroActionSecondary onClick={() => router.push(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(topProfileTracks[0].id)}&title=${encodeURIComponent(topProfileTracks[0].title || '')}`)}>
+                          <Sparkles size={15} /> Inspiré par cet artiste
+                        </HeroActionSecondary>
+                      ) : null}
                     </>
                   )}
                 </div>
@@ -397,6 +422,42 @@ export default function SynauraProfile() {
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_360px]">
           <div className="min-w-0 space-y-4">
+            {(topProfileTracks.length > 0 || latestPost) && (
+              <SynauraPanel className="p-4 sm:p-5">
+                <div className="mb-4 flex items-end justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">À partager</p>
+                    <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">Signature musicale</h2>
+                  </div>
+                  {topProfileTracks[0] ? (
+                    <button onClick={() => handlePlayTrack(topProfileTracks[0])} className="rounded-full bg-[#171313] px-4 py-2 text-xs font-black text-white">
+                      Jouer le top 1
+                    </button>
+                  ) : null}
+                </div>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {topProfileTracks.map((track, index) => (
+                    <div key={track.id} className="rounded-[1.35rem] border border-black/[0.07] bg-black/[0.025] p-3">
+                      <div className="mb-3 flex items-center gap-3">
+                        <img src={track.cover_url || track.coverUrl || '/default-cover.svg'} alt="" className="h-12 w-12 rounded-[1rem] object-cover" />
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-black/35">Top {index + 1}</p>
+                          <p className="truncate text-sm font-black text-[#171313]">{track.title}</p>
+                        </div>
+                      </div>
+                      <TrackCreateRemixActions track={{ ...track, _id: track.id, audioUrl: track.audioUrl || track.audio_url, coverUrl: track.coverUrl || track.cover_url }} compact />
+                    </div>
+                  ))}
+                </div>
+                {latestPost ? (
+                  <div className="mt-4 rounded-[1.25rem] bg-black/[0.035] p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-black/35">Dernier post</p>
+                    <p className="mt-1 line-clamp-2 text-sm text-black/58">{latestPost.content || latestPost.text || latestPost.title || 'Nouvelle activité musicale'}</p>
+                  </div>
+                ) : null}
+              </SynauraPanel>
+            )}
+
             {isOwnProfile && (
               <SynauraPanel className="p-4 sm:p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -510,6 +571,9 @@ export default function SynauraProfile() {
                             <LikeButton trackId={track.id} initialIsLiked={track.isLiked || false} initialLikesCount={track.likes || 0} onUpdate={(s) => handleLikeUpdate(track.id, s.isLiked, s.likesCount)} showCount={false} size="sm" />
                           </div>
                         )}
+                        <div className="hidden shrink-0 lg:block" onClick={(e) => e.stopPropagation()}>
+                          <TrackCreateRemixActions track={{ ...track, _id: track.id, audioUrl: track.audioUrl || track.audio_url }} compact />
+                        </div>
                         <button
                           onClick={(e) => { e.stopPropagation(); e.preventDefault(); setCtxTrack(ctxTrack?.track?.id === track.id ? null : { track, anchorEl: e.currentTarget as HTMLButtonElement }); }}
                           className="shrink-0 rounded-full p-2 text-black/36 transition hover:bg-black/[0.06] hover:text-[#171313] sm:opacity-0 sm:group-hover:opacity-100"
@@ -884,6 +948,14 @@ function StatPill({ value, label }: { value: string; label: string }) {
       <div className="text-sm font-black leading-none">{value}</div>
       <div className="mt-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/45">{label}</div>
     </div>
+  );
+}
+
+function ProfileBadge({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white/62">
+      {label}
+    </span>
   );
 }
 

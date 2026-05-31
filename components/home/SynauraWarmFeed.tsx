@@ -11,6 +11,7 @@ import NotificationCenter, { notify } from '@/components/NotificationCenter';
 import SharedPostCard, { type Post as BasePost } from '@/components/PostCard';
 import { SynauraMobileDock as SharedSynauraMobileDock } from '@/components/synaura/SynauraShell';
 import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
+import TrackCreateRemixActions from '@/components/TrackCreateRemixActions';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { sendTrackEvents } from '@/lib/analyticsClient';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
@@ -187,7 +188,7 @@ type HomeFeedActions = {
 
 const HomeFeedActionsContext = React.createContext<HomeFeedActions | null>(null);
 
-const FILTERS = ['Pour toi', 'Sons', 'Posts', 'Playlists', 'Createurs', 'Radio'];
+const FILTERS = ['Pour toi', 'Sons', 'Communauté', 'Plus'];
 const TINTS = ['#8B5CF6', '#38BDF8', '#FB7185', '#F59E0B', '#14B8A6', '#EF4444'];
 const MUSIC_BATCH_SIZE = 18;
 const POST_BATCH_SIZE = 4;
@@ -861,9 +862,8 @@ function buildFeedItems({
   radios: RadioItem[];
   libraryStats: LibraryStats | null;
 }) {
-  const items: FeedItem[] = [{ id: 'composer', kind: 'composer' }];
+  const items: FeedItem[] = [];
 
-  if (posts[0]) items.push(posts[0]);
   if (forYouTracks.length) {
     items.push({
       id: 'rail-for-you',
@@ -874,29 +874,32 @@ function buildFeedItems({
       tracks: forYouTracks.slice(0, 8),
     });
   }
-  if (posts[1]) items.push(posts[1]);
-  if (radios[0]) items.push(radios[0]);
   if ((boostedTracks[0] || trendingTracks[0]) && (boostedTracks[0] || trendingTracks[0])!.playerTrack.audioUrl) {
     const headlineTrack = boostedTracks[0] || trendingTracks[0];
     items.push({
       id: 'headline-track',
       kind: 'track',
-      title: boostedTracks[0] ? 'Boost fort' : 'A ecouter maintenant',
+      title: 'A ecouter maintenant',
       subtitle: boostedTracks[0]
-        ? 'un titre actuellement pousse dans les surfaces Synaura'
+        ? 'un titre qui pousse fort et donne le ton'
         : 'un morceau qui circule fort dans la communaute',
       label: boostedTracks[0] ? 'boost' : 'recommande',
       track: headlineTrack,
     });
   }
-  items.push({
-    id: 'studio',
-    kind: 'studio',
-    title: 'Studio',
-    text: 'Genere, remixe ou relance une idee depuis la home sans casser ton flow.',
-  });
-  if (playlists[0]) items.push({ id: `playlist-${playlists[0].id}`, kind: 'playlist', playlist: playlists[0] });
-  if (creators.length) items.push({ id: 'creator-rail', kind: 'creator', title: 'Createurs a suivre', creators: creators.slice(0, 8) });
+  if (recentTracks.length) {
+    items.push({
+      id: 'rail-recent',
+      kind: 'rail',
+      title: 'Fraichement publie',
+      subtitle: 'les sorties recentes qui arrivent dans la home',
+      label: 'nouveau',
+      tracks: recentTracks.slice(0, 8),
+    });
+  }
+  items.push({ id: 'composer', kind: 'composer' });
+  if (posts[0]) items.push(posts[0]);
+  if (posts[1]) items.push(posts[1]);
   if (trendingTracks.length) {
     items.push({
       id: 'rail-trending',
@@ -907,7 +910,16 @@ function buildFeedItems({
       tracks: trendingTracks.slice(0, 8),
     });
   }
+  if (creators.length) items.push({ id: 'creator-rail', kind: 'creator', title: 'Createurs a suivre', creators: creators.slice(0, 8) });
   if (posts[2]) items.push(posts[2]);
+  if (radios[0]) items.push(radios[0]);
+  items.push({
+    id: 'studio',
+    kind: 'studio',
+    title: 'Créer dans ce style',
+    text: 'Pars d’un son que tu aimes, remixe l’ambiance et publie ta version.',
+  });
+  if (playlists[0]) items.push({ id: `playlist-${playlists[0].id}`, kind: 'playlist', playlist: playlists[0] });
   items.push({
     id: 'booster',
     kind: 'booster',
@@ -929,16 +941,6 @@ function buildFeedItems({
       ],
     });
   }
-  if (recentTracks.length) {
-    items.push({
-      id: 'rail-recent',
-      kind: 'rail',
-      title: 'Fraichement publie',
-      subtitle: 'les sorties recentes qui arrivent dans la home',
-      label: 'nouveau',
-      tracks: recentTracks.slice(0, 8),
-    });
-  }
   if (posts[3]) items.push(posts[3]);
 
   return items;
@@ -947,10 +949,8 @@ function buildFeedItems({
 function matchesFilter(item: FeedItem, filter: string) {
   if (filter === 'Pour toi') return true;
   if (filter === 'Sons') return item.kind === 'track' || item.kind === 'rail' || (item.kind === 'post' && Boolean(item.track));
-  if (filter === 'Posts') return item.kind === 'composer' || item.kind === 'post';
-  if (filter === 'Playlists') return item.kind === 'playlist' || item.kind === 'library';
-  if (filter === 'Createurs') return item.kind === 'creator';
-  if (filter === 'Radio') return item.kind === 'radio';
+  if (filter === 'Communauté') return item.kind === 'composer' || item.kind === 'post' || item.kind === 'creator';
+  if (filter === 'Plus') return item.kind === 'playlist' || item.kind === 'library' || item.kind === 'radio' || item.kind === 'studio' || item.kind === 'booster';
   return true;
 }
 
@@ -1181,9 +1181,14 @@ function MiniCarousel({ tracks }: { tracks: Track[] }) {
           <div className="absolute inset-y-0 right-0 w-1/2 opacity-40" style={{ background: item.tint }} />
           <div className="relative z-10 flex min-h-[144px] flex-col justify-between">
             <div className="flex items-center justify-between gap-3">
-              <span className="rounded-full bg-white/12 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-white/70">
-                mini focus
-              </span>
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full bg-white/12 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-white/70">
+                  Mix quotidien
+                </span>
+                <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-white/52">
+                  Top hebdo
+                </span>
+              </div>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -1202,9 +1207,12 @@ function MiniCarousel({ tracks }: { tracks: Track[] }) {
               </div>
             </div>
             <div>
-              <h1 className="max-w-xl text-[2rem] font-black leading-[0.96] tracking-[-0.04em] sm:text-4xl">{item.title}</h1>
+              <h1 className="max-w-xl text-[2rem] font-black leading-[0.96] tracking-[-0.04em] sm:text-4xl">Découvre, remixe, publie.</h1>
               <p className="mt-1 text-sm font-semibold text-white/62">
-                {item.artist} · {item.style}
+                Lance un mix de sons IA et indés, puis crée ton univers musical à partir de ce que tu aimes.
+              </p>
+              <p className="mt-2 max-w-md truncate text-xs font-bold text-white/42">
+                En tête maintenant : {item.title} · {item.artist}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
@@ -1212,13 +1220,13 @@ function MiniCarousel({ tracks }: { tracks: Track[] }) {
                   onClick={() => playQueueFromTracks(tracks, item.id, setQueueAndPlay)}
                   className="inline-flex h-9 items-center gap-2 rounded-full bg-[#fffaf2] px-3 text-[11px] font-black text-black sm:h-10 sm:px-4 sm:text-xs"
                 >
-                  <Play className="h-3.5 w-3.5 fill-current" /> Ecouter
+                  <Play className="h-3.5 w-3.5 fill-current" /> Lancer mon mix
                 </button>
                 <Link
-                  href={item.artistHref || '/discover'}
+                  href={`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(item.id)}&title=${encodeURIComponent(item.title)}&style=${encodeURIComponent(item.style)}`}
                   className="inline-flex h-9 items-center gap-2 rounded-full bg-white/10 px-3 text-[11px] font-black text-white/70 sm:h-10 sm:px-4 sm:text-xs"
                 >
-                  <MessageCircle className="h-3.5 w-3.5" /> Explorer
+                  <Sparkles className="h-3.5 w-3.5" /> Créer dans ce style
                 </Link>
               </div>
             </div>
@@ -1250,16 +1258,14 @@ function MiniCarousel({ tracks }: { tracks: Track[] }) {
 
 function MobileActions() {
   const items = [
-    { label: 'Son', icon: Music2, tint: '#8B5CF6', href: '/upload' },
-    { label: 'Image', icon: ImageIcon, tint: '#FB7185', href: '/posts' },
-    { label: 'Playlist', icon: Library, tint: '#14B8A6', href: '/library' },
-    { label: 'Remix', icon: Repeat2, tint: '#38BDF8', href: '/ai-generator' },
-    { label: 'Radio', icon: Radio, tint: '#EF4444', href: '/discover' },
-    { label: 'Avis', icon: Mic2, tint: '#F59E0B', href: '/community' },
+    { label: 'Écouter', icon: Music2, tint: '#8B5CF6', href: '/discover' },
+    { label: 'Créer', icon: Sparkles, tint: '#38BDF8', href: '/ai-generator' },
+    { label: 'Publier', icon: Upload, tint: '#FB7185', href: '/upload' },
+    { label: 'Communauté', icon: Mic2, tint: '#F59E0B', href: '/community' },
   ];
 
   return (
-    <div className="mb-4 grid grid-cols-3 gap-3 lg:flex lg:gap-3 lg:overflow-x-auto lg:px-0">
+    <div className="mb-4 grid grid-cols-4 gap-3 lg:flex lg:gap-3 lg:overflow-x-auto lg:px-0">
       {items.map((item) => (
         <Link key={item.label} href={item.href} className="flex min-w-0 flex-col items-center gap-2">
           <div
@@ -2068,6 +2074,9 @@ function TrackInlineActions({
             <Share2 className="h-4 w-4" />
             Partager
           </button>
+          <div className="col-span-2 sm:col-span-1">
+            <TrackCreateRemixActions track={track.playerTrack as any} compact dark={dark} />
+          </div>
       </div>
 
       {commentsOpen ? (
@@ -2873,7 +2882,7 @@ export default function SynauraWarmFeed() {
   const handlePostCreated = useCallback((post: PostItem) => {
     setPosts((current) => [post, ...current.filter((item) => item.id !== post.id)]);
     setHasMorePosts(true);
-    if (filter !== 'Pour toi' && filter !== 'Posts') setFilter('Posts');
+    if (filter !== 'Pour toi' && filter !== 'Communauté') setFilter('Communauté');
   }, [filter]);
 
   const handlePostDeleted = useCallback((postId: string) => {

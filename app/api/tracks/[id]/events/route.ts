@@ -36,6 +36,10 @@ const ALLOWED_EVENTS = new Set([
   'next',
   'prev',
   'add_to_playlist',
+  'queue_next',
+  'queue_end',
+  'create_style',
+  'remix',
 ]);
 
 export async function POST(

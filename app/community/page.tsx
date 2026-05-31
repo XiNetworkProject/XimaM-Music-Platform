@@ -38,6 +38,14 @@ const sectionFade = {
   }),
 };
 
+const musicCommunityCategories = [
+  { label: 'Avis sur mon son', desc: 'Publie un titre et demande un retour utile.', href: '/community/forum?category=feedback', icon: Heart, color: 'from-rose-500 to-pink-500' },
+  { label: 'Recherche feat', desc: 'Trouve une voix, un beatmaker ou un topliner.', href: '/community/forum?category=collab', icon: Users, color: 'from-indigo-500 to-violet-500' },
+  { label: 'Défi remix', desc: 'Lance ou rejoins un challenge autour d’un son.', href: '/community/forum?category=remix', icon: Zap, color: 'from-amber-500 to-orange-500' },
+  { label: 'Battle de prompts', desc: 'Compare les prompts et les résultats IA.', href: '/community/forum?category=prompts', icon: Sparkles, color: 'from-sky-500 to-cyan-500' },
+  { label: 'Top sons de la semaine', desc: 'Partage les découvertes qui méritent de monter.', href: '/community/forum?category=weekly-top', icon: Trophy, color: 'from-emerald-500 to-teal-500' },
+];
+
 const getCategoryMeta = (cat: string) => {
   switch (cat) {
     case 'question':
@@ -118,10 +126,10 @@ export default function CommunityPage() {
   };
 
   const statCards = [
-    { label: 'Membres actifs', value: stats.activeMembers, icon: Users, gradient: 'from-indigo-500 to-violet-500' },
-    { label: 'Discussions', value: stats.forumPosts, icon: MessageSquare, gradient: 'from-violet-500 to-fuchsia-500' },
-    { label: 'Resolues', value: stats.resolvedQuestions, icon: ThumbsUp, gradient: 'from-emerald-500 to-teal-500' },
-    { label: 'Idees integrees', value: stats.implementedSuggestions, icon: Star, gradient: 'from-amber-500 to-orange-500' },
+    { label: 'Créateurs actifs', value: stats.activeMembers, icon: Users, gradient: 'from-indigo-500 to-violet-500' },
+    { label: 'Discussions musicales', value: stats.forumPosts, icon: MessageSquare, gradient: 'from-violet-500 to-fuchsia-500' },
+    { label: 'Retours utiles', value: stats.resolvedQuestions, icon: ThumbsUp, gradient: 'from-emerald-500 to-teal-500' },
+    { label: 'Idées remix', value: stats.implementedSuggestions, icon: Star, gradient: 'from-amber-500 to-orange-500' },
   ];
 
   if (loading) {
@@ -157,19 +165,18 @@ export default function CommunityPage() {
             <div className="space-y-4 max-w-2xl">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Centre communautaire</span>
+                <span>Communauté musicale</span>
               </div>
               <h1 className="text-4xl md:text-5xl font-black tracking-tight">
                 <span className="bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">
-                  Communaute
+                  Fais grandir
                 </span>{' '}
                 <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
-                  Synaura
+                  ton son
                 </span>
               </h1>
               <p className="text-base md:text-lg text-white/50 leading-relaxed max-w-xl">
-                Entraide, idees, discussions et suggestions. Un espace ou chaque createur
-                contribue a faire evoluer la plateforme.
+                Demande un avis, trouve un feat, lance un défi remix ou partage les sons qui montent. Le support reste disponible, mais ici on parle musique.
               </p>
               <div className="flex flex-wrap gap-3 pt-2">
                 <Link
@@ -177,21 +184,21 @@ export default function CommunityPage() {
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-white text-black hover:bg-white/90 transition-all hover:scale-[1.02] active:scale-100"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  Ouvrir le forum
+                  Poster mon son
                 </Link>
                 <Link
                   href="/community/faq"
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium bg-white/[0.06] text-white/70 hover:bg-white/[0.1] transition-colors"
                 >
                   <HelpCircle className="w-4 h-4" />
-                  Centre d&apos;aide
+                  Défi remix
                 </Link>
                 <Link
                   href="/messages"
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium bg-white/[0.06] text-white/70 hover:bg-white/[0.1] transition-colors"
                 >
                   <MessagesSquare className="w-4 h-4" />
-                  Messagerie
+                  Trouver un feat
                 </Link>
               </div>
             </div>
@@ -218,7 +225,7 @@ export default function CommunityPage() {
                     href="/community/forum"
                     className="flex items-center justify-between w-full px-4 py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-sm text-indigo-300 hover:bg-indigo-500/20 transition-colors group"
                   >
-                    <span>Poser une question</span>
+                    <span>Demander un avis</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </div>
@@ -227,10 +234,38 @@ export default function CommunityPage() {
           </div>
         </motion.section>
 
-        {/* Star Academy promo */}
-        <div className="mb-12">
-          <StarAcademyBanner variant="compact" />
-        </div>
+        <motion.section
+          initial="hidden"
+          animate="visible"
+          custom={1}
+          variants={sectionFade}
+          className="mb-12"
+        >
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-lg md:text-xl font-bold text-white">Entrer par usage musical</h2>
+            <Link href="/ai-generator" className="text-sm text-white/40 hover:text-white/70 transition-colors">
+              Créer un son IA
+            </Link>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            {musicCommunityCategories.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="group rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 transition hover:-translate-y-0.5 hover:bg-white/[0.07]"
+                >
+                  <div className={`mb-4 grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br ${item.color} shadow-lg`}>
+                    <Icon className="h-5 w-5 text-white" />
+                  </div>
+                  <h3 className="text-sm font-black text-white">{item.label}</h3>
+                  <p className="mt-2 text-xs leading-5 text-white/45">{item.desc}</p>
+                </Link>
+              );
+            })}
+          </div>
+        </motion.section>
 
         {/* STATS */}
         <motion.section
@@ -274,19 +309,19 @@ export default function CommunityPage() {
             <h2 className="text-lg md:text-xl font-bold text-white">Acces rapide</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Forum */}
+            {/* Feedback */}
             <Link
-              href="/community/forum"
+              href="/community/forum?category=feedback"
               className="group relative rounded-2xl overflow-hidden bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-6 hover:bg-white/[0.06] transition-all"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-indigo-500/10 to-transparent rounded-bl-full" />
               <div className="relative">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/20">
-                  <MessageSquare className="w-6 h-6 text-white" />
+                  <Heart className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="text-base font-bold mb-1.5">Forum</h3>
+                <h3 className="text-base font-bold mb-1.5">Avis sur mon son</h3>
                 <p className="text-sm text-white/50 mb-4 leading-relaxed">
-                  Posez vos questions, partagez vos idees et discutez avec la communaute.
+                  Reçois des retours sur mix, hook, cover, prompt ou potentiel de sortie.
                 </p>
                 <div className="inline-flex items-center gap-1.5 text-sm text-indigo-400 font-medium group-hover:gap-2.5 transition-all">
                   <span>Acceder</span>
@@ -295,19 +330,19 @@ export default function CommunityPage() {
               </div>
             </Link>
 
-            {/* FAQ */}
+            {/* Remix */}
             <Link
-              href="/community/faq"
+              href="/community/forum?category=remix"
               className="group relative rounded-2xl overflow-hidden bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-6 hover:bg-white/[0.06] transition-all"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-500/10 to-transparent rounded-bl-full" />
               <div className="relative">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20">
-                  <HelpCircle className="w-6 h-6 text-white" />
+                  <Zap className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="text-base font-bold mb-1.5">Centre d&apos;aide</h3>
+                <h3 className="text-base font-bold mb-1.5">Défi remix</h3>
                 <p className="text-sm text-white/50 mb-4 leading-relaxed">
-                  Trouvez les reponses aux questions frequentes en un instant.
+                  Lance un challenge, propose une source et compare les versions.
                 </p>
                 <div className="inline-flex items-center gap-1.5 text-sm text-emerald-400 font-medium group-hover:gap-2.5 transition-all">
                   <span>Consulter</span>
@@ -316,19 +351,19 @@ export default function CommunityPage() {
               </div>
             </Link>
 
-            {/* Messagerie */}
+            {/* Collaboration */}
             <Link
-              href="/messages"
+              href="/community/forum?category=collab"
               className="group relative rounded-2xl overflow-hidden bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-6 hover:bg-white/[0.06] transition-all"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full" />
               <div className="relative">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center mb-4 shadow-lg shadow-violet-500/20">
-                  <Send className="w-6 h-6 text-white" />
+                  <Users className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="text-base font-bold mb-1.5">Messagerie</h3>
+                <h3 className="text-base font-bold mb-1.5">Recherche feat</h3>
                 <p className="text-sm text-white/50 mb-4 leading-relaxed">
-                  Echangez directement avec les autres createurs et artistes.
+                  Trouve un artiste, une voix ou un producteur pour finir un morceau.
                 </p>
                 <div className="inline-flex items-center gap-1.5 text-sm text-violet-400 font-medium group-hover:gap-2.5 transition-all">
                   <span>Ouvrir</span>

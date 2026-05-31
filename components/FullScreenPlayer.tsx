@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ListMusic, Pause, Play, Radio, Share2, SkipBack, SkipForward, Sparkles, X } from 'lucide-react';
+import { ListMusic, Pause, Play, Radio, Share2, SkipBack, SkipForward, Sparkles } from 'lucide-react';
 import { useAudioPlayer, useAudioTime } from '@/app/providers';
 import TikTokPlayer from './TikTokPlayer';
 import TrackCover from './TrackCover';
+import TrackCreateRemixActions from './TrackCreateRemixActions';
 
 function toTime(seconds: number) {
   const safe = Math.max(0, Math.floor(seconds || 0));
@@ -17,7 +18,6 @@ export default function SynauraMiniPlayer() {
   const {
     audioState,
     albumContext,
-    setShowPlayer,
     play,
     pause,
     nextTrack,
@@ -79,6 +79,12 @@ export default function SynauraMiniPlayer() {
       } else {
         await navigator.clipboard.writeText(url);
       }
+      fetch('/api/recommendations/impressions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentType: 'track', contentId: currentTrack._id, source: 'global-player', eventType: 'share' }),
+        keepalive: true,
+      }).catch(() => {});
     } catch {}
   };
 
@@ -193,13 +199,7 @@ export default function SynauraMiniPlayer() {
                       <ListMusic className="w-3.5 h-3.5" />
                       Feed
                     </button>
-                    <button
-                      onClick={() => setShowPlayer(false)}
-                      className="grid h-9 w-9 place-items-center rounded-full bg-black/[0.05] text-black/50 transition hover:bg-black/[0.1] hover:text-[#171313]"
-                      aria-label="Fermer"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                    <TrackCreateRemixActions track={currentTrack as any} compact className="hidden xl:flex" />
                   </div>
                 </div>
 
@@ -230,13 +230,7 @@ export default function SynauraMiniPlayer() {
                   >
                     <ListMusic className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={() => setShowPlayer(false)}
-                    className="grid h-10 w-10 place-items-center rounded-full bg-black/[0.05] text-black/50"
-                    aria-label="Fermer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  <TrackCreateRemixActions track={currentTrack as any} compact className="hidden min-[420px]:flex" />
                 </div>
               </div>
             </div>

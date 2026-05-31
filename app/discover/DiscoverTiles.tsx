@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Disc3, Music, Pause, Play, Sparkles, Zap } f
 import { useAudioPlayer } from '@/app/providers';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import TrackCover from '@/components/TrackCover';
+import TrackCreateRemixActions from '@/components/TrackCreateRemixActions';
 
 export type DiscoverPlaylistLite = {
   _id: string;
@@ -235,6 +236,7 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
         <span className="rounded-full bg-white/[0.06] px-2.5 py-1 font-semibold">{formatK(plays)} ecoutes</span>
         <span className="text-white/28">{isAI ? 'generation IA' : 'publie sur Synaura'}</span>
       </div>
+      <TrackCreateRemixActions track={track as any} compact dark className="mt-3" />
     </div>
   );
 }
@@ -291,7 +293,8 @@ export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: n
         <p className="mt-0.5 truncate text-[11px] text-white/42">{artistLabel}</p>
       </div>
 
-      <div className="hidden shrink-0 items-center gap-2 sm:flex">
+      <div className="hidden shrink-0 items-center gap-2 sm:flex" onClick={(event) => event.stopPropagation()}>
+        <TrackCreateRemixActions track={track as any} compact dark />
         <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-[10px] font-semibold text-white/48">
           {formatK(track.plays || 0)} ecoutes
         </span>

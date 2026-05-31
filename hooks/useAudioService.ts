@@ -343,6 +343,12 @@ export const useAudioService = () => {
               is_ai_track: isAI,
               source: 'audio-player',
             });
+            fetch('/api/recommendations/impressions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ contentType: 'track', contentId: trackId, source: 'audio-player', eventType: 'play_complete' }),
+              keepalive: true,
+            }).catch(() => {});
           }
         }
       }

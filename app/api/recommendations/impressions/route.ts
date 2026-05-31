@@ -14,6 +14,7 @@ type IncomingImpression = {
   score?: number;
   reasons?: string[];
   isAiTrack?: boolean;
+  eventType?: string;
 };
 
 export async function POST(request: NextRequest) {
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
         rank: Number.isFinite(item.rank) ? item.rank : index,
         score: Number.isFinite(item.score) ? item.score : null,
         reasons: Array.isArray(item.reasons) ? item.reasons.slice(0, 8) : null,
+        event_type: typeof item.eventType === 'string' ? item.eventType.slice(0, 40) : 'view',
       }))
       .filter((item) => item.content_type && item.content_id);
 
@@ -44,7 +46,15 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      await supabaseAdmin.from('recommendation_impressions').insert(impressions);
+      const impressionRows = impressions.map(({ event_type, ...item }) => ({
+        ...item,
+        reasons: item.reasons
+          ? [...item.reasons, event_type !== 'view' ? `event:${event_type}` : 'event:view'].slice(0, 8)
+          : event_type !== 'view'
+            ? [`event:${event_type}`]
+            : null,
+      }));
+      await supabaseAdmin.from('recommendation_impressions').insert(impressionRows);
     } catch (error) {
       console.warn('recommendation impressions unavailable:', error);
     }
@@ -56,7 +66,7 @@ export async function POST(request: NextRequest) {
         track_id: item.content_id,
         user_id: userId,
         session_id: sessionId,
-        event_type: 'view',
+        event_type: item.event_type || 'view',
         source: item.source,
         platform: 'web',
         is_ai_track: String(item.content_id).startsWith('ai-'),
