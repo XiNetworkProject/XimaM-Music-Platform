@@ -71,7 +71,7 @@ export default function CommunityFAQPage() {
         searchLabel="Chercher dans l’aide..."
         secondaryHref="/community/forum"
         secondaryLabel="Forum"
-        primaryHref="/community/forum?category=feedback"
+        primaryHref="/community/forum/new?category=feedback"
         primaryLabel="Demander un avis"
       />
 
@@ -90,10 +90,10 @@ export default function CommunityFAQPage() {
             <div className="rounded-[1.35rem] bg-[#fffaf2] p-4 text-[#171313]">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-black/36">Chemin recommandé</p>
               <div className="mt-3 grid gap-2">
-                <Link href="/community/forum?category=feedback" className="rounded-[1rem] bg-black/[0.045] p-3 text-sm font-black transition hover:bg-black/[0.07]">
+                <Link href="/community/forum/new?category=feedback" className="rounded-[1rem] bg-black/[0.045] p-3 text-sm font-black transition hover:bg-black/[0.07]">
                   Demander un avis sur mon son
                 </Link>
-                <Link href="/community/forum?category=remix" className="rounded-[1rem] bg-black/[0.045] p-3 text-sm font-black transition hover:bg-black/[0.07]">
+                <Link href="/community/forum/new?category=remix" className="rounded-[1rem] bg-black/[0.045] p-3 text-sm font-black transition hover:bg-black/[0.07]">
                   Lancer un défi remix
                 </Link>
               </div>
@@ -183,7 +183,7 @@ export default function CommunityFAQPage() {
               <p className="text-xs font-black uppercase tracking-[0.18em] text-white/42">Pas une question support ?</p>
               <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">Fais avancer ton morceau avec la communauté.</h2>
             </div>
-            <Link href="/community/forum?category=feedback" className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]">
+            <Link href="/community/forum/new?category=feedback" className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]">
               <Sparkles className="h-4 w-4" />
               Demander un avis
               <ArrowRight className="h-4 w-4" />

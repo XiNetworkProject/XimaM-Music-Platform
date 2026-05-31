@@ -26,6 +26,7 @@ import {
   Library,
   ListPlus,
   Loader2,
+  MessageSquare,
   MessageCircle,
   Mic2,
   MoreHorizontal,
@@ -2098,6 +2099,20 @@ function TrackInlineActions({
               Lire ensuite
             </button>
           ) : null}
+          <Link
+            href={`/community/forum/new?category=feedback&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=feed`}
+            className={defaultButtonClassName}
+          >
+            <MessageSquare className="h-4 w-4" />
+            Avis
+          </Link>
+          <Link
+            href={`/community/forum/new?category=remix&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=feed`}
+            className={defaultButtonClassName}
+          >
+            <Repeat2 className="h-4 w-4" />
+            Défi remix
+          </Link>
       </div>
 
       {commentsOpen ? (

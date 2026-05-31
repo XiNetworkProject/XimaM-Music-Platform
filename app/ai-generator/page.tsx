@@ -1613,6 +1613,7 @@ function AIGeneratorContent() {
       setTitle((current) => current.trim() ? current : `Remix de ${titleLabel}`.slice(0, 80));
       setStyle((current) => current.trim() ? current : `${sourceStyle || 'remix moderne Synaura'}. ${inspirationLine}`);
       setDescription((current) => current.trim() ? current : `Remixe l'esprit de "${titleLabel}" sans copier la mélodie originale.`);
+      setIsInstrumental(true);
       setSourceContext({ mode: 'remix', id: sourceTrack, title: titleLabel, style: sourceStyle, audioAttached: false });
       void hydrateSource();
     } else {
@@ -2719,6 +2720,8 @@ function AIGeneratorContent() {
         prompt = `${description}${tags}`;
       }
 
+      const effectiveInstrumental = isInstrumental || (generationModeKind === 'remix' && Boolean(remixUploadUrl) && !lyrics.trim());
+
       // Convert sliders (0-100) to API expected 0.00–1.00 (step .01)
       const styleWeightVal = customMode ? Math.round(styleInfluence) / 100 : 0.5;
       const weirdnessVal = customMode ? Math.round(weirdness) / 100 : 0.5;
@@ -2726,7 +2729,7 @@ function AIGeneratorContent() {
 
       const requestBody: any = {
         customMode,
-        instrumental: isInstrumental,
+        instrumental: effectiveInstrumental,
         model: modelVersion,
         callBackUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/suno/callback` : undefined
       };
@@ -2742,7 +2745,7 @@ function AIGeneratorContent() {
       if (customMode) {
         // Mode Custom : title, style, prompt (lyrics)
         // Validation : si non-instrumental, les paroles sont requises
-        if (!isInstrumental && !lyrics.trim()) {
+        if (!effectiveInstrumental && !lyrics.trim()) {
           notify.error('Paroles manquantes', 'Veuillez remplir les paroles ou cocher "Instrumental"');
           setIsGenerating(false);
           setGenerationStatus('idle');
@@ -2750,7 +2753,7 @@ function AIGeneratorContent() {
         }
         requestBody.title = title.trim() ? title : undefined; // undefined = Suno génère
         requestBody.style = [style, ...selectedTags].filter(Boolean).join(', ');
-        requestBody.prompt = isInstrumental ? undefined : (lyrics.trim() || undefined); // Lyrics si non-instrumental, undefined si instrumental
+        requestBody.prompt = effectiveInstrumental ? undefined : (lyrics.trim() || undefined); // Lyrics si non-instrumental, undefined si instrumental
         requestBody.styleWeight = Number(styleWeightVal.toFixed(2));
         requestBody.weirdnessConstraint = Number(weirdnessVal.toFixed(2));
         requestBody.audioWeight = Number(audioWeightVal.toFixed(2));
@@ -2776,12 +2779,12 @@ function AIGeneratorContent() {
             ? {
                 uploadUrl: remixUploadUrl,
                 customMode: true,
-                instrumental: isInstrumental,
+                instrumental: effectiveInstrumental,
                 model: modelVersion,
                 // En mode Custom: title/style requis; prompt=lyrics si non-instrumental
                 title: title.trim() ? title : 'Remix',
                 style: [style, ...selectedTags].filter(Boolean).join(', '),
-                prompt: isInstrumental ? undefined : (lyrics.trim() ? lyrics : undefined),
+                prompt: effectiveInstrumental ? undefined : (lyrics.trim() ? lyrics : undefined),
                 negativeTags: negativeTags || undefined,
                 vocalGender: vocalGender || undefined,
                 styleWeight: Number((Math.round(styleInfluence) / 100).toFixed(2)),

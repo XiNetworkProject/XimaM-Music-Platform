@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { ArrowLeft, Clock, MessageSquare, Music2, Reply, Send, Sparkles, ThumbsUp, Users, Zap } from 'lucide-react';
+import { ArrowLeft, Clock, MessageSquare, Music2, Play, Repeat2, Reply, Send, Sparkles, ThumbsUp, Users, Zap } from 'lucide-react';
 import Avatar from '@/components/Avatar';
 import { notify } from '@/components/NotificationCenter';
-import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import { useAudioPlayer } from '@/app/providers';
+import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
 
 type PostDetail = {
   id: string;
@@ -20,6 +21,7 @@ type PostDetail = {
   views_count?: number;
   created_at?: string;
   track_id?: string | null;
+  track?: any;
   profiles?: { id?: string; name?: string; username?: string; avatar?: string | null };
 };
 
@@ -60,12 +62,14 @@ function formatDate(value?: string) {
 export default function CommunityPostDetailPage() {
   const params = useParams();
   const { data: session } = useSession();
+  const { setQueueAndPlay } = useAudioPlayer();
   const postId = String(params?.id || '');
   const [post, setPost] = useState<PostDetail | null>(null);
   const [replies, setReplies] = useState<ReplyItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [reply, setReply] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [usefulReplies, setUsefulReplies] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const loadPost = async () => {
@@ -119,7 +123,8 @@ export default function CommunityPostDetailPage() {
 
   return (
     <SynauraAppShell contentClassName="max-w-[980px]">
-      <SynauraTopBar searchLabel="Chercher dans Community..." primaryHref="/community/forum?category=feedback" primaryLabel="Demander un avis" />
+      <SynauraTopBar searchLabel="Chercher dans Community..." primaryHref="/community/forum/new?category=feedback" primaryLabel="Demander un avis" />
+      <SynauraRouteNav />
 
       <div className="space-y-5 pb-28">
         <SynauraInkPanel className="p-5 sm:p-7">
@@ -177,6 +182,71 @@ export default function CommunityPostDetailPage() {
               </div>
             </SynauraPanel>
 
+            {post.track ? (
+              <SynauraPanel className="p-4 sm:p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <div className="relative h-28 w-full overflow-hidden rounded-[1.25rem] bg-black/[0.06] sm:h-24 sm:w-24 sm:shrink-0">
+                    {post.track.coverUrl || post.track.cover_url ? (
+                      <img src={post.track.coverUrl || post.track.cover_url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center">
+                        <Music2 className="h-8 w-8 text-black/24" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Son attaché</p>
+                    <h2 className="mt-1 truncate text-2xl font-black tracking-[-0.04em] text-[#171313]">{post.track.title || 'Source Community'}</h2>
+                    <p className="mt-1 truncate text-sm font-semibold text-black/42">{post.track.artist_name || 'Artiste Synaura'}</p>
+                    <div className="mt-3 flex h-8 items-end gap-1">
+                      {[0.35, 0.76, 0.48, 0.9, 0.58, 0.72, 0.42, 0.65].map((height, index) => (
+                        <span key={index} className="w-1.5 rounded-full bg-[#171313]/30" style={{ height: `${height * 100}%` }} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {post.track.audioUrl || post.track.audio_url ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const audioUrl = post.track.audioUrl || post.track.audio_url;
+                          setQueueAndPlay([{
+                            _id: String(post.track.id || post.track._id),
+                            title: post.track.title || 'Son attaché',
+                            artist: {
+                              _id: post.track.artist_id || '',
+                              name: post.track.artist_name || 'Artiste',
+                              username: post.track.artist_username || '',
+                            },
+                            audioUrl,
+                            coverUrl: post.track.coverUrl || post.track.cover_url || '/default-cover.svg',
+                            duration: post.track.duration || 0,
+                            likes: [],
+                            comments: [],
+                            plays: post.track.plays || 0,
+                            genre: post.track.genre || [],
+                          } as any], 0);
+                        }}
+                        className="inline-flex h-10 items-center gap-2 rounded-full bg-[#171313] px-4 text-xs font-black text-white"
+                      >
+                        <Play className="h-3.5 w-3.5 fill-current" />
+                        Écouter
+                      </button>
+                    ) : null}
+                    {post.category === 'remix' ? (
+                      <Link
+                        href={`/ai-generator?mode=remix&sourceTrack=${encodeURIComponent(String(post.track.id || post.track._id))}&title=${encodeURIComponent(String(post.track.title || ''))}&style=${encodeURIComponent(String(post.track.style || ''))}`}
+                        className="inline-flex h-10 items-center gap-2 rounded-full bg-black/[0.055] px-4 text-xs font-black text-black/60 transition hover:bg-black hover:text-white"
+                      >
+                        <Repeat2 className="h-3.5 w-3.5" />
+                        Remixer dans le Studio
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+              </SynauraPanel>
+            ) : null}
+
             <SynauraPanel className="p-5 sm:p-6">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
@@ -197,6 +267,24 @@ export default function CommunityPostDetailPage() {
                       </div>
                     </div>
                     <p className="whitespace-pre-wrap text-sm leading-6 text-black/58">{item.content}</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUsefulReplies((current) => {
+                          const next = new Set(current);
+                          if (next.has(item.id)) next.delete(item.id);
+                          else next.add(item.id);
+                          return next;
+                        });
+                        notify.success('Retour utile', 'Merci, ce signal aidera à classer les meilleurs avis.');
+                      }}
+                      className={`mt-3 inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-black transition ${
+                        usefulReplies.has(item.id) ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/46 hover:bg-black/[0.09]'
+                      }`}
+                    >
+                      <ThumbsUp className="h-3.5 w-3.5" />
+                      Retour utile
+                    </button>
                   </div>
                 )) : (
                   <div className="rounded-[1.25rem] border border-dashed border-black/[0.12] p-6 text-center">

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import Link from 'next/link';
-import { Play, Pause, Heart, Clock, Music, Headphones, Share2, Code, UserPlus, Sparkles, ArrowLeft } from 'lucide-react';
+import { Play, Pause, Heart, Clock, Music, Headphones, Share2, Code, UserPlus, Sparkles, ArrowLeft, MessageSquare, Repeat2 } from 'lucide-react';
 import ShareButtons from '@/components/ShareButtons';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import { getCdnUrl } from '@/lib/cdn';
@@ -199,6 +199,22 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
                 <Code className="h-4 w-4" />
                 {embedCopied ? 'Code copie' : 'Embed'}
               </button>
+
+              <Link
+                href={`/community/forum/new?category=feedback&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=track`}
+                className="inline-flex h-12 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
+              >
+                <MessageSquare className="h-4 w-4" />
+                Demander un avis
+              </Link>
+
+              <Link
+                href={`/community/forum/new?category=remix&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=track`}
+                className="inline-flex h-12 items-center gap-2 rounded-full bg-black/[0.055] px-5 text-sm font-black text-black/60 transition hover:bg-black/[0.1] hover:text-black"
+              >
+                <Repeat2 className="h-4 w-4" />
+                Défi remix
+              </Link>
             </div>
 
             {showShare ? (

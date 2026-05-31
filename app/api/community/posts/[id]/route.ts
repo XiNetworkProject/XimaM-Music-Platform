@@ -3,6 +3,27 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabase } from '@/lib/supabase';
 
+function normalizeAttachedTrack(track: any) {
+  if (!track) return null;
+  return {
+    id: track.id,
+    _id: track.id,
+    title: track.title,
+    artist_id: track.creator_id || track.user_id || '',
+    artist_name: track.artist_name || track.profiles?.name || track.profiles?.username || 'Artiste',
+    artist_username: track.profiles?.username || '',
+    coverUrl: track.cover_url || null,
+    cover_url: track.cover_url || null,
+    audioUrl: track.audio_url || null,
+    audio_url: track.audio_url || null,
+    duration: track.duration || 0,
+    genre: track.genre || [],
+    plays: track.plays || 0,
+    likes: track.likes || 0,
+    style: Array.isArray(track.genre) ? track.genre.slice(0, 2).join(', ') : track.genre || '',
+  };
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -33,6 +54,32 @@ export async function GET(
       return NextResponse.json({ error: 'Post non trouvé' }, { status: 404 });
     }
 
+    let attachedTrack = null;
+    if (post.track_id) {
+      const { data: track } = await supabase
+        .from('tracks')
+        .select(`
+          id,
+          title,
+          cover_url,
+          audio_url,
+          duration,
+          genre,
+          plays,
+          likes,
+          creator_id,
+          profiles:creator_id (
+            id,
+            name,
+            username,
+            avatar
+          )
+        `)
+        .eq('id', post.track_id)
+        .maybeSingle();
+      attachedTrack = normalizeAttachedTrack(track);
+    }
+
     // Incrémenter le compteur de vues
     await supabase
       .from('forum_posts')
@@ -61,6 +108,7 @@ export async function GET(
     return NextResponse.json({
       post: {
         ...post,
+        track: attachedTrack,
         views_count: post.views_count + 1
       },
       replies: replies || []

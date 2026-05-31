@@ -14,9 +14,9 @@ import {
   MessageSquare,
   Mic2,
   Music2,
+  Play,
   PlusCircle,
   Reply,
-  Search,
   Send,
   Sparkles,
   ThumbsUp,
@@ -32,6 +32,7 @@ import {
   SynauraAppShell,
   SynauraInkPanel,
   SynauraPanel,
+  SynauraRouteNav,
   SynauraTopBar,
 } from '@/components/synaura/SynauraShell';
 
@@ -70,7 +71,7 @@ const musicIntents = [
   {
     label: 'Avis sur mon son',
     desc: 'Publie un morceau, demande un retour sur le mix, le hook, la cover ou le potentiel de sortie.',
-    href: '/community/forum?category=feedback',
+    href: '/community/forum/new?category=feedback',
     icon: Heart,
     tint: '#ff6f61',
     cta: 'Demander un avis',
@@ -78,7 +79,7 @@ const musicIntents = [
   {
     label: 'Recherche feat',
     desc: 'Trouve une voix, un beatmaker, un topliner ou un artiste pour terminer une idée.',
-    href: '/community/forum?category=collab',
+    href: '/community/forum/new?category=collab',
     icon: Users,
     tint: '#7c5cff',
     cta: 'Trouver un feat',
@@ -86,7 +87,7 @@ const musicIntents = [
   {
     label: 'Défi remix',
     desc: 'Lance un challenge depuis un son, partage une source et compare les versions.',
-    href: '/community/forum?category=remix',
+    href: '/community/forum/new?category=remix',
     icon: Zap,
     tint: '#f59e0b',
     cta: 'Lancer un défi',
@@ -94,7 +95,7 @@ const musicIntents = [
   {
     label: 'Battle de prompts',
     desc: 'Teste des prompts IA, compare les rendus et garde les meilleures recettes créatives.',
-    href: '/community/forum?category=prompts',
+    href: '/community/forum/new?category=prompts',
     icon: Sparkles,
     tint: '#14b8a6',
     cta: 'Poster un prompt',
@@ -102,7 +103,7 @@ const musicIntents = [
   {
     label: 'Top sons de la semaine',
     desc: 'Signale les découvertes qui méritent d’entrer dans les mixes et les tendances.',
-    href: '/community/forum?category=weekly-top',
+    href: '/community/forum/new?category=weekly-top',
     icon: Trophy,
     tint: '#38bdf8',
     cta: 'Partager un son',
@@ -110,9 +111,25 @@ const musicIntents = [
 ];
 
 const weeklyLoops = [
-  { label: 'Feedback Friday', desc: 'Un créneau clair pour obtenir des retours utiles.', icon: MessageSquare },
-  { label: 'Open feat', desc: 'Les artistes disponibles pour collaborations cette semaine.', icon: Mic2 },
-  { label: 'Prompt battle', desc: 'Même intention, prompts différents, meilleurs résultats.', icon: Sparkles },
+  { label: 'Feedback Friday', desc: 'sons en attente d’avis', href: '/community/forum?category=feedback', cta: 'Participer', count: 12, status: 'ouvert', icon: MessageSquare },
+  { label: 'Open feat', desc: 'artistes cherchent une voix', href: '/community/forum?category=collab', cta: 'Voir les demandes', count: 4, status: 'live', icon: Mic2 },
+  { label: 'Prompt battle', desc: 'prompts en compétition', href: '/community/forum?category=prompts', cta: 'Entrer', count: 3, status: 'battle', icon: Sparkles },
+];
+
+const quickPostActions = [
+  { label: 'Je veux un avis', href: '/community/forum/new?category=feedback', icon: Heart, tint: '#ff6f61' },
+  { label: 'Je cherche un feat', href: '/community/forum/new?category=collab', icon: Users, tint: '#7c5cff' },
+  { label: 'Je lance un remix', href: '/community/forum/new?category=remix', icon: Zap, tint: '#f59e0b' },
+  { label: 'Je partage une découverte', href: '/community/forum/new?category=weekly-top', icon: Trophy, tint: '#38bdf8' },
+];
+
+const recentFilters = [
+  { id: 'all', label: 'Tous' },
+  { id: 'feedback', label: 'Avis' },
+  { id: 'collab', label: 'Feat' },
+  { id: 'remix', label: 'Remix' },
+  { id: 'prompts', label: 'Prompts' },
+  { id: 'weekly-top', label: 'Top sons' },
 ];
 
 const supportLinks = [
@@ -194,6 +211,7 @@ export default function CommunityPage() {
   const { data: session } = useSession();
   const { setQueueAndPlay } = useAudioPlayer();
   const [loading, setLoading] = useState(true);
+  const [recentFilter, setRecentFilter] = useState('all');
   const [stats, setStats] = useState<CommunityStats>({
     resolvedQuestions: 0,
     forumPosts: 0,
@@ -218,23 +236,17 @@ export default function CommunityPage() {
         if (postsRes.ok) {
           const postsData = await postsRes.json();
           const posts = Array.isArray(postsData?.posts) ? postsData.posts : [];
-          const postsWithAuthors = await Promise.all(
-            posts.map(async (post: any) => {
-              try {
-                const userRes = await fetch(`/api/users/by-id/${post.user_id}`);
-                if (userRes.ok) {
-                  const user = await userRes.json();
-                  return {
-                    ...post,
-                    createdAt: post.created_at,
-                    author: { name: user.name, username: user.username, avatar: user.avatar },
-                  };
-                }
-              } catch {}
-              return { ...post, createdAt: post.created_at, author: { name: 'Créateur Synaura', username: 'synaura' } };
-            }),
+          setRecentPosts(
+            posts.map((post: any) => ({
+              ...post,
+              createdAt: post.created_at,
+              author: post.author || {
+                name: post.profiles?.name || 'Créateur Synaura',
+                username: post.profiles?.username || 'synaura',
+                avatar: post.profiles?.avatar,
+              },
+            })),
           );
-          setRecentPosts(postsWithAuthors);
         }
 
         if (faqRes.ok) {
@@ -253,18 +265,31 @@ export default function CommunityPage() {
 
   const statCards = useMemo(
     () => [
-      { label: 'créateurs actifs', value: stats.activeMembers, icon: Users },
-      { label: 'sujets musicaux', value: stats.forumPosts, icon: MessageSquare },
+      { label: 'sons en avis', value: stats.forumPosts, icon: Music2 },
+      { label: 'défis remix', value: stats.implementedSuggestions, icon: Zap },
+      { label: 'feats ouverts', value: stats.activeMembers, icon: Users },
       { label: 'retours utiles', value: stats.resolvedQuestions, icon: ThumbsUp },
-      { label: 'idées remix', value: stats.implementedSuggestions, icon: Sparkles },
     ],
     [stats],
+  );
+  const filteredRecentPosts = useMemo(
+    () => recentFilter === 'all' ? recentPosts : recentPosts.filter((post) => String(post.category || '') === recentFilter),
+    [recentFilter, recentPosts],
+  );
+  const remixChallenges = useMemo(
+    () => recentPosts.filter((post) => String(post.category || '') === 'remix').slice(0, 3),
+    [recentPosts],
+  );
+  const featRequests = useMemo(
+    () => recentPosts.filter((post) => String(post.category || '') === 'collab').slice(0, 3),
+    [recentPosts],
   );
 
   if (loading) {
     return (
       <SynauraAppShell>
         <SynauraTopBar searchHref="/community" searchLabel="Chercher un défi, un feat, un retour..." />
+        <SynauraRouteNav />
         <SynauraPanel className="grid min-h-[420px] place-items-center p-8">
           <div className="text-center">
             <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-black/12 border-t-[#171313]" />
@@ -282,9 +307,10 @@ export default function CommunityPage() {
         searchLabel="Chercher un défi, un feat, un retour..."
         secondaryHref="/ai-generator"
         secondaryLabel="Créer"
-        primaryHref="/community/forum?category=feedback"
+        primaryHref="/community/forum/new?category=feedback"
         primaryLabel="Poster mon son"
       />
+      <SynauraRouteNav />
       <SynauraAnnouncementStrip />
 
       <div className="space-y-5 pb-36 sm:pb-28">
@@ -305,15 +331,15 @@ export default function CommunityPage() {
               </div>
 
               <div className="mt-7 grid gap-2 min-[420px]:flex min-[420px]:flex-wrap min-[420px]:gap-2.5">
-                <Link href="/community/forum?category=feedback" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-4 text-xs font-black text-[#171313] transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm">
+                <Link href="/community/forum/new?category=feedback" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-4 text-xs font-black text-[#171313] transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm">
                   <PlusCircle className="h-4 w-4" />
                   Demander un avis
                 </Link>
-                <Link href="/community/forum?category=remix" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-11 sm:px-5 sm:text-sm">
+                <Link href="/community/forum/new?category=remix" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-11 sm:px-5 sm:text-sm">
                   <Zap className="h-4 w-4" />
                   Lancer un défi remix
                 </Link>
-                <Link href="/community/forum?category=collab" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-11 sm:px-5 sm:text-sm">
+                <Link href="/community/forum/new?category=collab" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-11 sm:px-5 sm:text-sm">
                   <Users className="h-4 w-4" />
                   Trouver un feat
                 </Link>
@@ -322,18 +348,21 @@ export default function CommunityPage() {
 
             <div className="grid gap-3">
               <div className="rounded-[1.55rem] bg-[#fffaf2] p-4 text-[#171313]">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-black/36">Boucle produit</p>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-black/36">Boucles recommandées</p>
                 <div className="mt-4 grid gap-3">
                   {[
-                    ['1', 'Écoute un son', 'Depuis Home, Discover ou le player global.'],
-                    ['2', 'Demande un retour', 'Lie la discussion à une intention musicale claire.'],
-                    ['3', 'Crée ou remixe', 'Retourne au Studio avec un angle déjà validé.'],
-                  ].map(([step, title, desc]) => (
-                    <div key={step} className="flex gap-3 rounded-[1.2rem] bg-black/[0.045] p-3">
-                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#171313] text-xs font-black text-white">{step}</span>
-                      <div>
-                        <p className="text-sm font-black">{title}</p>
-                        <p className="mt-0.5 text-xs leading-5 text-black/45">{desc}</p>
+                    ['Créateur', 'Crée ou publie', 'Demande un avis', 'Améliore ou remixe'],
+                    ['Auditeur', 'Découvre un son', 'Donne un retour utile', 'Suis ou remixe l’artiste'],
+                  ].map(([profile, first, second, third]) => (
+                    <div key={profile} className="rounded-[1.2rem] bg-black/[0.045] p-3">
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-black/36">{profile}</p>
+                      <div className="mt-2 grid gap-1.5 text-sm font-black text-[#171313]">
+                        {[first, second, third].map((step, index) => (
+                          <div key={step} className="flex items-center gap-2">
+                            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#171313] text-[10px] text-white">{index + 1}</span>
+                            <span>{step}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
@@ -355,6 +384,32 @@ export default function CommunityPage() {
             </div>
           </div>
         </SynauraInkPanel>
+
+        <SynauraPanel className="p-4 sm:p-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Commence ici</p>
+              <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#171313]">Qu’est-ce que tu veux poster ?</h2>
+              <p className="mt-1 text-sm font-semibold text-black/42">
+                {session?.user ? 'Poste avec ton profil, une intention claire et un son attaché.' : 'Crée un compte pour poster avec une track source et recevoir des retours.'}
+              </p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[520px]">
+              {quickPostActions.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link key={item.label} href={item.href} className="group flex items-center gap-3 rounded-[1.15rem] bg-black/[0.04] p-3 transition hover:bg-white hover:shadow-[0_14px_34px_rgba(30,25,20,0.08)]">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[0.95rem] text-white" style={{ background: item.tint }}>
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="text-sm font-black text-[#171313]">{item.label}</span>
+                    <ArrowRight className="ml-auto h-4 w-4 text-black/24 transition group-hover:translate-x-0.5 group-hover:text-black" />
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </SynauraPanel>
 
         <section>
           <div className="mb-3 flex items-end justify-between gap-3">
@@ -397,22 +452,99 @@ export default function CommunityPage() {
           </div>
         </section>
 
+        <section className="grid gap-4 lg:grid-cols-2">
+          <SynauraPanel className="p-4 sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Remix</p>
+                <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#171313]">Défis remix actifs</h2>
+              </div>
+              <Link href="/community/forum/new?category=remix" className="shrink-0 rounded-full bg-[#171313] px-4 py-2 text-xs font-black text-white">Lancer</Link>
+            </div>
+            {remixChallenges.length ? (
+              <div className="grid gap-3">
+                {remixChallenges.map((post) => {
+                  const track = post.track;
+                  return (
+                    <Link key={post.id} href={`/community/forum/${post.id}`} className="group flex gap-3 rounded-[1.25rem] bg-black/[0.035] p-3 transition hover:bg-white hover:shadow-[0_14px_36px_rgba(30,25,20,0.08)]">
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[1rem] bg-black/[0.06]">
+                        {track?.coverUrl || track?.cover_url ? <img src={track.coverUrl || track.cover_url} alt="" className="h-full w-full object-cover" /> : <Zap className="m-5 h-6 w-6 text-black/24" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-1 text-sm font-black text-[#171313]">{post.title || 'Défi remix'}</p>
+                        <p className="mt-1 line-clamp-1 text-xs font-semibold text-black/42">{track?.title || 'Source à écouter'} · {post.replies_count || 0} participant(s)</p>
+                        <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-black text-black/45 group-hover:text-[#171313]">Participer <ArrowRight className="h-3.5 w-3.5" /></span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-[1.25rem] border border-dashed border-black/[0.12] p-6 text-center">
+                <p className="text-sm font-black text-black/48">Aucun défi remix actif.</p>
+                <p className="mt-1 text-xs font-semibold text-black/36">Lance le premier défi depuis un de tes sons.</p>
+              </div>
+            )}
+          </SynauraPanel>
+
+          <SynauraPanel className="p-4 sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Collab</p>
+                <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#171313]">Artistes qui cherchent un feat</h2>
+              </div>
+              <Link href="/community/forum/new?category=collab" className="shrink-0 rounded-full bg-black/[0.055] px-4 py-2 text-xs font-black text-black/52">Poster</Link>
+            </div>
+            {featRequests.length ? (
+              <div className="grid gap-3">
+                {featRequests.map((post) => (
+                  <Link key={post.id} href={`/community/forum/${post.id}`} className="group flex items-center gap-3 rounded-[1.25rem] bg-black/[0.035] p-3 transition hover:bg-white hover:shadow-[0_14px_36px_rgba(30,25,20,0.08)]">
+                    <Avatar src={post.author?.avatar} name={post.author?.name || 'Artiste'} username={post.author?.username} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-1 text-sm font-black text-[#171313]">{post.author?.name || 'Artiste Synaura'}</p>
+                      <p className="line-clamp-1 text-xs font-semibold text-black/42">{post.title || 'Recherche collaboration'}</p>
+                    </div>
+                    <span className="rounded-full bg-[#171313] px-3 py-1.5 text-xs font-black text-white">Contacter</span>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-[1.25rem] border border-dashed border-black/[0.12] p-6 text-center">
+                <p className="text-sm font-black text-black/48">Aucune demande de feat ouverte.</p>
+                <p className="mt-1 text-xs font-semibold text-black/36">Publie une demande claire : voix, prod, topline ou mix.</p>
+              </div>
+            )}
+          </SynauraPanel>
+        </section>
+
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_380px]">
           <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Avis en cours</p>
-                <h2 className="text-2xl font-black tracking-[-0.04em] text-[#171313]">Les sons qui cherchent un avis</h2>
+                <h2 className="text-2xl font-black tracking-[-0.04em] text-[#171313]">Discussions qui peuvent faire avancer un son</h2>
               </div>
-              <Link href="/community/forum" className="shrink-0 rounded-full bg-[#171313] px-4 py-2 text-xs font-black text-white transition hover:scale-[1.02]">
-                Tout voir
-              </Link>
+              <div className="synaura-no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:px-0">
+                {recentFilters.map((filter) => (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={() => setRecentFilter(filter.id)}
+                    className={`h-9 shrink-0 rounded-full px-3 text-xs font-black transition ${
+                      recentFilter === filter.id ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/48 hover:bg-black/[0.09]'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {recentPosts.length ? (
+            {filteredRecentPosts.length ? (
               <div className="grid gap-3">
-                {recentPosts.map((post, index) => {
+                {filteredRecentPosts.map((post, index) => {
                   const tint = categoryTint(post.category);
+                  const track = post.track;
                   return (
                     <Link
                       key={post.id || index}
@@ -439,19 +571,23 @@ export default function CommunityPage() {
                           <p className="mt-1 line-clamp-2 text-sm leading-6 text-black/48">
                             {post.content || 'Un créateur cherche un retour ou une collaboration.'}
                           </p>
-                          {post.track ? (
+                          {track ? (
                             <button
                               type="button"
                               onClick={(event) => {
                                 event.preventDefault();
                                 event.stopPropagation();
-                                const t = post.track;
+                                const t = track;
                                 const audioUrl = t.audioUrl || t.audio_url;
                                 if (!audioUrl) return;
                                 setQueueAndPlay([{
                                   _id: String(t.id || t._id),
                                   title: t.title || 'Son attaché',
-                                  artist: t.artist_name || t.artist || 'Artiste',
+                                  artist: {
+                                    _id: t.artist_id || t.creator_id || '',
+                                    name: t.artist_name || t.artist?.name || 'Artiste',
+                                    username: t.artist_username || t.artist?.username || '',
+                                  },
                                   audioUrl,
                                   coverUrl: t.coverUrl || t.cover_url || '/default-cover.svg',
                                   duration: t.duration || 0,
@@ -461,21 +597,34 @@ export default function CommunityPage() {
                                   genre: t.genre || [],
                                 } as any], 0);
                               }}
-                              className="mt-3 flex max-w-sm items-center gap-2 rounded-[1rem] bg-black/[0.045] p-2 text-left transition hover:bg-black/[0.07]"
+                              className="mt-3 flex w-full max-w-md items-center gap-3 rounded-[1.15rem] border border-black/[0.06] bg-black/[0.035] p-2.5 text-left transition hover:bg-black/[0.07]"
                             >
-                              <div className="grid h-9 w-9 place-items-center rounded-[0.8rem] bg-[#171313] text-white">
-                                <Music2 className="h-4 w-4" />
+                              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[0.95rem] bg-[#171313] text-white">
+                                {track.coverUrl || track.cover_url ? (
+                                  <img src={track.coverUrl || track.cover_url} alt="" className="h-full w-full object-cover" />
+                                ) : (
+                                  <Music2 className="m-4 h-4 w-4" />
+                                )}
+                                <span className="absolute inset-0 grid place-items-center bg-black/18">
+                                  <Play className="h-3.5 w-3.5 fill-current" />
+                                </span>
                               </div>
-                              <div className="min-w-0">
-                                <p className="truncate text-xs font-black text-[#171313]">{post.track.title || 'Son attaché'}</p>
-                                <p className="truncate text-[10px] font-semibold text-black/38">Écouter le son lié</p>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs font-black text-[#171313]">{track.title || 'Son attaché'}</p>
+                                <MiniWaveform tint={tint} />
                               </div>
+                              <span className="hidden rounded-full bg-[#171313] px-3 py-1.5 text-[10px] font-black text-white sm:inline-flex">Écouter</span>
                             </button>
                           ) : null}
-                          <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] font-bold text-black/35">
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-bold text-black/35">
                             <span>{post.author?.name || 'Créateur Synaura'}</span>
                             <span className="inline-flex items-center gap-1"><ThumbsUp className="h-3 w-3" />{post.likes_count || 0}</span>
                             <span className="inline-flex items-center gap-1"><Reply className="h-3 w-3" />{post.replies_count || 0}</span>
+                            <span className="rounded-full bg-black/[0.045] px-2 py-1 text-black/42">Répondre</span>
+                            <span className="rounded-full bg-black/[0.045] px-2 py-1 text-black/42">Utile</span>
+                            {String(post.category || '') === 'remix' && track ? (
+                              <span className="rounded-full bg-[#171313] px-2 py-1 text-white">Remix</span>
+                            ) : null}
                           </div>
                         </div>
                         <ArrowRight className="mt-2 h-4 w-4 shrink-0 text-black/24 transition group-hover:translate-x-0.5 group-hover:text-black" />
@@ -491,7 +640,7 @@ export default function CommunityPage() {
                 </div>
                 <p className="mt-3 text-sm font-black text-black/58">Aucun son ne cherche d’avis pour le moment.</p>
                 <p className="mx-auto mt-1 max-w-sm text-xs font-semibold leading-5 text-black/38">Lance le premier sujet avec un morceau, une intention claire ou une idée de remix.</p>
-                <Link href="/community/forum?category=feedback" className="mt-4 inline-flex h-10 items-center rounded-full bg-[#171313] px-4 text-xs font-black text-white">
+                <Link href="/community/forum/new?category=feedback" className="mt-4 inline-flex h-10 items-center rounded-full bg-[#171313] px-4 text-xs font-black text-white">
                   Demander un avis
                 </Link>
               </SynauraPanel>
@@ -511,17 +660,24 @@ export default function CommunityPage() {
                 {weeklyLoops.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className="rounded-[1.2rem] bg-black/[0.04] p-3">
+                    <Link key={item.label} href={item.href} className="group block rounded-[1.2rem] bg-black/[0.04] p-3 transition hover:bg-black/[0.07]">
                       <div className="flex items-start gap-3">
                         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#171313] text-white">
                           <Icon className="h-4 w-4" />
                         </div>
-                        <div>
-                          <p className="text-sm font-black text-[#171313]">{item.label}</p>
-                          <p className="mt-0.5 text-xs leading-5 text-black/45">{item.desc}</p>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-black text-[#171313]">{item.label}</p>
+                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-black text-black/42">{item.status}</span>
+                          </div>
+                          <p className="mt-0.5 text-xs leading-5 text-black/45">{item.count} {item.desc}</p>
+                          <p className="mt-2 inline-flex items-center gap-1 text-xs font-black text-black/45 group-hover:text-[#171313]">
+                            {item.cta}
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </p>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -558,7 +714,7 @@ export default function CommunityPage() {
 
             <SynauraPanel className="p-4 sm:p-5">
               <div className="flex items-center gap-2">
-                <Search className="h-4 w-4 text-black/34" />
+                <HelpCircle className="h-4 w-4 text-black/34" />
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Besoin d’aide ?</p>
               </div>
               <div className="mt-4 grid gap-2">
@@ -603,7 +759,7 @@ export default function CommunityPage() {
               <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">Prêt à tester ton morceau ?</h2>
               <p className="mt-2 text-sm font-semibold leading-6 text-white/50">Poste-le et reçois des avis avant la sortie.</p>
             </div>
-            <Link href="/community/forum?category=feedback" className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]">
+            <Link href="/community/forum/new?category=feedback" className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]">
               <PlusCircle className="h-4 w-4" />
               Demander un avis sur mon son
             </Link>

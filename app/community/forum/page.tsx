@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import Avatar from '@/components/Avatar';
 import { notify } from '@/components/NotificationCenter';
-import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import { categorizePost, suggestTags } from '@/lib/postCategorization';
 
 type CommunityCategory = 'all' | 'feedback' | 'collab' | 'remix' | 'prompts' | 'weekly-top';
@@ -195,9 +195,10 @@ function CommunityForumContent() {
         searchLabel="Chercher un avis, un feat, un défi..."
         secondaryHref="/ai-generator"
         secondaryLabel="Studio"
-        primaryHref="/community/forum?category=feedback"
+        primaryHref="/community/forum/new?category=feedback"
         primaryLabel="Demander un avis"
       />
+      <SynauraRouteNav />
 
       <div className="space-y-5 pb-36 sm:pb-28">
         <SynauraInkPanel className="p-3.5 sm:p-7">
@@ -213,18 +214,18 @@ function CommunityForumContent() {
                 Demande un avis sur ton son, trouve un feat, lance un défi remix ou compare des prompts IA. Ici, chaque discussion doit aider une création à avancer.
               </p>
               <div className="mt-6 grid gap-2 min-[420px]:flex min-[420px]:flex-wrap">
-                <button onClick={() => prefillComposer('feedback')} className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-4 text-xs font-black text-[#171313] transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm">
+                <Link href="/community/forum/new?category=feedback" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-4 text-xs font-black text-[#171313] transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm">
                   <PlusCircle className="h-4 w-4" />
                   Demander un avis
-                </button>
-                <button onClick={() => prefillComposer('remix')} className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-11 sm:px-5 sm:text-sm">
+                </Link>
+                <Link href="/community/forum/new?category=remix" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-11 sm:px-5 sm:text-sm">
                   <Zap className="h-4 w-4" />
                   Créer un défi remix
-                </button>
-                <button onClick={() => prefillComposer('collab')} className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-11 sm:px-5 sm:text-sm">
+                </Link>
+                <Link href="/community/forum/new?category=collab" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/14 hover:text-white sm:h-11 sm:px-5 sm:text-sm">
                   <Mic2 className="h-4 w-4" />
                   Trouver un feat
-                </button>
+                </Link>
               </div>
             </div>
 

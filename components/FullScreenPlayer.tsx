@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronUp, ListMusic, Pause, Play, Radio, Share2, SkipBack, SkipForward, Sparkles, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, ListMusic, MessageSquare, Pause, Play, Radio, Repeat2, Share2, SkipBack, SkipForward, Sparkles, Trash2, X } from 'lucide-react';
 import { useAudioPlayer, useAudioTime } from '@/app/providers';
 import TikTokPlayer from './TikTokPlayer';
 import TrackCover from './TrackCover';
@@ -390,6 +390,20 @@ export default function SynauraMiniPlayer() {
                       À suivre
                       {upNextTracks.length ? <span className="rounded-full bg-[#171313] px-1.5 py-0.5 text-[9px] text-white">{upNextTracks.length}</span> : null}
                     </button>
+                    <Link
+                      href={`/community/forum/new?category=feedback&trackId=${encodeURIComponent(String(currentTrack._id))}&title=${encodeURIComponent(String(currentTrack.title || ''))}&source=player`}
+                      className="hidden h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313] 2xl:inline-flex"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      Avis
+                    </Link>
+                    <Link
+                      href={`/community/forum/new?category=remix&trackId=${encodeURIComponent(String(currentTrack._id))}&title=${encodeURIComponent(String(currentTrack.title || ''))}&source=player`}
+                      className="hidden h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313] 2xl:inline-flex"
+                    >
+                      <Repeat2 className="w-3.5 h-3.5" />
+                      Défi
+                    </Link>
                     <TrackCreateRemixActions track={currentTrack as any} compact className="hidden xl:flex" />
                   </div>
                 </div>
@@ -439,6 +453,13 @@ export default function SynauraMiniPlayer() {
                     <ListMusic className="w-4 h-4" />
                     {upNextTracks.length ? <span className="absolute -right-1 -top-1 rounded-full bg-[#171313] px-1.5 py-0.5 text-[8px] font-black text-white">{upNextTracks.length}</span> : null}
                   </button>
+                  <Link
+                    href={`/community/forum/new?category=feedback&trackId=${encodeURIComponent(String(currentTrack._id))}&title=${encodeURIComponent(String(currentTrack.title || ''))}&source=player`}
+                    className="grid h-10 w-10 place-items-center rounded-full bg-black/[0.05] text-black/55"
+                    aria-label="Demander un avis"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                  </Link>
                   <TrackCreateRemixActions track={currentTrack as any} compact className="hidden min-[420px]:flex" />
                 </div>
               </div>
