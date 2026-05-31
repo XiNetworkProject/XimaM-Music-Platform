@@ -24,11 +24,12 @@ interface PlayerTrack {
   plays: number;
   isLiked?: boolean;
   genre?: string[];
+  lyrics?: string;
 }
 
 export default function AILibrary() {
   const { data: session } = useSession();
-  const { playTrack } = useAudioPlayer();
+  const { setQueueAndPlay } = useAudioPlayer();
   
   const [generations, setGenerations] = useState<AIGeneration[]>([]);
   const [allTracks, setAllTracks] = useState<AITrack[]>([]);
@@ -98,28 +99,35 @@ export default function AILibrary() {
 
   // Jouer une track IA
   const playAITrack = (track: AITrack, generation: AIGeneration) => {
-    const aiTrack: PlayerTrack = {
-      _id: `ai-${track.id}`,
-      title: track.title,
+    const toPlayerTrack = (sourceTrack: AITrack, sourceGeneration: AIGeneration): PlayerTrack => ({
+      _id: `ai-${sourceTrack.id}`,
+      title: sourceTrack.title,
       artist: {
         _id: (session?.user?.id as string) || 'ai-generator',
         name: (session?.user as any)?.name || (session?.user as any)?.username || 'Artiste',
         username: (session?.user as any)?.username || (session?.user as any)?.name || 'artiste',
-        avatar: (session?.user as any)?.avatar || (session?.user as any)?.image
+        avatar: (session?.user as any)?.avatar || (session?.user as any)?.image,
       },
-      duration: track.duration,
-      audioUrl: track.audio_url,
-      coverUrl: track.image_url || '/brand/2026/synaura-symbol-2026-white.png',
+      duration: sourceTrack.duration,
+      audioUrl: sourceTrack.audio_url,
+      coverUrl: sourceTrack.image_url || '/brand/2026/synaura-symbol-2026-white.png',
       genre: ['IA', 'Généré'],
-      plays: track.play_count,
+      plays: sourceTrack.play_count,
       likes: [],
       comments: [],
-      // Propager les paroles (stockées dans prompt)
-      // @ts-ignore - player Track accepte lyrics via providers
-      lyrics: (track.prompt || generation.prompt || '').trim()
-    };
+      lyrics: (sourceTrack.prompt || sourceGeneration.prompt || '').trim(),
+    });
 
-    playTrack(aiTrack as any);
+    const queue = filteredGenerations.flatMap((item) =>
+      (item.tracks || [])
+        .filter((sourceTrack) => sourceTrack?.audio_url)
+        .map((sourceTrack) => toPlayerTrack(sourceTrack, item)),
+    );
+    const selectedId = `ai-${track.id}`;
+    const startIndex = Math.max(0, queue.findIndex((item) => item._id === selectedId));
+    const nextQueue = queue.length ? queue : [toPlayerTrack(track, generation)];
+
+    setQueueAndPlay(nextQueue as any, startIndex >= 0 ? startIndex : 0);
   };
 
   // Toggle favori
