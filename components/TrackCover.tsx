@@ -23,6 +23,9 @@ function getGradient(seed?: string): [string, string] {
 
 interface TrackCoverProps {
   src?: string | null;
+  videoSrc?: string | null;
+  posterSrc?: string | null;
+  autoPlayVideo?: boolean;
   alt?: string;
   title?: string;
   className?: string;
@@ -34,6 +37,9 @@ interface TrackCoverProps {
 
 export default function TrackCover({
   src,
+  videoSrc,
+  posterSrc,
+  autoPlayVideo = true,
   alt,
   title,
   className = '',
@@ -43,8 +49,11 @@ export default function TrackCover({
   objectFit = 'cover',
 }: TrackCoverProps) {
   const [errored, setErrored] = useState(false);
+  const [videoErrored, setVideoErrored] = useState(false);
   const [from, to] = getGradient(title);
-  const showPlaceholder = !src || errored;
+  const imageSrc = src || posterSrc || null;
+  const showVideo = Boolean(videoSrc && !videoErrored);
+  const showPlaceholder = !showVideo && (!imageSrc || errored);
   const letter = (title || alt || '?')[0]?.toUpperCase() ?? '♪';
 
   if (showPlaceholder) {
@@ -72,9 +81,32 @@ export default function TrackCover({
     );
   }
 
+  if (showVideo) {
+    return (
+      <video
+        src={videoSrc!}
+        poster={posterSrc || src || undefined}
+        className={`${rounded} ${className}`}
+        style={{
+          objectFit,
+          width: size ? size : undefined,
+          height: size ? size : undefined,
+          ...style,
+        }}
+        muted
+        loop
+        playsInline
+        autoPlay={autoPlayVideo}
+        preload="metadata"
+        onError={() => setVideoErrored(true)}
+        aria-label={alt || title || 'Cover video'}
+      />
+    );
+  }
+
   return (
     <img
-      src={src!}
+      src={imageSrc!}
       alt={alt || title || ''}
       className={`${rounded} ${className}`}
       style={{

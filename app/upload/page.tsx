@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import { 
-  Upload, Music, Image, X, Play, Pause,
+  Upload, Music, Image, X, Play, Pause, Video,
   ArrowLeft, Check, FileText, ChevronDown, ChevronRight, Sparkles, Clock3, Disc3, Library, ShieldCheck, Wand2, CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -33,6 +33,31 @@ import TrackListEditor, { type TrackMeta } from '@/components/upload/TrackListEd
 import UploadPreview from '@/components/upload/UploadPreview';
 
 // ─── Compression image ────────────────────────────────────
+const MAX_COVER_VIDEO_SECONDS = 7;
+
+function isCoverVideoFile(file: File | null) {
+  return Boolean(file && (file.type.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/i.test(file.name)));
+}
+
+async function getVideoDuration(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    const cleanup = () => URL.revokeObjectURL(url);
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      const duration = Number(video.duration || 0);
+      cleanup();
+      resolve(duration);
+    };
+    video.onerror = () => {
+      cleanup();
+      reject(new Error('video metadata error'));
+    };
+    video.src = url;
+  });
+}
+
 async function compressImageIfNeeded(file: File, maxBytes = 10 * 1024 * 1024): Promise<File> {
   try {
     if (!file || file.size <= maxBytes) return file;
@@ -70,17 +95,18 @@ async function compressImageIfNeeded(file: File, maxBytes = 10 * 1024 * 1024): P
 }
 
 // ─── Upload vers Cloudinary ──────────────────────────────
-const uploadToCloudinary = async (file: File, resourceType: 'video' | 'image' = 'video') => {
+const uploadToCloudinary = async (file: File, resourceType: 'video' | 'image' = 'video', folder?: string) => {
   const timestamp = Math.round(Date.now() / 1000);
   const publicId = `${resourceType === 'video' ? 'track' : 'cover'}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const sigRes = await fetch('/api/upload/signature', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timestamp, publicId, resourceType }) });
+  const uploadFolder = folder || (resourceType === 'video' ? 'ximam/audio' : 'ximam/images');
+  const sigRes = await fetch('/api/upload/signature', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timestamp, publicId, resourceType, folder: uploadFolder }) });
   if (!sigRes.ok) throw new Error('Erreur signature');
   const { signature, apiKey, cloudName } = await sigRes.json();
   let fileToUpload = file;
   if (resourceType === 'image' && file.size > 10 * 1024 * 1024) { try { fileToUpload = await compressImageIfNeeded(file); } catch {} }
   const fd = new FormData();
   fd.append('file', fileToUpload);
-  fd.append('folder', resourceType === 'video' ? 'ximam/audio' : 'ximam/images');
+  fd.append('folder', uploadFolder);
   fd.append('public_id', publicId);
   fd.append('resource_type', resourceType);
   fd.append('timestamp', timestamp.toString());
@@ -91,6 +117,12 @@ const uploadToCloudinary = async (file: File, resourceType: 'video' | 'image' = 
   if (!upRes.ok) throw new Error('Erreur upload Cloudinary');
   return upRes.json();
 };
+
+function cloudinaryVideoPosterUrl(videoUrl?: string | null) {
+  if (!videoUrl) return null;
+  const withTransform = videoUrl.replace('/video/upload/', '/video/upload/so_0,f_jpg/');
+  return withTransform.replace(/\.(mp4|webm|mov|m4v)(\?.*)?$/i, '.jpg$2');
+}
 
 // ─── Waveform display ────────────────────────────────────
 function WaveformDisplay({ audioFile, currentTime = 0, duration = 0, onSeek }: { audioFile: File | null; currentTime?: number; duration?: number; onSeek?: (t: number) => void }) {
@@ -152,6 +184,7 @@ export default function UploadPage() {
   // Files
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverVideoDuration, setCoverVideoDuration] = useState<number | null>(null);
   const [trackMetas, setTrackMetas] = useState<TrackMeta[]>([]);
 
   // Player
@@ -180,7 +213,7 @@ export default function UploadPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ audio: 0, cover: 0 });
-  const [tempPublicIds, setTempPublicIds] = useState<{ audio?: string; cover?: string }>({});
+  const [tempPublicIds, setTempPublicIds] = useState<{ audio?: string; cover?: string; coverVideo?: string }>({});
 
   // Plan
   const [planKey, setPlanKey] = useState<'free' | 'starter' | 'pro' | 'enterprise'>('free');
@@ -278,10 +311,32 @@ export default function UploadPage() {
   }, [releaseType, planKey, audioFile]);
 
   const onAudioDrop = useCallback((accepted: File[]) => addAudioFiles(accepted), [addAudioFiles]);
-  const onCoverDrop = useCallback((accepted: File[]) => {
+  const onCoverDrop = useCallback(async (accepted: File[]) => {
     const f = accepted[0];
-    if (f && (f.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|avif)$/i.test(f.name))) setCoverFile(f);
-    else notify.error('Image invalide', 'Format non supporte');
+    if (!f) return;
+
+    if (f.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|avif)$/i.test(f.name)) {
+      setCoverVideoDuration(null);
+      setCoverFile(f);
+      return;
+    }
+
+    if (isCoverVideoFile(f)) {
+      try {
+        const videoDuration = await getVideoDuration(f);
+        if (!videoDuration || videoDuration > MAX_COVER_VIDEO_SECONDS + 0.25) {
+          notify.error('Video trop longue', `La cover video doit durer ${MAX_COVER_VIDEO_SECONDS} secondes maximum.`);
+          return;
+        }
+        setCoverVideoDuration(videoDuration);
+        setCoverFile(f);
+      } catch {
+        notify.error('Video invalide', 'Impossible de lire la duree de cette video.');
+      }
+      return;
+    }
+
+    notify.error('Cover invalide', 'Ajoute une image ou une video MP4/WebM/MOV de 7 secondes max.');
   }, []);
 
   const { getRootProps: getAudioRP, getInputProps: getAudioIP, isDragActive: isAudioDrag } = useDropzone({
@@ -292,7 +347,7 @@ export default function UploadPage() {
 
   const { getRootProps: getCoverRP, getInputProps: getCoverIP, isDragActive: isCoverDrag } = useDropzone({
     onDrop: onCoverDrop,
-    accept: { 'image/*': [] },
+    accept: { 'image/*': [], 'video/mp4': ['.mp4'], 'video/webm': ['.webm'], 'video/quicktime': ['.mov'] },
     maxFiles: 1,
   });
 
@@ -305,7 +360,11 @@ export default function UploadPage() {
     if (releaseType === 'single' && !audioFile) { notify.error('Fichier requis', 'Ajoute un fichier audio'); return; }
     if (releaseType !== 'single' && trackMetas.length === 0) { notify.error('Fichiers requis', 'Ajoute au moins une piste'); return; }
     if (!title.trim()) { notify.error('Titre requis', 'Donne un titre a ta sortie'); return; }
-    if (!coverFile) { notify.error('Pochette requise', 'Ajoute une image de couverture'); return; }
+    if (!coverFile) { notify.error('Cover requise', 'Ajoute une image ou une video de couverture'); return; }
+    if (isCoverVideoFile(coverFile) && (!coverVideoDuration || coverVideoDuration > MAX_COVER_VIDEO_SECONDS + 0.25)) {
+      notify.error('Video trop longue', `La cover video doit durer ${MAX_COVER_VIDEO_SECONDS} secondes maximum.`);
+      return;
+    }
 
     setIsUploading(true);
     setUploadProgress({ audio: 0, cover: 0 });
@@ -354,11 +413,21 @@ export default function UploadPage() {
 
       // Upload cover
       let coverResult: { public_id?: string; secure_url?: string } | null = null;
+      let coverVideoResult: { public_id?: string; secure_url?: string; duration?: number } | null = null;
+      let coverVideoPosterUrl: string | null = null;
       if (coverFile) {
-        notify.info('Upload image', 'Upload pochette...', 0);
+        const coverIsVideo = isCoverVideoFile(coverFile);
+        notify.info(coverIsVideo ? 'Upload video' : 'Upload image', coverIsVideo ? 'Upload cover video...' : 'Upload pochette...', 0);
         setUploadProgress((p) => ({ ...p, cover: 25 }));
-        coverResult = await uploadToCloudinary(coverFile, 'image');
-        setTempPublicIds((p) => ({ ...p, cover: coverResult?.public_id }));
+        if (coverIsVideo) {
+          coverVideoResult = await uploadToCloudinary(coverFile, 'video', 'ximam/cover-videos');
+          coverVideoPosterUrl = cloudinaryVideoPosterUrl(coverVideoResult?.secure_url);
+          coverResult = { public_id: undefined, secure_url: coverVideoPosterUrl || coverVideoResult?.secure_url };
+          setTempPublicIds((p) => ({ ...p, coverVideo: coverVideoResult?.public_id }));
+        } else {
+          coverResult = await uploadToCloudinary(coverFile, 'image');
+          setTempPublicIds((p) => ({ ...p, cover: coverResult?.public_id }));
+        }
         setUploadProgress((p) => ({ ...p, cover: 75 }));
       }
       setUploadProgress({ audio: 100, cover: 100 });
@@ -377,6 +446,9 @@ export default function UploadPage() {
         body: JSON.stringify({
             audioUrl: tr.secure_url, audioPublicId: tr.public_id,
             coverUrl: coverResult?.secure_url || null, coverPublicId: coverResult?.public_id || null,
+            coverVideoUrl: coverVideoResult?.secure_url || null,
+            coverVideoPublicId: coverVideoResult?.public_id || null,
+            coverVideoPosterUrl: coverVideoPosterUrl || null,
             trackData: { title, description, lyrics, genre: genres, isExplicit, isPublic, copyright: { owner: user?.name || '', year: copyrightYear, rights: 'Tous droits reserves' }, album: null },
             duration: tr.duration || 0,
             audioBytes: tr.file?.size || 0, coverBytes: coverFile?.size || 0,
@@ -405,6 +477,9 @@ export default function UploadPage() {
             body: JSON.stringify({
               audioUrl: tr.secure_url, audioPublicId: tr.public_id,
               coverUrl: coverResult?.secure_url || null, coverPublicId: coverResult?.public_id || null,
+              coverVideoUrl: coverVideoResult?.secure_url || null,
+              coverVideoPublicId: coverVideoResult?.public_id || null,
+              coverVideoPosterUrl: coverVideoPosterUrl || null,
               trackData: { title: trackTitle, description, lyrics: perLyrics || null, genre: perGenre, isExplicit: perExplicit, isPublic, copyright: { owner: user?.name || '', year: copyrightYear, rights: 'Tous droits reserves' }, album: albumName },
               duration: tr.duration || 0,
               audioBytes: tr.file?.size || 0, coverBytes: coverFile?.size || 0,
@@ -431,8 +506,8 @@ export default function UploadPage() {
   // Cleanup on leave
   useEffect(() => {
     const onUnload = () => {
-      if (!tempPublicIds.audio && !tempPublicIds.cover) return;
-      const payload = new Blob([JSON.stringify({ audioPublicId: tempPublicIds.audio, coverPublicId: tempPublicIds.cover })], { type: 'application/json' });
+      if (!tempPublicIds.audio && !tempPublicIds.cover && !tempPublicIds.coverVideo) return;
+      const payload = new Blob([JSON.stringify({ audioPublicId: tempPublicIds.audio, coverPublicId: tempPublicIds.cover, coverVideoPublicId: tempPublicIds.coverVideo })], { type: 'application/json' });
       navigator.sendBeacon?.('/api/upload/cleanup', payload);
     };
     window.addEventListener('beforeunload', onUnload);
@@ -458,7 +533,11 @@ export default function UploadPage() {
     { k: 3, label: 'Publier' },
   ];
 
-  const coverPreviewUrl = coverFile ? URL.createObjectURL(coverFile) : null;
+  const coverPreviewUrl = useMemo(() => coverFile ? URL.createObjectURL(coverFile) : null, [coverFile]);
+  useEffect(() => () => {
+    if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
+  }, [coverPreviewUrl]);
+  const coverIsVideo = isCoverVideoFile(coverFile);
   const releaseLabel = releaseType === 'single' ? 'Single' : releaseType === 'ep' ? 'EP' : 'Album';
   const selectedTrackCount = releaseType === 'single' ? (audioFile ? 1 : 0) : trackMetas.length;
   const progressPercent = Math.round((currentStep / totalSteps) * 100);
@@ -796,16 +875,26 @@ export default function UploadPage() {
                     >
                       <input {...getCoverIP()} />
                       {coverFile ? (
-                        <img src={coverPreviewUrl!} alt="" className="h-full w-full object-cover" />
+                        coverIsVideo ? (
+                          <video src={coverPreviewUrl!} className="h-full w-full object-cover" muted loop playsInline autoPlay />
+                        ) : (
+                          <img src={coverPreviewUrl!} alt="" className="h-full w-full object-cover" />
+                        )
                       ) : (
                         <div className="grid h-full place-items-center text-center">
                           <div>
                             <Image className="mx-auto h-7 w-7 text-white/28" />
-                            <p className="mt-2 px-3 text-xs font-black text-white/40">Pochette</p>
+                            <p className="mt-2 px-3 text-xs font-black text-white/40">Cover image ou video</p>
+                            <p className="mt-1 px-3 text-[10px] font-bold text-white/28">Video 7s max</p>
                           </div>
                         </div>
                       )}
                     </div>
+                    {coverFile && coverIsVideo ? (
+                      <p className="text-[11px] font-bold text-emerald-200/80">
+                        Cover video valide ({coverVideoDuration ? `${coverVideoDuration.toFixed(1)}s` : `<= ${MAX_COVER_VIDEO_SECONDS}s`}) - une image poster sera utilisee en fallback.
+                      </p>
+                    ) : null}
 
                     <div className="grid min-w-0 gap-3">
                       <label className="grid gap-1.5">
@@ -1016,7 +1105,11 @@ export default function UploadPage() {
           <SynauraPanel className="p-3 sm:p-4">
             <div className="aspect-square overflow-hidden rounded-[1.1rem] bg-[#171313]">
               {coverPreviewUrl ? (
-                <img src={coverPreviewUrl} alt="" className="h-full w-full object-cover" />
+                coverIsVideo ? (
+                  <video src={coverPreviewUrl} className="h-full w-full object-cover" muted loop playsInline autoPlay />
+                ) : (
+                  <img src={coverPreviewUrl} alt="" className="h-full w-full object-cover" />
+                )
               ) : (
                 <div className="grid h-full place-items-center bg-[linear-gradient(135deg,#171313,#302545_58%,#0f3b42)]">
                   <Music className="h-12 w-12 text-white/20" />
@@ -1279,7 +1372,11 @@ export default function UploadPage() {
                         <input {...getCoverIP()} />
                         {coverFile ? (
                           <div className="relative w-full h-full group">
-                            <img src={coverPreviewUrl!} alt="" className="w-full h-full object-cover" />
+                            {coverIsVideo ? (
+                              <video src={coverPreviewUrl!} className="w-full h-full object-cover" muted loop playsInline autoPlay />
+                            ) : (
+                              <img src={coverPreviewUrl!} alt="" className="w-full h-full object-cover" />
+                            )}
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                               <Image className="w-6 h-6 text-white/70" />
                                       </div>
@@ -1287,7 +1384,7 @@ export default function UploadPage() {
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-1.5">
                             <Image className="w-6 h-6 text-white/20" />
-                            <span className="text-[10px] text-white/30 text-center px-2">Pochette *</span>
+                            <span className="text-[10px] text-white/30 text-center px-2">Cover image ou video *</span>
                                       </div>
                                     )}
                       </div>
@@ -1438,7 +1535,11 @@ export default function UploadPage() {
                 <div className="text-xs text-white/30 font-medium uppercase tracking-wider">Apercu</div>
                 <div className="w-full aspect-square rounded-2xl overflow-hidden border border-white/[0.08] bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10">
                           {coverFile ? (
-                    <img src={coverPreviewUrl!} alt="" className="w-full h-full object-cover" />
+                    coverIsVideo ? (
+                      <video src={coverPreviewUrl!} className="w-full h-full object-cover" muted loop playsInline autoPlay />
+                    ) : (
+                      <img src={coverPreviewUrl!} alt="" className="w-full h-full object-cover" />
+                    )
                           ) : (
                     <div className="w-full h-full flex items-center justify-center"><Music className="w-12 h-12 text-white/10" /></div>
                           )}

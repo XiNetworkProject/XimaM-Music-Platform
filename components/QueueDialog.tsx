@@ -73,7 +73,7 @@ function QueueTrackRow({
 }: QueueTrackRowProps) {
   return (
     <div
-      className={`group flex items-center gap-3 rounded-[1.2rem] border p-2.5 transition ${
+      className={`group flex min-w-0 items-center gap-2 rounded-[1rem] border p-2 transition sm:gap-3 sm:rounded-[1.2rem] sm:p-2.5 ${
         isPlaying
           ? 'border-[#ff6f61]/30 bg-[#ff6f61]/10'
           : 'border-black/[0.06] bg-white/72 hover:bg-white'
@@ -86,27 +86,27 @@ function QueueTrackRow({
       <div className="hidden w-6 shrink-0 cursor-grab justify-center text-black/24 group-hover:text-black/42 sm:flex">
         {draggable ? <GripVertical className="h-4 w-4" /> : <span className="text-xs font-black tabular-nums">{index + 1}</span>}
       </div>
-      <button type="button" onClick={onPlay} className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[1rem] bg-black/[0.06]">
-        <TrackCover src={track.coverUrl} title={track.title} className="h-full w-full" rounded="rounded-none" objectFit="cover" />
+      <button type="button" onClick={onPlay} className="relative h-10 w-10 shrink-0 overflow-hidden rounded-[0.85rem] bg-black/[0.06] sm:h-12 sm:w-12 sm:rounded-[1rem]">
+        <TrackCover src={track.coverUrl} videoSrc={(track as any).coverVideoUrl || (track as any).cover_video_url || null} posterSrc={(track as any).coverVideoPosterUrl || (track as any).cover_video_poster_url || track.coverUrl} title={track.title} className="h-full w-full" rounded="rounded-none" objectFit="cover" />
         <span className="absolute inset-0 grid place-items-center bg-black/24 text-white opacity-0 transition group-hover:opacity-100">
           {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
         </span>
       </button>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-black text-[#171313]">{track.title || 'Titre'}</p>
-        <p className="truncate text-xs font-bold text-black/42">{artistName(track)}</p>
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <p className="truncate text-xs font-black text-[#171313] sm:text-sm">{track.title || 'Titre'}</p>
+        <p className="truncate text-[10px] font-bold text-black/42 sm:text-xs">{artistName(track)}</p>
       </div>
       {formatDuration(track.duration) ? (
         <span className="hidden shrink-0 text-xs font-black tabular-nums text-black/30 sm:inline">{formatDuration(track.duration)}</span>
       ) : null}
       <div className="flex shrink-0 items-center gap-1">
         {onMoveUp ? (
-          <button type="button" onClick={onMoveUp} className="grid h-8 w-8 place-items-center rounded-full bg-black/[0.04] text-black/42 transition hover:bg-black/[0.08]">
+          <button type="button" onClick={onMoveUp} className="hidden h-8 w-8 place-items-center rounded-full bg-black/[0.04] text-black/42 transition hover:bg-black/[0.08] min-[390px]:grid">
             <ArrowUp className="h-3.5 w-3.5" />
           </button>
         ) : null}
         {onMoveDown ? (
-          <button type="button" onClick={onMoveDown} className="grid h-8 w-8 place-items-center rounded-full bg-black/[0.04] text-black/42 transition hover:bg-black/[0.08]">
+          <button type="button" onClick={onMoveDown} className="hidden h-8 w-8 place-items-center rounded-full bg-black/[0.04] text-black/42 transition hover:bg-black/[0.08] min-[390px]:grid">
             <ArrowDown className="h-3.5 w-3.5" />
           </button>
         ) : null}
@@ -114,7 +114,7 @@ function QueueTrackRow({
           <button
             type="button"
             onClick={onRemove}
-            className={`grid h-8 w-8 place-items-center rounded-full transition ${
+            className={`grid h-8 w-8 shrink-0 place-items-center rounded-full transition ${
               removeIcon === 'plus'
                 ? 'bg-[#171313] text-white hover:opacity-90'
                 : 'bg-red-500/10 text-red-600 hover:bg-red-500/16'
@@ -236,19 +236,19 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
   };
 
   return (
-    <UModal open={isOpen} onClose={onClose} size="full" zClass="z-[200]" showClose={false} className="!max-h-[90vh] !overflow-hidden">
-      <div className="flex max-h-[90vh] flex-col overflow-hidden bg-[#fffaf2] text-[#171313]">
-        <div className="relative overflow-hidden border-b border-black/[0.08] px-5 py-5 sm:px-6">
+    <UModal open={isOpen} onClose={onClose} size="full" zClass="z-[200]" showClose={false} className="!max-h-[92dvh] !overflow-hidden">
+      <div className="flex max-h-[92dvh] min-w-0 flex-col overflow-hidden bg-[#fffaf2] text-[#171313]">
+        <div className="relative overflow-hidden border-b border-black/[0.08] px-3 py-3 sm:px-6 sm:py-5">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_10%,rgba(255,111,97,0.18),transparent_34%),radial-gradient(circle_at_92%_30%,rgba(124,92,255,0.12),transparent_36%)]" />
-          <div className="relative flex items-start justify-between gap-4">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[1.2rem] bg-[#171313] text-[#fffaf2] shadow-[0_14px_36px_rgba(23,19,19,0.22)]">
+          <div className="relative flex min-w-0 items-start justify-between gap-3 sm:gap-4">
+            <div className="flex min-w-0 items-start gap-2.5 sm:gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[1rem] bg-[#171313] text-[#fffaf2] shadow-[0_14px_36px_rgba(23,19,19,0.22)] sm:h-12 sm:w-12 sm:rounded-[1.2rem]">
                 <ListMusic className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-black/36">Système de lecture</p>
-                <h2 className="mt-1 text-2xl font-black tracking-tight">File d’attente</h2>
-                <p className="mt-1 text-sm font-semibold text-black/48">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/36 sm:text-[11px] sm:tracking-[0.22em]">Système de lecture</p>
+                <h2 className="mt-0.5 text-xl font-black tracking-tight sm:mt-1 sm:text-2xl">File d’attente</h2>
+                <p className="mt-1 hidden text-sm font-semibold text-black/48 sm:block">
                   Décide ce qui passe après, garde le fil principal intact, puis sauvegarde si la sélection est bonne.
                 </p>
               </div>
@@ -258,28 +258,28 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
             </button>
           </div>
 
-          <div className="relative mt-5 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-[1.1rem] bg-white/80 p-3">
+          <div className="relative mt-3 grid grid-cols-3 gap-2 sm:mt-5 sm:gap-3">
+            <div className="min-w-0 rounded-[0.95rem] bg-white/80 p-2 sm:rounded-[1.1rem] sm:p-3">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/34">État</p>
-              <p className="mt-1 text-lg font-black">{upNextEnabled ? 'Active' : 'En pause'}</p>
+              <p className="mt-1 truncate text-sm font-black sm:text-lg">{upNextEnabled ? 'Active' : 'En pause'}</p>
             </div>
-            <div className="rounded-[1.1rem] bg-white/80 p-3">
+            <div className="min-w-0 rounded-[0.95rem] bg-white/80 p-2 sm:rounded-[1.1rem] sm:p-3">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/34">À suivre</p>
-              <p className="mt-1 text-lg font-black">{queueMeta.total} titre{queueMeta.total !== 1 ? 's' : ''}</p>
+              <p className="mt-1 truncate text-sm font-black sm:text-lg">{queueMeta.total} titre{queueMeta.total !== 1 ? 's' : ''}</p>
             </div>
-            <div className="rounded-[1.1rem] bg-white/80 p-3">
+            <div className="min-w-0 rounded-[0.95rem] bg-white/80 p-2 sm:rounded-[1.1rem] sm:p-3">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/34">Durée</p>
-              <p className="mt-1 text-lg font-black">{queueMeta.duration || '—'}</p>
+              <p className="mt-1 truncate text-sm font-black sm:text-lg">{queueMeta.duration || '—'}</p>
             </div>
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-6 sm:py-5">
           {current ? (
-            <div className="mb-5 rounded-[1.4rem] border border-black/[0.08] bg-white p-3 shadow-[0_16px_44px_rgba(44,33,19,0.06)]">
+            <div className="mb-4 rounded-[1.15rem] border border-black/[0.08] bg-white p-2.5 shadow-[0_16px_44px_rgba(44,33,19,0.06)] sm:mb-5 sm:rounded-[1.4rem] sm:p-3">
               <div className="flex items-center gap-3">
-                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[1.1rem]">
-                  <TrackCover src={current.coverUrl} title={current.title} className="h-full w-full" rounded="rounded-none" objectFit="cover" />
+                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-[0.95rem] sm:h-14 sm:w-14 sm:rounded-[1.1rem]">
+                  <TrackCover src={current.coverUrl} videoSrc={(current as any).coverVideoUrl || (current as any).cover_video_url || null} posterSrc={(current as any).coverVideoPosterUrl || (current as any).cover_video_poster_url || current.coverUrl} title={current.title} className="h-full w-full" rounded="rounded-none" objectFit="cover" />
                   {audioState.isPlaying ? (
                     <span className="absolute inset-0 grid place-items-center bg-black/22 text-white">
                       <Pause className="h-4 w-4" />
@@ -298,18 +298,18 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
             </div>
           ) : null}
 
-          <div className="grid gap-5 xl:grid-cols-[1fr_0.85fr]">
+          <div className="grid min-w-0 gap-4 xl:grid-cols-[1fr_0.85fr] xl:gap-5">
             <section className="min-w-0">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Priorité</p>
-                  <h3 className="text-xl font-black">À suivre</h3>
+                  <h3 className="text-lg font-black sm:text-xl">À suivre</h3>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex shrink-0 gap-1.5 sm:gap-2">
                   <button
                     type="button"
                     onClick={toggleUpNextEnabled}
-                    className={`h-10 rounded-full px-4 text-xs font-black transition ${
+                    className={`h-9 rounded-full px-3 text-[11px] font-black transition sm:h-10 sm:px-4 sm:text-xs ${
                       upNextEnabled ? 'bg-[#171313] text-white' : 'bg-black/[0.06] text-black/54 hover:bg-black/[0.1]'
                     }`}
                   >
@@ -319,7 +319,7 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
                     type="button"
                     onClick={() => { clearUpNext(); notify.success('OK', 'File vidée'); }}
                     disabled={!upNextTracks.length}
-                    className="h-10 rounded-full bg-black/[0.06] px-4 text-xs font-black text-black/54 transition hover:bg-black/[0.1] disabled:opacity-40"
+                    className="h-9 rounded-full bg-black/[0.06] px-3 text-[11px] font-black text-black/54 transition hover:bg-black/[0.1] disabled:opacity-40 sm:h-10 sm:px-4 sm:text-xs"
                   >
                     Vider
                   </button>
@@ -423,8 +423,8 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-black/[0.08] bg-white/76 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p className="text-xs font-bold text-black/42">La file est sauvegardée sur cet appareil et se synchronise avec le player global.</p>
+        <div className="flex flex-col gap-2 border-t border-black/[0.08] bg-white/76 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
+          <p className="text-[11px] font-bold text-black/42 sm:text-xs">La file se synchronise avec le player global.</p>
           <div className="flex gap-2">
             <button
               type="button"

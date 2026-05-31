@@ -203,6 +203,8 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
 
         <TrackCover
           src={track.coverUrl}
+          videoSrc={track.coverVideoUrl || (track as any).cover_video_url || null}
+          posterSrc={track.coverVideoPosterUrl || (track as any).cover_video_poster_url || track.coverUrl}
           title={track.title}
           className="aspect-square w-full"
           rounded="rounded-[1.3rem]"
@@ -299,6 +301,8 @@ export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: n
       <div className="relative shrink-0 overflow-hidden rounded-[1rem]">
         <TrackCover
           src={track.coverUrl}
+          videoSrc={track.coverVideoUrl || (track as any).cover_video_url || null}
+          posterSrc={track.coverVideoPosterUrl || (track as any).cover_video_poster_url || track.coverUrl}
           title={track.title}
           className="h-12 w-12"
           rounded="rounded-[1rem]"

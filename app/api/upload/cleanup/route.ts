@@ -8,12 +8,13 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-    const { audioPublicId, coverPublicId } = await request.json();
-    if (!audioPublicId && !coverPublicId) return NextResponse.json({ ok: true });
+    const { audioPublicId, coverPublicId, coverVideoPublicId } = await request.json();
+    if (!audioPublicId && !coverPublicId && !coverVideoPublicId) return NextResponse.json({ ok: true });
 
     try {
       if (audioPublicId) await cloudinary.uploader.destroy(audioPublicId, { resource_type: 'video' });
       if (coverPublicId) await cloudinary.uploader.destroy(coverPublicId, { resource_type: 'image' });
+      if (coverVideoPublicId) await cloudinary.uploader.destroy(coverVideoPublicId, { resource_type: 'video' });
     } catch {}
 
     return NextResponse.json({ ok: true });

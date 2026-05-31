@@ -39,7 +39,15 @@ function QueueMiniRow({
   return (
     <div className="flex items-center gap-2 rounded-[1rem] bg-black/[0.04] p-2">
       {typeof index === 'number' ? <span className="w-5 text-center text-[10px] font-black text-black/32">{index + 1}</span> : null}
-      <TrackCover src={track?.coverUrl || track?.cover_url || null} title={track?.title || 'Titre'} className="h-9 w-9 shrink-0" rounded="rounded-[0.75rem]" objectFit="cover" />
+      <TrackCover
+        src={track?.coverUrl || track?.cover_url || null}
+        videoSrc={track?.coverVideoUrl || track?.cover_video_url || null}
+        posterSrc={track?.coverVideoPosterUrl || track?.cover_video_poster_url || track?.coverUrl || track?.cover_url || null}
+        title={track?.title || 'Titre'}
+        className="h-9 w-9 shrink-0"
+        rounded="rounded-[0.75rem]"
+        objectFit="cover"
+      />
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-black text-[#171313]">{track?.title || 'Titre inconnu'}</p>
         <p className="truncate text-[10px] font-semibold text-black/38">{trackArtist(track)}</p>
@@ -83,11 +91,11 @@ function QueuePanel({
   onClose: () => void;
 }) {
   return (
-    <div className="mx-auto mb-2 max-w-[980px] overflow-hidden rounded-[1.45rem] border border-black/[0.08] bg-[#fffaf2]/98 p-3 text-[#171313] shadow-[0_22px_60px_rgba(30,25,20,0.22)] backdrop-blur-2xl">
-      <div className="mb-3 flex items-start justify-between gap-3">
+    <div className="mx-auto mb-2 max-h-[calc(100dvh-var(--synaura-mobile-player-space)-1rem)] max-w-[980px] overflow-hidden rounded-[1.25rem] border border-black/[0.08] bg-[#fffaf2]/98 p-2.5 text-[#171313] shadow-[0_22px_60px_rgba(30,25,20,0.22)] backdrop-blur-2xl sm:max-h-[72vh] sm:rounded-[1.45rem] sm:p-3">
+      <div className="mb-2.5 flex items-start justify-between gap-3 sm:mb-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/34">File d'attente</p>
-          <h2 className="text-lg font-black tracking-[-0.04em]">À suivre</h2>
+          <h2 className="text-base font-black tracking-[-0.04em] sm:text-lg">À suivre</h2>
         </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={onToggleEnabled} className={`h-8 rounded-full px-3 text-[11px] font-black ${upNextEnabled ? 'bg-[#171313] text-white' : 'bg-black/[0.06] text-black/48'}`}>
@@ -99,14 +107,14 @@ function QueuePanel({
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-[1fr_1.1fr]">
+      <div className="grid max-h-[calc(100dvh-var(--synaura-mobile-player-space)-6rem)] gap-3 overflow-y-auto pr-1 md:max-h-none md:grid-cols-[1fr_1.1fr] md:overflow-visible md:pr-0">
         <div>
           <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-black/34">En cours</p>
           <QueueMiniRow track={currentTrack} />
           {queueTracks.length ? (
             <div className="mt-3">
               <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-black/34">Suite naturelle</p>
-              <div className="max-h-[150px] space-y-1.5 overflow-y-auto pr-1">
+              <div className="max-h-[116px] space-y-1.5 overflow-y-auto pr-1 sm:max-h-[150px]">
                 {queueTracks.map((track, index) => <QueueMiniRow key={`${track?._id || track?.id}-${index}`} track={track} index={index} />)}
               </div>
             </div>
@@ -119,7 +127,7 @@ function QueuePanel({
             {upNextTracks.length ? <button type="button" onClick={onClear} className="text-[11px] font-black text-red-600">Vider</button> : null}
           </div>
           {upNextTracks.length ? (
-            <div className="max-h-[230px] space-y-1.5 overflow-y-auto pr-1">
+            <div className="max-h-[180px] space-y-1.5 overflow-y-auto pr-1 sm:max-h-[230px]">
               {upNextTracks.map((track, index) => {
                 const id = track?._id || track?.id || '';
                 return (
@@ -180,6 +188,8 @@ export default function SynauraMiniPlayer() {
       title: currentTrack?.title || 'Titre inconnu',
       artist: currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu',
       cover: currentTrack?.coverUrl || null,
+      coverVideo: (currentTrack as any)?.coverVideoUrl || (currentTrack as any)?.cover_video_url || null,
+      coverVideoPoster: (currentTrack as any)?.coverVideoPosterUrl || (currentTrack as any)?.cover_video_poster_url || currentTrack?.coverUrl || null,
       src: currentTrack?.audioUrl || '',
     }),
     [currentTrack],
@@ -261,8 +271,8 @@ export default function SynauraMiniPlayer() {
       ) : null}
 
       {!showTikTok ? (
-          <div className="fixed inset-x-0 bottom-0 z-[50] pointer-events-none">
-            <div className="pointer-events-auto px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:px-4">
+          <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+4.55rem)] z-[60] pointer-events-none sm:bottom-0">
+            <div className="pointer-events-auto px-2 pb-1 sm:px-4 sm:pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
               {showQueue ? (
                 <QueuePanel
                   currentTrack={currentTrack as any}
@@ -276,7 +286,7 @@ export default function SynauraMiniPlayer() {
                   onClose={() => setShowQueue(false)}
                 />
               ) : null}
-              <div className="mx-auto max-w-[980px] overflow-hidden rounded-[1.45rem] border border-black/[0.08] bg-[#fffaf2]/96 text-[#171313] shadow-[0_22px_60px_rgba(30,25,20,0.22)] backdrop-blur-2xl">
+              <div className="mx-auto max-w-[980px] overflow-hidden rounded-[1.1rem] border border-black/[0.08] bg-[#fffaf2]/96 text-[#171313] shadow-[0_18px_48px_rgba(30,25,20,0.20)] backdrop-blur-2xl sm:rounded-[1.45rem] sm:shadow-[0_22px_60px_rgba(30,25,20,0.22)]">
                 <div
                   ref={progressRef}
                   onClick={onProgressClick}
@@ -295,7 +305,7 @@ export default function SynauraMiniPlayer() {
                 <div className="hidden items-center gap-3 px-3 py-2.5 sm:flex">
                   <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setShowTikTok(true)}>
                     <div className="relative shrink-0">
-                      <TrackCover src={track.cover} title={track.title} className="h-11 w-11 ring-1 ring-black/[0.08]" rounded="rounded-[1rem]" objectFit="cover" />
+                      <TrackCover src={track.cover} videoSrc={track.coverVideo} posterSrc={track.coverVideoPoster} title={track.title} className="h-11 w-11 ring-1 ring-black/[0.08]" rounded="rounded-[1rem]" objectFit="cover" />
                       {isLive ? (
                         <span className="absolute -top-1 -right-1 inline-flex items-center gap-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white">
                           <Radio className="h-2.5 w-2.5" />
@@ -418,49 +428,34 @@ export default function SynauraMiniPlayer() {
                   </div>
                 ) : null}
 
-                <div className="flex items-center gap-2 px-3 py-2.5 sm:hidden">
-                  <button type="button" className="flex min-w-0 flex-1 items-center gap-2.5 text-left" onClick={() => setShowTikTok(true)}>
+                <div className="flex items-center gap-2 px-2 py-1.5 sm:hidden">
+                  <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => setShowTikTok(true)}>
                     <div className="relative shrink-0">
-                      <TrackCover src={track.cover} title={track.title} className="h-10 w-10 ring-1 ring-black/[0.08]" rounded="rounded-[0.9rem]" objectFit="cover" />
+                      <TrackCover src={track.cover} videoSrc={track.coverVideo} posterSrc={track.coverVideoPoster} title={track.title} className="h-8 w-8 ring-1 ring-black/[0.08]" rounded="rounded-[0.75rem]" objectFit="cover" />
                       {isLive ? <span className="absolute -top-1 -right-1 rounded-full bg-red-500 px-1 py-0.5 text-[7px] font-black uppercase text-white">LIVE</span> : null}
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-[12px] font-black leading-tight">{track.title}</p>
-                      <p className="truncate text-[10px] leading-tight text-black/42">{track.artist}</p>
+                      <p className="truncate text-[9px] leading-tight text-black/42">{track.artist}</p>
                     </div>
                   </button>
 
                   <button
                     onClick={togglePlay}
                     disabled={audioState.isLoading}
-                    className="grid h-10 w-10 place-items-center rounded-full bg-[#171313] text-[#fffaf2]"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#171313] text-[#fffaf2]"
                     aria-label={audioState.isPlaying ? 'Pause' : 'Play'}
                   >
                     {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="ml-0.5 w-4 h-4 fill-current" />}
                   </button>
                   <button
                     onClick={() => setShowTikTok(true)}
-                    className="grid h-10 w-10 place-items-center rounded-full bg-black/[0.05] text-black/55"
-                    aria-label="Player complet"
-                  >
-                    <ListMusic className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setShowQueue((value) => !value)}
-                    className="relative grid h-10 w-10 place-items-center rounded-full bg-black/[0.05] text-black/55"
+                    className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black/[0.05] text-black/55"
                     aria-label="À suivre"
                   >
                     <ListMusic className="w-4 h-4" />
                     {upNextTracks.length ? <span className="absolute -right-1 -top-1 rounded-full bg-[#171313] px-1.5 py-0.5 text-[8px] font-black text-white">{upNextTracks.length}</span> : null}
                   </button>
-                  <Link
-                    href={`/community/forum/new?category=feedback&trackId=${encodeURIComponent(String(currentTrack._id))}&title=${encodeURIComponent(String(currentTrack.title || ''))}&source=player`}
-                    className="grid h-10 w-10 place-items-center rounded-full bg-black/[0.05] text-black/55"
-                    aria-label="Demander un avis"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                  </Link>
-                  <TrackCreateRemixActions track={currentTrack as any} compact className="hidden min-[420px]:flex" />
                 </div>
               </div>
             </div>

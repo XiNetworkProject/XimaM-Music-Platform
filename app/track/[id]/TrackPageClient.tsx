@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { Play, Pause, Heart, Clock, Music, Headphones, Share2, Code, UserPlus, Sparkles, ArrowLeft, MessageSquare, Repeat2 } from 'lucide-react';
 import ShareButtons from '@/components/ShareButtons';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import TrackCover from '@/components/TrackCover';
 import { getCdnUrl } from '@/lib/cdn';
 
 interface TrackData {
@@ -17,6 +18,8 @@ interface TrackData {
   artistUsername: string;
   artistAvatar: string | null;
   coverUrl: string | null;
+  coverVideoUrl?: string | null;
+  coverVideoPosterUrl?: string | null;
   audioUrl: string;
   duration: number;
   genre: string[];
@@ -86,6 +89,8 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
         },
         audioUrl: track.audioUrl,
         coverUrl: track.coverUrl,
+        coverVideoUrl: track.coverVideoUrl,
+        coverVideoPosterUrl: track.coverVideoPosterUrl,
         duration: track.duration,
         likes: [],
         comments: [],
@@ -132,7 +137,15 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
             <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
               <div className="relative h-40 w-40 overflow-hidden rounded-[2rem] bg-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:h-52 sm:w-52">
                 {coverSrc ? (
-                  <img src={coverSrc} alt={track.title} className="h-full w-full object-cover" />
+                  <TrackCover
+                    src={coverSrc}
+                    videoSrc={track.coverVideoUrl}
+                    posterSrc={track.coverVideoPosterUrl || coverSrc}
+                    title={track.title}
+                    className="h-full w-full"
+                    rounded="rounded-none"
+                    objectFit="cover"
+                  />
                 ) : (
                   <div className="grid h-full w-full place-items-center bg-white/10">
                     <Music className="h-14 w-14 text-white/24" />

@@ -187,7 +187,7 @@ function MiniWaveform({ tint, active = false }: { tint: string; active?: boolean
 
 function IntentMusicVisual({ tint, index }: { tint: string; index: number }) {
   return (
-    <div className="mt-4 overflow-hidden rounded-[1.15rem] border border-black/[0.06] bg-white/70 p-3">
+    <div className="mt-3 overflow-hidden rounded-[1.05rem] border border-black/[0.06] bg-white/70 p-2.5 sm:mt-4 sm:rounded-[1.15rem] sm:p-3">
       <div className="flex items-center gap-3">
         <div className="relative grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-[1rem] text-white shadow-[0_12px_28px_rgba(30,25,20,0.14)]" style={{ background: `linear-gradient(135deg, ${tint}, #171313)` }}>
           <Disc3 className="h-5 w-5" />
@@ -301,7 +301,7 @@ export default function CommunityPage() {
   }
 
   return (
-    <SynauraAppShell contentClassName="max-w-[1240px]">
+      <SynauraAppShell contentClassName="max-w-[1240px]">
       <SynauraTopBar
         searchHref="/community"
         searchLabel="Chercher un défi, un feat, un retour..."
@@ -313,19 +313,19 @@ export default function CommunityPage() {
       <SynauraRouteNav />
       <SynauraAnnouncementStrip />
 
-      <div className="space-y-5 pb-36 sm:pb-28">
+      <div className="min-w-0 space-y-4 pb-14 sm:space-y-5 sm:pb-28">
         <SynauraInkPanel className="p-3 sm:p-6 lg:p-7">
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.08fr)_420px] lg:items-stretch">
-            <div className="flex min-h-[250px] flex-col justify-between rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4 sm:min-h-[360px] sm:rounded-[1.6rem] sm:p-6">
+          <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.08fr)_420px] lg:items-stretch xl:gap-6">
+            <div className="flex min-h-[220px] min-w-0 flex-col justify-between rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4 sm:min-h-[360px] sm:rounded-[1.6rem] sm:p-6">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-white/58">
                   <Music2 className="h-3.5 w-3.5 text-[#ffcf9f]" />
                   Communauté musicale
                 </div>
-                <h1 className="mt-5 max-w-3xl text-[2.25rem] font-black leading-[0.92] tracking-[-0.06em] text-white min-[380px]:text-[2.55rem] sm:text-6xl">
+                <h1 className="mt-4 max-w-3xl text-[1.9rem] font-black leading-[0.94] tracking-[-0.055em] text-white min-[380px]:text-[2.2rem] sm:mt-5 sm:text-6xl">
                   Fais décoller ton son.
                 </h1>
-                <p className="mt-5 max-w-2xl text-sm font-semibold leading-7 text-white/54 sm:text-base">
+                <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/54 sm:mt-5 sm:text-base sm:leading-7">
                   Poste ton morceau, reçois des avis, trouve un feat, lance un remix ou découvre les créations de la communauté.
                 </p>
               </div>
@@ -346,8 +346,8 @@ export default function CommunityPage() {
               </div>
             </div>
 
-            <div className="grid gap-3">
-              <div className="rounded-[1.55rem] bg-[#fffaf2] p-4 text-[#171313]">
+            <div className="grid min-w-0 gap-3">
+              <div className="min-w-0 rounded-[1.35rem] bg-[#fffaf2] p-3 text-[#171313] sm:rounded-[1.55rem] sm:p-4">
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-black/36">Boucles recommandées</p>
                 <div className="mt-4 grid gap-3">
                   {[
@@ -369,13 +369,13 @@ export default function CommunityPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 {statCards.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className="rounded-[1.25rem] border border-white/10 bg-white/8 p-3">
+                    <div key={item.label} className="min-w-0 rounded-[1.1rem] border border-white/10 bg-white/8 p-2.5 sm:rounded-[1.25rem] sm:p-3">
                       <Icon className="h-4 w-4 text-white/46" />
-                      <p className="mt-3 text-2xl font-black text-white">{item.value}</p>
+                      <p className="mt-2 text-xl font-black text-white sm:mt-3 sm:text-2xl">{item.value}</p>
                       <p className="text-[11px] font-bold text-white/38">{item.label}</p>
                     </div>
                   );
@@ -385,24 +385,24 @@ export default function CommunityPage() {
           </div>
         </SynauraInkPanel>
 
-        <SynauraPanel className="p-4 sm:p-5">
+        <SynauraPanel className="p-3.5 sm:p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Commence ici</p>
-              <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#171313]">Qu’est-ce que tu veux poster ?</h2>
+              <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[#171313] sm:text-2xl">Qu’est-ce que tu veux poster ?</h2>
               <p className="mt-1 text-sm font-semibold text-black/42">
                 {session?.user ? 'Poste avec ton profil, une intention claire et un son attaché.' : 'Crée un compte pour poster avec une track source et recevoir des retours.'}
               </p>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[520px]">
+            <div className="grid min-w-0 gap-2 sm:grid-cols-2 lg:min-w-[520px]">
               {quickPostActions.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <Link key={item.label} href={item.href} className="group flex items-center gap-3 rounded-[1.15rem] bg-black/[0.04] p-3 transition hover:bg-white hover:shadow-[0_14px_34px_rgba(30,25,20,0.08)]">
+                  <Link key={item.label} href={item.href} className="group flex min-w-0 items-center gap-3 rounded-[1.05rem] bg-black/[0.04] p-2.5 transition hover:bg-white hover:shadow-[0_14px_34px_rgba(30,25,20,0.08)] sm:rounded-[1.15rem] sm:p-3">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[0.95rem] text-white" style={{ background: item.tint }}>
                       <Icon className="h-4 w-4" />
                     </span>
-                    <span className="text-sm font-black text-[#171313]">{item.label}</span>
+                    <span className="min-w-0 truncate text-sm font-black text-[#171313]">{item.label}</span>
                     <ArrowRight className="ml-auto h-4 w-4 text-black/24 transition group-hover:translate-x-0.5 group-hover:text-black" />
                   </Link>
                 );
@@ -412,33 +412,33 @@ export default function CommunityPage() {
         </SynauraPanel>
 
         <section>
-          <div className="mb-3 flex items-end justify-between gap-3">
+          <div className="mb-3 flex min-w-0 items-end justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Avec ton son</p>
-              <h2 className="text-2xl font-black tracking-[-0.04em] text-[#171313]">Que veux-tu faire avec ton son ?</h2>
+              <h2 className="text-xl font-black tracking-[-0.04em] text-[#171313] sm:text-2xl">Que veux-tu faire avec ton son ?</h2>
             </div>
             <Link href="/discover" className="hidden rounded-full bg-black/[0.055] px-4 py-2 text-xs font-black text-black/52 transition hover:bg-black hover:text-white sm:inline-flex">
               Découvrir des sons
             </Link>
           </div>
 
-          <div className="synaura-no-scrollbar -mx-2 flex snap-x gap-3 overflow-x-auto px-2 pb-1 md:mx-0 md:grid md:grid-cols-2 md:px-0 xl:grid-cols-5">
+          <div className="synaura-no-scrollbar -mx-2 flex snap-x gap-2.5 overflow-x-auto px-2 pb-1 md:mx-0 md:grid md:grid-cols-2 md:gap-3 md:px-0 xl:grid-cols-5">
             {musicIntents.map((item) => {
               const Icon = item.icon;
               return (
                 <Link
                   key={item.label}
                   href={item.href}
-                  className="group relative min-h-[205px] w-[min(78vw,300px)] shrink-0 snap-start overflow-hidden rounded-[1.35rem] border border-black/[0.08] bg-[#fffaf2]/88 p-3.5 shadow-[0_18px_50px_rgba(30,25,20,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(30,25,20,0.14)] md:w-auto md:rounded-[1.6rem] md:p-4 xl:min-h-[270px]"
+                  className="group relative min-h-[182px] w-[min(72vw,280px)] shrink-0 snap-start overflow-hidden rounded-[1.2rem] border border-black/[0.08] bg-[#fffaf2]/88 p-3 shadow-[0_18px_50px_rgba(30,25,20,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(30,25,20,0.14)] md:w-auto md:rounded-[1.6rem] md:p-4 xl:min-h-[252px]"
                 >
                   <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-18 blur-2xl" style={{ background: item.tint }} />
                   <div className="relative flex h-full flex-col justify-between">
                     <div>
-                      <div className="grid h-12 w-12 place-items-center rounded-[1.05rem] text-white shadow-[0_14px_34px_rgba(30,25,20,0.16)] transition duration-300 group-hover:scale-105" style={{ background: item.tint }}>
+                      <div className="grid h-10 w-10 place-items-center rounded-[0.95rem] text-white shadow-[0_14px_34px_rgba(30,25,20,0.16)] transition duration-300 group-hover:scale-105 sm:h-12 sm:w-12 sm:rounded-[1.05rem]" style={{ background: item.tint }}>
                         <Icon className="h-5 w-5" />
                       </div>
-                      <h3 className="mt-4 text-lg font-black tracking-[-0.03em] text-[#171313]">{item.label}</h3>
-                      <p className="mt-2 text-sm font-semibold leading-6 text-black/48">{item.desc}</p>
+                      <h3 className="mt-3 text-base font-black tracking-[-0.03em] text-[#171313] sm:mt-4 sm:text-lg">{item.label}</h3>
+                      <p className="mt-1.5 line-clamp-3 text-xs font-semibold leading-5 text-black/48 sm:mt-2 sm:text-sm sm:leading-6">{item.desc}</p>
                       <IntentMusicVisual tint={item.tint} index={musicIntents.indexOf(item)} />
                     </div>
                     <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-black text-black/45 transition group-hover:text-[#171313]">
@@ -452,12 +452,12 @@ export default function CommunityPage() {
           </div>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-2">
-          <SynauraPanel className="p-4 sm:p-5">
+        <section className="grid min-w-0 gap-4 lg:grid-cols-2">
+          <SynauraPanel className="p-3.5 sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Remix</p>
-                <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#171313]">Défis remix actifs</h2>
+                <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[#171313] sm:text-2xl">Défis remix actifs</h2>
               </div>
               <Link href="/community/forum/new?category=remix" className="shrink-0 rounded-full bg-[#171313] px-4 py-2 text-xs font-black text-white">Lancer</Link>
             </div>
@@ -466,8 +466,8 @@ export default function CommunityPage() {
                 {remixChallenges.map((post) => {
                   const track = post.track;
                   return (
-                    <Link key={post.id} href={`/community/forum/${post.id}`} className="group flex gap-3 rounded-[1.25rem] bg-black/[0.035] p-3 transition hover:bg-white hover:shadow-[0_14px_36px_rgba(30,25,20,0.08)]">
-                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[1rem] bg-black/[0.06]">
+                    <Link key={post.id} href={`/community/forum/${post.id}`} className="group flex min-w-0 gap-3 rounded-[1.15rem] bg-black/[0.035] p-2.5 transition hover:bg-white hover:shadow-[0_14px_36px_rgba(30,25,20,0.08)] sm:rounded-[1.25rem] sm:p-3">
+                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[0.9rem] bg-black/[0.06] sm:h-16 sm:w-16 sm:rounded-[1rem]">
                         {track?.coverUrl || track?.cover_url ? <img src={track.coverUrl || track.cover_url} alt="" className="h-full w-full object-cover" /> : <Zap className="m-5 h-6 w-6 text-black/24" />}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -487,24 +487,24 @@ export default function CommunityPage() {
             )}
           </SynauraPanel>
 
-          <SynauraPanel className="p-4 sm:p-5">
+          <SynauraPanel className="p-3.5 sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Collab</p>
-                <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#171313]">Artistes qui cherchent un feat</h2>
+                <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[#171313] sm:text-2xl">Artistes qui cherchent un feat</h2>
               </div>
               <Link href="/community/forum/new?category=collab" className="shrink-0 rounded-full bg-black/[0.055] px-4 py-2 text-xs font-black text-black/52">Poster</Link>
             </div>
             {featRequests.length ? (
               <div className="grid gap-3">
                 {featRequests.map((post) => (
-                  <Link key={post.id} href={`/community/forum/${post.id}`} className="group flex items-center gap-3 rounded-[1.25rem] bg-black/[0.035] p-3 transition hover:bg-white hover:shadow-[0_14px_36px_rgba(30,25,20,0.08)]">
+                  <Link key={post.id} href={`/community/forum/${post.id}`} className="group flex min-w-0 items-center gap-3 rounded-[1.15rem] bg-black/[0.035] p-2.5 transition hover:bg-white hover:shadow-[0_14px_36px_rgba(30,25,20,0.08)] sm:rounded-[1.25rem] sm:p-3">
                     <Avatar src={post.author?.avatar} name={post.author?.name || 'Artiste'} username={post.author?.username} size="md" />
                     <div className="min-w-0 flex-1">
                       <p className="line-clamp-1 text-sm font-black text-[#171313]">{post.author?.name || 'Artiste Synaura'}</p>
                       <p className="line-clamp-1 text-xs font-semibold text-black/42">{post.title || 'Recherche collaboration'}</p>
                     </div>
-                    <span className="rounded-full bg-[#171313] px-3 py-1.5 text-xs font-black text-white">Contacter</span>
+                    <span className="hidden rounded-full bg-[#171313] px-3 py-1.5 text-xs font-black text-white min-[390px]:inline-flex">Contacter</span>
                   </Link>
                 ))}
               </div>
@@ -517,12 +517,12 @@ export default function CommunityPage() {
           </SynauraPanel>
         </section>
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_380px]">
-          <section className="space-y-3">
+        <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.45fr)_380px]">
+          <section className="min-w-0 space-y-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Avis en cours</p>
-                <h2 className="text-2xl font-black tracking-[-0.04em] text-[#171313]">Discussions qui peuvent faire avancer un son</h2>
+                <h2 className="text-xl font-black tracking-[-0.04em] text-[#171313] sm:text-2xl">Discussions qui peuvent faire avancer un son</h2>
               </div>
               <div className="synaura-no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:px-0">
                 {recentFilters.map((filter) => (
@@ -549,15 +549,15 @@ export default function CommunityPage() {
                     <Link
                       key={post.id || index}
                       href={post.id ? `/community/forum/${post.id}` : '/community/forum'}
-                      className="group rounded-[1.45rem] border border-black/[0.08] bg-[#fffaf2]/88 p-3.5 shadow-[0_16px_45px_rgba(30,25,20,0.07)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_20px_60px_rgba(30,25,20,0.11)]"
+                      className="group min-w-0 overflow-hidden rounded-[1.25rem] border border-black/[0.08] bg-[#fffaf2]/88 p-3 shadow-[0_16px_45px_rgba(30,25,20,0.07)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_20px_60px_rgba(30,25,20,0.11)] sm:rounded-[1.45rem] sm:p-3.5"
                     >
-                      <div className="flex gap-3">
+                      <div className="flex min-w-0 gap-2.5 sm:gap-3">
                         <div className="hidden shrink-0 sm:block">
                           <Avatar src={post.author?.avatar} name={post.author?.name || 'Créateur'} username={post.author?.username} size="md" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="mb-2 flex flex-wrap items-center gap-2">
-                            <span className="rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white" style={{ background: tint }}>
+                            <span className="max-w-full truncate rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.10em] text-white sm:text-[10px]" style={{ background: tint }}>
                               {categoryLabel(post.category)}
                             </span>
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-black/35">
@@ -565,10 +565,10 @@ export default function CommunityPage() {
                               {formatDate(post.createdAt || post.created_at)}
                             </span>
                           </div>
-                          <h3 className="line-clamp-1 text-base font-black tracking-[-0.03em] text-[#171313] transition group-hover:text-black">
+                          <h3 className="line-clamp-2 text-sm font-black tracking-[-0.03em] text-[#171313] transition group-hover:text-black sm:line-clamp-1 sm:text-base">
                             {post.title || 'Discussion musicale'}
                           </h3>
-                          <p className="mt-1 line-clamp-2 text-sm leading-6 text-black/48">
+                          <p className="mt-1 line-clamp-2 text-xs leading-5 text-black/48 sm:text-sm sm:leading-6">
                             {post.content || 'Un créateur cherche un retour ou une collaboration.'}
                           </p>
                           {track ? (
@@ -597,9 +597,9 @@ export default function CommunityPage() {
                                   genre: t.genre || [],
                                 } as any], 0);
                               }}
-                              className="mt-3 flex w-full max-w-md items-center gap-3 rounded-[1.15rem] border border-black/[0.06] bg-black/[0.035] p-2.5 text-left transition hover:bg-black/[0.07]"
+                              className="mt-3 flex w-full max-w-md min-w-0 items-center gap-2.5 rounded-[1.05rem] border border-black/[0.06] bg-black/[0.035] p-2 text-left transition hover:bg-black/[0.07] sm:gap-3 sm:rounded-[1.15rem] sm:p-2.5"
                             >
-                              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[0.95rem] bg-[#171313] text-white">
+                              <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-[0.85rem] bg-[#171313] text-white sm:h-12 sm:w-12 sm:rounded-[0.95rem]">
                                 {track.coverUrl || track.cover_url ? (
                                   <img src={track.coverUrl || track.cover_url} alt="" className="h-full w-full object-cover" />
                                 ) : (
@@ -609,14 +609,14 @@ export default function CommunityPage() {
                                   <Play className="h-3.5 w-3.5 fill-current" />
                                 </span>
                               </div>
-                              <div className="min-w-0 flex-1">
+                              <div className="min-w-0 flex-1 overflow-hidden">
                                 <p className="truncate text-xs font-black text-[#171313]">{track.title || 'Son attaché'}</p>
-                                <MiniWaveform tint={tint} />
+                                <div className="hidden min-[380px]:block"><MiniWaveform tint={tint} /></div>
                               </div>
                               <span className="hidden rounded-full bg-[#171313] px-3 py-1.5 text-[10px] font-black text-white sm:inline-flex">Écouter</span>
                             </button>
                           ) : null}
-                          <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-bold text-black/35">
+                          <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-black/35 sm:gap-2 sm:text-[11px]">
                             <span>{post.author?.name || 'Créateur Synaura'}</span>
                             <span className="inline-flex items-center gap-1"><ThumbsUp className="h-3 w-3" />{post.likes_count || 0}</span>
                             <span className="inline-flex items-center gap-1"><Reply className="h-3 w-3" />{post.replies_count || 0}</span>
@@ -627,7 +627,7 @@ export default function CommunityPage() {
                             ) : null}
                           </div>
                         </div>
-                        <ArrowRight className="mt-2 h-4 w-4 shrink-0 text-black/24 transition group-hover:translate-x-0.5 group-hover:text-black" />
+                        <ArrowRight className="mt-2 hidden h-4 w-4 shrink-0 text-black/24 transition group-hover:translate-x-0.5 group-hover:text-black min-[390px]:block" />
                       </div>
                     </Link>
                   );
@@ -647,7 +647,7 @@ export default function CommunityPage() {
             )}
           </section>
 
-          <aside className="space-y-4">
+          <aside className="min-w-0 space-y-4">
             <SynauraPanel className="p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -752,14 +752,14 @@ export default function CommunityPage() {
             ) : null}
           </aside>
         </div>
-        <SynauraInkPanel className="p-5 sm:p-6">
+        <SynauraInkPanel className="p-4 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-white/42">Test public</p>
-              <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">Prêt à tester ton morceau ?</h2>
+              <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-white sm:text-2xl">Prêt à tester ton morceau ?</h2>
               <p className="mt-2 text-sm font-semibold leading-6 text-white/50">Poste-le et reçois des avis avant la sortie.</p>
             </div>
-            <Link href="/community/forum/new?category=feedback" className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]">
+            <Link href="/community/forum/new?category=feedback" className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-[#fffaf2] px-4 text-xs font-black text-[#171313] transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm">
               <PlusCircle className="h-4 w-4" />
               Demander un avis sur mon son
             </Link>

@@ -12,6 +12,7 @@ import SharedPostCard, { type Post as BasePost } from '@/components/PostCard';
 import { SynauraMobileDock as SharedSynauraMobileDock } from '@/components/synaura/SynauraShell';
 import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
 import TrackCreateRemixActions from '@/components/TrackCreateRemixActions';
+import TrackCover from '@/components/TrackCover';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { sendTrackEvents } from '@/lib/analyticsClient';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
@@ -60,6 +61,8 @@ type PlayerTrack = {
   };
   audioUrl?: string;
   coverUrl?: string;
+  coverVideoUrl?: string | null;
+  coverVideoPosterUrl?: string | null;
   duration?: number;
   plays?: number;
   likes?: string[] | number;
@@ -77,6 +80,8 @@ type Track = {
   artist: string;
   artistHref?: string;
   cover: string;
+  coverVideo?: string | null;
+  coverVideoPoster?: string | null;
   style: string;
   plays: string;
   likes: string;
@@ -282,6 +287,18 @@ function normalizePlayerTrack(raw: any): PlayerTrack | null {
           : typeof raw?.image_url === 'string'
             ? raw.image_url
             : '/default-cover.svg',
+    coverVideoUrl:
+      typeof raw?.coverVideoUrl === 'string'
+        ? raw.coverVideoUrl
+        : typeof raw?.cover_video_url === 'string'
+          ? raw.cover_video_url
+          : null,
+    coverVideoPosterUrl:
+      typeof raw?.coverVideoPosterUrl === 'string'
+        ? raw.coverVideoPosterUrl
+        : typeof raw?.cover_video_poster_url === 'string'
+          ? raw.cover_video_poster_url
+          : null,
     duration: Number(raw?.duration || 0),
     plays: Number(raw?.plays || 0),
     likes: raw?.likes ?? raw?.likes_count ?? 0,
@@ -317,6 +334,8 @@ function normalizeTrack(raw: any): Track | null {
     artist: artistLabel,
     artistHref: playerTrack.artist.username ? `/profile/${encodeURIComponent(playerTrack.artist.username)}` : undefined,
     cover: playerTrack.coverUrl || '/default-cover.svg',
+    coverVideo: playerTrack.coverVideoUrl || null,
+    coverVideoPoster: playerTrack.coverVideoPosterUrl || playerTrack.coverUrl || '/default-cover.svg',
     style,
     plays: formatCompact(playerTrack.plays),
     likes: formatCompact(likesCount),
@@ -327,6 +346,8 @@ function normalizeTrack(raw: any): Track | null {
     playerTrack: {
       ...playerTrack,
       coverUrl: playerTrack.coverUrl || '/default-cover.svg',
+      coverVideoUrl: playerTrack.coverVideoUrl || null,
+      coverVideoPosterUrl: playerTrack.coverVideoPosterUrl || playerTrack.coverUrl || '/default-cover.svg',
     },
   };
 }
@@ -397,6 +418,8 @@ function normalizePost(raw: any) {
         },
         audioUrl: raw.track.audio_url,
         coverUrl: raw.track.cover_url,
+        coverVideoUrl: raw.track.cover_video_url || raw.track.coverVideoUrl || null,
+        coverVideoPosterUrl: raw.track.cover_video_poster_url || raw.track.coverVideoPosterUrl || null,
         duration: raw.track.duration || 0,
         likes: raw.likes_count || 0,
         comments: raw.comments_count || 0,
@@ -432,6 +455,8 @@ function normalizePost(raw: any) {
           title: safeString(raw.track.title, 'Son partage'),
           artist_name: safeString(raw.track.artist_name, 'Artiste'),
           cover_url: typeof raw.track.cover_url === 'string' ? raw.track.cover_url : undefined,
+          cover_video_url: typeof raw.track.cover_video_url === 'string' ? raw.track.cover_video_url : typeof raw.track.coverVideoUrl === 'string' ? raw.track.coverVideoUrl : undefined,
+          cover_video_poster_url: typeof raw.track.cover_video_poster_url === 'string' ? raw.track.cover_video_poster_url : typeof raw.track.coverVideoPosterUrl === 'string' ? raw.track.coverVideoPosterUrl : undefined,
           audio_url: typeof raw.track.audio_url === 'string' ? raw.track.audio_url : undefined,
           duration: Number(raw.track.duration || 0),
         }
@@ -2201,7 +2226,15 @@ function TrackFeedCard({ item }: { item: Extract<FeedItem, { kind: 'track' }> })
           </div>
 
           <div className="relative overflow-hidden rounded-[1.15rem] bg-white/8 shadow-[0_18px_45px_rgba(0,0,0,0.22)] sm:rounded-[1.3rem]">
-            <img src={item.track.cover} alt="" className="aspect-square w-full object-cover" />
+            <TrackCover
+              src={item.track.cover}
+              videoSrc={item.track.coverVideo}
+              posterSrc={item.track.coverVideoPoster || item.track.cover}
+              title={item.track.title}
+              className="aspect-square w-full"
+              rounded="rounded-none"
+              objectFit="cover"
+            />
             <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/55 to-transparent" />
             <button
               type="button"
@@ -2280,7 +2313,15 @@ function RailCard({ item }: { item: Extract<FeedItem, { kind: 'rail' }> }) {
             <motion.div key={track.id} whileHover={{ y: -4 }} className="w-[min(42vw,168px)] shrink-0 snap-start sm:w-[170px]">
               <div className="rounded-[1.2rem] bg-black/[0.045] p-2">
                 <div className="relative overflow-hidden rounded-2xl">
-                  <img src={track.cover} alt="" className="aspect-square w-full object-cover" />
+                  <TrackCover
+                    src={track.cover}
+                    videoSrc={track.coverVideo}
+                    posterSrc={track.coverVideoPoster || track.cover}
+                    title={track.title}
+                    className="aspect-square w-full"
+                    rounded="rounded-none"
+                    objectFit="cover"
+                  />
                   <button
                     type="button"
                     onClick={() => playQueueFromTracks(item.tracks, track.id, setQueueAndPlay)}

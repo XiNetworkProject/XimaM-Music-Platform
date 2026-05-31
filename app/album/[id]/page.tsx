@@ -298,7 +298,7 @@ export default function AlbumPage() {
 
                 {/* Cover mini (mobile) */}
                 <div className="sm:hidden w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                  <TrackCover src={track.coverUrl || album.coverUrl} title={track.title} className="w-full h-full" rounded="rounded-lg" objectFit="cover" />
+                  <TrackCover src={track.coverUrl || album.coverUrl} videoSrc={(track as any).coverVideoUrl || (track as any).cover_video_url || null} posterSrc={(track as any).coverVideoPosterUrl || (track as any).cover_video_poster_url || track.coverUrl || album.coverUrl} title={track.title} className="w-full h-full" rounded="rounded-lg" objectFit="cover" />
                 </div>
 
                 {/* Info */}

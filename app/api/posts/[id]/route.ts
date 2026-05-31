@@ -48,6 +48,8 @@ async function loadTrack(trackId?: string | null) {
     title: (t as any).title,
     artist_name: artistName,
     cover_url: (t as any).cover_url,
+    cover_video_url: (t as any).cover_video_url || (t as any).data?.cover_video_url || null,
+    cover_video_poster_url: (t as any).cover_video_poster_url || (t as any).data?.cover_video_poster_url || null,
     audio_url: (t as any).audio_url,
     duration: (t as any).duration,
   };

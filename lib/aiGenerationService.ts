@@ -35,6 +35,9 @@ export interface AITrack {
   audio_url: string;
   stream_audio_url?: string;
   image_url?: string;
+  cover_video_url?: string | null;
+  cover_video_poster_url?: string | null;
+  video_task_id?: string | null;
   duration: number; // En secondes, entier
   prompt?: string;
   model_name?: string;

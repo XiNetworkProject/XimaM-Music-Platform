@@ -57,6 +57,10 @@ export function SynauraAppShell({
       <style>{`
         .synaura-no-scrollbar::-webkit-scrollbar { display: none; }
         .synaura-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        :root {
+          --synaura-mobile-dock-space: calc(env(safe-area-inset-bottom, 0px) + 5.35rem);
+          --synaura-mobile-player-space: calc(env(safe-area-inset-bottom, 0px) + 9.8rem);
+        }
       `}</style>
 
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
@@ -76,7 +80,7 @@ export function SynauraAppShell({
 
       <div
         className={cx(
-          'relative mx-auto max-w-[1480px] px-2 py-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+7.25rem)] sm:px-5 sm:py-3 sm:pb-5 lg:px-8 lg:py-5',
+          'relative mx-auto max-w-[1480px] min-w-0 px-2 py-2.5 pb-[var(--synaura-mobile-player-space)] sm:px-5 sm:py-3 sm:pb-5 lg:px-8 lg:py-5',
           contentClassName,
         )}
       >
@@ -279,10 +283,10 @@ export function SynauraMobileDock() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.55rem)] pt-2 sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.45rem)] pt-1.5 sm:hidden"
       aria-label="Navigation mobile Synaura"
     >
-      <div className="mx-auto w-full max-w-[calc(100vw-1rem)] rounded-[1.45rem] border border-black/[0.08] bg-[#fffaf2]/94 p-1.5 shadow-[0_18px_50px_rgba(30,25,20,0.16)] backdrop-blur-2xl">
+      <div className="mx-auto w-full max-w-[calc(100vw-1rem)] rounded-[1.35rem] border border-black/[0.08] bg-[#fffaf2]/94 p-1 shadow-[0_18px_50px_rgba(30,25,20,0.16)] backdrop-blur-2xl">
         <div className="grid grid-cols-5 gap-1">
           {SYNAURA_MOBILE_ROUTE_ITEMS.map((item) => {
             const Icon = item.icon;
@@ -293,13 +297,13 @@ export function SynauraMobileDock() {
                 key={item.href}
                 href={item.href}
                 className={cx(
-                  'flex min-w-0 flex-col items-center gap-1 rounded-[1rem] px-1.5 py-2 text-center transition',
+                  'flex min-w-0 flex-col items-center gap-0.5 rounded-[0.95rem] px-1 py-1.5 text-center transition',
                   isActive ? 'bg-[#171313] text-white' : 'text-black/52 hover:bg-black/[0.05] hover:text-[#171313]',
                 )}
                 aria-current={isActive ? 'page' : undefined}
               >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="truncate text-[10px] font-black tracking-[0.02em]">{item.label}</span>
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate text-[9px] font-black tracking-[0.01em]">{item.label}</span>
               </Link>
             );
           })}

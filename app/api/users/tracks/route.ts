@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from('tracks')
-      .select('id, title, cover_url, audio_url, duration, created_at, lyrics')
+      .select('*')
       .eq('creator_id', userId)
       .order('created_at', { ascending: false });
 
@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
       id: t.id,
       title: t.title,
       coverUrl: t.cover_url,
+      coverVideoUrl: (t as any).cover_video_url || (t as any).data?.cover_video_url || null,
+      coverVideoPosterUrl: (t as any).cover_video_poster_url || (t as any).data?.cover_video_poster_url || null,
       audioUrl: t.audio_url,
       duration: t.duration,
       createdAt: t.created_at,

@@ -211,7 +211,7 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
                 <div className="mt-2 rounded-[1rem] border border-black/[0.08] bg-white/60 p-3">
                   {selectedTrack ? (
                     <div className="flex items-center gap-3 rounded-[0.95rem] bg-black/[0.04] p-2.5">
-                      <TrackCover src={selectedTrack.cover_url || null} title={selectedTrack.title} className="h-11 w-11 shrink-0" rounded="rounded-lg" objectFit="cover" />
+                      <TrackCover src={selectedTrack.cover_url || null} videoSrc={(selectedTrack as any).cover_video_url || (selectedTrack as any).coverVideoUrl || null} posterSrc={(selectedTrack as any).cover_video_poster_url || (selectedTrack as any).coverVideoPosterUrl || selectedTrack.cover_url || null} title={selectedTrack.title} className="h-11 w-11 shrink-0" rounded="rounded-lg" objectFit="cover" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-black text-[#171313]">{selectedTrack.title}</p>
                         <p className="truncate text-xs font-semibold text-black/40">{selectedTrack.artist_name || 'Artiste'}</p>
@@ -255,7 +255,7 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
                               : 'border-black/[0.06] bg-white/72 hover:border-black/[0.12] hover:bg-black/[0.04]'
                           )}
                         >
-                          <TrackCover src={track.cover_url || null} title={track.title} className="h-10 w-10 shrink-0" rounded="rounded-lg" objectFit="cover" />
+                          <TrackCover src={track.cover_url || null} videoSrc={(track as any).cover_video_url || (track as any).coverVideoUrl || null} posterSrc={(track as any).cover_video_poster_url || (track as any).coverVideoPosterUrl || track.cover_url || null} title={track.title} className="h-10 w-10 shrink-0" rounded="rounded-lg" objectFit="cover" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-black text-[#171313]">{track.title}</p>
                             <p className="truncate text-xs font-semibold text-black/40">{track.artist_name || 'Artiste'}</p>

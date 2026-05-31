@@ -11,11 +11,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
-    const { timestamp, publicId, resourceType = 'video', resource_type = resourceType } = await request.json();
+    const { timestamp, publicId, resourceType = 'video', resource_type = resourceType, folder } = await request.json();
 
     // Préparer les paramètres pour la signature
     const params = {
-      folder: (resource_type || resourceType) === 'video' ? 'ximam/audio' : 'ximam/images',
+      folder: typeof folder === 'string' && folder.trim() ? folder.trim() : ((resource_type || resourceType) === 'video' ? 'ximam/audio' : 'ximam/images'),
       public_id: publicId,
       timestamp: timestamp,
       resource_type: resource_type || resourceType,

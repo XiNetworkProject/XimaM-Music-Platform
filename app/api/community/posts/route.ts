@@ -5,15 +5,20 @@ import { supabase } from '@/lib/supabase';
 
 function normalizeAttachedTrack(track: any) {
   if (!track) return null;
+  const profile = Array.isArray(track.profiles) ? track.profiles[0] : track.profiles;
   return {
     id: track.id,
     _id: track.id,
     title: track.title,
     artist_id: track.creator_id || track.user_id || '',
-    artist_name: track.artist_name || track.profiles?.name || track.profiles?.username || 'Artiste',
-    artist_username: track.profiles?.username || '',
+    artist_name: track.artist_name || profile?.name || profile?.username || 'Artiste',
+    artist_username: profile?.username || '',
     coverUrl: track.cover_url || track.coverUrl || null,
     cover_url: track.cover_url || track.coverUrl || null,
+    coverVideoUrl: track.cover_video_url || track.coverVideoUrl || track.data?.cover_video_url || null,
+    cover_video_url: track.cover_video_url || track.coverVideoUrl || track.data?.cover_video_url || null,
+    coverVideoPosterUrl: track.cover_video_poster_url || track.coverVideoPosterUrl || track.data?.cover_video_poster_url || null,
+    cover_video_poster_url: track.cover_video_poster_url || track.coverVideoPosterUrl || track.data?.cover_video_poster_url || null,
     audioUrl: track.audio_url || track.audioUrl || null,
     audio_url: track.audio_url || track.audioUrl || null,
     duration: track.duration || 0,
@@ -28,18 +33,10 @@ async function attachTracks(posts: any[]) {
   const trackIds = Array.from(new Set((posts || []).map((post) => post.track_id).filter(Boolean)));
   if (!trackIds.length) return posts || [];
 
-  const { data: tracks } = await supabase
+  let { data: tracks, error } = await supabase
     .from('tracks')
     .select(`
-      id,
-      title,
-      cover_url,
-      audio_url,
-      duration,
-      genre,
-      plays,
-      likes,
-      creator_id,
+      *,
       profiles:creator_id (
         id,
         name,
@@ -49,7 +46,63 @@ async function attachTracks(posts: any[]) {
     `)
     .in('id', trackIds);
 
+  if (error) {
+    const fallback = await supabase
+      .from('tracks')
+      .select('*')
+      .in('id', trackIds);
+    tracks = fallback.data || [];
+
+    const creatorIds = Array.from(new Set((tracks || []).map((track: any) => track.creator_id).filter(Boolean)));
+    if (creatorIds.length) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, username, avatar')
+        .in('id', creatorIds);
+      const profilesById = new Map((profiles || []).map((profile: any) => [profile.id, profile]));
+      tracks = (tracks || []).map((track: any) => ({ ...track, profiles: profilesById.get(track.creator_id) || null }));
+    }
+  }
+
   const tracksById = new Map((tracks || []).map((track: any) => [track.id, normalizeAttachedTrack(track)]));
+  return (posts || []).map((post) => ({
+    ...post,
+    author: post.author || post.profiles
+      ? {
+          id: (post.author || post.profiles).id,
+          name: (post.author || post.profiles).name,
+          username: (post.author || post.profiles).username,
+          avatar: (post.author || post.profiles).avatar,
+        }
+      : undefined,
+    track: post.track_id ? tracksById.get(post.track_id) || null : null,
+  }));
+}
+
+function shouldFallbackSelect(error: any) {
+  const message = String(error?.message || error?.details || '').toLowerCase();
+  return (
+    error?.code === 'PGRST200' ||
+    error?.code === 'PGRST201' ||
+    error?.code === 'PGRST204' ||
+    error?.code === '42703' ||
+    message.includes('relationship') ||
+    message.includes('schema cache') ||
+    message.includes('could not find') ||
+    message.includes('column')
+  );
+}
+
+async function attachAuthors(posts: any[]) {
+  const userIds = Array.from(new Set((posts || []).map((post) => post.user_id).filter(Boolean)));
+  if (!userIds.length) return posts || [];
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, name, username, avatar')
+    .in('id', userIds);
+  const profilesById = new Map((profiles || []).map((profile: any) => [profile.id, profile]));
+
   return (posts || []).map((post) => ({
     ...post,
     author: post.profiles
@@ -59,8 +112,14 @@ async function attachTracks(posts: any[]) {
           username: post.profiles.username,
           avatar: post.profiles.avatar,
         }
-      : undefined,
-    track: post.track_id ? tracksById.get(post.track_id) || null : null,
+      : profilesById.get(post.user_id)
+        ? {
+            id: profilesById.get(post.user_id).id,
+            name: profilesById.get(post.user_id).name,
+            username: profilesById.get(post.user_id).username,
+            avatar: profilesById.get(post.user_id).avatar,
+          }
+        : undefined,
   }));
 }
 
@@ -149,46 +208,60 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
 
-    let query = supabase
-      .from('forum_posts')
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          name,
-          username,
-          avatar
-        )
-      `);
+    const applyFiltersAndSort = (baseQuery: any, sortKey: string) => {
+      let next = baseQuery;
+      switch (sortKey) {
+        case 'popular':
+          next = next.order('likes_count', { ascending: false });
+          break;
+        case 'most_replied':
+          next = next.order('replies_count', { ascending: false });
+          break;
+        case 'recent':
+        default:
+          next = next.order('created_at', { ascending: false });
+          break;
+      }
+      next = next.range(offset, offset + limit - 1);
+      if (category && category !== 'all') next = next.eq('category', category);
+      if (search) next = next.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
+      return next;
+    };
 
-    // Appliquer le tri selon le paramètre sort
-    switch (sort) {
-      case 'recent':
-        query = query.order('created_at', { ascending: false });
-        break;
-      case 'popular':
-        query = query.order('likes_count', { ascending: false });
-        break;
-      case 'most_replied':
-        query = query.order('replies_count', { ascending: false });
-        break;
-      default:
-        query = query.order('created_at', { ascending: false });
+    let query = applyFiltersAndSort(
+      supabase
+        .from('forum_posts')
+        .select(`
+          *,
+          profiles:user_id (
+            id,
+            name,
+            username,
+            avatar
+          )
+        `),
+      sort,
+    );
+
+    let { data: posts, error } = await query;
+
+    if (error && shouldFallbackSelect(error)) {
+      const retry = await applyFiltersAndSort(
+        supabase.from('forum_posts').select('*'),
+        sort,
+      );
+      posts = retry.data;
+      error = retry.error;
     }
 
-    query = query.range(offset, offset + limit - 1);
-
-    // Filtrer par catégorie
-    if (category && category !== 'all') {
-      query = query.eq('category', category);
+    if (error && sort !== 'recent' && shouldFallbackSelect(error)) {
+      const retry = await applyFiltersAndSort(
+        supabase.from('forum_posts').select('*'),
+        'recent',
+      );
+      posts = retry.data;
+      error = retry.error;
     }
-
-    // Recherche dans le titre et le contenu
-    if (search) {
-      query = query.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
-    }
-
-    const { data: posts, error } = await query;
 
     if (error) {
       console.error('Erreur lors de la récupération des posts:', error);
@@ -210,7 +283,8 @@ export async function GET(request: NextRequest) {
 
     const { count } = await countQuery;
 
-    const hydratedPosts = await attachTracks(posts || []);
+    const postsWithAuthors = await attachAuthors(posts || []);
+    const hydratedPosts = await attachTracks(postsWithAuthors || []);
 
     return NextResponse.json({
       posts: hydratedPosts,

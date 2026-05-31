@@ -5,15 +5,20 @@ import { supabase } from '@/lib/supabase';
 
 function normalizeAttachedTrack(track: any) {
   if (!track) return null;
+  const profile = Array.isArray(track.profiles) ? track.profiles[0] : track.profiles;
   return {
     id: track.id,
     _id: track.id,
     title: track.title,
     artist_id: track.creator_id || track.user_id || '',
-    artist_name: track.artist_name || track.profiles?.name || track.profiles?.username || 'Artiste',
-    artist_username: track.profiles?.username || '',
+    artist_name: track.artist_name || profile?.name || profile?.username || 'Artiste',
+    artist_username: profile?.username || '',
     coverUrl: track.cover_url || null,
     cover_url: track.cover_url || null,
+    coverVideoUrl: track.cover_video_url || track.data?.cover_video_url || null,
+    cover_video_url: track.cover_video_url || track.data?.cover_video_url || null,
+    coverVideoPosterUrl: track.cover_video_poster_url || track.data?.cover_video_poster_url || null,
+    cover_video_poster_url: track.cover_video_poster_url || track.data?.cover_video_poster_url || null,
     audioUrl: track.audio_url || null,
     audio_url: track.audio_url || null,
     duration: track.duration || 0,
@@ -22,6 +27,30 @@ function normalizeAttachedTrack(track: any) {
     likes: track.likes || 0,
     style: Array.isArray(track.genre) ? track.genre.slice(0, 2).join(', ') : track.genre || '',
   };
+}
+
+function shouldFallbackSelect(error: any) {
+  const message = String(error?.message || error?.details || '').toLowerCase();
+  return (
+    error?.code === 'PGRST200' ||
+    error?.code === 'PGRST201' ||
+    error?.code === 'PGRST204' ||
+    error?.code === '42703' ||
+    message.includes('relationship') ||
+    message.includes('schema cache') ||
+    message.includes('could not find') ||
+    message.includes('column')
+  );
+}
+
+async function attachAuthor(post: any) {
+  if (!post || post.profiles) return post;
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, name, username, avatar')
+    .eq('id', post.user_id)
+    .maybeSingle();
+  return profile ? { ...post, profiles: profile } : post;
 }
 
 export async function GET(
@@ -35,8 +64,9 @@ export async function GET(
       return NextResponse.json({ error: 'ID du post requis' }, { status: 400 });
     }
 
-    // Récupérer le post avec l'auteur
-    const { data: post, error: postError } = await supabase
+    // Récupérer le post avec l'auteur. Fallback sans relation embarquée si le
+    // cache PostgREST de prod ne connaît pas la FK user_id -> profiles.
+    let { data: post, error: postError } = await supabase
       .from('forum_posts')
       .select(`
         *,
@@ -50,24 +80,27 @@ export async function GET(
       .eq('id', id)
       .single();
 
+    if (postError && shouldFallbackSelect(postError)) {
+      const retry = await supabase
+        .from('forum_posts')
+        .select('*')
+        .eq('id', id)
+        .single();
+      post = retry.data;
+      postError = retry.error;
+      if (post) post = await attachAuthor(post);
+    }
+
     if (postError || !post) {
       return NextResponse.json({ error: 'Post non trouvé' }, { status: 404 });
     }
 
     let attachedTrack = null;
     if (post.track_id) {
-      const { data: track } = await supabase
+      let { data: track, error: trackError } = await supabase
         .from('tracks')
         .select(`
-          id,
-          title,
-          cover_url,
-          audio_url,
-          duration,
-          genre,
-          plays,
-          likes,
-          creator_id,
+          *,
           profiles:creator_id (
             id,
             name,
@@ -77,13 +110,31 @@ export async function GET(
         `)
         .eq('id', post.track_id)
         .maybeSingle();
+
+      if (trackError && shouldFallbackSelect(trackError)) {
+        const retry = await supabase
+          .from('tracks')
+          .select('*')
+          .eq('id', post.track_id)
+          .maybeSingle();
+        track = retry.data;
+        if (track?.creator_id) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, name, username, avatar')
+            .eq('id', track.creator_id)
+            .maybeSingle();
+          track = { ...track, profiles: profile || null };
+        }
+      }
       attachedTrack = normalizeAttachedTrack(track);
     }
 
     // Incrémenter le compteur de vues
+    const nextViewsCount = Number(post.views_count || 0) + 1;
     await supabase
       .from('forum_posts')
-      .update({ views_count: post.views_count + 1 })
+      .update({ views_count: nextViewsCount })
       .eq('id', id);
 
     // Récupérer les réponses
@@ -109,7 +160,7 @@ export async function GET(
       post: {
         ...post,
         track: attachedTrack,
-        views_count: post.views_count + 1
+        views_count: nextViewsCount
       },
       replies: replies || []
     });

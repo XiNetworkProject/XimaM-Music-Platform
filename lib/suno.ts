@@ -90,6 +90,14 @@ export interface SunoUploadCoverRequest {
   callBackUrl?: string;
 }
 
+export interface SunoMusicVideoRequest {
+  taskId: string;
+  audioId: string;
+  author?: string;
+  domainName?: string;
+  callBackUrl?: string;
+}
+
 // Upload du fichier audio VERS Suno à partir d'une URL publique (Cloudinary)
 export async function uploadAudioByUrlToSuno(sourceUrl: string): Promise<{ uploadUrl: string }> {
   const apiKey = process.env.SUNO_API_KEY;
@@ -250,6 +258,36 @@ export async function uploadAndCoverAudio(request: SunoUploadCoverRequest): Prom
   const data = await response.json();
   if (!response.ok || data?.code !== 200) {
     throw new Error(data?.msg || `Erreur Suno: ${response.status}`);
+  }
+  return data;
+}
+
+export async function generateMusicVideo(request: SunoMusicVideoRequest): Promise<SunoGenerateResponse> {
+  const apiKey = process.env.SUNO_API_KEY;
+  if (!apiKey) {
+    throw new Error("SUNO_API_KEY manquant");
+  }
+  if (!request.taskId) throw new Error("taskId requis");
+  if (!request.audioId) throw new Error("audioId requis");
+
+  const response = await fetch(`${BASE}/api/v1/mp4/generate`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      taskId: request.taskId,
+      audioId: request.audioId,
+      author: request.author,
+      domainName: request.domainName,
+      callBackUrl: request.callBackUrl,
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok || data?.code !== 200) {
+    throw new Error(data?.msg || `Erreur Suno MP4: ${response.status}`);
   }
   return data;
 }

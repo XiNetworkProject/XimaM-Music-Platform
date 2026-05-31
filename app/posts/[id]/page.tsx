@@ -350,7 +350,7 @@ export default function PostPage() {
                       </div>
                     ) : null}
                     <div className="relative flex items-center gap-4 p-5">
-                      <TrackCover src={post.track.cover_url || null} title={post.track.title} className="h-20 w-20 shrink-0 shadow-2xl" rounded="rounded-2xl" objectFit="cover" />
+                      <TrackCover src={post.track.cover_url || null} videoSrc={(post.track as any).cover_video_url || (post.track as any).coverVideoUrl || null} posterSrc={(post.track as any).cover_video_poster_url || (post.track as any).coverVideoPosterUrl || post.track.cover_url || null} title={post.track.title} className="h-20 w-20 shrink-0 shadow-2xl" rounded="rounded-2xl" objectFit="cover" />
                       <div className="min-w-0 flex-1">
                         <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/42">Son partage</p>
                         <p className="mt-2 truncate text-xl font-black text-white">{post.track.title}</p>
@@ -397,7 +397,7 @@ export default function PostPage() {
                             </div>
                           ) : null}
                           <div className="relative flex items-center gap-4 p-4">
-                            <TrackCover src={post.original_post.track.cover_url || null} title={post.original_post.track.title} className="h-16 w-16 shrink-0 shadow-2xl" rounded="rounded-xl" objectFit="cover" />
+                            <TrackCover src={post.original_post.track.cover_url || null} videoSrc={(post.original_post.track as any).cover_video_url || (post.original_post.track as any).coverVideoUrl || null} posterSrc={(post.original_post.track as any).cover_video_poster_url || (post.original_post.track as any).coverVideoPosterUrl || post.original_post.track.cover_url || null} title={post.original_post.track.title} className="h-16 w-16 shrink-0 shadow-2xl" rounded="rounded-xl" objectFit="cover" />
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-[15px] font-bold text-white">{post.original_post.track.title}</p>
                               <p className="truncate text-[12px] text-white/55">{post.original_post.track.artist_name || 'Artiste inconnu'}</p>

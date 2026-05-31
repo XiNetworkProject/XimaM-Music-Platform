@@ -56,6 +56,8 @@ function formatTrack(track: any, rankingScore: number): RecommendedTrack {
     },
     duration: track.duration || 0,
     coverUrl: track.cover_url,
+    coverVideoUrl: track.cover_video_url || track.data?.cover_video_url || null,
+    coverVideoPosterUrl: track.cover_video_poster_url || track.data?.cover_video_poster_url || null,
     audioUrl: track.audio_url,
     album: track.album || null,
     genre: track.genre || [],
@@ -85,7 +87,7 @@ async function loadTrackCandidates(limit: number) {
     const { data: tracks } = await supabaseAdmin
       .from('tracks')
       .select(`
-        id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, lyrics, plays, album,
+        *,
         profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
       `)
       .in('id', trackIds)
@@ -113,7 +115,7 @@ async function loadTrackCandidates(limit: number) {
   const { data: freshTracks } = await supabaseAdmin
     .from('tracks')
     .select(`
-      id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, lyrics, plays, album,
+      *,
       profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
     `)
     .eq('is_public', true)
@@ -144,7 +146,7 @@ async function loadPostCandidates(limit: number, userId: string | null) {
   if (trackIds.length) {
     const { data: tracks } = await supabaseAdmin
       .from('tracks')
-      .select('id, title, creator_id, cover_url, audio_url, duration, genre, profiles:profiles!tracks_creator_id_fkey ( username, name )')
+      .select('*, profiles:profiles!tracks_creator_id_fkey ( username, name )')
       .in('id', Array.from(new Set(trackIds)));
     for (const track of tracks || []) {
       const profile = profileOf(track);
@@ -154,6 +156,10 @@ async function loadPostCandidates(limit: number, userId: string | null) {
         creator_id: track.creator_id,
         artist_name: profile?.name || profile?.username || 'Artiste',
         cover_url: track.cover_url,
+        coverVideoUrl: track.cover_video_url || track.data?.cover_video_url || null,
+        cover_video_url: track.cover_video_url || track.data?.cover_video_url || null,
+        coverVideoPosterUrl: track.cover_video_poster_url || track.data?.cover_video_poster_url || null,
+        cover_video_poster_url: track.cover_video_poster_url || track.data?.cover_video_poster_url || null,
         audio_url: track.audio_url,
         duration: track.duration || 0,
         genre: track.genre || [],

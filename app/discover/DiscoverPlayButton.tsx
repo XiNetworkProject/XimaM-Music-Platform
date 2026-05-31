@@ -9,6 +9,8 @@ export type DiscoverTrackLite = {
   _id: string;
   title: string;
   coverUrl?: string;
+  coverVideoUrl?: string | null;
+  coverVideoPosterUrl?: string | null;
   audioUrl?: string;
   artist?: {
     _id?: string;

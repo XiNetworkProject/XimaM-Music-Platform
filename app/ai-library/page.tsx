@@ -3,12 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Music, Heart, Play, Download, Share2, Search, Clock, Sparkles, RefreshCw, Link as LinkIcon, Repeat2, UploadCloud } from 'lucide-react';
+import { Music, Heart, Play, Download, Share2, Search, Clock, Sparkles, RefreshCw, Link as LinkIcon, Repeat2, UploadCloud, Video } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import { AIGeneration, AITrack } from '@/lib/aiGenerationService';
 import { notify } from '@/components/NotificationCenter';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import TrackCover from '@/components/TrackCover';
 
 interface PlayerTrack {
   _id: string;
@@ -21,6 +22,8 @@ interface PlayerTrack {
   };
   audioUrl: string;
   coverUrl?: string;
+  coverVideoUrl?: string | null;
+  coverVideoPosterUrl?: string | null;
   duration: number;
   likes: string[];
   comments: string[];
@@ -46,6 +49,24 @@ export default function AILibrary() {
     totalDuration: 0
   });
   const [error, setError] = useState<string | null>(null);
+  const [generatingVideoTrackId, setGeneratingVideoTrackId] = useState<string | null>(null);
+
+  const parseSourceLinks = (value?: string | null) => {
+    try {
+      return value ? JSON.parse(value) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const getTrackVideoMeta = (track: AITrack) => {
+    const sourceLinks = parseSourceLinks(track.source_links);
+    return {
+      videoUrl: track.cover_video_url || sourceLinks.cover_video_url || null,
+      posterUrl: track.cover_video_poster_url || sourceLinks.cover_video_poster_url || track.image_url || null,
+      videoTaskId: track.video_task_id || sourceLinks.video_task_id || null,
+    };
+  };
 
   const studioLinkForTrack = (track: AITrack, mode: 'style' | 'remix' = 'style') => {
     const params = new URLSearchParams({
@@ -144,6 +165,8 @@ export default function AILibrary() {
       duration: sourceTrack.duration,
       audioUrl: sourceTrack.audio_url,
       coverUrl: sourceTrack.image_url || '/brand/2026/synaura-symbol-2026-white.png',
+      coverVideoUrl: getTrackVideoMeta(sourceTrack).videoUrl,
+      coverVideoPosterUrl: getTrackVideoMeta(sourceTrack).posterUrl,
       genre: ['IA', 'Généré'],
       plays: sourceTrack.play_count,
       likes: [],
@@ -161,6 +184,29 @@ export default function AILibrary() {
     const nextQueue = queue.length ? queue : [toPlayerTrack(track, generation)];
 
     setQueueAndPlay(nextQueue as any, startIndex >= 0 ? startIndex : 0);
+  };
+
+  const generateCoverVideo = async (track: AITrack, generation: AIGeneration) => {
+    if (!generation.task_id || !track.suno_id) {
+      notify.info('Video indisponible', 'Cette piste ne contient pas les IDs Suno requis.');
+      return;
+    }
+    setGeneratingVideoTrackId(track.id);
+    try {
+      const res = await fetch('/api/suno/generate-music-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackId: track.id, taskId: generation.task_id, audioId: track.suno_id }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Erreur génération vidéo');
+      notify.success('Cover video demandee', 'Suno genere la video. Elle apparaitra automatiquement apres le callback.');
+      await loadLibrary();
+    } catch (error: any) {
+      notify.error('Erreur video', error?.message || 'Impossible de generer la cover video');
+    } finally {
+      setGeneratingVideoTrackId(null);
+    }
   };
 
   // Toggle favori
@@ -441,14 +487,13 @@ export default function AILibrary() {
 
                 {/* Tracks */}
                 <div className="space-y-3 mb-4">
-                  {generation.tracks?.map((track) => (
+                  {generation.tracks?.map((track) => {
+                    const videoMeta = getTrackVideoMeta(track);
+                    const canGenerateVideo = Boolean(generation.task_id && track.suno_id);
+                    return (
                     <div key={track.id} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
                       <div className="w-12 h-12 rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-center">
-                        {track.image_url ? (
-                          <img src={track.image_url.replace('/upload/','/upload/f_auto,q_auto/')} alt={track.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
-                        ) : (
-                          <Music className="w-6 h-6 text-[var(--text)]" />
-                        )}
+                        <TrackCover src={track.image_url || null} videoSrc={videoMeta.videoUrl} posterSrc={videoMeta.posterUrl || track.image_url || null} title={track.title} className="h-full w-full" rounded="rounded-none" objectFit="cover" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium truncate">{track.title}</h4>
@@ -478,9 +523,20 @@ export default function AILibrary() {
                         <button onClick={() => publishTrack(track)} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors" title="Publier">
                           <UploadCloud className="w-4 h-4" />
                         </button>
+                        {canGenerateVideo ? (
+                          <button
+                            onClick={() => generateCoverVideo(track, generation)}
+                            disabled={generatingVideoTrackId === track.id}
+                            className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-40"
+                            title={videoMeta.videoUrl ? 'Regenerer une cover video (100 credits)' : 'Generer une cover video (100 credits)'}
+                          >
+                            {generatingVideoTrackId === track.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                          </button>
+                        ) : null}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                   {(!generation.tracks || generation.tracks.length === 0) && (
                     <div className="p-3 bg-white/5 rounded-lg flex items-center justify-between">
                       <span className="text-[var(--text)] text-sm">Aucune piste encore enregistrée pour cette génération.</span>
@@ -522,21 +578,22 @@ export default function AILibrary() {
             <SynauraPanel className="mt-8 p-3 sm:p-6">
               <h2 className="text-xl font-semibold mb-4">Toutes mes pistes IA</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {allTracks.map((track) => (
+              {allTracks.map((track) => {
+                const generation = (track as any).generation || syntheticGenerationForTrack(track);
+                const taskId = generation?.task_id || (track as any).generationTaskId || '';
+                const videoMeta = getTrackVideoMeta(track);
+                const canGenerateVideo = Boolean(taskId && track.suno_id);
+                return (
                 <div key={track.id} className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg border border-gray-700">
                   <div className="w-12 h-12 rounded-lg overflow-hidden border border-gray-600 bg-[var(--surface-2)] flex items-center justify-center">
-                    {track.image_url ? (
-                      <img src={track.image_url.replace('/upload/','/upload/f_auto,q_auto/')} alt={track.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
-                    ) : (
-                      <Music className="w-6 h-6 text-white" />
-                    )}
+                    <TrackCover src={track.image_url || null} videoSrc={videoMeta.videoUrl} posterSrc={videoMeta.posterUrl || track.image_url || null} title={track.title} className="h-full w-full" rounded="rounded-none" objectFit="cover" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-medium truncate">{track.title}</h4>
                     <p className="text-[var(--text-muted)] text-sm">{formatDuration(track.duration)}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => playAITrack(track as any, syntheticGenerationForTrack(track))} className="p-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
+                    <button onClick={() => playAITrack(track as any, generation)} className="p-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
                       <Play className="w-4 h-4" />
                     </button>
                     <button onClick={() => downloadTrack(track)} className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
@@ -548,9 +605,20 @@ export default function AILibrary() {
                     <Link href={studioLinkForTrack(track, 'remix')} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
                       <Repeat2 className="w-4 h-4" />
                     </Link>
+                    {canGenerateVideo ? (
+                      <button
+                        onClick={() => generateCoverVideo(track, { ...generation, task_id: taskId } as AIGeneration)}
+                        disabled={generatingVideoTrackId === track.id}
+                        className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-40"
+                        title={videoMeta.videoUrl ? 'Regenerer une cover video (100 credits)' : 'Generer une cover video (100 credits)'}
+                      >
+                        {generatingVideoTrackId === track.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
-              ))}
+                );
+              })}
               </div>
             </SynauraPanel>
           )}

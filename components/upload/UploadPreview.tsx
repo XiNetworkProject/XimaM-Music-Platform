@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo } from 'react';
 import { Music, Play, Clock, Eye, Tag, Globe, Heart, Users, Calendar, FileText, Shield } from 'lucide-react';
 import type { TrackMeta } from './TrackListEditor';
 import type { FeaturingArtist } from './FeaturingSearch';
@@ -32,12 +33,20 @@ interface Props {
 }
 
 function CoverThumb({ file }: { file: File | null }) {
+  const previewUrl = useMemo(() => file ? URL.createObjectURL(file) : null, [file]);
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
+
   if (!file) return (
     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20">
       <Music className="w-8 h-8 text-white/30" />
     </div>
   );
-  return <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />;
+
+  const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/i.test(file.name);
+  if (isVideo) return <video src={previewUrl || undefined} className="w-full h-full object-cover" muted loop playsInline autoPlay />;
+  return <img src={previewUrl || undefined} alt="" className="w-full h-full object-cover" />;
 }
 
 export default function UploadPreview(props: Props) {

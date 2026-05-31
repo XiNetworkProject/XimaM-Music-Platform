@@ -23,6 +23,10 @@ export interface PostTrack {
   title: string;
   artist_name?: string;
   cover_url?: string;
+  cover_video_url?: string | null;
+  coverVideoUrl?: string | null;
+  cover_video_poster_url?: string | null;
+  coverVideoPosterUrl?: string | null;
   audio_url?: string;
   duration?: number;
 }
@@ -588,7 +592,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
     playTrack({
       _id: post.track.id, title: post.track.title,
       artist: { _id: '', name: post.track.artist_name || 'Artiste', username: '' },
-      audioUrl: post.track.audio_url, coverUrl: post.track.cover_url,
+      audioUrl: post.track.audio_url, coverUrl: post.track.cover_url, coverVideoUrl: post.track.cover_video_url || post.track.coverVideoUrl, coverVideoPosterUrl: post.track.cover_video_poster_url || post.track.coverVideoPosterUrl,
       duration: post.track.duration || 0, likes: 0, plays: 0,
     } as any);
   }, [post.track, playTrack]);
@@ -602,6 +606,8 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
       artist: { _id: '', name: post.original_post.track.artist_name || 'Artiste', username: '' },
       audioUrl: post.original_post.track.audio_url,
       coverUrl: post.original_post.track.cover_url,
+      coverVideoUrl: post.original_post.track.cover_video_url || post.original_post.track.coverVideoUrl,
+      coverVideoPosterUrl: post.original_post.track.cover_video_poster_url || post.original_post.track.coverVideoPosterUrl,
       duration: post.original_post.track.duration || 0,
       likes: 0,
       plays: 0,
@@ -775,7 +781,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
                     </div>
                   ) : null}
                   <div className="relative flex items-center gap-4 p-4">
-                    <TrackCover src={post.track.cover_url || null} title={post.track.title} className="h-16 w-16 shrink-0 shadow-2xl" rounded="rounded-xl" objectFit="cover" />
+                    <TrackCover src={post.track.cover_url || null} videoSrc={(post.track as any).cover_video_url || (post.track as any).coverVideoUrl || null} posterSrc={(post.track as any).cover_video_poster_url || (post.track as any).coverVideoPosterUrl || post.track.cover_url || null} title={post.track.title} className="h-16 w-16 shrink-0 shadow-2xl" rounded="rounded-xl" objectFit="cover" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[15px] font-bold text-white">{post.track.title}</p>
                       <p className="truncate text-[12px] text-white/55">{post.track.artist_name || 'Artiste inconnu'}</p>
@@ -824,7 +830,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
                           </div>
                         ) : null}
                         <div className="relative flex items-center gap-4 p-4">
-                          <TrackCover src={post.original_post.track.cover_url || null} title={post.original_post.track.title} className="h-14 w-14 shrink-0 shadow-2xl" rounded="rounded-xl" objectFit="cover" />
+                          <TrackCover src={post.original_post.track.cover_url || null} videoSrc={(post.original_post.track as any).cover_video_url || (post.original_post.track as any).coverVideoUrl || null} posterSrc={(post.original_post.track as any).cover_video_poster_url || (post.original_post.track as any).coverVideoPosterUrl || post.original_post.track.cover_url || null} title={post.original_post.track.title} className="h-14 w-14 shrink-0 shadow-2xl" rounded="rounded-xl" objectFit="cover" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-[15px] font-bold text-white">{post.original_post.track.title}</p>
                             <p className="truncate text-[12px] text-white/55">{post.original_post.track.artist_name || 'Artiste inconnu'}</p>

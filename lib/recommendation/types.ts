@@ -29,6 +29,8 @@ export type RecommendedTrack = {
   };
   duration?: number;
   coverUrl?: string | null;
+  coverVideoUrl?: string | null;
+  coverVideoPosterUrl?: string | null;
   audioUrl?: string | null;
   album?: string | null;
   genre?: string[] | string | null;
@@ -74,6 +76,10 @@ export type RecommendedPost = {
     title?: string;
     artist_name?: string;
     cover_url?: string;
+    cover_video_url?: string | null;
+    coverVideoUrl?: string | null;
+    cover_video_poster_url?: string | null;
+    coverVideoPosterUrl?: string | null;
     audio_url?: string;
     duration?: number;
     genre?: string[] | string | null;

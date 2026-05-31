@@ -37,6 +37,8 @@ export async function GET(request: NextRequest) {
       },
       duration: t.duration || 0,
       coverUrl: t.cover_url,
+      coverVideoUrl: t.cover_video_url || t.data?.cover_video_url || null,
+      coverVideoPosterUrl: t.cover_video_poster_url || t.data?.cover_video_poster_url || null,
       audioUrl: t.audio_url,
       album: t.album || null,
       genre: Array.isArray(t.genre) ? t.genre : [],
@@ -100,7 +102,7 @@ export async function GET(request: NextRequest) {
         const { data, error } = await supabaseAdmin
           .from('tracks')
           .select(`
-            id, title, creator_id, created_at, cover_url, audio_url, duration, genre, plays, album,
+            *, 
             profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name )
           `)
           .in('id', normalIds);
@@ -188,7 +190,7 @@ export async function GET(request: NextRequest) {
         const { data, error } = await supabaseAdmin
           .from('tracks')
           .select(`
-            id, title, creator_id, created_at, cover_url, audio_url, duration, genre, plays, album,
+            *, 
             profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name )
           `)
           .in('id', normalIds);
@@ -248,19 +250,7 @@ export async function GET(request: NextRequest) {
       let query = supabaseAdmin
       .from('tracks')
       .select(`
-        id,
-        title,
-        genre,
-        plays,
-        likes,
-        created_at,
-        creator_id,
-        cover_url,
-        audio_url,
-        duration,
-        album,
-        is_featured,
-          is_public,
+        *,
           profiles:profiles!tracks_creator_id_fkey (
             id, username, name, avatar, is_artist, artist_name
           )
@@ -313,6 +303,8 @@ export async function GET(request: NextRequest) {
         likes: Array.isArray(t.likes) ? t.likes.length : (t.likes || 0),
         createdAt: t.created_at,
         coverUrl: t.cover_url,
+        coverVideoUrl: t.cover_video_url || t.data?.cover_video_url || null,
+        coverVideoPosterUrl: t.cover_video_poster_url || t.data?.cover_video_poster_url || null,
         audioUrl: t.audio_url,
         album: t.album || null,
         duration: t.duration || 0,
@@ -327,7 +319,7 @@ export async function GET(request: NextRequest) {
     const { data: recentTracks, error } = await supabaseAdmin
       .from('tracks')
       .select(`
-        id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, plays, album,
+        *,
         profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name )
       `)
       .eq('is_public', true)

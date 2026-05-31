@@ -29,12 +29,13 @@ export async function POST(request: NextRequest) {
 
     if (contentType.includes('application/json')) {
       const jsonData = await request.json();
-      const { audioUrl, audioPublicId, coverUrl, coverPublicId, trackData, duration } = jsonData;
+      const { audioUrl, audioPublicId, coverUrl, coverPublicId, coverVideoUrl, coverVideoPublicId, coverVideoPosterUrl, trackData, duration } = jsonData;
       if (!audioUrl || !trackData?.title) {
         // rollback best-effort si l'audio a été déjà uploadé
         try {
           if (audioPublicId) await cloudinary.uploader.destroy(audioPublicId, { resource_type: 'video' });
           if (coverPublicId) await cloudinary.uploader.destroy(coverPublicId, { resource_type: 'image' });
+          if (coverVideoPublicId) await cloudinary.uploader.destroy(coverVideoPublicId, { resource_type: 'video' });
         } catch {}
         return NextResponse.json({ error: 'URL audio et titre requis' }, { status: 400 });
       }
@@ -80,6 +81,9 @@ export async function POST(request: NextRequest) {
           cover_size_mb: (jsonData.coverBytes ? Math.round(jsonData.coverBytes / (1024*1024)) : null),
           audio_public_id: audioPublicId || null,
           cover_public_id: coverPublicId || null,
+          cover_video_url: coverVideoUrl || null,
+          cover_video_public_id: coverVideoPublicId || null,
+          cover_video_poster_url: coverVideoPosterUrl || null,
       };
 
       // Store extended metadata in a JSONB `data` column if the column exists,
@@ -93,6 +97,9 @@ export async function POST(request: NextRequest) {
       if (extraReleaseType) extendedData.release_type = extraReleaseType;
       if (extraVisibility) extendedData.visibility = extraVisibility;
       if (extraScheduledAt) extendedData.scheduled_at = extraScheduledAt;
+      if (coverVideoUrl) extendedData.cover_video_url = coverVideoUrl;
+      if (coverVideoPublicId) extendedData.cover_video_public_id = coverVideoPublicId;
+      if (coverVideoPosterUrl) extendedData.cover_video_poster_url = coverVideoPosterUrl;
       if (trackData.isExplicit) extendedData.is_explicit = true;
 
       // Try with extended data in a `data` JSONB column, fallback without it
@@ -102,15 +109,40 @@ export async function POST(request: NextRequest) {
 
       let track: any = null;
       let error: any = null;
+      let currentPayload = insertPayload;
 
-      const result = await supabaseAdmin.from('tracks').insert(insertPayload).select().single();
+      const insertTrack = (payload: Record<string, any>) => supabaseAdmin.from('tracks').insert(payload).select().single();
+      const shouldRetryWithoutVideoColumns = (err: any) => {
+        const msg = String(err?.message || err?.details || '');
+        return Boolean(err) && (
+          msg.includes('cover_video_url') ||
+          msg.includes('cover_video_public_id') ||
+          msg.includes('cover_video_poster_url') ||
+          msg.includes('Could not find') ||
+          msg.includes('schema cache')
+        );
+      };
+
+      const stripVideoColumns = (payload: Record<string, any>) => {
+        const { cover_video_url, cover_video_public_id, cover_video_poster_url, ...rest } = payload;
+        return rest;
+      };
+
+      const result = await insertTrack(insertPayload);
       track = result.data;
       error = result.error;
 
+      if (error && shouldRetryWithoutVideoColumns(error)) {
+        currentPayload = stripVideoColumns(insertPayload);
+        const retry = await insertTrack(currentPayload);
+        track = retry.data;
+        error = retry.error;
+      }
+
       // If the `data` column doesn't exist, retry without it
-      if (error && insertPayload.data) {
-        const { data: _d, ...payloadWithout } = insertPayload;
-        const retry = await supabaseAdmin.from('tracks').insert(payloadWithout).select().single();
+      if (error && currentPayload.data) {
+        const { data: _d, ...payloadWithout } = currentPayload;
+        const retry = await insertTrack(payloadWithout);
         track = retry.data;
         error = retry.error;
       }
@@ -120,6 +152,7 @@ export async function POST(request: NextRequest) {
         try {
           if (audioPublicId) await cloudinary.uploader.destroy(audioPublicId, { resource_type: 'video' });
           if (coverPublicId) await cloudinary.uploader.destroy(coverPublicId, { resource_type: 'image' });
+          if (coverVideoPublicId) await cloudinary.uploader.destroy(coverVideoPublicId, { resource_type: 'video' });
         } catch {}
         return NextResponse.json({ error: `Erreur lors de la sauvegarde en base de données: ${error.message}` }, { status: 500 });
       }

@@ -43,6 +43,8 @@ export async function GET(
       title: track.title,
       artist: track.artist_name || track.creator_name || 'Artiste inconnu',
       coverUrl: track.cover_url,
+      coverVideoUrl: track.cover_video_url || track.data?.cover_video_url || null,
+      coverVideoPosterUrl: track.cover_video_poster_url || track.data?.cover_video_poster_url || null,
       audioUrl: track.audio_url,
       duration: track.duration,
       genre: track.genre || [],
