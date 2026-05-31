@@ -4,6 +4,19 @@ import { supabaseAdmin } from '@/lib/supabase';
 export const dynamic = 'force-dynamic';
 export const revalidate = 60;
 
+function readTrackData(track: any): Record<string, any> {
+  const value = track?.data;
+  if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string') return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -24,7 +37,7 @@ export async function GET(request: Request) {
 
     const { data: tracks, error: tracksErr } = await supabaseAdmin
       .from('tracks')
-      .select('id, title, genre, plays, created_at, duration, cover_url, audio_url, artist_id')
+      .select('*')
       .in('id', trackIds);
 
     if (tracksErr || !tracks?.length) {
@@ -52,6 +65,7 @@ export async function GET(request: Request) {
       .map(t => {
         const boost = boostMap.get(t.id);
         const artist = profileMap.get(t.artist_id);
+        const data = readTrackData(t);
         return {
           id: t.id,
           _id: t.id,
@@ -60,6 +74,8 @@ export async function GET(request: Request) {
           plays: t.plays || 0,
           duration: t.duration || 0,
           coverUrl: t.cover_url,
+          coverVideoUrl: t.cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
+          coverVideoPosterUrl: t.cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || t.cover_url || null,
           audioUrl: t.audio_url,
           createdAt: t.created_at,
           artist: artist ? {

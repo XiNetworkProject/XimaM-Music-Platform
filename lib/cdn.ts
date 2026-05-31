@@ -71,6 +71,22 @@ export function applyCdnToTrack<T extends Record<string, any>>(track: T): T {
   if (cdnTrack.cover_url) {
     cdnTrack.cover_url = getCdnUrl(cdnTrack.cover_url) || cdnTrack.cover_url;
   }
+
+  if (cdnTrack.coverVideoUrl) {
+    cdnTrack.coverVideoUrl = getCdnUrl(cdnTrack.coverVideoUrl) || cdnTrack.coverVideoUrl;
+  }
+
+  if (cdnTrack.cover_video_url) {
+    cdnTrack.cover_video_url = getCdnUrl(cdnTrack.cover_video_url) || cdnTrack.cover_video_url;
+  }
+
+  if (cdnTrack.coverVideoPosterUrl) {
+    cdnTrack.coverVideoPosterUrl = getCdnUrl(cdnTrack.coverVideoPosterUrl) || cdnTrack.coverVideoPosterUrl;
+  }
+
+  if (cdnTrack.cover_video_poster_url) {
+    cdnTrack.cover_video_poster_url = getCdnUrl(cdnTrack.cover_video_poster_url) || cdnTrack.cover_video_poster_url;
+  }
   
   if (cdnTrack.audio_url) {
     cdnTrack.audio_url = getCdnUrl(cdnTrack.audio_url) || cdnTrack.audio_url;

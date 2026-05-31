@@ -53,6 +53,8 @@ interface Track {
   artist: Artist;
   audioUrl: string;
   coverUrl?: string;
+  coverVideoUrl?: string | null;
+  coverVideoPosterUrl?: string | null;
   duration: number;
   likes: number | string[];
   comments: number | string[];
@@ -192,6 +194,18 @@ function coverUrl(track: Track | null): string | null {
   return typeof url === 'string' && url.includes('res.cloudinary.com')
     ? url.replace('/upload/', '/upload/f_auto,q_auto/')
     : url;
+}
+
+function coverVideoUrl(track: Track | null): string | null {
+  const raw = track?.coverVideoUrl || (track as any)?.cover_video_url;
+  if (!raw) return null;
+  return getCdnUrl(raw) || raw;
+}
+
+function coverVideoPosterUrl(track: Track | null): string | null {
+  const raw = track?.coverVideoPosterUrl || (track as any)?.cover_video_poster_url || track?.coverUrl;
+  if (!raw) return null;
+  return getCdnUrl(raw) || raw;
 }
 
 function topGenre(track: Track | null): string | null {
@@ -1019,6 +1033,8 @@ const TrackSlide = memo(function TrackSlide(props: TrackSlideProps) {
   } = props;
 
   const cover = useMemo(() => coverUrl(t), [t]);
+  const videoCover = useMemo(() => coverVideoUrl(t), [t]);
+  const videoPoster = useMemo(() => coverVideoPosterUrl(t), [t]);
   const genres = useMemo(() => (t.genre || []).filter(g => g && g !== 'undefined').slice(0, 2), [t.genre]);
 
   return (
@@ -1060,23 +1076,15 @@ const TrackSlide = memo(function TrackSlide(props: TrackSlideProps) {
                     : { background: 'linear-gradient(135deg, #ff8a66, #7c5cff)' }}
                 />
                 <div className={`relative h-full w-full overflow-hidden rounded-[2rem] ring-1 ring-white/[0.12] shadow-[0_22px_64px_rgba(0,0,0,0.44)] transition-transform duration-300 ${isPlaying ? 'scale-[1.015]' : 'scale-100'}`}>
-                  {cover ? (
-                    <img
-                      src={cover}
-                      alt={t.title}
-                      loading="eager"
-                      decoding="async"
-                      className={`absolute inset-0 h-full w-full object-cover transition-transform duration-[10000ms] ease-linear ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
-                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  ) : (
-                    <TrackCover
-                      src={null}
-                      title={t.title}
-                      className={`absolute inset-0 h-full w-full transition-transform duration-[10000ms] ease-linear ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
-                      rounded="rounded-none"
-                    />
-                  )}
+                  <TrackCover
+                    src={cover}
+                    videoSrc={videoCover}
+                    posterSrc={videoPoster || cover}
+                    title={t.title}
+                    autoPlayVideo={isActive && isPlaying}
+                    className={`absolute inset-0 h-full w-full transition-transform duration-[10000ms] ease-linear ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
+                    rounded="rounded-none"
+                  />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/28 via-transparent to-black/8" />
 
                   {genres.length > 0 && !isRadio ? (
@@ -1381,6 +1389,8 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
   } = props;
 
   const cover = useMemo(() => coverUrl(t), [t]);
+  const videoCover = useMemo(() => coverVideoUrl(t), [t]);
+  const videoPoster = useMemo(() => coverVideoPosterUrl(t), [t]);
   const genres = useMemo(() => (t.genre || []).filter(Boolean).slice(0, 2), [t.genre]);
   const isAi = Boolean(t.isAI || String(t._id).startsWith('ai-'));
 
@@ -1397,14 +1407,15 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
       }}
     >
       <div className="absolute inset-0">
-        {cover ? (
-          <img
+        {cover || videoPoster ? (
+          <TrackCover
             src={cover}
-            alt=""
-            loading={isActive ? 'eager' : 'lazy'}
-            decoding="async"
-            draggable={false}
+            videoSrc={videoCover}
+            posterSrc={videoPoster || cover}
+            title={t.title}
+            autoPlayVideo={isActive && isPlaying}
             className="h-full w-full scale-125 object-cover opacity-55 blur-3xl saturate-150"
+            rounded="rounded-none"
           />
         ) : null}
         <div className="absolute inset-0 bg-gradient-to-b from-[#120d11]/86 via-[#120d11]/26 to-[#120d11]/92" />
@@ -1420,19 +1431,15 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
               onDoubleClick={e => { e.stopPropagation(); if (isActive && !isRadio) onDoubleTapLike(); }}
               className="group/cover relative mx-auto block aspect-square w-[min(78vw,520px)] overflow-hidden rounded-[2rem] border border-white/[0.12] bg-white/[0.06] shadow-[0_32px_110px_rgba(0,0,0,0.44)] md:w-[min(54vh,520px)]"
             >
-              {cover ? (
-                <img
-                  src={cover}
-                  alt={t.title}
-                  loading={isActive ? 'eager' : 'lazy'}
-                  decoding="async"
-                  draggable={false}
-                  className={`h-full w-full object-cover transition-transform duration-[12000ms] ease-linear will-change-transform ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
-                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                />
-              ) : (
-                <TrackCover src={null} title={t.title} className="h-full w-full" rounded="rounded-none" />
-              )}
+              <TrackCover
+                src={cover}
+                videoSrc={videoCover}
+                posterSrc={videoPoster || cover}
+                title={t.title}
+                autoPlayVideo={isActive && isPlaying}
+                className={`h-full w-full object-cover transition-transform duration-[12000ms] ease-linear will-change-transform ${isPlaying ? 'scale-[1.08]' : 'scale-100'}`}
+                rounded="rounded-none"
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-black/54 via-transparent to-black/12" />
 
               <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">

@@ -3,6 +3,16 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabase } from '@/lib/supabase';
 
+const TRACK_REF_RE = /<!--\s*synaura-track:([^>\s]+)\s*-->/i;
+
+function stripTrackRef(content?: string | null) {
+  return String(content || '').replace(TRACK_REF_RE, '').trim();
+}
+
+function getPostTrackId(post: any) {
+  return post?.track_id || String(post?.content || '').match(TRACK_REF_RE)?.[1] || null;
+}
+
 function normalizeAttachedTrack(track: any) {
   if (!track) return null;
   const profile = Array.isArray(track.profiles) ? track.profiles[0] : track.profiles;
@@ -95,8 +105,9 @@ export async function GET(
       return NextResponse.json({ error: 'Post non trouvé' }, { status: 404 });
     }
 
+    const attachedTrackId = getPostTrackId(post);
     let attachedTrack = null;
-    if (post.track_id) {
+    if (attachedTrackId) {
       let { data: track, error: trackError } = await supabase
         .from('tracks')
         .select(`
@@ -108,14 +119,14 @@ export async function GET(
             avatar
           )
         `)
-        .eq('id', post.track_id)
+        .eq('id', attachedTrackId)
         .maybeSingle();
 
       if (trackError && shouldFallbackSelect(trackError)) {
         const retry = await supabase
           .from('tracks')
           .select('*')
-          .eq('id', post.track_id)
+          .eq('id', attachedTrackId)
           .maybeSingle();
         track = retry.data;
         if (track?.creator_id) {
@@ -159,6 +170,8 @@ export async function GET(
     return NextResponse.json({
       post: {
         ...post,
+        content: stripTrackRef(post.content),
+        track_id: post.track_id || attachedTrackId,
         track: attachedTrack,
         views_count: nextViewsCount
       },

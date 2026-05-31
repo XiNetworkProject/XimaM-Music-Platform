@@ -305,7 +305,7 @@ export default function SynauraMiniPlayer() {
                 <div className="hidden items-center gap-3 px-3 py-2.5 sm:flex">
                   <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setShowTikTok(true)}>
                     <div className="relative shrink-0">
-                      <TrackCover src={track.cover} videoSrc={track.coverVideo} posterSrc={track.coverVideoPoster} title={track.title} className="h-11 w-11 ring-1 ring-black/[0.08]" rounded="rounded-[1rem]" objectFit="cover" />
+                      <TrackCover src={track.cover} videoSrc={track.coverVideo} posterSrc={track.coverVideoPoster} title={track.title} autoPlayVideo={audioState.isPlaying} className="h-11 w-11 ring-1 ring-black/[0.08]" rounded="rounded-[1rem]" objectFit="cover" />
                       {isLive ? (
                         <span className="absolute -top-1 -right-1 inline-flex items-center gap-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white">
                           <Radio className="h-2.5 w-2.5" />
@@ -431,7 +431,7 @@ export default function SynauraMiniPlayer() {
                 <div className="flex items-center gap-2 px-2 py-1.5 sm:hidden">
                   <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => setShowTikTok(true)}>
                     <div className="relative shrink-0">
-                      <TrackCover src={track.cover} videoSrc={track.coverVideo} posterSrc={track.coverVideoPoster} title={track.title} className="h-8 w-8 ring-1 ring-black/[0.08]" rounded="rounded-[0.75rem]" objectFit="cover" />
+                      <TrackCover src={track.cover} videoSrc={track.coverVideo} posterSrc={track.coverVideoPoster} title={track.title} autoPlayVideo={audioState.isPlaying} className="h-8 w-8 ring-1 ring-black/[0.08]" rounded="rounded-[0.75rem]" objectFit="cover" />
                       {isLive ? <span className="absolute -top-1 -right-1 rounded-full bg-red-500 px-1 py-0.5 text-[7px] font-black uppercase text-white">LIVE</span> : null}
                     </div>
                     <div className="min-w-0">

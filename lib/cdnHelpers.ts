@@ -17,6 +17,10 @@ export function applyCdnToTrack(track: any) {
     audio_url: getCdnUrl(track.audio_url) || track.audio_url,
     coverUrl: getCdnUrl(track.coverUrl) || track.coverUrl,
     cover_url: getCdnUrl(track.cover_url) || track.cover_url,
+    coverVideoUrl: getCdnUrl(track.coverVideoUrl) || track.coverVideoUrl,
+    cover_video_url: getCdnUrl(track.cover_video_url) || track.cover_video_url,
+    coverVideoPosterUrl: getCdnUrl(track.coverVideoPosterUrl) || track.coverVideoPosterUrl,
+    cover_video_poster_url: getCdnUrl(track.cover_video_poster_url) || track.cover_video_poster_url,
     artist: track.artist ? {
       ...track.artist,
       avatar: getCdnUrl(track.artist.avatar) || track.artist.avatar,

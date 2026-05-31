@@ -3,6 +3,21 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabase } from '@/lib/supabase';
 
+const TRACK_REF_RE = /<!--\s*synaura-track:([^>\s]+)\s*-->/i;
+
+function withTrackRef(content: string, trackId?: string | null) {
+  const clean = content.replace(TRACK_REF_RE, '').trim();
+  return trackId ? `${clean}\n\n<!--synaura-track:${trackId}-->` : clean;
+}
+
+function stripTrackRef(content?: string | null) {
+  return String(content || '').replace(TRACK_REF_RE, '').trim();
+}
+
+function getPostTrackId(post: any) {
+  return post?.track_id || String(post?.content || '').match(TRACK_REF_RE)?.[1] || null;
+}
+
 function normalizeAttachedTrack(track: any) {
   if (!track) return null;
   const profile = Array.isArray(track.profiles) ? track.profiles[0] : track.profiles;
@@ -30,8 +45,9 @@ function normalizeAttachedTrack(track: any) {
 }
 
 async function attachTracks(posts: any[]) {
-  const trackIds = Array.from(new Set((posts || []).map((post) => post.track_id).filter(Boolean)));
-  if (!trackIds.length) return posts || [];
+  const normalizedPosts = (posts || []).map((post) => ({ ...post, content: stripTrackRef(post.content), _attached_track_id: getPostTrackId(post) }));
+  const trackIds = Array.from(new Set(normalizedPosts.map((post) => post._attached_track_id).filter(Boolean)));
+  if (!trackIds.length) return normalizedPosts;
 
   let { data: tracks, error } = await supabase
     .from('tracks')
@@ -65,7 +81,7 @@ async function attachTracks(posts: any[]) {
   }
 
   const tracksById = new Map((tracks || []).map((track: any) => [track.id, normalizeAttachedTrack(track)]));
-  return (posts || []).map((post) => ({
+  return normalizedPosts.map((post) => ({
     ...post,
     author: post.author || post.profiles
       ? {
@@ -75,7 +91,9 @@ async function attachTracks(posts: any[]) {
           avatar: (post.author || post.profiles).avatar,
         }
       : undefined,
-    track: post.track_id ? tracksById.get(post.track_id) || null : null,
+    track_id: post.track_id || post._attached_track_id || null,
+    track: post._attached_track_id ? tracksById.get(post._attached_track_id) || null : null,
+    _attached_track_id: undefined,
   }));
 }
 
@@ -322,15 +340,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Catégorie invalide' }, { status: 400 });
     }
 
+    const requestedTrackId = typeof body.track_id === 'string' && body.track_id.trim() ? body.track_id.trim() : null;
     const insertPayload: any = {
       user_id: session.user.id,
       title: title.trim(),
-      content: content.trim(),
+      content: withTrackRef(content.trim(), requestedTrackId),
       category,
       tags: tags || []
     };
-    if (typeof body.track_id === 'string' && body.track_id.trim()) {
-      insertPayload.track_id = body.track_id.trim();
+    if (requestedTrackId) {
+      insertPayload.track_id = requestedTrackId;
     }
 
     const { post, error } = await insertForumPost(insertPayload);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Music2 } from 'lucide-react';
 
 const FALLBACK_GRADIENTS: [string, string][] = [
@@ -26,6 +26,7 @@ interface TrackCoverProps {
   videoSrc?: string | null;
   posterSrc?: string | null;
   autoPlayVideo?: boolean;
+  playOnHover?: boolean;
   alt?: string;
   title?: string;
   className?: string;
@@ -39,7 +40,8 @@ export default function TrackCover({
   src,
   videoSrc,
   posterSrc,
-  autoPlayVideo = true,
+  autoPlayVideo = false,
+  playOnHover = true,
   alt,
   title,
   className = '',
@@ -50,11 +52,31 @@ export default function TrackCover({
 }: TrackCoverProps) {
   const [errored, setErrored] = useState(false);
   const [videoErrored, setVideoErrored] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [from, to] = getGradient(title);
   const imageSrc = src || posterSrc || null;
   const showVideo = Boolean(videoSrc && !videoErrored);
   const showPlaceholder = !showVideo && (!imageSrc || errored);
   const letter = (title || alt || '?')[0]?.toUpperCase() ?? '♪';
+
+  useEffect(() => {
+    setVideoErrored(false);
+  }, [videoSrc]);
+
+  const playVideo = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.play().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!showVideo) return;
+    if (autoPlayVideo) playVideo();
+    else videoRef.current?.pause();
+  }, [showVideo, autoPlayVideo, videoSrc, playVideo]);
 
   if (showPlaceholder) {
     return (
@@ -84,6 +106,7 @@ export default function TrackCover({
   if (showVideo) {
     return (
       <video
+        ref={videoRef}
         src={videoSrc!}
         poster={posterSrc || src || undefined}
         className={`${rounded} ${className}`}
@@ -97,7 +120,19 @@ export default function TrackCover({
         loop
         playsInline
         autoPlay={autoPlayVideo}
-        preload="metadata"
+        preload={autoPlayVideo ? 'auto' : 'metadata'}
+        onLoadedMetadata={() => {
+          if (autoPlayVideo) playVideo();
+        }}
+        onMouseEnter={() => {
+          if (playOnHover) playVideo();
+        }}
+        onTouchStart={() => {
+          if (playOnHover) playVideo();
+        }}
+        onMouseLeave={() => {
+          if (!autoPlayVideo) videoRef.current?.pause();
+        }}
         onError={() => setVideoErrored(true)}
         aria-label={alt || title || 'Cover video'}
       />

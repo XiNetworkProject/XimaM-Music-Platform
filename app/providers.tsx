@@ -35,6 +35,8 @@ interface Track {
   };
   audioUrl: string;
   coverUrl?: string;
+  coverVideoUrl?: string | null;
+  coverVideoPosterUrl?: string | null;
   duration: number;
   likes: string[];
   comments: string[];

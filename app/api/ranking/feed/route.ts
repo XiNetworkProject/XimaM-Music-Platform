@@ -55,6 +55,34 @@ function diversifyConsecutiveArtists(tracks: any[], maxConsecutive = 3): any[] {
   return result;
 }
 
+function readJsonObject(value: any): Record<string, any> {
+  if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string') return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalTrackVideoMeta(track: any) {
+  const data = readJsonObject(track?.data);
+  return {
+    coverVideoUrl: track?.cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
+    coverVideoPosterUrl: track?.cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || track?.cover_url || null,
+  };
+}
+
+function aiTrackVideoMeta(track: any) {
+  const sourceLinks = readJsonObject(track?.source_links);
+  return {
+    coverVideoUrl: track?.cover_video_url || sourceLinks.cover_video_url || sourceLinks.coverVideoUrl || null,
+    coverVideoPosterUrl: track?.cover_video_poster_url || sourceLinks.cover_video_poster_url || sourceLinks.coverVideoPosterUrl || track?.image_url || null,
+  };
+}
+
 async function applyGlobalTrendingScores(tracks: any[], now: number) {
   if (!tracks.length) return tracks;
   const ids = tracks.map((track: any) => String(track._id || '')).filter((id: string) => id && !id.startsWith('ai-'));
@@ -151,7 +179,7 @@ export async function GET(request: NextRequest) {
         const { data: recentTracks, error: recentErr } = await supabaseAdmin
           .from('tracks')
           .select(`
-            id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, plays, album,
+            *,
             profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
           `)
           .eq('is_public', true)
@@ -173,6 +201,7 @@ export async function GET(request: NextRequest) {
               },
               duration: t.duration || 0,
               coverUrl: t.cover_url,
+              ...normalTrackVideoMeta(t),
               audioUrl: t.audio_url,
               album: t.album || null,
               genre: t.genre || [],
@@ -191,7 +220,7 @@ export async function GET(request: NextRequest) {
           const { data: recentAI, error: recentAIErr } = await supabaseAdmin
             .from('ai_tracks')
             .select(`
-              id, title, created_at, image_url, audio_url, duration, tags, play_count, is_public,
+              *,
               generation:ai_generations!inner (
                 user_id, is_public, status
               )
@@ -237,6 +266,7 @@ export async function GET(request: NextRequest) {
                 },
                 duration: t.duration || 0,
                 coverUrl: t.image_url || '/default-cover.svg',
+                ...aiTrackVideoMeta(t),
                 audioUrl: t.audio_url,
                 genre: Array.isArray(t.tags) ? t.tags : [],
                 likes: [],
@@ -304,7 +334,7 @@ export async function GET(request: NextRequest) {
           const { data } = await supabaseAdmin
             .from('tracks')
             .select(`
-              id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, plays, album,
+              *,
               profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
             `)
             .in('id', normalIds)
@@ -317,7 +347,7 @@ export async function GET(request: NextRequest) {
           const { data } = await supabaseAdmin
             .from('ai_tracks')
             .select(`
-              id, title, created_at, image_url, audio_url, duration, tags, play_count, is_public,
+              *,
               generation:ai_generations!inner (
                 user_id, is_public, status
               )
@@ -372,6 +402,7 @@ export async function GET(request: NextRequest) {
             },
             duration: t.duration || 0,
             coverUrl: t.cover_url,
+            ...normalTrackVideoMeta(t),
             audioUrl: t.audio_url,
             album: t.album || null,
             genre: t.genre || [],
@@ -408,6 +439,7 @@ export async function GET(request: NextRequest) {
             },
             duration: t.duration || 0,
             coverUrl: t.image_url || '/default-cover.svg',
+            ...aiTrackVideoMeta(t),
             audioUrl: t.audio_url,
             genre: Array.isArray(t.tags) ? t.tags : [],
             likes: [],
@@ -453,7 +485,7 @@ export async function GET(request: NextRequest) {
         if (!combined.length) {
           const { data: recentTracks } = await supabaseAdmin
             .from('tracks')
-            .select('id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre')
+            .select('*')
             .eq('is_public', true)
             .order('created_at', { ascending: false })
             .limit(limit);
@@ -463,6 +495,7 @@ export async function GET(request: NextRequest) {
             artist: { _id: t.creator_id, username: '', name: '', avatar: '', isArtist: false, artistName: '' },
             duration: t.duration || 0,
             coverUrl: t.cover_url,
+            ...normalTrackVideoMeta(t),
             audioUrl: t.audio_url,
             genre: t.genre || [],
             likes: [], plays: 0, createdAt: t.created_at, isFeatured: false, isVerified: false, rankingScore: 0, isAI: false,
@@ -488,7 +521,7 @@ export async function GET(request: NextRequest) {
       const { data, error } = await supabaseAdmin
         .from('tracks')
         .select(`
-          id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, lyrics, plays, album,
+          *,
           profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
         `)
         .in('id', normalIds);
@@ -507,7 +540,7 @@ export async function GET(request: NextRequest) {
         const { data, error } = await supabaseAdmin
           .from('ai_tracks')
           .select(`
-            id, title, created_at, image_url, audio_url, duration, tags, play_count, is_public,
+            *,
             generation:ai_generations!inner (
               user_id, is_public, status
             )
@@ -614,6 +647,7 @@ export async function GET(request: NextRequest) {
         },
         duration: t.duration || 0,
         coverUrl: t.cover_url,
+        ...normalTrackVideoMeta(t),
         audioUrl: t.audio_url,
         album: t.album || null,
         genre: t.genre || [],
@@ -854,6 +888,7 @@ export async function GET(request: NextRequest) {
         duration: t.duration || 0,
         isLiked: false,
         coverUrl: t.image_url || '/default-cover.svg',
+        ...aiTrackVideoMeta(t),
         audioUrl: t.audio_url,
         genre: Array.isArray(t.tags) ? t.tags : [],
         likes: [],
@@ -875,7 +910,7 @@ export async function GET(request: NextRequest) {
       const { data: freshTracks } = await supabaseAdmin
         .from('tracks')
         .select(`
-          id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, lyrics, plays, album,
+          *,
           profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
         `)
         .eq('is_public', true)
@@ -901,6 +936,7 @@ export async function GET(request: NextRequest) {
             },
             duration: track.duration || 0,
             coverUrl: track.cover_url,
+            ...normalTrackVideoMeta(track),
             audioUrl: track.audio_url,
             album: track.album || null,
             genre: track.genre || [],

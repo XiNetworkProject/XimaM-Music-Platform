@@ -11,6 +11,7 @@ import {
   Link as LinkIcon,
   Loader2,
   Music2,
+  Play,
   Search,
   Send,
   Sparkles,
@@ -20,7 +21,9 @@ import {
   Zap,
 } from 'lucide-react';
 import { notify } from '@/components/NotificationCenter';
+import { useAudioPlayer } from '@/app/providers';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import TrackCover from '@/components/TrackCover';
 import { suggestTags } from '@/lib/postCategorization';
 
 type PostCategory = 'feedback' | 'collab' | 'remix' | 'prompts' | 'weekly-top';
@@ -29,6 +32,8 @@ type UserTrack = {
   id: string;
   title: string;
   coverUrl?: string | null;
+  coverVideoUrl?: string | null;
+  coverVideoPosterUrl?: string | null;
   audioUrl?: string | null;
   duration?: number | null;
 };
@@ -52,6 +57,8 @@ function normalizeTrack(track: any): UserTrack | null {
     id,
     title: String(track?.title || 'Son sans titre'),
     coverUrl: track?.coverUrl || track?.cover_url || null,
+    coverVideoUrl: track?.coverVideoUrl || track?.cover_video_url || null,
+    coverVideoPosterUrl: track?.coverVideoPosterUrl || track?.cover_video_poster_url || null,
     audioUrl: track?.audioUrl || track?.audio_url || null,
     duration: track?.duration || null,
   };
@@ -61,6 +68,7 @@ function NewCommunityPostContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
+  const { setQueueAndPlay } = useAudioPlayer();
   const initialCategory = categoryMeta(searchParams.get('category'));
   const initialTrackId = searchParams.get('trackId') || searchParams.get('sourceTrack') || '';
   const [category, setCategory] = useState<PostCategory>(initialCategory.id);
@@ -81,6 +89,31 @@ function NewCommunityPostContent() {
     return tracks.filter((track) => track.title.toLowerCase().includes(q));
   }, [trackSearch, tracks]);
 
+  const playAttachedTrack = (track: UserTrack) => {
+    if (!track.audioUrl) {
+      notify.info('Son indisponible', "Ce son n'a pas d'audio lisible.");
+      return;
+    }
+    setQueueAndPlay([{
+      _id: track.id,
+      title: track.title,
+      artist: {
+        _id: (session?.user as any)?.id || '',
+        name: (session?.user as any)?.name || (session?.user as any)?.username || 'Artiste',
+        username: (session?.user as any)?.username || '',
+      },
+      audioUrl: track.audioUrl,
+      coverUrl: track.coverUrl || '/default-cover.svg',
+      coverVideoUrl: track.coverVideoUrl || null,
+      coverVideoPosterUrl: track.coverVideoPosterUrl || track.coverUrl || null,
+      duration: track.duration || 0,
+      likes: [],
+      comments: [],
+      plays: 0,
+      genre: [],
+    } as any], 0);
+  };
+
   useEffect(() => {
     const loadTracks = async () => {
       if (status === 'loading' || !session?.user) return;
@@ -93,7 +126,19 @@ function NewCommunityPostContent() {
           .filter(Boolean) as UserTrack[];
         setTracks(list);
         if (initialTrackId && !selectedTrack) {
-          setSelectedTrack(list.find((track) => track.id === initialTrackId) || { id: initialTrackId, title: searchParams.get('title') || 'Son attaché' });
+          const localTrack = list.find((track) => track.id === initialTrackId);
+          if (localTrack) {
+            setSelectedTrack(localTrack);
+          } else {
+            try {
+              const trackResponse = await fetch(`/api/tracks/${encodeURIComponent(initialTrackId)}`, { cache: 'no-store' });
+              const trackPayload = await trackResponse.json().catch(() => ({}));
+              const normalized = normalizeTrack(trackPayload);
+              setSelectedTrack(normalized || { id: initialTrackId, title: searchParams.get('title') || 'Son attaché' });
+            } catch {
+              setSelectedTrack({ id: initialTrackId, title: searchParams.get('title') || 'Son attaché' });
+            }
+          }
         }
       } catch {
         notify.error('Sons', 'Impossible de charger tes sons.');
@@ -237,6 +282,47 @@ function NewCommunityPostContent() {
                   </button>
                 ) : null}
               </div>
+              {selectedTrack ? (
+                <div className="mb-3 overflow-hidden rounded-[1.25rem] border border-black/[0.08] bg-[#171313] text-white shadow-[0_16px_44px_rgba(23,19,19,0.16)]">
+                  <div className="relative flex min-w-0 items-center gap-3 p-3">
+                    <div className="absolute inset-0 opacity-20">
+                      <TrackCover
+                        src={selectedTrack.coverUrl || null}
+                        videoSrc={selectedTrack.coverVideoUrl || null}
+                        posterSrc={selectedTrack.coverVideoPosterUrl || selectedTrack.coverUrl || null}
+                        title={selectedTrack.title}
+                        className="h-full w-full scale-125 blur-xl"
+                        rounded="rounded-none"
+                        objectFit="cover"
+                      />
+                    </div>
+                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[1rem] bg-white/10">
+                      <TrackCover
+                        src={selectedTrack.coverUrl || null}
+                        videoSrc={selectedTrack.coverVideoUrl || null}
+                        posterSrc={selectedTrack.coverVideoPosterUrl || selectedTrack.coverUrl || null}
+                        title={selectedTrack.title}
+                        className="h-full w-full"
+                        rounded="rounded-none"
+                        objectFit="cover"
+                      />
+                    </div>
+                    <div className="relative min-w-0 flex-1">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/44">Ce son sera visible dans le post</p>
+                      <p className="mt-1 truncate text-base font-black">{selectedTrack.title}</p>
+                      <p className="mt-0.5 text-xs font-semibold text-white/44">{selectedTrack.audioUrl ? 'Lisible par la communauté' : 'Audio non disponible'}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => playAttachedTrack(selectedTrack)}
+                      className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#fffaf2] text-[#171313]"
+                      aria-label="Écouter le son attaché"
+                    >
+                      <Play className="ml-0.5 h-4 w-4 fill-current" />
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/26" />
                 <input
@@ -263,11 +349,19 @@ function NewCommunityPostContent() {
                       }`}
                     >
                       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-[0.85rem] bg-black/[0.08]">
-                        {track.coverUrl ? <img src={track.coverUrl} alt="" className="h-full w-full object-cover" /> : null}
+                        <TrackCover
+                          src={track.coverUrl || null}
+                          videoSrc={track.coverVideoUrl || null}
+                          posterSrc={track.coverVideoPosterUrl || track.coverUrl || null}
+                          title={track.title}
+                          className="h-full w-full"
+                          rounded="rounded-none"
+                          objectFit="cover"
+                        />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-black">{track.title}</p>
-                        <p className={`text-[11px] font-semibold ${active ? 'text-white/46' : 'text-black/38'}`}>Attaché au post</p>
+                        <p className={`text-[11px] font-semibold ${active ? 'text-white/46' : 'text-black/38'}`}>{active ? 'Attaché au post' : 'Cliquer pour attacher'}</p>
                       </div>
                       {active ? <Check className="h-4 w-4" /> : null}
                     </button>
