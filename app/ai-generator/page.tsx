@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { notify } from '@/components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Music, Mic, Settings, Play, Pause, SkipBack, SkipForward, Zap, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Check, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Repeat, Search, SlidersHorizontal, Wand2, ListMusic, Command, Terminal, FolderOpen, History, Library, Clock3, Send, Layers, Upload } from 'lucide-react';
+import { Sparkles, Music, Mic, Settings, Play, Pause, SkipBack, SkipForward, Zap, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Check, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Repeat, Search, SlidersHorizontal, Wand2, ListMusic, Command, Terminal, FolderOpen, History, Library, Clock3, Send, Layers, Upload, Trash2 } from 'lucide-react';
 import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { fetchCreditsBalance } from '@/lib/credits';
 import { ACTION_COSTS, CREDITS_PER_GENERATION } from '@/lib/billing/pricing';
@@ -2121,6 +2121,58 @@ function AIGeneratorContent() {
     pushLog('info', 'Source remix désélectionnée');
   };
 
+  const clearTitleSection = () => {
+    setTitle('');
+    pushLog('info', 'Section titre videe');
+  };
+
+  const clearPromptSection = () => {
+    setDescription('');
+    setSelectedTags([]);
+    pushLog('info', 'Section prompt videe');
+  };
+
+  const clearStyleSection = () => {
+    setStyle('');
+    setSelectedTags([]);
+    setRemixFile(null);
+    setRemixUploadUrl(null);
+    setRemixSourceDurationSec(undefined);
+    setRemixSourceLabel(null);
+    setRemixSourceTrackId(null);
+    setSourceContext(null);
+    pushLog('info', 'Section style videe');
+  };
+
+  const clearLyricsSection = () => {
+    setLyrics('');
+    setIsInstrumental(false);
+    setTimestampedWords([]);
+    setTimestampedWaveform([]);
+    setTimestampedError(null);
+    pushLog('info', 'Section paroles videe');
+  };
+
+  const clearAdvancedSection = () => {
+    setWeirdness(50);
+    setStyleInfluence(50);
+    setAudioWeight(50);
+    setVocalGender('');
+    setNegativeTags('');
+    pushLog('info', 'Options avancees reinitialisees');
+  };
+
+  const clearResultsSection = () => {
+    setGeneratedTracks([]);
+    setGeneratedTrack(null);
+    setSelectedTrack(null);
+    setGenerationStatus('idle');
+    setCurrentTaskId(null);
+    setSunoState('idle');
+    setSunoError(null);
+    pushLog('info', 'Section resultats videe');
+  };
+
   const performRemixUpload = useCallback(async (file: File, uploadTitle: string) => {
     setRemixUploading(true);
     setUploadingRemixTitle(uploadTitle);
@@ -3480,7 +3532,18 @@ function AIGeneratorContent() {
             <div className="space-y-4 p-4">
               {generationModeKind === 'simple' ? (
                 <label className="block">
-                  <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Prompt principal</span>
+                  <span className="mb-2 flex items-center justify-between gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">
+                    Prompt principal
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); clearPromptSection(); }}
+                      aria-label="Supprimer le prompt principal"
+                      title="Vider le prompt"
+                      className="rounded-full p-1.5 text-[#8b7868] transition hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
@@ -3492,7 +3555,18 @@ function AIGeneratorContent() {
               ) : (
                 <div className="space-y-3">
                   <label className="block">
-                    <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Titre</span>
+                    <span className="mb-2 flex items-center justify-between gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">
+                      Titre
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); clearTitleSection(); }}
+                        aria-label="Supprimer le titre"
+                        title="Vider le titre"
+                        className="rounded-full p-1.5 text-[#8b7868] transition hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
                     <input
                       type="text"
                       value={title}
@@ -3503,7 +3577,18 @@ function AIGeneratorContent() {
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Direction musicale</span>
+                    <span className="mb-2 flex items-center justify-between gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">
+                      Direction musicale
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); clearStyleSection(); }}
+                        aria-label="Supprimer la direction musicale"
+                        title="Vider la direction musicale"
+                        className="rounded-full p-1.5 text-[#8b7868] transition hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
                     <textarea
                       value={style}
                       onChange={(e) => setStyle(e.target.value)}
@@ -3513,7 +3598,18 @@ function AIGeneratorContent() {
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Paroles</span>
+                    <span className="mb-2 flex items-center justify-between gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">
+                      Paroles
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); clearLyricsSection(); }}
+                        aria-label="Supprimer les paroles"
+                        title="Vider les paroles"
+                        className="rounded-full p-1.5 text-[#8b7868] transition hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
                     <textarea
                       value={lyrics}
                       onChange={(e) => setLyrics(e.target.value)}
@@ -3600,7 +3696,18 @@ function AIGeneratorContent() {
               <div className="rounded-[1.25rem] border border-black/[0.07] bg-white p-3">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Couleurs sonores</p>
-                  <span className="text-[11px] font-black text-[#171313]">{selectedTags.length} tags</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-black text-[#171313]">{selectedTags.length} tags</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTags([])}
+                      aria-label="Supprimer les couleurs sonores"
+                      title="Vider les tags"
+                      className="rounded-full p-1.5 text-[#8b7868] transition hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {studioTagSuggestions.map((tag) => {
@@ -3624,7 +3731,18 @@ function AIGeneratorContent() {
               <div className="rounded-[1.25rem] border border-black/[0.07] bg-white p-3">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Reglages</p>
-                  <span className="text-[11px] font-black text-[#171313]">{studioModelLabel}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-black text-[#171313]">{studioModelLabel}</span>
+                    <button
+                      type="button"
+                      onClick={clearAdvancedSection}
+                      aria-label="Supprimer les reglages"
+                      title="Reinitialiser les reglages"
+                      className="rounded-full p-1.5 text-[#8b7868] transition hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {(['V4_5', 'V4_5PLUS', 'V5', 'V5_5'] as const).map((model) => (
@@ -4524,6 +4642,17 @@ function AIGeneratorContent() {
                     isOpen={openProjectSection}
                     onToggle={() => setOpenProjectSection((v) => !v)}
                     variant="bare"
+                    rightActions={
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); clearTitleSection(); }}
+                        aria-label="Supprimer la section titre"
+                        title="Vider le titre"
+                        className="rounded-lg p-1.5 text-white/50 hover:bg-red-500/10 hover:text-red-200 transition"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    }
                   >
                     <input
                       type="text"
@@ -4545,12 +4674,12 @@ function AIGeneratorContent() {
                     rightActions={
                       <button
                         type="button"
-                        onClick={(e) => { e.preventDefault(); setStyle(''); }}
-                        aria-label="Effacer le style"
-                        title="Effacer"
-                        className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white transition"
+                        onClick={(e) => { e.preventDefault(); clearStyleSection(); }}
+                        aria-label="Supprimer la section style"
+                        title="Vider le style"
+                        className="rounded-lg p-1.5 text-white/50 hover:bg-red-500/10 hover:text-red-200 transition"
                       >
-                        <X className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     }
                   >
@@ -4692,8 +4821,8 @@ function AIGeneratorContent() {
                     onToggle={() => setOpenLyricsSection((v) => !v)}
                     variant="bare"
                     rightActions={
-                      <button type="button" onClick={(e) => { e.preventDefault(); setLyrics(''); }} aria-label="Effacer" title="Effacer" className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white transition">
-                        <X className="w-4 h-4" />
+                      <button type="button" onClick={(e) => { e.preventDefault(); clearLyricsSection(); }} aria-label="Supprimer la section paroles" title="Vider les paroles" className="rounded-lg p-1.5 text-white/50 hover:bg-red-500/10 hover:text-red-200 transition">
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     }
                   >
@@ -4724,6 +4853,17 @@ function AIGeneratorContent() {
                     isOpen={openAdvancedSection}
                     onToggle={() => setOpenAdvancedSection((v) => !v)}
                     variant="bare"
+                    rightActions={
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); clearAdvancedSection(); }}
+                        aria-label="Supprimer la section options avancees"
+                        title="Reinitialiser les options avancees"
+                        className="rounded-lg p-1.5 text-white/50 hover:bg-red-500/10 hover:text-red-200 transition"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    }
                   >
                     <div className="space-y-3">
                       <SunoSlider
@@ -4783,6 +4923,17 @@ function AIGeneratorContent() {
                       isOpen={openResultsSection}
                       onToggle={() => setOpenResultsSection((v) => !v)}
                       variant="bare"
+                      rightActions={
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); clearResultsSection(); }}
+                          aria-label="Supprimer la section resultats"
+                          title="Vider les resultats"
+                          className="rounded-lg p-1.5 text-white/50 hover:bg-red-500/10 hover:text-red-200 transition"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      }
                     >
                       <GenerationTimeline
                         generatedTracks={generatedTracks}
@@ -4809,10 +4960,21 @@ function AIGeneratorContent() {
                 /* Mode Simple : description seule */
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
                   <div>
-                    <h2 className="text-xs font-semibold text-white/90 mb-0.5 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400/80" />
-                      Description
-                    </h2>
+                    <div className="mb-0.5 flex items-center justify-between gap-2">
+                      <h2 className="text-xs font-semibold text-white/90 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400/80" />
+                        Description
+                      </h2>
+                      <button
+                        type="button"
+                        onClick={clearPromptSection}
+                        aria-label="Supprimer la section description"
+                        title="Vider la description"
+                        className="rounded-lg p-1.5 text-white/50 hover:bg-red-500/10 hover:text-red-200 transition"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                     <p className="text-[10px] text-white/50 mb-2">Décris l’ambiance, l’IA génère titre et paroles.</p>
                     <label className="block text-[10px] font-medium mb-1 text-white/60">Description de la chanson</label>
                     <textarea
@@ -5254,6 +5416,15 @@ function AIGeneratorContent() {
                       <div className="mb-2.5 flex items-center justify-between">
                         <div className="text-[13px] font-semibold text-white/90">Prompt</div>
                         <div className="inline-flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={customMode ? clearStyleSection : clearPromptSection}
+                            aria-label="Supprimer la section prompt"
+                            title="Vider le prompt"
+                            className="rounded-lg p-1.5 text-white/45 hover:bg-red-500/10 hover:text-red-200 transition"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300/80 border border-indigo-500/20">
                             {modelVersion === 'V5_5' ? 'v5.5' : modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
                           </span>
@@ -5354,7 +5525,18 @@ function AIGeneratorContent() {
                     <div className="flex h-[300px] w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-3.5 sm:h-[420px]">
                       <div className="mb-2.5 flex shrink-0 items-center justify-between">
                         <div className="text-[13px] font-semibold text-white/90">Lyrics</div>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isInstrumental ? 'bg-emerald-500/10 text-emerald-300/80 border-emerald-500/20' : 'bg-violet-500/10 text-violet-300/80 border-violet-500/20'}`}>{isInstrumental ? 'Instrumental' : 'Voix'}</span>
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={clearLyricsSection}
+                            aria-label="Supprimer la section lyrics"
+                            title="Vider les lyrics"
+                            className="rounded-lg p-1.5 text-white/45 hover:bg-red-500/10 hover:text-red-200 transition"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isInstrumental ? 'bg-emerald-500/10 text-emerald-300/80 border-emerald-500/20' : 'bg-violet-500/10 text-violet-300/80 border-violet-500/20'}`}>{isInstrumental ? 'Instrumental' : 'Voix'}</span>
+                        </div>
                       </div>
                       <div className="min-h-0 flex-1 overflow-y-auto">
                         <textarea

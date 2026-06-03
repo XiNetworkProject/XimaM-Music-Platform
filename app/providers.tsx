@@ -5,7 +5,9 @@ import { SessionProvider } from 'next-auth/react';
 import { Toaster } from 'react-hot-toast';
 import dynamic from 'next/dynamic';
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { useCapacitorMediaSession, type MediaTrack as MSMediaTrack } from '@/hooks/useCapacitorMediaSession';
+import { useMediaSession } from '@/hooks/useMediaSession';
 import { toArtworkList } from '@/lib/mediaArtwork';
 import { useSession } from 'next-auth/react';
 import { useAudioService } from '@/hooks/useAudioService';
@@ -564,24 +566,35 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [audioService.state.currentTrack, audioService.state.duration]);
 
   // Media Session unifiée : Web (navigator.mediaSession) + Android/iOS natif via @jofr/capacitor-media-session
-  useCapacitorMediaSession(
-    (audioService as any).audioElement ?? null,
-    mediaSessionTrack,
-    {
-      play: () => audioService.actions.play(),
-      pause: () => audioService.actions.pause(),
-      next: () => audioService.actions.nextTrack(),
-      prev: () => audioService.actions.previousTrack(),
-      seekTo: (s: number) => audioService.actions.seek(s),
-      seekBy: (offset: number) => {
-        const a = (audioService as any).audioElement as HTMLAudioElement | null;
-        if (!a) return;
-        const duration = Number.isFinite(a.duration) ? a.duration : a.currentTime + offset;
-        const target = Math.max(0, Math.min(duration, a.currentTime + offset));
-        audioService.actions.seek(target);
-      },
-      stop: () => audioService.actions.stop(),
+  const audioElement = ((audioService as any).audioElement ?? null) as HTMLAudioElement | null;
+  const isNativeRuntime = Capacitor.isNativePlatform();
+  const mediaControls = useMemo(() => ({
+    play: () => audioService.actions.play(),
+    pause: () => audioService.actions.pause(),
+    next: () => audioService.actions.nextTrack(),
+    prev: () => audioService.actions.previousTrack(),
+    seekTo: (s: number) => audioService.actions.seek(s),
+    seekBy: (offset: number) => {
+      const a = audioElement;
+      if (!a) return;
+      const duration = Number.isFinite(a.duration) ? a.duration : a.currentTime + offset;
+      const target = Math.max(0, Math.min(duration, a.currentTime + offset));
+      audioService.actions.seek(target);
     },
+    stop: () => audioService.actions.stop(),
+  }), [audioElement, audioService.actions]);
+
+  useMediaSession({
+    audioEl: isNativeRuntime ? null : audioElement,
+    track: isNativeRuntime ? null : mediaSessionTrack,
+    controls: mediaControls,
+    isPlaying: !!audioService.state.isPlaying,
+  });
+
+  useCapacitorMediaSession(
+    isNativeRuntime ? audioElement : null,
+    isNativeRuntime ? mediaSessionTrack : null,
+    mediaControls,
     !!audioService.state.isPlaying
   );
 

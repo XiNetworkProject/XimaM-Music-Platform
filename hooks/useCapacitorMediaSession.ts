@@ -44,6 +44,7 @@ export function useCapacitorMediaSession(
   controls: Controls,
   isPlaying: boolean
 ) {
+  const isNative = Capacitor.isNativePlatform();
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
 
@@ -56,6 +57,7 @@ export function useCapacitorMediaSession(
   // 1+2) Métadonnées PUIS état de lecture dans le même effet pour garantir l’ordre côté plugin Android
   // (le service démarre sur setPlaybackState('playing') et lit immédiatement title/artist/album)
   useEffect(() => {
+    if (!isNative) return;
     const run = async () => {
       if (!track) {
         if (Capacitor.isNativePlatform()) {
@@ -80,10 +82,11 @@ export function useCapacitorMediaSession(
       }).catch((e) => console.warn('MediaSession.setPlaybackState', e));
     };
     run();
-  }, [track?.id, track?.title, track?.artist, track?.album, JSON.stringify(track?.artwork), isPlaying]);
+  }, [isNative, track?.id, track?.title, track?.artist, track?.album, JSON.stringify(track?.artwork), isPlaying]);
 
   // 3) Handlers : play / pause / next / prev (et seek/stop si tu les veux)
   useEffect(() => {
+    if (!isNative) return;
     const c = () => controlsRef.current;
 
     MediaSession.setActionHandler({ action: 'play' }, () => {
@@ -128,10 +131,11 @@ export function useCapacitorMediaSession(
       MediaSession.setActionHandler({ action: 'seekforward' }, null).catch(() => {});
       MediaSession.setActionHandler({ action: 'stop' }, null).catch(() => {});
     };
-  }, []);
+  }, [isNative]);
 
   // 4) Position / durée (optionnel mais bien pour la barre de progression)
   useEffect(() => {
+    if (!isNative) return;
     if (!audioEl || !track) return;
 
     const update = () => {
@@ -153,5 +157,5 @@ export function useCapacitorMediaSession(
     events.forEach((ev) => audioEl.addEventListener(ev, update));
     update();
     return () => events.forEach((ev) => audioEl.removeEventListener(ev, update));
-  }, [audioEl, track?.id]);
+  }, [isNative, audioEl, track?.id]);
 }
