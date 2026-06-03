@@ -31,10 +31,8 @@ import { SunoAccordionSection } from '@/components/ui/SunoAccordionSection';
 import { SunoSlider } from '@/components/ui/SunoSlider';
 import { SynauraWaveform } from '@/components/audio/SynauraWaveform';
 import {
-  SynauraAnnouncementStrip,
   SynauraAppShell,
   SynauraInkPanel,
-  SynauraRouteNav,
   SynauraTopBar,
 } from '@/components/synaura/SynauraShell';
 
@@ -65,6 +63,10 @@ type TimestampedWord = {
 };
 
 const makeId = () => Math.random().toString(36).slice(2, 10);
+
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(' ');
+}
 
 type StudioLibraryItem = {
   id: string;
@@ -412,7 +414,8 @@ function AIGeneratorContent() {
   const [openResultsSection, setOpenResultsSection] = useState(true);
 
   // Onglet mobile : Créer | Bibliothèque
-  const [mobileTab, setMobileTab] = useState<'generate' | 'library'>('generate');
+  const [mobileTab, setMobileTab] = useState<'generate' | 'library'>('library');
+  const [mobileCreateOpen, setMobileCreateOpen] = useState(false);
   const [shellMode, setShellMode] = useState<'ide' | 'classic'>('ide');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -513,6 +516,7 @@ function AIGeneratorContent() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [leftPx, setLeftPx] = useState(460);
   const [rightPx, setRightPx] = useState(360);
+  const [inspectorDismissed, setInspectorDismissed] = useState(false);
   const [isDesktopLayout, setIsDesktopLayout] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
@@ -1847,6 +1851,21 @@ function AIGeneratorContent() {
   };
 
   const handleApplyPreset = (preset: AIStudioPreset) => {
+    if (activePresetId === preset.id) {
+      setActivePresetId(null);
+      setTitle('');
+      setDescription('');
+      setStyle('');
+      setLyrics('');
+      setSelectedTags([]);
+      setIsInstrumental(false);
+      setWeirdness(50);
+      setStyleInfluence(50);
+      setAudioWeight(50);
+      pushLog('info', `Preset désélectionné: ${preset.label}`);
+      return;
+    }
+
     const d = preset.defaults;
 
     setActivePresetId(preset.id);
@@ -1859,7 +1878,7 @@ function AIGeneratorContent() {
     if (typeof d.styleInfluence === 'number') setStyleInfluence(d.styleInfluence);
     if (typeof d.audioWeight === 'number') setAudioWeight(d.audioWeight);
     if (d.tags && d.tags.length) setSelectedTags(d.tags);
-    pushLog('info', `Preset appliqué: ${(preset as any).name || preset.id}`);
+    pushLog('info', `Preset appliqué: ${preset.label}`);
   };
 
   const playGenerated = async (gt: GeneratedTrack) => {
@@ -3140,13 +3159,13 @@ function AIGeneratorContent() {
     }
     if (v.includes('preset')) {
       const byName = aiStudioPresets.find((p) => {
-        const name = String((p as any).name || p.id).toLowerCase();
+        const name = `${p.label} ${p.id}`.toLowerCase();
         return v.includes(name);
       });
       const picked = byName || aiStudioPresets[0];
       if (picked) {
         handleApplyPreset(picked);
-        pushLog('info', `Palette: apply preset ${(picked as any).name || picked.id}`);
+        pushLog('info', `Palette: apply preset ${picked.label}`);
       }
       setCmdOpen(false);
       return;
@@ -3194,7 +3213,6 @@ function AIGeneratorContent() {
           primaryHref="/ai-generator"
           primaryLabel="Studio"
         />
-        <SynauraRouteNav />
         <div className="flex min-h-[70vh] items-center justify-center">
           <div className="rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/88 px-8 py-10 text-center shadow-[0_20px_70px_rgba(20,15,10,0.12)]">
             <Music className="mx-auto mb-4 h-16 w-16 text-[#171313]" />
@@ -3231,21 +3249,61 @@ function AIGeneratorContent() {
       : generationModeKind === 'custom'
         ? 'Pose le titre, le style et les paroles exactement comme tu les veux.'
         : 'Choisis une source et donne une nouvelle direction au morceau.';
+  const studioInspectorTrack = selectedTrack ?? generatedTrack ?? null;
+  const studioInspectorKey = String((studioInspectorTrack as any)?.id || (studioInspectorTrack as any)?._id || '');
+  const showStudioInspector = Boolean(studioInspectorTrack) && !inspectorDismissed;
+  const studioGridTemplate = isDesktopLayout
+    ? showStudioInspector
+      ? `${leftPx}px 10px minmax(${CENTER_MIN}px, 1fr) 10px ${rightPx}px`
+      : `${leftPx}px 10px minmax(0, 1fr)`
+    : undefined;
+
+  useEffect(() => {
+    if (studioInspectorKey) setInspectorDismissed(false);
+  }, [studioInspectorKey]);
 
   return (
-    <SynauraAppShell contentClassName="max-w-[1700px]">
+    <SynauraAppShell contentClassName="max-w-[1700px] flex h-[100dvh] flex-col overflow-hidden !px-2 !py-1.5 !pb-0 sm:!pb-0 lg:!py-2">
       <SynauraTopBar
         searchLabel="Rechercher une inspiration, un son ou un createur..."
         secondaryHref="/upload"
         secondaryLabel="Upload"
         primaryHref="/ai-generator"
         primaryLabel="Studio"
+        compact
       />
-      <SynauraRouteNav />
-      <SynauraAnnouncementStrip />
+      <div className="flex min-h-0 flex-1 flex-col space-y-1.5 overflow-hidden pb-0 lg:space-y-2">
+        <section className="flex shrink-0 items-center justify-between gap-2 rounded-[1rem] border border-black/[0.08] bg-[radial-gradient(circle_at_12%_0%,rgba(255,111,97,0.24),transparent_34%),radial-gradient(circle_at_88%_12%,rgba(0,194,203,0.18),transparent_32%),linear-gradient(135deg,#211918_0%,#171313_48%,#0d1117_100%)] px-2.5 py-1.5 text-white shadow-[0_14px_38px_rgba(20,15,10,0.16)] lg:gap-3 lg:px-3 lg:py-2">
+          <div className="min-w-0 flex items-center gap-2">
+            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#171313]">Studio</span>
+            <span className="truncate text-xs font-black text-white/76">{studioStateLabel}</span>
+            <span className="hidden text-xs font-semibold text-white/42 xl:inline">{studioModeCopy}</span>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5 lg:gap-2">
+            <button
+              type="button"
+              onClick={() => setMobileCreateOpen(true)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white px-3 text-[11px] font-black text-[#171313] shadow-[0_10px_26px_rgba(255,255,255,0.10)] active:scale-95 lg:hidden"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-[#ff6f61]" />
+              Créer
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowBuyCredits(true)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.08] px-2.5 text-[11px] font-black text-white transition hover:bg-white/[0.14] sm:px-3"
+            >
+              <Coins className="h-3.5 w-3.5 text-[#ffd166]" />
+              <span className="hidden min-[380px]:inline">{creditsBalance} cr.</span>
+            </button>
+            <Link href="/ai-library" className="hidden h-8 items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.08] px-3 text-[11px] font-black text-white transition hover:bg-white/[0.14] sm:inline-flex">
+              <Library className="h-3.5 w-3.5" />
+              Bibliothèque
+            </Link>
+          </div>
+        </section>
 
-      <div className="space-y-4 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
-        <section className="relative overflow-hidden rounded-[1.35rem] border border-black/[0.08] bg-[#171313] p-3.5 text-white shadow-[0_28px_80px_rgba(20,15,10,0.22)] sm:rounded-[1.75rem] sm:p-5 lg:p-6">
+        <section className="hidden relative overflow-hidden rounded-[1.35rem] border border-black/[0.08] bg-[radial-gradient(circle_at_12%_0%,rgba(255,111,97,0.24),transparent_34%),radial-gradient(circle_at_88%_12%,rgba(0,194,203,0.18),transparent_32%),linear-gradient(135deg,#211918_0%,#171313_48%,#0d1117_100%)] p-3.5 text-white shadow-[0_28px_80px_rgba(20,15,10,0.22)] sm:rounded-[1.75rem] sm:p-5 lg:p-6">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_15%,rgba(255,111,97,0.28),transparent_34%),radial-gradient(circle_at_84%_18%,rgba(0,194,203,0.18),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_42%)]" />
           <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div className="min-w-0">
@@ -3293,7 +3351,7 @@ function AIGeneratorContent() {
           </div>
         </section>
 
-        <section className="synaura-no-scrollbar -mx-2 flex snap-x gap-3 overflow-x-auto px-2 pb-1 md:mx-0 md:grid md:grid-cols-3 md:px-0">
+        <section className="hidden synaura-no-scrollbar -mx-1 snap-x gap-1.5 overflow-x-auto px-1 md:mx-0 md:grid md:grid-cols-3 md:px-0 lg:gap-2">
           {[
             { label: 'Composer', detail: generationModeKind === 'simple' ? 'Idee libre' : generationModeKind === 'custom' ? 'Piece controlee' : 'Remix source', status: studioStateLabel, active: true },
             { label: 'Ecouter', detail: studioFocusTrack?.title || 'Aucun rendu', status: studioLibraryTracks.length ? `${studioLibraryTracks.length} piste(s)` : 'En attente', active: Boolean(studioFocusTrack) },
@@ -3302,30 +3360,59 @@ function AIGeneratorContent() {
             <div
               key={step.label}
               className={[
-                'w-[min(72vw,280px)] shrink-0 snap-start rounded-[1.2rem] border p-3.5 shadow-[0_16px_42px_rgba(20,15,10,0.08)] md:w-auto md:rounded-[1.35rem] md:p-4',
+                'w-[min(72vw,280px)] shrink-0 snap-start rounded-[1rem] border px-2.5 py-2 shadow-[0_10px_26px_rgba(20,15,10,0.06)] md:w-auto lg:px-3 lg:py-2',
                 step.active ? 'border-black/[0.10] bg-[#fffaf2]' : 'border-black/[0.07] bg-[#fffaf2]/70',
               ].join(' ')}
             >
-              <div className="flex items-center justify-between gap-3">
-                <span className="rounded-full bg-black/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-black/45">{step.label}</span>
-                <span className={['grid h-8 w-8 place-items-center rounded-full', step.active ? 'bg-[#171313] text-white' : 'bg-black/[0.06] text-black/36'].join(' ')}>
-                  {step.active ? <Check className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <div className="flex items-center justify-between gap-2">
+                <span className="rounded-full bg-black/[0.06] px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-black/45">{step.label}</span>
+                <span className={['grid h-6 w-6 place-items-center rounded-full', step.active ? 'bg-[#171313] text-white' : 'bg-black/[0.06] text-black/36'].join(' ')}>
+                  {step.active ? <Check className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                 </span>
               </div>
-              <p className="mt-3 truncate text-base font-black tracking-[-0.03em] text-[#171313]">{step.detail}</p>
-              <p className="mt-1 truncate text-xs font-bold text-black/42">{step.status}</p>
+              <div className="mt-1 flex min-w-0 items-center gap-2">
+                <p className="truncate text-[13px] font-black tracking-[-0.03em] text-[#171313]">{step.detail}</p>
+                <span className="shrink-0 truncate text-[10px] font-bold text-black/42">{step.status}</span>
+              </div>
             </div>
           ))}
         </section>
 
-        <section className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(300px,390px)_minmax(0,1fr)_minmax(280px,360px)]">
-          <aside className="min-w-0 overflow-hidden rounded-[1.5rem] border border-black/[0.08] bg-[#fff8ed] shadow-[0_20px_70px_rgba(20,15,10,0.10)]">
+        <section
+          ref={containerRef}
+          className="relative grid min-h-0 min-w-0 flex-1 items-stretch gap-4 overflow-hidden lg:h-full lg:gap-0"
+          style={studioGridTemplate ? { gridTemplateColumns: studioGridTemplate } : undefined}
+        >
+          {mobileCreateOpen ? (
+            <button
+              type="button"
+              aria-label="Fermer la création"
+              onClick={() => setMobileCreateOpen(false)}
+              className="fixed inset-0 z-[109] bg-[#171313]/45 backdrop-blur-sm lg:hidden"
+            />
+          ) : null}
+          <aside
+            className={cn(
+              'min-w-0 overflow-hidden border border-black/[0.08] bg-[#fff8ed] shadow-[0_20px_70px_rgba(20,15,10,0.10)] transition-transform duration-300 ease-out lg:static lg:z-auto lg:block lg:h-full lg:translate-y-0 lg:rounded-[1.5rem] lg:overflow-y-auto',
+              mobileCreateOpen
+                ? 'fixed inset-x-0 bottom-0 z-[120] max-h-[88dvh] translate-y-0 rounded-t-[1.6rem] overflow-y-auto'
+                : 'fixed inset-x-0 bottom-0 z-[120] max-h-[88dvh] translate-y-full rounded-t-[1.6rem] overflow-y-auto pointer-events-none lg:pointer-events-auto',
+            )}
+          >
             <div className="border-b border-black/[0.07] bg-[#f5eadb] p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7868]">Composer</p>
                   <h2 className="truncate text-xl font-black tracking-[-0.05em] text-[#171313]">Nouvelle session</h2>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileCreateOpen(false)}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-black/[0.08] bg-white text-black/55 lg:hidden"
+                  aria-label="Fermer le composer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
                 <button
                   type="button"
                   onClick={generateMusic}
@@ -3602,162 +3689,78 @@ function AIGeneratorContent() {
                 )}
               </div>
 
-              <div className="rounded-[1.25rem] border border-black/[0.07] bg-[#171313] p-3 text-white">
-                <p className="mb-3 text-[11px] font-black uppercase tracking-[0.16em] text-white/45">Presets rapides</p>
+              <div className="rounded-[1.25rem] border border-black/[0.07] bg-[radial-gradient(circle_at_18%_0%,rgba(255,111,97,0.22),transparent_34%),radial-gradient(circle_at_92%_18%,rgba(124,92,255,0.22),transparent_36%),linear-gradient(135deg,#211918_0%,#171313_50%,#101116_100%)] p-3 text-white shadow-[0_18px_46px_rgba(20,15,10,0.16)]">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/45">Démarrer vite</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-white/35">{aiStudioPresets.length} intentions prêtes pour Suno</p>
+                  </div>
+                  <Sparkles className="h-4 w-4 text-[#ffd166]" />
+                </div>
                 <div className="grid gap-2">
-                  {aiStudioPresets.slice(0, 5).map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => handleApplyPreset(preset)}
-                      className={`rounded-xl border px-3 py-2 text-left transition ${
-                        activePresetId === preset.id ? 'border-white bg-white text-[#171313]' : 'border-white/10 bg-white/[0.06] text-white hover:bg-white/[0.10]'
-                      }`}
-                    >
-                      <span className="block truncate text-xs font-black">{(preset as any).name || preset.id}</span>
-                      <span className={`mt-0.5 block truncate text-[10px] font-semibold ${activePresetId === preset.id ? 'text-[#6e5f54]' : 'text-white/45'}`}>
-                        {(preset as any).description || 'Appliquer ce style'}
-                      </span>
-                    </button>
-                  ))}
+                  {aiStudioPresets.map((preset) => {
+                    const active = activePresetId === preset.id;
+                    const presetTags = preset.defaults.tags?.slice(0, 3) || [];
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handleApplyPreset(preset)}
+                        className={`rounded-[1rem] border p-3 text-left transition ${
+                          active
+                            ? 'border-white bg-white text-[#171313] shadow-[0_14px_34px_rgba(255,255,255,0.12)]'
+                            : 'border-white/10 bg-white/[0.06] text-white hover:bg-white/[0.10]'
+                        }`}
+                      >
+                        <span className="flex min-w-0 items-start gap-2.5">
+                          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-base ${active ? 'bg-[#171313] text-white' : 'bg-white/[0.08]'}`}>
+                            {preset.emoji}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-xs font-black">{preset.label}</span>
+                            <span className={`mt-0.5 block line-clamp-2 text-[10px] font-semibold leading-4 ${active ? 'text-[#6e5f54]' : 'text-white/45'}`}>
+                              {preset.description}
+                            </span>
+                          </span>
+                          {active ? (
+                            <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full bg-black/[0.06] px-2 py-1 text-[9px] font-black text-black/48">
+                              <Check className="h-3 w-3" />
+                              vider
+                            </span>
+                          ) : null}
+                        </span>
+                        {presetTags.length > 0 ? (
+                          <span className="mt-2 flex flex-wrap gap-1">
+                            {presetTags.map((tag) => (
+                              <span
+                                key={`${preset.id}-${tag}`}
+                                className={`rounded-full px-2 py-0.5 text-[9px] font-black ${active ? 'bg-black/[0.06] text-black/48' : 'bg-white/[0.07] text-white/42'}`}
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
           </aside>
 
-          <main className="min-w-0 space-y-4">
-            <section className="overflow-hidden rounded-[1.5rem] border border-black/[0.08] bg-[#171313] text-white shadow-[0_20px_70px_rgba(20,15,10,0.16)]">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-white/[0.05] p-4">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Live desk</p>
-                  <h2 className="truncate text-2xl font-black tracking-[-0.05em]">{studioFocusTrack?.title || title || 'Aucun rendu selectionne'}</h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => previousTrack()} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-white/70 hover:bg-white/[0.12]">
-                    <SkipBack className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (audioState.isPlaying) {
-                        pause();
-                        return;
-                      }
-                      if (studioFocusTrack) {
-                        await Promise.resolve(playGenerated(studioFocusTrack));
-                        return;
-                      }
-                      await play().catch(() => {});
-                    }}
-                    className="grid h-12 w-12 place-items-center rounded-full bg-white text-[#171313] shadow-[0_14px_34px_rgba(255,255,255,0.12)] transition hover:scale-[1.04]"
-                  >
-                    {audioState.isPlaying ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
-                  </button>
-                  <button type="button" onClick={() => nextTrack()} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-white/70 hover:bg-white/[0.12]">
-                    <SkipForward className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onPointerDown={beginDrag('left')}
+            className="hidden w-2 cursor-col-resize items-center justify-center rounded-full transition hover:bg-black/[0.04] lg:flex"
+            title="Redimensionner composer"
+          >
+            <div className="h-16 w-[2px] rounded-full bg-black/15" />
+          </div>
 
-              <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-                <div className="min-w-0">
-                  <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.06] p-3">
-                    <div className="mb-3 flex items-center justify-between gap-3 text-xs font-black text-white/48">
-                      <span>{formatTime(playbackCurrentTime)}</span>
-                      <span>{formatTime(playbackDuration || studioFocusTrack?.duration || 0)}</span>
-                    </div>
-                    <SynauraWaveform
-                      waveformData={timestampedWaveform}
-                      progress={isWaveformForPlayingTrack ? playbackProgress : 0}
-                      onSeek={seekByRatio}
-                      variant="studio"
-                      heightClass="h-28"
-                      idPrefix="new-studio-wave"
-                      duration={playbackDuration || 0}
-                      showTimeLabel
-                      showProgressBar
-                    />
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <button type="button" onClick={() => seek(Math.max(0, playbackCurrentTime - 10))} className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-black text-white/58 hover:text-white">-10s</button>
-                      <button type="button" onClick={() => seek(Math.min(playbackDuration || 0, playbackCurrentTime + 10))} className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-black text-white/58 hover:text-white">+10s</button>
-                      <button type="button" onClick={() => fetchTimestampedLyrics(false)} disabled={timestampedLoading || !studioFocusTrack || isInstrumental} className="rounded-full border border-[#00c2cb]/25 bg-[#00c2cb]/12 px-3 py-2 text-xs font-black text-[#c9fbff] disabled:opacity-45">
-                        {timestampedLoading ? 'Sync...' : 'Synchroniser paroles'}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 rounded-[1.25rem] border border-white/10 bg-white/[0.06] p-4">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Rendu</p>
-                        <h3 className="text-lg font-black tracking-[-0.04em] text-white">{studioStateLabel}</h3>
-                      </div>
-                      <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#171313]">{Math.round(studioProgress)}%</span>
-                    </div>
-                    <div className="h-3 overflow-hidden rounded-full bg-white/10">
-                      <div className="h-full rounded-full bg-gradient-to-r from-[#ff6f61] via-[#ffd166] to-[#00c2cb] transition-all" style={{ width: `${studioProgress}%` }} />
-                    </div>
-                    {sunoError && <p className="mt-3 rounded-xl bg-red-500/12 px-3 py-2 text-xs font-bold text-red-100">{sunoError}</p>}
-                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-black text-white/45">
-                    <span className="rounded-full bg-white/[0.07] px-3 py-1">{studioModelLabel}</span>
-                      <span className="rounded-full bg-white/[0.07] px-3 py-1">{generationDuration}s</span>
-                      <span className="rounded-full bg-white/[0.07] px-3 py-1">{studioPromptLength} caracteres</span>
-                      {activeBgGeneration?.taskId && <span className="rounded-full bg-white/[0.07] px-3 py-1">#{String(activeBgGeneration.taskId).slice(-6)}</span>}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="min-w-0 rounded-[1.25rem] border border-white/10 bg-white/[0.06] p-3">
-                  <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Ecoute live</p>
-                  <div className="grid gap-2">
-                    {studioResultSlots.length > 0 ? studioResultSlots.slice(0, 4).map((_, index) => {
-                      const track = studioResultTracks[index];
-                      const isReady = Boolean(track?.audioUrl);
-                      const isSelected = track && String(studioFocusTrack?.id) === String(track.id);
-                      return (
-                        <button
-                          key={`studio-result-${track?.id || activeBgGeneration?.taskId || 'slot'}-${index}`}
-                          type="button"
-                          disabled={!track}
-                          onClick={() => {
-                            if (!track) return;
-                            setSelectedTrack(track);
-                            setGeneratedTrack(track);
-                            playGenerated(track);
-                          }}
-                          className={`flex min-w-0 items-center gap-3 rounded-[1rem] border p-2 text-left transition disabled:cursor-default ${
-                            isSelected ? 'border-white/40 bg-white/[0.14]' : isReady ? 'border-white/10 bg-white/[0.05] hover:bg-white/[0.10]' : 'border-dashed border-white/14 bg-white/[0.035]'
-                          }`}
-                        >
-                          {track?.imageUrl ? (
-                            <img src={track.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
-                          ) : (
-                            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#ff6f61]/20 text-[#ffd6cf]">
-                              {track ? <Music className="h-5 w-5" /> : <Sparkles className="h-5 w-5 animate-pulse" />}
-                            </span>
-                          )}
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-black text-white">{track?.title || `Rendu ${index + 1}`}</span>
-                            <span className="block truncate text-[11px] font-semibold text-white/45">
-                              {track ? (track.duration ? formatTime(track.duration) : 'Preview en cours') : 'Preparation du stream...'}
-                            </span>
-                          </span>
-                          {isReady ? <Play className="h-4 w-4 shrink-0 text-white/55" /> : <Clock3 className="h-4 w-4 shrink-0 text-white/35" />}
-                        </button>
-                      );
-                    }) : (
-                      <div className="rounded-[1rem] border border-dashed border-white/16 bg-white/[0.04] px-4 py-8 text-center">
-                        <Sparkles className="mx-auto mb-3 h-6 w-6 text-white/38" />
-                        <p className="text-sm font-black text-white">Aucun rendu pour le moment</p>
-                        <p className="mt-1 text-xs font-semibold text-white/42">Lance une creation, les versions arrivent ici.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="min-h-[720px] overflow-hidden rounded-[1.5rem] border border-black/[0.08] bg-[#0d0d13] shadow-[0_20px_70px_rgba(20,15,10,0.16)]">
+          <main className="h-full min-h-0 min-w-0 overflow-hidden">
+            <section className="h-full min-h-0 overflow-hidden rounded-[1.5rem] border border-black/[0.08] bg-[#fffaf2] shadow-[0_20px_70px_rgba(20,15,10,0.10)]">
               <LibraryMiddlePanel
                 tracks={allTracks}
                 generationsById={generationsById}
@@ -3803,38 +3806,85 @@ function AIGeneratorContent() {
                 onGenerateCoverVideo={generateCoverVideo}
                 generatingCoverVideoTrackId={generatingCoverVideoTrackId}
                 onMoveToFolder={moveTrackToFolder}
+                selectedTrackId={String((selectedTrack as any)?.id || (selectedTrack as any)?._id || '').replace(/^ai-/, '')}
+                liveGeneration={{
+                  visible: showLivePanel,
+                  statusLabel: liveStatusLabel,
+                  progress: studioProgress,
+                  taskId: activeBgGeneration?.taskId,
+                  tracks: generatedTracks,
+                  expectedSlots: 2,
+                  error: sunoError,
+                  isRemix: isRemixMode,
+                  onSelectTrack: (track) => {
+                    setSelectedTrack(track);
+                    setGeneratedTrack(track);
+                    setShowTrackPanel(true);
+                    setRightTab('inspector');
+                  },
+                  onPlayTrack: (track) => {
+                    setSelectedTrack(track);
+                    setGeneratedTrack(track);
+                    playGenerated(track);
+                  },
+                }}
                 likedTrackIds={likedTrackIds}
                 trashedTrackIds={trashedTrackIds}
                 loading={generationsLoading}
                 error={generationsError}
               />
             </section>
+
+
           </main>
 
-          <aside className="min-w-0 space-y-4">
-            <section className="rounded-[1.5rem] border border-black/[0.08] bg-[#171313] p-4 text-white shadow-[0_20px_70px_rgba(20,15,10,0.16)]">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Sortie</p>
-              <h2 className="mt-1 text-2xl font-black tracking-[-0.05em]">Inspecteur</h2>
+          {showStudioInspector && (
+          <>
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onPointerDown={beginDrag('right')}
+            className="hidden w-2 cursor-col-resize items-center justify-center rounded-full transition hover:bg-black/[0.04] lg:flex"
+            title="Redimensionner inspecteur"
+          >
+            <div className="h-16 w-[2px] rounded-full bg-black/15" />
+          </div>
+          <aside className="hidden min-w-0 space-y-4 lg:block lg:h-full lg:overflow-y-auto">
+            <section className="rounded-[1.5rem] border border-black/[0.08] bg-[radial-gradient(circle_at_18%_0%,rgba(255,111,97,0.22),transparent_34%),radial-gradient(circle_at_92%_18%,rgba(0,194,203,0.18),transparent_36%),linear-gradient(135deg,#211918_0%,#171313_52%,#0d1117_100%)] p-4 text-white shadow-[0_20px_70px_rgba(20,15,10,0.18)]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Sortie</p>
+                  <h2 className="mt-1 truncate text-2xl font-black tracking-[-0.05em]">Inspecteur</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setInspectorDismissed(true)}
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.07] text-white/65 transition hover:bg-white hover:text-[#171313]"
+                  aria-label="Fermer l'inspecteur"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
               <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.06]">
-                {studioFocusTrack?.imageUrl ? (
-                  <img src={studioFocusTrack.imageUrl} alt="" className="aspect-square w-full object-cover" />
+                {studioInspectorTrack?.imageUrl ? (
+                  <img src={studioInspectorTrack.imageUrl} alt="" className="aspect-square w-full object-cover" />
                 ) : (
                   <div className="grid aspect-square w-full place-items-center bg-[radial-gradient(circle_at_40%_30%,rgba(255,111,97,0.35),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02))]">
                     <Music className="h-12 w-12 text-white/60" />
                   </div>
                 )}
                 <div className="p-3">
-                  <h3 className="truncate text-lg font-black">{studioFocusTrack?.title || 'Piste non selectionnee'}</h3>
+                  <h3 className="truncate text-lg font-black">{studioInspectorTrack?.title || 'Piste non selectionnee'}</h3>
                   <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-white/45">
-                    {studioFocusTrack?.prompt || studioFocusTrack?.lyrics || 'Selectionne une piste pour acceder aux actions de sortie.'}
+                    {studioInspectorTrack?.prompt || studioInspectorTrack?.lyrics || 'Selectionne une piste pour acceder aux actions de sortie.'}
                   </p>
                 </div>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  disabled={!studioFocusTrack}
-                  onClick={() => studioFocusTrack && playGenerated(studioFocusTrack)}
+                  disabled={!studioInspectorTrack}
+                  onClick={() => studioInspectorTrack && playGenerated(studioInspectorTrack)}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white text-xs font-black text-[#171313] disabled:opacity-45"
                 >
                   <Play className="h-4 w-4 fill-current" />
@@ -3842,8 +3892,8 @@ function AIGeneratorContent() {
                 </button>
                 <button
                   type="button"
-                  disabled={!studioFocusTrack}
-                  onClick={() => studioFocusTrack && downloadGenerated(studioFocusTrack)}
+                  disabled={!studioInspectorTrack}
+                  onClick={() => studioInspectorTrack && downloadGenerated(studioInspectorTrack)}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.07] text-xs font-black text-white disabled:opacity-45"
                 >
                   <Download className="h-4 w-4" />
@@ -3851,8 +3901,8 @@ function AIGeneratorContent() {
                 </button>
                 <button
                   type="button"
-                  disabled={!studioFocusTrack}
-                  onClick={() => studioFocusTrack && shareGenerated(studioFocusTrack)}
+                  disabled={!studioInspectorTrack}
+                  onClick={() => studioInspectorTrack && shareGenerated(studioInspectorTrack)}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.07] text-xs font-black text-white disabled:opacity-45"
                 >
                   <Share2 className="h-4 w-4" />
@@ -3860,8 +3910,8 @@ function AIGeneratorContent() {
                 </button>
                 <button
                   type="button"
-                  disabled={!studioFocusTrack}
-                  onClick={() => studioFocusTrack && useGeneratedTrackForRemix(studioFocusTrack)}
+                  disabled={!studioInspectorTrack}
+                  onClick={() => studioInspectorTrack && useGeneratedTrackForRemix(studioInspectorTrack)}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#00c2cb]/20 bg-[#00c2cb]/12 text-xs font-black text-[#c9fbff] disabled:opacity-45"
                 >
                   <Repeat className="h-4 w-4" />
@@ -3870,12 +3920,65 @@ function AIGeneratorContent() {
               </div>
               <button
                 type="button"
-                disabled={!studioFocusTrack || publishingVisibility}
+                disabled={!studioInspectorTrack || publishingVisibility}
                 onClick={toggleGenerationVisibility}
                 className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-full bg-[#ff6f61] text-xs font-black text-white disabled:opacity-45"
               >
                 {publishingVisibility ? 'Publication...' : selectedVisibilityState?.is_public ? 'Retirer du profil' : 'Publier sur Synaura'}
               </button>
+
+              <div className="mt-3 rounded-[1.25rem] border border-[#00c2cb]/20 bg-[#00c2cb]/10 p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#c9fbff]/60">Paroles synchronisées</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-white/42">
+                      {timestampedWords.length ? `${timestampedWords.length} mots alignés` : 'Sync audio dans l’inspecteur'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fetchTimestampedLyrics(false)}
+                    disabled={timestampedLoading || !studioInspectorTrack || isInstrumental}
+                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#00c2cb]/25 bg-[#00c2cb]/12 px-3 text-[11px] font-black text-[#c9fbff] disabled:opacity-45"
+                  >
+                    {timestampedLoading ? 'Sync...' : 'Sync'}
+                  </button>
+                </div>
+                {timestampedError ? (
+                  <p className="mb-2 rounded-xl bg-amber-400/10 px-3 py-2 text-[11px] font-semibold text-amber-100/80">{timestampedError}</p>
+                ) : null}
+                {timestampedWords.length > 0 ? (
+                  <div ref={lyricsSyncScrollRef} className="max-h-52 overflow-y-auto rounded-xl border border-white/10 bg-black/25 px-3 py-3 scroll-smooth">
+                    <p className="text-center text-[13px] leading-[1.9]">
+                      {timestampedWords.map((w, idx) => {
+                        const isActive = idx === activeWordIndex;
+                        const isPast = activeWordIndex >= 0 && idx < activeWordIndex;
+                        return (
+                          <span
+                            key={`classic-sync-word-${idx}-${w.startS}`}
+                            ref={isActive ? activeLyricWordRef : undefined}
+                            className={`inline-block rounded-md px-1 py-px transition-all duration-200 ${
+                              isActive
+                                ? 'bg-cyan-300/25 font-semibold text-cyan-50 shadow-[0_0_14px_rgba(34,211,238,0.3)]'
+                                : isPast
+                                  ? 'text-white/34'
+                                  : 'text-white/78'
+                            }`}
+                          >
+                            {w.word}{' '}
+                          </span>
+                        );
+                      })}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
+                    <p className="line-clamp-6 whitespace-pre-wrap text-xs font-semibold leading-5 text-white/48">
+                      {studioInspectorTrack?.lyrics || lyrics || 'Aucune parole à afficher.'}
+                    </p>
+                  </div>
+                )}
+              </div>
             </section>
 
             <section className="rounded-[1.5rem] border border-black/[0.08] bg-[#fff8ed] p-4 shadow-[0_20px_70px_rgba(20,15,10,0.08)]">
@@ -3935,6 +4038,18 @@ function AIGeneratorContent() {
               </div>
             </section>
           </aside>
+          </>
+          )}
+          {studioInspectorTrack && !showStudioInspector ? (
+            <button
+              type="button"
+              onClick={() => setInspectorDismissed(false)}
+              className="absolute right-3 top-3 hidden h-9 items-center gap-2 rounded-full border border-black/[0.08] bg-[#fffaf2]/95 px-3 text-[11px] font-black text-[#171313] shadow-[0_12px_34px_rgba(20,15,10,0.14)] transition hover:bg-white lg:inline-flex"
+            >
+              <Music className="h-3.5 w-3.5" />
+              Inspecteur
+            </button>
+          ) : null}
         </section>
       </div>
 
@@ -3964,32 +4079,141 @@ function AIGeneratorContent() {
       />
       <BuyCreditsModal isOpen={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
 
-      <div className="lg:hidden">
-        <TrackInspector
-          track={selectedTrack}
-          isOpen={showTrackPanel}
-          onClose={closeTrackPanel}
-          onPlay={playGenerated}
-          onDownload={downloadGenerated}
-          onShare={shareGenerated}
-          onRemix={useGeneratedTrackForRemix}
-          onCopyLyrics={handleCopyLyrics}
-          variant="overlay"
-          isPublished={selectedVisibilityState?.is_public === true}
-          publishingVisibility={publishingVisibility}
-          onTogglePublish={toggleGenerationVisibility}
-        />
-      </div>
+      <AnimatePresence>
+        {showTrackPanel && studioInspectorTrack ? (
+          <motion.div
+            className="fixed inset-0 z-[130] lg:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <button
+              type="button"
+              aria-label="Fermer l'inspecteur"
+              onClick={closeTrackPanel}
+              className="absolute inset-0 bg-[#171313]/48 backdrop-blur-sm"
+            />
+            <motion.aside
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 360, damping: 34 }}
+              className="absolute right-0 top-0 flex h-full w-[min(92vw,430px)] flex-col overflow-y-auto border-l border-white/10 bg-[radial-gradient(circle_at_18%_0%,rgba(255,111,97,0.22),transparent_34%),radial-gradient(circle_at_92%_18%,rgba(0,194,203,0.18),transparent_36%),linear-gradient(135deg,#211918_0%,#171313_52%,#0d1117_100%)] p-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] text-white shadow-[0_0_70px_rgba(20,15,10,0.34)]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Sortie</p>
+                  <h2 className="mt-1 truncate text-2xl font-black tracking-[-0.05em]">Inspecteur</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeTrackPanel}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.07] text-white/65 transition active:scale-95"
+                  aria-label="Fermer l'inspecteur"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.06]">
+                {studioInspectorTrack.imageUrl ? (
+                  <img src={studioInspectorTrack.imageUrl} alt="" className="aspect-square w-full object-cover" />
+                ) : (
+                  <div className="grid aspect-square w-full place-items-center bg-[radial-gradient(circle_at_40%_30%,rgba(255,111,97,0.35),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02))]">
+                    <Music className="h-12 w-12 text-white/60" />
+                  </div>
+                )}
+                <div className="p-3">
+                  <h3 className="truncate text-lg font-black">{studioInspectorTrack.title || 'Piste non selectionnee'}</h3>
+                  <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-white/45">
+                    {studioInspectorTrack.prompt || studioInspectorTrack.lyrics || 'Selectionne une piste pour acceder aux actions de sortie.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => playGenerated(studioInspectorTrack)} className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white text-xs font-black text-[#171313]">
+                  <Play className="h-4 w-4 fill-current" />
+                  Lire
+                </button>
+                <button type="button" onClick={() => downloadGenerated(studioInspectorTrack)} className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.07] text-xs font-black text-white">
+                  <Download className="h-4 w-4" />
+                  Export
+                </button>
+                <button type="button" onClick={() => shareGenerated(studioInspectorTrack)} className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.07] text-xs font-black text-white">
+                  <Share2 className="h-4 w-4" />
+                  Partager
+                </button>
+                <button type="button" onClick={() => useGeneratedTrackForRemix(studioInspectorTrack)} className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#00c2cb]/20 bg-[#00c2cb]/12 text-xs font-black text-[#c9fbff]">
+                  <Repeat className="h-4 w-4" />
+                  Remix
+                </button>
+              </div>
+              <button
+                type="button"
+                disabled={publishingVisibility}
+                onClick={toggleGenerationVisibility}
+                className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-full bg-[#ff6f61] text-xs font-black text-white disabled:opacity-45"
+              >
+                {publishingVisibility ? 'Publication...' : selectedVisibilityState?.is_public ? 'Retirer du profil' : 'Publier sur Synaura'}
+              </button>
+
+              <div className="mt-3 rounded-[1.25rem] border border-[#00c2cb]/20 bg-[#00c2cb]/10 p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#c9fbff]/60">Paroles synchronisées</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-white/42">
+                      {timestampedWords.length ? `${timestampedWords.length} mots alignés` : 'Sync audio'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fetchTimestampedLyrics(false)}
+                    disabled={timestampedLoading || isInstrumental}
+                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#00c2cb]/25 bg-[#00c2cb]/12 px-3 text-[11px] font-black text-[#c9fbff] disabled:opacity-45"
+                  >
+                    {timestampedLoading ? 'Sync...' : 'Sync'}
+                  </button>
+                </div>
+                {timestampedError ? <p className="mb-2 rounded-xl bg-amber-400/10 px-3 py-2 text-[11px] font-semibold text-amber-100/80">{timestampedError}</p> : null}
+                {timestampedWords.length > 0 ? (
+                  <div ref={lyricsSyncScrollRef} className="max-h-64 overflow-y-auto rounded-xl border border-white/10 bg-black/25 px-3 py-3 scroll-smooth">
+                    <p className="text-center text-[13px] leading-[1.9]">
+                      {timestampedWords.map((w, idx) => {
+                        const isActive = idx === activeWordIndex;
+                        const isPast = activeWordIndex >= 0 && idx < activeWordIndex;
+                        return (
+                          <span
+                            key={`mobile-sync-word-${idx}-${w.startS}`}
+                            ref={isActive ? activeLyricWordRef : undefined}
+                            className={`inline-block rounded-md px-1 py-px transition-all duration-200 ${isActive ? 'bg-cyan-300/25 font-semibold text-cyan-50 shadow-[0_0_14px_rgba(34,211,238,0.3)]' : isPast ? 'text-white/34' : 'text-white/78'}`}
+                          >
+                            {w.word}{' '}
+                          </span>
+                        );
+                      })}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
+                    <p className="whitespace-pre-wrap text-xs font-semibold leading-5 text-white/48">
+                      {studioInspectorTrack.lyrics || lyrics || 'Aucune parole à afficher.'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.aside>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </SynauraAppShell>
   );
 
   return (
     <SynauraAppShell contentClassName="max-w-[1660px]">
       <SynauraTopBar />
-      <SynauraRouteNav />
-      <SynauraAnnouncementStrip />
       <div className="space-y-3">
-        <section className="grid gap-3 rounded-[1.35rem] border border-black/[0.08] bg-[#171313] p-3 text-white shadow-[0_18px_48px_rgba(20,15,10,0.18)] sm:rounded-[1.6rem] sm:p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <section className="grid gap-3 rounded-[1.35rem] border border-black/[0.08] bg-[radial-gradient(circle_at_12%_0%,rgba(255,111,97,0.24),transparent_34%),radial-gradient(circle_at_88%_12%,rgba(0,194,203,0.18),transparent_32%),linear-gradient(135deg,#211918_0%,#171313_48%,#0d1117_100%)] p-3 text-white shadow-[0_18px_48px_rgba(20,15,10,0.18)] sm:rounded-[1.6rem] sm:p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-white/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/46">Studio</span>
@@ -4856,19 +5080,57 @@ function AIGeneratorContent() {
               </section>
               )}
               {shellMode === 'ide' && leftExplorerTab === 'presets' && (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-1.5">
-                  <div className="text-[11px] text-white/50 inline-flex items-center gap-1.5 px-1"><FolderOpen className="w-3.5 h-3.5" /> Presets</div>
-                  {aiStudioPresets.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => handleApplyPreset(preset)}
-                      className="w-full text-left rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] px-2.5 py-2 transition"
-                    >
-                      <div className="text-[11px] font-semibold text-white/90">{(preset as any).name || preset.id}</div>
-                      <div className="text-[10px] text-zinc-500 truncate">{preset.description || 'Preset studio'}</div>
-                    </button>
-                  ))}
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-2">
+                  <div className="flex items-center justify-between gap-2 px-1">
+                    <div>
+                      <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-white/60">
+                        <Sparkles className="h-3.5 w-3.5 text-[#ffd166]" />
+                        Presets recommandés
+                      </div>
+                      <p className="mt-0.5 text-[10px] text-white/30">Applique une intention complète au builder</p>
+                    </div>
+                    <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/40">{aiStudioPresets.length}</span>
+                  </div>
+                  <div className="grid gap-1.5">
+                    {aiStudioPresets.map((preset) => {
+                      const active = activePresetId === preset.id;
+                      const presetTags = preset.defaults.tags?.slice(0, 3) || [];
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => handleApplyPreset(preset)}
+                          className={`w-full rounded-xl border px-2.5 py-2.5 text-left transition ${
+                            active
+                              ? 'border-indigo-300/35 bg-indigo-500/15 shadow-[0_12px_30px_rgba(99,102,241,0.10)]'
+                              : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
+                          }`}
+                        >
+                          <span className="flex min-w-0 items-start gap-2.5">
+                            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-base ${active ? 'bg-white text-black' : 'bg-white/[0.06] text-white'}`}>
+                              {preset.emoji}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex min-w-0 items-center gap-1.5">
+                                <span className="truncate text-[11px] font-semibold text-white/92">{preset.label}</span>
+                                {active ? <span className="shrink-0 text-[9px] font-bold text-indigo-200">vider</span> : null}
+                              </span>
+                              <span className="mt-0.5 block line-clamp-2 text-[10px] leading-4 text-white/42">{preset.description}</span>
+                            </span>
+                          </span>
+                          {presetTags.length > 0 ? (
+                            <span className="mt-2 flex flex-wrap gap-1 pl-11">
+                              {presetTags.map((tag) => (
+                                <span key={`${preset.id}-${tag}`} className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[9px] font-semibold text-white/36">
+                                  {tag}
+                                </span>
+                              ))}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
               {shellMode === 'ide' && leftExplorerTab === 'assets' && (
@@ -5446,6 +5708,27 @@ function AIGeneratorContent() {
                   onGenerateCoverVideo={generateCoverVideo}
                   generatingCoverVideoTrackId={generatingCoverVideoTrackId}
                   onMoveToFolder={moveTrackToFolder}
+                  selectedTrackId={String((selectedTrack as any)?.id || (selectedTrack as any)?._id || '').replace(/^ai-/, '')}
+                  liveGeneration={{
+                    visible: showLivePanel,
+                    statusLabel: liveStatusLabel,
+                    progress: studioProgress,
+                    taskId: activeBgGeneration?.taskId,
+                    tracks: generatedTracks,
+                    expectedSlots: 2,
+                    error: sunoError,
+                    isRemix: isRemixMode,
+                    onSelectTrack: (track) => {
+                      setSelectedTrack(track);
+                      setGeneratedTrack(track);
+                      setShowTrackPanel(true);
+                    },
+                    onPlayTrack: (track) => {
+                      setSelectedTrack(track);
+                      setGeneratedTrack(track);
+                      playGenerated(track);
+                    },
+                  }}
                   likedTrackIds={likedTrackIds}
                   trashedTrackIds={trashedTrackIds}
                   loading={generationsLoading}
@@ -5460,20 +5743,24 @@ function AIGeneratorContent() {
           {/* Desktop aside */}
           <aside
             className="hidden lg:flex col-span-12 lg:col-span-3 lg:shrink-0 flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden w-[409px]"
-            style={{ width: rightPx }}
+            style={{ width: showStudioInspector ? rightPx : 0, display: showStudioInspector ? undefined : 'none' }}
           >
             <React.Suspense fallback={null}>
               <RightPanelImproved
-                track={selectedTrack as any}
+                track={studioInspectorTrack as any}
                 stylePrompt={selectedGeneration?.prompt}
-                lyrics={(selectedTrack as any)?.lyrics}
-                onRemix={() => (selectedTrack ? useGeneratedTrackForRemix(selectedTrack) : undefined)}
-                onDownload={() => (generatedTrack ? downloadGenerated(generatedTrack) : undefined)}
+                lyrics={(studioInspectorTrack as any)?.lyrics}
+                onRemix={() => (studioInspectorTrack ? useGeneratedTrackForRemix(studioInspectorTrack) : undefined)}
+                onDownload={() => (studioInspectorTrack ? downloadGenerated(studioInspectorTrack) : undefined)}
                 modelVersion={modelVersion}
                 onSetModelVersion={(id: string) => setModelVersion(id)}
                 selectedGenerationForVisibility={selectedVisibilityState}
                 publishingVisibility={publishingVisibility}
                 toggleGenerationVisibility={toggleGenerationVisibility}
+                timestampedWords={timestampedWords}
+                timestampedLoading={timestampedLoading}
+                timestampedError={timestampedError}
+                onSyncLyrics={() => fetchTimestampedLyrics(false)}
               />
             </React.Suspense>
           </aside>

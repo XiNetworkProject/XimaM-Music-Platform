@@ -23,12 +23,15 @@ import {
   Folder,
   FolderOpen,
   MoveRight,
+  Check,
 } from 'lucide-react';
 import type { AITrack, AIGeneration } from '@/lib/aiGenerationService';
+import type { GeneratedTrack } from '@/lib/aiStudioTypes';
 import { isLikelyExpiredAIProviderUrl } from '@/lib/media-url-health';
 
 type ChipKey = 'all' | 'instrumental' | 'voix' | 'liked' | 'trashed';
 type SortKey = 'newest' | 'oldest' | 'title';
+type ViewMode = 'list' | 'grid';
 
 const CHIPS: Array<{ key: ChipKey; label: string; icon?: React.ReactNode }> = [
   { key: 'all', label: 'Tout' },
@@ -114,6 +117,19 @@ export interface LibraryMiddlePanelProps {
   onGenerateCoverVideo?: (track: AITrack, gen: AIGeneration | null) => void;
   generatingCoverVideoTrackId?: string | null;
   onMoveToFolder?: (track: AITrack, folder: string | null) => void;
+  selectedTrackId?: string | null;
+  liveGeneration?: {
+    visible: boolean;
+    statusLabel: string;
+    progress: number;
+    taskId?: string | null;
+    tracks: GeneratedTrack[];
+    expectedSlots?: number;
+    error?: string | null;
+    isRemix?: boolean;
+    onSelectTrack?: (track: GeneratedTrack) => void;
+    onPlayTrack?: (track: GeneratedTrack) => void;
+  };
   likedTrackIds?: Set<string>;
   trashedTrackIds?: Set<string>;
   loading?: boolean;
@@ -170,10 +186,10 @@ function ContextMenu({
       <>
         <div className="fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm" onClick={onClose} />
         <div
-          className="fixed inset-x-0 bottom-0 z-[9999] rounded-t-2xl border-t border-white/[0.08] bg-[#0e0e18]/98 backdrop-blur-2xl py-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] shadow-[0_-16px_64px_rgba(0,0,0,.7)]"
+          className="fixed inset-x-0 bottom-0 z-[9999] rounded-t-[1.5rem] border-t border-black/[0.08] bg-[#fffaf2]/98 py-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] text-[#171313] shadow-[0_-18px_70px_rgba(30,25,20,.22)] backdrop-blur-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-black/18" />
           {children}
         </div>
       </>,
@@ -183,7 +199,7 @@ function ContextMenu({
 
   return createPortal(
     <div
-      className="fixed z-[9999] w-[220px] rounded-xl border border-white/10 bg-[#121218]/98 backdrop-blur-2xl py-1.5 shadow-[0_16px_64px_rgba(0,0,0,.7)]"
+      className="fixed z-[9999] w-[236px] rounded-[1rem] border border-black/[0.08] bg-[#fffaf2]/98 py-1.5 text-[#171313] shadow-[0_18px_60px_rgba(30,25,20,.22)] backdrop-blur-2xl"
       style={{ top: pos.top, left: pos.left }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -193,20 +209,151 @@ function ContextMenu({
   );
 }
 
-function Cover({ duration, coverUrl }: { duration: string; coverUrl?: string }) {
+function Cover({ duration, coverUrl, className = 'h-[52px] w-[52px]', rounded = 'rounded-[14px]' }: { duration: string; coverUrl?: string; className?: string; rounded?: string }) {
   return (
-    <div className="relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-[14px] bg-white/[0.06] ring-1 ring-white/[0.08]">
+    <div className={cn('relative shrink-0 overflow-hidden bg-[#171313]/[0.06] ring-1 ring-black/[0.08]', className, rounded)}>
       {coverUrl ? (
         <img src={coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/25 via-violet-500/20 to-fuchsia-500/15 flex items-center justify-center">
-          <Music2 className="w-5 h-5 text-white/15" />
+        <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(circle_at_35%_20%,rgba(255,111,97,0.35),transparent_42%),linear-gradient(135deg,rgba(23,19,19,0.14),rgba(23,19,19,0.04))]">
+          <Music2 className="w-5 h-5 text-[#171313]/25" />
         </div>
       )}
-      <div className="absolute bottom-[3px] left-[3px] rounded-[5px] bg-black/60 px-[5px] py-[1px] text-[9px] font-semibold text-white/90 tabular-nums backdrop-blur-sm">
+      <div className="absolute bottom-[3px] left-[3px] rounded-[5px] bg-[#171313]/72 px-[5px] py-[1px] text-[9px] font-semibold text-white tabular-nums backdrop-blur-sm">
         {duration}
       </div>
     </div>
+  );
+}
+
+function TrackActionMenu({
+  onReuseTrack,
+  onCopyLyrics,
+  onGenerateCoverVideo,
+  isGeneratingCoverVideo,
+  onMoveToFolder,
+  folder,
+  folderInput,
+  setFolderInput,
+  commitFolderMove,
+  onSetSource,
+  onTrash,
+  isTrashed,
+  closeMenu,
+}: {
+  onReuseTrack?: () => void;
+  onCopyLyrics?: () => void;
+  onGenerateCoverVideo?: () => void;
+  isGeneratingCoverVideo?: boolean;
+  onMoveToFolder?: (folder: string | null) => void;
+  folder: string;
+  folderInput: string;
+  setFolderInput: React.Dispatch<React.SetStateAction<string>>;
+  commitFolderMove: () => void;
+  onSetSource: () => void;
+  onTrash?: () => void;
+  isTrashed: boolean;
+  closeMenu: () => void;
+}) {
+  return (
+    <>
+      <div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-black/36">Actions</div>
+      {onReuseTrack && (
+        <button
+          type="button"
+          onClick={() => { onReuseTrack(); closeMenu(); }}
+          className="mx-auto flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-[#171313]/78 transition hover:bg-black/[0.05]"
+        >
+          <Repeat className="h-4 w-4 shrink-0 text-black/35" />
+          Réutiliser les paramètres
+        </button>
+      )}
+      {onCopyLyrics && (
+        <button
+          type="button"
+          onClick={() => { onCopyLyrics(); closeMenu(); }}
+          className="mx-auto flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-[#171313]/78 transition hover:bg-black/[0.05]"
+        >
+          <Copy className="h-4 w-4 shrink-0 text-black/35" />
+          Copier les paroles
+        </button>
+      )}
+      {onGenerateCoverVideo && (
+        <button
+          type="button"
+          onClick={() => { onGenerateCoverVideo(); closeMenu(); }}
+          disabled={isGeneratingCoverVideo}
+          className="mx-auto flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-[#6d4bff] transition hover:bg-[#7c5cff]/10 disabled:cursor-wait disabled:opacity-60"
+        >
+          <Video className="h-4 w-4 shrink-0 text-[#7c5cff]/70" />
+          {isGeneratingCoverVideo ? 'Génération clip...' : 'Créer clip vidéo Suno'}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => { onSetSource(); closeMenu(); }}
+        className="mx-auto flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-[#087b80] transition hover:bg-[#00c2cb]/10"
+      >
+        <Wand2 className="h-4 w-4 shrink-0 text-[#00a6ad]/65" />
+        Source remix
+      </button>
+      {onMoveToFolder && (
+        <div className="mx-2 my-1.5 rounded-xl border border-black/[0.08] bg-white p-2" onClick={(e) => e.stopPropagation()}>
+          <label className="mb-1.5 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-black/42">
+            <MoveRight className="h-3.5 w-3.5" />
+            Dossier
+          </label>
+          <input
+            value={folderInput}
+            onChange={(e) => setFolderInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitFolderMove();
+            }}
+            placeholder="Nom du dossier"
+            className="h-8 w-full rounded-lg border border-black/[0.08] bg-[#fffaf2] px-2.5 text-[12px] font-bold text-[#171313] outline-none placeholder:text-black/28 focus:border-[#171313]"
+          />
+          <div className="mt-1.5 flex gap-1.5">
+            <button
+              type="button"
+              onClick={commitFolderMove}
+              className="flex-1 rounded-lg bg-[#171313] px-2 py-1.5 text-[11px] font-black text-white transition hover:scale-[1.01]"
+            >
+              Enregistrer
+            </button>
+            {folder && (
+              <button
+                type="button"
+                onClick={() => { onMoveToFolder(null); closeMenu(); }}
+                className="rounded-lg border border-black/[0.08] bg-[#fffaf2] px-2 py-1.5 text-[11px] font-black text-black/48 transition hover:bg-black/[0.05] hover:text-black/72"
+              >
+                Aucun
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {onTrash && (
+        <>
+          <div className="my-1 mx-2 h-px bg-black/[0.07]" />
+          <button
+            type="button"
+            onClick={() => { onTrash(); closeMenu(); }}
+            className={cn(
+              'mx-auto flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] transition',
+              isTrashed
+                ? 'font-bold text-emerald-700 hover:bg-emerald-500/[0.10]'
+                : 'font-bold text-rose-700 hover:bg-rose-500/[0.10]'
+            )}
+          >
+            {isTrashed ? (
+              <><ArchiveRestore className="h-4 w-4 shrink-0 text-emerald-600/70" /> Restaurer</>
+            ) : (
+              <><Trash2 className="h-4 w-4 shrink-0 text-rose-600/70" /> Mettre à la corbeille</>
+            )}
+          </button>
+        </>
+      )}
+    </>
   );
 }
 
@@ -228,6 +375,8 @@ function TrackRow({
   onGenerateCoverVideo,
   isGeneratingCoverVideo,
   onMoveToFolder,
+  isSelected,
+  viewMode,
 }: {
   track: AITrack;
   gen: AIGeneration | null;
@@ -246,6 +395,8 @@ function TrackRow({
   onGenerateCoverVideo?: () => void;
   isGeneratingCoverVideo?: boolean;
   onMoveToFolder?: (folder: string | null) => void;
+  isSelected?: boolean;
+  viewMode: ViewMode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -264,6 +415,7 @@ function TrackRow({
   const model = (track.model_name || gen?.model || 'v5').replace(/^V/, 'v').toLowerCase();
   const createdLabel = formatShortDate(track.created_at || gen?.created_at);
   const status = String((track as any).status || gen?.status || '');
+  const hasClip = Boolean((track as any).music_video_url || links.music_video_url || links.cover_video_url);
 
   useEffect(() => {
     setFolderInput(folder);
@@ -274,13 +426,141 @@ function TrackRow({
     closeMenu();
   }, [closeMenu, folderInput, onMoveToFolder]);
 
+  const badges = (
+    <>
+      <span className="shrink-0 rounded-md bg-black/[0.06] px-1.5 py-px text-[9px] font-black uppercase tracking-wider text-black/45">
+        {model}
+      </span>
+      {hasClip && (
+        <span className="shrink-0 rounded-md bg-[#7c5cff]/10 px-1.5 py-px text-[9px] font-black uppercase tracking-wider text-[#6d4bff]">
+          clip
+        </span>
+      )}
+      {isLiked && <Heart className="h-3 w-3 shrink-0 fill-[#ff6f61] text-[#ff6f61]" />}
+      {isPublished && (
+        <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-emerald-500/10 px-1.5 py-px text-[9px] font-black uppercase tracking-wider text-emerald-700">
+          <Globe className="w-2.5 h-2.5" /> public
+        </span>
+      )}
+      {isSource && (
+        <span className="shrink-0 rounded-md bg-[#00c2cb]/10 px-1.5 py-px text-[9px] font-black uppercase tracking-wider text-[#087b80]">
+          source
+        </span>
+      )}
+    </>
+  );
+
+  const meta = (
+    <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] font-bold text-black/38">
+      {createdLabel ? <span className="shrink-0">{createdLabel}</span> : null}
+      {folder ? (
+        <>
+          <span className="shrink-0 text-black/20">·</span>
+          <span className="inline-flex min-w-0 items-center gap-1 truncate">
+            <Folder className="h-3 w-3 shrink-0" />
+            <span className="truncate">{folder}</span>
+          </span>
+        </>
+      ) : null}
+      {status && status !== 'completed' ? (
+        <>
+          <span className="shrink-0 text-black/20">·</span>
+          <span className="shrink-0 text-amber-700">{status}</span>
+        </>
+      ) : null}
+    </div>
+  );
+
+  if (viewMode === 'grid') {
+    return (
+      <div
+        className={cn(
+          'group relative min-w-0 overflow-hidden rounded-2xl border transition-all cursor-pointer before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_30%_0%,rgba(255,111,97,0.18),transparent_42%),radial-gradient(circle_at_90%_18%,rgba(0,194,203,0.16),transparent_40%),linear-gradient(135deg,rgba(255,250,242,0.92),rgba(234,255,251,0.74))] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 active:before:opacity-100',
+          isSelected || isSource
+            ? 'border-[#00a6ad]/35 bg-[#eafffb] shadow-[0_18px_46px_rgba(0,166,173,0.14)] before:opacity-100'
+            : 'border-black/[0.07] bg-white/72 shadow-[0_12px_30px_rgba(30,25,20,0.06)] hover:border-[#00a6ad]/22 hover:shadow-[0_18px_48px_rgba(0,166,173,0.12)]'
+        )}
+        onClick={onPick}
+      >
+        <div className="relative p-2">
+          <Cover duration={duration} coverUrl={coverUrl || undefined} className="aspect-square w-full" rounded="rounded-xl" />
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onPlay(); }}
+            className="absolute inset-2 flex items-center justify-center rounded-xl bg-[#171313]/20 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:bg-[#171313]/38"
+            aria-label="Lire"
+          >
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-[#fffaf2] text-[#171313] shadow-xl">
+              <Play className="h-4 w-4 fill-current" />
+            </span>
+          </button>
+        </div>
+        <div className="relative px-3 pb-3">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-[13px] font-black text-[#171313]">{title}</span>
+            {isSelected ? <Check className="h-3.5 w-3.5 shrink-0 text-[#00a6ad]" /> : null}
+          </div>
+          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">{badges}</div>
+          {meta}
+          <div className="mt-2 flex items-center justify-between gap-1">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onRemix(); }}
+              className="rounded-full border border-black/[0.08] bg-[#fffaf2] px-2.5 py-1.5 text-[11px] font-black text-black/55 transition hover:bg-[#171313] hover:text-white"
+            >
+              Remix
+            </button>
+            <div className="flex items-center gap-1">
+              {onToggleLike && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onToggleLike(); }}
+                  className={cn('grid h-8 w-8 place-items-center rounded-full transition', isLiked ? 'text-[#ff6f61]' : 'text-black/32 hover:bg-black/[0.06] hover:text-[#ff6f61]')}
+                  aria-label={isLiked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                >
+                  <Heart className={cn('h-4 w-4', isLiked && 'fill-current')} />
+                </button>
+              )}
+              <button
+                ref={btnRef}
+                type="button"
+                aria-label="Plus d'options"
+                onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
+                className="grid h-8 w-8 place-items-center rounded-full text-black/38 transition hover:bg-black/[0.06] hover:text-[#171313]"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+        <ContextMenu anchorRef={btnRef} open={menuOpen} onClose={closeMenu}>
+          <TrackActionMenu
+            onReuseTrack={onReuseTrack}
+            onCopyLyrics={onCopyLyrics}
+            onGenerateCoverVideo={onGenerateCoverVideo}
+            isGeneratingCoverVideo={isGeneratingCoverVideo}
+            onMoveToFolder={onMoveToFolder}
+            folder={folder}
+            folderInput={folderInput}
+            setFolderInput={setFolderInput}
+            commitFolderMove={commitFolderMove}
+            onSetSource={onSetSource}
+            onTrash={onTrash}
+            isTrashed={isTrashed}
+            closeMenu={closeMenu}
+          />
+        </ContextMenu>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
-        'group flex items-center gap-3 rounded-xl border px-2.5 py-2 transition-all cursor-pointer',
-        isSource
-          ? 'border-cyan-400/25 bg-cyan-500/[0.08] hover:bg-cyan-500/[0.12]'
-          : 'border-white/[0.07] bg-white/[0.035] hover:bg-white/[0.07] hover:border-white/[0.12]'
+        'group relative flex items-center gap-3 overflow-hidden rounded-[1rem] border px-2.5 py-2 transition-all cursor-pointer before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_18%_0%,rgba(255,111,97,0.18),transparent_42%),radial-gradient(circle_at_86%_30%,rgba(0,194,203,0.16),transparent_38%),linear-gradient(135deg,rgba(255,250,242,0.94),rgba(234,255,251,0.70))] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 active:before:opacity-100',
+        isSelected || isSource
+          ? 'border-[#00a6ad]/35 bg-[#eafffb] shadow-[0_14px_34px_rgba(0,166,173,0.12)] before:opacity-100'
+          : 'border-black/[0.07] bg-white/70 hover:border-[#00a6ad]/22 hover:shadow-[0_14px_38px_rgba(0,166,173,0.10)]'
       )}
       onClick={onPick}
     >
@@ -290,55 +570,24 @@ function TrackRow({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onPlay(); }}
-          className="absolute inset-0 flex items-center justify-center rounded-[14px] bg-black/30 sm:bg-black/0 sm:group-hover:bg-black/40 transition-all touch-manipulation active:scale-95"
+          className="absolute inset-0 flex items-center justify-center rounded-[14px] bg-[#171313]/30 transition-all touch-manipulation active:scale-95 sm:bg-transparent sm:group-hover:bg-[#171313]/40"
           aria-label="Play"
         >
-          <Play className="w-5 h-5 text-white opacity-80 sm:opacity-0 sm:group-hover:opacity-100 fill-current drop-shadow-lg transition-all" />
+          <Play className="w-5 h-5 fill-current text-white opacity-80 drop-shadow-lg transition-all sm:opacity-0 sm:group-hover:opacity-100" />
         </button>
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div className="relative min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-[13px] font-semibold text-white/95">{title}</span>
-          <span className="shrink-0 rounded-md bg-white/[0.08] px-1.5 py-px text-[9px] font-semibold text-white/50 uppercase tracking-wider">
-            {model}
-          </span>
-          {isLiked && (
-            <Heart className="h-3 w-3 shrink-0 fill-rose-400 text-rose-400" />
-          )}
-          {isPublished && (
-            <span className="shrink-0 rounded-md bg-emerald-400/15 px-1.5 py-px text-[9px] font-semibold text-emerald-300 uppercase tracking-wider flex items-center gap-0.5">
-              <Globe className="w-2.5 h-2.5" /> publié
-            </span>
-          )}
-          {isSource && (
-            <span className="shrink-0 rounded-md bg-cyan-400/15 px-1.5 py-px text-[9px] font-semibold text-cyan-200 uppercase tracking-wider">
-              src
-            </span>
-          )}
+          <span className="truncate text-[13px] font-black text-[#171313]">{title}</span>
+          {isSelected ? <Check className="h-3.5 w-3.5 shrink-0 text-[#00a6ad]" /> : null}
+          {badges}
         </div>
-        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-white/36">
-          {createdLabel ? <span className="shrink-0">{createdLabel}</span> : null}
-          {folder ? (
-            <>
-              <span className="shrink-0 text-white/18">·</span>
-              <span className="inline-flex min-w-0 items-center gap-1 truncate">
-                <Folder className="h-3 w-3 shrink-0" />
-                <span className="truncate">{folder}</span>
-              </span>
-            </>
-          ) : null}
-          {status && status !== 'completed' ? (
-            <>
-              <span className="shrink-0 text-white/18">·</span>
-              <span className="shrink-0 text-amber-200/70">{status}</span>
-            </>
-          ) : null}
-        </div>
+        {meta}
       </div>
 
       {/* Actions — like & menu always visible on mobile (touch), remix on hover only */}
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="relative flex items-center gap-1 shrink-0">
         {onToggleLike && (
           <button
             type="button"
@@ -346,8 +595,8 @@ function TrackRow({
             className={cn(
               'w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-full transition-all touch-manipulation',
               isLiked
-                ? 'text-rose-400 hover:text-rose-300'
-                : 'text-white/30 sm:text-white/20 hover:text-rose-400 hover:bg-white/[0.08] sm:opacity-0 sm:group-hover:opacity-100'
+                ? 'text-[#ff6f61] hover:text-[#e25549]'
+                : 'text-black/30 hover:bg-black/[0.06] hover:text-[#ff6f61] sm:opacity-0 sm:group-hover:opacity-100'
             )}
             aria-label={isLiked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
             title={isLiked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
@@ -358,7 +607,7 @@ function TrackRow({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onRemix(); }}
-          className="w-8 h-8 hidden sm:flex items-center justify-center rounded-full text-white/30 hover:text-white/70 hover:bg-white/[0.08] transition-all opacity-0 group-hover:opacity-100"
+          className="hidden h-8 w-8 items-center justify-center rounded-full text-black/28 opacity-0 transition-all hover:bg-black/[0.06] hover:text-[#171313] group-hover:opacity-100 sm:flex"
           aria-label="Remix"
           title="Remix"
         >
@@ -373,112 +622,136 @@ function TrackRow({
           className={cn(
             'w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-full transition-all touch-manipulation',
             menuOpen
-              ? 'bg-white/[0.12] text-white'
-              : 'text-white/40 sm:text-white/30 hover:text-white/70 hover:bg-white/[0.08] sm:opacity-0 sm:group-hover:opacity-100'
+              ? 'bg-black/[0.08] text-[#171313]'
+              : 'text-black/36 hover:bg-black/[0.06] hover:text-[#171313] sm:opacity-0 sm:group-hover:opacity-100'
           )}
         >
           <MoreHorizontal className="w-4 h-4" />
         </button>
 
         <ContextMenu anchorRef={btnRef} open={menuOpen} onClose={closeMenu}>
-          <div className="px-2 py-1.5 text-[10px] font-semibold text-white/30 uppercase tracking-wider">Actions</div>
-          {onReuseTrack && (
+          <TrackActionMenu
+            onReuseTrack={onReuseTrack}
+            onCopyLyrics={onCopyLyrics}
+            onGenerateCoverVideo={onGenerateCoverVideo}
+            isGeneratingCoverVideo={isGeneratingCoverVideo}
+            onMoveToFolder={onMoveToFolder}
+            folder={folder}
+            folderInput={folderInput}
+            setFolderInput={setFolderInput}
+            commitFolderMove={commitFolderMove}
+            onSetSource={onSetSource}
+            onTrash={onTrash}
+            isTrashed={isTrashed}
+            closeMenu={closeMenu}
+          />
+        </ContextMenu>
+      </div>
+    </div>
+  );
+}
+
+function LiveGenerationPanel({
+  live,
+  selectedTrackId,
+}: {
+  live: NonNullable<LibraryMiddlePanelProps['liveGeneration']>;
+  selectedTrackId: string | null;
+}) {
+  const slotCount = Math.max(live.expectedSlots || 2, live.tracks.length, live.visible ? 2 : 0);
+  const progress = Math.max(2, Math.min(100, Math.round(Number(live.progress || 0))));
+  const slots = Array.from({ length: slotCount });
+
+  if (!live.visible) return null;
+
+  return (
+    <div className="mb-3 overflow-hidden rounded-[1.25rem] border border-[#00a6ad]/20 bg-[#eafffb] shadow-[0_16px_42px_rgba(0,166,173,0.10)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#00a6ad]/10 bg-white/55 px-3 py-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#087b80]">
+            {live.isRemix ? 'Remix en direct' : 'Génération en direct'}
+          </p>
+          <h3 className="mt-0.5 truncate text-sm font-black text-[#171313]">{live.statusLabel}</h3>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {live.taskId ? (
+            <span className="rounded-full bg-[#171313]/[0.06] px-2.5 py-1 text-[10px] font-black text-black/45">
+              #{String(live.taskId).slice(-6)}
+            </span>
+          ) : null}
+          <span className="rounded-full bg-[#171313] px-2.5 py-1 text-[10px] font-black text-white">{progress}%</span>
+        </div>
+      </div>
+      <div className="h-1.5 bg-[#00a6ad]/10">
+        <div
+          className="h-full rounded-r-full bg-gradient-to-r from-[#ff6f61] via-[#ffd166] to-[#00c2cb] transition-[width] duration-500"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      {live.error ? (
+        <div className="mx-3 mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{live.error}</div>
+      ) : null}
+      <div className="grid gap-2 p-3 sm:grid-cols-2">
+        {slots.map((_, index) => {
+          const track = live.tracks[index];
+          const ready = Boolean(track?.audioUrl);
+          const selected = track && selectedTrackId === String(track.id).replace(/^ai-/, '');
+          return (
             <button
+              key={`live-generation-slot-${live.taskId || 'task'}-${index}`}
               type="button"
-              onClick={() => { onReuseTrack(); closeMenu(); }}
-              className="w-full px-3 py-2 text-left text-[13px] text-white/80 hover:bg-white/[0.06] flex items-center gap-2.5 rounded-lg mx-auto transition"
+              disabled={!track}
+              onClick={() => {
+                if (!track) return;
+                live.onSelectTrack?.(track);
+              }}
+              className={cn(
+                'relative min-w-0 overflow-hidden rounded-[1rem] border p-2.5 text-left transition before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_20%_0%,rgba(255,111,97,0.18),transparent_42%),radial-gradient(circle_at_90%_20%,rgba(0,194,203,0.16),transparent_40%),linear-gradient(135deg,rgba(255,255,255,0.92),rgba(234,255,251,0.72))] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 active:before:opacity-100 disabled:cursor-default',
+                selected
+                  ? 'border-[#00a6ad] bg-white shadow-[0_14px_34px_rgba(0,166,173,0.14)] before:opacity-100'
+                  : ready
+                    ? 'border-black/[0.08] bg-white/76 hover:border-[#00a6ad]/22 hover:shadow-[0_14px_34px_rgba(0,166,173,0.10)]'
+                    : 'border-dashed border-[#00a6ad]/22 bg-white/42'
+              )}
             >
-              <Repeat className="h-4 w-4 text-white/35 shrink-0" />
-              Réutiliser les paramètres
-            </button>
-          )}
-          {onCopyLyrics && (
-            <button
-              type="button"
-              onClick={() => { onCopyLyrics(); closeMenu(); }}
-              className="w-full px-3 py-2 text-left text-[13px] text-white/80 hover:bg-white/[0.06] flex items-center gap-2.5 rounded-lg mx-auto transition"
-            >
-              <Copy className="h-4 w-4 text-white/35 shrink-0" />
-              Copier les paroles
-            </button>
-          )}
-          {onGenerateCoverVideo && (
-            <button
-              type="button"
-              onClick={() => { onGenerateCoverVideo(); closeMenu(); }}
-              disabled={isGeneratingCoverVideo}
-              className="w-full px-3 py-2 text-left text-[13px] text-violet-100/90 hover:bg-violet-500/[0.08] disabled:cursor-wait disabled:opacity-60 flex items-center gap-2.5 rounded-lg mx-auto transition"
-            >
-              <Video className="h-4 w-4 text-violet-300/60 shrink-0" />
-              {isGeneratingCoverVideo ? 'Génération clip...' : 'Créer clip vidéo Suno'}
-            </button>
-          )}
-          {onMoveToFolder && (
-            <div className="mx-2 my-1 rounded-xl border border-sky-300/10 bg-sky-500/[0.045] p-2" onClick={(e) => e.stopPropagation()}>
-              <label className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-100/45">
-                <MoveRight className="h-3.5 w-3.5" />
-                Dossier
-              </label>
-              <input
-                value={folderInput}
-                onChange={(e) => setFolderInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commitFolderMove();
-                }}
-                placeholder="Ex: Hooks, Refrains, Clients..."
-                className="h-8 w-full rounded-lg border border-white/[0.08] bg-black/25 px-2.5 text-[12px] font-medium text-white outline-none placeholder:text-white/24 focus:border-sky-300/35"
-              />
-              <div className="mt-1.5 flex gap-1.5">
-                <button
-                  type="button"
-                  onClick={commitFolderMove}
-                  className="flex-1 rounded-lg bg-sky-400/16 px-2 py-1.5 text-[11px] font-bold text-sky-100 transition hover:bg-sky-400/22"
-                >
-                  Enregistrer
-                </button>
-                {folder && (
-                  <button
-                    type="button"
-                    onClick={() => { onMoveToFolder(null); closeMenu(); }}
-                    className="rounded-lg border border-white/[0.08] px-2 py-1.5 text-[11px] font-bold text-white/52 transition hover:bg-white/[0.07] hover:text-white/72"
+              <div className="relative flex min-w-0 items-center gap-3">
+                <Cover
+                  duration={track?.duration ? formatDuration(Number(track.duration)) : '...'}
+                  coverUrl={track?.imageUrl}
+                  className="h-14 w-14"
+                  rounded="rounded-xl"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <p className="truncate text-sm font-black text-[#171313]">
+                      {track?.title || `Version ${index + 1}`}
+                    </p>
+                    {selected ? <Check className="h-3.5 w-3.5 shrink-0 text-[#00a6ad]" /> : null}
+                  </div>
+                  <p className="mt-0.5 truncate text-[11px] font-bold text-black/42">
+                    {ready ? 'Preview prête' : 'Préparation du stream...'}
+                  </p>
+                </div>
+                {ready ? (
+                  <span
+                    role="button"
+                    tabIndex={-1}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      live.onPlayTrack?.(track);
+                    }}
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#171313] text-white shadow-[0_10px_24px_rgba(20,15,10,0.18)]"
+                    aria-label="Lire la preview"
                   >
-                    Aucun
-                  </button>
+                    <Play className="h-3.5 w-3.5 fill-current" />
+                  </span>
+                ) : (
+                  <Sparkles className="h-4 w-4 shrink-0 animate-pulse text-[#00a6ad]/55" />
                 )}
               </div>
-            </div>
-          )}
-          <div className="my-1 mx-2 h-px bg-white/[0.06]" />
-          <button
-            type="button"
-            onClick={() => { onSetSource(); closeMenu(); }}
-            className="w-full px-3 py-2 text-left text-[13px] text-cyan-200/90 hover:bg-cyan-500/[0.08] flex items-center gap-2.5 rounded-lg mx-auto transition"
-          >
-            <Wand2 className="h-4 w-4 text-cyan-400/50 shrink-0" />
-            Source remix
-          </button>
-          {onTrash && (
-            <>
-              <div className="my-1 mx-2 h-px bg-white/[0.06]" />
-              <button
-                type="button"
-                onClick={() => { onTrash(); closeMenu(); }}
-                className={cn(
-                  'w-full px-3 py-2 text-left text-[13px] flex items-center gap-2.5 rounded-lg mx-auto transition',
-                  isTrashed
-                    ? 'text-emerald-200/90 hover:bg-emerald-500/[0.08]'
-                    : 'text-rose-200/90 hover:bg-rose-500/[0.08]'
-                )}
-              >
-                {isTrashed ? (
-                  <><ArchiveRestore className="h-4 w-4 text-emerald-400/50 shrink-0" /> Restaurer</>
-                ) : (
-                  <><Trash2 className="h-4 w-4 text-rose-400/50 shrink-0" /> Mettre à la corbeille</>
-                )}
-              </button>
-            </>
-          )}
-        </ContextMenu>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -510,15 +783,18 @@ export function LibraryMiddlePanel({
   onGenerateCoverVideo,
   generatingCoverVideoTrackId,
   onMoveToFolder,
+  selectedTrackId,
+  liveGeneration,
   likedTrackIds,
   trashedTrackIds,
   loading = false,
   error = null,
 }: LibraryMiddlePanelProps) {
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = 5;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [sortOpen, setSortOpen] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const sortRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -537,10 +813,20 @@ export function LibraryMiddlePanel({
   }, [tracks, trashedTrackIds]);
 
   const trashedCount = trashedTrackIds?.size || 0;
+  const activeCount = Math.max(0, tracks.length - trashedCount);
   const publicCount = useMemo(
     () => tracks.filter((track: any) => track.is_public === true || track.generation?.is_public === true).length,
     [tracks],
   );
+  const instrumentalCount = useMemo(() => tracks.filter((track) => !trashedTrackIds?.has(track.id) && isInstrumentalTrack(track.prompt || '')).length, [tracks, trashedTrackIds]);
+  const voiceCount = Math.max(0, activeCount - instrumentalCount);
+  const filterCounts: Record<ChipKey, number> = {
+    all: activeCount,
+    liked: likedTrackIds?.size || 0,
+    instrumental: instrumentalCount,
+    voix: voiceCount,
+    trashed: trashedCount,
+  };
 
   useEffect(() => {
     if (!sortOpen) return;
@@ -606,37 +892,62 @@ export function LibraryMiddlePanel({
     () => (remixSourceTrackId ? tracks.find((t) => t.id === remixSourceTrackId) : null),
     [tracks, remixSourceTrackId]
   );
+  const normalizedSelectedTrackId = selectedTrackId ? String(selectedTrackId).replace(/^ai-/, '') : null;
 
   return (
-    <div className="h-full w-full flex flex-col min-h-0">
+    <div className="flex h-full min-h-0 w-full flex-col bg-[#fffaf2] text-[#171313]">
       {/* ── Toolbar ── */}
-      <div className="shrink-0 border-b border-white/[0.06] px-3 pt-3 pb-2.5 space-y-2.5">
-        <div className="flex items-center justify-between gap-3 px-1">
+      <div className="shrink-0 space-y-1.5 border-b border-black/[0.07] bg-[radial-gradient(circle_at_0%_0%,rgba(255,111,97,0.10),transparent_30%),linear-gradient(180deg,#fffaf2,#f5eadb)] px-2.5 pb-2 pt-2">
+        <div className="flex items-center justify-between gap-2 px-0.5">
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-bold text-white">Bibliothèque IA</h2>
-            <p className="mt-0.5 text-[11px] font-medium text-white/38">
-              {filtered.length} affichée{filtered.length > 1 ? 's' : ''} · {tracks.length - trashedCount} active{tracks.length - trashedCount > 1 ? 's' : ''} · {publicCount} publique{publicCount > 1 ? 's' : ''}
+            <div className="flex min-w-0 items-center gap-2">
+              <h2 className="truncate text-[13px] font-black tracking-[-0.02em] text-[#171313]">Bibliothèque IA</h2>
+              {selectedFolder !== 'all' ? (
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-black/[0.08] bg-white/70 px-2 py-0.5 text-[9px] font-black text-black/55">
+                  <Folder className="h-3 w-3" />
+                  {selectedFolder}
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-0.5 truncate text-[10px] font-bold text-black/42">
+              {filtered.length} affichée{filtered.length > 1 ? 's' : ''} · {activeCount} active{activeCount > 1 ? 's' : ''} · {publicCount} publique{publicCount > 1 ? 's' : ''}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.05] text-white/50 transition hover:bg-white/[0.1] hover:text-white"
-            aria-label="Actualiser"
-          >
-            <RefreshCcw className="h-4 w-4" />
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <div className="hidden rounded-full border border-black/[0.08] bg-white/70 p-0.5 shadow-[0_8px_20px_rgba(30,25,20,0.06)] sm:flex">
+              {(['list', 'grid'] as ViewMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setViewMode(mode)}
+                  className={cn(
+                    'rounded-lg px-2 py-1 text-[10px] font-bold transition',
+                    viewMode === mode ? 'bg-[#171313] text-white' : 'text-black/45 hover:text-black/75'
+                  )}
+                >
+                  {mode === 'list' ? 'Liste' : 'Grille'}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="grid h-8 w-8 place-items-center rounded-full border border-black/[0.08] bg-white/80 text-black/45 shadow-[0_8px_20px_rgba(30,25,20,0.06)] transition hover:bg-[#171313] hover:text-white"
+              aria-label="Actualiser"
+            >
+              <RefreshCcw className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
-        {/* Search row */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <div className="relative flex-1 min-w-0">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-black/28" />
             <input
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Rechercher une piste…"
-              className="h-10 w-full rounded-xl border border-white/[0.08] bg-white/[0.06] pl-10 pr-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-indigo-400/40 focus:bg-white/[0.08] transition-all"
+              className="h-8 w-full rounded-full border border-black/[0.08] bg-white/85 pl-8 pr-3 text-xs font-bold text-[#171313] outline-none transition-all placeholder:text-black/28 focus:border-[#171313] focus:bg-white"
               aria-label="Rechercher"
             />
           </div>
@@ -645,20 +956,20 @@ export function LibraryMiddlePanel({
             <button
               type="button"
               onClick={() => setSortOpen((v) => !v)}
-              className="h-10 rounded-xl border border-white/[0.08] bg-white/[0.06] px-3.5 flex items-center text-xs font-medium text-white/70 hover:bg-white/[0.10] transition-all gap-1.5"
+              className="flex h-8 items-center gap-1 rounded-full border border-black/[0.08] bg-white/85 px-2.5 text-[11px] font-black text-black/58 transition-all hover:bg-white hover:text-[#171313]"
             >
               {sortBy === 'newest' ? 'Récent' : sortBy === 'oldest' ? 'Ancien' : 'A → Z'}
-              <ChevronDown className="h-3.5 w-3.5 text-white/40" />
+              <ChevronDown className="h-3.5 w-3.5 text-black/40" />
             </button>
             {sortOpen && (
-              <div className="absolute right-0 top-full mt-2 w-40 rounded-xl border border-white/10 bg-[#121218]/98 backdrop-blur-2xl py-1.5 shadow-[0_16px_64px_rgba(0,0,0,.7)] z-50">
+              <div className="absolute right-0 top-full z-50 mt-2 w-40 rounded-xl border border-black/[0.08] bg-[#fffaf2]/98 py-1.5 shadow-[0_16px_48px_rgba(30,25,20,.18)] backdrop-blur-2xl">
                 {(['newest', 'oldest', 'title'] as SortKey[]).map((k) => (
                   <button
                     key={k}
                     type="button"
                     className={cn(
-                      'w-full px-3 py-2 text-left text-[13px] rounded-lg transition',
-                      sortBy === k ? 'text-white bg-white/[0.06]' : 'text-white/70 hover:bg-white/[0.06]'
+                      'w-full px-3 py-2 text-left text-[13px] font-bold rounded-lg transition',
+                      sortBy === k ? 'bg-[#171313] text-white' : 'text-black/62 hover:bg-black/[0.05] hover:text-[#171313]'
                     )}
                     onClick={() => { onSortByChange(k); setSortOpen(false); }}
                   >
@@ -670,35 +981,40 @@ export function LibraryMiddlePanel({
           </div>
         </div>
 
-        {/* Chips row */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="synaura-no-scrollbar flex items-center gap-1.5 overflow-x-auto">
           {CHIPS.map((c) => (
             <button
               key={c.key}
               type="button"
               onClick={() => onFilterByChange(c.key)}
               className={cn(
-                'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-semibold border transition-all',
+                'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black border transition-all',
                 filterBy === c.key
-                  ? 'border-indigo-400/30 bg-indigo-500/15 text-indigo-200 shadow-sm shadow-indigo-500/10'
-                  : 'border-white/[0.08] bg-white/[0.05] text-white/60 hover:bg-white/[0.09] hover:text-white/80'
+                  ? 'border-[#171313] bg-[#171313] text-white shadow-[0_10px_24px_rgba(20,15,10,0.14)]'
+                  : 'border-black/[0.08] bg-white/72 text-black/50 hover:bg-white hover:text-[#171313]'
               )}
             >
               {c.icon}
               {c.label}
+              <span className={cn(
+                'ml-0.5 rounded-full px-1.5 py-0.5 text-[8px] tabular-nums',
+                filterBy === c.key ? 'bg-white/16 text-white/78' : 'bg-black/[0.06] text-black/42'
+              )}>
+                {filterCounts[c.key]}
+              </span>
             </button>
           ))}
 
-          <div className="w-px h-5 bg-white/[0.08] mx-1" />
+          <div className="mx-0.5 h-4 w-px shrink-0 bg-black/[0.08]" />
 
           <button
             type="button"
             onClick={onRemixModeToggle}
             className={cn(
-              'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-semibold border transition-all',
+              'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black border transition-all',
               remixMode
-                ? 'border-cyan-400/30 bg-cyan-500/15 text-cyan-200 shadow-sm shadow-cyan-500/10'
-                : 'border-white/[0.08] bg-white/[0.05] text-white/60 hover:bg-white/[0.09]'
+                ? 'border-[#00a6ad]/30 bg-[#eafffb] text-[#087b80] shadow-[0_10px_24px_rgba(0,166,173,0.10)]'
+                : 'border-black/[0.08] bg-white/72 text-black/50 hover:bg-white hover:text-[#171313]'
             )}
           >
             <Wand2 className="w-3 h-3" />
@@ -709,42 +1025,44 @@ export function LibraryMiddlePanel({
             <button
               type="button"
               onClick={onClearRemixSource}
-              className="inline-flex items-center gap-1 rounded-lg border border-rose-400/25 bg-rose-500/10 px-2.5 py-1.5 text-[11px] font-medium text-rose-200 hover:bg-rose-500/15 transition-all"
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#ff6f61]/25 bg-[#ff6f61]/10 px-2.5 py-1 text-[10px] font-black text-[#c7443a] transition-all hover:bg-[#ff6f61]/15"
             >
               <X className="w-3 h-3" />
               {sourceTrack?.title?.slice(0, 20) || 'Source'}
             </button>
           )}
 
-          <span className="ml-auto text-[10px] text-white/30 tabular-nums font-medium">{filtered.length}</span>
+          <div className="ml-auto flex rounded-full border border-black/[0.08] bg-white/72 p-0.5 sm:hidden">
+            {(['list', 'grid'] as ViewMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setViewMode(mode)}
+                className={cn(
+                  'rounded-md px-2 py-1 text-[10px] font-bold transition',
+                  viewMode === mode ? 'bg-[#171313] text-white' : 'text-black/45'
+                )}
+              >
+                {mode === 'list' ? 'Liste' : 'Grille'}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-1.5">
-          <div className="mb-1.5 flex items-center justify-between px-1">
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/32">
-              <FolderOpen className="h-3 w-3" />
-              Dossier
-            </span>
-            {selectedFolder !== 'all' ? (
-              <button type="button" onClick={() => setSelectedFolder('all')} className="text-[10px] font-bold text-white/45 hover:text-white/75">
-                Tout voir
-              </button>
-            ) : null}
-          </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+        <div className="synaura-no-scrollbar flex gap-1.5 overflow-x-auto">
             <button
               type="button"
               onClick={() => setSelectedFolder('all')}
               className={cn(
-                'inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition',
+                'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-black transition',
                 selectedFolder === 'all'
-                  ? 'border-white/20 bg-white/[0.12] text-white'
-                  : 'border-white/[0.08] bg-white/[0.04] text-white/56 hover:bg-white/[0.08] hover:text-white/78'
+                  ? 'border-[#171313] bg-[#171313] text-white'
+                  : 'border-black/[0.08] bg-[#fffaf2] text-black/52 hover:bg-white hover:text-[#171313]'
               )}
             >
-              <Folder className="h-3.5 w-3.5 text-white/42" />
+              <FolderOpen className="h-3 w-3 opacity-60" />
               Tout
-              <span className="rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[9px]">{tracks.length - trashedCount}</span>
+              <span className="rounded-full bg-black/[0.06] px-1.5 py-0.5 text-[8px]">{tracks.length - trashedCount}</span>
             </button>
             {folderStats.map(([folder, count]) => (
               <button
@@ -752,41 +1070,44 @@ export function LibraryMiddlePanel({
                 type="button"
                 onClick={() => setSelectedFolder(folder)}
                 className={cn(
-                  'inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition',
+                  'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-black transition',
                   selectedFolder === folder
-                    ? 'border-white/20 bg-white/[0.12] text-white'
-                    : 'border-white/[0.08] bg-white/[0.04] text-white/56 hover:bg-white/[0.08] hover:text-white/78'
+                    ? 'border-[#00a6ad]/30 bg-[#eafffb] text-[#087b80]'
+                    : 'border-black/[0.08] bg-[#fffaf2] text-black/52 hover:bg-white hover:text-[#171313]'
                 )}
               >
-                <Folder className="h-3.5 w-3.5 text-white/42" />
+                <Folder className="h-3 w-3 opacity-60" />
                 {folder}
-                <span className="rounded-full bg-white/[0.08] px-1.5 py-0.5 text-[9px]">{count}</span>
+                <span className="rounded-full bg-black/[0.06] px-1.5 py-0.5 text-[8px]">{count}</span>
               </button>
             ))}
-          </div>
         </div>
       </div>
 
       {/* ── Track list ── */}
-      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto px-3 pb-3">
+      <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-3 pb-[calc(8rem+env(safe-area-inset-bottom,0px))] pt-3 lg:pb-3">
+        {liveGeneration?.visible ? (
+          <LiveGenerationPanel live={liveGeneration} selectedTrackId={normalizedSelectedTrackId} />
+        ) : null}
+
         {loading ? (
           <div className="py-20 text-center">
-            <div className="w-8 h-8 rounded-full border-2 border-indigo-400/20 border-t-indigo-400 animate-spin mx-auto mb-4" />
-            <span className="text-sm text-white/50">Chargement…</span>
+            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-black/10 border-t-[#171313]" />
+            <span className="text-sm font-bold text-black/45">Chargement...</span>
           </div>
         ) : error ? (
-          <div className="py-20 text-center text-sm text-red-300/80">{error}</div>
+          <div className="py-20 text-center text-sm font-bold text-red-700">{error}</div>
         ) : filtered.length === 0 ? (
           <div className="py-20 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center mx-auto mb-4">
-              <Sparkles className="w-6 h-6 text-white/15" />
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[1.1rem] border border-black/[0.08] bg-white shadow-[0_12px_30px_rgba(30,25,20,0.08)]">
+              <Sparkles className="h-6 w-6 text-black/20" />
             </div>
-            <p className="text-sm font-medium text-white/45">Aucune piste</p>
-            <p className="text-[11px] text-white/25 mt-1">Génère ta première musique pour la voir ici</p>
+            <p className="text-sm font-black text-[#171313]">Aucune piste</p>
+            <p className="mt-1 text-[11px] font-bold text-black/38">Change les filtres ou lance une nouvelle création.</p>
           </div>
         ) : (
           <>
-            <div className="space-y-1">
+            <div className={cn(viewMode === 'grid' ? 'grid grid-cols-2 gap-2 xl:grid-cols-3' : 'space-y-1')}>
               {visible.map((t, visIdx) => {
                 const genId = (t as any).generation_id || (t as any).generation?.id;
                 const gen = genId ? generationsById.get(String(genId)) || null : null;
@@ -799,6 +1120,8 @@ export function LibraryMiddlePanel({
                     track={t}
                     gen={gen}
                     isSource={remixSourceTrackId === t.id}
+                    isSelected={normalizedSelectedTrackId === String(t.id)}
+                    viewMode={viewMode}
                     isLiked={likedTrackIds?.has(t.id) || false}
                     isTrashed={trashedTrackIds?.has(t.id) || false}
                     isPublished={isPublished}
@@ -827,12 +1150,12 @@ export function LibraryMiddlePanel({
                 <button
                   type="button"
                   onClick={() => setVisibleCount((v) => Math.min(v + PAGE_SIZE, filtered.length))}
-                  className="px-5 py-2 rounded-xl border border-white/[0.08] bg-white/[0.05] text-[12px] font-medium text-white/60 hover:bg-white/[0.09] hover:text-white/80 transition-all"
+                  className="rounded-full border border-black/[0.08] bg-white px-5 py-2 text-[12px] font-black text-black/55 transition-all hover:bg-[#171313] hover:text-white"
                 >
                   Afficher plus ({Math.min(PAGE_SIZE, filtered.length - visibleCount)} sur {filtered.length - visibleCount} restantes)
                 </button>
               ) : null}
-              <span className="text-[10px] text-white/20 tabular-nums">
+              <span className="text-[10px] font-bold tabular-nums text-black/28">
                 {visible.length} / {filtered.length} piste{filtered.length > 1 ? 's' : ''}
               </span>
             </div>

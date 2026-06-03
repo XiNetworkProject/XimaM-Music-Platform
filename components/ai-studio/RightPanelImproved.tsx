@@ -25,6 +25,12 @@ import {
 import type { GeneratedTrack } from '@/lib/aiStudioTypes';
 import { useAudioPlayer } from '@/app/providers';
 
+interface TimestampedWord {
+  word: string;
+  startS: number;
+  endS: number;
+}
+
 function formatDuration(sec: number): string {
   if (!sec && sec !== 0) return '0:00';
   const m = Math.floor(sec / 60);
@@ -195,6 +201,10 @@ export default function RightPanelImproved({
   selectedGenerationForVisibility,
   publishingVisibility,
   toggleGenerationVisibility,
+  timestampedWords = [],
+  timestampedLoading = false,
+  timestampedError = null,
+  onSyncLyrics,
 }: {
   track: GeneratedTrack | null;
   stylePrompt?: string;
@@ -206,6 +216,10 @@ export default function RightPanelImproved({
   selectedGenerationForVisibility?: { is_public?: boolean } | null;
   publishingVisibility?: boolean;
   toggleGenerationVisibility?: () => void;
+  timestampedWords?: TimestampedWord[];
+  timestampedLoading?: boolean;
+  timestampedError?: string | null;
+  onSyncLyrics?: () => void;
 }) {
   const { audioState, play, pause, nextTrack, previousTrack } = useAudioPlayer();
   const isPlaying = audioState.isPlaying;
@@ -213,6 +227,12 @@ export default function RightPanelImproved({
   const currentTime = Number(audioState.currentTime || 0);
   const duration = Number(audioState.duration || track?.duration || 0);
   const [tab, setTab] = React.useState<'inspector' | 'models' | 'export'>('inspector');
+  const activeLyricWordRef = React.useRef<HTMLSpanElement | null>(null);
+  const lyricsSyncScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const activeWordIndex = React.useMemo(() => {
+    if (!timestampedWords.length) return -1;
+    return timestampedWords.findIndex((w) => currentTime >= Number(w.startS || 0) && currentTime <= Number(w.endS || 0));
+  }, [currentTime, timestampedWords]);
   const coverUrl =
     (track as any)?.coverUrl ||
     (track as any)?.image_url ||
@@ -220,6 +240,34 @@ export default function RightPanelImproved({
     (track as any)?.cover ||
     (track as any)?.cover_url ||
     '';
+
+  React.useEffect(() => {
+    if (activeWordIndex < 0) return;
+    const container = lyricsSyncScrollRef.current;
+    const word = activeLyricWordRef.current;
+    if (!container || !word) return;
+    const cRect = container.getBoundingClientRect();
+    const wRect = word.getBoundingClientRect();
+    const relativeTop = wRect.top - cRect.top + container.scrollTop;
+    const targetScroll = relativeTop - container.clientHeight / 2 + wRect.height / 2;
+    const clamped = Math.max(0, Math.min(targetScroll, container.scrollHeight - container.clientHeight));
+    container.scrollTo({ top: clamped, behavior: 'smooth' });
+  }, [activeWordIndex]);
+
+  const syncedLyricLines = React.useMemo(() => {
+    const lines: TimestampedWord[][] = [];
+    let currentLine: TimestampedWord[] = [];
+    timestampedWords.forEach((w) => {
+      const word = String(w.word || '').trim();
+      currentLine.push(w);
+      if (/[.!?;:\n]$/.test(word) || currentLine.length >= 10) {
+        lines.push([...currentLine]);
+        currentLine = [];
+      }
+    });
+    if (currentLine.length) lines.push(currentLine);
+    return lines;
+  }, [timestampedWords]);
 
   return (
     <aside className="col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 hidden lg:flex flex-col rounded-3xl border border-white/[0.06] bg-white/[0.03] backdrop-blur overflow-hidden">
@@ -374,22 +422,86 @@ export default function RightPanelImproved({
               </div>
             ) : null}
 
-            {/* Lyrics */}
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-medium">Paroles</p>
-                <button
-                  type="button"
-                  onClick={() => navigator.clipboard.writeText(lyrics || '')}
-                  className="inline-flex items-center gap-1 text-[10px] text-white/40 hover:text-white/70 transition-colors"
-                >
-                  <Copy className="h-3 w-3" />
-                  Copier
-                </button>
+            {/* Lyrics sync */}
+            <div className="rounded-2xl border border-cyan-400/15 bg-cyan-500/[0.045] p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.25em] text-cyan-100/42 font-medium">Paroles</p>
+                  <p className="mt-0.5 text-[11px] text-white/38">
+                    {timestampedWords.length ? `${timestampedWords.length} mots synchronisés` : 'Texte simple ou sync Suno'}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText(lyrics || '')}
+                    disabled={!lyrics}
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-white/[0.06] bg-white/[0.035] px-2.5 text-[10px] text-white/45 transition-colors hover:bg-white/[0.07] hover:text-white/75 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Copy className="h-3 w-3" />
+                    Copier
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onSyncLyrics}
+                    disabled={!track || timestampedLoading}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-cyan-300/20 bg-cyan-400/10 px-2.5 text-[10px] font-semibold text-cyan-100 transition-colors hover:bg-cyan-400/18 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {timestampedLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
+                    {timestampedLoading ? 'Sync...' : 'Synchroniser'}
+                  </button>
+                </div>
               </div>
-              <div className="rounded-xl bg-black/30 border border-white/[0.04] p-3.5">
-                <pre className="whitespace-pre-wrap text-[12px] leading-[1.7] text-white/55 font-sans">{lyrics || 'Aucune parole'}</pre>
-              </div>
+
+              {timestampedError ? (
+                <div className="mb-3 rounded-xl border border-amber-300/15 bg-amber-400/10 px-3 py-2 text-[11px] font-medium text-amber-100/80">
+                  {timestampedError}
+                </div>
+              ) : null}
+
+              {syncedLyricLines.length > 0 ? (
+                <div ref={lyricsSyncScrollRef} className="max-h-[270px] overflow-y-auto rounded-xl border border-cyan-300/12 bg-black/25 px-3 py-4 scroll-smooth">
+                  <div className="space-y-3">
+                    {(() => {
+                      let offset = 0;
+                      return syncedLyricLines.map((lineWords, lineIdx) => {
+                        const lineStart = offset;
+                        offset += lineWords.length;
+                        return (
+                          <p key={`sync-line-${lineIdx}`} className="text-center text-[13px] leading-[1.85] tracking-wide">
+                            {lineWords.map((w, wordIdx) => {
+                              const idx = lineStart + wordIdx;
+                              const isActive = idx === activeWordIndex;
+                              const isPast = activeWordIndex >= 0 && idx < activeWordIndex;
+                              return (
+                                <span
+                                  key={`sync-word-${idx}-${w.startS}`}
+                                  ref={isActive ? activeLyricWordRef : undefined}
+                                  className={[
+                                    'inline-block rounded-md px-1 py-px transition-all duration-200',
+                                    isActive
+                                      ? 'bg-cyan-300/25 text-cyan-50 font-semibold shadow-[0_0_14px_rgba(34,211,238,0.3)]'
+                                      : isPast
+                                        ? 'text-white/34'
+                                        : 'text-white/78',
+                                  ].join(' ')}
+                                >
+                                  {w.word}
+                                  {wordIdx < lineWords.length - 1 ? '\u00A0' : ''}
+                                </span>
+                              );
+                            })}
+                          </p>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl bg-black/25 border border-white/[0.04] p-3.5">
+                  <pre className="whitespace-pre-wrap text-[12px] leading-[1.7] text-white/55 font-sans">{lyrics || 'Aucune parole'}</pre>
+                </div>
+              )}
             </div>
           </div>
         )}

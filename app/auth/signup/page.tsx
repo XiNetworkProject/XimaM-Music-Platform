@@ -416,7 +416,7 @@ function SignUpContent() {
             <Link href="/" className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.05] px-3 py-2 text-xs font-black text-black/50 transition hover:bg-black hover:text-white">
               <ArrowLeft className="h-3.5 w-3.5" />
               Accueil
-            </Link>
+        </Link>
           </div>
 
           <div className="mb-6">
@@ -426,7 +426,7 @@ function SignUpContent() {
             <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-[#ff6f61]">{current.eyebrow}</p>
             <h2 className="text-3xl font-black tracking-tight sm:text-4xl">{current.formTitle}</h2>
             <p className="mt-2 text-sm font-semibold leading-relaxed text-black/52">{current.formText}</p>
-          </div>
+      </div>
 
           <AnimatePresence initial={false}>
             {userCount && !userCount.canRegister ? (
@@ -437,7 +437,7 @@ function SignUpContent() {
                 className="mb-4 overflow-hidden rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-sm font-bold text-red-700"
               >
                 <span className="flex items-center gap-2"><AlertCircle className="h-4 w-4" /> Inscriptions fermées ({userCount.maxUsers} comptes max atteints)</span>
-              </motion.div>
+            </motion.div>
             ) : null}
             {error ? (
               <motion.div
@@ -447,9 +447,9 @@ function SignUpContent() {
                 className="mb-4 overflow-hidden rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-sm font-bold text-red-700"
               >
                 <span className="flex items-center gap-2"><AlertCircle className="h-4 w-4" /> {error}</span>
-              </motion.div>
+            </motion.div>
             ) : null}
-          </AnimatePresence>
+        </AnimatePresence>
 
           <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
             <div className="min-h-[280px]">
@@ -479,7 +479,7 @@ function SignUpContent() {
                       </Field>
                       <div className="rounded-2xl border border-[#dccfbb] bg-white/72 p-3 text-xs font-bold leading-relaxed text-black/48">
                         Ce pseudo sera utilisé sur ton profil public. Tu pourras ajouter avatar, bio et liens ensuite.
-                      </div>
+          </div>
                     </>
                   ) : null}
 
@@ -491,18 +491,18 @@ function SignUpContent() {
                           <input type="email" name="email" value={formData.email} onChange={handleInputChange} className={`${INPUT} pl-11`} placeholder="vous@example.com" disabled={isLoading} />
                         </span>
                       </Field>
-                      <button
-                        type="button"
+        <button
+          type="button"
                         onClick={() => signIn('google', { callbackUrl })}
                         className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl border border-[#dccfbb] bg-white text-sm font-black text-[#171313] shadow-[0_10px_24px_rgba(44,33,19,0.06)] transition hover:-translate-y-0.5"
                       >
                         <GoogleMark />
-                        Continuer avec Google
-                      </button>
+          Continuer avec Google
+        </button>
                       <div className="rounded-2xl border border-[#dccfbb] bg-white/72 p-3">
                         <p className="text-xs font-black uppercase tracking-[0.14em] text-black/36">Pourquoi l’email ?</p>
                         <p className="mt-1 text-xs font-bold leading-relaxed text-black/48">Il sert à sécuriser ton accès, récupérer ton compte et recevoir les notifications importantes.</p>
-                      </div>
+        </div>
                     </>
                   ) : null}
 
@@ -521,7 +521,7 @@ function SignUpContent() {
                         {[0, 1, 2, 3, 4].map(index => (
                           <span key={index} className={`h-2 flex-1 rounded-full ${index < passwordScore ? 'bg-[#171313]' : 'bg-black/10'}`} />
                         ))}
-                      </div>
+              </div>
                       <Field label="Confirmation">
                         <span className="relative block">
                           <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/32" />
@@ -535,19 +535,19 @@ function SignUpContent() {
                         <p className="text-xs font-black uppercase tracking-[0.14em] text-black/36">Résumé</p>
                         <p className="mt-1 text-sm font-black text-[#171313]">{formData.name || 'Nom'} · @{formData.username || 'pseudo'}</p>
                         <p className="text-xs font-bold text-black/46">{formData.email || 'email'}</p>
-                      </div>
+            </div>
                     </>
                   ) : null}
                 </motion.div>
               </AnimatePresence>
-            </div>
+          </div>
 
             <div className="mt-auto space-y-4 pt-5">
               {userCount && userCount.remainingSlots > 0 && userCount.canRegister ? (
                 <div className="flex items-center gap-2 rounded-2xl bg-black/[0.04] px-3 py-2 text-xs font-bold text-black/46">
                   <Users className="h-3.5 w-3.5" />
                   {userCount.remainingSlots} places restantes sur {userCount.maxUsers}
-                </div>
+            </div>
               ) : null}
 
               <div className="flex gap-2">
@@ -558,7 +558,7 @@ function SignUpContent() {
                   className="h-12 rounded-2xl bg-black/[0.05] px-5 text-sm font-black text-black/48 transition hover:bg-black hover:text-white disabled:pointer-events-none disabled:opacity-35"
                 >
                   Retour
-                </button>
+              </button>
                 <motion.button
                   whileTap={{ scale: 0.985 }}
                   type="submit"
@@ -568,7 +568,7 @@ function SignUpContent() {
                   {isLoading ? 'Création...' : step === steps.length - 1 ? 'Créer mon compte' : 'Continuer'}
                   {!isLoading ? <ArrowRight className="h-4 w-4" /> : null}
                 </motion.button>
-              </div>
+          </div>
 
               <p className="text-center text-[13px] font-semibold text-black/46">
                 Déjà un compte ?{' '}
@@ -583,8 +583,8 @@ function SignUpContent() {
                 <Link href="/legal/confidentialite" className="font-black hover:text-[#ff6f61]">politique de confidentialité</Link>.
               </p>
             </div>
-          </form>
-        </div>
+        </form>
+      </div>
       </motion.section>
     </main>
   );
@@ -596,7 +596,7 @@ export default function SignUpPage() {
       fallback={
         <div className="text-center">
           <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-black/30 border-t-transparent" />
-        </div>
+      </div>
       }
     >
       <SignUpContent />

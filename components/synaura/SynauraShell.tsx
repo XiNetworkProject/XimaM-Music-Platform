@@ -138,6 +138,7 @@ export function SynauraTopBar({
   secondaryLabel = 'Studio',
   primaryHref = '/upload',
   primaryLabel = 'Publier',
+  compact = false,
 }: {
   searchHref?: string;
   searchLabel?: string;
@@ -145,21 +146,28 @@ export function SynauraTopBar({
   secondaryLabel?: string;
   primaryHref?: string;
   primaryLabel?: string;
+  compact?: boolean;
 }) {
   const { data: session, status } = useSession();
   const isGuest = status !== 'loading' && !session?.user;
 
   return (
-    <header className="sticky top-2 z-40 mb-4 rounded-[1.35rem] border border-black/[0.08] bg-[#fffaf2]/90 px-2.5 py-2.5 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:top-3 sm:rounded-[2rem] sm:px-4 sm:py-3">
+    <header className={cx(
+      'sticky top-2 z-40 rounded-[1.35rem] border border-black/[0.08] bg-[#fffaf2]/90 px-2.5 py-2.5 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:top-3 sm:rounded-[2rem] sm:px-4 sm:py-3',
+      compact ? 'top-1 mb-1.5 rounded-[1.05rem] px-2 py-1.5 sm:top-2 sm:rounded-[1.25rem] sm:px-3 sm:py-1.5' : 'mb-4',
+    )}>
       <div className="flex items-center justify-between gap-2 sm:gap-3">
         <Link href="/" className="flex min-w-0 items-center gap-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[1rem] border border-black/[0.08] bg-white shadow-[0_10px_26px_rgba(30,25,20,0.10)] sm:h-14 sm:w-14 sm:rounded-[1.25rem]">
+          <div className={cx(
+            'grid h-11 w-11 shrink-0 place-items-center rounded-[1rem] border border-black/[0.08] bg-white shadow-[0_10px_26px_rgba(30,25,20,0.10)] sm:h-14 sm:w-14 sm:rounded-[1.25rem]',
+            compact && 'h-8 w-8 rounded-[0.8rem] sm:h-9 sm:w-9 sm:rounded-[0.9rem]',
+          )}>
             <Image
               src={SYNAURA_SHELL_BRAND.appLogo}
               alt="Synaura"
               width={52}
               height={52}
-              className="h-10 w-10 object-contain sm:h-12 sm:w-12"
+              className={cx('h-10 w-10 object-contain sm:h-12 sm:w-12', compact && 'h-7 w-7 sm:h-8 sm:w-8')}
               unoptimized
               priority
             />
@@ -170,33 +178,39 @@ export function SynauraTopBar({
               alt="Synaura"
               width={200}
               height={48}
-              className="h-9 w-auto max-w-[200px] object-contain object-left"
+              className={cx('h-9 w-auto max-w-[200px] object-contain object-left', compact && 'h-6 max-w-[150px]')}
               unoptimized
               priority
             />
           </div>
-          <div className="min-w-0 sm:hidden">
+          <div className={cx('min-w-0 sm:hidden', compact && 'hidden')}>
             <p className="text-lg font-black tracking-tight">Synaura</p>
             <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-black/36">écoute · crée · remix</p>
           </div>
         </Link>
 
-        <SynauraUniversalSearch placeholder={searchLabel} />
+        <SynauraUniversalSearch compact={compact} placeholder={searchLabel} />
 
         <div className="flex items-center gap-2">
           {isGuest ? (
             <Link
               href="/auth/signin"
-              className="hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex"
+              className={cx(
+                'hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex',
+                compact && 'h-8 px-3 text-xs',
+              )}
             >
               <LogIn className="h-4 w-4" /> Connexion
             </Link>
           ) : (
             <>
-              <NotificationCenter className="bg-black/[0.06] text-black/60 hover:bg-black hover:text-white sm:h-11 sm:w-11" />
+              <NotificationCenter className={cx('bg-black/[0.06] text-black/60 hover:bg-black hover:text-white sm:h-11 sm:w-11', compact && 'h-8 w-8 sm:h-8 sm:w-8')} />
               <Link
                 href={secondaryHref}
-                className="hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex"
+                className={cx(
+                  'hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex',
+                  compact && 'h-8 px-3 text-xs',
+                )}
               >
                 <Sparkles className="h-4 w-4" /> {secondaryLabel}
               </Link>
@@ -204,7 +218,10 @@ export function SynauraTopBar({
           )}
           <Link
             href={isGuest ? '/auth/signup' : primaryHref}
-            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-[#171313] px-3 text-xs font-black text-white shadow-[0_12px_28px_rgba(23,19,19,0.18)] transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm"
+            className={cx(
+              'inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-[#171313] px-3 text-xs font-black text-white shadow-[0_12px_28px_rgba(23,19,19,0.18)] transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm',
+              compact && 'hidden h-8 px-3 text-xs sm:inline-flex sm:h-8 sm:px-3 sm:text-xs',
+            )}
           >
             {isGuest ? <UserPlus className="h-4 w-4" /> : null}
             {isGuest ? 'Créer un compte' : primaryLabel}
@@ -212,7 +229,7 @@ export function SynauraTopBar({
         </div>
       </div>
 
-      <div className="mt-2.5 flex gap-2 lg:hidden">
+      <div className={cx('mt-2.5 flex gap-2 lg:hidden', compact && 'hidden')}>
         <SynauraUniversalSearch compact placeholder={searchLabel} />
         <Link
           href={isGuest ? '/auth/signin' : secondaryHref}
@@ -248,12 +265,15 @@ export function SynauraTopBar({
   );
 }
 
-export function SynauraRouteNav({ className = '' }: { className?: string }) {
+export function SynauraRouteNav({ className = '', compact = false }: { className?: string; compact?: boolean }) {
   const pathname = usePathname();
 
   return (
-    <nav className={cx('mb-4 hidden sm:block', className)} aria-label="Navigation Synaura">
-      <div className="synaura-no-scrollbar flex gap-2 overflow-x-auto rounded-[1.6rem] border border-black/[0.08] bg-[#fffaf2]/84 p-2 shadow-[0_14px_36px_rgba(30,25,20,0.08)] backdrop-blur-xl">
+    <nav className={cx(compact ? 'mb-1 block' : 'mb-4 hidden sm:block', className)} aria-label="Navigation Synaura">
+      <div className={cx(
+        'synaura-no-scrollbar flex gap-2 overflow-x-auto rounded-[1.6rem] border border-black/[0.08] bg-[#fffaf2]/84 p-2 shadow-[0_14px_36px_rgba(30,25,20,0.08)] backdrop-blur-xl',
+        compact && 'gap-1.5 rounded-[1rem] p-1',
+      )}>
         {SYNAURA_ROUTE_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = routeIsActive(pathname, item.href);
@@ -264,11 +284,12 @@ export function SynauraRouteNav({ className = '' }: { className?: string }) {
               href={item.href}
               className={cx(
                 'inline-flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-black transition',
+                compact && 'h-7 gap-1.5 px-2.5 text-[10px]',
                 isActive ? 'bg-[#171313] text-white' : 'bg-black/[0.045] text-black/56 hover:bg-black/[0.08] hover:text-[#171313]',
               )}
               aria-current={isActive ? 'page' : undefined}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className={cx('h-4 w-4', compact && 'h-3 w-3')} />
               {item.label}
             </Link>
           );
@@ -313,7 +334,7 @@ export function SynauraMobileDock() {
   );
 }
 
-export function SynauraAnnouncementStrip({ className = '' }: { className?: string }) {
+export function SynauraAnnouncementStrip({ className = '', compact = false }: { className?: string; compact?: boolean }) {
   if (!isShutdownAnnounced() || isPastShutdownEnd()) return null;
 
   return (
@@ -321,6 +342,7 @@ export function SynauraAnnouncementStrip({ className = '' }: { className?: strin
       href="/fermeture"
       className={cx(
         'mb-4 flex items-center justify-center gap-2 rounded-[1.35rem] border border-red-300/45 bg-red-50/92 px-4 py-3 text-center text-xs font-black text-red-900/78 shadow-[0_14px_30px_rgba(120,35,20,0.08)] transition hover:bg-red-50',
+        compact && 'lg:mb-2 lg:rounded-[1rem] lg:px-3 lg:py-1.5 lg:text-[11px]',
         className,
       )}
     >

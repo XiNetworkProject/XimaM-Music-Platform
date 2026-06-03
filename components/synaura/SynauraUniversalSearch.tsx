@@ -195,7 +195,7 @@ export default function SynauraUniversalSearch({
   return (
     <div ref={rootRef} className={`relative ${compact ? 'min-w-0 flex-1' : 'hidden max-w-2xl flex-1 lg:block'}`}>
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35 sm:left-4" />
+        <Search className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-black/35 ${compact ? 'left-2.5 h-3.5 w-3.5' : 'left-3 h-4 w-4 sm:left-4'}`} />
         <input
           value={query}
           onChange={(event) => {
@@ -213,7 +213,10 @@ export default function SynauraUniversalSearch({
             }
           }}
           placeholder={placeholder}
-          className="h-10 w-full rounded-full border border-transparent bg-black/[0.055] pl-9 pr-10 text-xs font-semibold text-[#171313] outline-none placeholder:text-black/35 transition focus:border-black/[0.12] focus:bg-[#fffaf2] sm:h-11 sm:pl-11 sm:text-sm"
+          className={compact
+            ? 'h-8 w-full rounded-full border border-transparent bg-black/[0.055] pl-8 pr-9 text-[11px] font-semibold text-[#171313] outline-none placeholder:text-black/35 transition focus:border-black/[0.12] focus:bg-[#fffaf2]'
+            : 'h-10 w-full rounded-full border border-transparent bg-black/[0.055] pl-9 pr-10 text-xs font-semibold text-[#171313] outline-none placeholder:text-black/35 transition focus:border-black/[0.12] focus:bg-[#fffaf2] sm:h-11 sm:pl-11 sm:text-sm'
+          }
           aria-label="Recherche globale"
         />
         {query ? (
