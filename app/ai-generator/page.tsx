@@ -3254,6 +3254,12 @@ function AIGeneratorContent() {
   // Vérification d'authentification (même logique que ai-library)
   const studioModeLabel = shellMode === 'ide' ? 'IDE immersif' : 'Classic';
   const studioModelLabel = modelVersion === 'V5_5' ? 'v5.5' : modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5';
+  const studioInspectorTrack = selectedTrack ?? generatedTrack ?? null;
+  const studioInspectorKey = String((studioInspectorTrack as any)?.id || (studioInspectorTrack as any)?._id || '');
+
+  useEffect(() => {
+    if (studioInspectorKey) setInspectorDismissed(false);
+  }, [studioInspectorKey]);
 
   if (!session) {
     return (
@@ -3301,18 +3307,12 @@ function AIGeneratorContent() {
       : generationModeKind === 'custom'
         ? 'Pose le titre, le style et les paroles exactement comme tu les veux.'
         : 'Choisis une source et donne une nouvelle direction au morceau.';
-  const studioInspectorTrack = selectedTrack ?? generatedTrack ?? null;
-  const studioInspectorKey = String((studioInspectorTrack as any)?.id || (studioInspectorTrack as any)?._id || '');
   const showStudioInspector = Boolean(studioInspectorTrack) && !inspectorDismissed;
   const studioGridTemplate = isDesktopLayout
     ? showStudioInspector
       ? `${leftPx}px 10px minmax(${CENTER_MIN}px, 1fr) 10px ${rightPx}px`
       : `${leftPx}px 10px minmax(0, 1fr)`
     : undefined;
-
-  useEffect(() => {
-    if (studioInspectorKey) setInspectorDismissed(false);
-  }, [studioInspectorKey]);
 
   return (
     <SynauraAppShell contentClassName="max-w-[1700px] flex h-[100dvh] flex-col overflow-hidden !px-2 !py-1.5 !pb-0 sm:!pb-0 lg:!py-2">
