@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 
 const MAX_REFERRALS = 20;
@@ -8,7 +7,7 @@ const CREDITS_PER_REFERRAL = 50;
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }

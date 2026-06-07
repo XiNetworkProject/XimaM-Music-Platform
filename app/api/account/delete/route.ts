@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { NextRequest, NextResponse } from 'next/server';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { deleteFile } from '@/lib/cloudinary';
 
@@ -18,9 +17,9 @@ function cloudinaryPublicIdFromUrl(url: string | null): string | null {
   return publicId || null;
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { notifyNewFollower } from '@/lib/notifications';
 
@@ -13,7 +12,7 @@ export async function POST(
   try {
     console.log('🔍 POST /api/users/[username]/follow - Début');
     
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     if (!session?.user?.id) {
       console.log('❌ Non authentifié');
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -142,7 +141,7 @@ export async function GET(
   { params }: { params: { username: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }

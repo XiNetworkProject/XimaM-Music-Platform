@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 
 export async function GET(
   request: NextRequest,
@@ -20,7 +19,7 @@ export async function GET(
     console.log(`🔍 Récupération du profil pour: ${username}`);
 
     // Récupérer la session pour vérifier si l'utilisateur connecté a liké les tracks
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request).catch(() => null);
     const currentUserId = session?.user?.id;
 
     // Récupérer le profil utilisateur depuis Supabase
@@ -184,7 +183,7 @@ export async function PUT(
   { params }: { params: { username: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }

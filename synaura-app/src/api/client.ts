@@ -908,6 +908,268 @@ export async function cleanupUploadMobile(input: { audioPublicId?: string; cover
   });
 }
 
+export type MobileProfileTrack = Track & {
+  id: string;
+  rawId?: string;
+  description?: string;
+  isPublic?: boolean;
+  isFeatured?: boolean;
+  createdAt?: string;
+};
+
+export type MobileProfilePlaylist = {
+  id: string;
+  title: string;
+  description?: string;
+  coverUrl?: string | null;
+  tracksCount: number;
+  isAlbum?: boolean;
+  createdAt?: string;
+};
+
+export type MobileProfile = {
+  id: string;
+  username: string;
+  name: string;
+  email?: string | null;
+  avatar?: string | null;
+  banner?: string | null;
+  bio?: string;
+  location?: string;
+  website?: string;
+  isArtist: boolean;
+  artistName?: string;
+  genre: string[];
+  isVerified: boolean;
+  role?: string;
+  totalPlays: number;
+  totalLikes: number;
+  tracksCount: number;
+  playlistsCount: number;
+  followerCount: number;
+  followingCount: number;
+  isFollowing?: boolean;
+  tracks: MobileProfileTrack[];
+  playlists: MobileProfilePlaylist[];
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type NotificationPrefs = {
+  push_enabled: boolean;
+  email_enabled: boolean;
+  in_app_enabled: boolean;
+  new_follower: boolean;
+  new_like: boolean;
+  like_milestone: boolean;
+  new_comment: boolean;
+  new_message: boolean;
+  new_track_followed: boolean;
+  view_milestone: boolean;
+  boost_reminder: boolean;
+  admin_broadcast: boolean;
+  weekly_recap: boolean;
+};
+
+export type ReferralData = {
+  referralCode?: string;
+  referralLink?: string;
+  totalReferrals: number;
+  maxReferrals: number;
+  remainingSlots: number;
+  totalCreditsEarned: number;
+  referrals: Array<{ id: string; username: string; name?: string; avatar?: string | null; creditsGranted?: number; date?: string }>;
+};
+
+export type SubscriptionUsage = {
+  plan: string;
+  tracks: { used: number; limit: number; percentage: number };
+  playlists: { used: number; limit: number; percentage: number };
+};
+
+export type UpdateProfileInput = {
+  name?: string;
+  bio?: string;
+  location?: string;
+  website?: string;
+  isArtist?: boolean;
+  artistName?: string;
+  genre?: string[];
+};
+
+function normalizeProfileTrack(raw: any, profile?: any): MobileProfileTrack | null {
+  const track = normalizeTrack({
+    ...raw,
+    artist: raw?.artist || {
+      name: profile?.artistName || profile?.artist_name || profile?.name || profile?.username,
+      username: profile?.username,
+      avatar: profile?.avatar,
+    },
+  });
+  if (!track) return null;
+  return {
+    ...track,
+    id: track._id,
+    rawId: raw?.raw_id || raw?.id,
+    description: raw?.description || '',
+    isPublic: raw?.isPublic ?? raw?.is_public,
+    isFeatured: raw?.isFeatured ?? raw?.is_featured,
+    createdAt: raw?.createdAt || raw?.created_at,
+  };
+}
+
+function normalizeMobileProfile(raw: any): MobileProfile {
+  const genre = Array.isArray(raw?.genre) ? raw.genre.filter(Boolean).map((item: unknown) => String(item)) : [];
+  const baseProfile = {
+    artistName: raw?.artistName || raw?.artist_name,
+    name: raw?.name,
+    username: raw?.username,
+    avatar: absoluteAsset(raw?.avatar),
+  };
+  return {
+    id: String(raw?.id || raw?._id || ''),
+    username: safeString(raw?.username, 'user'),
+    name: safeString(raw?.name || raw?.artistName || raw?.artist_name || raw?.username, 'Compte Synaura'),
+    email: raw?.email || null,
+    avatar: absoluteAsset(raw?.avatar),
+    banner: absoluteAsset(raw?.banner),
+    bio: raw?.bio || '',
+    location: raw?.location || '',
+    website: raw?.website || '',
+    isArtist: Boolean(raw?.isArtist || raw?.is_artist),
+    artistName: raw?.artistName || raw?.artist_name || '',
+    genre,
+    isVerified: Boolean(raw?.isVerified || raw?.is_verified),
+    role: raw?.role || 'user',
+    totalPlays: Number(raw?.totalPlays || raw?.total_plays || 0),
+    totalLikes: Number(raw?.totalLikes || raw?.total_likes || 0),
+    tracksCount: Number(raw?.tracksCount || raw?.tracks_count || countArrayOrNumber(raw?.tracks)),
+    playlistsCount: Number(raw?.playlistsCount || raw?.playlists_count || countArrayOrNumber(raw?.playlists)),
+    followerCount: Number(raw?.followerCount || raw?.follower_count || 0),
+    followingCount: Number(raw?.followingCount || raw?.following_count || 0),
+    isFollowing: Boolean(raw?.isFollowing || raw?.is_following),
+    tracks: (Array.isArray(raw?.tracks) ? raw.tracks : [])
+      .map((item: any) => normalizeProfileTrack(item, baseProfile))
+      .filter((item: MobileProfileTrack | null): item is MobileProfileTrack => Boolean(item)),
+    playlists: (Array.isArray(raw?.playlists) ? raw.playlists : []).map((playlist: any) => ({
+      id: String(playlist?._id || playlist?.id || ''),
+      title: safeString(playlist?.name || playlist?.title, 'Playlist'),
+      description: playlist?.description || '',
+      coverUrl: absoluteAsset(playlist?.coverUrl || playlist?.cover_url) || null,
+      tracksCount: Array.isArray(playlist?.tracks) ? playlist.tracks.length : Number(playlist?.trackCount || playlist?.tracks_count || 0),
+      isAlbum: Boolean(playlist?.is_album || playlist?.isAlbum),
+      createdAt: playlist?.createdAt || playlist?.created_at,
+    })).filter((playlist: MobileProfilePlaylist) => Boolean(playlist.id)),
+    createdAt: raw?.createdAt || raw?.created_at,
+    updatedAt: raw?.updatedAt || raw?.updated_at,
+  };
+}
+
+export async function getPublicProfile(username: string): Promise<MobileProfile> {
+  const json = await request<any>(`/api/users/${encodeURIComponent(username)}`);
+  return normalizeMobileProfile(json);
+}
+
+export async function getMyProfile(username?: string | null): Promise<MobileProfile> {
+  if (!username) {
+    const me = await request<any>('/api/auth/mobile/me');
+    const user = me?.user || me?.data?.user;
+    if (!user?.username) throw new Error('Profil mobile introuvable');
+    return getPublicProfile(user.username);
+  }
+  return getPublicProfile(username);
+}
+
+export async function updateProfile(username: string, input: UpdateProfileInput): Promise<MobileProfile> {
+  const json = await request<any>(`/api/users/${encodeURIComponent(username)}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+  return normalizeMobileProfile({ ...json, username });
+}
+
+export async function uploadProfileImage(username: string, type: 'avatar' | 'banner', asset: UploadAsset): Promise<string> {
+  const timestamp = Math.round(Date.now() / 1000);
+  const publicId = `${username}_${type}_${timestamp}`;
+  const signature = await request<any>(`/api/users/${encodeURIComponent(username)}/upload-image`, {
+    method: 'POST',
+    body: JSON.stringify({ timestamp, publicId, type }),
+  });
+  const cloudName = signature?.cloudName;
+  const apiKey = signature?.apiKey;
+  if (!cloudName || !apiKey || !signature?.signature) throw new Error('Signature image invalide');
+
+  const form = new FormData();
+  form.append('file', { uri: asset.uri, name: asset.name, type: asset.type || 'image/jpeg' } as any);
+  form.append('timestamp', String(timestamp));
+  form.append('public_id', publicId);
+  form.append('folder', `ximam/profiles/${username}`);
+  form.append('resource_type', 'image');
+  form.append('api_key', apiKey);
+  form.append('signature', signature.signature);
+
+  const upload = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: form });
+  const uploadJson = await upload.json().catch(() => null);
+  if (!upload.ok || !uploadJson?.secure_url) throw new Error(uploadJson?.error?.message || 'Upload image profil impossible');
+
+  const saved = await request<any>(`/api/users/${encodeURIComponent(username)}/save-image`, {
+    method: 'POST',
+    body: JSON.stringify({ imageUrl: uploadJson.secure_url, type, publicId }),
+  });
+  return absoluteAsset(saved?.imageUrl || uploadJson.secure_url) || uploadJson.secure_url;
+}
+
+export async function followUser(username: string): Promise<{ isFollowing: boolean; action: 'followed' | 'unfollowed' }> {
+  const json = await request<any>(`/api/users/${encodeURIComponent(username)}/follow`, { method: 'POST' });
+  const action = json?.action === 'unfollowed' ? 'unfollowed' : 'followed';
+  return { action, isFollowing: action === 'followed' };
+}
+
+export async function getNotificationPrefs(): Promise<NotificationPrefs> {
+  const json = await request<any>('/api/notifications/preferences');
+  return json?.preferences || json;
+}
+
+export async function updateNotificationPrefs(input: Partial<NotificationPrefs>): Promise<NotificationPrefs> {
+  const json = await request<any>('/api/notifications/preferences', {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+  return json?.preferences || json;
+}
+
+export async function getReferralData(): Promise<ReferralData | null> {
+  return optionalRequest<ReferralData>('/api/referral');
+}
+
+export async function getSubscriptionUsage(): Promise<SubscriptionUsage | null> {
+  return optionalRequest<SubscriptionUsage>('/api/subscriptions/usage');
+}
+
+export async function deleteAccount(): Promise<void> {
+  await request<any>('/api/account/delete', { method: 'POST' });
+}
+
+export async function updateTrackMetadata(trackId: string, input: {
+  title?: string;
+  description?: string;
+  genre?: string[];
+  tags?: string[];
+  isPublic?: boolean;
+  coverUrl?: string;
+  coverPublicId?: string;
+}): Promise<MobileProfileTrack | null> {
+  const json = await request<any>(`/api/tracks/${encodeURIComponent(trackId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+  return normalizeProfileTrack(json);
+}
+
+export async function deleteTrack(trackId: string): Promise<void> {
+  await request<any>(`/api/tracks/${encodeURIComponent(trackId)}`, { method: 'DELETE' });
+}
+
 /* ─────────────────────────────────────────────
    TikTok Player feed (parite avec le web)
    ───────────────────────────────────────────── */

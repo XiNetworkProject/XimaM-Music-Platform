@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
@@ -22,9 +21,9 @@ const DEFAULT_PREFS = {
   weekly_recap: false,
 };
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     const userId = (session?.user as any)?.id;
     if (!userId) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
 
@@ -46,7 +45,7 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     const userId = (session?.user as any)?.id;
     if (!userId) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
 
