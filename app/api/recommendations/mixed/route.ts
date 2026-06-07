@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { buildAnonymousRecommendationSignals, buildUserRecommendationSignals, rerankPosts } from '@/lib/recommendation';
 
@@ -75,7 +74,7 @@ export async function GET(request: NextRequest) {
     const cursor = Math.max(parseInt(searchParams.get('cursor') || '0', 10) || 0, 0);
     const debug = searchParams.get('debug') === '1';
 
-    const session = await getServerSession(authOptions).catch(() => null);
+    const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || searchParams.get('userId') || null;
 
     const { data: rawPosts, error } = await supabaseAdmin
@@ -127,4 +126,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }
-

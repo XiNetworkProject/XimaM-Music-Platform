@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +9,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 30);
 
-    const session = await getServerSession(authOptions).catch(() => null);
+    const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || null;
 
     const since48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();

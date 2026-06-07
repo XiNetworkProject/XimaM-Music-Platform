@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
@@ -19,7 +18,7 @@ type IncomingImpression = {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions).catch(() => null);
+    const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || null;
     const body = await request.json().catch(() => ({}));
     const raw = Array.isArray(body?.impressions) ? body.impressions : [body];
@@ -68,7 +67,7 @@ export async function POST(request: NextRequest) {
         session_id: sessionId,
         event_type: item.event_type || 'view',
         source: item.source,
-        platform: 'web',
+        platform: request.headers.get('authorization')?.startsWith('Bearer ') ? 'mobile' : 'web',
         is_ai_track: String(item.content_id).startsWith('ai-'),
         extra: { recommendation: true, rank: item.rank, score: item.score, reasons: item.reasons },
       }));
@@ -87,4 +86,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }
-

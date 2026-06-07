@@ -15,20 +15,43 @@ export type Track = {
   coverUrl?: string | null;
   coverVideoUrl?: string | null;
   coverVideoPosterUrl?: string | null;
+  musicVideoUrl?: string | null;
+  musicVideoPosterUrl?: string | null;
+  lyrics?: string | null;
   duration?: number;
   likes?: string[];
   comments?: string[];
   likesCount?: number;
   commentsCount?: number;
+  shares?: number;
+  sharesCount?: number;
   isLiked?: boolean;
   isAI?: boolean;
   isBoosted?: boolean;
   plays?: number;
   genre?: string[];
+  tags?: string[];
   album?: string | null;
   createdAt?: string;
   tint?: string;
   style?: string;
+};
+
+export type RadioStation = 'mixx_party' | 'ximam';
+
+export type RadioMeta = {
+  station: RadioStation;
+  title: string;
+  artist: string;
+  listeners: number;
+};
+
+export type FeedStrategy = 'reco' | 'trending' | 'boost';
+
+export type RankingFeedChunk = {
+  tracks: Track[];
+  nextCursor: number;
+  hasMore: boolean;
 };
 
 export type Playlist = {
@@ -128,4 +151,21 @@ export type SearchResults = {
   posts: HomePost[];
   artists: Creator[];
   playlists: Playlist[];
+};
+
+export type SynauraNotification = {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  category: string;
+  isRead: boolean;
+  actionUrl?: string | null;
+  createdAt: string;
+};
+
+export type NotificationCenterData = {
+  notifications: SynauraNotification[];
+  unread: number;
+  total: number;
 };

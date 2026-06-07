@@ -1,7 +1,8 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Track } from '@/api/types';
+import { TrackCover } from '@/components/TrackCover';
 import { colors, radius, spacing } from '@/theme/tokens';
 
 type Props = {
@@ -20,7 +21,7 @@ export function TrackCard({ track, active, favorite, onPress, onToggleFavorite }
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.card, active && styles.active, pressed && styles.pressed]}>
       <View style={styles.coverWrap}>
-        {track.coverUrl ? <Image source={{ uri: track.coverUrl }} style={styles.cover} /> : null}
+        <TrackCover track={track} active style={styles.cover} />
         <View style={styles.coverFallback}>
           <Ionicons name="musical-notes" size={22} color={colors.text} />
         </View>

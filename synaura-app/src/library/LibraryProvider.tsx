@@ -49,11 +49,6 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(tracks)).catch(() => {});
   }, []);
 
-  const persistRecent = useCallback((tracks: Track[]) => {
-    setRecent(tracks);
-    AsyncStorage.setItem(RECENT_KEY, JSON.stringify(tracks)).catch(() => {});
-  }, []);
-
   const isFavorite = useCallback((trackId: string) => {
     return favorites.some((track) => track._id === trackId);
   }, [favorites]);
@@ -67,13 +62,18 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
 
   const addRecent = useCallback((track: Track) => {
     if (!track?._id) return;
-    const next = [track, ...recent.filter((item) => item._id !== track._id)].slice(0, 50);
-    persistRecent(next);
-  }, [persistRecent, recent]);
+    setRecent((current) => {
+      if (current[0]?._id === track._id) return current;
+      const next = [track, ...current.filter((item) => item._id !== track._id)].slice(0, 50);
+      AsyncStorage.setItem(RECENT_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
 
   const clearRecent = useCallback(() => {
-    persistRecent([]);
-  }, [persistRecent]);
+    setRecent([]);
+    AsyncStorage.removeItem(RECENT_KEY).catch(() => {});
+  }, []);
 
   const value = useMemo<LibraryContextValue>(() => ({
     favorites,

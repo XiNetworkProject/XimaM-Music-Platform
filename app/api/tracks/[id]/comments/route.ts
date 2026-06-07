@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import contentModerator from '@/lib/contentModeration';
 import { notifyNewComment } from '@/lib/notifications';
@@ -14,7 +13,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ comments: [] });
   }
 
-  const session = await getServerSession(authOptions).catch(() => null);
+  const session = await getApiSession(request).catch(() => null);
   const userId = (session?.user as any)?.id || null;
   const { searchParams } = new URL(request.url);
   const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10) || 50, 100);
@@ -122,7 +121,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions).catch(() => null);
+    const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id;
     if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 

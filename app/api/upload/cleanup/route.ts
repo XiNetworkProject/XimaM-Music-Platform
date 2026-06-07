@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import cloudinary from '@/lib/cloudinary';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     if (!session?.user?.id) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
     const { audioPublicId, coverPublicId, coverVideoPublicId } = await request.json();

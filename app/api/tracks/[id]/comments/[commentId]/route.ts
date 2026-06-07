@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import contentModerator from '@/lib/contentModeration';
 
 // PUT /api/tracks/[id]/comments/[commentId] - modifier (propriétaire)
 export async function PUT(request: NextRequest, { params }: { params: { id: string; commentId: string } }) {
-  const session = await getServerSession(authOptions).catch(() => null);
+  const session = await getApiSession(request).catch(() => null);
   const userId = (session?.user as any)?.id;
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
@@ -60,8 +59,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 // DELETE /api/tracks/[id]/comments/[commentId] - supprimer (propriétaire)
-export async function DELETE(_request: NextRequest, { params }: { params: { id: string; commentId: string } }) {
-  const session = await getServerSession(authOptions).catch(() => null);
+export async function DELETE(request: NextRequest, { params }: { params: { id: string; commentId: string } }) {
+  const session = await getApiSession(request).catch(() => null);
   const userId = (session?.user as any)?.id;
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 

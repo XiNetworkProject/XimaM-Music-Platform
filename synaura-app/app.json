@@ -16,6 +16,7 @@
     },
     "android": {
       "package": "com.synaura.music",
+      "newArchEnabled": false,
       "adaptiveIcon": {
         "backgroundColor": "#050214"
       },

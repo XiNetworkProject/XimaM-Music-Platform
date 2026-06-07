@@ -1,119 +1,328 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { getPopularTracks, getRecentTracks, getTrendingTracks } from '@/api/client';
-import type { Track } from '@/api/types';
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { getHomeData } from '@/api/client';
+import type { HomeData, Track } from '@/api/types';
+import { TrackCover } from '@/components/TrackCover';
+import { usePlayer } from '@/player/PlayerProvider';
+import { spacing } from '@/theme/tokens';
 import { SynauraBackground } from '@/components/SynauraBackground';
-import { TrackList } from '@/components/TrackList';
-import { colors, radius, spacing } from '@/theme/tokens';
 
-type Mode = 'trending' | 'recent' | 'popular';
+const genres = ['Tout', 'Pop', 'Hip-Hop', 'Rap', 'Rock', 'Electronic', 'R&B', 'Jazz', 'Lo-Fi', 'Indie', 'Ambient'];
+const emptyData: HomeData = { forYou: [], trending: [], recent: [], boosted: [], playlists: [], creators: [], posts: [], radios: [] };
 
-const modes: Array<{ id: Mode; label: string }> = [
-  { id: 'trending', label: 'Tendances' },
-  { id: 'recent', label: 'Nouveautes' },
-  { id: 'popular', label: 'Populaires' },
-];
+function artistName(track: Track) {
+  return track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste Synaura';
+}
+
+function uniqueTracks(tracks: Track[]) {
+  const result = new Map<string, Track>();
+  tracks.forEach((track) => {
+    if (track?._id && !result.has(track._id)) result.set(track._id, track);
+  });
+  return Array.from(result.values());
+}
+
+function matchesGenre(track: Track, genre: string) {
+  if (genre === 'Tout') return true;
+  return (track.genre || []).some((item) => item.toLowerCase().includes(genre.toLowerCase()));
+}
 
 export function DiscoverScreen() {
-  const [mode, setMode] = useState<Mode>('trending');
-  const [tracks, setTracks] = useState<Track[]>([]);
+  const [data, setData] = useState<HomeData>(emptyData);
+  const [genre, setGenre] = useState('Tout');
+  const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const player = usePlayer();
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const next =
-        mode === 'recent'
-          ? await getRecentTracks()
-          : mode === 'popular'
-          ? await getPopularTracks()
-          : await getTrendingTracks();
-      setTracks(next);
+      setData(await getHomeData());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Chargement impossible');
     } finally {
       setLoading(false);
     }
-  }, [mode]);
+  }, []);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
-  const header = useMemo(() => (
-    <View style={styles.header}>
-      <Text style={styles.title}>Decouvrir</Text>
-      <Text style={styles.subtitle}>Explore les sons qui montent sur Synaura.</Text>
-      <View style={styles.segment}>
-        {modes.map((item) => {
-          const active = item.id === mode;
-          return (
-            <Pressable key={item.id} onPress={() => setMode(item.id)} style={[styles.segmentButton, active && styles.segmentButtonActive]}>
-              <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{item.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
-  ), [mode]);
+  const allTracks = useMemo(
+    () => uniqueTracks([...data.forYou, ...data.trending, ...data.recent, ...data.boosted]),
+    [data],
+  );
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return allTracks.filter((track) => {
+      if (!matchesGenre(track, genre)) return false;
+      if (!q) return true;
+      return `${track.title} ${artistName(track)} ${(track.genre || []).join(' ')}`.toLowerCase().includes(q);
+    });
+  }, [allTracks, genre, query]);
+  const forYou = useMemo(() => data.forYou.filter((track) => matchesGenre(track, genre)).slice(0, 10), [data.forYou, genre]);
+  const trending = useMemo(() => data.trending.filter((track) => matchesGenre(track, genre)).slice(0, 10), [data.trending, genre]);
+  const recent = useMemo(() => data.recent.filter((track) => matchesGenre(track, genre)).slice(0, 10), [data.recent, genre]);
+  const heroTrack = filtered[0] || allTracks[0];
+
+  const playFrom = useCallback(async (tracks: Track[], track: Track) => {
+    const playable = tracks.filter((item) => item.audioUrl);
+    const index = Math.max(0, playable.findIndex((item) => item._id === track._id));
+    await player.setQueueAndPlay(playable, index);
+  }, [player]);
 
   return (
-    <SynauraBackground>
-      <TrackList
-        tracks={tracks}
-        refreshing={loading}
-        onRefresh={load}
-        header={header}
-        emptyTitle={loading ? 'Chargement...' : 'Rien a afficher'}
-        emptyText={error || 'Essaie une autre section.'}
-      />
-    </SynauraBackground>
+    <View style={styles.root}>
+      <DiscoverBackground />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={warm.ink} />}
+      >
+        <View style={styles.topRow}>
+          <View>
+            <Text style={styles.kicker}>Catalogue ouvert</Text>
+            <Text style={styles.title}>Découvrir</Text>
+          </View>
+          <Pressable onPress={() => heroTrack && playFrom(filtered.length ? filtered : allTracks, heroTrack)} style={styles.playAll}>
+            <Ionicons name={player.isPlaying ? 'pause' : 'play'} size={18} color={warm.paper} />
+          </Pressable>
+        </View>
+
+        <View style={styles.search}>
+          <Ionicons name="search" size={18} color={warm.muted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Titre, artiste ou genre..."
+            placeholderTextColor={warm.muted}
+            style={styles.searchInput}
+          />
+          {query ? (
+            <Pressable onPress={() => setQuery('')}>
+              <Ionicons name="close-circle" size={18} color={warm.muted} />
+            </Pressable>
+          ) : null}
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.genres}>
+          {genres.map((item) => (
+            <Pressable key={item} onPress={() => setGenre(item)} style={[styles.genre, genre === item && styles.genreActive]}>
+              <Text style={[styles.genreText, genre === item && styles.genreTextActive]}>{item}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        {heroTrack ? <DiscoverHero track={heroTrack} playing={player.current?._id === heroTrack._id && player.isPlaying} onPlay={() => playFrom(filtered.length ? filtered : allTracks, heroTrack)} /> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {loading && !allTracks.length ? <ActivityIndicator color={warm.ink} style={styles.loader} /> : null}
+
+        {query.trim() ? (
+          <DiscoverRows title={`Résultats pour "${query.trim()}"`} tracks={filtered.slice(0, 30)} player={player} onPlay={(track) => playFrom(filtered, track)} />
+        ) : (
+          <>
+            <DiscoverRail title="Pour toi" subtitle="une sélection qui suit tes écoutes" tracks={forYou} player={player} onPlay={(track) => playFrom(forYou, track)} />
+            <DiscoverRows title="Top hits" tracks={trending.slice(0, 6)} player={player} onPlay={(track) => playFrom(trending, track)} />
+            <DiscoverRail title="Fraîchement publié" subtitle="les dernières sorties Synaura" tracks={recent} player={player} onPlay={(track) => playFrom(recent, track)} />
+            <CreatorRail creators={data.creators.slice(0, 8)} />
+            <PlaylistRail playlists={data.playlists.slice(0, 8)} />
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
+function DiscoverBackground() {
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <SynauraBackground variant="warm" />
+    </View>
+  );
+}
+
+function DiscoverHero({ track, playing, onPlay }: { track: Track; playing: boolean; onPlay: () => void }) {
+  return (
+    <View style={styles.heroCard}>
+      <TrackCover track={track} active autoPlayVideo style={styles.heroImage} />
+      <LinearGradient colors={['rgba(23,19,19,0.28)', 'rgba(23,19,19,0.96)']} style={StyleSheet.absoluteFill} />
+      <View style={styles.heroContent}>
+        <Text style={styles.heroKicker}>Entre par les tendances</Text>
+        <Text numberOfLines={2} style={styles.heroTitle}>Découvre, écoute, enchaîne.</Text>
+        <Text numberOfLines={1} style={styles.heroNow}>{track.title} · {artistName(track)}</Text>
+        <Pressable onPress={onPlay} style={styles.heroButton}>
+          <Ionicons name={playing ? 'pause' : 'play'} size={18} color={warm.ink} />
+          <Text style={styles.heroButtonText}>{playing ? 'En lecture' : 'Écouter maintenant'}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function DiscoverRail({ title, subtitle, tracks, player, onPlay }: { title: string; subtitle: string; tracks: Track[]; player: ReturnType<typeof usePlayer>; onPlay: (track: Track) => void }) {
+  if (!tracks.length) return null;
+  return (
+    <View style={styles.section}>
+      <SectionTitle title={title} subtitle={subtitle} />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+        {tracks.map((track) => (
+          <Pressable key={track._id} onPress={() => onPlay(track)} style={styles.tile}>
+            <View style={styles.tileCoverWrap}>
+              <TrackCover track={track} active autoPlayVideo style={styles.tileCover} />
+              <View style={styles.tilePlay}>
+                <Ionicons name={player.current?._id === track._id && player.isPlaying ? 'pause' : 'play'} size={16} color={warm.ink} />
+              </View>
+            </View>
+            <Text numberOfLines={1} style={styles.tileTitle}>{track.title}</Text>
+            <Text numberOfLines={1} style={styles.tileArtist}>{artistName(track)}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function DiscoverRows({ title, tracks, player, onPlay }: { title: string; tracks: Track[]; player: ReturnType<typeof usePlayer>; onPlay: (track: Track) => void }) {
+  if (!tracks.length) return null;
+  return (
+    <View style={styles.section}>
+      <SectionTitle title={title} subtitle="les morceaux qui circulent fort maintenant" />
+      <View style={styles.rows}>
+        {tracks.map((track, index) => (
+          <Pressable key={track._id} onPress={() => onPlay(track)} style={styles.row}>
+            <Text style={styles.rank}>{String(index + 1).padStart(2, '0')}</Text>
+            <TrackCover track={track} active style={styles.rowCover} />
+            <View style={styles.rowMeta}>
+              <Text numberOfLines={1} style={styles.rowTitle}>{track.title}</Text>
+              <Text numberOfLines={1} style={styles.rowArtist}>{artistName(track)}</Text>
+            </View>
+            <Ionicons name={player.current?._id === track._id && player.isPlaying ? 'pause-circle' : 'play-circle'} size={30} color={warm.ink} />
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function CreatorRail({ creators }: { creators: HomeData['creators'] }) {
+  if (!creators.length) return null;
+  return (
+    <View style={styles.section}>
+      <SectionTitle title="Artistes chauds" subtitle="des profils à suivre maintenant" />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+        {creators.map((creator) => (
+          <View key={creator.id} style={styles.creator}>
+            <View style={[styles.creatorAvatar, { backgroundColor: creator.tint }]}>
+              <Text style={styles.creatorInitial}>{creator.avatar}</Text>
+            </View>
+            <Text numberOfLines={1} style={styles.creatorName}>{creator.name}</Text>
+            <Text numberOfLines={1} style={styles.tileArtist}>{creator.handle}</Text>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function PlaylistRail({ playlists }: { playlists: HomeData['playlists'] }) {
+  if (!playlists.length) return null;
+  return (
+    <View style={styles.section}>
+      <SectionTitle title="Playlists visibles" subtitle="des portes d’entrée dans le catalogue" />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+        {playlists.map((playlist) => (
+          <View key={playlist.id} style={styles.tile}>
+            <Image source={{ uri: playlist.covers[0] || undefined }} style={styles.playlistCover} />
+            <Text numberOfLines={1} style={styles.tileTitle}>{playlist.title}</Text>
+            <Text numberOfLines={1} style={styles.tileArtist}>{playlist.tracks}</Text>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <View style={styles.sectionTitleWrap}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+    </View>
+  );
+}
+
+const warm = {
+  paper: '#FFFAF2',
+  ink: '#171313',
+  muted: 'rgba(23,19,19,0.40)',
+  soft: 'rgba(23,19,19,0.58)',
+  border: 'rgba(23,19,19,0.08)',
+};
+
 const styles = StyleSheet.create({
-  header: {
-    marginBottom: spacing.xl,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '900',
-  },
-  subtitle: {
-    marginTop: spacing.sm,
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  segment: {
-    marginTop: spacing.lg,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    padding: 4,
-  },
-  segmentButton: {
-    flex: 1,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentButtonActive: {
-    backgroundColor: colors.white,
-  },
-  segmentText: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  segmentTextActive: {
-    color: colors.black,
-  },
+  root: { flex: 1, backgroundColor: '#F4EFE6' },
+  content: { paddingHorizontal: spacing.md, paddingTop: 54, paddingBottom: 190 },
+  field: { position: 'absolute', width: 440, height: 260, borderRadius: 130, opacity: 0.09 },
+  fieldCoral: { left: -250, top: -50, backgroundColor: '#FF6F61' },
+  fieldViolet: { right: -270, top: 250, backgroundColor: '#7C5CFF' },
+  fieldCyan: { left: -260, bottom: 50, backgroundColor: '#00C2CB' },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  kicker: { color: warm.muted, fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
+  title: { marginTop: 2, color: warm.ink, fontSize: 32, fontWeight: '900' },
+  playAll: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: warm.ink },
+  search: { marginTop: spacing.lg, height: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 24, borderWidth: 1, borderColor: warm.border, backgroundColor: 'rgba(255,250,242,0.88)', paddingHorizontal: spacing.md },
+  searchInput: { flex: 1, color: warm.ink, fontSize: 13, fontWeight: '800' },
+  genres: { gap: spacing.sm, paddingVertical: spacing.md },
+  genre: { height: 36, justifyContent: 'center', borderRadius: 18, backgroundColor: 'rgba(23,19,19,0.055)', paddingHorizontal: 14 },
+  genreActive: { backgroundColor: warm.ink },
+  genreText: { color: warm.soft, fontSize: 11, fontWeight: '900' },
+  genreTextActive: { color: warm.paper },
+  heroCard: { minHeight: 270, overflow: 'hidden', justifyContent: 'flex-end', borderRadius: 24, backgroundColor: warm.ink },
+  heroImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  heroContent: { padding: spacing.lg },
+  heroKicker: { color: 'rgba(255,250,242,0.48)', fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
+  heroTitle: { marginTop: spacing.sm, color: warm.paper, fontSize: 31, lineHeight: 34, fontWeight: '900' },
+  heroNow: { marginTop: spacing.sm, color: 'rgba(255,250,242,0.58)', fontSize: 12, fontWeight: '800' },
+  heroButton: { marginTop: spacing.lg, height: 44, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 22, backgroundColor: warm.paper, paddingHorizontal: spacing.lg },
+  heroButtonText: { color: warm.ink, fontSize: 13, fontWeight: '900' },
+  error: { marginTop: spacing.md, color: '#B91C1C', fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  loader: { marginVertical: spacing.xl },
+  section: { marginTop: spacing.xl },
+  sectionTitleWrap: { marginBottom: spacing.md },
+  sectionTitle: { color: warm.ink, fontSize: 20, fontWeight: '900' },
+  sectionSubtitle: { marginTop: 3, color: warm.muted, fontSize: 12, fontWeight: '700' },
+  rail: { gap: spacing.sm, paddingRight: spacing.md },
+  tile: { width: 148, borderRadius: 20, backgroundColor: 'rgba(255,250,242,0.76)', padding: spacing.sm },
+  tileCoverWrap: { aspectRatio: 1, overflow: 'hidden', borderRadius: 16, backgroundColor: 'rgba(23,19,19,0.06)' },
+  tileCover: { width: '100%', height: '100%' },
+  tilePlay: { position: 'absolute', right: 8, bottom: 8, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: warm.paper },
+  tileTitle: { marginTop: spacing.sm, color: warm.ink, fontSize: 13, fontWeight: '900' },
+  tileArtist: { marginTop: 2, color: warm.muted, fontSize: 11, fontWeight: '700' },
+  rows: { overflow: 'hidden', borderRadius: 22, borderWidth: 1, borderColor: warm.border, backgroundColor: 'rgba(255,250,242,0.82)' },
+  row: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: warm.border, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  rank: { width: 22, color: warm.muted, fontSize: 11, fontWeight: '900' },
+  rowCover: { width: 46, height: 46, borderRadius: 13, backgroundColor: 'rgba(23,19,19,0.06)' },
+  rowMeta: { flex: 1, minWidth: 0 },
+  rowTitle: { color: warm.ink, fontSize: 13, fontWeight: '900' },
+  rowArtist: { marginTop: 3, color: warm.muted, fontSize: 11, fontWeight: '700' },
+  creator: { width: 126, alignItems: 'center', borderRadius: 20, backgroundColor: 'rgba(255,250,242,0.76)', padding: spacing.md },
+  creatorAvatar: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
+  creatorInitial: { color: warm.paper, fontSize: 20, fontWeight: '900' },
+  creatorName: { marginTop: spacing.sm, color: warm.ink, fontSize: 12, fontWeight: '900' },
+  playlistCover: { width: '100%', aspectRatio: 1, borderRadius: 16, backgroundColor: 'rgba(23,19,19,0.06)' },
 });

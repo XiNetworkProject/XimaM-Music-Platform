@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { applyMissionProgress } from '@/lib/missions/progress';
 
@@ -55,7 +54,7 @@ export async function POST(
       return NextResponse.json({ error: 'track_id requis' }, { status: 400 });
     }
 
-    const session = await getServerSession(authOptions).catch(() => null);
+    const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || null;
 
     const body = await request.json();
@@ -76,7 +75,7 @@ export async function POST(
         progress_pct: e.progress_pct ?? null,
         source: e.source || null,
         referrer: e.referrer || null,
-        platform: e.platform || 'web',
+        platform: e.platform || (request.headers.get('authorization')?.startsWith('Bearer ') ? 'mobile' : 'web'),
         country: e.country || null,
         is_ai_track: Boolean(e.is_ai_track),
         extra: e.extra ?? null,

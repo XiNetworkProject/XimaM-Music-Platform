@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { applyMissionProgress } from '@/lib/missions/progress';
 import { notifyNewLike, notifyLikeMilestone, checkMilestone } from '@/lib/notifications';
@@ -11,7 +10,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Non autorisé' },
@@ -81,7 +80,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     const userId = (session?.user as any)?.id || null;
     
     console.log('POST like - Session:', { hasSession: !!session, userId, trackId: params.id });
@@ -130,7 +129,7 @@ export async function POST(
       track_id: trackId,
       user_id: userId,
       event_type: 'like',
-      platform: 'web',
+      platform: request.headers.get('authorization')?.startsWith('Bearer ') ? 'mobile' : 'web',
       is_ai_track: trackId?.startsWith('ai-') || false,
     });
     
@@ -216,7 +215,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     const userId = (session?.user as any)?.id || null;
     
     console.log('DELETE like - Session:', { hasSession: !!session, userId, trackId: params.id });
@@ -262,7 +261,7 @@ export async function DELETE(
       track_id: trackId,
       user_id: userId,
       event_type: 'unlike',
-      platform: 'web',
+      platform: request.headers.get('authorization')?.startsWith('Bearer ') ? 'mobile' : 'web',
       is_ai_track: trackId?.startsWith('ai-') || false,
     });
     

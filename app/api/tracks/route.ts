@@ -1,6 +1,5 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
@@ -16,7 +15,7 @@ export async function GET(request: NextRequest) {
     const sort = searchParams.get('sort') || null;
     const category = searchParams.get('category');
 
-    const session = await getServerSession(authOptions).catch(() => null);
+    const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || null;
 
     if ((liked || recent) && !userId) {
@@ -90,7 +89,7 @@ export async function GET(request: NextRequest) {
       const { data: likeRows, error: likeErr } = await supabaseAdmin
         .from('track_likes')
         .select('track_id, created_at')
-          .eq('generation.user_id', userId)
+          .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(1000);
 
@@ -177,7 +176,7 @@ export async function GET(request: NextRequest) {
       const { data: events, error: evErr } = await supabaseAdmin
         .from('track_events')
         .select('track_id, created_at')
-          .eq('generation.user_id', userId)
+          .eq('user_id', userId)
         .in('event_type', ['play_start', 'play_complete'])
         .order('created_at', { ascending: false })
         .limit(2000);

@@ -1,5 +1,22 @@
 import Constants from 'expo-constants';
-import type { Creator, FeedResponse, HomeComment, HomeData, HomePost, LibraryStats, Playlist, RadioItem, SearchResults, Track } from './types';
+import type {
+  Creator,
+  FeedResponse,
+  FeedStrategy,
+  HomeComment,
+  HomeData,
+  HomePost,
+  LibraryStats,
+  NotificationCenterData,
+  Playlist,
+  RadioItem,
+  RadioMeta,
+  RadioStation,
+  RankingFeedChunk,
+  SearchResults,
+  SynauraNotification,
+  Track,
+} from './types';
 
 const fallbackBaseUrl = 'https://xima-m-music-platform.vercel.app';
 const fallbackCover = 'https://xima-m-music-platform.vercel.app/default-cover.svg';
@@ -115,16 +132,22 @@ function normalizeTrack(raw: any): Track | null {
     coverUrl: absoluteAsset(raw?.coverUrl || raw?.cover_url || raw?.imageUrl || raw?.image_url) || fallbackCover,
     coverVideoUrl: absoluteAsset(raw?.coverVideoUrl || raw?.cover_video_url || raw?.video_url) || null,
     coverVideoPosterUrl: absoluteAsset(raw?.coverVideoPosterUrl || raw?.cover_video_poster_url) || null,
+    musicVideoUrl: absoluteAsset(raw?.musicVideoUrl || raw?.music_video_url) || null,
+    musicVideoPosterUrl: absoluteAsset(raw?.musicVideoPosterUrl || raw?.music_video_poster_url) || null,
+    lyrics: typeof raw?.lyrics === 'string' && raw.lyrics.trim() ? String(raw.lyrics) : null,
     duration: Number(raw?.duration || 0),
     likes: Array.isArray(raw?.likes) ? raw.likes : [],
     comments: Array.isArray(raw?.comments) ? raw.comments : [],
     likesCount: Number(raw?.likes_count ?? raw?.likesCount ?? countArrayOrNumber(raw?.likes)),
     commentsCount: Number(raw?.comments_count ?? raw?.commentsCount ?? countArrayOrNumber(raw?.comments)),
+    shares: Number(raw?.shares ?? 0),
+    sharesCount: Number(raw?.shares_count ?? raw?.sharesCount ?? raw?.shares ?? 0),
     isLiked: Boolean(raw?.isLiked || raw?.is_liked),
     isAI: Boolean(raw?.isAI || raw?.is_ai || String(id).startsWith('ai-')),
     isBoosted: Boolean(raw?.isBoosted || raw?.is_boosted),
     plays: Number(raw?.plays || raw?.play_count || 0),
     genre,
+    tags: Array.isArray(raw?.tags) ? raw.tags.filter(Boolean).map((t: unknown) => String(t)) : [],
     album: raw?.album || null,
     createdAt: raw?.createdAt || raw?.created_at,
     tint: pickTint(String(id)),
@@ -373,7 +396,7 @@ export async function getHomeData(): Promise<HomeData> {
 
   const libraryStats: LibraryStats | null = libraryPlaylistsPayload || libraryFavoritesPayload || libraryRecentPayload
     ? {
-        playlists: Array.isArray(libraryPlaylistsPayload?.playlists) ? libraryPlaylistsPayload.playlists.length : 0,
+        playlists: Array.isArray(libraryPlaylistsPayload?.playlists) ? libraryPlaylistsPayload?.playlists?.length || 0 : 0,
         favorites: collectTracks(libraryFavoritesPayload || {}).length,
         recent: collectTracks(libraryRecentPayload || {}).length,
         ai: collectTracks(libraryRecentPayload || {}).filter((track) => track.isAI || track._id.startsWith('ai-')).length,
@@ -457,6 +480,54 @@ export async function searchEverything(query: string): Promise<SearchResults> {
   };
 }
 
+function normalizeNotification(raw: any): SynauraNotification | null {
+  const id = Number(raw?.id);
+  if (!Number.isFinite(id)) return null;
+  return {
+    id,
+    type: safeString(raw?.type, 'general'),
+    title: safeString(raw?.title, 'Notification'),
+    message: safeString(raw?.message, ''),
+    category: safeString(raw?.category || raw?.data?.category, 'general'),
+    isRead: Boolean(raw?.is_read),
+    actionUrl: raw?.action_url || raw?.data?.action_url || null,
+    createdAt: raw?.created_at || new Date().toISOString(),
+  };
+}
+
+export async function getNotifications(category = 'all'): Promise<NotificationCenterData> {
+  const query = category !== 'all' ? `?limit=30&category=${encodeURIComponent(category)}` : '?limit=30';
+  const json = await request<any>(`/api/notifications${query}`);
+  return {
+    notifications: (Array.isArray(json?.notifications) ? json.notifications : [])
+      .map(normalizeNotification)
+      .filter((item: SynauraNotification | null): item is SynauraNotification => Boolean(item)),
+    unread: Number(json?.unread || 0),
+    total: Number(json?.total || 0),
+  };
+}
+
+export async function markNotificationRead(notificationId: number) {
+  await request('/api/notifications', {
+    method: 'PATCH',
+    body: JSON.stringify({ action: 'mark_read', notificationId }),
+  });
+}
+
+export async function markAllNotificationsRead() {
+  await request('/api/notifications', {
+    method: 'PATCH',
+    body: JSON.stringify({ action: 'mark_all_read' }),
+  });
+}
+
+export async function deleteNotification(notificationId: number) {
+  await request('/api/notifications', {
+    method: 'DELETE',
+    body: JSON.stringify({ notificationId }),
+  });
+}
+
 export type FeedLoadMoreResult = {
   items: Array<{ kind: 'track'; track: Track; strategy: 'reco' | 'trending' } | { kind: 'post'; post: HomePost }>;
   nextCursor: string | null;
@@ -512,16 +583,39 @@ export async function sendRecommendationImpressions(impressions: Array<{ id: str
   if (!impressions.length) return;
   await optionalRequest('/api/recommendations/impressions', {
     method: 'POST',
-    body: JSON.stringify({ impressions, source: 'mobile-home' }),
+    body: JSON.stringify({
+      impressions: impressions.map((item) => ({
+        contentId: item.id,
+        contentType: item.kind,
+        rank: item.position,
+        source: 'mobile-home',
+      })),
+    }),
   });
 }
 
 export async function toggleTrackLike(trackId: string) {
-  return request<any>(`/api/tracks/${encodeURIComponent(trackId)}/like`, { method: 'POST' });
+  const path = `/api/tracks/${encodeURIComponent(trackId)}/like`;
+  const current = await request<any>(path);
+  return request<any>(path, { method: current?.liked || current?.isLiked ? 'DELETE' : 'POST' });
 }
 
 export async function togglePostLike(postId: string) {
   return request<any>(`/api/posts/${encodeURIComponent(postId)}/like`, { method: 'POST' });
+}
+
+export async function recordTrackEvent(trackId: string, eventType: string, extra?: Record<string, unknown>) {
+  if (!trackId || trackId.startsWith('radio-')) return;
+  await optionalRequest(`/api/tracks/${encodeURIComponent(trackId)}/events`, {
+    method: 'POST',
+    body: JSON.stringify({
+      event_type: eventType,
+      source: 'mobile-player',
+      platform: 'mobile',
+      is_ai_track: trackId.startsWith('ai-'),
+      extra,
+    }),
+  });
 }
 
 function normalizeComment(raw: any): HomeComment | null {
@@ -543,13 +637,33 @@ function normalizeComment(raw: any): HomeComment | null {
   };
 }
 
-export async function getComments(kind: 'track' | 'post', id: string): Promise<HomeComment[]> {
+export type CommentsPage = {
+  comments: HomeComment[];
+  nextCursor: string | number | null;
+  hasMore: boolean;
+};
+
+export async function getCommentsPage(
+  kind: 'track' | 'post',
+  id: string,
+  cursor: string | number | null = null,
+): Promise<CommentsPage> {
   const path = kind === 'track'
-    ? `/api/tracks/${encodeURIComponent(id)}/comments`
-    : `/api/posts/${encodeURIComponent(id)}/comments`;
+    ? `/api/tracks/${encodeURIComponent(id)}/comments?limit=8&offset=${typeof cursor === 'number' ? cursor : 0}`
+    : `/api/posts/${encodeURIComponent(id)}/comments?limit=8${typeof cursor === 'string' ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
   const json = await request<any>(path);
   const raw = Array.isArray(json?.comments) ? json.comments : Array.isArray(json) ? json : [];
-  return raw.map(normalizeComment).filter((comment: HomeComment | null): comment is HomeComment => Boolean(comment));
+  return {
+    comments: raw.map(normalizeComment).filter((comment: HomeComment | null): comment is HomeComment => Boolean(comment)),
+    nextCursor: kind === 'track'
+      ? (typeof json?.nextOffset === 'number' ? json.nextOffset : null)
+      : (typeof json?.nextCursor === 'string' ? json.nextCursor : null),
+    hasMore: kind === 'track' ? Boolean(json?.hasMore) : Boolean(json?.nextCursor),
+  };
+}
+
+export async function getComments(kind: 'track' | 'post', id: string): Promise<HomeComment[]> {
+  return (await getCommentsPage(kind, id)).comments;
 }
 
 export async function createComment(kind: 'track' | 'post', id: string, content: string): Promise<HomeComment> {
@@ -563,6 +677,13 @@ export async function createComment(kind: 'track' | 'post', id: string, content:
   const comment = normalizeComment(json?.comment || json);
   if (!comment) throw new Error('Commentaire invalide');
   return comment;
+}
+
+export async function deleteComment(kind: 'track' | 'post', targetId: string, commentId: string) {
+  const path = kind === 'track'
+    ? `/api/tracks/${encodeURIComponent(targetId)}/comments/${encodeURIComponent(commentId)}`
+    : `/api/posts/${encodeURIComponent(targetId)}/comments?comment_id=${encodeURIComponent(commentId)}`;
+  await request(path, { method: 'DELETE' });
 }
 
 export async function createPost(input: { content: string; imageUrl?: string | null; trackId?: string | null; type?: 'text' | 'photo' | 'track_share' }): Promise<HomePost> {
@@ -594,4 +715,380 @@ export async function uploadPostImage(uri: string, name = 'synaura-mobile.jpg'):
   const url = json?.url || json?.imageUrl || json?.secure_url;
   if (!url) throw new Error('Upload image impossible');
   return absoluteAsset(url) || url;
+}
+
+export type UploadAsset = {
+  uri: string;
+  name: string;
+  type: string;
+  size?: number | null;
+};
+
+export type CloudinaryResourceType = 'image' | 'video';
+
+export type CloudinaryUploadResult = {
+  secureUrl: string;
+  publicId: string;
+  duration?: number;
+  bytes?: number;
+};
+
+export type CreateUploadedTrackInput = {
+  audioUrl: string;
+  audioPublicId: string;
+  audioBytes?: number;
+  coverUrl?: string | null;
+  coverPublicId?: string | null;
+  coverBytes?: number;
+  coverVideoUrl?: string | null;
+  coverVideoPublicId?: string | null;
+  coverVideoPosterUrl?: string | null;
+  duration?: number;
+  trackData: {
+    title: string;
+    description?: string;
+    lyrics?: string | null;
+    genre?: string[];
+    isExplicit?: boolean;
+    isPublic?: boolean;
+    album?: string | null;
+    copyright?: {
+      owner: string;
+      year: number;
+      rights: string;
+    };
+  };
+  mood?: string | null;
+  language?: string | null;
+  tags?: string[];
+  credits?: Record<string, string>;
+  featuring?: Array<{ id?: string; name: string; isExternal?: boolean }>;
+  releaseType?: 'single' | 'ep' | 'album';
+  scheduledAt?: string | null;
+  visibility?: 'public' | 'private' | 'unlisted';
+};
+
+function cloudinaryPosterUrl(videoUrl?: string | null) {
+  if (!videoUrl) return null;
+  const withTransform = videoUrl.replace('/video/upload/', '/video/upload/so_0,f_jpg/');
+  return withTransform.replace(/\.(mp4|webm|mov|m4v)(\?.*)?$/i, '.jpg$2');
+}
+
+export function isUploadCoverVideo(asset: UploadAsset | null | undefined) {
+  const type = asset?.type || '';
+  const name = asset?.name || asset?.uri || '';
+  return type.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/i.test(name);
+}
+
+export function getCoverVideoPosterUrl(videoUrl?: string | null) {
+  return cloudinaryPosterUrl(videoUrl);
+}
+
+export async function uploadToCloudinaryMobile(
+  asset: UploadAsset,
+  resourceType: CloudinaryResourceType,
+  folder?: string,
+): Promise<CloudinaryUploadResult> {
+  const timestamp = Math.round(Date.now() / 1000);
+  const stem = resourceType === 'video' ? 'track' : 'cover';
+  const publicId = `${stem}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+  const uploadFolder = folder || (resourceType === 'video' ? 'ximam/audio' : 'ximam/images');
+
+  const signature = await request<any>('/api/upload/signature', {
+    method: 'POST',
+    body: JSON.stringify({
+      timestamp,
+      publicId,
+      resourceType,
+      folder: uploadFolder,
+    }),
+  });
+
+  const cloudName = signature?.cloudName;
+  const apiKey = signature?.apiKey;
+  if (!cloudName || !apiKey || !signature?.signature) throw new Error('Signature Cloudinary invalide');
+
+  const form = new FormData();
+  form.append('file', {
+    uri: asset.uri,
+    name: asset.name,
+    type: asset.type || (resourceType === 'image' ? 'image/jpeg' : 'video/mp4'),
+  } as any);
+  form.append('folder', uploadFolder);
+  form.append('public_id', publicId);
+  form.append('resource_type', resourceType);
+  form.append('timestamp', String(timestamp));
+  form.append('api_key', apiKey);
+  form.append('signature', signature.signature);
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
+    method: 'POST',
+    body: form,
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json?.secure_url) {
+    throw new Error(json?.error?.message || 'Upload Cloudinary impossible');
+  }
+
+  return {
+    secureUrl: String(json.secure_url),
+    publicId: String(json.public_id || publicId),
+    duration: Number(json.duration || 0) || undefined,
+    bytes: Number(json.bytes || asset.size || 0) || undefined,
+  };
+}
+
+export async function createUploadedTrack(input: CreateUploadedTrackInput): Promise<{ success: boolean; trackId: string; message?: string }> {
+  const json = await request<any>('/api/upload', {
+    method: 'POST',
+    body: JSON.stringify({
+      audioUrl: input.audioUrl,
+      audioPublicId: input.audioPublicId,
+      audioBytes: input.audioBytes || 0,
+      coverUrl: input.coverUrl || null,
+      coverPublicId: input.coverPublicId || null,
+      coverBytes: input.coverBytes || 0,
+      coverVideoUrl: input.coverVideoUrl || null,
+      coverVideoPublicId: input.coverVideoPublicId || null,
+      coverVideoPosterUrl: input.coverVideoPosterUrl || null,
+      duration: input.duration || 0,
+      trackData: input.trackData,
+      mood: input.mood || null,
+      language: input.language || null,
+      tags: input.tags || [],
+      credits: input.credits || {},
+      featuring: input.featuring || [],
+      release_type: input.releaseType || 'single',
+      scheduled_at: input.scheduledAt || null,
+      visibility: input.visibility || 'public',
+    }),
+  });
+  return {
+    success: Boolean(json?.success),
+    trackId: String(json?.trackId || ''),
+    message: json?.message,
+  };
+}
+
+export async function createAlbumPlaylistMobile(input: {
+  name: string;
+  description?: string;
+  isPublic: boolean;
+  coverUrl?: string | null;
+}): Promise<{ id: string }> {
+  const json = await request<any>('/api/playlists', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: input.name,
+      title: input.name,
+      description: input.description || '',
+      isPublic: input.isPublic,
+      is_public: input.isPublic,
+      coverUrl: input.coverUrl || null,
+      cover_url: input.coverUrl || null,
+      is_album: true,
+    }),
+  });
+  const id = String(json?._id || json?.id || json?.playlist?._id || json?.playlist?.id || '');
+  if (!id) throw new Error('Album créé mais identifiant introuvable');
+  return { id };
+}
+
+export async function addTrackToPlaylistMobile(playlistId: string, trackId: string) {
+  await request<any>(`/api/playlists/${encodeURIComponent(playlistId)}/tracks`, {
+    method: 'POST',
+    body: JSON.stringify({ trackId }),
+  });
+}
+
+export async function cleanupUploadMobile(input: { audioPublicId?: string; coverPublicId?: string; coverVideoPublicId?: string }) {
+  await optionalRequest<any>('/api/upload/cleanup', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/* ─────────────────────────────────────────────
+   TikTok Player feed (parite avec le web)
+   ───────────────────────────────────────────── */
+
+export const RADIO_TRACKS: Track[] = [
+  buildRadioTrack(
+    'radio-mixx-party',
+    'Mixx Party Radio',
+    'Mixx Party',
+    'https://manager11.streamradio.fr:2425/stream',
+    radioMixxCover,
+    ['Electronic', 'Dance'],
+  ),
+  buildRadioTrack(
+    'radio-ximam',
+    'XimaM Music Radio',
+    'XimaM',
+    'https://manager11.streamradio.fr:2745/stream',
+    radioXimamCover,
+    ['Electronic'],
+  ),
+];
+
+export function isRadioTrackId(id: string | null | undefined) {
+  return !!id && String(id).startsWith('radio-');
+}
+
+function injectBoosted(regular: Track[], boosted: Track[], interval: number): Track[] {
+  const ids = new Set(regular.map((t) => t._id));
+  const available = boosted.filter((t) => !ids.has(t._id));
+  if (!available.length) return regular;
+  const result: Track[] = [];
+  let bIdx = 0;
+  for (let i = 0; i < regular.length; i++) {
+    result.push(regular[i]);
+    if ((i + 1) % interval === 0 && bIdx < available.length) {
+      result.push(available[bIdx++]);
+    }
+  }
+  return result;
+}
+
+export async function getBoostedTracks(limit = 10): Promise<Track[]> {
+  const json = await optionalRequest<any>(`/api/tracks/boosted?limit=${limit}`);
+  if (!json) return [];
+  const list = (Array.isArray(json?.tracks) ? json.tracks : [])
+    .map(normalizeTrack)
+    .filter((t: Track | null): t is Track => Boolean(t));
+  return list.map((track: Track) => ({ ...track, isBoosted: true }));
+}
+
+export async function fetchRankingFeedChunk(
+  strategy: FeedStrategy,
+  cursor = 0,
+  seedGenre: string | null = null,
+): Promise<RankingFeedChunk> {
+  const params = new URLSearchParams({ limit: '120', ai: '1', cursor: String(Math.max(0, cursor)) });
+  if (strategy === 'trending' || strategy === 'boost') {
+    params.set('strategy', 'trending');
+  } else {
+    params.set('strategy', 'reco');
+    if (seedGenre) params.set('genre', seedGenre);
+  }
+
+  const [feedRes, boosted] = await Promise.all([
+    optionalRequest<any>(`/api/ranking/feed?${params.toString()}`),
+    getBoostedTracks(),
+  ]);
+
+  const feedTracks = (Array.isArray(feedRes?.tracks) ? feedRes.tracks : [])
+    .map(normalizeTrack)
+    .filter((t: Track | null): t is Track => Boolean(t));
+
+  let merged: Track[] = feedTracks;
+  if (strategy === 'boost') {
+    merged = uniqueTracks([
+      ...boosted.slice(0, Math.min(boosted.length, 6)),
+      ...injectBoosted(feedTracks, boosted, 3),
+    ]);
+  } else if (strategy === 'trending') {
+    merged = injectBoosted(feedTracks, boosted, 6);
+  } else {
+    merged = injectBoosted(feedTracks, boosted, 5);
+  }
+
+  const cursorVal = typeof feedRes?.nextCursor === 'number' ? feedRes.nextCursor : cursor + feedTracks.length;
+  return {
+    tracks: uniqueTracks(merged),
+    nextCursor: cursorVal,
+    hasMore: Boolean(feedRes?.hasMore),
+  };
+}
+
+export function insertRadioTracks(tracks: Track[], strategy: FeedStrategy): Track[] {
+  if (!tracks.length) return [...RADIO_TRACKS];
+  const result = [...tracks];
+  const positions = strategy === 'boost' ? [4, 11] : strategy === 'trending' ? [6] : [8];
+  RADIO_TRACKS.forEach((radioTrack, index) => {
+    if (result.some((t) => t._id === radioTrack._id)) return;
+    const fallbackPos = Math.min(result.length, 6 + index * 6);
+    const insertAt = Math.min(result.length, positions[index] ?? fallbackPos);
+    result.splice(insertAt, 0, radioTrack);
+  });
+  return result;
+}
+
+export async function getRadioStatus(station: RadioStation): Promise<RadioMeta | null> {
+  const json = await optionalRequest<any>(`/api/radio/status?station=${station}`);
+  if (!json) return null;
+  const data = json?.data;
+  const title = String(data?.currentTrack?.title || '').trim();
+  const artist = String(data?.currentTrack?.artist || '').trim();
+  const listeners = parseInt(data?.stats?.listeners ?? 0, 10) || 0;
+  if (!title) return null;
+  return { station, title, artist, listeners };
+}
+
+export async function getCommentsCount(trackIds: string[]): Promise<Record<string, number>> {
+  const usable = trackIds.filter((id) => id && !isRadioTrackId(id) && !id.startsWith('ai-'));
+  if (!usable.length) return {};
+  const json = await optionalRequest<any>('/api/tracks/comments-count', {
+    method: 'POST',
+    body: JSON.stringify({ trackIds: usable }),
+  });
+  return json?.counts && typeof json.counts === 'object' ? (json.counts as Record<string, number>) : {};
+}
+
+export async function getTrackLikeStatus(trackId: string): Promise<{ liked: boolean; likesCount: number } | null> {
+  const json = await optionalRequest<any>(`/api/tracks/${encodeURIComponent(trackId)}/like`);
+  if (!json) return null;
+  return {
+    liked: Boolean(json?.liked || json?.isLiked),
+    likesCount: Number(json?.likesCount ?? json?.likes_count ?? 0),
+  };
+}
+
+export async function setTrackLike(trackId: string, like: boolean): Promise<{ liked: boolean; likesCount: number } | null> {
+  const json = await optionalRequest<any>(`/api/tracks/${encodeURIComponent(trackId)}/like`, {
+    method: like ? 'POST' : 'DELETE',
+  });
+  if (!json) return null;
+  return {
+    liked: Boolean(json?.liked ?? like),
+    likesCount: Number(json?.likesCount ?? json?.likes_count ?? 0),
+  };
+}
+
+export async function toggleArtistFollow(artistId: string): Promise<{ following: boolean } | null> {
+  if (!artistId) return null;
+  const json = await optionalRequest<any>(`/api/users/${encodeURIComponent(artistId)}/follow`, {
+    method: 'POST',
+  });
+  if (!json) return null;
+  return { following: Boolean(json?.following) };
+}
+
+export async function getArtistFollowState(artistId: string): Promise<boolean> {
+  if (!artistId) return false;
+  const json = await optionalRequest<any>(`/api/users/${encodeURIComponent(artistId)}/follow`);
+  return Boolean(json?.following);
+}
+
+export async function shareTrackToFeed(trackId: string, content?: string): Promise<HomePost | null> {
+  if (!trackId) return null;
+  const json = await optionalRequest<any>('/api/posts', {
+    method: 'POST',
+    body: JSON.stringify({
+      type: 'track_share',
+      track_id: trackId,
+      content: content?.trim() || undefined,
+    }),
+  });
+  return json ? normalizePost(json?.post || json) : null;
+}
+
+export function buildShareUrls(track: Track | null): { trackUrl: string; shareText: string } {
+  if (!track) return { trackUrl: '', shareText: '' };
+  const trackUrl = `${API_BASE_URL}/track/${track._id}`;
+  const artist = track.artist?.name || track.artist?.username || 'Synaura';
+  return {
+    trackUrl,
+    shareText: `Ecoute ${track.title} de ${artist} sur Synaura\n${trackUrl}`,
+  };
 }

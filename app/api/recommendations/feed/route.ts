@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { computeRankingScore } from '@/lib/ranking';
 import { supabaseAdmin } from '@/lib/supabase';
 import {
@@ -209,7 +208,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '24', 10) || 24, 1), 60);
     const cursor = Math.max(parseInt(searchParams.get('cursor') || '0', 10) || 0, 0);
     const debug = searchParams.get('debug') === '1';
-    const session = await getServerSession(authOptions).catch(() => null);
+    const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || searchParams.get('userId') || null;
 
     const [trackCandidates, postCandidates] = await Promise.all([
@@ -264,4 +263,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }
-

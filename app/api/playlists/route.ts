@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { supabaseAdmin as supabase } from '@/lib/supabase';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { getEntitlements } from '@/lib/entitlements';
 
 // utilisation du client admin centralisé
@@ -11,7 +10,8 @@ import { getEntitlements } from '@/lib/entitlements';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user');
+    const session = await getApiSession(request).catch(() => null);
+    const userId = searchParams.get('user') || session?.user?.id || null;
     
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { name, description, isPublic, coverUrl, is_album } = await request.json();
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }

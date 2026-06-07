@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // POST /api/tracks/[id]/comments/[commentId]/like - toggle like/unlike
-export async function POST(_req: NextRequest, { params }: { params: { id: string; commentId: string } }) {
-  const session = await getServerSession(authOptions).catch(() => null);
+export async function POST(request: NextRequest, { params }: { params: { id: string; commentId: string } }) {
+  const session = await getApiSession(request).catch(() => null);
   const userId = (session?.user as any)?.id;
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 

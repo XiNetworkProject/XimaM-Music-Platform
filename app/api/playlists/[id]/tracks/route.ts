@@ -1,5 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/lib/supabase';
+import { getApiSession } from '@/lib/getApiSession';
+
+async function requirePlaylistOwner(request: NextRequest, playlistId: string) {
+  const session = await getApiSession(request);
+  if (!session?.user?.id) {
+    return { error: NextResponse.json({ error: 'Non autorisé' }, { status: 401 }) };
+  }
+  const { data: playlist } = await supabase
+    .from('playlists')
+    .select('id, creator_id')
+    .eq('id', playlistId)
+    .maybeSingle();
+  if (!playlist) {
+    return { error: NextResponse.json({ error: 'Playlist non trouvée' }, { status: 404 }) };
+  }
+  if (playlist.creator_id !== session.user.id) {
+    return { error: NextResponse.json({ error: 'Interdit' }, { status: 403 }) };
+  }
+  return { playlist };
+}
 
 // POST - Ajouter une track à une playlist
 export async function POST(
@@ -9,6 +29,8 @@ export async function POST(
   try {
     const { id } = params;
     const { trackId } = await request.json();
+    const ownership = await requirePlaylistOwner(request, id);
+    if (ownership.error) return ownership.error;
 
     if (!trackId) {
       return NextResponse.json({ error: 'Track ID requis' }, { status: 400 });
@@ -105,6 +127,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = params;
+    const ownership = await requirePlaylistOwner(request, id);
+    if (ownership.error) return ownership.error;
     const { searchParams } = new URL(request.url);
     const trackId = searchParams.get('trackId');
 

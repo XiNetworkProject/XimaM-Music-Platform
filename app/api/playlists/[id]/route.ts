@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin as supabase } from '@/lib/supabase';
 
 // GET - Récupérer une playlist spécifique
@@ -10,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = params;
-    const session = await getServerSession(authOptions).catch(() => null);
+    const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || null;
 
     const { data: playlist, error } = await supabase
@@ -98,6 +97,12 @@ export async function PUT(
   try {
     const { id } = params;
     const { name, description, isPublic, coverUrl } = await request.json();
+    const session = await getApiSession(request);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+
+    const { data: existing } = await supabase.from('playlists').select('creator_id').eq('id', id).maybeSingle();
+    if (!existing) return NextResponse.json({ error: 'Playlist non trouvée' }, { status: 404 });
+    if (existing.creator_id !== session.user.id) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
 
     const { data: playlist, error } = await supabase
       .from('playlists')
@@ -147,6 +152,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = params;
+    const session = await getApiSession(request);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+
+    const { data: existing } = await supabase.from('playlists').select('creator_id').eq('id', id).maybeSingle();
+    if (!existing) return NextResponse.json({ error: 'Playlist non trouvée' }, { status: 404 });
+    if (existing.creator_id !== session.user.id) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
 
     // Supprimer d'abord les relations playlist_tracks
     const { error: tracksError } = await supabase

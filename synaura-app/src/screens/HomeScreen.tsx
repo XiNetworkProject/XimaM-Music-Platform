@@ -3,9 +3,11 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  ImageBackground,
+  KeyboardAvoidingView,
+  Linking,
   Modal,
   Pressable,
+  Platform,
   RefreshControl,
   Share,
   ScrollView,
@@ -21,8 +23,10 @@ import { useNavigation } from '@react-navigation/native';
 import {
   createComment,
   createPost,
-  getComments,
+  deleteComment,
+  getCommentsPage,
   getHomeData,
+  getNotifications,
   loadMixedPosts,
   loadRankingTracks,
   loadUnifiedFeed,
@@ -30,12 +34,17 @@ import {
   togglePostLike,
   toggleTrackLike,
   uploadPostImage,
+  API_BASE_URL,
 } from '@/api/client';
 import type { Creator, HomeComment, HomeData, HomePost, Playlist, RadioItem, Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { colors, radius, spacing } from '@/theme/tokens';
+import { NotificationModal, UniversalSearchModal } from '@/components/HomeOverlays';
+import { SynauraBackground } from '@/components/SynauraBackground';
+import { TrackCover } from '@/components/TrackCover';
 
 const filters = ['Pour toi', 'Sons', 'Communaute', 'Plus'] as const;
 const quickActions = [
@@ -86,6 +95,15 @@ function uniqueTracks(tracks: Track[]) {
     if (!byId.has(track._id)) byId.set(track._id, track);
   });
   return Array.from(byId.values());
+}
+
+function removeCommentTree(comments: HomeComment[], commentId: string): HomeComment[] {
+  return comments
+    .filter((comment) => comment.id !== commentId)
+    .map((comment) => ({
+      ...comment,
+      replies: removeCommentTree(comment.replies || [], commentId),
+    }));
 }
 
 function buildFeed(data: HomeData): FeedItem[] {
@@ -182,13 +200,25 @@ export function HomeScreen() {
   const [comments, setComments] = useState<HomeComment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsLoadingMore, setCommentsLoadingMore] = useState(false);
+  const [commentsCursor, setCommentsCursor] = useState<string | number | null>(null);
+  const [commentsHasMore, setCommentsHasMore] = useState(false);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<Track | null>(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const seenIdsRef = React.useRef<Set<string>>(new Set());
   const impressionIdsRef = React.useRef<Set<string>>(new Set());
   const player = usePlayer();
   const library = useLibrary();
   const auth = useAuth();
   const navigation = useNavigation<any>();
+  const openWebPath = useCallback((path: string) => {
+    Linking.openURL(`${API_BASE_URL}${path}`).catch(() => {
+      setError("Impossible d'ouvrir cette page Synaura");
+    });
+  }, []);
 
   const load = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     if (mode === 'refresh') setRefreshing(true);
@@ -216,6 +246,28 @@ export function HomeScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!auth.token) {
+      setUnreadNotifications(0);
+      return;
+    }
+    let active = true;
+    const refreshUnread = async () => {
+      try {
+        const next = await getNotifications();
+        if (active) setUnreadNotifications(next.unread);
+      } catch {
+        // The feed remains usable when notifications are temporarily unavailable.
+      }
+    };
+    void refreshUnread();
+    const timer = setInterval(refreshUnread, 30_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [auth.token]);
 
   const heroTracks = useMemo(() => uniqueTracks([...data.forYou, ...data.trending, ...data.recent]).slice(0, 5), [data]);
   const baseFeed = useMemo(() => buildFeed(data), [data]);
@@ -315,13 +367,33 @@ export function HomeScreen() {
     setCommentsLoading(true);
     setComments([]);
     try {
-      setComments(await getComments(target.kind, target.id));
+      const page = await getCommentsPage(target.kind, target.id);
+      setComments(page.comments);
+      setCommentsCursor(page.nextCursor);
+      setCommentsHasMore(page.hasMore);
     } catch {
       setComments([]);
+      setCommentsCursor(null);
+      setCommentsHasMore(false);
     } finally {
       setCommentsLoading(false);
     }
   }, []);
+
+  const loadMoreComments = useCallback(async () => {
+    if (!commentTarget || !commentsHasMore || commentsLoadingMore) return;
+    setCommentsLoadingMore(true);
+    try {
+      const page = await getCommentsPage(commentTarget.kind, commentTarget.id, commentsCursor);
+      setComments((current) => [...current, ...page.comments.filter((comment) => !current.some((item) => item.id === comment.id))]);
+      setCommentsCursor(page.nextCursor);
+      setCommentsHasMore(page.hasMore);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Impossible de charger les commentaires suivants');
+    } finally {
+      setCommentsLoadingMore(false);
+    }
+  }, [commentTarget, commentsCursor, commentsHasMore, commentsLoadingMore]);
 
   const submitComment = useCallback(async () => {
     if (!commentTarget || !commentText.trim()) return;
@@ -337,27 +409,32 @@ export function HomeScreen() {
     }
   }, [commentTarget, commentText]);
 
+  const removeComment = useCallback(async (comment: HomeComment) => {
+    if (!commentTarget) return;
+    try {
+      await deleteComment(commentTarget.kind, commentTarget.id, comment.id);
+      setComments((current) => removeCommentTree(current, comment.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Suppression impossible');
+    }
+  }, [commentTarget]);
+
   const header = (
     <>
-      <TopBar onNotifications={() => navigation.navigate('Profile')} onPublish={() => navigation.navigate('Profile')} />
-      <TopSearchStrip onSearch={() => navigation.navigate('Search')} onStudio={() => navigation.navigate('Profile')} />
-      <RouteNav
-        onHome={() => setFilter('Pour toi')}
-        onCommunity={() => setFilter('Communaute')}
-        onNavigate={(target) => navigation.navigate(target)}
-      />
-      <AnnouncementStrip onPress={() => navigation.navigate('Profile')} />
+      <TopBar unread={unreadNotifications} onNotifications={() => setNotificationsOpen(true)} onPublish={() => openWebPath('/upload')} />
+      <TopSearchStrip onSearch={() => setSearchOpen(true)} onStudio={() => openWebPath('/ai-generator')} />
+      <AnnouncementStrip onPress={() => openWebPath('/fermeture')} />
       <MiniCarousel
         tracks={heroTracks}
         activeId={player.current?._id}
         isPlaying={player.isPlaying}
         onPlay={(track) => playQueue(heroTracks, track)}
-        onCreate={() => navigation.navigate('Profile')}
+        onCreate={(track) => openWebPath(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(track._id)}&title=${encodeURIComponent(track.title)}`)}
       />
       <QuickActions
         onListen={() => navigation.navigate('Discover')}
-        onCreate={() => navigation.navigate('Profile')}
-        onPublish={() => navigation.navigate('Profile')}
+        onCreate={() => openWebPath('/ai-generator')}
+        onPublish={() => openWebPath('/upload')}
         onCommunity={() => setFilter('Communaute')}
       />
       <FilterBar value={filter} onChange={setFilter} />
@@ -404,8 +481,10 @@ export function HomeScreen() {
             onFavorite={(track) => library.toggleFavorite(track)}
             onNavigate={(target) => navigation.navigate(target)}
             onCommunity={() => setFilter('Communaute')}
-            onQueueNext={(track) => player.playTrack(track)}
+            onQueueNext={(track) => player.addNext(track)}
+            onOpenWeb={openWebPath}
             onComments={openComments}
+            onShareTrack={setShareTarget}
             libraryStats={data.libraryStats || undefined}
             onPostCreated={(post) => {
               setData((current) => ({ ...current, posts: [post, ...current.posts] }));
@@ -422,14 +501,31 @@ export function HomeScreen() {
         loading={commentsLoading}
         value={commentText}
         submitting={commentSubmitting}
+        loadingMore={commentsLoadingMore}
+        hasMore={commentsHasMore}
         onChange={setCommentText}
         onSubmit={submitComment}
+        onLoadMore={loadMoreComments}
+        onDelete={removeComment}
+        currentUserId={auth.user?.id}
         onClose={() => {
           setCommentTarget(null);
           setComments([]);
           setCommentText('');
+          setCommentsCursor(null);
+          setCommentsHasMore(false);
         }}
       />
+      <TrackShareSheet
+        track={shareTarget}
+        onClose={() => setShareTarget(null)}
+        onPostCreated={(post) => {
+          setData((current) => ({ ...current, posts: [post, ...current.posts] }));
+          setFilter('Communaute');
+        }}
+      />
+      <UniversalSearchModal visible={searchOpen} onClose={() => setSearchOpen(false)} />
+      <NotificationModal visible={notificationsOpen} onClose={() => setNotificationsOpen(false)} onUnreadChange={setUnreadNotifications} />
     </View>
   );
 }
@@ -437,16 +533,12 @@ export function HomeScreen() {
 function DecorativeBackground() {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <LinearGradient colors={['#F4EFE6', '#F4EFE6']} style={StyleSheet.absoluteFill} />
-      <View style={[styles.glow, styles.glowCoral]} />
-      <View style={[styles.glow, styles.glowViolet]} />
-      <View style={[styles.glow, styles.glowCyan]} />
-      <View style={styles.gridOverlay} />
+      <SynauraBackground variant="warm" />
     </View>
   );
 }
 
-function TopBar({ onNotifications, onPublish }: { onNotifications: () => void; onPublish: () => void }) {
+function TopBar({ unread, onNotifications, onPublish }: { unread: number; onNotifications: () => void; onPublish: () => void }) {
   return (
     <View style={styles.topBar}>
       <View style={styles.brandBox}>
@@ -458,6 +550,7 @@ function TopBar({ onNotifications, onPublish }: { onNotifications: () => void; o
       </View>
       <Pressable onPress={onNotifications} style={styles.roundButton}>
         <Ionicons name="notifications-outline" size={20} color={warm.inkSoft} />
+        {unread > 0 ? <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{unread > 9 ? '9+' : unread}</Text></View> : null}
       </Pressable>
       <Pressable onPress={onPublish} style={styles.publishButton}>
         <Text style={styles.publishText}>Publier</Text>
@@ -493,31 +586,39 @@ function AnnouncementStrip({ onPress }: { onPress: () => void }) {
 }
 
 function RouteNav({
+  active,
   onHome,
   onCommunity,
   onNavigate,
+  onStudio,
+  onPublish,
 }: {
+  active: 'home' | 'community';
   onHome: () => void;
   onCommunity: () => void;
   onNavigate: (target: 'Discover' | 'Library' | 'Search' | 'Profile') => void;
+  onStudio: () => void;
+  onPublish: () => void;
 }) {
   const items = [
     ['Accueil', 'home', onHome],
     ['Decouvrir', 'compass', () => onNavigate('Discover')],
     ['Bibliotheque', 'library', () => onNavigate('Library')],
     ['Communaute', 'people', onCommunity],
-    ['Studio', 'sparkles', () => onNavigate('Profile')],
-    ['Publier', 'cloud-upload', () => onNavigate('Profile')],
+    ['Studio', 'sparkles', onStudio],
+    ['Publier', 'cloud-upload', onPublish],
   ] as const;
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.routeNav}>
-      {items.map(([label, icon, action], index) => (
-        <Pressable key={label} onPress={action} style={[styles.routePill, index === 0 && styles.routePillActive]}>
-          <Ionicons name={icon} size={15} color={index === 0 ? warm.paper : warm.inkSoft} />
-          <Text style={[styles.routeText, index === 0 && styles.routeTextActive]}>{label}</Text>
+      {items.map(([label, icon, action], index) => {
+        const isActive = (active === 'home' && index === 0) || (active === 'community' && index === 3);
+        return (
+        <Pressable key={label} onPress={action} style={[styles.routePill, isActive && styles.routePillActive]}>
+          <Ionicons name={icon} size={15} color={isActive ? warm.paper : warm.inkSoft} />
+          <Text style={[styles.routeText, isActive && styles.routeTextActive]}>{label}</Text>
         </Pressable>
-      ))}
+      )})}
     </ScrollView>
   );
 }
@@ -533,7 +634,7 @@ function MiniCarousel({
   activeId?: string;
   isPlaying: boolean;
   onPlay: (track: Track) => void;
-  onCreate: () => void;
+  onCreate: (track: Track) => void;
 }) {
   const [active, setActive] = useState(0);
   useEffect(() => {
@@ -546,7 +647,8 @@ function MiniCarousel({
 
   return (
     <View style={styles.card}>
-      <ImageBackground source={{ uri: item.coverUrl || undefined }} imageStyle={styles.heroImage} style={styles.hero}>
+      <View style={styles.hero}>
+        <TrackCover track={item} active autoPlayVideo style={StyleSheet.absoluteFill} imageStyle={styles.heroImage} />
         <LinearGradient colors={['rgba(23,19,19,0.98)', 'rgba(23,19,19,0.82)', 'rgba(23,19,19,0.45)']} style={StyleSheet.absoluteFill} />
         <View style={[styles.heroTint, { backgroundColor: pickLocalTint(item._id) }]} />
         <View style={styles.heroBadges}>
@@ -562,17 +664,17 @@ function MiniCarousel({
               <Ionicons name={playingThis ? 'pause' : 'play'} size={15} color={warm.ink} />
               <Text style={styles.heroPrimaryText}>Lancer mon mix</Text>
             </Pressable>
-            <Pressable style={styles.heroSecondary} onPress={onCreate}>
+            <Pressable style={styles.heroSecondary} onPress={() => onCreate(item)}>
               <Ionicons name="sparkles" size={15} color="rgba(255,250,242,0.78)" />
-              <Text style={styles.heroSecondaryText}>Creer</Text>
+              <Text style={styles.heroSecondaryText}>Creer dans ce style</Text>
             </Pressable>
           </View>
         </View>
-      </ImageBackground>
+      </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.heroThumbs}>
         {tracks.slice(0, 5).map((track, index) => (
           <Pressable key={track._id} onPress={() => setActive(index)} style={[styles.heroThumb, active === index && styles.heroThumbActive]}>
-            <Image source={{ uri: track.coverUrl || undefined }} style={styles.heroThumbImage} />
+            <TrackCover track={track} active={active === index} autoPlayVideo={active === index} style={styles.heroThumbImage} />
             <View style={styles.heroThumbText}>
               <Text numberOfLines={1} style={[styles.heroThumbTitle, active === index && styles.heroThumbTitleActive]}>{track.title}</Text>
               <Text numberOfLines={1} style={[styles.heroThumbArtist, active === index && styles.heroThumbArtistActive]}>{artistName(track)}</Text>
@@ -622,14 +724,117 @@ function FilterBar({ value, onChange }: { value: HomeFilter; onChange: (value: H
   );
 }
 
+function TrackShareSheet({
+  track,
+  onClose,
+  onPostCreated,
+}: {
+  track: Track | null;
+  onClose: () => void;
+  onPostCreated: (post: HomePost) => void;
+}) {
+  const auth = useAuth();
+  const [caption, setCaption] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const quickCaptions = ['Coup de coeur', 'A mettre en boucle', 'Besoin d avis', 'Pour vos playlists'];
+
+  useEffect(() => {
+    if (!track) {
+      setCaption('');
+      setError(null);
+    }
+  }, [track]);
+
+  const publish = async () => {
+    if (!track || submitting) return;
+    if (!auth.requireAuth()) {
+      setError('Connecte-toi pour partager ce son dans le feed.');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const post = await createPost({ content: caption.trim(), trackId: track._id, type: 'track_share' });
+      onPostCreated(post);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Partage impossible');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal visible={Boolean(track)} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBackdrop}>
+        <Pressable style={styles.modalShade} onPress={onClose} />
+        <View style={styles.commentSheet}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetHeader}>
+            <View style={styles.shareHeading}>
+              <Text style={styles.sheetKicker}>Partager sans quitter le fil</Text>
+              <Text numberOfLines={1} style={styles.sheetTitle}>{track?.title || 'Son Synaura'}</Text>
+            </View>
+            <Pressable onPress={onClose} style={styles.sheetClose}>
+              <Ionicons name="close" size={18} color={warm.ink} />
+            </Pressable>
+          </View>
+          {track ? (
+            <View style={styles.shareTrackPreview}>
+              <TrackCover track={track} active style={styles.shareTrackCover} />
+              <View style={styles.shareTrackMeta}>
+                <Text numberOfLines={1} style={styles.postTrackTitle}>{track.title}</Text>
+                <Text numberOfLines={1} style={styles.postTrackArtist}>{artistName(track)}</Text>
+              </View>
+              <Ionicons name="musical-notes" size={20} color={warm.inkSoft} />
+            </View>
+          ) : null}
+          <TextInput
+            value={caption}
+            onChangeText={setCaption}
+            placeholder="Ajoute quelques mots..."
+            placeholderTextColor="rgba(23,19,19,0.34)"
+            multiline
+            style={styles.shareCaption}
+          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shareChips}>
+            {quickCaptions.map((item) => (
+              <Pressable key={item} onPress={() => setCaption(item)} style={styles.composerChip}>
+                <Text style={styles.composerChipText}>{item}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <View style={styles.shareActions}>
+            <Pressable onPress={publish} disabled={submitting} style={[styles.sharePrimary, submitting && styles.commentSendDisabled]}>
+              {submitting ? <ActivityIndicator color={warm.paper} /> : <Ionicons name="repeat" size={17} color={warm.paper} />}
+              <Text style={styles.sharePrimaryText}>Partager dans le feed</Text>
+            </Pressable>
+            <Pressable onPress={() => track && shareTrack(track)} style={styles.shareSecondary}>
+              <Ionicons name="share-social-outline" size={17} color={warm.inkSoft} />
+              <Text style={styles.shareSecondaryText}>Autres apps</Text>
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 function CommentSheet({
   target,
   comments,
   loading,
   value,
   submitting,
+  loadingMore,
+  hasMore,
   onChange,
   onSubmit,
+  onLoadMore,
+  onDelete,
+  currentUserId,
   onClose,
 }: {
   target: { kind: 'track' | 'post'; id: string; title: string } | null;
@@ -637,15 +842,46 @@ function CommentSheet({
   loading: boolean;
   value: string;
   submitting: boolean;
+  loadingMore: boolean;
+  hasMore: boolean;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  onLoadMore: () => void;
+  onDelete: (comment: HomeComment) => void;
+  currentUserId?: string;
   onClose: () => void;
 }) {
+  const keyboardHeight = useKeyboardHeight();
+  const renderComment = (comment: HomeComment, nested = false): React.ReactNode => (
+    <View key={comment.id} style={[styles.commentRow, nested && styles.commentReplyRow]}>
+      <View style={[styles.commentAvatar, nested && styles.commentReplyAvatar]}>
+        <Text style={styles.commentAvatarText}>{comment.user.name.slice(0, 1).toUpperCase()}</Text>
+      </View>
+      <View style={styles.commentColumn}>
+        <View style={styles.commentBubble}>
+          <View style={styles.commentHeader}>
+            <View style={styles.commentIdentity}>
+              <Text style={styles.commentName}>{comment.user.name}</Text>
+              <Text numberOfLines={1} style={styles.commentHandle}>@{comment.user.username}</Text>
+            </View>
+            {currentUserId && currentUserId === comment.user.id ? (
+              <Pressable accessibilityLabel="Supprimer le commentaire" onPress={() => onDelete(comment)} style={styles.commentDelete}>
+                <Ionicons name="trash-outline" size={14} color={warm.inkMuted} />
+              </Pressable>
+            ) : null}
+          </View>
+          <Text style={styles.commentText}>{comment.content}</Text>
+        </View>
+        {comment.replies?.length ? <View style={styles.commentReplies}>{comment.replies.map((reply) => renderComment(reply, true))}</View> : null}
+      </View>
+    </View>
+  );
+
   return (
-    <Modal visible={Boolean(target)} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={Boolean(target)} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.modalBackdrop}>
         <Pressable style={styles.modalShade} onPress={onClose} />
-        <View style={styles.commentSheet}>
+        <View style={[styles.commentSheet, { paddingBottom: Math.max(14, keyboardHeight) }]}>
           <View style={styles.sheetHandle} />
           <View style={styles.sheetHeader}>
             <View>
@@ -656,7 +892,7 @@ function CommentSheet({
               <Ionicons name="close" size={18} color={warm.ink} />
             </Pressable>
           </View>
-          <ScrollView style={styles.commentsList} contentContainerStyle={styles.commentsContent}>
+          <ScrollView style={styles.commentsList} contentContainerStyle={styles.commentsContent} keyboardShouldPersistTaps="handled">
             {loading ? <ActivityIndicator color={warm.ink} /> : null}
             {!loading && !comments.length ? (
               <View style={styles.emptyComments}>
@@ -664,17 +900,12 @@ function CommentSheet({
                 <Text style={styles.emptyText}>Lance la conversation comme sur la home web.</Text>
               </View>
             ) : null}
-            {comments.map((comment) => (
-              <View key={comment.id} style={styles.commentRow}>
-                <View style={styles.commentAvatar}>
-                  <Text style={styles.commentAvatarText}>{comment.user.name.slice(0, 1).toUpperCase()}</Text>
-                </View>
-                <View style={styles.commentBubble}>
-                  <Text style={styles.commentName}>{comment.user.name}</Text>
-                  <Text style={styles.commentText}>{comment.content}</Text>
-                </View>
-              </View>
-            ))}
+            {comments.map((comment) => renderComment(comment))}
+            {hasMore ? (
+              <Pressable disabled={loadingMore} onPress={onLoadMore} style={styles.loadMoreComments}>
+                {loadingMore ? <ActivityIndicator color={warm.ink} /> : <Text style={styles.loadMoreCommentsText}>Charger plus</Text>}
+              </Pressable>
+            ) : null}
           </ScrollView>
           <View style={styles.commentInputRow}>
             <TextInput
@@ -706,8 +937,10 @@ function FeedCard({
   onCommunity,
   onQueueNext,
   onComments,
+  onShareTrack,
   libraryStats,
   onPostCreated,
+  onOpenWeb,
 }: {
   item: FeedItem;
   allTracks: Track[];
@@ -720,11 +953,13 @@ function FeedCard({
   onCommunity: () => void;
   onQueueNext: (track: Track) => void;
   onComments: (target: { kind: 'track' | 'post'; id: string; title: string }) => void;
+  onShareTrack: (track: Track) => void;
   libraryStats?: HomeData['libraryStats'];
   onPostCreated: (post: HomePost) => void;
+  onOpenWeb: (path: string) => void;
 }) {
-  if (item.kind === 'composer') return <ComposerCard onPublish={() => onNavigate('Profile')} onUpload={() => onNavigate('Profile')} onText={onCommunity} onStudio={() => onNavigate('Profile')} onPostCreated={onPostCreated} />;
-  if (item.kind === 'post') return <PostCard post={item.post} activeId={activeId} isPlaying={isPlaying} onPlay={(track) => onPlay(allTracks, track)} onComments={() => onComments({ kind: 'post', id: item.post.id, title: item.post.author })} />;
+  if (item.kind === 'composer') return <ComposerCard onPublish={() => onNavigate('Profile')} onUpload={() => onOpenWeb('/upload')} onText={onCommunity} onStudio={() => onOpenWeb('/ai-generator')} onPostCreated={onPostCreated} />;
+  if (item.kind === 'post') return <PostCard post={item.post} activeId={activeId} isPlaying={isPlaying} onPlay={(track) => onPlay(allTracks, track)} onComments={() => onComments({ kind: 'post', id: item.post.id, title: item.post.author })} onRemix={(track) => onOpenWeb(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(track._id)}`)} />;
   if (item.kind === 'rail') {
     return <RailCard item={item} activeId={activeId} isPlaying={isPlaying} onPlay={onPlay} />;
   }
@@ -740,8 +975,8 @@ function FeedCard({
           onFavorite(item.track);
           toggleTrackLike(item.track._id).catch(() => {});
         }}
-        onShare={() => shareTrack(item.track)}
-        onCreate={() => onNavigate('Profile')}
+        onShare={() => onShareTrack(item.track)}
+        onCreate={() => onOpenWeb(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(item.track._id)}&title=${encodeURIComponent(item.track.title)}`)}
         onQueueNext={() => onQueueNext(item.track)}
         onDiscuss={() => onComments({ kind: 'track', id: item.track._id, title: item.track.title })}
       />
@@ -751,9 +986,9 @@ function FeedCard({
     return <RadioCard radio={item.radio} activeId={activeId} isPlaying={isPlaying} onPlay={() => onPlay([item.radio.track], item.radio.track)} />;
   }
   if (item.kind === 'playlist') return <PlaylistCard playlist={item.playlist} onOpen={() => onNavigate('Library')} />;
-  if (item.kind === 'creator') return <CreatorRail creators={item.creators} onOpen={() => onNavigate('Profile')} />;
-  if (item.kind === 'studio') return <ActionCard icon="color-wand" title={item.title} text={item.text} label="Ouvrir" gradient={['#fffaf2', '#eee7ff', '#e2fbff']} iconColor={warm.paper} onPress={() => onNavigate('Profile')} />;
-  if (item.kind === 'booster') return <ActionCard icon="flash" title={item.title} text={item.text} label="Booster" gradient={['#fff6d7', '#ffe4f1', '#fffaf2']} iconColor="#FBBF24" onPress={() => onNavigate('Profile')} />;
+  if (item.kind === 'creator') return <CreatorRail creators={item.creators} onOpen={(creator) => onOpenWeb(`/profile/${encodeURIComponent(creator.handle.replace(/^@/, ''))}`)} />;
+  if (item.kind === 'studio') return <ActionCard icon="color-wand" title={item.title} text={item.text} label="Ouvrir" gradient={['#fffaf2', '#eee7ff', '#e2fbff']} iconColor={warm.paper} onPress={() => onOpenWeb('/ai-generator')} />;
+  if (item.kind === 'booster') return <ActionCard icon="flash" title={item.title} text={item.text} label="Booster" gradient={['#fff6d7', '#ffe4f1', '#fffaf2']} iconColor="#FBBF24" onPress={() => onOpenWeb('/boosters')} />;
   return <LibraryCard stats={libraryStats} onOpen={() => onNavigate('Library')} />;
 }
 
@@ -835,11 +1070,21 @@ function ComposerCard({
               style={styles.composerInput}
             />
             {imageUri ? <Image source={{ uri: imageUri }} style={styles.composerPreview} /> : null}
+            {imageUri ? (
+              <Pressable accessibilityLabel="Retirer l'image" onPress={() => setImageUri(null)} style={styles.removeImageButton}>
+                <Ionicons name="close" size={17} color={warm.paper} />
+              </Pressable>
+            ) : null}
             {composerError ? <Text style={styles.error}>{composerError}</Text> : null}
             <Pressable disabled={submitting || (auth.requireAuth() && !text.trim() && !imageUri)} onPress={publish} style={[styles.composerButton, submitting && styles.commentSendDisabled]}>
               {submitting ? <ActivityIndicator color={warm.paper} /> : <Ionicons name={auth.user ? 'send' : 'person-add'} size={16} color={warm.paper} />}
               <Text style={styles.composerButtonText}>{auth.user ? 'Publier' : 'Creer un compte'}</Text>
             </Pressable>
+            {!auth.user ? (
+              <Pressable onPress={onPublish} style={styles.composerSecondaryButton}>
+                <Text style={styles.composerSecondaryButtonText}>Connexion</Text>
+              </Pressable>
+            ) : null}
           </View>
           <View style={styles.composerChips}>
             {chips.map((chip) => (
@@ -861,12 +1106,14 @@ function PostCard({
   isPlaying,
   onPlay,
   onComments,
+  onRemix,
 }: {
   post: HomePost;
   activeId?: string;
   isPlaying: boolean;
   onPlay: (track: Track) => void;
   onComments: () => void;
+  onRemix: (track: Track) => void;
 }) {
   const [liked, setLiked] = useState(post.isLiked);
   const [likes, setLikes] = useState(post.likesCount);
@@ -904,7 +1151,7 @@ function PostCard({
       <Text style={styles.postText}>{post.text}</Text>
 
       {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={styles.postImage} /> : null}
-      {post.track ? <PostTrack track={post.track} playing={playingThis} onPlay={() => onPlay(post.track!)} onComments={() => onComments()} /> : null}
+      {post.track ? <PostTrack track={post.track} playing={playingThis} onPlay={() => onPlay(post.track!)} onComments={() => onComments()} onRemix={() => onRemix(post.track!)} /> : null}
 
       <View style={styles.postActions}>
         <Pressable onPress={toggleLike} style={[styles.postAction, liked && styles.postActionActive]}>
@@ -924,11 +1171,11 @@ function PostCard({
   );
 }
 
-function PostTrack({ track, playing, onPlay, onComments }: { track: Track; playing: boolean; onPlay: () => void; onComments: () => void }) {
+function PostTrack({ track, playing, onPlay, onComments, onRemix }: { track: Track; playing: boolean; onPlay: () => void; onComments: () => void; onRemix: () => void }) {
   return (
     <View style={styles.postTrackWrap}>
       <View style={styles.postTrack}>
-        <Image source={{ uri: track.coverUrl || undefined }} style={styles.postTrackCover} />
+        <TrackCover track={track} active style={styles.postTrackCover} />
         <View style={styles.postTrackMeta}>
           <Text numberOfLines={1} style={styles.postTrackTitle}>{track.title}</Text>
           <Text numberOfLines={1} style={styles.postTrackArtist}>{artistName(track)} · {track.genre?.[0] || 'Track Synaura'}</Text>
@@ -939,7 +1186,7 @@ function PostTrack({ track, playing, onPlay, onComments }: { track: Track; playi
         </Pressable>
       </View>
       <View style={styles.postTrackActions}>
-        <TrackActionButton icon="sparkles" label="Remix" onPress={() => {}} />
+        <TrackActionButton icon="sparkles" label="Remix" onPress={onRemix} />
         <TrackActionButton icon="list" label="Lire ensuite" onPress={onPlay} />
         <TrackActionButton icon="chatbox-ellipses" label="Avis" onPress={onComments} />
       </View>
@@ -987,7 +1234,7 @@ function RailCard({
           return (
             <Pressable key={track._id} onPress={() => onPlay(item.tracks, track)} style={styles.railTrack}>
               <View style={styles.railCoverWrap}>
-                <Image source={{ uri: track.coverUrl || undefined }} style={styles.railCover} />
+                <TrackCover track={track} active style={styles.railCover} />
                 <View style={styles.railPlay}>
                   <Ionicons name={playingThis ? 'pause' : 'play'} size={14} color={warm.ink} />
                 </View>
@@ -1037,7 +1284,7 @@ function HeadlineTrack({
         <Text style={styles.recoBadge}>Reco</Text>
       </View>
       <View style={styles.headlineBody}>
-        <Image source={{ uri: item.track.coverUrl || undefined }} style={styles.headlineCover} />
+        <TrackCover track={item.track} active style={styles.headlineCover} />
         <View style={styles.headlineMeta}>
           <Text numberOfLines={2} style={styles.headlineTitle}>{item.track.title}</Text>
           <Text numberOfLines={1} style={styles.headlineArtist}>{artistName(item.track)} · {item.track.genre?.[0] || 'Track Synaura'}</Text>
@@ -1112,13 +1359,13 @@ function PlaylistCard({ playlist, onOpen }: { playlist: Playlist; onOpen: () => 
   );
 }
 
-function CreatorRail({ creators, onOpen }: { creators: Creator[]; onOpen: () => void }) {
+function CreatorRail({ creators, onOpen }: { creators: Creator[]; onOpen: (creator: Creator) => void }) {
   return (
     <View style={styles.card}>
       <SectionHeader title="Createurs a suivre" subtitle="profils qui publient, remixent et font bouger la home" icon="people" />
       <View style={styles.creatorGrid}>
         {creators.map((creator) => (
-          <Pressable key={creator.id} onPress={onOpen} style={styles.creatorCard}>
+          <Pressable key={creator.id} onPress={() => onOpen(creator)} style={styles.creatorCard}>
             <View style={[styles.creatorAvatar, { backgroundColor: creator.tint }]}>
               <Text style={styles.creatorAvatarText}>{creator.avatar}</Text>
             </View>
@@ -1263,33 +1510,47 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 180,
   },
-  glow: {
+  colorField: {
     position: 'absolute',
-    width: 270,
-    height: 270,
-    borderRadius: 135,
-    opacity: 0.18,
+    width: 520,
+    height: 260,
+    borderRadius: 130,
+    opacity: 0.09,
+    transform: [{ rotate: '-18deg' }],
   },
-  glowCoral: {
-    left: -130,
-    top: -40,
+  colorFieldCoral: {
+    left: -270,
+    top: -70,
     backgroundColor: '#FF6F61',
   },
-  glowViolet: {
-    right: -130,
-    top: 50,
+  colorFieldViolet: {
+    right: -300,
+    top: 180,
     backgroundColor: '#7C5CFF',
   },
-  glowCyan: {
-    left: 90,
-    bottom: -150,
+  colorFieldCyan: {
+    left: -250,
+    bottom: 80,
     backgroundColor: '#00C2CB',
   },
   gridOverlay: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.08,
-    borderWidth: 1,
-    borderColor: '#DED4C7',
+    opacity: 0.22,
+    overflow: 'hidden',
+  },
+  gridLineVertical: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(23,19,19,0.12)',
+  },
+  gridLineHorizontal: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(23,19,19,0.10)',
   },
   topBar: {
     flexDirection: 'row',
@@ -1338,12 +1599,30 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   roundButton: {
+    position: 'relative',
     width: 42,
     height: 42,
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(23,19,19,0.06)',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    right: -2,
+    top: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#7C5CFF',
+    paddingHorizontal: 4,
+  },
+  notificationBadgeText: {
+    color: warm.paper,
+    fontSize: 9,
+    fontWeight: '900',
   },
   publishButton: {
     height: 42,
@@ -1768,6 +2047,17 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: 'rgba(23,19,19,0.06)',
   },
+  removeImageButton: {
+    position: 'absolute',
+    right: spacing.lg,
+    bottom: 62,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(23,19,19,0.72)',
+  },
   composerButton: {
     marginTop: spacing.md,
     height: 42,
@@ -1781,6 +2071,21 @@ const styles = StyleSheet.create({
   },
   composerButtonText: {
     color: warm.paper,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  composerSecondaryButton: {
+    marginTop: spacing.sm,
+    height: 42,
+    alignSelf: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,250,242,0.82)',
+    paddingHorizontal: spacing.lg,
+  },
+  composerSecondaryButtonText: {
+    color: warm.inkSoft,
     fontSize: 13,
     fontWeight: '900',
   },
@@ -2450,6 +2755,78 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '900',
   },
+  shareHeading: {
+    flex: 1,
+    minWidth: 0,
+  },
+  shareTrackPreview: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderRadius: 18,
+    backgroundColor: 'rgba(23,19,19,0.055)',
+    padding: spacing.sm,
+  },
+  shareTrackCover: {
+    width: 54,
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: 'rgba(23,19,19,0.06)',
+  },
+  shareTrackMeta: {
+    flex: 1,
+    minWidth: 0,
+  },
+  shareCaption: {
+    minHeight: 82,
+    marginTop: spacing.md,
+    borderRadius: 18,
+    backgroundColor: 'rgba(23,19,19,0.055)',
+    color: warm.ink,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: 13,
+    fontWeight: '700',
+    textAlignVertical: 'top',
+  },
+  shareChips: {
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  shareActions: {
+    gap: spacing.sm,
+  },
+  sharePrimary: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderRadius: 23,
+    backgroundColor: warm.ink,
+    paddingHorizontal: spacing.lg,
+  },
+  sharePrimaryText: {
+    color: warm.paper,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  shareSecondary: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderRadius: 22,
+    backgroundColor: 'rgba(23,19,19,0.055)',
+    paddingHorizontal: spacing.lg,
+  },
+  shareSecondaryText: {
+    color: warm.inkSoft,
+    fontSize: 13,
+    fontWeight: '900',
+  },
   sheetClose: {
     width: 38,
     height: 38,
@@ -2472,6 +2849,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
   },
+  commentReplyRow: {
+    marginTop: spacing.sm,
+  },
   commentAvatar: {
     width: 34,
     height: 34,
@@ -2480,22 +2860,57 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: warm.ink,
   },
+  commentReplyAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(23,19,19,0.62)',
+  },
   commentAvatarText: {
     color: warm.paper,
     fontSize: 12,
     fontWeight: '900',
   },
   commentBubble: {
-    flex: 1,
-    minWidth: 0,
     borderRadius: 18,
     backgroundColor: 'rgba(23,19,19,0.055)',
     padding: spacing.md,
+  },
+  commentColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  commentReplies: {
+    marginLeft: spacing.md,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  commentDelete: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: 'rgba(23,19,19,0.045)',
   },
   commentName: {
     color: warm.ink,
     fontSize: 12,
     fontWeight: '900',
+  },
+  commentIdentity: {
+    flex: 1,
+    minWidth: 0,
+  },
+  commentHandle: {
+    marginTop: 1,
+    color: warm.inkMuted,
+    fontSize: 10,
+    fontWeight: '700',
   },
   commentText: {
     marginTop: 4,
@@ -2503,6 +2918,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 19,
+  },
+  loadMoreComments: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    backgroundColor: 'rgba(23,19,19,0.055)',
+  },
+  loadMoreCommentsText: {
+    color: warm.inkSoft,
+    fontSize: 12,
+    fontWeight: '900',
   },
   commentInputRow: {
     flexDirection: 'row',
