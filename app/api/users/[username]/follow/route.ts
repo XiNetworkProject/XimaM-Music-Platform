@@ -121,7 +121,7 @@ export async function POST(
         .eq('id', followerId)
         .maybeSingle();
       const followerName = followerProfile?.name || followerProfile?.username || 'Quelqu\'un';
-      notifyNewFollower(followerId, followingId, followerName).catch(() => {});
+      notifyNewFollower(followerId, followingId, followerName, followerProfile?.username).catch(() => {});
     }
 
     return NextResponse.json({ 

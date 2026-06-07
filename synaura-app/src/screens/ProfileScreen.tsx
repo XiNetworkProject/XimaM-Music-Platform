@@ -19,6 +19,7 @@ import { deleteTrack, getMyProfile, getSubscriptionUsage, updateTrackMetadata, t
 import { useAuth } from '@/auth/AuthProvider';
 import { TrackCover } from '@/components/TrackCover';
 import { SynauraBackground } from '@/components/SynauraBackground';
+import { TrackEditBottomSheet, type TrackEditForm } from '@/components/profile/TrackEditBottomSheet';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors } from '@/theme/tokens';
 
@@ -41,7 +42,7 @@ export function ProfileScreen() {
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
   const [loading, setLoading] = useState(false);
   const [editingTrack, setEditingTrack] = useState<MobileProfileTrack | null>(null);
-  const [trackForm, setTrackForm] = useState({ title: '', description: '', genreText: '', tagsText: '', isPublic: true });
+  const [trackForm, setTrackForm] = useState<TrackEditForm>({ title: '', description: '', genreText: '', tagsText: '', isPublic: true });
   const [trackSaving, setTrackSaving] = useState(false);
 
   const topTracks = useMemo(() => [...(profile?.tracks || [])].sort((a, b) => (b.plays || 0) - (a.plays || 0)).slice(0, 4), [profile?.tracks]);
@@ -232,24 +233,16 @@ export function ProfileScreen() {
           )) : <Empty text="Aucun album ou playlist pour le moment." />}
         </View>
 
-        {editingTrack ? (
-          <View style={styles.card}>
-            <SectionTitle title="Modifier le son" action={editingTrack.title} />
-            <TextInput value={trackForm.title} onChangeText={(value) => setTrackForm((current) => ({ ...current, title: value }))} placeholder="Titre" placeholderTextColor="rgba(23,19,19,0.34)" style={styles.input} />
-            <TextInput value={trackForm.description} onChangeText={(value) => setTrackForm((current) => ({ ...current, description: value }))} placeholder="Description" placeholderTextColor="rgba(23,19,19,0.34)" multiline textAlignVertical="top" style={[styles.input, styles.inputMulti]} />
-            <TextInput value={trackForm.genreText} onChangeText={(value) => setTrackForm((current) => ({ ...current, genreText: value }))} placeholder="Genres separes par virgules" placeholderTextColor="rgba(23,19,19,0.34)" style={styles.input} />
-            <TextInput value={trackForm.tagsText} onChangeText={(value) => setTrackForm((current) => ({ ...current, tagsText: value }))} placeholder="Tags separes par virgules" placeholderTextColor="rgba(23,19,19,0.34)" style={styles.input} />
-            <Pressable onPress={() => setTrackForm((current) => ({ ...current, isPublic: !current.isPublic }))} style={styles.visibilityToggle}>
-              <Text style={styles.visibilityText}>{trackForm.isPublic ? 'Public' : 'Prive'}</Text>
-              <Ionicons name={trackForm.isPublic ? 'eye-outline' : 'eye-off-outline'} size={18} color="#171313" />
-            </Pressable>
-            <View style={styles.editActions}>
-              <Pressable onPress={() => setEditingTrack(null)} style={styles.secondaryEdit}><Text style={styles.secondaryEditText}>Annuler</Text></Pressable>
-              <Pressable disabled={trackSaving} onPress={saveTrackEdit} style={[styles.saveEdit, trackSaving && styles.disabled]}>{trackSaving ? <ActivityIndicator color="#FFFAF2" /> : <Text style={styles.saveEditText}>Sauver</Text>}</Pressable>
-            </View>
-          </View>
-        ) : null}
       </ScrollView>
+      <TrackEditBottomSheet
+        track={editingTrack}
+        form={trackForm}
+        saving={trackSaving}
+        onChange={(patch) => setTrackForm((current) => ({ ...current, ...patch }))}
+        onClose={() => setEditingTrack(null)}
+        onSave={saveTrackEdit}
+        onDelete={() => editingTrack && confirmDeleteTrack(editingTrack)}
+      />
     </SynauraBackground>
   );
 }

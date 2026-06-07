@@ -33,10 +33,11 @@ export function SettingsScreen() {
   const [notif, setNotif] = useState<NotificationPrefs | null>(null);
   const [referral, setReferral] = useState<ReferralData | null>(null);
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
-  const [prefs, setPrefs] = useState({ autoplay: false, highQuality: true, activityVisible: true });
+  const [prefs, setPrefs] = useState({ autoplay: false, highQuality: true, activityVisible: true, pushDevice: true, reducedMotion: false });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', bio: '', location: '', website: '', artistName: '', genreText: '', isArtist: false });
+  const [deleteConfirm, setDeleteConfirm] = useState('');
 
   const tabs = useMemo<Array<{ key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }>>(() => [
     { key: 'profil', label: 'Profil', icon: 'person-outline' },
@@ -116,6 +117,10 @@ export function SettingsScreen() {
   };
 
   const confirmDelete = () => {
+    if (deleteConfirm.trim().toUpperCase() !== 'SUPPRIMER') {
+      Alert.alert('Confirmation requise', 'Tape SUPPRIMER avant de lancer la suppression du compte.');
+      return;
+    }
     Alert.alert('Supprimer le compte ?', 'Cette action est irreversible.', [
       { text: 'Annuler', style: 'cancel' },
       {
@@ -196,14 +201,23 @@ export function SettingsScreen() {
             <Toggle label="Autoplay" value={prefs.autoplay} onValueChange={(value) => void updateLocalPrefs({ autoplay: value })} />
             <Toggle label="Qualite audio haute" value={prefs.highQuality} onValueChange={(value) => void updateLocalPrefs({ highQuality: value })} />
             <Toggle label="Activite visible" value={prefs.activityVisible} onValueChange={(value) => void updateLocalPrefs({ activityVisible: value })} />
+            <Toggle label="Push appareil" value={prefs.pushDevice} onValueChange={(value) => void updateLocalPrefs({ pushDevice: value })} />
+            <Toggle label="Reduire les animations" value={prefs.reducedMotion} onValueChange={(value) => void updateLocalPrefs({ reducedMotion: value })} />
           </Section>
         ) : null}
 
         {tab === 'notifications' ? (
           <Section title="Notifications" text="Choisis les alertes que tu veux garder.">
-            {notif ? Object.entries(notif).filter(([, value]) => typeof value === 'boolean').map(([key, value]) => (
-              <Toggle key={key} label={key.replace(/_/g, ' ')} value={Boolean(value)} onValueChange={(next) => void patchNotif({ [key]: next } as Partial<NotificationPrefs>)} />
-            )) : <Text style={styles.muted}>Chargement des preferences...</Text>}
+            {notif ? (
+              <>
+                <Text style={styles.groupTitle}>Canaux</Text>
+                {['push_enabled', 'email_enabled'].map((key) => key in notif ? <Toggle key={key} label={key.replace(/_/g, ' ')} value={Boolean((notif as any)[key])} onValueChange={(next) => void patchNotif({ [key]: next } as Partial<NotificationPrefs>)} /> : null)}
+                <Text style={styles.groupTitle}>Social & musique</Text>
+                {Object.entries(notif).filter(([key, value]) => typeof value === 'boolean' && !['push_enabled', 'email_enabled'].includes(key)).map(([key, value]) => (
+                  <Toggle key={key} label={key.replace(/_/g, ' ')} value={Boolean(value)} onValueChange={(next) => void patchNotif({ [key]: next } as Partial<NotificationPrefs>)} />
+                ))}
+              </>
+            ) : <Text style={styles.muted}>Chargement des preferences...</Text>}
           </Section>
         ) : null}
 
@@ -226,6 +240,7 @@ export function SettingsScreen() {
 
         {tab === 'securite' ? (
           <Section title="Securite" text="Actions sensibles du compte.">
+            <Field label="Tape SUPPRIMER pour confirmer" value={deleteConfirm} onChangeText={setDeleteConfirm} />
             <Pressable onPress={confirmDelete} style={styles.danger}><Text style={styles.dangerText}>Supprimer mon compte</Text></Pressable>
           </Section>
         ) : null}
@@ -234,6 +249,7 @@ export function SettingsScreen() {
           <Section title="Legal" text="Documents et informations.">
             <Info label="Conditions" value="xima-m-music-platform.vercel.app/terms" />
             <Info label="Confidentialite" value="xima-m-music-platform.vercel.app/privacy" />
+            <Info label="Support" value="support@synaura.app" />
             <Info label="Licences" value="Synaura Music Platform" />
           </Section>
         ) : null}
@@ -308,6 +324,7 @@ const styles = StyleSheet.create({
   sectionTitle: { color: '#171313', fontSize: 21, fontWeight: '900', letterSpacing: -0.5 },
   sectionText: { marginTop: 5, color: 'rgba(23,19,19,0.5)', fontSize: 12, lineHeight: 18, fontWeight: '700' },
   sectionBody: { marginTop: 15, gap: 12 },
+  groupTitle: { marginTop: 4, color: '#8B5CF6', fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
   field: { gap: 7 },
   fieldHead: { flexDirection: 'row', justifyContent: 'space-between' },
   label: { color: '#171313', fontSize: 12, fontWeight: '900' },

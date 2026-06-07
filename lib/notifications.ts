@@ -310,13 +310,13 @@ export async function createBroadcast(opts: {
 
 // ─── Trigger helpers ───────────────────────────────────────────
 
-export async function notifyNewFollower(followerId: string, followedId: string, followerName: string) {
+export async function notifyNewFollower(followerId: string, followedId: string, followerName: string, followerUsername?: string | null) {
   return createNotification({
     userId: followedId,
     type: 'new_follower',
     title: 'Nouvel abonne',
     message: `${followerName} a commence a te suivre`,
-    actionUrl: `/profile/${followerName}`,
+    actionUrl: `/profile/${encodeURIComponent(followerUsername || followerName)}`,
     senderId: followerId,
   });
 }

@@ -480,6 +480,39 @@ export async function searchEverything(query: string): Promise<SearchResults> {
   };
 }
 
+export async function getTrackById(trackId: string): Promise<Track | null> {
+  const json = await optionalRequest<any>(`/api/tracks/${encodeURIComponent(trackId)}`);
+  return json ? normalizeTrack(json?.track || json) : null;
+}
+
+export async function getPostDetail(postId: string): Promise<HomePost> {
+  const json = await request<any>(`/api/posts/${encodeURIComponent(postId)}`);
+  const post = normalizePost(json?.post || json);
+  if (!post) throw new Error('Post introuvable');
+  return post;
+}
+
+export type PlaylistDetail = Playlist & {
+  description?: string;
+  tracksList: Track[];
+};
+
+export async function getPlaylistDetail(playlistId: string): Promise<PlaylistDetail> {
+  const json = await request<any>(`/api/playlists/${encodeURIComponent(playlistId)}`);
+  const raw = json?.playlist || json;
+  const tracks = (Array.isArray(raw?.tracks) ? raw.tracks : [])
+    .map((item: any) => normalizeTrack(item?.track || item))
+    .filter((track: Track | null): track is Track => Boolean(track));
+  const fallbackCovers = tracks.map((track: Track) => track.coverUrl || fallbackCover).filter(Boolean) as string[];
+  const base = normalizePlaylist(raw, fallbackCovers);
+  if (!base) throw new Error('Playlist introuvable');
+  return {
+    ...base,
+    description: raw?.description || '',
+    tracksList: tracks,
+  };
+}
+
 function normalizeNotification(raw: any): SynauraNotification | null {
   const id = Number(raw?.id);
   if (!Number.isFinite(id)) return null;

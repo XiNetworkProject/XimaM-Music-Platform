@@ -4,7 +4,6 @@ import {
   FlatList,
   Image,
   KeyboardAvoidingView,
-  Linking,
   Modal,
   Pressable,
   Platform,
@@ -34,7 +33,6 @@ import {
   togglePostLike,
   toggleTrackLike,
   uploadPostImage,
-  API_BASE_URL,
 } from '@/api/client';
 import type { Creator, HomeComment, HomeData, HomePost, Playlist, RadioItem, Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
@@ -45,6 +43,7 @@ import { colors, radius, spacing } from '@/theme/tokens';
 import { NotificationModal, UniversalSearchModal } from '@/components/HomeOverlays';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
+import { openInternalLink } from '@/navigation/internalLinks';
 
 const filters = ['Pour toi', 'Sons', 'Communaute', 'Plus'] as const;
 const quickActions = [
@@ -214,11 +213,10 @@ export function HomeScreen() {
   const library = useLibrary();
   const auth = useAuth();
   const navigation = useNavigation<any>();
-  const openWebPath = useCallback((path: string) => {
-    Linking.openURL(`${API_BASE_URL}${path}`).catch(() => {
-      setError("Impossible d'ouvrir cette page Synaura");
-    });
-  }, []);
+  const openWebPath = useCallback(async (path: string) => {
+    const handled = await openInternalLink(navigation, path, { playTrack: (track) => player.playTrack(track) });
+    if (!handled) setError("Impossible d'ouvrir cette page Synaura");
+  }, [navigation, player]);
 
   const load = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     if (mode === 'refresh') setRefreshing(true);
@@ -959,7 +957,7 @@ function FeedCard({
   onOpenWeb: (path: string) => void;
 }) {
   if (item.kind === 'composer') return <ComposerCard onPublish={() => onNavigate('Profile')} onUpload={() => onOpenWeb('/upload')} onText={onCommunity} onStudio={() => onOpenWeb('/ai-generator')} onPostCreated={onPostCreated} />;
-  if (item.kind === 'post') return <PostCard post={item.post} activeId={activeId} isPlaying={isPlaying} onPlay={(track) => onPlay(allTracks, track)} onComments={() => onComments({ kind: 'post', id: item.post.id, title: item.post.author })} onRemix={(track) => onOpenWeb(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(track._id)}`)} />;
+  if (item.kind === 'post') return <PostCard post={item.post} activeId={activeId} isPlaying={isPlaying} onOpen={() => onOpenWeb(`/posts/${item.post.id}`)} onPlay={(track) => onPlay(allTracks, track)} onComments={() => onComments({ kind: 'post', id: item.post.id, title: item.post.author })} onRemix={(track) => onOpenWeb(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(track._id)}`)} />;
   if (item.kind === 'rail') {
     return <RailCard item={item} activeId={activeId} isPlaying={isPlaying} onPlay={onPlay} />;
   }
@@ -985,7 +983,7 @@ function FeedCard({
   if (item.kind === 'radio') {
     return <RadioCard radio={item.radio} activeId={activeId} isPlaying={isPlaying} onPlay={() => onPlay([item.radio.track], item.radio.track)} />;
   }
-  if (item.kind === 'playlist') return <PlaylistCard playlist={item.playlist} onOpen={() => onNavigate('Library')} />;
+  if (item.kind === 'playlist') return <PlaylistCard playlist={item.playlist} onOpen={() => onOpenWeb(`/playlists/${item.playlist.id}`)} />;
   if (item.kind === 'creator') return <CreatorRail creators={item.creators} onOpen={(creator) => onOpenWeb(`/profile/${encodeURIComponent(creator.handle.replace(/^@/, ''))}`)} />;
   if (item.kind === 'studio') return <ActionCard icon="color-wand" title={item.title} text={item.text} label="Ouvrir" gradient={['#fffaf2', '#eee7ff', '#e2fbff']} iconColor={warm.paper} onPress={() => onOpenWeb('/ai-generator')} />;
   if (item.kind === 'booster') return <ActionCard icon="flash" title={item.title} text={item.text} label="Booster" gradient={['#fff6d7', '#ffe4f1', '#fffaf2']} iconColor="#FBBF24" onPress={() => onOpenWeb('/boosters')} />;
@@ -1104,6 +1102,7 @@ function PostCard({
   post,
   activeId,
   isPlaying,
+  onOpen,
   onPlay,
   onComments,
   onRemix,
@@ -1111,6 +1110,7 @@ function PostCard({
   post: HomePost;
   activeId?: string;
   isPlaying: boolean;
+  onOpen: () => void;
   onPlay: (track: Track) => void;
   onComments: () => void;
   onRemix: (track: Track) => void;
@@ -1148,7 +1148,9 @@ function PostCard({
         <Ionicons name="ellipsis-horizontal" size={20} color="rgba(23,19,19,0.36)" />
       </View>
 
-      <Text style={styles.postText}>{post.text}</Text>
+      <Pressable onPress={onOpen}>
+        <Text style={styles.postText}>{post.text}</Text>
+      </Pressable>
 
       {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={styles.postImage} /> : null}
       {post.track ? <PostTrack track={post.track} playing={playingThis} onPlay={() => onPlay(post.track!)} onComments={() => onComments()} onRemix={() => onRemix(post.track!)} /> : null}

@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { API_BASE_URL, deleteNotification, getNotifications, markAllNotificationsRead, markNotificationRead, searchEverything } from '@/api/client';
+import { useNavigation } from '@react-navigation/native';
+import { deleteNotification, getNotifications, markAllNotificationsRead, markNotificationRead, searchEverything } from '@/api/client';
 import type { SearchResults, SynauraNotification, Track } from '@/api/types';
 import { TrackCover } from '@/components/TrackCover';
+import { openInternalLink } from '@/navigation/internalLinks';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors, spacing } from '@/theme/tokens';
 
@@ -43,6 +45,7 @@ function SheetHeader({ title, subtitle, onClose, action }: { title: string; subt
 export function UniversalSearchModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   const player = usePlayer();
+  const navigation = useNavigation<any>();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResults>(emptyResults);
   const [loading, setLoading] = useState(false);
@@ -70,7 +73,10 @@ export function UniversalSearchModal({ visible, onClose }: { visible: boolean; o
   }, [query, visible]);
 
   const total = results.tracks.length + results.posts.length + results.artists.length + results.playlists.length;
-  const openPath = (path: string) => Linking.openURL(`${API_BASE_URL}${path}`).catch(() => {});
+  const openPath = async (path: string) => {
+    const handled = await openInternalLink(navigation, path, { playTrack: (track) => player.playTrack(track) });
+    if (handled) onClose();
+  };
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
@@ -108,6 +114,8 @@ export function UniversalSearchModal({ visible, onClose }: { visible: boolean; o
 
 export function NotificationModal({ visible, onClose, onUnreadChange }: { visible: boolean; onClose: () => void; onUnreadChange: (count: number) => void }) {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
+  const player = usePlayer();
   const [items, setItems] = useState<SynauraNotification[]>([]);
   const [unread, setUnread] = useState(0);
   const [category, setCategory] = useState<(typeof notificationCategories)[number]>('all');
@@ -145,7 +153,10 @@ export function NotificationModal({ visible, onClose, onUnreadChange }: { visibl
       onUnreadChange(Math.max(0, unread - 1));
       await markNotificationRead(item.id).catch(() => {});
     }
-    if (item.actionUrl) Linking.openURL(item.actionUrl.startsWith('http') ? item.actionUrl : `${API_BASE_URL}${item.actionUrl}`).catch(() => {});
+    if (item.actionUrl) {
+      const handled = await openInternalLink(navigation, item.actionUrl, { playTrack: (track) => player.playTrack(track) });
+      if (handled) onClose();
+    }
   };
 
   return (
