@@ -35,27 +35,38 @@ export function Tabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarShowLabel: false,
+        tabBarShowLabel: true,
         tabBarHideOnKeyboard: true,
         tabBarAccessibilityLabel: labels[route.name],
         tabBarButtonTestID: `tab-${route.name.toLowerCase()}`,
         tabBarStyle: {
           position: 'absolute',
-          left: 12,
-          right: 12,
-          bottom: Math.max(8, insets.bottom),
-          height: 56,
-          borderRadius: 22,
+          display: route.name === 'Swipe' ? 'none' : 'flex',
+          left: 10,
+          right: 10,
+          bottom: Math.max(10, insets.bottom + 2),
+          height: 66,
+          borderRadius: 26,
           borderTopWidth: 0,
           borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: 'rgba(255,250,242,0.97)',
+          borderColor: 'rgba(23,19,19,0.14)',
+          backgroundColor: 'rgba(255,250,242,0.99)',
           shadowColor: '#1E1914',
-          shadowOpacity: 0.16,
-          shadowRadius: 28,
-          shadowOffset: { width: 0, height: 12 },
-          elevation: 10,
+          shadowOpacity: 0.24,
+          shadowRadius: 32,
+          shadowOffset: { width: 0, height: 14 },
+          elevation: 18,
+          paddingTop: 7,
+          paddingBottom: Math.max(6, insets.bottom ? 4 : 8),
         },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '900',
+          marginTop: 0,
+        },
+        tabBarActiveTintColor: colors.black,
+        tabBarInactiveTintColor: colors.textTertiary,
+        tabBarItemStyle: { borderRadius: 18 },
         tabBarIcon: ({ focused }) => {
           const icon =
             route.name === 'Home'
@@ -69,7 +80,7 @@ export function Tabs() {
               : route.name === 'Library'
               ? 'library'
               : 'person-circle';
-          return <Ionicons name={icon as any} size={route.name === 'Upload' ? 30 : 24} color={focused ? colors.black : colors.textTertiary} />;
+          return <Ionicons name={icon as any} size={route.name === 'Upload' ? 29 : 22} color={focused ? colors.black : colors.textTertiary} />;
         },
       })}
     >

@@ -246,11 +246,15 @@ export function SettingsScreen() {
         ) : null}
 
         {tab === 'legal' ? (
-          <Section title="Legal" text="Documents et informations.">
-            <Info label="Conditions" value="xima-m-music-platform.vercel.app/terms" />
-            <Info label="Confidentialite" value="xima-m-music-platform.vercel.app/privacy" />
+          <Section title="Centre légal" text="Les mêmes documents que la version web, rangés pour mobile.">
+            <Info label="Centre légal" value="/legal" />
+            <Info label="Mentions légales" value="/legal/mentions-legales" />
+            <Info label="Confidentialité" value="/legal/confidentialite" />
+            <Info label="CGU" value="/legal/cgu" />
+            <Info label="CGV" value="/legal/cgv" />
+            <Info label="Cookies" value="/legal/cookies" />
+            <Info label="RGPD" value="/legal/rgpd" />
             <Info label="Support" value="support@synaura.app" />
-            <Info label="Licences" value="Synaura Music Platform" />
           </Section>
         ) : null}
       </ScrollView>

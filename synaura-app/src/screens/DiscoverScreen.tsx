@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
 import { getHomeData } from '@/api/client';
 import type { HomeData, Track } from '@/api/types';
 import { TrackCover } from '@/components/TrackCover';
@@ -40,6 +41,7 @@ function matchesGenre(track: Track, genre: string) {
 }
 
 export function DiscoverScreen() {
+  const navigation = useNavigation<any>();
   const [data, setData] = useState<HomeData>(emptyData);
   const [genre, setGenre] = useState('Tout');
   const [query, setQuery] = useState('');
@@ -139,7 +141,7 @@ export function DiscoverScreen() {
             <DiscoverRail title="Pour toi" subtitle="une sélection qui suit tes écoutes" tracks={forYou} player={player} onPlay={(track) => playFrom(forYou, track)} />
             <DiscoverRows title="Top hits" tracks={trending.slice(0, 6)} player={player} onPlay={(track) => playFrom(trending, track)} />
             <DiscoverRail title="Fraîchement publié" subtitle="les dernières sorties Synaura" tracks={recent} player={player} onPlay={(track) => playFrom(recent, track)} />
-            <CreatorRail creators={data.creators.slice(0, 8)} />
+            <CreatorRail creators={data.creators.slice(0, 8)} onOpen={(username) => navigation.navigate('PublicProfile', { username })} />
             <PlaylistRail playlists={data.playlists.slice(0, 8)} />
           </>
         )}
@@ -219,20 +221,20 @@ function DiscoverRows({ title, tracks, player, onPlay }: { title: string; tracks
   );
 }
 
-function CreatorRail({ creators }: { creators: HomeData['creators'] }) {
+function CreatorRail({ creators, onOpen }: { creators: HomeData['creators']; onOpen: (username: string) => void }) {
   if (!creators.length) return null;
   return (
     <View style={styles.section}>
       <SectionTitle title="Artistes chauds" subtitle="des profils à suivre maintenant" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
         {creators.map((creator) => (
-          <View key={creator.id} style={styles.creator}>
+          <Pressable key={creator.id} onPress={() => onOpen(creator.handle.replace(/^@/, ''))} style={styles.creator}>
             <View style={[styles.creatorAvatar, { backgroundColor: creator.tint }]}>
-              <Text style={styles.creatorInitial}>{creator.avatar}</Text>
+              {creator.avatar?.startsWith('http') ? <Image source={{ uri: creator.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.creatorInitial}>{creator.avatar}</Text>}
             </View>
             <Text numberOfLines={1} style={styles.creatorName}>{creator.name}</Text>
             <Text numberOfLines={1} style={styles.tileArtist}>{creator.handle}</Text>
-          </View>
+          </Pressable>
         ))}
       </ScrollView>
     </View>
@@ -321,7 +323,7 @@ const styles = StyleSheet.create({
   rowTitle: { color: warm.ink, fontSize: 13, fontWeight: '900' },
   rowArtist: { marginTop: 3, color: warm.muted, fontSize: 11, fontWeight: '700' },
   creator: { width: 126, alignItems: 'center', borderRadius: 20, backgroundColor: 'rgba(255,250,242,0.76)', padding: spacing.md },
-  creatorAvatar: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
+  creatorAvatar: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   creatorInitial: { color: warm.paper, fontSize: 20, fontWeight: '900' },
   creatorName: { marginTop: spacing.sm, color: warm.ink, fontSize: 12, fontWeight: '900' },
   playlistCover: { width: '100%', aspectRatio: 1, borderRadius: 16, backgroundColor: 'rgba(23,19,19,0.06)' },

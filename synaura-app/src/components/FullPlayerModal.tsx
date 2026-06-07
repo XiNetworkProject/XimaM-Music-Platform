@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getArtistFollowState,
@@ -42,6 +43,7 @@ const { height: SCREEN_H } = Dimensions.get('window');
 
 export function FullPlayerModal({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const player = usePlayer();
   const library = useLibrary();
   const track = player.current;
@@ -278,7 +280,11 @@ export function FullPlayerModal({ visible, onClose }: Props) {
 
           <View style={styles.meta}>
             <Text style={styles.title} numberOfLines={2}>{track.title}</Text>
-            <View style={styles.artistRow}>
+            <Pressable
+              onPress={() => track.artist?.username && navigation.navigate('PublicProfile', { username: track.artist.username })}
+              disabled={!track.artist?.username || isRadio}
+              style={styles.artistRow}
+            >
               <View style={styles.artistAvatar}>
                 {track.artist?.avatar ? (
                   <Image source={{ uri: track.artist.avatar }} style={StyleSheet.absoluteFill} />
@@ -307,7 +313,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
                   </Text>
                 </Pressable>
               ) : null}
-            </View>
+            </Pressable>
           </View>
 
           <View style={styles.progressWrap}>

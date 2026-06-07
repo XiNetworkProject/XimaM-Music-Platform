@@ -419,7 +419,7 @@ export function HomeScreen() {
 
   const header = (
     <>
-      <TopBar unread={unreadNotifications} onNotifications={() => setNotificationsOpen(true)} onPublish={() => openWebPath('/upload')} />
+      <TopBar unread={unreadNotifications} onNotifications={() => navigation.navigate('Notifications')} onPublish={() => openWebPath('/upload')} />
       <TopSearchStrip onSearch={() => setSearchOpen(true)} onStudio={() => openWebPath('/ai-generator')} />
       <AnnouncementStrip onPress={() => openWebPath('/fermeture')} />
       <MiniCarousel
@@ -957,7 +957,7 @@ function FeedCard({
   onOpenWeb: (path: string) => void;
 }) {
   if (item.kind === 'composer') return <ComposerCard onPublish={() => onNavigate('Profile')} onUpload={() => onOpenWeb('/upload')} onText={onCommunity} onStudio={() => onOpenWeb('/ai-generator')} onPostCreated={onPostCreated} />;
-  if (item.kind === 'post') return <PostCard post={item.post} activeId={activeId} isPlaying={isPlaying} onOpen={() => onOpenWeb(`/posts/${item.post.id}`)} onPlay={(track) => onPlay(allTracks, track)} onComments={() => onComments({ kind: 'post', id: item.post.id, title: item.post.author })} onRemix={(track) => onOpenWeb(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(track._id)}`)} />;
+  if (item.kind === 'post') return <PostCard post={item.post} activeId={activeId} isPlaying={isPlaying} onOpen={() => onOpenWeb(`/posts/${item.post.id}`)} onOpenProfile={() => onOpenWeb(`/profile/${encodeURIComponent(item.post.handle.replace(/^@/, ''))}`)} onPlay={(track) => onPlay(allTracks, track)} onComments={() => onComments({ kind: 'post', id: item.post.id, title: item.post.author })} onRemix={(track) => onOpenWeb(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(track._id)}`)} />;
   if (item.kind === 'rail') {
     return <RailCard item={item} activeId={activeId} isPlaying={isPlaying} onPlay={onPlay} />;
   }
@@ -1103,6 +1103,7 @@ function PostCard({
   activeId,
   isPlaying,
   onOpen,
+  onOpenProfile,
   onPlay,
   onComments,
   onRemix,
@@ -1111,6 +1112,7 @@ function PostCard({
   activeId?: string;
   isPlaying: boolean;
   onOpen: () => void;
+  onOpenProfile: () => void;
   onPlay: (track: Track) => void;
   onComments: () => void;
   onRemix: (track: Track) => void;
@@ -1137,16 +1139,16 @@ function PostCard({
 
   return (
     <View style={styles.card}>
-      <View style={styles.postHeader}>
+      <Pressable onPress={onOpenProfile} style={styles.postHeader}>
         <View style={styles.postAvatar}>
-          <Text style={styles.postAvatarText}>{post.avatar}</Text>
+          {post.avatar?.startsWith('http') ? <Image source={{ uri: post.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.postAvatarText}>{post.avatar}</Text>}
         </View>
         <View style={styles.postAuthor}>
           <Text numberOfLines={1} style={styles.postName}>{post.author}</Text>
           <Text numberOfLines={1} style={styles.postMeta}>{post.handle} · {post.time} · {post.mood}</Text>
         </View>
         <Ionicons name="ellipsis-horizontal" size={20} color="rgba(23,19,19,0.36)" />
-      </View>
+      </Pressable>
 
       <Pressable onPress={onOpen}>
         <Text style={styles.postText}>{post.text}</Text>
@@ -1369,7 +1371,7 @@ function CreatorRail({ creators, onOpen }: { creators: Creator[]; onOpen: (creat
         {creators.map((creator) => (
           <Pressable key={creator.id} onPress={() => onOpen(creator)} style={styles.creatorCard}>
             <View style={[styles.creatorAvatar, { backgroundColor: creator.tint }]}>
-              <Text style={styles.creatorAvatarText}>{creator.avatar}</Text>
+              {creator.avatar?.startsWith('http') ? <Image source={{ uri: creator.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.creatorAvatarText}>{creator.avatar}</Text>}
             </View>
             <Text numberOfLines={1} style={styles.creatorName}>{creator.name}</Text>
             <Text numberOfLines={1} style={styles.creatorHandle}>{creator.handle}</Text>
@@ -2130,6 +2132,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: warm.ink,
+    overflow: 'hidden',
   },
   postAvatarText: {
     color: warm.paper,
@@ -2502,6 +2505,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   creatorAvatarText: {
     color: warm.paper,

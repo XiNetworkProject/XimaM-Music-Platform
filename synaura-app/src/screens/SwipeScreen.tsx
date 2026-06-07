@@ -4,6 +4,7 @@ import {
   Animated,
   FlatList,
   Image,
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -14,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   fetchRankingFeedChunk,
@@ -45,10 +47,12 @@ import {
 const PRELOAD_RANGE = 4;
 const RADIO_POLL_MS = 8000;
 const COMMENTS_POLL_DELAY_MS = 600;
+const FEED_MODES: FeedMode[] = ['reco', 'trending', 'boost'];
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 export function SwipeScreen() {
+  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const tabBarHeight = 76 + insets.bottom;
@@ -88,6 +92,21 @@ export function SwipeScreen() {
   const fetchedFollowIdsRef = useRef<Set<string>>(new Set());
   const listRef = useRef<FlatList<Track>>(null);
   const headerOpacity = useRef(new Animated.Value(1)).current;
+  const switchFeedMode = useCallback((nextMode: FeedMode) => {
+    if (nextMode === feedMode) return;
+    setFeedMode(nextMode);
+    Haptics.selectionAsync().catch(() => {});
+  }, [feedMode]);
+  const panResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 36 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.35,
+    onPanResponderRelease: (_, gesture) => {
+      if (Math.abs(gesture.dx) < 72) return;
+      const currentIndex = FEED_MODES.indexOf(feedMode);
+      const direction = gesture.dx < 0 ? 1 : -1;
+      const next = FEED_MODES[Math.max(0, Math.min(FEED_MODES.length - 1, currentIndex + direction))];
+      switchFeedMode(next);
+    },
+  }), [feedMode, switchFeedMode]);
 
   const activeTrack = tracks[activeIndex] || null;
   const activeId = activeTrack?._id || '';
@@ -427,6 +446,7 @@ export function SwipeScreen() {
         onAction={handleSlideAction}
         onSeek={handleSeek}
         onToggleFollow={() => void handleToggleFollow()}
+        onOpenArtist={() => item.artist?.username && navigation.navigate('PublicProfile', { username: item.artist.username })}
       />
     );
   }, [
@@ -441,6 +461,7 @@ export function SwipeScreen() {
     insets.top,
     itemHeight,
     library,
+    navigation,
     likedMap,
     likesMap,
     player,
@@ -454,7 +475,7 @@ export function SwipeScreen() {
   }), [headerOpacity, insets.top]);
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} {...panResponder.panHandlers}>
       {/* Fond ambient : cover de la slide active, lourdement floutee */}
       {activeTrack?.coverUrl ? (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -484,9 +505,7 @@ export function SwipeScreen() {
                   key={mode}
                   accessibilityLabel={`Mode ${FEED_MODE_META[mode].label}`}
                   onPress={() => {
-                    if (mode === feedMode) return;
-                    setFeedMode(mode);
-                    Haptics.selectionAsync().catch(() => {});
+                    switchFeedMode(mode);
                   }}
                   style={[styles.modeButton, active && styles.modeButtonActive]}
                 >
@@ -503,8 +522,8 @@ export function SwipeScreen() {
           </Pressable>
         </View>
         <View style={styles.swipeHint}>
-          <Ionicons name="swap-vertical" size={13} color="rgba(255,250,242,0.62)" />
-          <Text style={styles.swipeHintText}>Swipe pour changer de son</Text>
+          <Ionicons name="swap-horizontal" size={13} color="rgba(255,250,242,0.62)" />
+          <Text style={styles.swipeHintText}>Haut/bas: son · gauche/droite: fil</Text>
         </View>
         {tracks.length > 1 ? (
           <View style={styles.indicator}>

@@ -39,7 +39,7 @@ export function PostDetailScreen() {
 
   return (
     <SynauraBackground variant="warm">
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 64 }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 128 }]}>
         <View style={styles.topbar}>
           <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}><Ionicons name="chevron-back" size={20} color="#171313" /></Pressable>
           <Text style={styles.title}>Post</Text>
@@ -48,7 +48,7 @@ export function PostDetailScreen() {
         {post ? (
           <View style={styles.card}>
             <Pressable onPress={() => username && navigation.navigate('PublicProfile', { username })} style={styles.authorRow}>
-              <View style={styles.avatar}><Text style={styles.avatarText}>{post.avatar}</Text></View>
+              <View style={styles.avatar}>{post.avatar?.startsWith('http') ? <Image source={{ uri: post.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.avatarText}>{post.avatar}</Text>}</View>
               <View>
                 <Text style={styles.author}>{post.author}</Text>
                 <Text style={styles.handle}>{post.handle} · {post.time}</Text>
@@ -70,6 +70,14 @@ export function PostDetailScreen() {
               <Pressable onPress={like} style={styles.action}><Ionicons name={post.isLiked ? 'heart' : 'heart-outline'} size={19} color={post.isLiked ? '#EF4444' : '#171313'} /><Text style={styles.actionText}>{post.likesCount}</Text></Pressable>
               <Pressable onPress={() => setCommentsOpen(true)} style={styles.action}><Ionicons name="chatbubble-outline" size={18} color="#171313" /><Text style={styles.actionText}>{post.commentsCount}</Text></Pressable>
             </View>
+            <Pressable onPress={() => setCommentsOpen(true)} style={styles.commentPreview}>
+              <Ionicons name="chatbubbles-outline" size={18} color="#8B5CF6" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.commentPreviewTitle}>Commentaires</Text>
+                <Text style={styles.commentPreviewText}>Lire, ajouter ou supprimer un commentaire sans quitter la page.</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="rgba(23,19,19,0.42)" />
+            </Pressable>
           </View>
         ) : !loading ? <Text style={styles.empty}>Post introuvable.</Text> : null}
       </ScrollView>
@@ -85,7 +93,7 @@ const styles = StyleSheet.create({
   title: { color: '#171313', fontSize: 28, fontWeight: '900' },
   card: { borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.82)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)', padding: 16 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#171313', alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#171313', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarText: { color: '#FFF7ED', fontWeight: '900', fontSize: 16 },
   author: { color: '#171313', fontWeight: '900', fontSize: 16 },
   handle: { color: '#7C6F68', fontWeight: '700', marginTop: 2 },
@@ -98,5 +106,8 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 10, marginTop: 16 },
   action: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: 'rgba(23,19,19,0.06)', paddingHorizontal: 12, paddingVertical: 9 },
   actionText: { color: '#171313', fontWeight: '900' },
+  commentPreview: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 20, backgroundColor: 'rgba(139,92,246,0.09)', padding: 12 },
+  commentPreviewTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
+  commentPreviewText: { color: '#6B5F5A', fontSize: 12, fontWeight: '700', marginTop: 2 },
   empty: { textAlign: 'center', color: '#6B5F5A', fontWeight: '800', marginTop: 60 },
 });

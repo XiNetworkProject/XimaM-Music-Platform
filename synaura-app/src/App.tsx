@@ -52,7 +52,7 @@ export default function App() {
   const [playerOpen, setPlayerOpen] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [activeRoute, setActiveRoute] = React.useState('Home');
-  const showSearch = !playerOpen && !['Swipe', 'Settings'].includes(activeRoute);
+  const showSearch = !playerOpen && !['Home', 'Swipe', 'Settings'].includes(activeRoute);
 
   return (
     <SafeAreaProvider>

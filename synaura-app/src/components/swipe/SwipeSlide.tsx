@@ -34,6 +34,7 @@ type Props = {
   onAction: (action: ActionLabel) => void;
   onSeek: (seconds: number) => void;
   onToggleFollow: () => void;
+  onOpenArtist: () => void;
 };
 
 function ActionButton({
@@ -113,6 +114,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
     onAction,
     onSeek,
     onToggleFollow,
+    onOpenArtist,
   } = props;
 
   const isRadio = track._id.startsWith('radio-');
@@ -209,7 +211,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
       <View style={[styles.actionsColumn, { bottom: bottomPad + 92 }]}>
         {!isRadio && track.artist?.username ? (
           <View style={styles.profileCluster}>
-            <View style={styles.profileAvatar}>
+            <Pressable accessibilityLabel="Ouvrir le profil artiste" onPress={onOpenArtist} style={styles.profileAvatar}>
               {track.artist.avatar ? (
                 <ImageBackground source={{ uri: track.artist.avatar }} style={StyleSheet.absoluteFill} />
               ) : (
@@ -217,7 +219,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
                   {(track.artist.name || track.artist.username || '?').slice(0, 1).toUpperCase()}
                 </Text>
               )}
-            </View>
+            </Pressable>
             <Pressable
               accessibilityLabel={isFollowing ? "Suivi" : "Suivre l'artiste"}
               disabled={!track.artist._id || followLoading}
@@ -288,7 +290,9 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
         </View>
         <Text numberOfLines={2} style={styles.title}>{displayTitle}</Text>
         <View style={styles.artistRow}>
-          <Text numberOfLines={1} style={styles.artist}>@{displayArtist}</Text>
+          <Pressable accessibilityLabel="Ouvrir le profil artiste" disabled={!track.artist?.username || isRadio} onPress={onOpenArtist} style={styles.artistNameButton}>
+            <Text numberOfLines={1} style={styles.artist}>@{displayArtist}</Text>
+          </Pressable>
           {track.artist?.username && !isRadio ? (
             <Pressable
               accessibilityLabel={isFollowing ? 'Deja suivi' : 'Suivre'}
@@ -455,6 +459,7 @@ const styles = StyleSheet.create({
   nowText: { color: 'rgba(255,250,242,0.72)', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   title: { marginTop: 9, color: '#FFFAF2', fontSize: 27, lineHeight: 31, fontWeight: '900', letterSpacing: -0.35 },
   artistRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  artistNameButton: { maxWidth: '72%' },
   artist: { color: 'rgba(255,250,242,0.86)', fontSize: 13, fontWeight: '900' },
   inlineFollow: {
     paddingHorizontal: 10,
