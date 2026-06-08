@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { isPastShutdownEnd, isShutdownAllowedPath } from '@/lib/synauraShutdown';
+import {
+  isPastShutdownEnd,
+  isShutdownAllowedPath,
+  SYNAURA_SHUTDOWN_NOTICES_ENABLED,
+} from '@/lib/synauraShutdown';
 
 // Pages publiques (accessibles sans authentification)
 const publicPages = [
@@ -37,6 +41,13 @@ const protectedPages = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (
+    !SYNAURA_SHUTDOWN_NOTICES_ENABLED &&
+    (pathname === '/fermeture' || pathname === '/arret')
+  ) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+
   // Après la date de fin : seules les pages d'information restent accessibles
   if (isPastShutdownEnd() && !isShutdownAllowedPath(pathname)) {
     const arretUrl = new URL('/arret', request.url);

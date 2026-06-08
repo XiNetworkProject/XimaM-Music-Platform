@@ -48,6 +48,7 @@ import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
 import { openInternalLink } from '@/navigation/internalLinks';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
+import { SHOW_SHUTDOWN_NOTICES } from '@/config/features';
 
 const filters = ['Pour toi', 'Sons', 'Communaute', 'Plus'] as const;
 const quickActions = [
@@ -426,7 +427,7 @@ export function HomeScreen() {
     <>
       <TopBar unread={unreadNotifications} onNotifications={() => setNotificationsOpen(true)} onPublish={() => openWebPath('/upload')} />
       <TopSearchStrip onSearch={() => setSearchOpen(true)} onStudio={() => openWebPath('/ai-generator')} />
-      <AnnouncementStrip onPress={() => openWebPath('/fermeture')} />
+      {SHOW_SHUTDOWN_NOTICES ? <AnnouncementStrip onPress={() => openWebPath('/fermeture')} /> : null}
       {heroTracks.length ? (
         <MiniCarousel
           tracks={heroTracks}

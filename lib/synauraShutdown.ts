@@ -1,5 +1,11 @@
 /** Annonce et arrêt définitif de Synaura — dates et helpers partagés */
 
+/**
+ * Interrupteur général de la campagne de fermeture.
+ * Les contenus restent archivés, mais aucun message ni verrouillage n'est actif.
+ */
+export const SYNAURA_SHUTDOWN_NOTICES_ENABLED = false;
+
 export const SHUTDOWN_ANNOUNCEMENT_DATE = new Date('2026-05-24T00:00:00+02:00');
 /** Dernier jour d'accès inclus — à 23:59:59 (heure de Paris) */
 export const SHUTDOWN_END_DATE = new Date('2026-06-24T23:59:59+02:00');
@@ -8,11 +14,11 @@ export const SHUTDOWN_END_DATE_LABEL = '24 juin 2026';
 export const SHUTDOWN_ANNOUNCEMENT_LABEL = '24 mai 2026';
 
 export function isPastShutdownEnd(now = Date.now()): boolean {
-  return now > SHUTDOWN_END_DATE.getTime();
+  return SYNAURA_SHUTDOWN_NOTICES_ENABLED && now > SHUTDOWN_END_DATE.getTime();
 }
 
 export function isShutdownAnnounced(now = Date.now()): boolean {
-  return now >= SHUTDOWN_ANNOUNCEMENT_DATE.getTime();
+  return SYNAURA_SHUTDOWN_NOTICES_ENABLED && now >= SHUTDOWN_ANNOUNCEMENT_DATE.getTime();
 }
 
 export function getMsUntilShutdownEnd(now = Date.now()): number {

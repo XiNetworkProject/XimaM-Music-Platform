@@ -22,12 +22,13 @@ import { ProfileImagePicker } from '@/components/profile/ProfileImagePicker';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import legalContent from '@/legal/legalDocuments.json';
 import { useAppUpdate } from '@/updates/UpdateProvider';
+import { SHOW_SHUTDOWN_NOTICES } from '@/config/features';
 
 type Tab = 'profil' | 'compte' | 'preferences' | 'notifications' | 'parrainage' | 'abonnement' | 'updates' | 'securite' | 'legal';
 type LegalDocument = (typeof legalContent)[number];
 const PREFS_KEY = 'synaura.mobile.settings.v1';
 const LEGAL_BASE_URL = 'https://www.synaura.fr';
-const legalDocuments = [
+const allLegalDocuments = [
   { label: 'Fermeture de Synaura', description: "Annonce officielle et date de fin du service", path: '/fermeture', icon: 'warning-outline' },
   { label: 'Mentions légales', description: 'Éditeur, hébergement et responsabilité', path: '/legal/mentions-legales', icon: 'business-outline' },
   { label: 'Politique de confidentialité', description: 'Collecte, traitement et conservation des données', path: '/legal/confidentialite', icon: 'shield-checkmark-outline' },
@@ -36,6 +37,7 @@ const legalDocuments = [
   { label: 'Politique des cookies', description: 'Cookies essentiels, analytiques et tiers', path: '/legal/cookies', icon: 'options-outline' },
   { label: 'Conformité RGPD', description: 'Droits, délais, sécurité et réclamations', path: '/legal/rgpd', icon: 'people-outline' },
 ] as const;
+const legalDocuments = allLegalDocuments.filter((document) => SHOW_SHUTDOWN_NOTICES || document.path !== '/fermeture');
 
 export function SettingsScreen() {
   const auth = useAuth();

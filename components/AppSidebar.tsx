@@ -31,6 +31,7 @@ import {
 import { useSession, signOut } from 'next-auth/react';
 import { useSidebar } from '@/app/providers';
 import { fetchCreditsBalance } from '@/lib/credits';
+import { SYNAURA_SHUTDOWN_NOTICES_ENABLED } from '@/lib/synauraShutdown';
 import { AnimatePresence, motion } from 'framer-motion';
 import StarAcademyBanner from '@/components/StarAcademyBanner';
 
@@ -239,14 +240,16 @@ export default function AppSidebar() {
           <span className="group-data-[collapsed=true]/sidebar:hidden truncate relative z-[1]">Uploader</span>
         </Link>
 
-        <Link
-          href="/fermeture"
-          className={`group/ferm relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-all active:scale-[0.97] overflow-hidden bg-gradient-to-r from-red-950/50 to-rose-950/30 text-red-200 ring-1 ring-red-500/25 hover:ring-red-400/40 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:px-0`}
-          title={collapsed ? 'Fermeture' : undefined}
-        >
-          <AlertTriangle className="w-[18px] h-[18px] shrink-0" />
-          <span className="group-data-[collapsed=true]/sidebar:hidden truncate">Fermeture Synaura</span>
-        </Link>
+        {SYNAURA_SHUTDOWN_NOTICES_ENABLED ? (
+          <Link
+            href="/fermeture"
+            className={`group/ferm relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-all active:scale-[0.97] overflow-hidden bg-gradient-to-r from-red-950/50 to-rose-950/30 text-red-200 ring-1 ring-red-500/25 hover:ring-red-400/40 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:px-0`}
+            title={collapsed ? 'Fermeture' : undefined}
+          >
+            <AlertTriangle className="w-[18px] h-[18px] shrink-0" />
+            <span className="group-data-[collapsed=true]/sidebar:hidden truncate">Fermeture Synaura</span>
+          </Link>
+        ) : null}
 
         {!collapsed && <StarAcademyBanner variant="mini" />}
       </div>
