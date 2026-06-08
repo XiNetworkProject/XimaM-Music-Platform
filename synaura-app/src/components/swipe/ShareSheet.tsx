@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { buildShareUrls, shareTrackToFeed } from '@/api/client';
 import type { Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
@@ -29,6 +30,7 @@ type Props = {
 const QUICK_CAPTIONS = ['Coup de cœur', 'À mettre en boucle', "Besoin d'avis"];
 
 export function ShareSheet({ visible, track, onClose, onShared }: Props) {
+  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
   const { user } = useAuth();
@@ -90,10 +92,18 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
       } else {
         showToast('Publication impossible');
       }
+    } catch {
+      showToast('Publication impossible. Vérifie ta connexion.');
     } finally {
       setPublishing(false);
     }
   }, [canInternal, caption, onClose, onShared, showToast, trackId, user]);
+
+  const askCommunity = useCallback(() => {
+    if (!track || !canInternal) return;
+    onClose();
+    navigation.navigate('Community', { compose: true, category: 'feedback', track });
+  }, [canInternal, navigation, onClose, track]);
 
   const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [600, 0] });
 
@@ -159,6 +169,14 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
             </View>
             {canInternal ? (
               <View style={{ gap: 12 }}>
+                <Pressable accessibilityLabel="Demander un avis à la communauté" onPress={askCommunity} style={styles.communityAction}>
+                  <View style={styles.communityIcon}><Ionicons name="people" size={17} color="#FFFAF2" /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.communityTitle}>Demander un avis</Text>
+                    <Text style={styles.communityText}>Attache ce son à une discussion Communauté.</Text>
+                  </View>
+                  <Ionicons name="arrow-forward" size={16} color="#171313" />
+                </Pressable>
                 <TextInput
                   value={caption}
                   onChangeText={(value) => setCaption(value.slice(0, 220))}
@@ -313,6 +331,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(23,19,19,0.1)',
   },
   captionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  communityAction: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 11, borderRadius: 17, backgroundColor: 'rgba(124,92,255,0.11)', borderWidth: 1, borderColor: 'rgba(124,92,255,0.2)' },
+  communityIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7C5CFF' },
+  communityTitle: { color: '#171313', fontSize: 12, fontWeight: '900' },
+  communityText: { color: 'rgba(23,19,19,0.5)', fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 2 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 7,

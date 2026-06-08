@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePlayer } from '@/player/PlayerProvider';
+import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
 import { useLibrary } from '@/library/LibraryProvider';
 import { trackArtistName } from '@/components/swipe/helpers';
 import { TrackCover } from '@/components/TrackCover';
@@ -20,6 +20,7 @@ const HIDDEN_ROUTES = ['Swipe', 'Login', 'Register', 'ForgotPassword'];
 export function MiniPlayer({ activeRoute, onOpen }: Props) {
   const insets = useSafeAreaInsets();
   const player = usePlayer();
+  const playerProgress = usePlayerProgress(500);
   const library = useLibrary();
   const slide = useRef(new Animated.Value(0)).current;
   const isVisible = !!player.current && !HIDDEN_ROUTES.includes(activeRoute || '');
@@ -35,7 +36,7 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
 
   if (!player.current) return null;
 
-  const progress = player.durationSec > 0 ? Math.min(1, player.positionSec / player.durationSec) : 0;
+  const progress = playerProgress.durationSec > 0 ? Math.min(1, playerProgress.positionSec / playerProgress.durationSec) : 0;
   const isFavorite = library.isFavorite(player.current._id);
   const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [120, 0] });
   const opacity = slide;

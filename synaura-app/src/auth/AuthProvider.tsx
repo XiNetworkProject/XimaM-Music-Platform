@@ -71,7 +71,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
     Promise.all([AsyncStorage.getItem(TOKEN_KEY), readStoredUser()])
-      .then(([storedToken, storedUser]) => {
+      .then(async ([storedToken, storedUser]) => {
+        if (!mounted) return;
+        if (storedToken) {
+          try {
+            const response = await authFetch('/api/auth/mobile/me', storedToken);
+            if (response.status === 401 || response.status === 403) {
+              await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+              storedToken = null;
+              storedUser = null;
+            } else if (response.ok) {
+              const json = await response.json().catch(() => null);
+              if (json?.user?.id) storedUser = { ...storedUser, ...json.user };
+            }
+          } catch {
+            // Conserve la session locale hors-ligne et la reverifie au prochain lancement.
+          }
+        }
         if (!mounted) return;
         setToken(storedToken);
         setUser(storedUser);
@@ -96,10 +112,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshMe = useCallback(async () => {
     if (!token) return;
     const res = await authFetch('/api/auth/mobile/me', token);
-    if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
       await persistSession(null, null);
       return;
     }
+    if (!res.ok) return;
     const json = await res.json().catch(() => null);
     if (json?.user?.id) {
       await persistSession(token, { ...user, ...json.user });

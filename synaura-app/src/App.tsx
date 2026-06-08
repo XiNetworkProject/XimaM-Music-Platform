@@ -15,6 +15,7 @@ import { ForgotPasswordScreen } from '@/screens/ForgotPasswordScreen';
 import { colors } from '@/theme/tokens';
 import { AnimatedBootSplash } from '@/components/AnimatedBootSplash';
 import { UpdateProvider } from '@/updates/UpdateProvider';
+import { MobileSettingsProvider } from '@/settings/MobileSettingsProvider';
 
 export type RootStackParamList = {
   Tabs: { screen?: string; params?: Record<string, unknown> } | undefined;
@@ -51,9 +52,10 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <UpdateProvider>
-        <AuthProvider>
-          <LibraryProvider>
-            <PlayerProvider>
+        <MobileSettingsProvider>
+          <AuthProvider>
+            <LibraryProvider>
+              <PlayerProvider>
               <NavigationContainer
                 theme={navTheme}
                 onStateChange={(state) => {
@@ -71,9 +73,10 @@ export default function App() {
                 <FullPlayerModal visible={playerOpen} onClose={() => setPlayerOpen(false)} />
               </NavigationContainer>
               <AnimatedBootSplash />
-            </PlayerProvider>
-          </LibraryProvider>
-        </AuthProvider>
+              </PlayerProvider>
+            </LibraryProvider>
+          </AuthProvider>
+        </MobileSettingsProvider>
       </UpdateProvider>
     </SafeAreaProvider>
   );

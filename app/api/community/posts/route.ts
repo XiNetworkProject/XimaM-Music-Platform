@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabase } from '@/lib/supabase';
 
 const TRACK_REF_RE = /<!--\s*synaura-track:([^>\s]+)\s*-->/i;
@@ -231,6 +230,7 @@ async function insertForumPost(insertPayload: any) {
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getApiSession(request);
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const search = searchParams.get('search');
@@ -315,7 +315,21 @@ export async function GET(request: NextRequest) {
     const { count } = await countQuery;
 
     const postsWithAuthors = await attachAuthors(posts || []);
-    const hydratedPosts = await attachTracks(postsWithAuthors || []);
+    let hydratedPosts = await attachTracks(postsWithAuthors || []);
+
+    if (session?.user?.id && hydratedPosts.length) {
+      const postIds = hydratedPosts.map((post: any) => post.id).filter(Boolean);
+      const { data: ownLikes } = await supabase
+        .from('forum_post_likes')
+        .select('post_id')
+        .eq('user_id', session.user.id)
+        .in('post_id', postIds);
+      const likedPostIds = new Set((ownLikes || []).map((like: any) => like.post_id));
+      hydratedPosts = hydratedPosts.map((post: any) => ({
+        ...post,
+        is_liked: likedPostIds.has(post.id),
+      }));
+    }
 
     return NextResponse.json({
       posts: hydratedPosts,
@@ -335,7 +349,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -375,7 +389,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(post, { status: 201 });
+    const [postWithAuthor] = await attachAuthors([post]);
+    const [hydratedPost] = await attachTracks([postWithAuthor]);
+    return NextResponse.json(hydratedPost || post, { status: 201 });
 
   } catch (error) {
     console.error('Erreur serveur:', error);

@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         role: profile.role,
       },
       process.env.NEXTAUTH_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
 
     console.log('✅ Connexion mobile Supabase réussie pour:', profile.email);
@@ -78,4 +78,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

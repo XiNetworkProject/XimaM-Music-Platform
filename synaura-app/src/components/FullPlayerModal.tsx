@@ -24,7 +24,7 @@ import {
   toggleArtistFollow,
 } from '@/api/client';
 import { useLibrary } from '@/library/LibraryProvider';
-import { usePlayer } from '@/player/PlayerProvider';
+import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
 import { CommentsSheet } from '@/components/swipe/CommentsSheet';
 import { InteractiveSeekBar } from '@/components/swipe/InteractiveSeekBar';
 import { LyricsSheet } from '@/components/swipe/LyricsSheet';
@@ -45,6 +45,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const player = usePlayer();
+  const progress = usePlayerProgress(250);
   const library = useLibrary();
   const track = player.current;
 
@@ -69,6 +70,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const canInteract = !!trackId && !isRadio && !isAi;
   const artistId = track?.artist?._id || '';
   const isFavorite = trackId ? library.isFavorite(trackId) : false;
+  const sleepMinutes = player.sleepTimerEnd ? Math.max(1, Math.ceil((player.sleepTimerEnd - Date.now()) / 60_000)) : 0;
 
   // Reset position whenever the modal opens to avoid sticky offsets.
   useEffect(() => {
@@ -95,7 +97,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
 
   // Subtle cover pulse only when playing (less aggressive than before).
   useEffect(() => {
-    if (!player.isPlaying) {
+    if (!visible || !player.isPlaying) {
       coverPulse.stopAnimation();
       Animated.timing(coverPulse, { toValue: 0, duration: 200, useNativeDriver: true }).start();
       return;
@@ -108,7 +110,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
     );
     loop.start();
     return () => loop.stop();
-  }, [coverPulse, player.isPlaying]);
+  }, [coverPulse, player.isPlaying, visible]);
 
   const closeWithAnim = useCallback(() => {
     Animated.timing(dragY, {
@@ -173,6 +175,12 @@ export function FullPlayerModal({ visible, onClose }: Props) {
       setFollowBusy(false);
     }
   }, [artistId, followBusy]);
+
+  const cycleSleepTimer = useCallback(() => {
+    const next = !player.sleepTimerEnd ? 15 : sleepMinutes > 45 ? null : sleepMinutes > 20 ? 60 : 30;
+    player.setSleepTimer(next);
+    Haptics.selectionAsync().catch(() => {});
+  }, [player, sleepMinutes]);
 
   if (!track) return null;
 
@@ -239,16 +247,22 @@ export function FullPlayerModal({ visible, onClose }: Props) {
                 {player.queue.length > 1 ? `${player.currentIndex + 1} sur ${player.queue.length}` : 'Un son en cours'}
               </Text>
             </View>
-            <Pressable accessibilityLabel="Voir la queue" onPress={() => setQueueOpen(true)} style={styles.contextBtn}>
-              <Ionicons name="list" size={17} color="#171313" />
-              <Text style={styles.contextBtnText}>File</Text>
-            </Pressable>
+            <View style={styles.contextActions}>
+              <Pressable accessibilityLabel="Minuteur de sommeil" onPress={cycleSleepTimer} style={[styles.contextBtn, player.sleepTimerEnd ? styles.contextBtnActive : null]}>
+                <Ionicons name="moon-outline" size={16} color={player.sleepTimerEnd ? '#FFFAF2' : '#171313'} />
+                <Text style={[styles.contextBtnText, player.sleepTimerEnd ? styles.contextBtnTextActive : null]}>{player.sleepTimerEnd ? `${sleepMinutes} min` : 'Timer'}</Text>
+              </Pressable>
+              <Pressable accessibilityLabel="Voir la queue" onPress={() => setQueueOpen(true)} style={styles.contextBtn}>
+                <Ionicons name="list" size={17} color="#171313" />
+                <Text style={styles.contextBtnText}>File</Text>
+              </Pressable>
+            </View>
           </View>
 
           <View style={styles.coverWrap}>
             <Animated.View style={[styles.coverFrame, { transform: [{ scale: coverScale }] }]}>
               {track.coverUrl || track.coverVideoUrl || track.coverVideoPosterUrl ? (
-                <TrackCover track={track} active={visible} style={StyleSheet.absoluteFill} />
+                <TrackCover track={track} active={visible && player.isPlaying} autoPlayVideo={visible && player.isPlaying} style={StyleSheet.absoluteFill} />
               ) : (
                 <View style={[StyleSheet.absoluteFill, styles.coverFallback]}>
                   <Ionicons name="musical-notes" size={68} color="rgba(23,19,19,0.32)" />
@@ -323,8 +337,8 @@ export function FullPlayerModal({ visible, onClose }: Props) {
             {!isRadio ? (
               <InteractiveSeekBar
                 variant="warm"
-                position={player.positionSec}
-                duration={player.durationSec}
+                position={progress.positionSec}
+                duration={progress.durationSec || track.duration || 0}
                 onSeek={(seconds) => void player.seekTo(seconds)}
               />
             ) : (
@@ -557,7 +571,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: 'rgba(23,19,19,0.06)',
   },
+  contextActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  contextBtnActive: { backgroundColor: '#171313' },
   contextBtnText: { color: '#171313', fontSize: 11, fontWeight: '900' },
+  contextBtnTextActive: { color: '#FFFAF2' },
   coverWrap: { alignItems: 'center', marginTop: 10 },
   coverFrame: {
     width: '100%',

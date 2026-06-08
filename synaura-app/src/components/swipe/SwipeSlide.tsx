@@ -6,6 +6,7 @@ import type { Track, RadioMeta } from '@/api/types';
 import { fmtCount, trackArtistName } from './helpers';
 import { InteractiveSeekBar } from './InteractiveSeekBar';
 import { TrackCover } from '@/components/TrackCover';
+import { usePlayerProgress } from '@/player/PlayerProvider';
 
 type ActionLabel = 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save';
 
@@ -14,8 +15,6 @@ type Props = {
   isActive: boolean;
   isPlaying: boolean;
   isLoading?: boolean;
-  duration: number;
-  position: number;
   isFavorite: boolean;
   isLiked: boolean;
   likesCount: number;
@@ -181,8 +180,6 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
     isActive,
     isPlaying,
     isLoading,
-    duration,
-    position,
     isFavorite,
     isLiked,
     likesCount,
@@ -244,6 +241,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
             <TrackCover
               track={track}
               active={isActive && isPlaying}
+              autoPlayVideo={isActive && isPlaying}
               style={StyleSheet.absoluteFill}
               imageStyle={styles.coverImage}
             />
@@ -397,7 +395,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
         ) : null}
         <View style={styles.seekWrap}>
           {!isRadio ? (
-            <InteractiveSeekBar position={isActive ? position : 0} duration={duration} onSeek={onSeek} />
+            isActive ? <ActiveSeekBar fallbackDuration={track.duration || 0} onSeek={onSeek} /> : <View style={styles.seekPlaceholder} />
           ) : (
             <View style={styles.liveLine}>
               <View style={styles.liveDot} />
@@ -410,6 +408,17 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
     </View>
   );
 });
+
+function ActiveSeekBar({ fallbackDuration, onSeek }: { fallbackDuration: number; onSeek: (seconds: number) => void }) {
+  const progress = usePlayerProgress(500);
+  return (
+    <InteractiveSeekBar
+      position={progress.positionSec}
+      duration={progress.durationSec || fallbackDuration}
+      onSeek={onSeek}
+    />
+  );
+}
 
 const styles = StyleSheet.create({
   page: { width: '100%', position: 'relative' },
@@ -571,6 +580,7 @@ const styles = StyleSheet.create({
   listeners: { marginTop: 6, color: 'rgba(255,75,122,0.85)', fontSize: 12, fontWeight: '800' },
   plays: { marginTop: 6, color: 'rgba(255,250,242,0.5)', fontSize: 11, fontWeight: '700' },
   seekWrap: { marginTop: 12 },
+  seekPlaceholder: { height: 28 },
   liveLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
   liveText: { color: 'rgba(255,250,242,0.78)', fontSize: 11, fontWeight: '900', letterSpacing: 1.4 },

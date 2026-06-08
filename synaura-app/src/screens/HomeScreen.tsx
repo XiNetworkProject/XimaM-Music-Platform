@@ -441,7 +441,7 @@ export function HomeScreen() {
         onListen={() => navigation.navigate('Discover')}
         onCreate={() => openWebPath('/ai-generator')}
         onPublish={() => openWebPath('/upload')}
-        onCommunity={() => setFilter('Communaute')}
+        onCommunity={() => navigation.navigate('Community')}
       />
       <FilterBar value={filter} onChange={setFilter} />
       {error ? <Text style={styles.error}>{error}</Text> : null}

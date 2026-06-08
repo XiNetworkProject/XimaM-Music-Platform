@@ -58,7 +58,7 @@ export function PostDetailScreen() {
             {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={styles.image} /> : null}
             {post.track ? (
               <Pressable onPress={() => player.playTrack(post.track!)} style={styles.track}>
-                <TrackCover track={post.track} style={styles.cover} active={player.current?._id === post.track._id} />
+                <TrackCover track={post.track} style={styles.cover} active={player.current?._id === post.track._id && player.isPlaying} autoPlayVideo={player.current?._id === post.track._id && player.isPlaying} />
                 <View style={{ flex: 1 }}>
                   <Text numberOfLines={1} style={styles.trackTitle}>{post.track.title}</Text>
                   <Text numberOfLines={1} style={styles.trackMeta}>{post.track.artist?.name || post.track.artist?.username || 'Synaura'}</Text>

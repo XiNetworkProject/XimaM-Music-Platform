@@ -1,6 +1,10 @@
 import Constants from 'expo-constants';
 import type {
   Creator,
+  CommunityFaq,
+  CommunityPost,
+  CommunityReply,
+  CommunityStats,
   FeedResponse,
   FeedStrategy,
   HomeComment,
@@ -596,6 +600,107 @@ export async function deleteNotification(notificationId: number) {
     method: 'DELETE',
     body: JSON.stringify({ notificationId }),
   });
+}
+
+function normalizeCommunityAuthor(raw: any) {
+  const author = raw?.author || raw?.profile || raw?.profiles || {};
+  return {
+    id: String(author?.id || raw?.user_id || ''),
+    name: safeString(author?.name || author?.username, 'Membre Synaura'),
+    username: safeString(author?.username, ''),
+    avatar: absoluteAsset(author?.avatar) || null,
+  };
+}
+
+function normalizeCommunityPost(raw: any): CommunityPost | null {
+  const id = raw?.id;
+  if (!id) return null;
+  return {
+    id: String(id),
+    title: safeString(raw?.title, 'Discussion'),
+    content: safeString(raw?.content, ''),
+    category: safeString(raw?.category, 'general'),
+    createdAt: String(raw?.createdAt || raw?.created_at || new Date().toISOString()),
+    likesCount: Number(raw?.likes_count ?? raw?.likesCount ?? 0),
+    isLiked: Boolean(raw?.is_liked ?? raw?.isLiked),
+    repliesCount: Number(raw?.replies_count ?? raw?.repliesCount ?? 0),
+    author: normalizeCommunityAuthor(raw),
+    track: normalizeTrack(raw?.track),
+  };
+}
+
+export async function getCommunityPosts(category = 'all', page = 1, limit = 12): Promise<{ posts: CommunityPost[]; hasMore: boolean }> {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit), sort: 'recent' });
+  if (category !== 'all') params.set('category', category);
+  const json = await request<any>(`/api/community/posts?${params.toString()}`);
+  const posts = (Array.isArray(json?.posts) ? json.posts : [])
+    .map(normalizeCommunityPost)
+    .filter((post: CommunityPost | null): post is CommunityPost => Boolean(post));
+  return { posts, hasMore: page < Number(json?.pagination?.totalPages || 1) };
+}
+
+export async function getCommunityStats(): Promise<CommunityStats> {
+  const json = await request<any>('/api/community/stats');
+  return {
+    resolvedQuestions: Number(json?.resolvedQuestions || 0),
+    forumPosts: Number(json?.forumPosts || 0),
+    activeMembers: Number(json?.activeMembers || 0),
+    implementedSuggestions: Number(json?.implementedSuggestions || 0),
+  };
+}
+
+export async function getCommunityFaq(limit = 20): Promise<CommunityFaq[]> {
+  const json = await request<any>(`/api/community/faq?limit=${limit}&sort=popular`);
+  return (Array.isArray(json?.faqs) ? json.faqs : []).map((raw: any) => ({
+    id: String(raw?.id || raw?.question || Math.random()),
+    question: safeString(raw?.question, 'Question'),
+    answer: safeString(raw?.answer, ''),
+    category: safeString(raw?.category, 'general'),
+    helpfulCount: Number(raw?.helpful_count || 0),
+  }));
+}
+
+export async function createCommunityPost(input: { title: string; content: string; category: string; trackId?: string | null }): Promise<CommunityPost | null> {
+  const json = await request<any>('/api/community/posts', {
+    method: 'POST',
+    body: JSON.stringify({
+      title: input.title,
+      content: input.content,
+      category: input.category,
+      track_id: input.trackId || undefined,
+    }),
+  });
+  return normalizeCommunityPost(json?.post || json);
+}
+
+export async function likeCommunityPost(postId: string, like: boolean) {
+  await request(`/api/community/posts/likes${like ? '' : `?post_id=${encodeURIComponent(postId)}`}`, {
+    method: like ? 'POST' : 'DELETE',
+    body: like ? JSON.stringify({ post_id: postId }) : undefined,
+  });
+}
+
+export async function getCommunityReplies(postId: string): Promise<CommunityReply[]> {
+  const json = await request<any>(`/api/community/posts/replies?post_id=${encodeURIComponent(postId)}`);
+  return (Array.isArray(json) ? json : []).map((raw: any) => ({
+    id: String(raw?.id || Math.random()),
+    content: safeString(raw?.content, ''),
+    createdAt: String(raw?.created_at || new Date().toISOString()),
+    author: normalizeCommunityAuthor(raw),
+  }));
+}
+
+export async function createCommunityReply(postId: string, content: string): Promise<CommunityReply> {
+  const raw = await request<any>('/api/community/posts/replies', {
+    method: 'POST',
+    body: JSON.stringify({ post_id: postId, content }),
+  });
+  return {
+    id: String(raw?.id || Math.random()),
+    content: safeString(raw?.content, content),
+    createdAt: String(raw?.created_at || new Date().toISOString()),
+    author: normalizeCommunityAuthor(raw),
+  };
 }
 
 export type FeedLoadMoreResult = {
@@ -1296,7 +1401,7 @@ export async function fetchRankingFeedChunk(
   cursor = 0,
   seedGenre: string | null = null,
 ): Promise<RankingFeedChunk> {
-  const params = new URLSearchParams({ limit: '120', ai: '1', cursor: String(Math.max(0, cursor)) });
+  const params = new URLSearchParams({ limit: '24', ai: '1', cursor: String(Math.max(0, cursor)) });
   if (strategy === 'trending' || strategy === 'boost') {
     params.set('strategy', 'trending');
   } else {

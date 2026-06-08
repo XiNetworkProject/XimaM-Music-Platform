@@ -7,6 +7,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -27,10 +28,12 @@ export function MotionPressable({
   onPressOut,
   ...props
 }: MotionPressableProps) {
+  const { settings } = useMobileSettings();
   const scale = useRef(new Animated.Value(1)).current;
   const translateY = useRef(new Animated.Value(0)).current;
 
   const animate = (pressed: boolean) => {
+    if (settings.reducedMotion) return;
     Animated.parallel([
       Animated.spring(scale, {
         toValue: pressed ? scaleTo : 1,
@@ -81,9 +84,14 @@ export function Reveal({
   distance?: number;
   style?: StyleProp<ViewStyle>;
 }) {
-  const progress = useRef(new Animated.Value(0)).current;
+  const { settings } = useMobileSettings();
+  const progress = useRef(new Animated.Value(settings.reducedMotion ? 1 : 0)).current;
 
   useEffect(() => {
+    if (settings.reducedMotion) {
+      progress.setValue(1);
+      return;
+    }
     Animated.timing(progress, {
       toValue: 1,
       delay,
@@ -91,7 +99,7 @@ export function Reveal({
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
-  }, [delay, progress]);
+  }, [delay, progress, settings.reducedMotion]);
 
   return (
     <Animated.View

@@ -4,7 +4,6 @@ import {
   Animated,
   FlatList,
   Image,
-  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -12,10 +11,9 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   fetchRankingFeedChunk,
@@ -31,6 +29,7 @@ import {
 import type { RadioMeta, Track } from '@/api/types';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
+import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { CommentsSheet } from '@/components/swipe/CommentsSheet';
 import { HeartBurst } from '@/components/swipe/HeartBurst';
 import { LyricsSheet } from '@/components/swipe/LyricsSheet';
@@ -44,15 +43,14 @@ import {
   uniqueTracks,
 } from '@/components/swipe/helpers';
 
-const PRELOAD_RANGE = 4;
+const PRELOAD_RANGE = 2;
 const RADIO_POLL_MS = 8000;
 const COMMENTS_POLL_DELAY_MS = 600;
-const FEED_MODES: FeedMode[] = ['reco', 'trending', 'boost'];
-
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 export function SwipeScreen() {
   const navigation = useNavigation<any>();
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const tabBarHeight = 76 + insets.bottom;
@@ -60,6 +58,7 @@ export function SwipeScreen() {
 
   const player = usePlayer();
   const library = useLibrary();
+  const { settings } = useMobileSettings();
 
   const [feedMode, setFeedMode] = useState<FeedMode>('reco');
   const [seedGenre, setSeedGenre] = useState<string | null>(null);
@@ -69,6 +68,7 @@ export function SwipeScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [loadingMore, setLoadingMore] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -92,28 +92,26 @@ export function SwipeScreen() {
   const fetchedFollowIdsRef = useRef<Set<string>>(new Set());
   const listRef = useRef<FlatList<Track>>(null);
   const headerOpacity = useRef(new Animated.Value(1)).current;
+  const lastCommittedIndexRef = useRef(0);
   const switchFeedMode = useCallback((nextMode: FeedMode) => {
     if (nextMode === feedMode) return;
     setFeedMode(nextMode);
     Haptics.selectionAsync().catch(() => {});
   }, [feedMode]);
-  const panResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.15,
-    onPanResponderRelease: (_, gesture) => {
-      if (Math.abs(gesture.dx) >= 44 || Math.abs(gesture.vx) >= 0.35) {
-        const currentIndex = FEED_MODES.indexOf(feedMode);
-        const direction = gesture.dx < 0 ? 1 : -1;
-        const next = FEED_MODES[Math.max(0, Math.min(FEED_MODES.length - 1, currentIndex + direction))];
-        switchFeedMode(next);
-      }
-    },
-  }), [feedMode, switchFeedMode]);
 
   const activeTrack = tracks[activeIndex] || null;
   const activeId = activeTrack?._id || '';
   const isRadioActive = isRadioTrackId(activeId);
 
   const currentSeedGenre = useMemo(() => seedGenre || topGenre(activeTrack), [activeTrack, seedGenre]);
+
+  useEffect(() => {
+    if (isFocused) return;
+    setCommentsOpen(false);
+    setShareOpen(false);
+    setLyricsOpen(false);
+    setQueueOpen(false);
+  }, [isFocused]);
 
   // (1) Charge le feed quand le mode change
   useEffect(() => {
@@ -123,6 +121,7 @@ export function SwipeScreen() {
     setLoadingMore(false);
     setTracks([]);
     setActiveIndex(0);
+    lastCommittedIndexRef.current = 0;
     setCursor(0);
     setHasMore(true);
     queueBoundRef.current = '';
@@ -147,7 +146,7 @@ export function SwipeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [feedMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [feedMode, reloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // (2) Synchronise la queue du player une fois le feed pret (premier bind, ou changement de mode).
   // On NE re-bind PAS au simple focus de l'ecran : on garde la lecture en cours stable.
@@ -197,6 +196,7 @@ export function SwipeScreen() {
   useEffect(() => {
     if (loadState !== 'ready' || !tracks.length) return;
     const ids = tracks
+      .slice(Math.max(0, activeIndex - 2), Math.min(tracks.length, activeIndex + 3))
       .map((t) => t._id)
       .filter((id) => id && !isRadioTrackId(id) && !id.startsWith('ai-') && !fetchedCommentIdsRef.current.has(id));
     if (!ids.length) return;
@@ -208,7 +208,7 @@ export function SwipeScreen() {
       }
     }, COMMENTS_POLL_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [loadState, tracks]);
+  }, [activeIndex, loadState, tracks]);
 
   // (5) Recuperer le statut like + likesCount du morceau actif
   useEffect(() => {
@@ -350,8 +350,7 @@ export function SwipeScreen() {
       return;
     }
     if (action === 'queue') {
-      void player.addNext(activeTrack);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setQueueOpen(true);
       return;
     }
     if (action === 'lyrics') {
@@ -387,10 +386,10 @@ export function SwipeScreen() {
 
   // Stratégie de swipe : on ne réagit qu'à la fin du scroll (snap stable).
   // Pas d'onViewableItemsChanged qui peut firer pendant le drag et provoquer du play/pause spam.
-  const handleMomentumScrollEnd = useCallback((event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
+  const commitVisibleTrack = useCallback((offsetY: number) => {
     const idx = Math.max(0, Math.min(tracks.length - 1, Math.round(offsetY / itemHeight)));
-    if (idx === activeIndex) return;
+    if (idx === lastCommittedIndexRef.current) return;
+    lastCommittedIndexRef.current = idx;
     setActiveIndex(idx);
     Haptics.selectionAsync().catch(() => {});
 
@@ -404,7 +403,16 @@ export function SwipeScreen() {
     } else {
       void player.playTrack(target);
     }
-  }, [activeIndex, itemHeight, player, tracks]);
+  }, [itemHeight, player, tracks]);
+
+  const handleMomentumScrollEnd = useCallback((event: any) => {
+    commitVisibleTrack(event.nativeEvent.contentOffset.y);
+  }, [commitVisibleTrack]);
+
+  const handleScrollEndDrag = useCallback((event: any) => {
+    const velocity = Math.abs(Number(event.nativeEvent.velocity?.y || 0));
+    if (velocity < 0.12) commitVisibleTrack(event.nativeEvent.contentOffset.y);
+  }, [commitVisibleTrack]);
 
   const handleEndReached = useCallback(() => {
     void loadMore();
@@ -412,7 +420,7 @@ export function SwipeScreen() {
 
   const renderItem = useCallback(({ item, index }: { item: Track; index: number }) => {
     const id = item._id;
-    const isActive = index === activeIndex;
+    const isActive = isFocused && index === activeIndex;
     const isPlayingThis = isActive && player.current?._id === id && player.isPlaying;
     const likedHere = !!likedMap[id];
     const likesHere = likesMap[id] ?? item.likesCount ?? 0;
@@ -428,8 +436,6 @@ export function SwipeScreen() {
         isActive={isActive}
         isPlaying={isPlayingThis}
         isLoading={isActive && player.isLoading}
-        duration={isActive ? player.durationSec : item.duration || 0}
-        position={isActive ? player.positionSec : 0}
         isFavorite={library.isFavorite(id)}
         isLiked={likedHere}
         likesCount={likesHere}
@@ -461,6 +467,7 @@ export function SwipeScreen() {
     handleToggleFollow,
     insets.top,
     itemHeight,
+    isFocused,
     library,
     navigation,
     likedMap,
@@ -476,18 +483,17 @@ export function SwipeScreen() {
   }), [headerOpacity, insets.top]);
 
   return (
-    <View style={styles.root} {...panResponder.panHandlers}>
-      {/* Fond ambient : cover de la slide active, lourdement floutee */}
-      {activeTrack?.coverUrl ? (
+    <View style={styles.root}>
+      {/* Fond ambient leger pour garder le scroll fluide sur Android. */}
+      {!settings.dataSaver && activeTrack?.coverUrl ? (
         <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <Image
             source={{ uri: activeTrack.coverUrl }}
-            style={[StyleSheet.absoluteFill, { opacity: 0.35, transform: [{ scale: 1.5 }] }]}
-            blurRadius={48}
+            style={[StyleSheet.absoluteFill, { opacity: 0.18, transform: [{ scale: 1.08 }] }]}
+            resizeMode="cover"
           />
-          <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
           <LinearGradient
-            colors={['rgba(13,10,14,0.5)', 'rgba(13,10,14,0.7)', 'rgba(13,10,14,0.92)']}
+            colors={['rgba(13,10,14,0.7)', 'rgba(13,10,14,0.84)', 'rgba(13,10,14,0.98)']}
             locations={[0, 0.5, 1]}
             style={StyleSheet.absoluteFill}
           />
@@ -524,7 +530,7 @@ export function SwipeScreen() {
         </View>
         <View style={styles.swipeHint}>
           <Ionicons name="swap-horizontal" size={13} color="rgba(255,250,242,0.62)" />
-          <Text style={styles.swipeHintText}>Haut/bas: son · gauche/droite: fil</Text>
+          <Text style={styles.swipeHintText}>Glisse verticalement pour changer de son</Text>
         </View>
         {tracks.length > 1 ? (
           <View style={styles.indicator}>
@@ -545,7 +551,7 @@ export function SwipeScreen() {
         <View style={styles.loadingScreen}>
           <Ionicons name="cloud-offline-outline" size={28} color="rgba(255,250,242,0.55)" />
           <Text style={styles.loadingText}>Aucun son disponible. Reessaie dans un instant.</Text>
-          <Pressable accessibilityLabel="Reessayer" onPress={() => setFeedMode(feedMode)} style={styles.retryBtn}>
+          <Pressable accessibilityLabel="Reessayer" onPress={() => setReloadKey((value) => value + 1)} style={styles.retryBtn}>
             <Text style={styles.retryText}>Reessayer</Text>
           </Pressable>
         </View>
@@ -553,18 +559,21 @@ export function SwipeScreen() {
         <FlatList
           ref={listRef}
           data={tracks}
-          keyExtractor={(item, index) => `${item._id}-${index}`}
+          keyExtractor={(item) => item._id}
           renderItem={renderItem}
-          pagingEnabled
           snapToInterval={itemHeight}
           snapToAlignment="start"
           decelerationRate="fast"
+          disableIntervalMomentum
           showsVerticalScrollIndicator={false}
           onMomentumScrollEnd={handleMomentumScrollEnd}
+          onScrollEndDrag={handleScrollEndDrag}
           getItemLayout={(_, index) => ({ length: itemHeight, offset: itemHeight * index, index })}
-          initialNumToRender={2}
-          windowSize={5}
-          maxToRenderPerBatch={3}
+          initialNumToRender={1}
+          windowSize={3}
+          maxToRenderPerBatch={1}
+          updateCellsBatchingPeriod={80}
+          onScrollToIndexFailed={(info) => listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false })}
           removeClippedSubviews
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.45}

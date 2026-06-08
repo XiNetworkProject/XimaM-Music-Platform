@@ -51,7 +51,7 @@ export function PlaylistDetailScreen() {
             <View style={styles.list}>
               {playlist.tracksList.map((track) => (
                 <Pressable key={track._id} onPress={() => player.setQueueAndPlay(playlist.tracksList, playlist.tracksList.findIndex((item) => item._id === track._id))} style={styles.trackRow}>
-                  <TrackCover track={track} style={styles.trackCover} active={player.current?._id === track._id && player.isPlaying} />
+                  <TrackCover track={track} style={styles.trackCover} active={player.current?._id === track._id && player.isPlaying} autoPlayVideo={player.current?._id === track._id && player.isPlaying} />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text numberOfLines={1} style={styles.trackTitle}>{track.title}</Text>
                     <Text numberOfLines={1} style={styles.trackMeta}>{track.artist?.name || track.artist?.username || 'Synaura'}</Text>

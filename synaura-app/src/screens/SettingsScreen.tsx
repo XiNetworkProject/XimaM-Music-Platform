@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,10 +22,10 @@ import { SynauraBackground } from '@/components/SynauraBackground';
 import legalContent from '@/legal/legalDocuments.json';
 import { useAppUpdate } from '@/updates/UpdateProvider';
 import { SHOW_SHUTDOWN_NOTICES } from '@/config/features';
+import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
 type Tab = 'profil' | 'compte' | 'preferences' | 'notifications' | 'parrainage' | 'abonnement' | 'updates' | 'securite' | 'legal';
 type LegalDocument = (typeof legalContent)[number];
-const PREFS_KEY = 'synaura.mobile.settings.v1';
 const LEGAL_BASE_URL = 'https://www.synaura.fr';
 const allLegalDocuments = [
   { label: 'Fermeture de Synaura', description: "Annonce officielle et date de fin du service", path: '/fermeture', icon: 'warning-outline' },
@@ -42,6 +41,7 @@ const legalDocuments = allLegalDocuments.filter((document) => SHOW_SHUTDOWN_NOTI
 export function SettingsScreen() {
   const auth = useAuth();
   const appUpdate = useAppUpdate();
+  const mobileSettings = useMobileSettings();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('profil');
@@ -49,7 +49,6 @@ export function SettingsScreen() {
   const [notif, setNotif] = useState<NotificationPrefs | null>(null);
   const [referral, setReferral] = useState<ReferralData | null>(null);
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
-  const [prefs, setPrefs] = useState({ autoplay: false, highQuality: true, activityVisible: true, pushDevice: true, reducedMotion: false });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', bio: '', location: '', website: '', artistName: '', genreText: '', isArtist: false });
@@ -73,18 +72,16 @@ export function SettingsScreen() {
     if (!auth.user?.username) return;
     setLoading(true);
     try {
-      const [nextProfile, nextNotif, nextReferral, nextUsage, localPrefs] = await Promise.all([
+      const [nextProfile, nextNotif, nextReferral, nextUsage] = await Promise.all([
         getMyProfile(auth.user.username),
         getNotificationPrefs().catch(() => null),
         getReferralData(),
         getSubscriptionUsage(),
-        AsyncStorage.getItem(PREFS_KEY),
       ]);
       setProfile(nextProfile);
       setNotif(nextNotif);
       setReferral(nextReferral);
       setUsage(nextUsage);
-      if (localPrefs) setPrefs((current) => ({ ...current, ...JSON.parse(localPrefs) }));
       setForm({
         name: nextProfile.name || '',
         bio: nextProfile.bio || '',
@@ -120,12 +117,6 @@ export function SettingsScreen() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const updateLocalPrefs = async (patch: Partial<typeof prefs>) => {
-    const next = { ...prefs, ...patch };
-    setPrefs(next);
-    await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(next));
   };
 
   const patchNotif = async (patch: Partial<NotificationPrefs>) => {
@@ -221,11 +212,13 @@ export function SettingsScreen() {
 
         {tab === 'preferences' ? (
           <Section title="Preferences" text="Reglages locaux de l'app mobile.">
-            <Toggle label="Autoplay" value={prefs.autoplay} onValueChange={(value) => void updateLocalPrefs({ autoplay: value })} />
-            <Toggle label="Qualite audio haute" value={prefs.highQuality} onValueChange={(value) => void updateLocalPrefs({ highQuality: value })} />
-            <Toggle label="Activite visible" value={prefs.activityVisible} onValueChange={(value) => void updateLocalPrefs({ activityVisible: value })} />
-            <Toggle label="Push appareil" value={prefs.pushDevice} onValueChange={(value) => void updateLocalPrefs({ pushDevice: value })} />
-            <Toggle label="Reduire les animations" value={prefs.reducedMotion} onValueChange={(value) => void updateLocalPrefs({ reducedMotion: value })} />
+            <Toggle label="Autoplay" value={mobileSettings.settings.autoplay} onValueChange={(value) => void mobileSettings.updateSettings({ autoplay: value })} />
+            <Toggle label="Qualite audio haute" value={mobileSettings.settings.highQuality} onValueChange={(value) => void mobileSettings.updateSettings({ highQuality: value })} />
+            <Toggle label="Pochettes video" value={mobileSettings.settings.coverVideos} onValueChange={(value) => void mobileSettings.updateSettings({ coverVideos: value })} />
+            <Toggle label="Economiseur de donnees" value={mobileSettings.settings.dataSaver} onValueChange={(value) => void mobileSettings.updateSettings({ dataSaver: value })} />
+            <Toggle label="Activite visible" value={mobileSettings.settings.activityVisible} onValueChange={(value) => void mobileSettings.updateSettings({ activityVisible: value })} />
+            <Toggle label="Push appareil" value={mobileSettings.settings.pushDevice} onValueChange={(value) => void mobileSettings.updateSettings({ pushDevice: value })} />
+            <Toggle label="Reduire les animations" value={mobileSettings.settings.reducedMotion} onValueChange={(value) => void mobileSettings.updateSettings({ reducedMotion: value })} />
           </Section>
         ) : null}
 

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { computeRankingScore } from '@/lib/ranking';
 import { buildAnonymousRecommendationSignals, buildUserRecommendationSignals, rerankTracks } from '@/lib/recommendation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -163,7 +162,7 @@ export async function GET(request: NextRequest) {
     const debug = searchParams.get('debug') === '1';
     
     // Récupérer l'utilisateur connecté (session cookie > fallback query param)
-    const session = await getServerSession(authOptions).catch(() => null);
+    const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || searchParams.get('userId') || null;
 
     // Récupérer dernières 30j stats + infos track minimales
@@ -998,5 +997,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }
-
 

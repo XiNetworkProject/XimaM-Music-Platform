@@ -1,10 +1,12 @@
 {
-  "title": "Mise a jour Synaura",
+  "title": "Synaura mobile prend vie",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Accueil et centre legal mis a jour",
-    "Continuite d'acces renforcee",
-    "Corrections de stabilite"
+    "Nouvelle Communaute native, vivante et connectee au compte Synaura",
+    "Swipe et player fortement fluidifies et stabilises",
+    "Minuteur de sommeil et economiseur de donnees",
+    "Partage direct d'un son vers une demande d'avis",
+    "Authentification mobile et navigation fiabilisees"
   ]
 }

@@ -1,3 +1,4 @@
+import { Linking } from 'react-native';
 import { API_BASE_URL, getTrackById } from '@/api/client';
 import type { Track } from '@/api/types';
 
@@ -19,7 +20,8 @@ function toPath(input?: string | null) {
   } catch {
     return null;
   }
-  return value.startsWith('/') ? value : `/${value}`;
+  const pathname = value.split(/[?#]/, 1)[0];
+  return pathname.startsWith('/') ? pathname : `/${pathname}`;
 }
 
 export async function openInternalLink(
@@ -57,6 +59,21 @@ export async function openInternalLink(
   }
   if (root === 'settings') {
     navigation.navigate('Settings');
+    return true;
+  }
+  if (root === 'community') {
+    navigation.navigate('Community');
+    return true;
+  }
+  if (root === 'upload') {
+    navigation.navigate('Upload');
+    return true;
+  }
+  if (root === 'ai-generator' || root === 'studio' || root === 'boosters') {
+    const target = /^https?:\/\//i.test(String(urlOrPath || ''))
+      ? String(urlOrPath)
+      : `${API_BASE_URL}${String(urlOrPath || path).startsWith('/') ? String(urlOrPath || path) : `/${String(urlOrPath || path)}`}`;
+    await Linking.openURL(target);
     return true;
   }
   return false;

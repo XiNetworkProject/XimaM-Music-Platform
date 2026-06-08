@@ -169,3 +169,45 @@ export type NotificationCenterData = {
   unread: number;
   total: number;
 };
+
+export type CommunityStats = {
+  resolvedQuestions: number;
+  forumPosts: number;
+  activeMembers: number;
+  implementedSuggestions: number;
+};
+
+export type CommunityFaq = {
+  id: string;
+  question: string;
+  answer: string;
+  category: string;
+  helpfulCount: number;
+};
+
+export type CommunityAuthor = {
+  id?: string;
+  name: string;
+  username: string;
+  avatar?: string | null;
+};
+
+export type CommunityPost = {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  createdAt: string;
+  likesCount: number;
+  isLiked: boolean;
+  repliesCount: number;
+  author: CommunityAuthor;
+  track?: Track | null;
+};
+
+export type CommunityReply = {
+  id: string;
+  content: string;
+  createdAt: string;
+  author: CommunityAuthor;
+};

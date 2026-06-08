@@ -161,7 +161,7 @@ function DiscoverBackground() {
 function DiscoverHero({ track, playing, onPlay }: { track: Track; playing: boolean; onPlay: () => void }) {
   return (
     <View style={styles.heroCard}>
-      <TrackCover track={track} active autoPlayVideo style={styles.heroImage} />
+      <TrackCover track={track} active={playing} autoPlayVideo={playing} style={styles.heroImage} />
       <LinearGradient colors={['rgba(23,19,19,0.28)', 'rgba(23,19,19,0.96)']} style={StyleSheet.absoluteFill} />
       <View style={styles.heroContent}>
         <Text style={styles.heroKicker}>Entre par les tendances</Text>
@@ -185,7 +185,12 @@ function DiscoverRail({ title, subtitle, tracks, player, onPlay }: { title: stri
         {tracks.map((track) => (
           <Pressable key={track._id} onPress={() => onPlay(track)} style={styles.tile}>
             <View style={styles.tileCoverWrap}>
-              <TrackCover track={track} active autoPlayVideo style={styles.tileCover} />
+              <TrackCover
+                track={track}
+                active={player.current?._id === track._id && player.isPlaying}
+                autoPlayVideo={player.current?._id === track._id && player.isPlaying}
+                style={styles.tileCover}
+              />
               <View style={styles.tilePlay}>
                 <Ionicons name={player.current?._id === track._id && player.isPlaying ? 'pause' : 'play'} size={16} color={warm.ink} />
               </View>

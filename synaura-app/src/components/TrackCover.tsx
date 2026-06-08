@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Image, StyleSheet, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
 import Video from 'react-native-video';
 import type { Track } from '@/api/types';
-import { usePlayer } from '@/player/PlayerProvider';
+import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
 type Props = {
   track?: Track | null;
@@ -54,16 +54,14 @@ export function TrackCover({
   imageStyle,
   contentFit = 'cover',
 }: Props) {
-  const player = usePlayer();
+  const { settings } = useMobileSettings();
   const image = firstValid(posterSource, source, getTrackCoverImage(track));
   const video = useMemo(
     () => firstValid(videoSource, getTrackCoverVideo(track), inferVideoUrlFromPoster(posterSource), inferVideoUrlFromPoster(source)),
     [posterSource, source, track, videoSource],
   );
   const [videoFailed, setVideoFailed] = useState(false);
-  const showVideo = !!video && !videoFailed;
-  const isCurrentTrack = !!track?._id && player.current?._id === track._id;
-  const shouldPlayVideo = active && (autoPlayVideo || (isCurrentTrack && player.isPlaying));
+  const showVideo = !!video && !videoFailed && active && autoPlayVideo && settings.coverVideos && !settings.dataSaver && !settings.reducedMotion;
 
   return (
     <View style={[styles.root, style]}>
@@ -73,7 +71,7 @@ export function TrackCover({
       {showVideo ? (
         <Video
           source={{ uri: video }}
-          paused={!shouldPlayVideo}
+          paused={false}
           muted
           volume={0}
           repeat

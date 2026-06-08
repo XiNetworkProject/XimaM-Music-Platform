@@ -13,8 +13,10 @@ import { PublicProfileScreen } from '@/screens/PublicProfileScreen';
 import { NotificationsScreen } from '@/screens/NotificationsScreen';
 import { PostDetailScreen } from '@/screens/PostDetailScreen';
 import { PlaylistDetailScreen } from '@/screens/PlaylistDetailScreen';
+import { CommunityScreen } from '@/screens/CommunityScreen';
 import { colors } from '@/theme/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { Track } from '@/api/types';
 
 export type RootTabsParamList = {
   Home: undefined;
@@ -28,6 +30,7 @@ export type RootTabsParamList = {
   Notifications: undefined;
   PostDetail: { postId: string };
   PlaylistDetail: { playlistId: string };
+  Community: { compose?: boolean; category?: string; track?: Track } | undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabsParamList>();
@@ -37,6 +40,7 @@ const HIDDEN_ROUTES = new Set<keyof RootTabsParamList>([
   'Notifications',
   'PostDetail',
   'PlaylistDetail',
+  'Community',
 ]);
 
 function AnimatedTabButton({ children, accessibilityState, onPress, style, ...props }: any) {
@@ -164,6 +168,7 @@ export function Tabs() {
       <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="PostDetail" component={PostDetailScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="PlaylistDetail" component={PlaylistDetailScreen} options={{ tabBarButton: () => null }} />
+      <Tab.Screen name="Community" component={CommunityScreen} options={{ tabBarButton: () => null }} />
     </Tab.Navigator>
   );
 }
