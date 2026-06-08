@@ -21,8 +21,8 @@ tsconfig.tsbuildinfo
 .vercel
 
 # Capacitor
-android/
-ios/
+/android/
+/ios/
 
 # IDE
 .vscode/
@@ -94,4 +94,4 @@ jspm_packages/
 .tern-port
 
 # APK files
-*.apk 
+*.apk

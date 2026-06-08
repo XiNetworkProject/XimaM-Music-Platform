@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,12 +20,26 @@ import {
 import { useAuth } from '@/auth/AuthProvider';
 import { ProfileImagePicker } from '@/components/profile/ProfileImagePicker';
 import { SynauraBackground } from '@/components/SynauraBackground';
+import legalContent from '@/legal/legalDocuments.json';
+import { useAppUpdate } from '@/updates/UpdateProvider';
 
-type Tab = 'profil' | 'compte' | 'preferences' | 'notifications' | 'parrainage' | 'abonnement' | 'securite' | 'legal';
+type Tab = 'profil' | 'compte' | 'preferences' | 'notifications' | 'parrainage' | 'abonnement' | 'updates' | 'securite' | 'legal';
+type LegalDocument = (typeof legalContent)[number];
 const PREFS_KEY = 'synaura.mobile.settings.v1';
+const LEGAL_BASE_URL = 'https://www.synaura.fr';
+const legalDocuments = [
+  { label: 'Fermeture de Synaura', description: "Annonce officielle et date de fin du service", path: '/fermeture', icon: 'warning-outline' },
+  { label: 'Mentions légales', description: 'Éditeur, hébergement et responsabilité', path: '/legal/mentions-legales', icon: 'business-outline' },
+  { label: 'Politique de confidentialité', description: 'Collecte, traitement et conservation des données', path: '/legal/confidentialite', icon: 'shield-checkmark-outline' },
+  { label: "Conditions générales d'utilisation", description: "Règles d'utilisation de la plateforme", path: '/legal/cgu', icon: 'document-text-outline' },
+  { label: 'Conditions générales de vente', description: 'Abonnements, paiements et résiliation', path: '/legal/cgv', icon: 'card-outline' },
+  { label: 'Politique des cookies', description: 'Cookies essentiels, analytiques et tiers', path: '/legal/cookies', icon: 'options-outline' },
+  { label: 'Conformité RGPD', description: 'Droits, délais, sécurité et réclamations', path: '/legal/rgpd', icon: 'people-outline' },
+] as const;
 
 export function SettingsScreen() {
   const auth = useAuth();
+  const appUpdate = useAppUpdate();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('profil');
@@ -38,6 +52,8 @@ export function SettingsScreen() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', bio: '', location: '', website: '', artistName: '', genreText: '', isArtist: false });
   const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [selectedLegalId, setSelectedLegalId] = useState<string | null>(null);
+  const selectedLegal = legalContent.find((document) => document.id === selectedLegalId) || null;
 
   const tabs = useMemo<Array<{ key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }>>(() => [
     { key: 'profil', label: 'Profil', icon: 'person-outline' },
@@ -46,6 +62,7 @@ export function SettingsScreen() {
     { key: 'notifications', label: 'Notifs', icon: 'notifications-outline' },
     { key: 'parrainage', label: 'Parrainage', icon: 'gift-outline' },
     { key: 'abonnement', label: 'Plan', icon: 'diamond-outline' },
+    { key: 'updates', label: 'Mises a jour', icon: 'cloud-download-outline' },
     { key: 'securite', label: 'Securite', icon: 'shield-checkmark-outline' },
     { key: 'legal', label: 'Legal', icon: 'document-text-outline' },
   ], []);
@@ -145,6 +162,10 @@ export function SettingsScreen() {
     );
   }
 
+  if (selectedLegal) {
+    return <LegalReader document={selectedLegal} onClose={() => setSelectedLegalId(null)} />;
+  }
+
   return (
     <SynauraBackground variant="warm">
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 10 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -238,6 +259,51 @@ export function SettingsScreen() {
           </Section>
         ) : null}
 
+        {tab === 'updates' ? (
+          <Section title="Mises a jour" text="Installe les nouvelles versions directement depuis Synaura.">
+            <Info label="Version installee" value={`${appUpdate.currentVersionName} (${appUpdate.currentVersionCode})`} />
+            {appUpdate.release ? (
+              <Info label="Derniere version" value={`${appUpdate.release.versionName} (${appUpdate.release.versionCode})`} />
+            ) : null}
+            <View style={styles.updateStatus}>
+              <Ionicons
+                name={appUpdate.status === 'current' ? 'checkmark-circle' : appUpdate.status === 'error' ? 'alert-circle' : 'sparkles'}
+                size={20}
+                color={appUpdate.status === 'error' ? '#B91C1C' : '#7C5CFF'}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.updateStatusTitle}>
+                  {appUpdate.status === 'current'
+                    ? "L'application est a jour"
+                    : appUpdate.release
+                      ? `Version ${appUpdate.release.versionName} disponible`
+                      : 'Verification disponible'}
+                </Text>
+                {appUpdate.error ? <Text style={styles.updateStatusText}>{appUpdate.error}</Text> : null}
+              </View>
+            </View>
+            {appUpdate.release && appUpdate.release.versionCode > appUpdate.currentVersionCode ? (
+              <Pressable
+                disabled={appUpdate.status === 'downloading'}
+                onPress={() => void appUpdate.downloadAndInstall()}
+                style={[styles.primary, appUpdate.status === 'downloading' && styles.disabled]}
+              >
+                {appUpdate.status === 'downloading' ? <ActivityIndicator color="#FFFAF2" /> : null}
+                <Text style={styles.primaryText}>
+                  {appUpdate.status === 'downloading' ? `${Math.round(appUpdate.progress * 100)} %` : 'Telecharger et installer'}
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => void appUpdate.checkForUpdate(true)} style={styles.primary}>
+                <Text style={styles.primaryText}>Verifier maintenant</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={() => void appUpdate.openInstallSettings()} style={styles.secondary}>
+              <Text style={styles.secondaryText}>Autoriser les installations</Text>
+            </Pressable>
+          </Section>
+        ) : null}
+
         {tab === 'securite' ? (
           <Section title="Securite" text="Actions sensibles du compte.">
             <Field label="Tape SUPPRIMER pour confirmer" value={deleteConfirm} onChangeText={setDeleteConfirm} />
@@ -246,15 +312,22 @@ export function SettingsScreen() {
         ) : null}
 
         {tab === 'legal' ? (
-          <Section title="Centre légal" text="Les mêmes documents que la version web, rangés pour mobile.">
-            <Info label="Centre légal" value="/legal" />
-            <Info label="Mentions légales" value="/legal/mentions-legales" />
-            <Info label="Confidentialité" value="/legal/confidentialite" />
-            <Info label="CGU" value="/legal/cgu" />
-            <Info label="CGV" value="/legal/cgv" />
-            <Info label="Cookies" value="/legal/cookies" />
-            <Info label="RGPD" value="/legal/rgpd" />
-            <Info label="Support" value="support@synaura.app" />
+          <Section title="Centre légal" text="Les documents officiels complets, identiques à la version web.">
+            <Info label="Éditeur" value="Maxime VERMEULEN · Auto-entrepreneur" />
+            <Info label="SIRET" value="991635194" />
+            <Info label="Contact légal" value="contact.syn@synaura.fr" />
+            {legalDocuments.map((document) => (
+              <Pressable key={document.path} onPress={() => setSelectedLegalId(document.path.split('/').filter(Boolean).at(-1) || 'fermeture')} style={styles.legalDocument}>
+                <View style={styles.legalIcon}>
+                  <Ionicons name={document.icon} size={19} color="#171313" />
+                </View>
+                <View style={styles.legalCopy}>
+                  <Text style={styles.legalTitle}>{document.label}</Text>
+                  <Text style={styles.legalDescription}>{document.description}</Text>
+                </View>
+                <Ionicons name="open-outline" size={17} color="rgba(23,19,19,0.42)" />
+              </Pressable>
+            ))}
           </Section>
         ) : null}
       </ScrollView>
@@ -269,6 +342,49 @@ function Section({ title, text, children }: { title: string; text: string; child
       <Text style={styles.sectionText}>{text}</Text>
       <View style={styles.sectionBody}>{children}</View>
     </View>
+  );
+}
+
+function LegalReader({ document, onClose }: { document: LegalDocument; onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  const webPath = document.id === 'fermeture' ? '/fermeture' : `/legal/${document.id}`;
+  let number = 0;
+
+  return (
+    <SynauraBackground variant="warm">
+      <ScrollView contentContainerStyle={[styles.legalReader, { paddingTop: insets.top + 10 }]} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Pressable onPress={onClose} style={styles.back}><Ionicons name="chevron-back" size={20} color="#171313" /></Pressable>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.kicker}>Centre légal officiel</Text>
+            <Text style={styles.legalReaderTitle}>{document.title}</Text>
+          </View>
+        </View>
+        <Text style={styles.legalReaderSubtitle}>{document.subtitle}</Text>
+        <Pressable onPress={() => void Linking.openURL(`${LEGAL_BASE_URL}${webPath}`)} style={styles.webDocumentButton}>
+          <Ionicons name="globe-outline" size={17} color="#FFFAF2" />
+          <Text style={styles.webDocumentText}>Voir la version web officielle</Text>
+        </Pressable>
+        <View style={styles.legalArticle}>
+          {document.blocks.map((block, index) => {
+            if (block.type === 'number') number += 1;
+            else if (block.type !== 'paragraph') number = 0;
+            return (
+              <View key={`${index}-${block.text.slice(0, 12)}`} style={block.type === 'bullet' || block.type === 'number' ? styles.legalListRow : undefined}>
+                {block.type === 'bullet' ? <View style={styles.legalBullet} /> : null}
+                {block.type === 'number' ? <Text style={styles.legalNumber}>{number}.</Text> : null}
+                <Text style={[
+                  styles.legalParagraph,
+                  block.type === 'heading' && styles.legalHeading,
+                  block.type === 'subheading' && styles.legalSubheading,
+                  (block.type === 'bullet' || block.type === 'number') && styles.legalListText,
+                ]}>{block.text}</Text>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+    </SynauraBackground>
   );
 }
 
@@ -340,6 +456,24 @@ const styles = StyleSheet.create({
   info: { borderRadius: 18, backgroundColor: 'rgba(23,19,19,0.045)', padding: 13, gap: 5 },
   infoLabel: { color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
   infoValue: { color: '#171313', fontSize: 14, fontWeight: '900' },
+  legalDocument: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, backgroundColor: 'rgba(23,19,19,0.045)', padding: 12 },
+  legalIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.9)' },
+  legalCopy: { flex: 1, minWidth: 0 },
+  legalTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
+  legalDescription: { marginTop: 3, color: 'rgba(23,19,19,0.5)', fontSize: 10, lineHeight: 14, fontWeight: '700' },
+  legalReader: { paddingHorizontal: 16, paddingBottom: 170, gap: 14 },
+  legalReaderTitle: { marginTop: 2, color: '#171313', fontSize: 22, lineHeight: 26, fontWeight: '900' },
+  legalReaderSubtitle: { color: 'rgba(23,19,19,0.55)', fontSize: 12, lineHeight: 18, fontWeight: '800' },
+  webDocumentButton: { alignSelf: 'flex-start', minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 21, backgroundColor: '#171313', paddingHorizontal: 14 },
+  webDocumentText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900' },
+  legalArticle: { borderRadius: 24, backgroundColor: 'rgba(255,250,242,0.92)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)', padding: 16, gap: 10 },
+  legalParagraph: { color: 'rgba(23,19,19,0.72)', fontSize: 12, lineHeight: 19, fontWeight: '600' },
+  legalHeading: { marginTop: 14, color: '#171313', fontSize: 18, lineHeight: 23, fontWeight: '900' },
+  legalSubheading: { marginTop: 8, color: '#171313', fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  legalListRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, paddingLeft: 4 },
+  legalBullet: { width: 6, height: 6, borderRadius: 3, marginTop: 7, backgroundColor: '#7C5CFF' },
+  legalNumber: { minWidth: 18, color: '#7C5CFF', fontSize: 11, lineHeight: 19, fontWeight: '900' },
+  legalListText: { flex: 1 },
   primary: { height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
   primaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   secondary: { height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.07)' },
@@ -350,4 +484,7 @@ const styles = StyleSheet.create({
   usageTop: { flexDirection: 'row', justifyContent: 'space-between' },
   usageTrack: { height: 6, borderRadius: 999, backgroundColor: 'rgba(23,19,19,0.08)', overflow: 'hidden' },
   usageFill: { height: 6, borderRadius: 999, backgroundColor: '#7C5CFF' },
+  updateStatus: { minHeight: 64, borderRadius: 18, backgroundColor: 'rgba(124,92,255,0.08)', padding: 13, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  updateStatusTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
+  updateStatusText: { marginTop: 3, color: 'rgba(23,19,19,0.55)', fontSize: 10, lineHeight: 14, fontWeight: '700' },
 });

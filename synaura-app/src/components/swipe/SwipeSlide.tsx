@@ -89,6 +89,92 @@ function ActionButton({
   );
 }
 
+function FollowBubble({
+  isFollowing,
+  loading,
+  disabled,
+  onPress,
+}: {
+  isFollowing: boolean;
+  loading?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const rotation = useRef(new Animated.Value(0)).current;
+  const ring = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isFollowing) return;
+    ring.setValue(0);
+    Animated.parallel([
+      Animated.sequence([
+        Animated.spring(scale, { toValue: 1.34, speed: 32, bounciness: 8, useNativeDriver: true }),
+        Animated.spring(scale, { toValue: 1, speed: 24, bounciness: 7, useNativeDriver: true }),
+      ]),
+      Animated.timing(ring, {
+        toValue: 1,
+        duration: 520,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [isFollowing, ring, scale]);
+
+  const handlePress = () => {
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(scale, { toValue: 0.72, duration: 80, useNativeDriver: true }),
+        Animated.spring(scale, { toValue: 1, speed: 28, bounciness: 8, useNativeDriver: true }),
+      ]),
+      Animated.sequence([
+        Animated.timing(rotation, { toValue: 1, duration: 150, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(rotation, { toValue: 0, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      ]),
+    ]).start();
+    onPress();
+  };
+
+  return (
+    <View style={styles.followBubbleWrap}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.followRing,
+          {
+            opacity: ring.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 0.8, 0] }),
+            transform: [{ scale: ring.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.9] }) }],
+          },
+        ]}
+      />
+      <Pressable
+        accessibilityLabel={isFollowing ? "Suivi" : "Suivre l'artiste"}
+        disabled={disabled || loading}
+        onPress={handlePress}
+      >
+        <Animated.View
+          style={[
+            styles.followBubble,
+            isFollowing && styles.followBubbleDone,
+            {
+              transform: [
+                { scale },
+                { rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] }) },
+              ],
+            },
+          ]}
+        >
+          <Ionicons
+            name={loading ? 'ellipsis-horizontal' : isFollowing ? 'checkmark' : 'add'}
+            size={14}
+            color={isFollowing ? '#FFFAF2' : '#171313'}
+          />
+        </Animated.View>
+      </Pressable>
+    </View>
+  );
+}
+
 export const SwipeSlide = memo(function SwipeSlide(props: Props) {
   const {
     track,
@@ -220,14 +306,12 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
                 </Text>
               )}
             </Pressable>
-            <Pressable
-              accessibilityLabel={isFollowing ? "Suivi" : "Suivre l'artiste"}
-              disabled={!track.artist._id || followLoading}
+            <FollowBubble
+              isFollowing={isFollowing}
+              loading={followLoading}
+              disabled={!track.artist._id}
               onPress={onToggleFollow}
-              style={[styles.followBubble, isFollowing && styles.followBubbleDone]}
-            >
-              <Ionicons name={isFollowing ? 'checkmark' : 'add'} size={14} color={isFollowing ? '#FFFAF2' : '#171313'} />
-            </Pressable>
+            />
           </View>
         ) : null}
 
@@ -400,9 +484,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   profileInitial: { color: '#FFFAF2', fontSize: 16, fontWeight: '900' },
-  followBubble: {
+  followBubbleWrap: {
     position: 'absolute',
-    bottom: -6,
+    bottom: -10,
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followRing: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#FFFAF2',
+  },
+  followBubble: {
     width: 22,
     height: 22,
     borderRadius: 11,

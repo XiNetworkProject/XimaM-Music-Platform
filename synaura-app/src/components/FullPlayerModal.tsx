@@ -281,7 +281,10 @@ export function FullPlayerModal({ visible, onClose }: Props) {
           <View style={styles.meta}>
             <Text style={styles.title} numberOfLines={2}>{track.title}</Text>
             <Pressable
-              onPress={() => track.artist?.username && navigation.navigate('PublicProfile', { username: track.artist.username })}
+              onPress={() => track.artist?.username && navigation.navigate('Tabs', {
+                screen: 'PublicProfile',
+                params: { username: track.artist.username },
+              })}
               disabled={!track.artist?.username || isRadio}
               style={styles.artistRow}
             >

@@ -8,13 +8,14 @@ import { usePlayer } from '@/player/PlayerProvider';
 import { useLibrary } from '@/library/LibraryProvider';
 import { trackArtistName } from '@/components/swipe/helpers';
 import { TrackCover } from '@/components/TrackCover';
+import { MotionPressable } from '@/components/motion/Motion';
 
 type Props = {
   activeRoute?: string;
   onOpen?: () => void;
 };
 
-const HIDDEN_ROUTES = ['Swipe'];
+const HIDDEN_ROUTES = ['Swipe', 'Login', 'Register', 'ForgotPassword'];
 
 export function MiniPlayer({ activeRoute, onOpen }: Props) {
   const insets = useSafeAreaInsets();
@@ -86,22 +87,24 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
             <Text style={styles.artist} numberOfLines={1}>{trackArtistName(player.current)}</Text>
           </View>
 
-          <Pressable
+          <MotionPressable
             accessibilityLabel={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
             onPress={(event) => { event.stopPropagation(); handleLike(); }}
             style={[styles.iconButton, isFavorite && styles.iconButtonActive]}
+            scaleTo={0.86}
           >
             <Ionicons
               name={isFavorite ? 'heart' : 'heart-outline'}
               size={18}
               color={isFavorite ? '#FF4B7A' : 'rgba(23,19,19,0.55)'}
             />
-          </Pressable>
+          </MotionPressable>
 
-          <Pressable
+          <MotionPressable
             accessibilityLabel={player.isPlaying ? 'Mettre en pause' : 'Lire'}
             onPress={(event) => { event.stopPropagation(); handlePlayPause(); }}
             style={styles.playButton}
+            scaleTo={0.86}
           >
             {player.isLoading ? (
               <Ionicons name="ellipsis-horizontal" size={18} color="#FFFAF2" />
@@ -113,15 +116,16 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
                 style={!player.isPlaying ? { marginLeft: 2 } : null}
               />
             )}
-          </Pressable>
+          </MotionPressable>
 
-          <Pressable
+          <MotionPressable
             accessibilityLabel="Titre suivant"
             onPress={(event) => { event.stopPropagation(); handleNext(); }}
             style={styles.iconButton}
+            scaleTo={0.86}
           >
             <Ionicons name="play-skip-forward" size={18} color="rgba(23,19,19,0.55)" />
-          </Pressable>
+          </MotionPressable>
           <Ionicons name="chevron-up" size={18} color="rgba(23,19,19,0.32)" />
         </View>
       </Pressable>

@@ -13,6 +13,7 @@ import { SynauraMobileDock as SharedSynauraMobileDock } from '@/components/synau
 import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
 import TrackCreateRemixActions from '@/components/TrackCreateRemixActions';
 import TrackCover from '@/components/TrackCover';
+import SynauraAndroidHomeBanner from '@/components/mobile/SynauraAndroidHomeBanner';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { sendTrackEvents } from '@/lib/analyticsClient';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
@@ -40,6 +41,7 @@ import {
   Share2,
   Send,
   Sparkles,
+  Smartphone,
   Trash2,
   Upload,
   UserPlus,
@@ -1150,6 +1152,12 @@ function TopBar() {
             className="hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex"
           >
             <Sparkles className="h-4 w-4" /> Studio
+          </Link>
+          <Link
+            href="/download"
+            className="hidden h-11 items-center gap-2 rounded-full bg-[#7c5cff]/10 px-4 text-sm font-black text-[#6d4df0] transition hover:bg-[#171313] hover:text-white lg:flex"
+          >
+            <Smartphone className="h-4 w-4" /> App Android
           </Link>
           <Link
             href="/upload"
@@ -3071,6 +3079,7 @@ export default function SynauraWarmFeed() {
       <TopBar />
       <SynauraRouteNav />
       <SynauraAnnouncementStrip />
+      <SynauraAndroidHomeBanner />
       <MiniCarousel tracks={heroTracks} />
       <MobileActions />
 

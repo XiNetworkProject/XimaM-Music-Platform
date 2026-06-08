@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { followUser, getPublicProfile, type MobileProfile } from '@/api/client';
-import type { RootStackParamList } from '@/App';
+import type { RootTabsParamList } from '@/navigation/Tabs';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
 import { usePlayer } from '@/player/PlayerProvider';
@@ -18,7 +18,7 @@ function compact(value: number) {
 }
 
 export function PublicProfileScreen() {
-  const route = useRoute<RouteProp<RootStackParamList, 'PublicProfile'>>();
+  const route = useRoute<RouteProp<RootTabsParamList, 'PublicProfile'>>();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const player = usePlayer();

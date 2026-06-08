@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Pressable,
@@ -9,7 +8,6 @@ import {
   Share,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,9 +32,6 @@ export function ProfileScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const player = usePlayer();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<MobileProfile | null>(null);
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
@@ -69,18 +64,6 @@ export function ProfileScreen() {
   useEffect(() => {
     void loadProfile();
   }, [loadProfile]);
-
-  const submit = async () => {
-    setSubmitting(true);
-    setError(null);
-    try {
-      await auth.login(email, password);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Connexion impossible');
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const shareProfile = async () => {
     if (!profile) return;
@@ -143,12 +126,17 @@ export function ProfileScreen() {
             <View style={styles.loginIcon}><Ionicons name="person-circle" size={38} color="#FFFAF2" /></View>
             <Text style={styles.loginTitle}>Ton espace Synaura</Text>
             <Text style={styles.loginText}>Connecte-toi pour publier, gérer tes sons, suivre tes stats et synchroniser ta bibliothèque.</Text>
-            <View style={styles.form}>
-              <TextInput value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="Email" placeholderTextColor="rgba(23,19,19,0.34)" style={styles.input} />
-              <TextInput value={password} onChangeText={setPassword} secureTextEntry placeholder="Mot de passe" placeholderTextColor="rgba(23,19,19,0.34)" style={styles.input} />
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-              <Pressable disabled={submitting || !email || !password} style={[styles.primaryButton, (submitting || !email || !password) && styles.disabled]} onPress={submit}>
-                {submitting ? <ActivityIndicator color="#FFFAF2" /> : <Text style={styles.primaryText}>Se connecter</Text>}
+            <View style={styles.guestHighlights}>
+              <GuestHighlight icon="radio-outline" text="Retrouve ton feed et tes sons" />
+              <GuestHighlight icon="notifications-outline" text="Synchronise tes notifications" />
+              <GuestHighlight icon="cloud-upload-outline" text="Publie depuis ton téléphone" />
+            </View>
+            <View style={styles.guestActions}>
+              <Pressable style={styles.primaryButton} onPress={() => navigation.navigate('Login')}>
+                <Text style={styles.primaryText}>Se connecter</Text>
+              </Pressable>
+              <Pressable style={styles.registerButton} onPress={() => navigation.navigate('Register')}>
+                <Text style={styles.registerText}>Créer un compte</Text>
               </Pressable>
             </View>
           </View>
@@ -251,6 +239,15 @@ function Pill({ label }: { label: string }) {
   return <Text style={styles.pill}>{label}</Text>;
 }
 
+function GuestHighlight({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  return (
+    <View style={styles.guestHighlight}>
+      <Ionicons name={icon} size={17} color="#7C5CFF" />
+      <Text style={styles.guestHighlightText}>{text}</Text>
+    </View>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.stat}>
@@ -322,12 +319,15 @@ const styles = StyleSheet.create({
   loginIcon: { width: 74, height: 74, borderRadius: 26, backgroundColor: '#171313', alignItems: 'center', justifyContent: 'center' },
   loginTitle: { marginTop: 16, color: '#171313', fontSize: 28, fontWeight: '900', letterSpacing: -1 },
   loginText: { marginTop: 8, color: 'rgba(23,19,19,0.56)', textAlign: 'center', fontSize: 13, lineHeight: 20, fontWeight: '700' },
-  form: { alignSelf: 'stretch', marginTop: 18, gap: 10 },
-  input: { height: 48, borderRadius: 24, backgroundColor: 'rgba(23,19,19,0.055)', paddingHorizontal: 16, color: '#171313', fontWeight: '800' },
   inputMulti: { minHeight: 92, paddingTop: 12, paddingBottom: 12 },
-  primaryButton: { height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
+  guestHighlights: { alignSelf: 'stretch', marginTop: 18, gap: 8 },
+  guestHighlight: { minHeight: 44, borderRadius: 17, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: 'rgba(23,19,19,0.045)' },
+  guestHighlightText: { flex: 1, color: 'rgba(23,19,19,0.58)', fontSize: 12, fontWeight: '800' },
+  guestActions: { alignSelf: 'stretch', marginTop: 17, gap: 9 },
+  primaryButton: { height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
   primaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
-  disabled: { opacity: 0.45 },
+  registerButton: { height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCCFBB', backgroundColor: '#FFFFFF' },
+  registerText: { color: '#7C5CFF', fontSize: 13, fontWeight: '900' },
   hero: { overflow: 'hidden', borderRadius: 30, backgroundColor: 'rgba(255,250,242,0.92)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
   banner: { height: 138, backgroundColor: '#171313' },
   bannerFallback: { flex: 1, backgroundColor: '#171313' },

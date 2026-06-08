@@ -1,0 +1,11 @@
+{
+  "title": "Nouvelle application Synaura",
+  "mandatory": false,
+  "minimumVersionCode": 2,
+  "releaseNotes": [
+    "Nouvel accueil plus fidele a la version web",
+    "Animations fluides et interactions enrichies",
+    "Mises a jour directes depuis l'application",
+    "Ameliorations du player et du Swipe"
+  ]
+}

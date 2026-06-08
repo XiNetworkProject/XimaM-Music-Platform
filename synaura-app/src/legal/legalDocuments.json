@@ -1,0 +1,1351 @@
+[
+  {
+    "id": "fermeture",
+    "title": "Fermeture et arrêt définitif de Synaura",
+    "subtitle": "Annonce officielle — 24 mai 2026",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Information légale relative à l'interruption du service synaura.fr"
+      },
+      {
+        "type": "heading",
+        "text": "Résumé"
+      },
+      {
+        "type": "paragraph",
+        "text": "La plateforme Synaura cessera définitivement toute activité le 24 juin 2026 à 23h59 (heure de Paris). D'ici cette date, un délai d'un mois vous est accordé pour consulter vos contenus et effectuer les démarches utiles. Au-delà, aucun accès ne sera possible."
+      },
+      {
+        "type": "heading",
+        "text": "1. Éditeur et objet"
+      },
+      {
+        "type": "paragraph",
+        "text": "Le présent avis est émis par Maxime VERMEULEN, auto-entrepreneur (SIRET : 991635194), éditeur du site et de l'application Synaura (synaura.fr), ci-après « l'Éditeur » ou « nous »."
+      },
+      {
+        "type": "paragraph",
+        "text": "Il informe l'ensemble des utilisateurs, créateurs et visiteurs de la décision d'arrêt définitif de la plateforme et des conséquences qui en découlent."
+      },
+      {
+        "type": "heading",
+        "text": "2. Motif de l'arrêt"
+      },
+      {
+        "type": "paragraph",
+        "text": "Synaura a été développé et maintenu à titre personnel. Malgré les efforts déployés, la plateforme ne parvient plus à :"
+      },
+      {
+        "type": "bullet",
+        "text": "couvrir les frais d'exploitation engagés (hébergement, bande passante, stockage média, services tiers, APIs d'intelligence artificielle, maintenance technique) ;"
+      },
+      {
+        "type": "bullet",
+        "text": "atteindre une base d'utilisateurs suffisante pour assurer la pérennité économique du service."
+      },
+      {
+        "type": "paragraph",
+        "text": "Pour ces raisons, et en l'absence de perspective de viabilité à court ou moyen terme, l'Éditeur est contraint d'interrompre définitivement le service. Cette décision relève du droit de l'entrepreneur individuel de cesser une activité non rentable et ne constitue pas une faute contractuelle au sens des CGU lorsque le service ne peut plus être maintenu pour des motifs économiques objectifs."
+      },
+      {
+        "type": "heading",
+        "text": "3. Calendrier"
+      },
+      {
+        "type": "bullet",
+        "text": "Aujourd'hui 24 mai 2026 — Publication de la présente annonce. Le service reste accessible pendant la période de préavis."
+      },
+      {
+        "type": "bullet",
+        "text": "Fin 24 juin 2026 à 23h59 (heure de Paris) — Coupure totale et définitive de l'accès à la plateforme, à l'application et à l'ensemble des fonctionnalités (écoute, publication, messagerie, studio IA, abonnements, crédits, etc.)."
+      },
+      {
+        "type": "paragraph",
+        "text": "Le délai d'un mois entre l'annonce et la coupure a pour seul objet de vous permettre d'être informés et, le cas échéant, de sauvegarder vos contenus ou d'exercer vos droits."
+      },
+      {
+        "type": "heading",
+        "text": "4. Conséquences pour les utilisateurs"
+      },
+      {
+        "type": "paragraph",
+        "text": "Après le 24 juin 2026 :"
+      },
+      {
+        "type": "bullet",
+        "text": "aucune connexion au compte ne sera possible ;"
+      },
+      {
+        "type": "bullet",
+        "text": "les contenus publiés (musiques, playlists, messages, profils) ne seront plus consultables ni téléchargeables via la plateforme ;"
+      },
+      {
+        "type": "bullet",
+        "text": "les abonnements et crédits non consommés ne pourront plus être utilisés — voir section 5 ;"
+      },
+      {
+        "type": "bullet",
+        "text": "les liens publics, embeds et partages cesseront de fonctionner."
+      },
+      {
+        "type": "paragraph",
+        "text": "Pendant le mois de préavis, nous vous invitons à sauvegarder localement tout contenu dont vous souhaitez conserver une copie. L'Éditeur ne garantit pas la conservation des données au-delà de la date de coupure."
+      },
+      {
+        "type": "heading",
+        "text": "5. Abonnements, paiements et crédits"
+      },
+      {
+        "type": "paragraph",
+        "text": "Les abonnements en cours prendront fin à la date de coupure. Aucun nouveau paiement récurrent ne sera prélevé après l'arrêt du service. Pour toute question relative à un paiement récent ou à un remboursement au titre des CGV, contactez-nous à l'adresse ci-dessous dans les meilleurs délais, en joignant les éléments de preuve (date, montant, e-mail du compte)."
+      },
+      {
+        "type": "paragraph",
+        "text": "Les crédits, boosters ou avantages virtuels non utilisés à la date de fermeture seront perdus sans indemnisation, conformément aux conditions générales acceptées lors de l'utilisation du service."
+      },
+      {
+        "type": "heading",
+        "text": "6. Données personnelles (RGPD)"
+      },
+      {
+        "type": "paragraph",
+        "text": "Conformément au Règlement (UE) 2016/679 et à la loi « Informatique et Libertés », vos données personnelles seront supprimées ou anonymisées dans un délai raisonnable après la fermeture, sauf obligation légale de conservation (comptabilité, litiges)."
+      },
+      {
+        "type": "paragraph",
+        "text": "Vous pouvez exercer vos droits d'accès, de rectification, d'effacement et d'opposition en écrivant à contact.syn@synaura.fr avant la date de coupure. Consultez également notre politique de confidentialité."
+      },
+      {
+        "type": "heading",
+        "text": "7. Absence de promesse de relance"
+      },
+      {
+        "type": "paragraph",
+        "text": "Une relance de Synaura, sous cette forme ou une autre, pourrait éventuellement être envisagée à l'avenir. Aucune promesse, engagement ou obligation de relance n'est faite. En l'absence d'annonce ultérieure officielle sur synaura.fr ou par e-mail, considérez le service comme définitivement clos."
+      },
+      {
+        "type": "heading",
+        "text": "8. Limitation de responsabilité"
+      },
+      {
+        "type": "paragraph",
+        "text": "L'Éditeur ne saurait être tenu responsable des dommages indirects liés à l'arrêt du service (perte de données non sauvegardées, manque à gagner, interruption d'activité des créateurs), dans les limites autorisées par la loi et les CGU acceptées par les utilisateurs."
+      },
+      {
+        "type": "heading",
+        "text": "9. Contact"
+      },
+      {
+        "type": "paragraph",
+        "text": "Pour toute question relative à cette fermeture :"
+      },
+      {
+        "type": "paragraph",
+        "text": "contact.syn@synaura.fr"
+      },
+      {
+        "type": "paragraph",
+        "text": "Maxime VERMEULEN — Auto-entrepreneur — SIRET 991635194 — synaura.fr"
+      },
+      {
+        "type": "paragraph",
+        "text": "Document publié le 24 mai 2026. Dernière mise à jour : 24 mai 2026."
+      }
+    ]
+  },
+  {
+    "id": "mentions-legales",
+    "title": "Mentions légales",
+    "subtitle": "Informations légales sur Synaura",
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "1. Éditeur du site"
+      },
+      {
+        "type": "paragraph",
+        "text": "Raison sociale : Maxime VERMEULEN"
+      },
+      {
+        "type": "paragraph",
+        "text": "Statut : Auto-entrepreneur"
+      },
+      {
+        "type": "paragraph",
+        "text": "SIRET : 991635194"
+      },
+      {
+        "type": "paragraph",
+        "text": "Code APE : 6201Z - Programmation informatique"
+      },
+      {
+        "type": "paragraph",
+        "text": "Site web : synaura.fr"
+      },
+      {
+        "type": "heading",
+        "text": "2. Contact"
+      },
+      {
+        "type": "paragraph",
+        "text": "Email : contact.syn@synaura.fr"
+      },
+      {
+        "type": "paragraph",
+        "text": "Support légal : contact.syn@synaura.fr"
+      },
+      {
+        "type": "heading",
+        "text": "3. Hébergement"
+      },
+      {
+        "type": "paragraph",
+        "text": "Hébergeur : Vercel Inc."
+      },
+      {
+        "type": "paragraph",
+        "text": "Adresse : 340 S Lemon Ave #4133, Walnut, CA 91789, États-Unis"
+      },
+      {
+        "type": "paragraph",
+        "text": "Site web : vercel.com"
+      },
+      {
+        "type": "heading",
+        "text": "4. Propriété intellectuelle"
+      },
+      {
+        "type": "paragraph",
+        "text": "L'ensemble du contenu du site synaura.fr (textes, images, vidéos, logos, icônes, sons, logiciels, etc.) est la propriété exclusive de Maxime VERMEULEN ou de ses partenaires. Toute reproduction, représentation, modification, publication, adaptation de tout ou partie des éléments du site, quel que soit le moyen ou le procédé utilisé, est interdite, sauf autorisation écrite préalable."
+      },
+      {
+        "type": "heading",
+        "text": "5. Responsabilité"
+      },
+      {
+        "type": "paragraph",
+        "text": "Les informations contenues sur ce site sont aussi précises que possible et le site remis à jour à différentes périodes de l'année, mais peut toutefois contenir des inexactitudes ou des omissions. Si vous constatez une lacune, erreur ou ce qui parait être un dysfonctionnement, merci de bien vouloir le signaler par email à contact.syn@synaura.fr, en décrivant le problème de la manière la plus précise possible."
+      },
+      {
+        "type": "heading",
+        "text": "6. Droit applicable"
+      },
+      {
+        "type": "paragraph",
+        "text": "Le présent site et les présentes mentions légales sont soumis au droit français. En cas de litige, les tribunaux français seront seuls compétents."
+      },
+      {
+        "type": "paragraph",
+        "text": "Dernière mise à jour : 07/06/2026"
+      }
+    ]
+  },
+  {
+    "id": "confidentialite",
+    "title": "Politique de confidentialité",
+    "subtitle": "Protection de vos données personnelles",
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "1. Collecte des données"
+      },
+      {
+        "type": "paragraph",
+        "text": "Synaura collecte les données personnelles suivantes :"
+      },
+      {
+        "type": "bullet",
+        "text": "Données d'identification : nom, prénom, adresse email, nom d'utilisateur"
+      },
+      {
+        "type": "bullet",
+        "text": "Données de profil : photo de profil, biographie, préférences musicales"
+      },
+      {
+        "type": "bullet",
+        "text": "Données d'usage : historique d'écoute, playlists, interactions"
+      },
+      {
+        "type": "bullet",
+        "text": "Données techniques : adresse IP, type de navigateur, système d'exploitation"
+      },
+      {
+        "type": "bullet",
+        "text": "Données de paiement : informations de facturation (via Stripe)"
+      },
+      {
+        "type": "heading",
+        "text": "2. Finalités du traitement"
+      },
+      {
+        "type": "paragraph",
+        "text": "Vos données sont utilisées pour :"
+      },
+      {
+        "type": "bullet",
+        "text": "Fournir et améliorer nos services"
+      },
+      {
+        "type": "bullet",
+        "text": "Personnaliser votre expérience musicale"
+      },
+      {
+        "type": "bullet",
+        "text": "Traiter les paiements et abonnements"
+      },
+      {
+        "type": "bullet",
+        "text": "Communiquer avec vous (support, notifications)"
+      },
+      {
+        "type": "bullet",
+        "text": "Analyser l'utilisation de la plateforme"
+      },
+      {
+        "type": "bullet",
+        "text": "Respecter nos obligations légales"
+      },
+      {
+        "type": "heading",
+        "text": "3. Base légale"
+      },
+      {
+        "type": "paragraph",
+        "text": "Le traitement de vos données repose sur :"
+      },
+      {
+        "type": "bullet",
+        "text": "Consentement : pour les données optionnelles et les communications marketing"
+      },
+      {
+        "type": "bullet",
+        "text": "Exécution du contrat : pour la fourniture des services"
+      },
+      {
+        "type": "bullet",
+        "text": "Intérêt légitime : pour l'amélioration des services et la sécurité"
+      },
+      {
+        "type": "bullet",
+        "text": "Obligation légale : pour la conservation des données de facturation"
+      },
+      {
+        "type": "heading",
+        "text": "4. Partage des données"
+      },
+      {
+        "type": "paragraph",
+        "text": "Vos données peuvent être partagées avec :"
+      },
+      {
+        "type": "bullet",
+        "text": "Prestataires de services : Stripe (paiements), Supabase (base de données), Cloudinary (stockage)"
+      },
+      {
+        "type": "bullet",
+        "text": "Autorités compétentes : en cas d'obligation légale"
+      },
+      {
+        "type": "bullet",
+        "text": "Partenaires commerciaux : uniquement avec votre consentement explicite"
+      },
+      {
+        "type": "heading",
+        "text": "5. Vos droits"
+      },
+      {
+        "type": "paragraph",
+        "text": "Conformément au RGPD, vous disposez des droits suivants :"
+      },
+      {
+        "type": "subheading",
+        "text": "Droit d'accès"
+      },
+      {
+        "type": "paragraph",
+        "text": "Consulter vos données personnelles"
+      },
+      {
+        "type": "subheading",
+        "text": "Droit de rectification"
+      },
+      {
+        "type": "paragraph",
+        "text": "Corriger vos données inexactes"
+      },
+      {
+        "type": "subheading",
+        "text": "Droit d'effacement"
+      },
+      {
+        "type": "paragraph",
+        "text": "Supprimer vos données"
+      },
+      {
+        "type": "subheading",
+        "text": "Droit à la portabilité"
+      },
+      {
+        "type": "paragraph",
+        "text": "Récupérer vos données"
+      },
+      {
+        "type": "heading",
+        "text": "6. Conservation des données"
+      },
+      {
+        "type": "paragraph",
+        "text": "Vos données sont conservées :"
+      },
+      {
+        "type": "bullet",
+        "text": "Données de compte : jusqu'à la suppression du compte"
+      },
+      {
+        "type": "bullet",
+        "text": "Données de facturation : 10 ans (obligation légale)"
+      },
+      {
+        "type": "bullet",
+        "text": "Données d'usage : 3 ans maximum"
+      },
+      {
+        "type": "bullet",
+        "text": "Cookies : 13 mois maximum"
+      },
+      {
+        "type": "heading",
+        "text": "7. Sécurité"
+      },
+      {
+        "type": "paragraph",
+        "text": "Nous mettons en œuvre des mesures techniques et organisationnelles appropriées pour protéger vos données contre la perte, l'utilisation abusive, l'accès non autorisé, la divulgation, l'altération ou la destruction."
+      },
+      {
+        "type": "heading",
+        "text": "8. Contact"
+      },
+      {
+        "type": "paragraph",
+        "text": "Pour exercer vos droits ou pour toute question relative à cette politique de confidentialité :"
+      },
+      {
+        "type": "paragraph",
+        "text": "privacy@synaura.fr"
+      },
+      {
+        "type": "paragraph",
+        "text": "Dernière mise à jour : 25/02/2026"
+      }
+    ]
+  },
+  {
+    "id": "cgu",
+    "title": "Conditions générales d'utilisation",
+    "subtitle": "Règles d'utilisation de la plateforme Synaura",
+    "blocks": [
+      {
+        "type": "subheading",
+        "text": "Important"
+      },
+      {
+        "type": "paragraph",
+        "text": "En utilisant Synaura, vous acceptez sans réserve les présentes conditions générales d'utilisation. Si vous n'acceptez pas ces conditions, veuillez ne pas utiliser notre service."
+      },
+      {
+        "type": "heading",
+        "text": "1. Objet"
+      },
+      {
+        "type": "paragraph",
+        "text": "Les présentes conditions générales d'utilisation (CGU) régissent l'utilisation de la plateforme Synaura, service de streaming musical et de partage de créations musicales développé par Maxime VERMEULEN."
+      },
+      {
+        "type": "heading",
+        "text": "2. Définitions"
+      },
+      {
+        "type": "bullet",
+        "text": "\"Plateforme\" : le site web synaura.fr et ses fonctionnalités"
+      },
+      {
+        "type": "bullet",
+        "text": "\"Utilisateur\" : toute personne utilisant la plateforme"
+      },
+      {
+        "type": "bullet",
+        "text": "\"Créateur\" : utilisateur publiant du contenu musical"
+      },
+      {
+        "type": "bullet",
+        "text": "\"Contenu\" : musiques, images, textes publiés sur la plateforme"
+      },
+      {
+        "type": "bullet",
+        "text": "\"Abonnement\" : service payant proposé par Synaura"
+      },
+      {
+        "type": "heading",
+        "text": "3. Acceptation des conditions"
+      },
+      {
+        "type": "paragraph",
+        "text": "L'utilisation de Synaura implique l'acceptation pleine et entière des présentes CGU. Ces conditions s'appliquent à tous les utilisateurs de la plateforme."
+      },
+      {
+        "type": "heading",
+        "text": "4. Inscription et compte"
+      },
+      {
+        "type": "subheading",
+        "text": "4.1 Création de compte"
+      },
+      {
+        "type": "paragraph",
+        "text": "Pour utiliser Synaura, vous devez créer un compte en fournissant des informations exactes et à jour. Vous êtes responsable de la confidentialité de vos identifiants."
+      },
+      {
+        "type": "subheading",
+        "text": "4.2 Âge minimum"
+      },
+      {
+        "type": "paragraph",
+        "text": "Vous devez avoir au moins 13 ans pour créer un compte. Les mineurs de moins de 16 ans doivent obtenir l'autorisation de leurs parents ou tuteurs légaux."
+      },
+      {
+        "type": "heading",
+        "text": "5. Utilisation de la plateforme"
+      },
+      {
+        "type": "subheading",
+        "text": "5.1 Utilisation autorisée"
+      },
+      {
+        "type": "bullet",
+        "text": "Écouter de la musique légalement"
+      },
+      {
+        "type": "bullet",
+        "text": "Créer et partager vos propres créations musicales"
+      },
+      {
+        "type": "bullet",
+        "text": "Interagir avec la communauté (likes, commentaires)"
+      },
+      {
+        "type": "bullet",
+        "text": "Créer des playlists personnelles"
+      },
+      {
+        "type": "subheading",
+        "text": "5.2 Utilisations interdites"
+      },
+      {
+        "type": "bullet",
+        "text": "Publier du contenu illégal ou offensant"
+      },
+      {
+        "type": "bullet",
+        "text": "Violer les droits d'auteur"
+      },
+      {
+        "type": "bullet",
+        "text": "Tenter de contourner les mesures de sécurité"
+      },
+      {
+        "type": "bullet",
+        "text": "Utiliser la plateforme à des fins commerciales non autorisées"
+      },
+      {
+        "type": "bullet",
+        "text": "Harceler ou menacer d'autres utilisateurs"
+      },
+      {
+        "type": "heading",
+        "text": "6. Contenu utilisateur"
+      },
+      {
+        "type": "subheading",
+        "text": "6.1 Responsabilité"
+      },
+      {
+        "type": "paragraph",
+        "text": "Vous êtes seul responsable du contenu que vous publiez sur Synaura. Vous garantissez détenir tous les droits nécessaires sur ce contenu."
+      },
+      {
+        "type": "subheading",
+        "text": "6.2 Modération"
+      },
+      {
+        "type": "paragraph",
+        "text": "Synaura se réserve le droit de modérer, suspendre ou supprimer tout contenu contraire aux présentes CGU ou à la législation en vigueur."
+      },
+      {
+        "type": "heading",
+        "text": "7. Propriété intellectuelle"
+      },
+      {
+        "type": "paragraph",
+        "text": "En publiant du contenu sur Synaura, vous accordez à la plateforme une licence non exclusive pour l'héberger, l'afficher et le distribuer dans le cadre du service. Vous conservez tous vos droits de propriété intellectuelle."
+      },
+      {
+        "type": "heading",
+        "text": "8. Abonnements et paiements"
+      },
+      {
+        "type": "subheading",
+        "text": "8.1 Tarification"
+      },
+      {
+        "type": "paragraph",
+        "text": "Les tarifs des abonnements sont indiqués en euros TTC. Les prix peuvent être modifiés avec un préavis de 30 jours."
+      },
+      {
+        "type": "subheading",
+        "text": "8.2 Paiement"
+      },
+      {
+        "type": "paragraph",
+        "text": "Les paiements sont traités par Stripe. En cas de problème de paiement, votre accès peut être suspendu."
+      },
+      {
+        "type": "heading",
+        "text": "9. Responsabilité"
+      },
+      {
+        "type": "paragraph",
+        "text": "Synaura ne peut être tenu responsable des dommages indirects résultant de l'utilisation de la plateforme. Notre responsabilité est limitée au montant des sommes payées pour l'utilisation du service."
+      },
+      {
+        "type": "heading",
+        "text": "10. Suspension et résiliation"
+      },
+      {
+        "type": "paragraph",
+        "text": "Synaura se réserve le droit de suspendre ou résilier votre compte en cas de violation des présentes CGU. Vous pouvez résilier votre compte à tout moment depuis les paramètres."
+      },
+      {
+        "type": "heading",
+        "text": "11. Modification des CGU"
+      },
+      {
+        "type": "paragraph",
+        "text": "Ces conditions peuvent être modifiées à tout moment. Les modifications prendront effet dès leur publication sur la plateforme. Votre utilisation continue constitue votre acceptation des nouvelles conditions."
+      },
+      {
+        "type": "heading",
+        "text": "12. Droit applicable"
+      },
+      {
+        "type": "paragraph",
+        "text": "Les présentes CGU sont soumises au droit français. En cas de litige, les tribunaux français seront seuls compétents."
+      },
+      {
+        "type": "paragraph",
+        "text": "Dernière mise à jour : 07/06/2026"
+      }
+    ]
+  },
+  {
+    "id": "cgv",
+    "title": "Conditions générales de vente",
+    "subtitle": "Conditions d'achat des abonnements Synaura",
+    "blocks": [
+      {
+        "type": "subheading",
+        "text": "Vendeur"
+      },
+      {
+        "type": "paragraph",
+        "text": "Maxime VERMEULEN - Auto-entrepreneur"
+      },
+      {
+        "type": "paragraph",
+        "text": "SIRET : 991635194"
+      },
+      {
+        "type": "paragraph",
+        "text": "Email : contact.syn@synaura.fr"
+      },
+      {
+        "type": "heading",
+        "text": "1. Objet"
+      },
+      {
+        "type": "paragraph",
+        "text": "Les présentes conditions générales de vente (CGV) régissent la vente d'abonnements à la plateforme Synaura, service de streaming musical développé par Maxime VERMEULEN."
+      },
+      {
+        "type": "heading",
+        "text": "2. Produits et services"
+      },
+      {
+        "type": "subheading",
+        "text": "2.1 Plans d'abonnement"
+      },
+      {
+        "type": "subheading",
+        "text": "Starter"
+      },
+      {
+        "type": "paragraph",
+        "text": "4,99€/mois"
+      },
+      {
+        "type": "paragraph",
+        "text": "Accès limité"
+      },
+      {
+        "type": "subheading",
+        "text": "Pro"
+      },
+      {
+        "type": "paragraph",
+        "text": "14,99€/mois"
+      },
+      {
+        "type": "paragraph",
+        "text": "Accès complet"
+      },
+      {
+        "type": "subheading",
+        "text": "Enterprise"
+      },
+      {
+        "type": "paragraph",
+        "text": "59,99€/mois"
+      },
+      {
+        "type": "paragraph",
+        "text": "Accès illimité"
+      },
+      {
+        "type": "subheading",
+        "text": "2.2 Réductions"
+      },
+      {
+        "type": "paragraph",
+        "text": "Une réduction de 20% est appliquée sur les abonnements annuels par rapport aux tarifs mensuels."
+      },
+      {
+        "type": "heading",
+        "text": "3. Commande"
+      },
+      {
+        "type": "subheading",
+        "text": "3.1 Processus de commande"
+      },
+      {
+        "type": "number",
+        "text": "Sélection du plan d'abonnement"
+      },
+      {
+        "type": "number",
+        "text": "Saisie des informations de paiement"
+      },
+      {
+        "type": "number",
+        "text": "Validation de la commande"
+      },
+      {
+        "type": "number",
+        "text": "Activation immédiate de l'abonnement"
+      },
+      {
+        "type": "subheading",
+        "text": "3.2 Confirmation"
+      },
+      {
+        "type": "paragraph",
+        "text": "Une confirmation de commande est envoyée par email. Cette confirmation vaut acceptation de la commande."
+      },
+      {
+        "type": "heading",
+        "text": "4. Prix et paiement"
+      },
+      {
+        "type": "subheading",
+        "text": "4.1 Prix"
+      },
+      {
+        "type": "paragraph",
+        "text": "Les prix sont indiqués en euros TTC. Ils comprennent toutes les taxes applicables. Les prix peuvent être modifiés avec un préavis de 30 jours."
+      },
+      {
+        "type": "subheading",
+        "text": "4.2 Moyens de paiement"
+      },
+      {
+        "type": "bullet",
+        "text": "Cartes bancaires (Visa, Mastercard, American Express)"
+      },
+      {
+        "type": "bullet",
+        "text": "Paiement sécurisé via Stripe"
+      },
+      {
+        "type": "bullet",
+        "text": "Prélèvement automatique mensuel ou annuel"
+      },
+      {
+        "type": "subheading",
+        "text": "4.3 Facturation"
+      },
+      {
+        "type": "paragraph",
+        "text": "Les factures sont émises automatiquement et envoyées par email. Elles sont disponibles dans votre espace client."
+      },
+      {
+        "type": "heading",
+        "text": "5. Droit de rétractation"
+      },
+      {
+        "type": "subheading",
+        "text": "Important"
+      },
+      {
+        "type": "paragraph",
+        "text": "Conformément à l'article L. 221-28 du Code de la consommation, le droit de rétractation ne s'applique pas aux contrats de fourniture de services pleinement exécutés avant la fin du délai de rétractation et dont l'exécution a commencé après accord préalable exprès du consommateur et renoncement exprès à son droit de rétractation."
+      },
+      {
+        "type": "heading",
+        "text": "6. Résiliation"
+      },
+      {
+        "type": "subheading",
+        "text": "6.1 Résiliation par le client"
+      },
+      {
+        "type": "paragraph",
+        "text": "Vous pouvez résilier votre abonnement à tout moment depuis votre espace client. La résiliation prend effet à la fin de la période de facturation en cours."
+      },
+      {
+        "type": "subheading",
+        "text": "6.2 Résiliation par Synaura"
+      },
+      {
+        "type": "paragraph",
+        "text": "Synaura peut résilier votre abonnement en cas de non-paiement ou de violation des conditions d'utilisation."
+      },
+      {
+        "type": "heading",
+        "text": "7. Remboursements"
+      },
+      {
+        "type": "subheading",
+        "text": "7.1 Politique de remboursement"
+      },
+      {
+        "type": "paragraph",
+        "text": "Les remboursements sont accordés uniquement en cas d'erreur technique de notre part ou de problème de paiement non imputable au client."
+      },
+      {
+        "type": "subheading",
+        "text": "7.2 Modalités"
+      },
+      {
+        "type": "paragraph",
+        "text": "Les remboursements sont effectués sous 14 jours ouvrés sur le moyen de paiement utilisé lors de la commande."
+      },
+      {
+        "type": "heading",
+        "text": "8. Disponibilité du service"
+      },
+      {
+        "type": "paragraph",
+        "text": "Synaura s'efforce de maintenir la disponibilité du service 24h/24 et 7j/7. Cependant, des interruptions peuvent survenir pour maintenance ou en cas de force majeure."
+      },
+      {
+        "type": "heading",
+        "text": "9. Responsabilité"
+      },
+      {
+        "type": "paragraph",
+        "text": "La responsabilité de Synaura est limitée au montant des sommes payées pour l'abonnement. En aucun cas, Synaura ne pourra être tenu responsable de dommages indirects."
+      },
+      {
+        "type": "heading",
+        "text": "10. Droit applicable"
+      },
+      {
+        "type": "paragraph",
+        "text": "Les présentes CGV sont soumises au droit français. En cas de litige, les tribunaux français seront seuls compétents."
+      },
+      {
+        "type": "paragraph",
+        "text": "Dernière mise à jour : 14/03/2026"
+      }
+    ]
+  },
+  {
+    "id": "cookies",
+    "title": "Politique des cookies",
+    "subtitle": "Utilisation des cookies et technologies similaires",
+    "blocks": [
+      {
+        "type": "heading",
+        "text": "1. Qu'est-ce qu'un cookie ?"
+      },
+      {
+        "type": "paragraph",
+        "text": "Un cookie est un petit fichier texte stocké sur votre ordinateur, tablette ou smartphone lorsque vous visitez un site web. Les cookies permettent au site de reconnaître votre appareil et de mémoriser certaines informations sur vos préférences ou actions passées."
+      },
+      {
+        "type": "heading",
+        "text": "2. Types de cookies utilisés"
+      },
+      {
+        "type": "subheading",
+        "text": "Cookies essentiels"
+      },
+      {
+        "type": "paragraph",
+        "text": "Ces cookies sont nécessaires au fonctionnement de Synaura :"
+      },
+      {
+        "type": "bullet",
+        "text": "Cookies de session pour maintenir votre connexion"
+      },
+      {
+        "type": "bullet",
+        "text": "Cookies de sécurité pour protéger contre les attaques"
+      },
+      {
+        "type": "bullet",
+        "text": "Cookies de préférences de base (langue, thème)"
+      },
+      {
+        "type": "subheading",
+        "text": "Cookies analytiques"
+      },
+      {
+        "type": "paragraph",
+        "text": "Ces cookies nous aident à comprendre comment vous utilisez Synaura :"
+      },
+      {
+        "type": "bullet",
+        "text": "Statistiques d'utilisation de la plateforme"
+      },
+      {
+        "type": "bullet",
+        "text": "Pages les plus visitées"
+      },
+      {
+        "type": "bullet",
+        "text": "Temps passé sur le site"
+      },
+      {
+        "type": "bullet",
+        "text": "Sources de trafic"
+      },
+      {
+        "type": "subheading",
+        "text": "Cookies de fonctionnalité"
+      },
+      {
+        "type": "paragraph",
+        "text": "Ces cookies améliorent votre expérience utilisateur :"
+      },
+      {
+        "type": "bullet",
+        "text": "Préférences de lecture (volume, qualité)"
+      },
+      {
+        "type": "bullet",
+        "text": "Historique de navigation"
+      },
+      {
+        "type": "bullet",
+        "text": "Paramètres d'affichage personnalisés"
+      },
+      {
+        "type": "bullet",
+        "text": "Géolocalisation pour les recommandations"
+      },
+      {
+        "type": "heading",
+        "text": "3. Cookies tiers"
+      },
+      {
+        "type": "subheading",
+        "text": "3.1 Stripe (Paiements)"
+      },
+      {
+        "type": "paragraph",
+        "text": "Utilisé pour traiter les paiements sécurisés. Ces cookies sont essentiels pour le fonctionnement des abonnements."
+      },
+      {
+        "type": "subheading",
+        "text": "3.2 Supabase (Base de données)"
+      },
+      {
+        "type": "paragraph",
+        "text": "Utilisé pour la gestion des données utilisateur et la synchronisation en temps réel."
+      },
+      {
+        "type": "subheading",
+        "text": "3.3 Cloudinary (Médias)"
+      },
+      {
+        "type": "paragraph",
+        "text": "Utilisé pour l'hébergement et l'optimisation des fichiers audio et images."
+      },
+      {
+        "type": "heading",
+        "text": "4. Durée de conservation"
+      },
+      {
+        "type": "paragraph",
+        "text": "Cookies de session Supprimés à la fermeture du navigateur"
+      },
+      {
+        "type": "paragraph",
+        "text": "Cookies de préférences 13 mois maximum"
+      },
+      {
+        "type": "paragraph",
+        "text": "Cookies analytiques 24 mois maximum"
+      },
+      {
+        "type": "paragraph",
+        "text": "Cookies de sécurité 12 mois maximum"
+      },
+      {
+        "type": "heading",
+        "text": "5. Gestion des cookies"
+      },
+      {
+        "type": "subheading",
+        "text": "5.1 Paramètres du navigateur"
+      },
+      {
+        "type": "paragraph",
+        "text": "Vous pouvez gérer les cookies directement dans votre navigateur :"
+      },
+      {
+        "type": "bullet",
+        "text": "Chrome : Paramètres > Confidentialité et sécurité > Cookies"
+      },
+      {
+        "type": "bullet",
+        "text": "Firefox : Options > Vie privée et sécurité > Cookies"
+      },
+      {
+        "type": "bullet",
+        "text": "Safari : Préférences > Confidentialité > Cookies"
+      },
+      {
+        "type": "bullet",
+        "text": "Edge : Paramètres > Cookies et autorisations de site"
+      },
+      {
+        "type": "subheading",
+        "text": "5.2 Bannière de consentement"
+      },
+      {
+        "type": "paragraph",
+        "text": "Lors de votre première visite, une bannière vous permet de choisir quels cookies accepter. Vous pouvez modifier vos préférences à tout moment dans les paramètres de votre compte."
+      },
+      {
+        "type": "heading",
+        "text": "6. Conséquences du refus"
+      },
+      {
+        "type": "paragraph",
+        "text": "Le refus de certains cookies peut limiter votre expérience sur Synaura :"
+      },
+      {
+        "type": "bullet",
+        "text": "Cookies essentiels : Impossibilité d'utiliser la plateforme"
+      },
+      {
+        "type": "bullet",
+        "text": "Cookies de fonctionnalité : Perte des préférences personnalisées"
+      },
+      {
+        "type": "bullet",
+        "text": "Cookies analytiques : Aucun impact sur votre utilisation"
+      },
+      {
+        "type": "bullet",
+        "text": "Cookies de paiement : Impossibilité de souscrire un abonnement"
+      },
+      {
+        "type": "heading",
+        "text": "7. Cookies et données personnelles"
+      },
+      {
+        "type": "paragraph",
+        "text": "Certains cookies peuvent contenir des données personnelles. Ces données sont traitées conformément à notre politique de confidentialité et au RGPD. Vous disposez des mêmes droits sur ces données que sur vos autres données personnelles."
+      },
+      {
+        "type": "heading",
+        "text": "8. Mise à jour de cette politique"
+      },
+      {
+        "type": "paragraph",
+        "text": "Cette politique des cookies peut être mise à jour pour refléter les changements dans nos pratiques ou pour d'autres raisons opérationnelles, légales ou réglementaires. Nous vous informerons de tout changement significatif."
+      },
+      {
+        "type": "heading",
+        "text": "9. Contact"
+      },
+      {
+        "type": "paragraph",
+        "text": "Pour toute question concernant notre utilisation des cookies :"
+      },
+      {
+        "type": "paragraph",
+        "text": "contact.syn@synaura.fr"
+      },
+      {
+        "type": "paragraph",
+        "text": "Dernière mise à jour : 07/06/2026"
+      }
+    ]
+  },
+  {
+    "id": "rgpd",
+    "title": "Conformité RGPD",
+    "subtitle": "Droits et protection des données personnelles",
+    "blocks": [
+      {
+        "type": "subheading",
+        "text": "Responsable du traitement"
+      },
+      {
+        "type": "paragraph",
+        "text": "Maxime VERMEULEN - Auto-entrepreneur"
+      },
+      {
+        "type": "paragraph",
+        "text": "SIRET : 991635194"
+      },
+      {
+        "type": "paragraph",
+        "text": "Email : contact.syn@synaura.fr"
+      },
+      {
+        "type": "heading",
+        "text": "1. Qu'est-ce que le RGPD ?"
+      },
+      {
+        "type": "paragraph",
+        "text": "Le Règlement Général sur la Protection des Données (RGPD) est un règlement européen qui renforce et unifie la protection des données personnelles des personnes physiques. Il s'applique depuis le 25 mai 2018."
+      },
+      {
+        "type": "heading",
+        "text": "2. Vos droits"
+      },
+      {
+        "type": "subheading",
+        "text": "Droit d'accès"
+      },
+      {
+        "type": "paragraph",
+        "text": "Vous pouvez demander quelles données personnelles nous traitons à votre sujet et obtenir une copie de ces données."
+      },
+      {
+        "type": "subheading",
+        "text": "Droit de rectification"
+      },
+      {
+        "type": "paragraph",
+        "text": "Vous pouvez demander la correction de données inexactes ou incomplètes nous concernant."
+      },
+      {
+        "type": "subheading",
+        "text": "Droit à l'effacement"
+      },
+      {
+        "type": "paragraph",
+        "text": "Vous pouvez demander la suppression de vos données personnelles dans certaines circonstances."
+      },
+      {
+        "type": "subheading",
+        "text": "Droit à la portabilité"
+      },
+      {
+        "type": "paragraph",
+        "text": "Vous pouvez recevoir vos données dans un format structuré et les transférer à un autre responsable de traitement."
+      },
+      {
+        "type": "heading",
+        "text": "3. Comment exercer vos droits"
+      },
+      {
+        "type": "subheading",
+        "text": "3.1 Via votre compte"
+      },
+      {
+        "type": "paragraph",
+        "text": "La plupart de vos droits peuvent être exercés directement depuis votre espace client :"
+      },
+      {
+        "type": "bullet",
+        "text": "Modifier vos informations personnelles"
+      },
+      {
+        "type": "bullet",
+        "text": "Télécharger vos données"
+      },
+      {
+        "type": "bullet",
+        "text": "Supprimer votre compte"
+      },
+      {
+        "type": "bullet",
+        "text": "Gérer vos préférences de communication"
+      },
+      {
+        "type": "subheading",
+        "text": "3.2 Par email"
+      },
+      {
+        "type": "paragraph",
+        "text": "Pour des demandes spécifiques, contactez-nous à : contact.syn@synaura.fr"
+      },
+      {
+        "type": "heading",
+        "text": "4. Délais de réponse"
+      },
+      {
+        "type": "paragraph",
+        "text": "Droit d'accès 1 mois"
+      },
+      {
+        "type": "paragraph",
+        "text": "Droit de rectification 1 mois"
+      },
+      {
+        "type": "paragraph",
+        "text": "Droit à l'effacement 1 mois"
+      },
+      {
+        "type": "paragraph",
+        "text": "Droit à la portabilité 1 mois"
+      },
+      {
+        "type": "heading",
+        "text": "5. Base légale du traitement"
+      },
+      {
+        "type": "subheading",
+        "text": "5.1 Consentement"
+      },
+      {
+        "type": "paragraph",
+        "text": "Pour les communications marketing et les données optionnelles. Vous pouvez retirer votre consentement à tout moment."
+      },
+      {
+        "type": "subheading",
+        "text": "5.2 Exécution du contrat"
+      },
+      {
+        "type": "paragraph",
+        "text": "Pour la fourniture des services Synaura (compte, streaming, abonnements)."
+      },
+      {
+        "type": "subheading",
+        "text": "5.3 Intérêt légitime"
+      },
+      {
+        "type": "paragraph",
+        "text": "Pour l'amélioration des services, la sécurité et la prévention de la fraude."
+      },
+      {
+        "type": "subheading",
+        "text": "5.4 Obligation légale"
+      },
+      {
+        "type": "paragraph",
+        "text": "Pour la conservation des données de facturation (10 ans)."
+      },
+      {
+        "type": "heading",
+        "text": "6. Transferts internationaux"
+      },
+      {
+        "type": "subheading",
+        "text": "Informations importantes"
+      },
+      {
+        "type": "paragraph",
+        "text": "Certains de nos prestataires (Stripe, Vercel, Supabase) sont situés en dehors de l'UE. Nous nous assurons que ces transferts sont effectués avec des garanties appropriées (clauses contractuelles types, décision d'adéquation)."
+      },
+      {
+        "type": "heading",
+        "text": "7. Sécurité des données"
+      },
+      {
+        "type": "paragraph",
+        "text": "Nous mettons en œuvre des mesures techniques et organisationnelles appropriées :"
+      },
+      {
+        "type": "bullet",
+        "text": "Chiffrement des données en transit et au repos"
+      },
+      {
+        "type": "bullet",
+        "text": "Authentification forte et contrôle d'accès"
+      },
+      {
+        "type": "bullet",
+        "text": "Surveillance continue et détection d'intrusions"
+      },
+      {
+        "type": "bullet",
+        "text": "Sauvegardes régulières et plan de continuité"
+      },
+      {
+        "type": "bullet",
+        "text": "Formation du personnel à la protection des données"
+      },
+      {
+        "type": "heading",
+        "text": "8. Violation de données"
+      },
+      {
+        "type": "paragraph",
+        "text": "En cas de violation de données personnelles susceptible d'engendrer un risque élevé pour vos droits et libertés, nous vous informerons dans les meilleurs délais et, au plus tard, dans les 72 heures après en avoir pris connaissance."
+      },
+      {
+        "type": "heading",
+        "text": "9. Réclamations"
+      },
+      {
+        "type": "paragraph",
+        "text": "Si vous estimez que vos droits ne sont pas respectés, vous pouvez :"
+      },
+      {
+        "type": "bullet",
+        "text": "Nous contacter directement à contact.syn@synaura.fr"
+      },
+      {
+        "type": "bullet",
+        "text": "Introduire une réclamation auprès de la CNIL : www.cnil.fr"
+      },
+      {
+        "type": "bullet",
+        "text": "Saisir le tribunal compétent"
+      },
+      {
+        "type": "heading",
+        "text": "10. Contact DPO"
+      },
+      {
+        "type": "paragraph",
+        "text": "Pour toute question relative à la protection de vos données :"
+      },
+      {
+        "type": "paragraph",
+        "text": "contact.syn@synaura.fr"
+      },
+      {
+        "type": "paragraph",
+        "text": "Dernière mise à jour : 12/03/2026"
+      }
+    ]
+  }
+]

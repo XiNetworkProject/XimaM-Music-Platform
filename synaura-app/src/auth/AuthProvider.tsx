@@ -17,9 +17,19 @@ type AuthContextValue = {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (input: RegisterInput) => Promise<string>;
+  requestPasswordReset: (email: string) => Promise<string>;
   logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
   requireAuth: () => boolean;
+};
+
+export type RegisterInput = {
+  name: string;
+  username: string;
+  email: string;
+  password: string;
+  referralCode?: string;
 };
 
 const TOKEN_KEY = 'synaura.mobile.auth.token';
@@ -108,6 +118,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await persistSession(json.data.token, json.data.user);
   }, [persistSession]);
 
+  const register = useCallback(async (input: RegisterInput) => {
+    const res = await authFetch('/api/auth/signup', null, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(json?.error || "Erreur lors de l'inscription");
+    return json?.message || 'Compte créé. Connecte-toi pour continuer.';
+  }, []);
+
+  const requestPasswordReset = useCallback(async (email: string) => {
+    const res = await authFetch('/api/auth/forgot-password', null, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(json?.error || 'Demande impossible');
+    return json?.message || 'Si un compte existe avec cet email, un lien sera envoyé.';
+  }, []);
+
   const logout = useCallback(async () => {
     if (token) {
       await authFetch('/api/auth/mobile/logout', token, { method: 'POST' }).catch(() => {});
@@ -122,10 +152,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     token,
     loading,
     login,
+    register,
+    requestPasswordReset,
     logout,
     refreshMe,
     requireAuth,
-  }), [loading, login, logout, refreshMe, requireAuth, token, user]);
+  }), [loading, login, logout, refreshMe, register, requestPasswordReset, requireAuth, token, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

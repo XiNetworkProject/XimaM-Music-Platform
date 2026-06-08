@@ -43,9 +43,9 @@ const VARIANTS: Record<Variant, {
     violet: '#7C5CFF',
     cyan: '#00C2CB',
     gridLine: '#DED4C7',
-    coralAlpha: 0.18,
-    violetAlpha: 0.18,
-    cyanAlpha: 0.12,
+    coralAlpha: 0.11,
+    violetAlpha: 0.10,
+    cyanAlpha: 0.07,
   },
   dark: {
     base: '#0D0A0E',
@@ -114,8 +114,8 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = true 
         <Rect x={0} y={0} width={w} height={h} fill="url(#g-coral)" />
         <Rect x={0} y={0} width={w} height={h} fill="url(#g-violet)" />
         <Rect x={0} y={0} width={w} height={h} fill="url(#g-cyan)" />
-        <Rect x={0} y={0} width={w} height={h} fill="url(#g-blob-coral)" />
-        <Rect x={0} y={0} width={w} height={h} fill="url(#g-blob-violet)" />
+        {variant !== 'feed' ? <Rect x={0} y={0} width={w} height={h} fill="url(#g-blob-coral)" /> : null}
+        {variant !== 'feed' ? <Rect x={0} y={0} width={w} height={h} fill="url(#g-blob-violet)" /> : null}
         {showGrid ? <Rect x={0} y={0} width={w} height={h} fill="url(#paperGrid)" opacity={0.32} /> : null}
       </Svg>
       {children}

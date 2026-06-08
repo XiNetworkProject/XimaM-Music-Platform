@@ -162,7 +162,7 @@ export function NotificationModal({ visible, onClose, onUnreadChange }: { visibl
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={styles.scrim}>
-        <View style={[styles.sheet, { paddingTop: Math.max(insets.top, spacing.md) }]}>
+        <View style={[styles.sheet, styles.notificationSheet, { marginTop: insets.top + 8 }]}>
           <SheetHeader title="Notifications" subtitle={unread ? `${unread} non lue${unread > 1 ? 's' : ''}` : 'Tout est a jour'} onClose={onClose} action={unread ? <Pressable onPress={markAll} style={styles.iconButton}><Ionicons name="checkmark-done" size={19} color={colors.textSecondary} /></Pressable> : undefined} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories}>
             {notificationCategories.map((item) => <Pressable key={item} onPress={() => setCategory(item)} style={[styles.category, category === item && styles.categoryActive]}><Text style={[styles.categoryText, category === item && styles.categoryTextActive]}>{item === 'all' ? 'Toutes' : item}</Text></Pressable>)}
@@ -199,6 +199,7 @@ function Empty({ icon, title, text }: { icon: keyof typeof Ionicons.glyphMap; ti
 const styles = StyleSheet.create({
   scrim: { flex: 1, backgroundColor: 'rgba(23,19,19,0.34)', justifyContent: 'flex-start', padding: spacing.md },
   sheet: { maxHeight: '88%', overflow: 'hidden', borderRadius: 26, borderWidth: 1, borderColor: '#D8CBB8', backgroundColor: '#FFF7EC', shadowColor: '#1E1914', shadowOpacity: 0.28, shadowRadius: 35, elevation: 14 },
+  notificationSheet: { width: '100%', maxHeight: '68%', alignSelf: 'center' },
   sheetHeader: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderColor: '#E2D6C4', backgroundColor: '#FFFAF2' },
   sheetTitleWrap: { flex: 1 }, sheetTitle: { color: colors.text, fontSize: 17, fontWeight: '900' }, sheetSubtitle: { marginTop: 2, color: colors.textTertiary, fontSize: 11, fontWeight: '800' },
   iconButton: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.055)' },

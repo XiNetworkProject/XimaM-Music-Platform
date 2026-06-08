@@ -10,6 +10,7 @@ import StudioBackground from '@/components/StudioBackground';
 import GlobalQueueBubble from '@/components/GlobalQueueBubble';
 import { Analytics } from '@vercel/analytics/next';
 import AdSenseScript from '@/components/AdSenseScript';
+import AndroidAppPrompt from '@/components/mobile/AndroidAppPrompt';
 
 // Déclaration des types pour les fonctions globales
 declare global {
@@ -141,8 +142,9 @@ export default function RootLayout({
             </div>
           </div>
           <Analytics />
+          <AndroidAppPrompt />
         </Providers>
       </body>
     </html>
   );
-} 
+}

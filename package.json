@@ -24,7 +24,8 @@
     "migrate:100": "node scripts/migrate-complete-100.js",
     "fix:migration:final": "node scripts/fix-migration-final.js",
     "test:supabase": "node scripts/test-supabase-connection.js",
-    "test:supabase:auth": "node scripts/test-supabase-auth.js"
+    "test:supabase:auth": "node scripts/test-supabase-auth.js",
+    "publish:android": "node scripts/publish-android-release.js"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.0",

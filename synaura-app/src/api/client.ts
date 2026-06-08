@@ -29,6 +29,28 @@ export const API_BASE_URL =
   (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ||
   process.env.EXPO_PUBLIC_API_BASE_URL ||
   fallbackBaseUrl;
+const MOBILE_RELEASE_MANIFEST_URL =
+  (Constants.expoConfig?.extra?.mobileReleaseManifestUrl as string | undefined) ||
+  process.env.EXPO_PUBLIC_MOBILE_RELEASE_MANIFEST_URL;
+
+export type MobileAppRelease = {
+  platform: 'android';
+  versionName: string;
+  versionCode: number;
+  minimumVersionCode: number;
+  title: string;
+  releaseNotes: string[];
+  mandatory: boolean;
+  apkUrl: string;
+  sha256: string;
+  sizeBytes: number;
+  publishedAt: string;
+};
+
+export type MobileAppReleaseResponse = {
+  available: boolean;
+  release: MobileAppRelease | null;
+};
 
 export function setAuthTokenProvider(provider: () => string | null) {
   authTokenProvider = provider;
@@ -190,6 +212,21 @@ async function optionalRequest<T>(path: string, init?: RequestInit): Promise<T |
     return await request<T>(path, init);
   } catch {
     return null;
+  }
+}
+
+export async function getLatestAppRelease(versionCode: number): Promise<MobileAppReleaseResponse> {
+  try {
+    return await request<MobileAppReleaseResponse>(`/api/mobile/releases/latest?versionCode=${Math.max(0, versionCode)}`);
+  } catch (apiError) {
+    if (!MOBILE_RELEASE_MANIFEST_URL) throw apiError;
+    const response = await fetch(MOBILE_RELEASE_MANIFEST_URL, { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw apiError;
+    const release = await response.json() as MobileAppRelease;
+    return {
+      available: Number(release?.versionCode || 0) > Math.max(0, versionCode),
+      release,
+    };
   }
 }
 

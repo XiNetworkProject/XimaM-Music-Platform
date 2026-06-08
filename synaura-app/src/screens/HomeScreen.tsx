@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -19,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   createComment,
   createPost,
@@ -44,13 +47,14 @@ import { NotificationModal, UniversalSearchModal } from '@/components/HomeOverla
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
 import { openInternalLink } from '@/navigation/internalLinks';
+import { MotionPressable, Reveal } from '@/components/motion/Motion';
 
 const filters = ['Pour toi', 'Sons', 'Communaute', 'Plus'] as const;
 const quickActions = [
-  { label: 'Ecouter', icon: 'musical-notes', tint: '#8B5CF6' },
-  { label: 'Creer', icon: 'sparkles', tint: '#38BDF8' },
-  { label: 'Publier', icon: 'cloud-upload', tint: '#FB7185' },
-  { label: 'Communaute', icon: 'mic', tint: '#F59E0B' },
+  { label: 'Ecouter', caption: 'Trouver ton prochain son', icon: 'musical-notes', tint: '#7C5CFF' },
+  { label: 'Creer', caption: 'Ouvrir le studio IA', icon: 'sparkles', tint: '#00A7B2' },
+  { label: 'Publier', caption: 'Partager une creation', icon: 'cloud-upload', tint: '#E65E54' },
+  { label: 'Communaute', caption: 'Voir ce qui bouge', icon: 'mic', tint: '#D88A00' },
 ] as const;
 
 type HomeFilter = (typeof filters)[number];
@@ -213,6 +217,7 @@ export function HomeScreen() {
   const library = useLibrary();
   const auth = useAuth();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const openWebPath = useCallback(async (path: string) => {
     const handled = await openInternalLink(navigation, path, { playTrack: (track) => player.playTrack(track) });
     if (!handled) setError("Impossible d'ouvrir cette page Synaura");
@@ -419,16 +424,18 @@ export function HomeScreen() {
 
   const header = (
     <>
-      <TopBar unread={unreadNotifications} onNotifications={() => navigation.navigate('Notifications')} onPublish={() => openWebPath('/upload')} />
+      <TopBar unread={unreadNotifications} onNotifications={() => setNotificationsOpen(true)} onPublish={() => openWebPath('/upload')} />
       <TopSearchStrip onSearch={() => setSearchOpen(true)} onStudio={() => openWebPath('/ai-generator')} />
       <AnnouncementStrip onPress={() => openWebPath('/fermeture')} />
-      <MiniCarousel
-        tracks={heroTracks}
-        activeId={player.current?._id}
-        isPlaying={player.isPlaying}
-        onPlay={(track) => playQueue(heroTracks, track)}
-        onCreate={(track) => openWebPath(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(track._id)}&title=${encodeURIComponent(track.title)}`)}
-      />
+      {heroTracks.length ? (
+        <MiniCarousel
+          tracks={heroTracks}
+          activeId={player.current?._id}
+          isPlaying={player.isPlaying}
+          onPlay={(track) => playQueue(heroTracks, track)}
+          onCreate={(track) => openWebPath(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(track._id)}&title=${encodeURIComponent(track.title)}`)}
+        />
+      ) : null}
       <QuickActions
         onListen={() => navigation.navigate('Discover')}
         onCreate={() => openWebPath('/ai-generator')}
@@ -448,7 +455,7 @@ export function HomeScreen() {
         data={feed}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={header}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingTop: Math.max(14, insets.top + 8) }]}
         showsVerticalScrollIndicator={false}
         onEndReached={loadMore}
         onEndReachedThreshold={0.55}
@@ -468,27 +475,29 @@ export function HomeScreen() {
             </View>
           ) : null
         }
-        renderItem={({ item }) => (
-          <FeedCard
-            item={item}
-            allTracks={allTracks}
-            activeId={player.current?._id}
-            isPlaying={player.isPlaying}
-            onPlay={playQueue}
-            isFavorite={library.isFavorite}
-            onFavorite={(track) => library.toggleFavorite(track)}
-            onNavigate={(target) => navigation.navigate(target)}
-            onCommunity={() => setFilter('Communaute')}
-            onQueueNext={(track) => player.addNext(track)}
-            onOpenWeb={openWebPath}
-            onComments={openComments}
-            onShareTrack={setShareTarget}
-            libraryStats={data.libraryStats || undefined}
-            onPostCreated={(post) => {
-              setData((current) => ({ ...current, posts: [post, ...current.posts] }));
-              setFilter('Communaute');
-            }}
-          />
+        renderItem={({ item, index }) => (
+          <Reveal delay={Math.min(index * 35, 210)} distance={10}>
+            <FeedCard
+              item={item}
+              allTracks={allTracks}
+              activeId={player.current?._id}
+              isPlaying={player.isPlaying}
+              onPlay={playQueue}
+              isFavorite={library.isFavorite}
+              onFavorite={(track) => library.toggleFavorite(track)}
+              onNavigate={(target) => navigation.navigate(target)}
+              onCommunity={() => setFilter('Communaute')}
+              onQueueNext={(track) => player.addNext(track)}
+              onOpenWeb={openWebPath}
+              onComments={openComments}
+              onShareTrack={setShareTarget}
+              libraryStats={data.libraryStats || undefined}
+              onPostCreated={(post) => {
+                setData((current) => ({ ...current, posts: [post, ...current.posts] }));
+                setFilter('Communaute');
+              }}
+            />
+          </Reveal>
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
       />
@@ -531,7 +540,7 @@ export function HomeScreen() {
 function DecorativeBackground() {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <SynauraBackground variant="warm" />
+      <SynauraBackground variant="feed" />
     </View>
   );
 }
@@ -540,19 +549,19 @@ function TopBar({ unread, onNotifications, onPublish }: { unread: number; onNoti
   return (
     <View style={styles.topBar}>
       <View style={styles.brandBox}>
-        <Image source={{ uri: 'https://xima-m-music-platform.vercel.app/brand/2026/synaura-symbol-2026.png' }} style={styles.logo} />
+        <Image source={require('../assets/synaura-symbol-2026.png')} style={styles.logo} />
       </View>
       <View style={styles.brandText}>
         <Text style={styles.brandTitle}>Synaura</Text>
         <Text style={styles.brandSubtitle}>ecoute · cree · remix</Text>
       </View>
-      <Pressable onPress={onNotifications} style={styles.roundButton}>
+      <MotionPressable accessibilityLabel="Notifications" onPress={onNotifications} style={styles.roundButton} scaleTo={0.9}>
         <Ionicons name="notifications-outline" size={20} color={warm.inkSoft} />
         {unread > 0 ? <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{unread > 9 ? '9+' : unread}</Text></View> : null}
-      </Pressable>
-      <Pressable onPress={onPublish} style={styles.publishButton}>
+      </MotionPressable>
+      <MotionPressable onPress={onPublish} style={styles.publishButton}>
         <Text style={styles.publishText}>Publier</Text>
-      </Pressable>
+      </MotionPressable>
     </View>
   );
 }
@@ -560,14 +569,14 @@ function TopBar({ unread, onNotifications, onPublish }: { unread: number; onNoti
 function TopSearchStrip({ onSearch, onStudio }: { onSearch: () => void; onStudio: () => void }) {
   return (
     <View style={styles.searchStrip}>
-      <Pressable onPress={onSearch} style={styles.searchPill}>
+      <MotionPressable onPress={onSearch} style={styles.searchPill}>
         <Ionicons name="search" size={17} color="rgba(23,19,19,0.40)" />
         <Text style={styles.searchPlaceholder}>Rechercher sons, artistes, playlists...</Text>
-      </Pressable>
-      <Pressable onPress={onStudio} style={styles.studioMiniButton}>
+      </MotionPressable>
+      <MotionPressable onPress={onStudio} style={styles.studioMiniButton}>
         <Ionicons name="sparkles" size={15} color={warm.inkSoft} />
         <Text style={styles.studioMiniText}>Studio</Text>
-      </Pressable>
+      </MotionPressable>
     </View>
   );
 }
@@ -635,9 +644,19 @@ function MiniCarousel({
   onCreate: (track: Track) => void;
 }) {
   const [active, setActive] = useState(0);
+  const heroMotion = React.useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (active >= tracks.length) setActive(0);
   }, [active, tracks.length]);
+  useEffect(() => {
+    heroMotion.setValue(0);
+    Animated.timing(heroMotion, {
+      toValue: 1,
+      duration: 340,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [active, heroMotion]);
 
   if (!tracks.length) return <View style={[styles.card, styles.heroSkeleton]} />;
   const item = tracks[active] || tracks[0];
@@ -647,37 +666,71 @@ function MiniCarousel({
     <View style={styles.card}>
       <View style={styles.hero}>
         <TrackCover track={item} active autoPlayVideo style={StyleSheet.absoluteFill} imageStyle={styles.heroImage} />
-        <LinearGradient colors={['rgba(23,19,19,0.98)', 'rgba(23,19,19,0.82)', 'rgba(23,19,19,0.45)']} style={StyleSheet.absoluteFill} />
-        <View style={[styles.heroTint, { backgroundColor: pickLocalTint(item._id) }]} />
+        <LinearGradient
+          colors={['rgba(23,19,19,0.98)', 'rgba(23,19,19,0.84)', 'rgba(23,19,19,0.28)']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={StyleSheet.absoluteFill}
+        />
         <View style={styles.heroBadges}>
-          <Text style={styles.heroBadge}>Mix quotidien</Text>
-          <Text style={styles.heroBadgeMuted}>Top hebdo</Text>
+          <View style={styles.heroBadgeRow}>
+            <Text style={styles.heroBadge}>Mix quotidien</Text>
+            <Text style={styles.heroBadgeMuted}>Top hebdo</Text>
+          </View>
+          <View style={styles.heroNav}>
+            <MotionPressable
+              accessibilityLabel="Titre precedent"
+              onPress={() => setActive((value) => (value - 1 + tracks.length) % tracks.length)}
+              style={styles.heroNavButton}
+              scaleTo={0.88}
+            >
+              <Ionicons name="chevron-back" size={16} color="rgba(255,250,242,0.76)" />
+            </MotionPressable>
+            <MotionPressable
+              accessibilityLabel="Titre suivant"
+              onPress={() => setActive((value) => (value + 1) % tracks.length)}
+              style={styles.heroNavButton}
+              scaleTo={0.88}
+            >
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,250,242,0.76)" />
+            </MotionPressable>
+          </View>
         </View>
-        <View style={styles.heroBody}>
+        <Animated.View
+          style={[
+            styles.heroBody,
+            {
+              opacity: heroMotion,
+              transform: [{
+                translateY: heroMotion.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }),
+              }],
+            },
+          ]}
+        >
           <Text style={styles.heroTitle}>Decouvre, remixe, publie.</Text>
           <Text style={styles.heroCopy}>Lance un mix de sons IA et indes, puis cree ton univers musical a partir de ce que tu aimes.</Text>
           <Text style={styles.heroNow} numberOfLines={1}>En tete maintenant : {item.title} · {artistName(item)}</Text>
           <View style={styles.heroActions}>
-            <Pressable style={styles.heroPrimary} onPress={() => onPlay(item)}>
+            <MotionPressable style={styles.heroPrimary} onPress={() => onPlay(item)}>
               <Ionicons name={playingThis ? 'pause' : 'play'} size={15} color={warm.ink} />
               <Text style={styles.heroPrimaryText}>Lancer mon mix</Text>
-            </Pressable>
-            <Pressable style={styles.heroSecondary} onPress={() => onCreate(item)}>
+            </MotionPressable>
+            <MotionPressable style={styles.heroSecondary} onPress={() => onCreate(item)}>
               <Ionicons name="sparkles" size={15} color="rgba(255,250,242,0.78)" />
               <Text style={styles.heroSecondaryText}>Creer dans ce style</Text>
-            </Pressable>
+            </MotionPressable>
           </View>
-        </View>
+        </Animated.View>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.heroThumbs}>
         {tracks.slice(0, 5).map((track, index) => (
-          <Pressable key={track._id} onPress={() => setActive(index)} style={[styles.heroThumb, active === index && styles.heroThumbActive]}>
+          <MotionPressable key={track._id} onPress={() => setActive(index)} style={[styles.heroThumb, active === index && styles.heroThumbActive]}>
             <TrackCover track={track} active={active === index} autoPlayVideo={active === index} style={styles.heroThumbImage} />
             <View style={styles.heroThumbText}>
               <Text numberOfLines={1} style={[styles.heroThumbTitle, active === index && styles.heroThumbTitleActive]}>{track.title}</Text>
               <Text numberOfLines={1} style={[styles.heroThumbArtist, active === index && styles.heroThumbArtistActive]}>{artistName(track)}</Text>
             </View>
-          </Pressable>
+          </MotionPressable>
         ))}
       </ScrollView>
     </View>
@@ -699,12 +752,18 @@ function QuickActions({
   return (
     <View style={styles.quickGrid}>
       {quickActions.map((item, index) => (
-        <Pressable key={item.label} onPress={actions[index]} style={styles.quickItem}>
-          <View style={[styles.quickIcon, { backgroundColor: item.tint }]}>
-            <Ionicons name={item.icon} size={20} color={warm.paper} />
-          </View>
-          <Text numberOfLines={1} style={styles.quickLabel}>{item.label}</Text>
-        </Pressable>
+        <Reveal key={item.label} delay={70 + index * 55} style={styles.quickReveal}>
+          <MotionPressable onPress={actions[index]} style={styles.quickItem}>
+            <View style={styles.quickIcon}>
+              <Ionicons name={item.icon} size={18} color={item.tint} />
+            </View>
+            <View style={styles.quickCopy}>
+              <Text numberOfLines={1} style={styles.quickLabel}>{item.label}</Text>
+              <Text numberOfLines={1} style={styles.quickCaption}>{item.caption}</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={14} color="rgba(23,19,19,0.24)" />
+          </MotionPressable>
+        </Reveal>
       ))}
     </View>
   );
@@ -1236,7 +1295,7 @@ function RailCard({
         {item.tracks.map((track) => {
           const playingThis = activeId === track._id && isPlaying;
           return (
-            <Pressable key={track._id} onPress={() => onPlay(item.tracks, track)} style={styles.railTrack}>
+            <MotionPressable key={track._id} onPress={() => onPlay(item.tracks, track)} style={styles.railTrack} lift={2}>
               <View style={styles.railCoverWrap}>
                 <TrackCover track={track} active style={styles.railCover} />
                 <View style={styles.railPlay}>
@@ -1245,7 +1304,7 @@ function RailCard({
               </View>
               <Text numberOfLines={1} style={styles.railTitle}>{track.title}</Text>
               <Text numberOfLines={1} style={styles.railArtist}>{artistName(track)}</Text>
-            </Pressable>
+            </MotionPressable>
           );
         })}
       </ScrollView>
@@ -1369,9 +1428,10 @@ function CreatorRail({ creators, onOpen }: { creators: Creator[]; onOpen: (creat
       <SectionHeader title="Createurs a suivre" subtitle="profils qui publient, remixent et font bouger la home" icon="people" />
       <View style={styles.creatorGrid}>
         {creators.map((creator) => (
-          <Pressable key={creator.id} onPress={() => onOpen(creator)} style={styles.creatorCard}>
-            <View style={[styles.creatorAvatar, { backgroundColor: creator.tint }]}>
+          <MotionPressable key={creator.id} onPress={() => onOpen(creator)} style={styles.creatorCard} lift={2}>
+            <View style={styles.creatorAvatar}>
               {creator.avatar?.startsWith('http') ? <Image source={{ uri: creator.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.creatorAvatarText}>{creator.avatar}</Text>}
+              <View style={[styles.creatorAccent, { backgroundColor: creator.tint }]} />
             </View>
             <Text numberOfLines={1} style={styles.creatorName}>{creator.name}</Text>
             <Text numberOfLines={1} style={styles.creatorHandle}>{creator.handle}</Text>
@@ -1379,7 +1439,7 @@ function CreatorRail({ creators, onOpen }: { creators: Creator[]; onOpen: (creat
             <View style={styles.creatorButton}>
               <Text style={styles.creatorButtonText}>Voir profil</Text>
             </View>
-          </Pressable>
+          </MotionPressable>
         ))}
       </View>
     </View>
@@ -1744,7 +1804,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,250,242,0.70)',
   },
   hero: {
-    minHeight: 230,
+    minHeight: 244,
     overflow: 'hidden',
     borderRadius: 20,
     padding: spacing.md,
@@ -1752,20 +1812,31 @@ const styles = StyleSheet.create({
   },
   heroImage: {
     borderRadius: 20,
-    opacity: 0.42,
-  },
-  heroTint: {
-    position: 'absolute',
-    right: -70,
-    top: -40,
-    width: 210,
-    height: 210,
-    borderRadius: 105,
-    opacity: 0.38,
+    opacity: 0.6,
   },
   heroBadges: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: spacing.sm,
+  },
+  heroBadgeRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  heroNav: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  heroNavButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.11)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   heroBadge: {
     overflow: 'hidden',
@@ -1851,12 +1922,14 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   heroThumb: {
-    width: 172,
+    width: 168,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    borderRadius: 18,
-    backgroundColor: 'rgba(23,19,19,0.045)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(23,19,19,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.42)',
     padding: spacing.sm,
   },
   heroThumbActive: {
@@ -1891,26 +1964,49 @@ const styles = StyleSheet.create({
   },
   quickGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
     marginVertical: spacing.md,
   },
+  quickReveal: {
+    width: '48.7%',
+  },
   quickItem: {
-    width: '23%',
+    width: '100%',
+    minHeight: 66,
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(23,19,19,0.07)',
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,250,242,0.72)',
+    paddingHorizontal: 10,
+    paddingVertical: spacing.sm,
   },
   quickIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 17,
+    width: 34,
+    height: 34,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#171313',
+  },
+  quickCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   quickLabel: {
     maxWidth: '100%',
-    color: warm.inkSoft,
-    fontSize: 11,
+    color: warm.ink,
+    fontSize: 12,
     fontWeight: '900',
+  },
+  quickCaption: {
+    marginTop: 3,
+    color: 'rgba(23,19,19,0.38)',
+    fontSize: 9,
+    fontWeight: '700',
   },
   filterWrap: {
     flexDirection: 'row',
@@ -2506,6 +2602,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    backgroundColor: warm.ink,
+    borderWidth: 2,
+    borderColor: 'rgba(255,250,242,0.86)',
+  },
+  creatorAccent: {
+    position: 'absolute',
+    right: 1,
+    bottom: 1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: warm.paper,
   },
   creatorAvatarText: {
     color: warm.paper,

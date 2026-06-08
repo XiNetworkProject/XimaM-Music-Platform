@@ -56,7 +56,7 @@ export function SwipeScreen() {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const tabBarHeight = 76 + insets.bottom;
-  const itemHeight = Math.max(420, height - tabBarHeight - 6);
+  const itemHeight = Math.max(420, height);
 
   const player = usePlayer();
   const library = useLibrary();
@@ -98,13 +98,14 @@ export function SwipeScreen() {
     Haptics.selectionAsync().catch(() => {});
   }, [feedMode]);
   const panResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 36 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.35,
+    onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.15,
     onPanResponderRelease: (_, gesture) => {
-      if (Math.abs(gesture.dx) < 72) return;
-      const currentIndex = FEED_MODES.indexOf(feedMode);
-      const direction = gesture.dx < 0 ? 1 : -1;
-      const next = FEED_MODES[Math.max(0, Math.min(FEED_MODES.length - 1, currentIndex + direction))];
-      switchFeedMode(next);
+      if (Math.abs(gesture.dx) >= 44 || Math.abs(gesture.vx) >= 0.35) {
+        const currentIndex = FEED_MODES.indexOf(feedMode);
+        const direction = gesture.dx < 0 ? 1 : -1;
+        const next = FEED_MODES[Math.max(0, Math.min(FEED_MODES.length - 1, currentIndex + direction))];
+        switchFeedMode(next);
+      }
     },
   }), [feedMode, switchFeedMode]);
 
