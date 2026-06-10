@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { PLANS, PLAN_KEYS, CREDITS_PER_GENERATION } from '@/lib/billing/pricing';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     const userId = session?.user?.id || 'default-user-id';
 
     const subscriptionPlans = PLAN_KEYS.map((key) => {
@@ -13,7 +12,12 @@ export async function GET(request: NextRequest) {
       return {
         id: key,
         name: key,
+        label: p.label,
         price: p.priceMonthly,
+        priceMonthly: p.priceMonthly,
+        priceYearly: p.priceYearly,
+        stripePriceIds: p.stripePriceIds,
+        badge: p.badge || null,
         currency: 'EUR',
         interval: 'mois',
         description:
@@ -37,6 +41,7 @@ export async function GET(request: NextRequest) {
         popular: key === 'starter',
         recommended: key === 'starter',
         creditsMonthly: p.monthlyCredits,
+        featureFlags: p.featureFlags,
       };
     });
 

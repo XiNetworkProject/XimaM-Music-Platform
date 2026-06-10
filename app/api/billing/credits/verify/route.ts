@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession, getSessionFromToken } from '@/lib/getApiSession';
 import { stripe } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabase';
 import { findPackById } from '@/lib/billing/pricing';
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const body = await req.json().catch(() => ({}));
+    const accessToken = typeof body?.accessToken === 'string' ? body.accessToken.trim() : '';
+    const session = accessToken ? await getSessionFromToken(accessToken) : await getApiSession(req);
     if (!session?.user?.id) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-    const { sessionId } = await req.json();
+    const { sessionId } = body;
     if (!sessionId) return NextResponse.json({ error: 'sessionId requis' }, { status: 400 });
 
     const cs = await stripe.checkout.sessions.retrieve(sessionId);

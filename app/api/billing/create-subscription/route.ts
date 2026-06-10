@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { stripe } from '@/lib/stripe';
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     if (!session?.user?.id || !session?.user?.email) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }

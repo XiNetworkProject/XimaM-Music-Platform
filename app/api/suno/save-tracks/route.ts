@@ -1,14 +1,13 @@
 // app/api/suno/save-tracks/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { aiGenerationService } from '@/lib/aiGenerationService';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
     // Vérification de l'authentification
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { generateMusicVideo } from '@/lib/suno';
 
@@ -54,7 +53,7 @@ async function updateAiTrackWithMusicVideo(trackId: string, videoUrl: string | n
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     const user = session?.user as any;
     const userId = user?.id;
     if (!userId) {

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
+import { PLANS } from '@/lib/billing/pricing';
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     if (!session?.user?.id) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
     let profile: any = null;
@@ -31,13 +31,15 @@ export async function GET(_req: NextRequest) {
     }
 
     const plan = (profile?.plan || 'free') as 'free' | 'starter' | 'pro' | 'enterprise';
-    const name = plan.charAt(0).toUpperCase() + plan.slice(1);
+    const pricing = plan === 'starter' || plan === 'pro' ? PLANS[plan] : PLANS.free;
+    const name = pricing.label;
     const interval: 'month' | 'year' = 'month';
     const status = profile?.subscription_status || (plan === 'free' ? 'none' : 'active');
     const currentPeriodEnd = profile?.subscription_current_period_end || null;
 
     return NextResponse.json({
-      subscription: { id: '', name, price: 0, currency: 'EUR', interval },
+      hasSubscription: plan !== 'free' && ['active', 'trialing', 'past_due', 'unpaid'].includes(status),
+      subscription: { id: '', name, price: pricing.priceMonthly, currency: 'EUR', interval },
       userSubscription: { status, currentPeriodEnd },
     });
   } catch (e) {

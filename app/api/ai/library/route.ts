@@ -1,12 +1,11 @@
 // app/api/ai/library/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-import { aiGenerationService } from '@/lib/aiGenerationService';
+import { getApiSession } from '@/lib/getApiSession';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
@@ -16,20 +15,22 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
     const search = searchParams.get('search') || '';
 
-    let generations;
-    
-    if (search) {
-      generations = await aiGenerationService.searchLibrary(session.user.id, search);
-    } else {
-      generations = await aiGenerationService.getUserLibrary(session.user.id, limit, offset);
-    }
+    let query = supabaseAdmin
+      .from('ai_generations')
+      .select('*, tracks:ai_tracks(*)')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (search) query = query.ilike('prompt', `%${search.replace(/[%_]/g, '\\$&')}%`);
+    const { data: generations, error } = await query;
+    if (error) throw error;
 
     return NextResponse.json({
       generations,
       pagination: {
         limit,
         offset,
-        total: generations.length
+        total: generations?.length || 0
       }
     });
 

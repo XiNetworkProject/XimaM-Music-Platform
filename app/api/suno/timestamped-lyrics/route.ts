@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -13,7 +12,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'SUNO_API_KEY manquant' }, { status: 500 });
   }
 
-  const session = await getServerSession(authOptions);
+  const session = await getApiSession(req);
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
   }
