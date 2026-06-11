@@ -5,6 +5,7 @@ import type {
   CommunityPost,
   CommunityReply,
   CommunityStats,
+  SynauraCityData,
   FeedResponse,
   FeedStrategy,
   HomeComment,
@@ -1948,5 +1949,49 @@ export async function generateAILyrics(prompt: string): Promise<{ taskId?: strin
   return request('/api/suno/generate-lyrics', {
     method: 'POST',
     body: JSON.stringify({ prompt }),
+  });
+}
+
+function normalizeCityTrack<T extends Record<string, any>>(raw: T): T & Track {
+  const normalized = normalizeTrack(raw);
+  return { ...raw, ...(normalized || raw) } as T & Track;
+}
+
+export async function getSynauraCity(): Promise<SynauraCityData> {
+  const city = await request<any>('/api/city');
+  const pulse = (Array.isArray(city?.pulse) ? city.pulse : []).map(normalizeCityTrack);
+  const radar = (Array.isArray(city?.radar) ? city.radar : []).map(normalizeCityTrack);
+  const premieres = (Array.isArray(city?.premieres) ? city.premieres : []).map(normalizeCityTrack);
+  return {
+    ...city,
+    pulse,
+    radar,
+    premieres,
+    showcase: (Array.isArray(city?.showcase) ? city.showcase : []).map((item: any) => ({ ...item, track: normalizeCityTrack(item.track) })),
+    spotlightArtists: (Array.isArray(city?.spotlightArtists) ? city.spotlightArtists : []).map((artist: any) => ({
+      ...artist,
+      featuredTrack: artist?.featuredTrack ? normalizeCityTrack(artist.featuredTrack) : null,
+    })),
+    events: (Array.isArray(city?.events) ? city.events : []).map((event: any) => ({
+      ...event,
+      tracks: (Array.isArray(event?.tracks) ? event.tracks : []).map(normalizeCityTrack),
+    })),
+    hallOfFame: (Array.isArray(city?.hallOfFame) ? city.hallOfFame : []).map((award: any) => ({
+      ...award,
+      track: award?.track ? normalizeCityTrack(award.track) : null,
+      artist: award?.artist
+        ? { ...award.artist, featuredTrack: award.artist.featuredTrack ? normalizeCityTrack(award.artist.featuredTrack) : null }
+        : null,
+    })),
+    creatorCard: city?.creatorCard
+      ? { ...city.creatorCard, featuredTrack: city.creatorCard.featuredTrack ? normalizeCityTrack(city.creatorCard.featuredTrack) : null }
+      : null,
+  } as SynauraCityData;
+}
+
+export async function voteSynauraCityBattle(battleId: string, trackId: string): Promise<void> {
+  await request('/api/city/vote', {
+    method: 'POST',
+    body: JSON.stringify({ battleId, trackId }),
   });
 }

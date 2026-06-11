@@ -193,3 +193,99 @@ export type CommunityReply = {
   createdAt: string;
   author: CommunityAuthor;
 };
+
+export type CityPulseTrack = Track & {
+  pulse: number;
+  pulseState: 'Calme' | 'Ca demarre' | 'Ca chauffe' | 'En feu' | 'Viral potentiel';
+  pulseReasons: string[];
+  recentPlays: number;
+  recentLikes: number;
+  recentComments: number;
+  retention: number;
+};
+
+export type CityArtist = {
+  id: string;
+  username: string;
+  name: string;
+  avatar?: string | null;
+  bio?: string;
+  genre: string[];
+  createdAt?: string;
+  trackCount: number;
+  totalPlays: number;
+  totalLikes: number;
+  followerCount: number;
+  level: number;
+  levelName: string;
+  xp: number;
+  nextLevelXp: number;
+  featuredTrack?: Track | null;
+};
+
+export type CityShowcaseItem = {
+  id: string;
+  label: string;
+  caption: string;
+  accent: string;
+  icon: string;
+  track: Track;
+};
+
+export type CityAward = {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+  track?: Track | null;
+  artist?: CityArtist | null;
+};
+
+export type CityBadge = {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  unlocked: boolean;
+  progress: number;
+  target: number;
+};
+
+export type CityEvent = {
+  id: string;
+  kind: 'friday_drop' | 'challenge' | 'battle' | 'seasonal';
+  title: string;
+  subtitle: string;
+  description: string;
+  icon: string;
+  accent: string;
+  startsAt?: string;
+  endsAt?: string;
+  challengeTag?: string;
+  theme?: string;
+  tracks?: CityPulseTrack[];
+  selectedTrackId?: string | null;
+  voteCounts?: Record<string, number>;
+};
+
+export type SynauraCityData = {
+  dayKey: string;
+  weekKey: string;
+  generatedAt: string;
+  cityMood: {
+    title: string;
+    subtitle: string;
+    activeListeners: number;
+    reactionsToday: number;
+    newDrops: number;
+  };
+  spotlightArtists: CityArtist[];
+  showcase: CityShowcaseItem[];
+  pulse: CityPulseTrack[];
+  radar: CityPulseTrack[];
+  premieres: CityPulseTrack[];
+  events: CityEvent[];
+  hallOfFame: CityAward[];
+  listenerBadges: CityBadge[];
+  creatorCard: CityArtist | null;
+};

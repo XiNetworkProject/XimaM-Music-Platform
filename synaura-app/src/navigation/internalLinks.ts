@@ -64,6 +64,10 @@ export async function openInternalLink(
     navigation.navigate('Community');
     return true;
   }
+  if (root === 'city') {
+    navigation.navigate('City');
+    return true;
+  }
   if (root === 'upload') {
     navigation.navigate('Upload');
     return true;

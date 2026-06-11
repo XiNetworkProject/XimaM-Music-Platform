@@ -1,12 +1,12 @@
 {
-  "title": "Synaura mobile 0.5",
+  "title": "Synaura mobile 0.6",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Swipe plus fluide avec changement de son et lecture stabilises",
-    "Suivi des artistes fiable depuis le Swipe, l'accueil et le lecteur",
-    "Studio IA mobile complet avec bibliotheque, covers et credits",
-    "Profils sociaux, posts epingles, Communaute et abonnements enrichis",
-    "Radios obsoletes retirees des flux web et mobile"
+    "Synaura City rassemble la vitrine quotidienne, les nouveaux talents et les lancements officiels",
+    "Pulse et Radar detectent les sons et artistes qui montent",
+    "Friday Drop, Theme Challenge, Battle IA et evenements saisonniers",
+    "Hall of Fame, badges auditeur et carte artiste evolutive",
+    "Lecture, votes, profils et participation connectes entre web et mobile"
   ]
 }

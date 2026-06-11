@@ -14,6 +14,7 @@ import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch'
 import TrackCreateRemixActions from '@/components/TrackCreateRemixActions';
 import TrackCover from '@/components/TrackCover';
 import SynauraAndroidHomeBanner from '@/components/mobile/SynauraAndroidHomeBanner';
+import SynauraCityTeaser from '@/components/city/SynauraCityTeaser';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { sendTrackEvents } from '@/lib/analyticsClient';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
@@ -3072,6 +3073,7 @@ export default function SynauraWarmFeed() {
       <SynauraRouteNav />
       <SynauraAnnouncementStrip />
       <SynauraAndroidHomeBanner />
+      <SynauraCityTeaser />
       <MiniCarousel tracks={heroTracks} />
       <MobileActions />
 

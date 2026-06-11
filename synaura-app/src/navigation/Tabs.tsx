@@ -19,6 +19,7 @@ import { CreateHubScreen } from '@/screens/CreateHubScreen';
 import { AIStudioScreen } from '@/screens/AIStudioScreen';
 import { CreatePostScreen } from '@/screens/CreatePostScreen';
 import { SubscriptionsScreen } from '@/screens/SubscriptionsScreen';
+import { CityScreen } from '@/screens/CityScreen';
 import { colors } from '@/theme/tokens';
 import type { Track } from '@/api/types';
 
@@ -35,6 +36,7 @@ export type RootTabsParamList = {
   CreatePost: { track?: Track } | undefined;
   Settings: undefined;
   Subscriptions: undefined;
+  City: undefined;
   PublicProfile: { username: string };
   Notifications: undefined;
   PostDetail: { postId: string };
@@ -50,6 +52,7 @@ const HIDDEN_ROUTES = new Set<keyof RootTabsParamList>([
   'CreatePost',
   'Settings',
   'Subscriptions',
+  'City',
   'PublicProfile',
   'Notifications',
   'PostDetail',
@@ -179,6 +182,7 @@ export function Tabs() {
       <Tab.Screen name="CreatePost" component={CreatePostScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="Subscriptions" component={SubscriptionsScreen} options={{ tabBarButton: () => null }} />
+      <Tab.Screen name="City" component={CityScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="PublicProfile" component={PublicProfileScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="PostDetail" component={PostDetailScreen} options={{ tabBarButton: () => null }} />

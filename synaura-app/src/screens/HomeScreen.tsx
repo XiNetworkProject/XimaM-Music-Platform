@@ -52,6 +52,7 @@ import { TrackCover } from '@/components/TrackCover';
 import { openInternalLink } from '@/navigation/internalLinks';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { SHOW_SHUTDOWN_NOTICES } from '@/config/features';
+import { CityHomeBanner } from '@/components/city/CityHomeBanner';
 
 const filters = ['Pour toi', 'Sons', 'Communaute', 'Plus'] as const;
 const quickActions = [
@@ -442,6 +443,7 @@ export function HomeScreen() {
         onPublish={() => navigation.navigate('CreateHub')}
         onCommunity={() => navigation.navigate('Community')}
       />
+      <CityHomeBanner onOpen={() => navigation.navigate('City')} />
       <FilterBar value={filter} onChange={setFilter} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {loading && !feed.length ? <LoadingCards /> : null}
