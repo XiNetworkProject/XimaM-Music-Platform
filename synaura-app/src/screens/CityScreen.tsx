@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Easing,
+  FlatList,
   Image,
+  Modal,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -16,7 +18,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { claimCityEventReward, getSynauraCity, participateCityEvent, voteSynauraCityBattle } from '@/api/client';
+import {
+  claimCityEventReward,
+  getMyTracks,
+  getSynauraCity,
+  participateCityEvent,
+  voteSynauraCityBattle,
+  type MyTrackSummary,
+} from '@/api/client';
 import type {
   CityArtist,
   CityAward,
@@ -30,14 +39,16 @@ import type {
 import { useAuth } from '@/auth/AuthProvider';
 import { TrackCover } from '@/components/TrackCover';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
-import { SynauraBackground } from '@/components/SynauraBackground';
 import { usePlayer } from '@/player/PlayerProvider';
 import { spacing } from '@/theme/tokens';
 
-const ink = '#171313';
 const paper = '#FFFAF2';
-const muted = 'rgba(23,19,19,0.42)';
-const border = 'rgba(23,19,19,0.08)';
+const ink = '#171313';
+const nightBg = '#08050E';
+const card = 'rgba(255,255,255,0.05)';
+const cardBorder = 'rgba(255,255,255,0.09)';
+const muted = 'rgba(255,250,242,0.45)';
+const faint = 'rgba(255,250,242,0.32)';
 
 function compact(value: number | undefined) {
   const numberValue = Number(value || 0);
@@ -84,7 +95,9 @@ export function CityScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [voting, setVoting] = useState(false);
   const [actingEventId, setActingEventId] = useState<string | null>(null);
+  const [pickerEvent, setPickerEvent] = useState<CityEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   const load = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true);
@@ -104,6 +117,12 @@ export function CityScreen() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3400);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
   const play = useCallback(async (track: Track) => {
     if (player.current?._id === track._id) {
       await player.togglePlayPause();
@@ -121,6 +140,7 @@ export function CityScreen() {
     try {
       await voteSynauraCityBattle(battle.id, trackId);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setToast('Vote enregistre. Badge de jure debloque.');
       await load(true);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Vote impossible');
@@ -129,27 +149,27 @@ export function CityScreen() {
     }
   }, [auth, battle, load, voting]);
 
-  const participate = useCallback(async (event: CityEvent) => {
-    if (actingEventId) return;
+  const openParticipate = useCallback((event: CityEvent) => {
     if (!auth.requireAuth()) return;
-    const trackId = event.tracks?.[0]?._id;
-    if (!trackId) {
-      Alert.alert('Aucun son disponible', 'Publie ou selectionne un son avant de participer a cet event.');
-      navigation.navigate('Upload');
-      return;
-    }
+    setPickerEvent(event);
+  }, [auth]);
+
+  const participate = useCallback(async (event: CityEvent, trackId: string) => {
+    if (actingEventId) return;
     setActingEventId(event.id);
     setError(null);
     try {
       await participateCityEvent(event.id, trackId);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setPickerEvent(null);
+      setToast(`Ton son est inscrit dans "${event.title}".`);
       await load(true);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Participation impossible');
     } finally {
       setActingEventId(null);
     }
-  }, [actingEventId, auth, load, navigation]);
+  }, [actingEventId, load]);
 
   const claim = useCallback(async (event: CityEvent) => {
     if (actingEventId) return;
@@ -159,6 +179,7 @@ export function CityScreen() {
     try {
       await claimCityEventReward(event.id);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setToast('Recompense reclamee. Bien joue.');
       await load(true);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Recompense impossible');
@@ -169,21 +190,21 @@ export function CityScreen() {
 
   return (
     <View style={styles.root}>
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}><SynauraBackground variant="feed" /></View>
-      <CityChaosOverlay />
+      <LinearGradient colors={['#0E0718', '#08050E', '#050A10']} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      <CityNightOverlay />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 8, 28) }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={ink} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={paper} />}
       >
         <View style={styles.topRow}>
-          <MotionPressable onPress={() => navigation.goBack()} style={styles.roundButton}><Ionicons name="chevron-back" size={20} color={ink} /></MotionPressable>
+          <MotionPressable onPress={() => navigation.goBack()} style={styles.roundButton}><Ionicons name="chevron-back" size={20} color={paper} /></MotionPressable>
           <View style={styles.topCopy}><Text style={styles.topKicker}>EN DIRECT</Text><Text style={styles.topTitle}>Synaura City</Text></View>
-          <MotionPressable onPress={() => void load(true)} style={styles.roundButton}><Ionicons name="refresh" size={18} color={ink} /></MotionPressable>
+          <MotionPressable onPress={() => void load(true)} style={styles.roundButton}><Ionicons name="refresh" size={18} color={paper} /></MotionPressable>
         </View>
 
         {loading && !city ? <LoadingCity /> : null}
-        {error ? <View style={styles.error}><Ionicons name="alert-circle" size={16} color="#B42318" /><Text style={styles.errorText}>{error}</Text></View> : null}
+        {error ? <View style={styles.error}><Ionicons name="alert-circle" size={16} color="#FF8A80" /><Text style={styles.errorText}>{error}</Text></View> : null}
         {city ? (
           <>
             <CityHero city={city} onUpload={() => navigation.navigate('Upload')} onCommunity={() => navigation.navigate('Community')} />
@@ -217,7 +238,7 @@ export function CityScreen() {
               {city.events.map((event, index) => (
                 event.kind === 'battle'
                   ? <BattleCard key={event.id} event={event} voting={voting} player={player} onPlay={play} onVote={vote} />
-                  : <EventCard key={event.id} event={event} index={index} busy={actingEventId === event.id} onParticipate={() => participate(event)} onClaim={() => claim(event)} onPlay={play} />
+                  : <EventCard key={event.id} event={event} index={index} busy={actingEventId === event.id} onParticipate={() => openParticipate(event)} onClaim={() => claim(event)} onPlay={play} />
               ))}
             </View>
 
@@ -228,26 +249,40 @@ export function CityScreen() {
           </>
         ) : null}
       </ScrollView>
+
+      <TrackPickerSheet
+        event={pickerEvent}
+        busy={Boolean(actingEventId)}
+        onClose={() => setPickerEvent(null)}
+        onPick={(trackId) => pickerEvent && void participate(pickerEvent, trackId)}
+        onCreate={() => {
+          setPickerEvent(null);
+          navigation.navigate('Upload');
+        }}
+      />
+
+      {toast ? (
+        <View pointerEvents="none" style={[styles.toast, { bottom: insets.bottom + 108 }]}>
+          <Ionicons name="checkmark-circle" size={15} color="#7EF2ED" />
+          <Text style={styles.toastText}>{toast}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
 
-function CityChaosOverlay() {
+function CityNightOverlay() {
   const drift = useRef(new Animated.Value(0)).current;
   const meteor = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    const driftLoop = Animated.loop(Animated.timing(drift, {
-      toValue: 1,
-      duration: 5200,
-      easing: Easing.inOut(Easing.ease),
-      useNativeDriver: true,
-    }));
-    const meteorLoop = Animated.loop(Animated.timing(meteor, {
-      toValue: 1,
-      duration: 2800,
-      easing: Easing.inOut(Easing.cubic),
-      useNativeDriver: true,
-    }));
+    const driftLoop = Animated.loop(Animated.sequence([
+      Animated.timing(drift, { toValue: 1, duration: 5600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(drift, { toValue: 0, duration: 5600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+    ]));
+    const meteorLoop = Animated.loop(Animated.sequence([
+      Animated.timing(meteor, { toValue: 1, duration: 3400, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
+      Animated.delay(2400),
+    ]));
     driftLoop.start();
     meteorLoop.start();
     return () => {
@@ -256,17 +291,17 @@ function CityChaosOverlay() {
     };
   }, [drift, meteor]);
 
-  const bob = drift.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, -18, 0] });
-  const spin = drift.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '16deg'] });
-  const meteorX = meteor.interpolate({ inputRange: [0, 1], outputRange: [180, -260] });
-  const meteorY = meteor.interpolate({ inputRange: [0, 1], outputRange: [-40, 280] });
+  const bob = drift.interpolate({ inputRange: [0, 1], outputRange: [0, -20] });
+  const meteorX = meteor.interpolate({ inputRange: [0, 1], outputRange: [200, -300] });
+  const meteorY = meteor.interpolate({ inputRange: [0, 1], outputRange: [-30, 300] });
+  const meteorOpacity = meteor.interpolate({ inputRange: [0, 0.12, 0.85, 1], outputRange: [0, 1, 0.7, 0] });
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Animated.View style={[styles.orbHot, { transform: [{ translateY: bob }, { rotate: spin }] }]} />
-      <Animated.View style={[styles.orbCold, { transform: [{ translateY: Animated.multiply(bob, -0.8) }] }]} />
-      <Animated.View style={[styles.meteor, { transform: [{ translateX: meteorX }, { translateY: meteorY }, { rotate: '-22deg' }] }]} />
-      <View style={styles.gridGlow} />
+      <Animated.View style={[styles.orbViolet, { transform: [{ translateY: bob }] }]} />
+      <Animated.View style={[styles.orbRose, { transform: [{ translateY: Animated.multiply(bob, -0.8) }] }]} />
+      <Animated.View style={[styles.orbCyan, { transform: [{ translateY: Animated.multiply(bob, 0.6) }] }]} />
+      <Animated.View style={[styles.meteor, { opacity: meteorOpacity, transform: [{ translateX: meteorX }, { translateY: meteorY }, { rotate: '-24deg' }] }]} />
     </View>
   );
 }
@@ -274,48 +309,37 @@ function CityChaosOverlay() {
 function LoadingCity() {
   return (
     <View style={styles.loading}>
-      <ActivityIndicator color={ink} />
-      <Text style={styles.loadingText}>La ville se reveille...</Text>
+      <ActivityIndicator color={paper} />
+      <Text style={styles.loadingText}>Les neons s allument...</Text>
     </View>
   );
 }
 
 function CityHero({ city, onUpload, onCommunity }: { city: SynauraCityData; onUpload: () => void; onCommunity: () => void }) {
   const pulse = useRef(new Animated.Value(0)).current;
-  const blast = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const animation = Animated.loop(Animated.sequence([
-      Animated.timing(pulse, { toValue: 1, duration: 1300, useNativeDriver: true }),
-      Animated.timing(pulse, { toValue: 0, duration: 1300, useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
     ]));
     animation.start();
     return () => animation.stop();
   }, [pulse]);
-  useEffect(() => {
-    const animation = Animated.loop(Animated.timing(blast, {
-      toValue: 1,
-      duration: 2400,
-      easing: Easing.inOut(Easing.ease),
-      useNativeDriver: true,
-    }));
-    animation.start();
-    return () => animation.stop();
-  }, [blast]);
   return (
     <View style={styles.hero}>
-      <LinearGradient colors={['#080506', '#261022', '#40204B', '#083638']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <Animated.View style={[styles.heroSignal, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.48] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.15] }) }] }]} />
-      <Animated.View style={[styles.heroBlast, { opacity: blast.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.18, 0.72, 0.18] }), transform: [{ scale: blast.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1.25] }) }] }]} />
-      <Animated.View style={[styles.heroFlame, { transform: [{ translateY: pulse.interpolate({ inputRange: [0, 1], outputRange: [8, -9] }) }, { scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.14] }) }] }]} />
-      <View style={styles.heroShardOne} />
-      <View style={styles.heroShardTwo} />
-      <View style={styles.heroBadge}><Ionicons name="radio" size={14} color="#7EF2ED" /><Text style={styles.heroBadgeText}>SYNAURA CITY EST OUVERTE</Text></View>
+      <LinearGradient colors={['#1B0B26', '#12081C', '#04101A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <Animated.View style={[styles.heroBlast, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.55] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.18] }) }] }]} />
+      <Animated.View style={[styles.heroRing, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0.12] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.25] }) }] }]} />
+      <View style={styles.heroBadge}>
+        <Animated.View style={[styles.heroLiveDot, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 0.4] }) }]} />
+        <Text style={styles.heroBadgeText}>EN DIRECT DE SYNAURA CITY</Text>
+      </View>
       <Text style={styles.heroTitle}>{city.cityMood.title}</Text>
       <Text style={styles.heroSubtitle}>{city.cityMood.subtitle}</Text>
       <View style={styles.heroStats}>
-        <HeroStat label="Reactions" value={compact(city.cityMood.reactionsToday)} />
-        <HeroStat label="Drops" value={compact(city.cityMood.newDrops)} />
-        <HeroStat label="Pulse" value={compact(city.pulse.filter((track) => track.pulse >= 60).length)} />
+        <HeroStat label="Reactions" value={compact(city.cityMood.reactionsToday)} color="#FF7B91" />
+        <HeroStat label="Drops" value={compact(city.cityMood.newDrops)} color="#7EF2ED" />
+        <HeroStat label="Pulse" value={compact(city.pulse.filter((track) => track.pulse >= 60).length)} color="#B9A8FF" />
       </View>
       <View style={styles.heroActions}>
         <MotionPressable onPress={onUpload} style={styles.heroPrimary}><Ionicons name="rocket" size={15} color={ink} /><Text style={styles.heroPrimaryText}>Lancer un drop</Text></MotionPressable>
@@ -328,24 +352,28 @@ function CityHero({ city, onUpload, onCommunity }: { city: SynauraCityData; onUp
 function ImpactStrip({ city }: { city: SynauraCityData }) {
   return (
     <View style={styles.impactStrip}>
-      <LinearGradient colors={['rgba(255,75,122,0.24)', 'rgba(126,242,237,0.18)', 'rgba(124,92,255,0.24)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
       <View style={styles.impactPill}><Ionicons name="flame" size={14} color="#FFD667" /><Text style={styles.impactText}>{city.pulse.filter((track) => track.pulse >= 78).length} sons en feu</Text></View>
       <View style={styles.impactPill}><Ionicons name="flash" size={14} color="#7EF2ED" /><Text style={styles.impactText}>Battle live</Text></View>
-      <View style={styles.impactPill}><Ionicons name="trophy" size={14} color="#FFFAF2" /><Text style={styles.impactText}>Awards ouverts</Text></View>
+      <View style={styles.impactPill}><Ionicons name="trophy" size={14} color="#FFD667" /><Text style={styles.impactText}>Awards ouverts</Text></View>
     </View>
   );
 }
 
-function HeroStat({ label, value }: { label: string; value: string }) {
-  return <View style={styles.heroStat}><Text style={styles.heroStatValue}>{value}</Text><Text style={styles.heroStatLabel}>{label}</Text></View>;
+function HeroStat({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <View style={styles.heroStat}>
+      <View style={[styles.heroStatDot, { backgroundColor: color }]} />
+      <Text style={styles.heroStatValue}>{value}</Text>
+      <Text style={styles.heroStatLabel}>{label}</Text>
+    </View>
+  );
 }
 
 function SectionTitle({ icon, title, subtitle }: { icon: any; title: string; subtitle: string }) {
   return (
     <View style={styles.sectionTitleWrap}>
-      <View style={styles.sectionIcon}><Ionicons name={icon} size={17} color={paper} /></View>
+      <View style={styles.sectionIcon}><Ionicons name={icon} size={17} color="#7EF2ED" /></View>
       <View style={styles.sectionCopy}><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionSubtitle}>{subtitle}</Text></View>
-      <View style={styles.sectionSpark}><Ionicons name="sparkles" size={16} color="#FF4B7A" /></View>
     </View>
   );
 }
@@ -355,13 +383,16 @@ function ShowcaseCard({ item, index, playing, onPlay }: { item: CityShowcaseItem
     <Reveal delay={index * 55}>
       <MotionPressable onPress={() => onPlay(item.track)} style={styles.showcase}>
         <TrackCover track={item.track} active style={StyleSheet.absoluteFill} />
-        <LinearGradient colors={['rgba(255,75,122,0.06)', 'rgba(23,19,19,0.30)', 'rgba(23,19,19,0.96)']} style={StyleSheet.absoluteFill} />
-        <View style={[styles.cardBurst, { backgroundColor: item.accent }]} />
+        <LinearGradient colors={['rgba(8,5,14,0.05)', 'rgba(8,5,14,0.35)', 'rgba(8,5,14,0.97)']} style={StyleSheet.absoluteFill} />
         <View style={styles.showcaseTop}>
           <View style={styles.showcaseLabel}><Ionicons name={iconName(item.icon)} size={12} color={item.accent} /><Text style={styles.showcaseLabelText}>{item.label}</Text></View>
           <View style={styles.showcasePlay}><Ionicons name={playing ? 'pause' : 'play'} size={15} color={ink} /></View>
         </View>
-        <View style={styles.showcaseBottom}><Text style={styles.showcaseCaption}>{item.caption}</Text><Text numberOfLines={2} style={styles.showcaseTitle}>{item.track.title}</Text><Text numberOfLines={1} style={styles.showcaseArtist}>{artistName(item.track)}</Text></View>
+        <View style={styles.showcaseBottom}>
+          <Text style={[styles.showcaseCaption, { color: item.accent }]}>{item.caption}</Text>
+          <Text numberOfLines={2} style={styles.showcaseTitle}>{item.track.title}</Text>
+          <Text numberOfLines={1} style={styles.showcaseArtist}>{artistName(item.track)}</Text>
+        </View>
       </MotionPressable>
     </Reveal>
   );
@@ -370,15 +401,16 @@ function ShowcaseCard({ item, index, playing, onPlay }: { item: CityShowcaseItem
 function PulseCard({ track, rank, playing, onPlay }: { track: CityPulseTrack; rank: number; playing: boolean; onPlay: (track: Track) => void }) {
   return (
     <MotionPressable onPress={() => onPlay(track)} style={styles.pulseCard}>
-      <View style={styles.pulseFlare} />
       <Text style={styles.pulseRank}>{String(rank).padStart(2, '0')}</Text>
       <TrackCover track={track} active style={styles.pulseCover} />
       <View style={styles.pulseCopy}>
         <View style={styles.pulseTitleRow}><Text numberOfLines={1} style={styles.pulseTitle}>{track.title}</Text><Text style={styles.pulseState}>{track.pulseState}</Text></View>
         <Text numberOfLines={1} style={styles.pulseArtist}>{artistName(track)} · {track.pulseReasons.join(' · ')}</Text>
-        <View style={styles.pulseBar}><View style={[styles.pulseBarFill, { width: `${track.pulse}%` }]} /></View>
+        <View style={styles.pulseBar}>
+          <LinearGradient colors={['#00C2CB', '#7C5CFF', '#FF4B7A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.pulseBarFill, { width: `${track.pulse}%` }]} />
+        </View>
       </View>
-      <View style={styles.pulseValue}><Text style={styles.pulseNumber}>{track.pulse}%</Text><Ionicons name={playing ? 'pause' : 'pulse'} size={13} color="#7C5CFF" /></View>
+      <View style={styles.pulseValue}><Text style={styles.pulseNumber}>{track.pulse}%</Text><Ionicons name={playing ? 'pause' : 'pulse'} size={13} color="#B9A8FF" /></View>
     </MotionPressable>
   );
 }
@@ -387,9 +419,11 @@ function ArtistCard({ artist, index, onOpen, onPlay }: { artist: CityArtist; ind
   return (
     <Reveal delay={index * 55}>
       <View style={styles.artistCard}>
-        <LinearGradient colors={['#FF6F61', '#7C5CFF', '#00A7B2']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.artistBanner} />
-        {artist.featuredTrack ? <TrackCover track={artist.featuredTrack} active style={styles.artistBannerCover} /> : null}
-        <Text style={styles.artistBooster}>NOUVEAU TALENT DECOUVERT</Text>
+        <View style={styles.artistBanner}>
+          <LinearGradient colors={['#FF4B7A', '#7C5CFF', '#00A7B2']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          {artist.featuredTrack ? <TrackCover track={artist.featuredTrack} active style={styles.artistBannerCover} /> : null}
+          <Text style={styles.artistBooster}>NOUVEAU TALENT DECOUVERT</Text>
+        </View>
         <Image source={artist.avatar ? { uri: artist.avatar } : require('../assets/synaura-symbol-2026.png')} style={styles.artistAvatar} />
         <View style={styles.artistBody}>
           <Text numberOfLines={1} style={styles.artistName}>{artist.name}</Text>
@@ -397,7 +431,7 @@ function ArtistCard({ artist, index, onOpen, onPlay }: { artist: CityArtist; ind
           <Text style={styles.artistStats}>{compact(artist.totalPlays)} ecoutes · {compact(artist.totalLikes)} likes</Text>
           <View style={styles.artistActions}>
             <MotionPressable onPress={onOpen} style={styles.artistOpen}><Text style={styles.artistOpenText}>Decouvrir</Text></MotionPressable>
-            {artist.featuredTrack ? <MotionPressable onPress={() => onPlay(artist.featuredTrack!)} style={styles.artistPlay}><Ionicons name="play" size={14} color={ink} /></MotionPressable> : null}
+            {artist.featuredTrack ? <MotionPressable onPress={() => onPlay(artist.featuredTrack!)} style={styles.artistPlay}><Ionicons name="play" size={14} color={paper} /></MotionPressable> : null}
           </View>
         </View>
       </View>
@@ -410,7 +444,7 @@ function PremiereCard({ track, index, playing, onPlay }: { track: CityPulseTrack
     <Reveal delay={index * 45}>
       <MotionPressable onPress={() => onPlay(track)} style={styles.premiere}>
         <TrackCover track={track} active style={styles.premiereCover} />
-        <LinearGradient colors={['rgba(23,19,19,0.05)', 'rgba(23,19,19,0.92)']} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={['rgba(8,5,14,0.05)', 'rgba(8,5,14,0.92)']} style={StyleSheet.absoluteFill} />
         <Text style={styles.premiereBadge}>NOUVEAU DROP</Text>
         <View style={styles.premierePlay}><Ionicons name={playing ? 'pause' : 'play'} size={15} color={ink} /></View>
         <View style={styles.premiereBottom}><Text style={styles.premierePulse}>DISPONIBLE · PULSE {track.pulse}%</Text><Text numberOfLines={1} style={styles.premiereTitle}>{track.title}</Text><Text numberOfLines={1} style={styles.premiereArtist}>Nouveau drop de {artistName(track)}</Text></View>
@@ -436,26 +470,28 @@ function EventCard({
 }) {
   const first = event.tracks?.[0];
   const winner = event.winners?.[0];
+  const participated = Boolean(event.userParticipation);
+  const claimable = event.claimStatus === 'available';
   const cta = busy
     ? 'Chargement...'
-    : event.claimStatus === 'available'
-      ? 'Reclamer'
-      : event.userParticipation
+    : claimable
+      ? 'Reclamer ma recompense'
+      : participated
         ? 'Participation envoyee'
-        : event.detailCta?.label || 'Participer';
+        : 'Participer avec un son';
   return (
     <Reveal delay={index * 45}>
       <View style={styles.eventCard}>
         {first ? <TrackCover track={first} active style={StyleSheet.absoluteFill} /> : null}
-        <LinearGradient colors={['rgba(23,19,19,0.96)', 'rgba(23,19,19,0.72)', 'rgba(23,19,19,0.30)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={['rgba(8,5,14,0.97)', 'rgba(8,5,14,0.78)', 'rgba(8,5,14,0.40)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
         <View style={[styles.eventGlow, { backgroundColor: event.accent }]} />
         <View style={styles.eventIcon}><Ionicons name={iconName(event.icon)} size={20} color={event.accent} /></View>
         <View style={styles.eventTagWrap}>
-          <Text style={styles.eventTag}>{event.status || 'live'}</Text>
+          <Text style={[styles.eventTag, event.isLive && styles.eventTagLive]}>{event.isLive ? '· LIVE' : event.status || 'live'}</Text>
           {event.challengeTag ? <Text style={styles.eventTag}>{event.challengeTag}</Text> : null}
         </View>
         <View style={styles.eventBody}>
-          <Text style={styles.eventKicker}>{event.subtitle}</Text>
+          <Text style={[styles.eventKicker, { color: event.accent }]}>{event.subtitle}</Text>
           <Text style={styles.eventTitle}>{event.title}</Text>
           <Text style={styles.eventDescription}>{event.description}</Text>
           <View style={styles.eventMetaRow}>
@@ -464,7 +500,15 @@ function EventCard({
             {winner ? <Text style={styles.eventWinner}>Winner: {winner.track?.title || winner.trackId}</Text> : null}
           </View>
           <View style={styles.eventActions}>
-            <MotionPressable disabled={busy || Boolean(event.userParticipation && event.claimStatus !== 'available')} onPress={event.claimStatus === 'available' ? onClaim : onParticipate} style={styles.eventPrimary}><Text style={styles.eventPrimaryText}>{cta}</Text><Ionicons name="arrow-forward" size={14} color={ink} /></MotionPressable>
+            <MotionPressable
+              disabled={busy || (participated && !claimable)}
+              onPress={claimable ? onClaim : onParticipate}
+              style={[styles.eventPrimary, claimable && styles.eventPrimaryClaim, participated && !claimable && styles.eventPrimaryDone]}
+            >
+              {participated && !claimable ? <Ionicons name="checkmark" size={14} color={paper} /> : null}
+              <Text style={[styles.eventPrimaryText, participated && !claimable && styles.eventPrimaryTextDone]}>{cta}</Text>
+              {!participated || claimable ? <Ionicons name="arrow-forward" size={14} color={ink} /> : null}
+            </MotionPressable>
             {first ? <MotionPressable onPress={() => onPlay(first)} style={styles.eventPlay}><Ionicons name="play" size={14} color={paper} /></MotionPressable> : null}
           </View>
         </View>
@@ -478,7 +522,7 @@ function BattleCard({ event, voting, player, onPlay, onVote }: { event: CityEven
   const total = tracks.reduce((sum, track) => sum + Number(event.voteCounts?.[track._id] || 0), 0) || 1;
   return (
     <View style={styles.battle}>
-      <View style={styles.battleHeader}><View><Text style={styles.battleKicker}>{event.subtitle}</Text><Text style={styles.battleTitle}>{event.title}</Text><Text style={styles.battleMeta}>{event.totalVotes || 0} votes reels · {event.status || 'live'}</Text></View><Ionicons name="flash" size={23} color="#7EF2ED" /></View>
+      <View style={styles.battleHeader}><View><Text style={styles.battleKicker}>{event.subtitle}</Text><Text style={styles.battleTitle}>{event.title}</Text><Text style={styles.battleMeta}>{event.totalVotes || 0} votes · {event.isLive ? 'en direct' : event.status || 'live'}</Text></View><View style={styles.battleFlash}><Ionicons name="flash" size={20} color="#7EF2ED" /></View></View>
       {event.winnerTrackId ? <Text style={styles.battleWinner}>Gagnant: {tracks.find((track) => track._id === event.winnerTrackId)?.title || event.winnerTrackId}</Text> : null}
       <View style={styles.battleGrid}>
         {tracks.map((track) => {
@@ -490,6 +534,7 @@ function BattleCard({ event, voting, player, onPlay, onVote }: { event: CityEven
               <MotionPressable onPress={() => onPlay(track)} style={styles.battleCoverWrap}><TrackCover track={track} active style={StyleSheet.absoluteFill} /><View style={styles.battlePlay}><Ionicons name={playing ? 'pause' : 'play'} size={16} color={ink} /></View></MotionPressable>
               <Text numberOfLines={1} style={styles.battleTrackTitle}>{track.title}</Text>
               <Text numberOfLines={1} style={styles.battleArtist}>{artistName(track)}</Text>
+              <View style={styles.battleBar}><View style={[styles.battleBarFill, { width: `${percent}%` }]} /></View>
               <MotionPressable disabled={voting} onPress={() => onVote(track._id)} style={[styles.voteButton, selected && styles.voteButtonSelected]}><Ionicons name={selected ? 'checkmark' : 'flash'} size={12} color={selected ? ink : paper} /><Text style={[styles.voteText, selected && styles.voteTextSelected]}>{selected ? 'Ton vote' : `Voter · ${percent}%`}</Text></MotionPressable>
             </View>
           );
@@ -521,14 +566,14 @@ function Radar({ tracks, player, onPlay }: { tracks: CityPulseTrack[]; player: R
 
 function HallOfFame({ awards, onPlay }: { awards: CityAward[]; onPlay: (track: Track) => void }) {
   return (
-    <View style={styles.lightPanel}>
-      <View style={styles.panelHeader}><View style={styles.panelIcon}><Ionicons name="trophy" size={20} color="#FFD667" /></View><View><Text style={styles.panelTitle}>Hall of Fame</Text><Text style={styles.panelSubtitle}>Les Synaura Awards de la semaine.</Text></View></View>
+    <View style={styles.panel}>
+      <View style={styles.panelHeader}><View style={[styles.panelIcon, { backgroundColor: 'rgba(255,214,103,0.14)' }]}><Ionicons name="trophy" size={20} color="#FFD667" /></View><View><Text style={styles.panelTitle}>Hall of Fame</Text><Text style={styles.panelSubtitle}>Les Synaura Awards de la semaine.</Text></View></View>
       <View style={styles.awards}>
         {awards.map((award, index) => {
           const title = award.track?.title || award.artist?.name || 'Synaura';
           const subtitle = award.track ? artistName(award.track) : award.artist ? `@${award.artist.username}` : award.subtitle;
           return (
-            <MotionPressable key={award.id} onPress={() => award.track && onPlay(award.track)} style={styles.awardRow}><View style={[styles.awardIcon, index === 0 && styles.awardIconFirst]}><Ionicons name={iconName(award.icon)} size={16} color={index === 0 ? ink : '#7C5CFF'} /></View><View style={styles.awardCopy}><Text numberOfLines={1} style={styles.awardTitle}>{award.title}</Text><Text numberOfLines={1} style={styles.awardSubtitle}>{title} · {subtitle}</Text></View></MotionPressable>
+            <MotionPressable key={award.id} onPress={() => award.track && onPlay(award.track)} style={styles.awardRow}><View style={[styles.awardIcon, index === 0 && styles.awardIconFirst]}><Ionicons name={iconName(award.icon)} size={16} color={index === 0 ? ink : '#B9A8FF'} /></View><View style={styles.awardCopy}><Text numberOfLines={1} style={styles.awardTitle}>{award.title}</Text><Text numberOfLines={1} style={styles.awardSubtitle}>{title} · {subtitle}</Text></View></MotionPressable>
           );
         })}
       </View>
@@ -538,11 +583,11 @@ function HallOfFame({ awards, onPlay }: { awards: CityAward[]; onPlay: (track: T
 
 function Badges({ badges }: { badges: CityBadge[] }) {
   return (
-    <View style={styles.lightPanel}>
-      <View style={styles.panelHeader}><View style={[styles.panelIcon, { backgroundColor: '#FF4B7A' }]}><Ionicons name="ribbon" size={20} color={paper} /></View><View><Text style={styles.panelTitle}>Badges auditeur</Text><Text style={styles.panelSubtitle}>Ta facon de soutenir la scene compte.</Text></View></View>
+    <View style={styles.panel}>
+      <View style={styles.panelHeader}><View style={[styles.panelIcon, { backgroundColor: 'rgba(255,75,122,0.14)' }]}><Ionicons name="ribbon" size={20} color="#FF7B91" /></View><View><Text style={styles.panelTitle}>Badges auditeur</Text><Text style={styles.panelSubtitle}>Ta facon de soutenir la scene compte.</Text></View></View>
       <View style={styles.awards}>
         {badges.map((badge) => (
-          <View key={badge.id} style={[styles.badgeRow, badge.unlocked && styles.badgeRowUnlocked]}><View style={[styles.badgeIcon, badge.unlocked && styles.badgeIconUnlocked]}><Ionicons name={iconName(badge.icon)} size={16} color={badge.unlocked ? paper : 'rgba(23,19,19,0.25)'} /></View><View style={styles.badgeCopy}><Text style={styles.badgeTitle}>{badge.title}</Text><Text style={styles.badgeDescription}>{badge.description}</Text><View style={styles.badgeBar}><View style={[styles.badgeBarFill, { width: `${Math.min(100, badge.progress / badge.target * 100)}%` }]} /></View></View><Text style={styles.badgeProgress}>{badge.progress}/{badge.target}</Text></View>
+          <View key={badge.id} style={[styles.badgeRow, badge.unlocked && styles.badgeRowUnlocked]}><View style={[styles.badgeIcon, badge.unlocked && styles.badgeIconUnlocked]}><Ionicons name={iconName(badge.icon)} size={16} color={badge.unlocked ? paper : faint} /></View><View style={styles.badgeCopy}><Text style={styles.badgeTitle}>{badge.title}</Text><Text style={styles.badgeDescription}>{badge.description}</Text><View style={styles.badgeBar}><View style={[styles.badgeBarFill, { width: `${Math.min(100, badge.progress / badge.target * 100)}%` }]} /></View></View><Text style={styles.badgeProgress}>{badge.progress}/{badge.target}</Text></View>
         ))}
       </View>
     </View>
@@ -553,96 +598,185 @@ function CreatorProgress({ artist, onCreate }: { artist: CityArtist | null; onCr
   const progress = artist ? Math.min(100, artist.xp / artist.nextLevelXp * 100) : 0;
   return (
     <View style={styles.creatorProgress}>
-      <LinearGradient colors={['#171313', '#35213D', '#123A3B']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={['#1B0B26', '#12081C', '#0A1B22']} style={StyleSheet.absoluteFill} />
       <View style={styles.creatorProgressHeader}><View style={styles.creatorProgressIcon}><Ionicons name="analytics" size={20} color="#7EF2ED" /></View><View><Text style={styles.creatorProgressTitle}>Carte artiste evolutive</Text><Text style={styles.creatorProgressSubtitle}>Ton activite construit ton statut.</Text></View></View>
-      {artist ? <View style={styles.creatorProgressBody}><Image source={artist.avatar ? { uri: artist.avatar } : require('../assets/synaura-symbol-2026.png')} style={styles.creatorProgressAvatar} /><View style={styles.creatorProgressCopy}><Text style={styles.creatorLevel}>NIVEAU {artist.level}</Text><Text style={styles.creatorLevelName}>{artist.levelName}</Text><Text style={styles.creatorXp}>{artist.xp} XP · {artist.trackCount} sons</Text></View><View style={styles.creatorBar}><View style={[styles.creatorBarFill, { width: `${progress}%` }]} /></View><Text style={styles.creatorNext}>{Math.max(0, artist.nextLevelXp - artist.xp)} XP avant le prochain niveau</Text></View> : <View style={styles.creatorEmpty}><Ionicons name="musical-notes" size={28} color="#7EF2ED" /><Text style={styles.creatorEmptyText}>Publie ton premier son pour creer ta carte artiste.</Text><MotionPressable onPress={onCreate} style={styles.creatorButton}><Text style={styles.creatorButtonText}>Commencer</Text></MotionPressable></View>}
+      {artist ? <View style={styles.creatorProgressBody}><Image source={artist.avatar ? { uri: artist.avatar } : require('../assets/synaura-symbol-2026.png')} style={styles.creatorProgressAvatar} /><View style={styles.creatorProgressCopy}><Text style={styles.creatorLevel}>NIVEAU {artist.level}</Text><Text style={styles.creatorLevelName}>{artist.levelName}</Text><Text style={styles.creatorXp}>{artist.xp} XP · {artist.trackCount} sons</Text></View><View style={styles.creatorBar}><LinearGradient colors={['#00C2CB', '#7C5CFF', '#FF4B7A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.creatorBarFill, { width: `${progress}%` }]} /></View><Text style={styles.creatorNext}>{Math.max(0, artist.nextLevelXp - artist.xp)} XP avant le prochain niveau</Text></View> : <View style={styles.creatorEmpty}><Ionicons name="musical-notes" size={28} color="#7EF2ED" /><Text style={styles.creatorEmptyText}>Publie ton premier son pour creer ta carte artiste.</Text><MotionPressable onPress={onCreate} style={styles.creatorButton}><Text style={styles.creatorButtonText}>Commencer</Text></MotionPressable></View>}
     </View>
   );
 }
 
+function TrackPickerSheet({
+  event,
+  busy,
+  onClose,
+  onPick,
+  onCreate,
+}: {
+  event: CityEvent | null;
+  busy: boolean;
+  onClose: () => void;
+  onPick: (trackId: string) => void;
+  onCreate: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const [tracks, setTracks] = useState<MyTrackSummary[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!event) {
+      setTracks(null);
+      setSelected(null);
+      setLoadError(null);
+      return;
+    }
+    let active = true;
+    getMyTracks()
+      .then((next) => {
+        if (active) setTracks(next);
+      })
+      .catch((nextError) => {
+        if (active) setLoadError(nextError instanceof Error ? nextError.message : 'Impossible de charger tes sons.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [event]);
+
+  return (
+    <Modal visible={Boolean(event)} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.sheetBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+          <View style={styles.sheetHandle} />
+          <Text style={styles.sheetKicker}>{event?.subtitle || 'Synaura City'}</Text>
+          <Text style={styles.sheetTitle}>Choisis ton son pour "{event?.title}"</Text>
+          {loadError ? (
+            <Text style={styles.sheetError}>{loadError}</Text>
+          ) : tracks === null ? (
+            <View style={styles.sheetLoading}><ActivityIndicator color={paper} /></View>
+          ) : tracks.length === 0 ? (
+            <View style={styles.sheetEmpty}>
+              <Ionicons name="musical-notes" size={26} color={muted} />
+              <Text style={styles.sheetEmptyText}>Tu n as pas encore publie de son.</Text>
+              <MotionPressable onPress={onCreate} style={styles.sheetCreate}><Text style={styles.sheetCreateText}>Publier un son</Text></MotionPressable>
+            </View>
+          ) : (
+            <FlatList
+              data={tracks}
+              keyExtractor={(item) => item.id}
+              style={styles.sheetList}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const isSelected = selected === item.id;
+                return (
+                  <Pressable onPress={() => setSelected(item.id)} style={[styles.sheetTrack, isSelected && styles.sheetTrackSelected]}>
+                    <Image source={item.coverVideoPosterUrl || item.coverUrl ? { uri: item.coverVideoPosterUrl || item.coverUrl || '' } : require('../assets/synaura-symbol-2026.png')} style={styles.sheetCover} />
+                    <View style={styles.sheetTrackCopy}>
+                      <Text numberOfLines={1} style={styles.sheetTrackTitle}>{item.title}</Text>
+                      <Text numberOfLines={1} style={styles.sheetTrackDate}>{item.createdAt ? new Date(item.createdAt).toLocaleDateString('fr-FR') : 'Mon son'}</Text>
+                    </View>
+                    <View style={[styles.sheetCheck, isSelected && styles.sheetCheckSelected]}>{isSelected ? <Ionicons name="checkmark" size={14} color={ink} /> : null}</View>
+                  </Pressable>
+                );
+              }}
+            />
+          )}
+          <MotionPressable
+            disabled={!selected || busy}
+            onPress={() => selected && onPick(selected)}
+            style={[styles.sheetSubmit, (!selected || busy) && styles.sheetSubmitDisabled]}
+          >
+            <Ionicons name={busy ? 'hourglass' : 'rocket'} size={15} color={ink} />
+            <Text style={styles.sheetSubmitText}>{busy ? 'Inscription en cours...' : 'Inscrire ce son dans l event'}</Text>
+          </MotionPressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F4EFE6' },
+  root: { flex: 1, backgroundColor: nightBg },
   content: { paddingHorizontal: spacing.md, paddingBottom: 190 },
-  orbHot: { position: 'absolute', left: -90, top: 95, width: 230, height: 230, borderRadius: 115, backgroundColor: 'rgba(255,111,97,0.18)' },
-  orbCold: { position: 'absolute', right: -80, top: 260, width: 210, height: 210, borderRadius: 105, backgroundColor: 'rgba(0,194,203,0.14)' },
-  meteor: { position: 'absolute', right: -50, top: 70, width: 170, height: 3, borderRadius: 2, backgroundColor: '#FF6F61', shadowColor: '#FF6F61', shadowOpacity: 0.40, shadowRadius: 14 },
-  gridGlow: { ...StyleSheet.absoluteFillObject, opacity: 0.10, borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md, borderRadius: 24, borderWidth: 1, borderColor: border, backgroundColor: 'rgba(255,250,242,0.90)', padding: 6 },
-  roundButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.96)', borderWidth: 1, borderColor: border },
+  orbViolet: { position: 'absolute', left: -110, top: 60, width: 280, height: 280, borderRadius: 140, backgroundColor: 'rgba(124,92,255,0.16)' },
+  orbRose: { position: 'absolute', right: -90, top: 320, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(255,75,122,0.12)' },
+  orbCyan: { position: 'absolute', left: -60, top: 640, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(0,194,203,0.10)' },
+  meteor: { position: 'absolute', right: -40, top: 60, width: 150, height: 2, borderRadius: 1, backgroundColor: '#7EF2ED', shadowColor: '#7EF2ED', shadowOpacity: 0.5, shadowRadius: 12 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md, borderRadius: 24, borderWidth: 1, borderColor: cardBorder, backgroundColor: 'rgba(255,255,255,0.04)', padding: 6 },
+  roundButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: cardBorder },
   topCopy: { flex: 1 },
-  topKicker: { color: '#7EF2ED', fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
-  topTitle: { marginTop: 2, color: ink, fontSize: 25, fontWeight: '900' },
+  topKicker: { color: '#FF7B91', fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
+  topTitle: { marginTop: 2, color: paper, fontSize: 25, fontWeight: '900' },
   loading: { minHeight: 420, alignItems: 'center', justifyContent: 'center' },
   loadingText: { marginTop: 12, color: muted, fontSize: 12, fontWeight: '900' },
-  error: { marginBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 18, backgroundColor: '#FEF3F2', padding: spacing.md },
-  errorText: { flex: 1, color: '#B42318', fontSize: 11, fontWeight: '800' },
-  hero: { minHeight: 430, overflow: 'hidden', borderRadius: 32, padding: spacing.lg, shadowColor: '#FF4B7A', shadowOpacity: 0.30, shadowRadius: 34, shadowOffset: { width: 0, height: 18 }, elevation: 12 },
-  heroSignal: { position: 'absolute', right: -70, top: -70, width: 280, height: 280, borderRadius: 140, borderWidth: 1, borderColor: '#7EF2ED' },
-  heroBlast: { position: 'absolute', right: -92, bottom: -80, width: 285, height: 285, borderRadius: 143, backgroundColor: 'rgba(255,75,122,0.32)' },
-  heroFlame: { position: 'absolute', left: -36, bottom: -44, width: 180, height: 120, borderRadius: 90, backgroundColor: 'rgba(255,159,28,0.36)' },
-  heroShardOne: { position: 'absolute', right: 28, top: 88, width: 90, height: 14, borderRadius: 7, backgroundColor: 'rgba(126,242,237,0.65)', transform: [{ rotate: '-18deg' }] },
-  heroShardTwo: { position: 'absolute', right: 88, bottom: 138, width: 74, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,214,103,0.58)', transform: [{ rotate: '22deg' }] },
-  heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', paddingHorizontal: 10, paddingVertical: 7 },
-  heroBadgeText: { color: '#7EF2ED', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  heroTitle: { marginTop: spacing.xl, maxWidth: 315, color: paper, fontSize: 44, lineHeight: 42, fontWeight: '900', letterSpacing: -1.8 },
-  heroSubtitle: { marginTop: spacing.md, maxWidth: 310, color: 'rgba(255,250,242,0.52)', fontSize: 13, lineHeight: 19, fontWeight: '700' },
+  error: { marginBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,138,128,0.3)', backgroundColor: 'rgba(255,82,82,0.10)', padding: spacing.md },
+  errorText: { flex: 1, color: '#FF8A80', fontSize: 11, fontWeight: '800' },
+  toast: { position: 'absolute', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(126,242,237,0.3)', backgroundColor: 'rgba(10,22,23,0.96)', paddingHorizontal: 16, paddingVertical: 11, shadowColor: '#7EF2ED', shadowOpacity: 0.25, shadowRadius: 18, elevation: 10 },
+  toastText: { color: '#7EF2ED', fontSize: 11, fontWeight: '900' },
+  hero: { minHeight: 430, overflow: 'hidden', borderRadius: 32, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', shadowColor: '#7C5CFF', shadowOpacity: 0.35, shadowRadius: 34, shadowOffset: { width: 0, height: 18 }, elevation: 12 },
+  heroBlast: { position: 'absolute', right: -92, bottom: -80, width: 285, height: 285, borderRadius: 143, backgroundColor: 'rgba(255,75,122,0.30)' },
+  heroRing: { position: 'absolute', right: -70, top: -70, width: 280, height: 280, borderRadius: 140, borderWidth: 1, borderColor: 'rgba(126,242,237,0.5)' },
+  heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', paddingHorizontal: 11, paddingVertical: 7 },
+  heroLiveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#FF4B7A' },
+  heroBadgeText: { color: 'rgba(255,250,242,0.78)', fontSize: 8, fontWeight: '900', letterSpacing: 1.4 },
+  heroTitle: { marginTop: spacing.xl, maxWidth: 320, color: paper, fontSize: 46, lineHeight: 44, fontWeight: '900', letterSpacing: -1.8, textShadowColor: 'rgba(255,75,122,0.35)', textShadowRadius: 24, textShadowOffset: { width: 0, height: 0 } },
+  heroSubtitle: { marginTop: spacing.md, maxWidth: 310, color: 'rgba(255,250,242,0.55)', fontSize: 13, lineHeight: 19, fontWeight: '700' },
   heroStats: { marginTop: spacing.xl, flexDirection: 'row', gap: spacing.sm },
-  heroStat: { flex: 1, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', padding: spacing.sm },
-  heroStatValue: { color: paper, fontSize: 19, fontWeight: '900' },
-  heroStatLabel: { marginTop: 3, color: 'rgba(255,250,242,0.36)', fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
+  heroStat: { flex: 1, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', padding: spacing.sm },
+  heroStatDot: { width: 7, height: 7, borderRadius: 4 },
+  heroStatValue: { marginTop: 9, color: paper, fontSize: 19, fontWeight: '900' },
+  heroStatLabel: { marginTop: 3, color: faint, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
   heroActions: { marginTop: spacing.lg, flexDirection: 'row', gap: spacing.sm },
-  heroPrimary: { height: 43, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 22, backgroundColor: paper, paddingHorizontal: spacing.md },
+  heroPrimary: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 22, backgroundColor: paper, paddingHorizontal: spacing.md, shadowColor: paper, shadowOpacity: 0.3, shadowRadius: 16, elevation: 8 },
   heroPrimaryText: { color: ink, fontSize: 11, fontWeight: '900' },
-  heroSecondary: { height: 43, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.10)', paddingHorizontal: spacing.md },
+  heroSecondary: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', paddingHorizontal: spacing.md },
   heroSecondaryText: { color: paper, fontSize: 11, fontWeight: '900' },
-  impactStrip: { marginTop: spacing.md, minHeight: 56, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 24, borderWidth: 1, borderColor: border, padding: 8 },
-  impactPill: { flex: 1, minHeight: 39, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 18, backgroundColor: 'rgba(255,250,242,0.78)' },
-  impactText: { color: ink, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
+  impactStrip: { marginTop: spacing.md, flexDirection: 'row', gap: 7 },
+  impactPill: { flex: 1, minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 18, borderWidth: 1, borderColor: cardBorder, backgroundColor: card },
+  impactText: { color: 'rgba(255,250,242,0.78)', fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
   sectionTitleWrap: { marginTop: 30, marginBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  sectionIcon: { width: 40, height: 40, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313', shadowColor: '#7C5CFF', shadowOpacity: 0.26, shadowRadius: 14 },
+  sectionIcon: { width: 40, height: 40, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: card, borderWidth: 1, borderColor: cardBorder },
   sectionCopy: { flex: 1 },
-  sectionTitle: { color: ink, fontSize: 22, fontWeight: '900' },
+  sectionTitle: { color: paper, fontSize: 22, fontWeight: '900' },
   sectionSubtitle: { marginTop: 2, color: muted, fontSize: 11, fontWeight: '700' },
-  sectionSpark: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.055)' },
   horizontalRail: { gap: spacing.sm, paddingRight: spacing.md },
   stack: { gap: spacing.sm },
-  showcase: { width: 232, height: 310, overflow: 'hidden', justifyContent: 'space-between', borderRadius: 28, backgroundColor: ink, padding: spacing.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', shadowColor: '#FF4B7A', shadowOpacity: 0.20, shadowRadius: 22, elevation: 9 },
-  cardBurst: { position: 'absolute', right: -36, top: -34, width: 112, height: 112, borderRadius: 56, opacity: 0.42 },
+  showcase: { width: 232, height: 310, overflow: 'hidden', justifyContent: 'space-between', borderRadius: 28, backgroundColor: '#100A18', padding: spacing.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', shadowColor: '#7C5CFF', shadowOpacity: 0.25, shadowRadius: 22, elevation: 9 },
   showcaseTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  showcaseLabel: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.36)', paddingHorizontal: 8, paddingVertical: 6 },
+  showcaseLabel: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.45)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', paddingHorizontal: 8, paddingVertical: 6 },
   showcaseLabelText: { color: paper, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
   showcasePlay: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: paper },
   showcaseBottom: { marginTop: 'auto' },
-  showcaseCaption: { color: 'rgba(255,250,242,0.46)', fontSize: 8, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
+  showcaseCaption: { fontSize: 8, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
   showcaseTitle: { marginTop: 5, color: paper, fontSize: 21, lineHeight: 23, fontWeight: '900' },
   showcaseArtist: { marginTop: 4, color: 'rgba(255,250,242,0.48)', fontSize: 10, fontWeight: '700' },
-  pulseCard: { minHeight: 84, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,250,242,0.92)', padding: spacing.sm },
-  pulseFlare: { position: 'absolute', right: -30, top: -30, width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(124,92,255,0.14)' },
-  pulseRank: { width: 20, color: 'rgba(23,19,19,0.26)', fontSize: 10, fontWeight: '900', textAlign: 'center' },
+  pulseCard: { minHeight: 84, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 24, borderWidth: 1, borderColor: cardBorder, backgroundColor: card, padding: spacing.sm },
+  pulseRank: { width: 20, color: faint, fontSize: 10, fontWeight: '900', textAlign: 'center' },
   pulseCover: { width: 58, height: 58, borderRadius: 17 },
   pulseCopy: { flex: 1, minWidth: 0 },
   pulseTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  pulseTitle: { flex: 1, color: ink, fontSize: 12, fontWeight: '900' },
-  pulseState: { overflow: 'hidden', borderRadius: 9, backgroundColor: 'rgba(124,92,255,0.10)', paddingHorizontal: 6, paddingVertical: 3, color: '#6D4AF1', fontSize: 7, fontWeight: '900' },
+  pulseTitle: { flex: 1, color: paper, fontSize: 12, fontWeight: '900' },
+  pulseState: { overflow: 'hidden', borderRadius: 9, backgroundColor: 'rgba(124,92,255,0.18)', paddingHorizontal: 6, paddingVertical: 3, color: '#B9A8FF', fontSize: 7, fontWeight: '900' },
   pulseArtist: { marginTop: 4, color: muted, fontSize: 9, fontWeight: '700' },
-  pulseBar: { marginTop: 7, height: 4, overflow: 'hidden', borderRadius: 2, backgroundColor: 'rgba(23,19,19,0.07)' },
-  pulseBarFill: { height: 4, borderRadius: 2, backgroundColor: '#7C5CFF' },
+  pulseBar: { marginTop: 7, height: 4, overflow: 'hidden', borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.08)' },
+  pulseBarFill: { height: 4, borderRadius: 2 },
   pulseValue: { width: 38, alignItems: 'center', gap: 3 },
-  pulseNumber: { color: ink, fontSize: 12, fontWeight: '900' },
-  artistCard: { width: 270, overflow: 'hidden', borderRadius: 25, borderWidth: 1, borderColor: border, backgroundColor: paper },
-  artistBanner: { height: 100 },
-  artistBannerCover: { ...StyleSheet.absoluteFillObject, height: 100, opacity: 0.38 },
+  pulseNumber: { color: paper, fontSize: 12, fontWeight: '900' },
+  artistCard: { width: 270, overflow: 'hidden', borderRadius: 25, borderWidth: 1, borderColor: cardBorder, backgroundColor: card },
+  artistBanner: { height: 100, overflow: 'hidden' },
+  artistBannerCover: { ...StyleSheet.absoluteFillObject, opacity: 0.45 },
   artistBooster: { position: 'absolute', left: 12, top: 12, color: paper, fontSize: 7, fontWeight: '900', letterSpacing: 0.8 },
-  artistAvatar: { position: 'absolute', left: 14, top: 66, width: 65, height: 65, borderRadius: 20, borderWidth: 4, borderColor: paper, backgroundColor: paper },
+  artistAvatar: { position: 'absolute', left: 14, top: 66, width: 65, height: 65, borderRadius: 20, borderWidth: 4, borderColor: '#140E1E', backgroundColor: '#140E1E' },
   artistBody: { padding: spacing.md, paddingTop: 39 },
-  artistName: { color: ink, fontSize: 19, fontWeight: '900' },
+  artistName: { color: paper, fontSize: 19, fontWeight: '900' },
   artistHandle: { marginTop: 3, color: muted, fontSize: 10, fontWeight: '700' },
-  artistStats: { marginTop: spacing.sm, color: 'rgba(23,19,19,0.52)', fontSize: 9, fontWeight: '900' },
+  artistStats: { marginTop: spacing.sm, color: 'rgba(255,250,242,0.55)', fontSize: 9, fontWeight: '900' },
   artistActions: { marginTop: spacing.md, flexDirection: 'row', gap: spacing.sm },
-  artistOpen: { height: 38, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 19, backgroundColor: ink },
-  artistOpenText: { color: paper, fontSize: 10, fontWeight: '900' },
-  artistPlay: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },
-  premiere: { width: 230, height: 250, overflow: 'hidden', borderRadius: 24, backgroundColor: ink, padding: spacing.md },
+  artistOpen: { height: 38, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 19, backgroundColor: paper },
+  artistOpenText: { color: ink, fontSize: 10, fontWeight: '900' },
+  artistPlay: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: cardBorder },
+  premiere: { width: 230, height: 250, overflow: 'hidden', borderRadius: 24, backgroundColor: '#100A18', padding: spacing.md, borderWidth: 1, borderColor: cardBorder },
   premiereCover: { ...StyleSheet.absoluteFillObject },
   premiereBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: 12, backgroundColor: '#FF4B7A', paddingHorizontal: 8, paddingVertical: 6, color: paper, fontSize: 7, fontWeight: '900', letterSpacing: 0.8 },
   premierePlay: { position: 'absolute', right: 12, top: 12, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: paper },
@@ -650,76 +784,83 @@ const styles = StyleSheet.create({
   premierePulse: { color: '#7EF2ED', fontSize: 7, fontWeight: '900', letterSpacing: 0.8 },
   premiereTitle: { marginTop: 5, color: paper, fontSize: 17, fontWeight: '900' },
   premiereArtist: { marginTop: 3, color: 'rgba(255,250,242,0.42)', fontSize: 9, fontWeight: '700' },
-  eventCard: { minHeight: 286, overflow: 'hidden', borderRadius: 30, backgroundColor: ink, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', shadowColor: '#00C2CB', shadowOpacity: 0.18, shadowRadius: 22, elevation: 8 },
-  eventGlow: { position: 'absolute', right: -52, bottom: -44, width: 170, height: 170, borderRadius: 85, opacity: 0.28 },
-  eventIcon: { width: 43, height: 43, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)' },
+  eventCard: { minHeight: 286, overflow: 'hidden', borderRadius: 30, backgroundColor: '#100A18', padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', shadowColor: '#FF4B7A', shadowOpacity: 0.18, shadowRadius: 22, elevation: 8 },
+  eventGlow: { position: 'absolute', right: -52, bottom: -44, width: 170, height: 170, borderRadius: 85, opacity: 0.25 },
+  eventIcon: { width: 43, height: 43, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: cardBorder },
   eventTagWrap: { position: 'absolute', right: spacing.lg, top: spacing.lg, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 },
-  eventTag: { overflow: 'hidden', borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.10)', paddingHorizontal: 9, paddingVertical: 6, color: paper, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
+  eventTag: { overflow: 'hidden', borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 9, paddingVertical: 6, color: 'rgba(255,250,242,0.72)', fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
+  eventTagLive: { backgroundColor: 'rgba(255,75,122,0.18)', color: '#FF7B91' },
   eventBody: { marginTop: 'auto' },
-  eventKicker: { color: 'rgba(255,250,242,0.44)', fontSize: 8, fontWeight: '900', letterSpacing: 0.9, textTransform: 'uppercase' },
+  eventKicker: { fontSize: 8, fontWeight: '900', letterSpacing: 0.9, textTransform: 'uppercase' },
   eventTitle: { marginTop: 4, color: paper, fontSize: 25, fontWeight: '900' },
   eventDescription: { marginTop: 7, maxWidth: 300, color: 'rgba(255,250,242,0.50)', fontSize: 11, lineHeight: 16, fontWeight: '700' },
   eventMetaRow: { marginTop: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  eventMeta: { overflow: 'hidden', borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 8, paddingVertical: 5, color: 'rgba(255,250,242,0.58)', fontSize: 8, fontWeight: '900' },
+  eventMeta: { overflow: 'hidden', borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.07)', paddingHorizontal: 8, paddingVertical: 5, color: 'rgba(255,250,242,0.58)', fontSize: 8, fontWeight: '900' },
   eventWinner: { overflow: 'hidden', borderRadius: 11, backgroundColor: '#FFD667', paddingHorizontal: 8, paddingVertical: 5, color: ink, fontSize: 8, fontWeight: '900' },
   eventActions: { marginTop: spacing.md, flexDirection: 'row', gap: spacing.sm },
-  eventPrimary: { height: 39, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 20, backgroundColor: paper, paddingHorizontal: spacing.md },
+  eventPrimary: { height: 41, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 21, backgroundColor: paper, paddingHorizontal: spacing.md },
+  eventPrimaryClaim: { backgroundColor: '#FFD667' },
+  eventPrimaryDone: { backgroundColor: 'rgba(255,255,255,0.10)' },
   eventPrimaryText: { color: ink, fontSize: 10, fontWeight: '900' },
-  eventPlay: { width: 39, height: 39, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)' },
-  battle: { overflow: 'hidden', borderRadius: 30, backgroundColor: ink, padding: spacing.md, borderWidth: 1, borderColor: 'rgba(126,242,237,0.18)', shadowColor: '#7EF2ED', shadowOpacity: 0.20, shadowRadius: 24, elevation: 10 },
+  eventPrimaryTextDone: { color: 'rgba(255,250,242,0.8)' },
+  eventPlay: { width: 41, height: 41, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: cardBorder },
+  battle: { overflow: 'hidden', borderRadius: 30, backgroundColor: '#100A18', padding: spacing.md, borderWidth: 1, borderColor: 'rgba(126,242,237,0.18)', shadowColor: '#7EF2ED', shadowOpacity: 0.20, shadowRadius: 24, elevation: 10 },
   battleHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   battleKicker: { color: '#7EF2ED', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
   battleTitle: { marginTop: 3, color: paper, fontSize: 22, fontWeight: '900' },
-  battleMeta: { marginTop: 3, color: 'rgba(255,250,242,0.36)', fontSize: 8, fontWeight: '900' },
+  battleMeta: { marginTop: 3, color: faint, fontSize: 8, fontWeight: '900' },
+  battleFlash: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(126,242,237,0.10)', borderWidth: 1, borderColor: 'rgba(126,242,237,0.22)' },
   battleWinner: { marginTop: spacing.sm, overflow: 'hidden', borderRadius: 14, backgroundColor: '#FFD667', paddingHorizontal: 10, paddingVertical: 8, color: ink, fontSize: 10, fontWeight: '900' },
   battleGrid: { marginTop: spacing.md, flexDirection: 'row', gap: spacing.sm },
-  battleTrack: { flex: 1, minWidth: 0, borderRadius: 19, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.07)', padding: 7 },
-  battleTrackSelected: { borderColor: '#7EF2ED' },
+  battleTrack: { flex: 1, minWidth: 0, borderRadius: 19, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.05)', padding: 7 },
+  battleTrackSelected: { borderColor: '#7EF2ED', backgroundColor: 'rgba(126,242,237,0.07)' },
   battleCoverWrap: { aspectRatio: 1, overflow: 'hidden', borderRadius: 15 },
-  battlePlay: { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.15)' },
+  battlePlay: { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(8,5,14,0.18)' },
   battleTrackTitle: { marginTop: 7, color: paper, fontSize: 10, fontWeight: '900' },
-  battleArtist: { marginTop: 2, color: 'rgba(255,250,242,0.36)', fontSize: 8, fontWeight: '700' },
-  voteButton: { marginTop: 8, height: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.10)' },
+  battleArtist: { marginTop: 2, color: faint, fontSize: 8, fontWeight: '700' },
+  battleBar: { marginTop: 7, height: 3, overflow: 'hidden', borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.08)' },
+  battleBarFill: { height: 3, borderRadius: 2, backgroundColor: '#7EF2ED' },
+  voteButton: { marginTop: 8, height: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.08)' },
   voteButtonSelected: { backgroundColor: '#7EF2ED' },
   voteText: { color: paper, fontSize: 8, fontWeight: '900' },
   voteTextSelected: { color: ink },
-  radar: { marginTop: 30, overflow: 'hidden', borderRadius: 30, backgroundColor: '#103334', padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(126,242,237,0.18)' },
+  radar: { marginTop: 30, overflow: 'hidden', borderRadius: 30, backgroundColor: '#0A2426', padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(126,242,237,0.18)' },
   radarRing: { position: 'absolute', right: -35, top: -45, width: 210, height: 210, borderRadius: 105, borderWidth: 1, borderColor: '#7EF2ED' },
   radarHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   radarIcon: { width: 43, height: 43, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7EF2ED' },
   radarTitle: { color: paper, fontSize: 21, fontWeight: '900' },
   radarSubtitle: { marginTop: 2, color: 'rgba(255,250,242,0.40)', fontSize: 10, fontWeight: '700' },
   radarList: { marginTop: spacing.lg, gap: spacing.sm },
-  radarRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.06)', padding: 8 },
+  radarRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.05)', padding: 8 },
   radarCover: { width: 45, height: 45, borderRadius: 13 },
   radarCopy: { flex: 1, minWidth: 0 },
   radarTrack: { color: paper, fontSize: 10, fontWeight: '900' },
   radarArtist: { marginTop: 3, color: 'rgba(255,250,242,0.38)', fontSize: 8, fontWeight: '700' },
-  lightPanel: { marginTop: 30, borderRadius: 30, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,250,242,0.93)', padding: spacing.lg, shadowColor: '#FF4B7A', shadowOpacity: 0.10, shadowRadius: 18 },
+  panel: { marginTop: 30, borderRadius: 30, borderWidth: 1, borderColor: cardBorder, backgroundColor: card, padding: spacing.lg },
   panelHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  panelIcon: { width: 43, height: 43, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: ink },
-  panelTitle: { color: ink, fontSize: 21, fontWeight: '900' },
+  panelIcon: { width: 43, height: 43, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.07)' },
+  panelTitle: { color: paper, fontSize: 21, fontWeight: '900' },
   panelSubtitle: { marginTop: 2, color: muted, fontSize: 10, fontWeight: '700' },
   awards: { marginTop: spacing.lg, gap: spacing.sm },
-  awardRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 18, backgroundColor: 'rgba(23,19,19,0.04)', padding: spacing.sm },
-  awardIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: paper },
+  awardRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', backgroundColor: 'rgba(255,255,255,0.04)', padding: spacing.sm },
+  awardIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.07)' },
   awardIconFirst: { backgroundColor: '#FFD667' },
   awardCopy: { flex: 1, minWidth: 0 },
-  awardTitle: { color: ink, fontSize: 10, fontWeight: '900' },
+  awardTitle: { color: paper, fontSize: 10, fontWeight: '900' },
   awardSubtitle: { marginTop: 3, color: muted, fontSize: 8, fontWeight: '700' },
-  badgeRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 18, backgroundColor: 'rgba(23,19,19,0.035)', padding: spacing.sm },
-  badgeRowUnlocked: { backgroundColor: 'rgba(124,92,255,0.08)' },
-  badgeIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: paper },
+  badgeRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', backgroundColor: 'rgba(255,255,255,0.03)', padding: spacing.sm },
+  badgeRowUnlocked: { backgroundColor: 'rgba(124,92,255,0.10)', borderColor: 'rgba(124,92,255,0.28)' },
+  badgeIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   badgeIconUnlocked: { backgroundColor: '#7C5CFF' },
   badgeCopy: { flex: 1, minWidth: 0 },
-  badgeTitle: { color: ink, fontSize: 10, fontWeight: '900' },
+  badgeTitle: { color: paper, fontSize: 10, fontWeight: '900' },
   badgeDescription: { marginTop: 2, color: muted, fontSize: 8, fontWeight: '700' },
-  badgeBar: { marginTop: 6, height: 3, overflow: 'hidden', borderRadius: 2, backgroundColor: 'rgba(23,19,19,0.06)' },
+  badgeBar: { marginTop: 6, height: 3, overflow: 'hidden', borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.07)' },
   badgeBarFill: { height: 3, borderRadius: 2, backgroundColor: '#7C5CFF' },
   badgeProgress: { color: muted, fontSize: 8, fontWeight: '900' },
-  creatorProgress: { marginTop: 30, minHeight: 250, overflow: 'hidden', borderRadius: 30, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  creatorProgress: { marginTop: 30, minHeight: 250, overflow: 'hidden', borderRadius: 30, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   creatorProgressHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  creatorProgressIcon: { width: 43, height: 43, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)' },
+  creatorProgressIcon: { width: 43, height: 43, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
   creatorProgressTitle: { color: paper, fontSize: 21, fontWeight: '900' },
   creatorProgressSubtitle: { marginTop: 2, color: 'rgba(255,250,242,0.38)', fontSize: 10, fontWeight: '700' },
   creatorProgressBody: { marginTop: spacing.xl },
@@ -729,10 +870,33 @@ const styles = StyleSheet.create({
   creatorLevelName: { marginTop: 4, color: paper, fontSize: 20, fontWeight: '900' },
   creatorXp: { marginTop: 3, color: 'rgba(255,250,242,0.38)', fontSize: 9, fontWeight: '700' },
   creatorBar: { marginTop: spacing.lg, height: 6, overflow: 'hidden', borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.10)' },
-  creatorBarFill: { height: 6, borderRadius: 3, backgroundColor: '#7EF2ED' },
+  creatorBarFill: { height: 6, borderRadius: 3 },
   creatorNext: { marginTop: 7, color: 'rgba(255,250,242,0.36)', fontSize: 8, fontWeight: '900' },
-  creatorEmpty: { marginTop: spacing.xl, alignItems: 'center', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.06)', padding: spacing.lg },
+  creatorEmpty: { marginTop: spacing.xl, alignItems: 'center', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.05)', padding: spacing.lg },
   creatorEmptyText: { marginTop: spacing.sm, maxWidth: 260, color: paper, fontSize: 11, lineHeight: 16, fontWeight: '900', textAlign: 'center' },
   creatorButton: { marginTop: spacing.md, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 19, backgroundColor: paper, paddingHorizontal: spacing.lg },
   creatorButtonText: { color: ink, fontSize: 10, fontWeight: '900' },
+  sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.66)' },
+  sheet: { maxHeight: '78%', borderTopLeftRadius: 30, borderTopRightRadius: 30, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: '#120B1C', paddingHorizontal: spacing.lg, paddingTop: 10 },
+  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.18)' },
+  sheetKicker: { marginTop: spacing.md, color: '#7EF2ED', fontSize: 9, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
+  sheetTitle: { marginTop: 5, color: paper, fontSize: 19, fontWeight: '900' },
+  sheetError: { marginVertical: spacing.lg, color: '#FF8A80', fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  sheetLoading: { paddingVertical: 40, alignItems: 'center' },
+  sheetEmpty: { paddingVertical: 26, alignItems: 'center' },
+  sheetEmptyText: { marginTop: 10, color: paper, fontSize: 12, fontWeight: '900' },
+  sheetCreate: { marginTop: spacing.md, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: paper, paddingHorizontal: spacing.lg },
+  sheetCreateText: { color: ink, fontSize: 11, fontWeight: '900' },
+  sheetList: { marginTop: spacing.md, maxHeight: 320 },
+  sheetTrack: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', backgroundColor: 'rgba(255,255,255,0.04)', padding: 9, marginBottom: 7 },
+  sheetTrackSelected: { borderColor: 'rgba(126,242,237,0.5)', backgroundColor: 'rgba(126,242,237,0.08)' },
+  sheetCover: { width: 46, height: 46, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.06)' },
+  sheetTrackCopy: { flex: 1, minWidth: 0 },
+  sheetTrackTitle: { color: paper, fontSize: 12, fontWeight: '900' },
+  sheetTrackDate: { marginTop: 3, color: muted, fontSize: 9, fontWeight: '700' },
+  sheetCheck: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.07)' },
+  sheetCheckSelected: { backgroundColor: '#7EF2ED' },
+  sheetSubmit: { marginTop: spacing.sm, height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 24, backgroundColor: paper },
+  sheetSubmitDisabled: { opacity: 0.4 },
+  sheetSubmitText: { color: ink, fontSize: 12, fontWeight: '900' },
 });

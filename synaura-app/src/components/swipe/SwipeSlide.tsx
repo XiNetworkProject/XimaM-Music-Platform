@@ -202,10 +202,33 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playButtonOpacity = useRef(new Animated.Value(isPlaying ? 0 : 1)).current;
   const slideReveal = useRef(new Animated.Value(isActive ? 1 : 0)).current;
+  const coverScale = useRef(new Animated.Value(1)).current;
+  const breath = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(playButtonOpacity, { toValue: isPlaying ? 0 : 1, duration: 220, useNativeDriver: true }).start();
-  }, [isPlaying, playButtonOpacity]);
+    Animated.timing(coverScale, {
+      toValue: isPlaying ? 1.03 : 1,
+      duration: 900,
+      easing: Easing.inOut(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [coverScale, isPlaying, playButtonOpacity]);
+
+  // Respiration douce de la cover pendant la lecture.
+  useEffect(() => {
+    if (!isActive || !isPlaying) {
+      breath.stopAnimation();
+      Animated.timing(breath, { toValue: 0, duration: 420, useNativeDriver: true }).start();
+      return;
+    }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(breath, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(breath, { toValue: 0, duration: 2400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [breath, isActive, isPlaying]);
 
   useEffect(() => {
     if (!isActive && tapTimerRef.current) {
@@ -213,10 +236,10 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
       tapTimerRef.current = null;
       lastTapRef.current = 0;
     }
-    Animated.timing(slideReveal, {
+    Animated.spring(slideReveal, {
       toValue: isActive ? 1 : 0,
-      duration: isActive ? 150 : 90,
-      easing: Easing.out(Easing.quad),
+      speed: 16,
+      bounciness: isActive ? 7 : 0,
       useNativeDriver: true,
     }).start();
   }, [isActive, slideReveal]);
@@ -249,13 +272,20 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
     <View style={[styles.page, { height }]}>
       <Pressable accessibilityLabel={isPlaying ? 'Mettre en pause' : 'Lire'} onPress={handleTap} style={styles.pressArea}>
         <Animated.View
-          style={styles.coverShell}
+          style={[
+            styles.coverShell,
+            {
+              transform: [
+                { scale: Animated.multiply(coverScale, breath.interpolate({ inputRange: [0, 1], outputRange: [1, 1.012] })) },
+              ],
+            },
+          ]}
         >
           <View style={styles.cover}>
             <TrackCover
               track={track}
               active={isActive}
-              autoPlayVideo={false}
+              autoPlayVideo={isActive}
               style={StyleSheet.absoluteFill}
               imageStyle={styles.coverImage}
             />

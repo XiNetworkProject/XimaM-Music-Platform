@@ -448,6 +448,42 @@ async function hydratePersistedEvents(
   return resolvedEvents;
 }
 
+function applyLegacyEventState(
+  events: CityEvent[],
+  pulse: CityPulseTrack[],
+  userId: string | null,
+  legacyPrefs: any,
+  now = new Date(),
+) {
+  const trackMap = new Map(pulse.map((track) => [track._id, track]));
+  const participations = legacyPrefs?.cityParticipations && typeof legacyPrefs.cityParticipations === 'object'
+    ? legacyPrefs.cityParticipations
+    : {};
+  const rewards = legacyPrefs?.cityRewards && typeof legacyPrefs.cityRewards === 'object'
+    ? legacyPrefs.cityRewards
+    : {};
+
+  return events.map((event) => {
+    const participation = participations[event.id];
+    const rewardEntry = rewards[event.id];
+    const userParticipation: CityEventParticipation | null = participation?.trackId && userId ? {
+      id: `legacy-${event.id}`,
+      eventId: event.id,
+      userId,
+      trackId: String(participation.trackId),
+      status: 'submitted',
+      createdAt: participation.at || now.toISOString(),
+      track: trackMap.get(String(participation.trackId)) || null,
+    } : null;
+    return decorateCityEvent({
+      ...event,
+      userParticipation,
+      participationCount: Math.max(event.participationCount || 0, userParticipation ? 1 : 0),
+      claimStatus: rewardEntry?.status || (userParticipation ? 'available' : 'none'),
+    }, now);
+  });
+}
+
 async function tryHydratePersistedEvents(
   events: CityEvent[],
   pulse: CityPulseTrack[],
@@ -455,12 +491,19 @@ async function tryHydratePersistedEvents(
   dayKey: string,
   weekKey: string,
   now = new Date(),
+  legacyPrefs: any = null,
 ) {
   try {
-    return await hydratePersistedEvents(events, pulse, userId, dayKey, weekKey, now);
+    const hydrated = await hydratePersistedEvents(events, pulse, userId, dayKey, weekKey, now);
+    // Les actions legacy (faites avant migration) restent visibles.
+    return hydrated.map((event) => {
+      if (event.userParticipation || !legacyPrefs) return event;
+      const legacy = applyLegacyEventState([event], pulse, userId, legacyPrefs, now)[0];
+      return legacy.userParticipation ? legacy : event;
+    });
   } catch (error) {
     if (!cityTableMissing(error)) console.error('city: persisted events unavailable', error);
-    return events.map((event) => decorateCityEvent(event, now));
+    return applyLegacyEventState(events, pulse, userId, legacyPrefs, now);
   }
 }
 
@@ -656,7 +699,7 @@ export async function GET(request: NextRequest) {
         tracks: rotate(pulse, `${weekKey}-season`).slice(0, 4),
       },
     ];
-    const hydratedEvents = await tryHydratePersistedEvents(events, pulse, userId, dayKey, weekKey, now);
+    const hydratedEvents = await tryHydratePersistedEvents(events, pulse, userId, dayKey, weekKey, now, profilePreferences);
     const hydratedBattle = hydratedEvents.find((event) => event.kind === 'battle') || events.find((event) => event.kind === 'battle') || null;
 
     const topArtist = [...artists].sort((a, b) => b.totalPlays + b.totalLikes * 3 - (a.totalPlays + a.totalLikes * 3))[0] || null;

@@ -2021,3 +2021,22 @@ export async function claimCityEventReward(eventId: string): Promise<void> {
     body: JSON.stringify({}),
   });
 }
+
+export type MyTrackSummary = {
+  id: string;
+  title: string;
+  coverUrl: string | null;
+  coverVideoPosterUrl: string | null;
+  createdAt: string | null;
+};
+
+export async function getMyTracks(): Promise<MyTrackSummary[]> {
+  const payload = await request<{ tracks?: any[] }>('/api/users/tracks');
+  return (Array.isArray(payload?.tracks) ? payload.tracks : []).map((track) => ({
+    id: String(track.id),
+    title: String(track.title || 'Sans titre'),
+    coverUrl: track.coverUrl || null,
+    coverVideoPosterUrl: track.coverVideoPosterUrl || null,
+    createdAt: track.createdAt || null,
+  }));
+}

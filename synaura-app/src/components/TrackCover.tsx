@@ -20,8 +20,16 @@ function firstValid(...values: Array<string | null | undefined>) {
   return values.map((value) => String(value || '').trim()).find(Boolean) || null;
 }
 
+function isVideoUrl(url?: string | null) {
+  return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(String(url || '').trim());
+}
+
 export function getTrackCoverImage(track?: Track | null) {
-  return firstValid(track?.coverVideoPosterUrl, track?.musicVideoPosterUrl, track?.coverUrl);
+  return firstValid(
+    track?.coverVideoPosterUrl,
+    track?.musicVideoPosterUrl,
+    isVideoUrl(track?.coverUrl) ? null : track?.coverUrl,
+  );
 }
 
 function inferVideoUrlFromPoster(url?: string | null) {
@@ -40,7 +48,12 @@ function inferVideoUrlFromPoster(url?: string | null) {
 }
 
 export function getTrackCoverVideo(track?: Track | null) {
-  return firstValid(track?.coverVideoUrl, inferVideoUrlFromPoster(track?.coverVideoPosterUrl), inferVideoUrlFromPoster(track?.coverUrl));
+  return firstValid(
+    track?.coverVideoUrl,
+    isVideoUrl(track?.coverUrl) ? track?.coverUrl : null,
+    inferVideoUrlFromPoster(track?.coverVideoPosterUrl),
+    inferVideoUrlFromPoster(track?.coverUrl),
+  );
 }
 
 export function TrackCover({
@@ -57,7 +70,13 @@ export function TrackCover({
   const { settings } = useMobileSettings();
   const image = firstValid(posterSource, source, getTrackCoverImage(track));
   const video = useMemo(
-    () => firstValid(videoSource, getTrackCoverVideo(track), inferVideoUrlFromPoster(posterSource), inferVideoUrlFromPoster(source)),
+    () => firstValid(
+      videoSource,
+      getTrackCoverVideo(track),
+      isVideoUrl(source) ? source : null,
+      inferVideoUrlFromPoster(posterSource),
+      inferVideoUrlFromPoster(source),
+    ),
     [posterSource, source, track, videoSource],
   );
   const [videoFailed, setVideoFailed] = useState(false);
@@ -77,7 +96,7 @@ export function TrackCover({
   useEffect(() => {
     setVideoReady(false);
     if (!wantsVideo) return;
-    const timer = setTimeout(() => setVideoReady(true), 900);
+    const timer = setTimeout(() => setVideoReady(true), 120);
     return () => clearTimeout(timer);
   }, [video, wantsVideo]);
 

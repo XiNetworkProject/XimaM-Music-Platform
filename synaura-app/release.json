@@ -1,12 +1,12 @@
 {
-  "title": "Synaura mobile 0.6.1",
+  "title": "Synaura mobile 0.6.2",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Synaura City rassemble la vitrine quotidienne, les nouveaux talents et les lancements officiels",
-    "Pulse et Radar detectent les sons et artistes qui montent",
-    "Friday Drop, Theme Challenge, Battle IA et evenements saisonniers",
-    "Hall of Fame, badges auditeur et carte artiste evolutive",
-    "Lecture, votes, profils et participation connectes entre web et mobile"
+    "Swipe beaucoup plus fluide: un petit geste suffit pour changer de son",
+    "Les covers video (MP4) sont de retour dans le Swipe",
+    "Synaura City passe en mode nuit neon, plus belle et plus lisible",
+    "Participation aux events City reparee: choisis ton son dans une liste",
+    "Animations retravaillees sur le Swipe et la City"
   ]
 }

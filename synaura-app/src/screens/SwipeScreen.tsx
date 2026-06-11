@@ -47,8 +47,7 @@ const PRELOAD_RANGE = 1;
 const COMMENTS_POLL_DELAY_MS = 900;
 const SUBSCRIPTION_PROMO_ID = 'synaura-subscription-interlude';
 const CITY_PROMO_ID = 'synaura-city-interlude';
-const SWIPE_TRIGGER_DISTANCE = 54;
-const SWIPE_TRIGGER_VELOCITY = 0.18;
+const SWIPE_TRIGGER_DISTANCE = 48;
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 const subscriptionPromo: Track = {
@@ -428,13 +427,11 @@ export function SwipeScreen() {
     void player.seekTo(seconds);
   }, [player]);
 
-  // Stratégie de swipe : on ne réagit qu'à la fin du scroll (snap stable).
-  // Pas d'onViewableItemsChanged qui peut firer pendant le drag et provoquer du play/pause spam.
-  const commitIndex = useCallback((idx: number, animated = false) => {
+  // Stratégie de swipe : le snap est entierement gere nativement via
+  // snapToInterval + disableIntervalMomentum (une page max par geste, flick leger suffisant).
+  // On ne commit la lecture qu'a la fin du snap pour eviter le play/pause spam.
+  const commitIndex = useCallback((idx: number) => {
     const nextIndex = Math.max(0, Math.min(tracks.length - 1, idx));
-    if (nextIndex !== Math.round(dragStartOffsetRef.current / itemHeight)) {
-      try { listRef.current?.scrollToIndex({ index: nextIndex, animated }); } catch { /* ignore */ }
-    }
     if (nextIndex === lastCommittedIndexRef.current) return;
     lastCommittedIndexRef.current = nextIndex;
     setActiveIndex(nextIndex);
@@ -452,30 +449,31 @@ export function SwipeScreen() {
         else void player.playTrack(target);
       });
     }, 160);
-  }, [itemHeight, player, tracks]);
+  }, [player, tracks]);
 
   const commitVisibleTrack = useCallback((offsetY: number) => {
-    commitIndex(Math.round(offsetY / itemHeight), false);
+    commitIndex(Math.round(offsetY / itemHeight));
   }, [commitIndex, itemHeight]);
 
   const handleScrollBeginDrag = useCallback((event: any) => {
     dragStartOffsetRef.current = event.nativeEvent.contentOffset.y || 0;
   }, []);
 
+  // Filet de securite : un drag lent mais franc (> SWIPE_TRIGGER_DISTANCE) sans flick
+  // doit quand meme avancer d'une page au lieu de revenir en arriere.
   const handleScrollEndDrag = useCallback((event: any) => {
     if (!tracks.length) return;
+    const velocityY = Math.abs(Number(event.nativeEvent.velocity?.y || 0));
+    if (velocityY > 0.08) return; // le snap natif s'en occupe
     const endY = event.nativeEvent.contentOffset.y || 0;
     const delta = endY - dragStartOffsetRef.current;
-    const velocityY = Number(event.nativeEvent.velocity?.y || 0);
+    if (Math.abs(delta) < SWIPE_TRIGGER_DISTANCE) return;
     const startIndex = Math.max(0, Math.min(tracks.length - 1, Math.round(dragStartOffsetRef.current / itemHeight)));
-    const wantsNext = delta > SWIPE_TRIGGER_DISTANCE || velocityY > SWIPE_TRIGGER_VELOCITY;
-    const wantsPrev = delta < -SWIPE_TRIGGER_DISTANCE || velocityY < -SWIPE_TRIGGER_VELOCITY;
-
-    if (wantsNext || wantsPrev) {
-      const nextIndex = Math.max(0, Math.min(tracks.length - 1, startIndex + (wantsNext ? 1 : -1)));
-      commitIndex(nextIndex, true);
-    }
-  }, [commitIndex, itemHeight, tracks.length]);
+    const nextIndex = Math.max(0, Math.min(tracks.length - 1, startIndex + (delta > 0 ? 1 : -1)));
+    requestAnimationFrame(() => {
+      try { listRef.current?.scrollToIndex({ index: nextIndex, animated: true }); } catch { /* ignore */ }
+    });
+  }, [itemHeight, tracks.length]);
 
   const handleMomentumScrollEnd = useCallback((event: any) => {
     commitVisibleTrack(event.nativeEvent.contentOffset.y);
@@ -639,7 +637,9 @@ export function SwipeScreen() {
           data={tracks}
           keyExtractor={(item) => item._id}
           renderItem={renderItem}
-          pagingEnabled
+          snapToInterval={itemHeight}
+          snapToAlignment="start"
+          disableIntervalMomentum
           decelerationRate="fast"
           bounces={false}
           overScrollMode="never"

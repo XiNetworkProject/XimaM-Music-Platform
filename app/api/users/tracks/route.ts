@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
@@ -20,7 +19,7 @@ function readTrackData(value: any): Record<string, any> {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     const userId = (session?.user as any)?.id as string | undefined;
     if (!userId) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
