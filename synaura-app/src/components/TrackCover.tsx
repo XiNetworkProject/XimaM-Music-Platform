@@ -47,9 +47,25 @@ function inferVideoUrlFromPoster(url?: string | null) {
   }
 }
 
+// Les videos hebergees sur Bunny CDN repliquent le path Cloudinary: on retombe
+// sur res.cloudinary.com si la lecture CDN echoue cote mobile.
+export function toCloudinaryVideoUrl(url?: string | null) {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes('b-cdn.net') && parsed.pathname.includes('/video/upload/')) {
+      return `https://res.cloudinary.com${parsed.pathname}${parsed.search || ''}`;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export function getTrackCoverVideo(track?: Track | null) {
   return firstValid(
     track?.coverVideoUrl,
+    track?.musicVideoUrl,
     isVideoUrl(track?.coverUrl) ? track?.coverUrl : null,
     inferVideoUrlFromPoster(track?.coverVideoPosterUrl),
     inferVideoUrlFromPoster(track?.coverUrl),
@@ -80,9 +96,12 @@ export function TrackCover({
     [posterSource, source, track, videoSource],
   );
   const [videoFailed, setVideoFailed] = useState(false);
+  const [useVideoFallback, setUseVideoFallback] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
-  const wantsVideo = !!video && !videoFailed && active && autoPlayVideo && settings.coverVideos && !settings.dataSaver && !settings.reducedMotion;
+  const fallbackVideo = toCloudinaryVideoUrl(video);
+  const activeVideo = useVideoFallback && fallbackVideo ? fallbackVideo : video;
+  const wantsVideo = !!activeVideo && !videoFailed && active && autoPlayVideo && settings.coverVideos && !settings.dataSaver && !settings.reducedMotion;
   const showVideo = wantsVideo && videoReady;
 
   useEffect(() => {
@@ -91,6 +110,7 @@ export function TrackCover({
 
   useEffect(() => {
     setVideoFailed(false);
+    setUseVideoFallback(false);
   }, [video]);
 
   useEffect(() => {
@@ -110,9 +130,9 @@ export function TrackCover({
         fadeDuration={0}
         onError={() => setImageFailed(true)}
       />
-      {showVideo ? (
+      {showVideo && activeVideo ? (
         <Video
-          source={{ uri: video }}
+          source={{ uri: activeVideo }}
           paused={false}
           muted
           volume={0}
@@ -124,7 +144,13 @@ export function TrackCover({
           ignoreSilentSwitch="ignore"
           poster={image || undefined}
           style={StyleSheet.absoluteFill}
-          onError={() => setVideoFailed(true)}
+          onError={() => {
+            if (!useVideoFallback && fallbackVideo && fallbackVideo !== video) {
+              setUseVideoFallback(true);
+              return;
+            }
+            setVideoFailed(true);
+          }}
         />
       ) : null}
     </View>

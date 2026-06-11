@@ -10,17 +10,21 @@ function cityTableMissing(error: any) {
   return error?.code === '42P01' || message.includes('does not exist') || message.includes('schema cache');
 }
 
-async function trackExists(trackId: string) {
+// Le son doit exister ET appartenir a l'utilisateur qui participe.
+async function trackOwnedByUser(trackId: string, userId: string) {
   if (trackId.startsWith('ai-')) {
     const { data } = await supabaseAdmin
       .from('ai_tracks')
-      .select('id')
+      .select('id, generation:ai_generations!inner(user_id)')
       .eq('id', trackId.replace(/^ai-/, ''))
       .maybeSingle();
-    return Boolean(data);
+    if (!data) return { exists: false, owned: false };
+    const generation = Array.isArray((data as any).generation) ? (data as any).generation[0] : (data as any).generation;
+    return { exists: true, owned: String(generation?.user_id || '') === userId };
   }
-  const { data } = await supabaseAdmin.from('tracks').select('id').eq('id', trackId).maybeSingle();
-  return Boolean(data);
+  const { data } = await supabaseAdmin.from('tracks').select('id, creator_id').eq('id', trackId).maybeSingle();
+  if (!data) return { exists: false, owned: false };
+  return { exists: true, owned: String((data as any).creator_id || '') === userId };
 }
 
 // Fallback sans migration: la participation vit dans profiles.preferences
@@ -62,11 +66,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'Participation invalide.' }, { status: 400 });
     }
 
-    if (!(await trackExists(trackId))) return NextResponse.json({ error: 'Son introuvable.' }, { status: 404 });
+    const ownership = await trackOwnedByUser(trackId, session.user.id);
+    if (!ownership.exists) return NextResponse.json({ error: 'Son introuvable.' }, { status: 404 });
+    if (!ownership.owned) return NextResponse.json({ error: 'Tu ne peux participer qu avec un de tes sons.' }, { status: 403 });
 
     const { data: event, error: eventError } = await supabaseAdmin
       .from('city_events')
-      .select('id, kind, status, ends_at, challenge_tag, theme')
+      .select('id, kind, status, starts_at, ends_at, challenge_tag, theme')
       .eq('id', eventId)
       .maybeSingle();
     if (eventError) {
@@ -82,6 +88,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ success: true, eventId, trackId, legacy: true });
     }
     if (event.kind === 'battle') return NextResponse.json({ error: 'Utilise le vote pour la battle.' }, { status: 400 });
+    if (event.starts_at && Date.now() < new Date(event.starts_at).getTime()) {
+      return NextResponse.json({ error: 'Cet event n a pas encore commence.' }, { status: 400 });
+    }
     if (event.ends_at && Date.now() > new Date(event.ends_at).getTime()) {
       return NextResponse.json({ error: 'Cet event est termine.' }, { status: 400 });
     }
