@@ -9,6 +9,9 @@ import {
   type CityAward,
   type CityBadge,
   type CityEvent,
+  type CityEventParticipation,
+  type CityEventReward,
+  type CityEventWinner,
   type CityPulseTrack,
   type CityShowcaseItem,
   type CityTrack,
@@ -192,6 +195,275 @@ function seasonalEvent(month: number): Pick<CityEvent, 'title' | 'subtitle' | 'd
   return { title: 'Synaura Neon Week', subtitle: 'Saison speciale', description: 'Une semaine pour construire le futur sonore de Synaura.', icon: 'flash', accent: '#7C5CFF', theme: 'neon' };
 }
 
+function cityEventStatus(event: CityEvent, now = new Date()): NonNullable<CityEvent['status']> {
+  const start = event.startsAt ? new Date(event.startsAt).getTime() : Number.NaN;
+  const end = event.endsAt ? new Date(event.endsAt).getTime() : Number.NaN;
+  const time = now.getTime();
+  if (Number.isFinite(end) && time > end) return 'ended';
+  if (Number.isFinite(start) && time < start) return 'scheduled';
+  return 'live';
+}
+
+function cityEventReward(event: CityEvent): CityEventReward {
+  if (event.kind === 'battle') {
+    return {
+      key: 'battle-jury',
+      title: 'Jure Synaura',
+      description: 'Vote dans la battle et debloque ton badge de juré.',
+      kind: 'badge',
+    };
+  }
+  if (event.kind === 'challenge') {
+    return {
+      key: 'challenge-drop',
+      title: 'Participant City Challenge',
+      description: 'Soumets un son au theme de la semaine.',
+      kind: 'badge',
+    };
+  }
+  if (event.kind === 'friday_drop') {
+    return {
+      key: 'friday-drop',
+      title: 'Friday Dropper',
+      description: 'Entre dans les sorties officielles du vendredi.',
+      kind: 'showcase',
+    };
+  }
+  return {
+    key: 'seasonal-spark',
+    title: 'Saison Synaura',
+    description: 'Participe a l event saisonnier de la ville.',
+    kind: 'badge',
+  };
+}
+
+function decorateCityEvent(event: CityEvent, now = new Date()): CityEvent {
+  const status = event.status || cityEventStatus(event, now);
+  const totalVotes = Object.values(event.voteCounts || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+  const live = status === 'live';
+  const ended = status === 'ended' || status === 'resolved' || status === 'archived';
+  const detailCta = event.kind === 'battle'
+    ? { label: event.selectedTrackId ? 'Vote enregistre' : 'Voter', action: 'vote' as const }
+    : event.claimStatus === 'available'
+      ? { label: 'Reclamer', action: 'claim' as const }
+      : event.userParticipation
+        ? { label: 'Participation envoyee', action: 'open' as const }
+        : { label: 'Participer', action: 'participate' as const, href: event.kind === 'challenge' ? `/community?tag=${encodeURIComponent(event.challengeTag || '')}` : '/upload' };
+
+  return {
+    ...event,
+    status,
+    isLive: live,
+    isEnded: ended,
+    totalVotes,
+    participationCount: event.participationCount || 0,
+    canParticipate: event.canParticipate ?? (!ended && event.kind !== 'battle'),
+    reward: event.reward || cityEventReward(event),
+    claimStatus: event.claimStatus || 'none',
+    detailCta,
+  };
+}
+
+function cityTableMissing(error: any) {
+  const message = String(error?.message || error?.details || '').toLowerCase();
+  return error?.code === '42P01' || message.includes('does not exist') || message.includes('schema cache');
+}
+
+async function hydratePersistedEvents(
+  baseEvents: CityEvent[],
+  allPulse: CityPulseTrack[],
+  userId: string | null,
+  dayKey: string,
+  weekKey: string,
+  now = new Date(),
+) {
+  const trackMap = new Map(allPulse.map((track) => [track._id, track]));
+  const decorated = baseEvents.map((event) => decorateCityEvent(event, now));
+  const eventRows = decorated.map((event) => ({
+    id: event.id,
+    kind: event.kind,
+    title: event.title,
+    subtitle: event.subtitle,
+    description: event.description,
+    icon: event.icon,
+    accent: event.accent,
+    week_key: weekKey,
+    day_key: dayKey,
+    status: event.status,
+    starts_at: event.startsAt || null,
+    ends_at: event.endsAt || null,
+    challenge_tag: event.challengeTag || null,
+    theme: event.theme || null,
+    config: event.config || { generated: true },
+    reward: event.reward || cityEventReward(event),
+  }));
+
+  const { error: upsertEventsError } = await supabaseAdmin
+    .from('city_events')
+    .upsert(eventRows, { onConflict: 'id' });
+  if (upsertEventsError) throw upsertEventsError;
+
+  const eventTrackRows = decorated.flatMap((event) => (event.tracks || []).map((track, slot) => ({
+    event_id: event.id,
+    track_id: track._id,
+    slot,
+    source: 'algorithmic',
+    score: 'pulse' in track ? track.pulse : null,
+    metadata: { title: track.title },
+  })));
+  if (eventTrackRows.length) {
+    const { error } = await supabaseAdmin
+      .from('city_event_tracks')
+      .upsert(eventTrackRows, { onConflict: 'event_id,track_id' });
+    if (error) throw error;
+  }
+
+  const ids = decorated.map((event) => event.id);
+  const [eventsRes, tracksRes, votesRes, participationsRes, winnersRes, rewardsRes] = await Promise.all([
+    supabaseAdmin.from('city_events').select('*').in('id', ids),
+    supabaseAdmin.from('city_event_tracks').select('*').in('event_id', ids).order('slot', { ascending: true }),
+    supabaseAdmin.from('city_event_votes').select('event_id, track_id, user_id, created_at').in('event_id', ids),
+    supabaseAdmin.from('city_event_participations').select('*').in('event_id', ids).order('created_at', { ascending: false }),
+    supabaseAdmin.from('city_event_winners').select('*').in('event_id', ids).order('rank', { ascending: true }),
+    userId ? supabaseAdmin.from('city_user_rewards').select('*').eq('user_id', userId).in('event_id', ids) : Promise.resolve({ data: [] } as any),
+  ]);
+
+  for (const result of [eventsRes, tracksRes, votesRes, participationsRes, winnersRes, rewardsRes]) {
+    if ((result as any).error) throw (result as any).error;
+  }
+
+  const eventById = new Map((eventsRes.data || []).map((row: any) => [String(row.id), row]));
+  const tracksByEvent = new Map<string, CityPulseTrack[]>();
+  for (const row of tracksRes.data || []) {
+    const track = trackMap.get(String(row.track_id));
+    if (!track) continue;
+    tracksByEvent.set(String(row.event_id), [...(tracksByEvent.get(String(row.event_id)) || []), track]);
+  }
+
+  const votesByEvent = new Map<string, Record<string, number>>();
+  const selectedByEvent = new Map<string, string>();
+  for (const row of votesRes.data || []) {
+    const eventId = String(row.event_id);
+    const trackId = String(row.track_id);
+    const counts = votesByEvent.get(eventId) || {};
+    counts[trackId] = (counts[trackId] || 0) + 1;
+    votesByEvent.set(eventId, counts);
+    if (userId && String(row.user_id) === userId) selectedByEvent.set(eventId, trackId);
+  }
+
+  const participationByEvent = new Map<string, any[]>();
+  const userParticipationByEvent = new Map<string, any>();
+  for (const row of participationsRes.data || []) {
+    const eventId = String(row.event_id);
+    participationByEvent.set(eventId, [...(participationByEvent.get(eventId) || []), row]);
+    if (userId && String(row.user_id) === userId && !userParticipationByEvent.has(eventId)) {
+      userParticipationByEvent.set(eventId, row);
+    }
+  }
+
+  const winnersByEvent = new Map<string, CityEventWinner[]>();
+  for (const row of winnersRes.data || []) {
+    const winner: CityEventWinner = {
+      id: String(row.id),
+      eventId: String(row.event_id),
+      trackId: String(row.track_id),
+      userId: row.user_id || null,
+      rank: Number(row.rank || 1),
+      reason: row.reason || null,
+      showcaseUntil: row.showcase_until || null,
+      track: trackMap.get(String(row.track_id)) || null,
+    };
+    winnersByEvent.set(winner.eventId, [...(winnersByEvent.get(winner.eventId) || []), winner]);
+  }
+
+  const rewardsByEvent = new Map<string, any>();
+  for (const row of rewardsRes.data || []) rewardsByEvent.set(String(row.event_id), row);
+
+  const resolvedEvents = await Promise.all(decorated.map(async (event) => {
+    const row = eventById.get(event.id);
+    const eventTracks = tracksByEvent.get(event.id) || event.tracks || [];
+    const voteCounts = votesByEvent.get(event.id) || Object.fromEntries(eventTracks.map((track) => [track._id, 0]));
+    const winners = winnersByEvent.get(event.id) || [];
+    let winnerTrackId = winners[0]?.trackId || null;
+
+    if (!winnerTrackId && (row?.status === 'ended' || row?.status === 'resolved')) {
+      const bestTrack = event.kind === 'battle'
+        ? [...eventTracks].sort((a, b) => Number(voteCounts[b._id] || 0) - Number(voteCounts[a._id] || 0))[0]
+        : [...eventTracks].sort((a, b) => b.pulse - a.pulse)[0];
+      if (bestTrack) {
+        const { data: inserted } = await supabaseAdmin
+          .from('city_event_winners')
+          .upsert({
+            event_id: event.id,
+            track_id: bestTrack._id,
+            user_id: bestTrack.artist?._id || null,
+            rank: 1,
+            reason: event.kind === 'battle' ? 'Vote de la communaute' : 'Meilleur signal Pulse',
+            showcase_until: new Date(now.getTime() + DAY_MS).toISOString(),
+            metadata: { autoResolved: true },
+          }, { onConflict: 'event_id,rank' })
+          .select('*')
+          .maybeSingle();
+        winnerTrackId = inserted?.track_id || bestTrack._id;
+      }
+    }
+
+    const participation = userParticipationByEvent.get(event.id);
+    const rewardRow = rewardsByEvent.get(event.id);
+    const userParticipation: CityEventParticipation | null = participation ? {
+      id: String(participation.id),
+      eventId: String(participation.event_id),
+      userId: String(participation.user_id),
+      trackId: String(participation.track_id),
+      status: participation.status,
+      createdAt: participation.created_at,
+      track: trackMap.get(String(participation.track_id)) || null,
+    } : null;
+
+    return decorateCityEvent({
+      ...event,
+      title: row?.title || event.title,
+      subtitle: row?.subtitle || event.subtitle,
+      description: row?.description || event.description,
+      icon: row?.icon || event.icon,
+      accent: row?.accent || event.accent,
+      status: row?.status || event.status,
+      startsAt: row?.starts_at || event.startsAt,
+      endsAt: row?.ends_at || event.endsAt,
+      challengeTag: row?.challenge_tag || event.challengeTag,
+      theme: row?.theme || event.theme,
+      config: row?.config || event.config,
+      reward: row?.reward || event.reward || cityEventReward(event),
+      tracks: eventTracks,
+      voteCounts,
+      selectedTrackId: selectedByEvent.get(event.id) || event.selectedTrackId || null,
+      participationCount: (participationByEvent.get(event.id) || []).length,
+      userParticipation,
+      winners,
+      winnerTrackId,
+      claimStatus: rewardRow?.status || (userParticipation ? 'available' : 'none'),
+    }, now);
+  }));
+
+  return resolvedEvents;
+}
+
+async function tryHydratePersistedEvents(
+  events: CityEvent[],
+  pulse: CityPulseTrack[],
+  userId: string | null,
+  dayKey: string,
+  weekKey: string,
+  now = new Date(),
+) {
+  try {
+    return await hydratePersistedEvents(events, pulse, userId, dayKey, weekKey, now);
+  } catch (error) {
+    if (!cityTableMissing(error)) console.error('city: persisted events unavailable', error);
+    return events.map((event) => decorateCityEvent(event, now));
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getApiSession(request).catch(() => null);
@@ -332,6 +604,8 @@ export async function GET(request: NextRequest) {
     const baseVoteCounts = Object.fromEntries(battleTracks.map((track) => [track._id, Math.max(3, Math.round(track.pulse * 0.42 + track.recentLikes * 1.8))]));
     if (selectedTrackId && baseVoteCounts[selectedTrackId] !== undefined) baseVoteCounts[selectedTrackId] += 1;
     const season = seasonalEvent(now.getMonth());
+    const weekEndsAt = new Date(now.getTime() + 7 * DAY_MS).toISOString();
+    const liveStartsAt = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
     const events: CityEvent[] = [
       {
         id: `${weekKey}-friday`,
@@ -353,6 +627,8 @@ export async function GET(request: NextRequest) {
         description: challenge[2],
         icon: 'color-wand',
         accent: '#7C5CFF',
+        startsAt: liveStartsAt,
+        endsAt: weekEndsAt,
         challengeTag: challenge[1],
         theme: challenge[0],
         tracks: pulse.filter((track) => (track.tags || []).some((tag) => tag.toLowerCase().includes(challenge[1].slice(1).toLowerCase()))).slice(0, 4),
@@ -365,6 +641,8 @@ export async function GET(request: NextRequest) {
         description: 'Vote pour ton favori. Le gagnant rejoint la vitrine pendant 24 heures.',
         icon: 'flash',
         accent: '#00A7B2',
+        startsAt: liveStartsAt,
+        endsAt: weekEndsAt,
         tracks: battleTracks,
         selectedTrackId,
         voteCounts: baseVoteCounts,
@@ -373,9 +651,13 @@ export async function GET(request: NextRequest) {
         id: `${weekKey}-season`,
         kind: 'seasonal',
         ...season,
+        startsAt: liveStartsAt,
+        endsAt: weekEndsAt,
         tracks: rotate(pulse, `${weekKey}-season`).slice(0, 4),
       },
     ];
+    const hydratedEvents = await tryHydratePersistedEvents(events, pulse, userId, dayKey, weekKey, now);
+    const hydratedBattle = hydratedEvents.find((event) => event.kind === 'battle') || events.find((event) => event.kind === 'battle') || null;
 
     const topArtist = [...artists].sort((a, b) => b.totalPlays + b.totalLikes * 3 - (a.totalPlays + a.totalLikes * 3))[0] || null;
     const bestNewcomer = spotlightArtists[0] || null;
@@ -399,7 +681,7 @@ export async function GET(request: NextRequest) {
       { id: 'daily-listener', title: 'Journee en musique', description: 'Ecoute dix sons sur Synaura.', icon: 'headset', unlocked: starts >= 10, progress: Math.min(starts, 10), target: 10 },
       { id: 'full-listen', title: 'Supporter officiel', description: 'Ecoute cinq creations jusqu au bout.', icon: 'ribbon', unlocked: completes >= 5, progress: Math.min(completes, 5), target: 5 },
       { id: 'city-voice', title: 'Voix de la ville', description: 'Partage trois sons qui meritent plus de lumiere.', icon: 'megaphone', unlocked: shares >= 3, progress: Math.min(shares, 3), target: 3 },
-      { id: 'battle-voter', title: 'Jure Synaura', description: 'Vote dans une Battle IA.', icon: 'flash', unlocked: Boolean(selectedTrackId), progress: selectedTrackId ? 1 : 0, target: 1 },
+      { id: 'battle-voter', title: 'Jure Synaura', description: 'Vote dans une Battle IA.', icon: 'flash', unlocked: Boolean(hydratedBattle?.selectedTrackId), progress: hydratedBattle?.selectedTrackId ? 1 : 0, target: 1 },
     ];
 
     const creatorCard = currentProfileRes.data ? artistFromProfile(currentProfileRes.data) : null;
@@ -420,7 +702,7 @@ export async function GET(request: NextRequest) {
       pulse: pulse.slice(0, 12),
       radar,
       premieres,
-      events,
+      events: hydratedEvents,
       hallOfFame,
       listenerBadges,
       creatorCard,

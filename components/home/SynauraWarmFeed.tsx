@@ -149,6 +149,7 @@ type RadioItem = {
 
 type FeedItem =
   | { id: string; kind: 'composer' }
+  | { id: string; kind: 'city' }
   | PostItem
   | { id: string; kind: 'track'; title: string; subtitle: string; track: Track; label: string }
   | { id: string; kind: 'rail'; title: string; subtitle: string; label: string; tracks: Track[] }
@@ -930,6 +931,7 @@ function buildFeedItems({
       tracks: recentTracks.slice(0, 8),
     });
   }
+  items.push({ id: 'city-feed-pulse', kind: 'city' });
   items.push({ id: 'composer', kind: 'composer' });
   if (posts[0]) items.push(posts[0]);
   if (posts[1]) items.push(posts[1]);
@@ -982,8 +984,8 @@ function buildFeedItems({
 function matchesFilter(item: FeedItem, filter: string) {
   if (filter === 'Pour toi') return true;
   if (filter === 'Sons') return item.kind === 'track' || item.kind === 'rail' || (item.kind === 'post' && Boolean(item.track));
-  if (filter === 'Communauté') return item.kind === 'composer' || item.kind === 'post' || item.kind === 'creator';
-  if (filter === 'Plus') return item.kind === 'playlist' || item.kind === 'library' || item.kind === 'radio' || item.kind === 'studio' || item.kind === 'booster';
+  if (filter === 'Communauté') return item.kind === 'composer' || item.kind === 'post' || item.kind === 'creator' || item.kind === 'city';
+  if (filter === 'Plus') return item.kind === 'playlist' || item.kind === 'library' || item.kind === 'radio' || item.kind === 'studio' || item.kind === 'booster' || item.kind === 'city';
   return true;
 }
 
@@ -2543,6 +2545,7 @@ function FeedRenderer({
   const impression = feedItemImpression(item, rank);
   const body =
     item.kind === 'composer' ? <ComposerCard onPostCreated={onPostCreated} /> :
+    item.kind === 'city' ? <CityFeedPulseCard /> :
     item.kind === 'post' ? <PostCard item={item} onDeleted={onPostDeleted} /> :
     item.kind === 'track' ? <TrackFeedCard item={item} /> :
     item.kind === 'rail' ? <RailCard item={item} /> :
@@ -2558,6 +2561,55 @@ function FeedRenderer({
     <div data-reco-impression="1" data-reco-key={`${impression.contentType}:${impression.contentId}`}>
       {body}
     </div>
+  );
+}
+
+function CityFeedPulseCard() {
+  const [city, setCity] = useState<any>(null);
+  useEffect(() => {
+    let active = true;
+    fetch('/api/city', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (active && data?.dayKey) setCity(data);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+  const liveEvent = city?.events?.find((event: any) => event.kind === 'battle' && event.isLive)
+    || city?.events?.find((event: any) => event.isLive)
+    || city?.events?.[0];
+  const topPulse = city?.pulse?.[0];
+  return (
+    <Card className="group p-4">
+      <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-[#FF6F61]/18 blur-2xl transition duration-500 group-hover:scale-110" />
+      <div className="pointer-events-none absolute -bottom-12 left-10 h-32 w-32 rounded-full bg-[#7C5CFF]/12 blur-2xl" />
+      <div className="relative flex items-start gap-3">
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#171313] text-[#fffaf2] shadow-[0_12px_28px_rgba(23,19,19,.16)]">
+          <Radio className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF6F61]">{liveEvent?.kind === 'battle' ? 'Battle live' : 'Synaura City dans le feed'}</p>
+          <h3 className="mt-1 text-2xl font-black tracking-tight">{liveEvent?.title || city?.cityMood?.title || 'Le quartier bouge maintenant'}</h3>
+          <p className="mt-2 max-w-xl text-sm font-bold leading-6 text-black/54">
+            {liveEvent?.description || city?.cityMood?.subtitle || 'Vitrine du jour, Radar, battle et awards peuvent surgir entre deux sons, sans quitter le rythme de la home.'}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-black/[0.055] px-3 text-[10px] font-black uppercase tracking-[0.12em] text-black/52">
+              <Zap className="h-3.5 w-3.5 text-[#FF6F61]" /> {topPulse ? `Pulse ${topPulse.pulse}%` : 'Pulse live'}
+            </span>
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-black/[0.055] px-3 text-[10px] font-black uppercase tracking-[0.12em] text-black/52">
+              <Sparkles className="h-3.5 w-3.5 text-[#7C5CFF]" /> {liveEvent?.participationCount || 0} participations
+            </span>
+            <Link href="/city" className="inline-flex h-8 items-center rounded-full bg-[#171313] px-4 text-[10px] font-black uppercase tracking-[0.12em] text-[#fffaf2]">
+              Ouvrir City
+            </Link>
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 

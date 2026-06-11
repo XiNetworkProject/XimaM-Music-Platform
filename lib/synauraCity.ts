@@ -89,6 +89,9 @@ export type CityEvent = {
   description: string;
   icon: string;
   accent: string;
+  status?: 'scheduled' | 'live' | 'ended' | 'resolved' | 'archived';
+  isLive?: boolean;
+  isEnded?: boolean;
   startsAt?: string;
   endsAt?: string;
   challengeTag?: string;
@@ -96,6 +99,50 @@ export type CityEvent = {
   tracks?: CityPulseTrack[];
   selectedTrackId?: string | null;
   voteCounts?: Record<string, number>;
+  totalVotes?: number;
+  participationCount?: number;
+  userParticipation?: CityEventParticipation | null;
+  canParticipate?: boolean;
+  winnerTrackId?: string | null;
+  winners?: CityEventWinner[];
+  reward?: CityEventReward | null;
+  claimStatus?: 'none' | 'available' | 'claimed' | 'expired';
+  detailCta?: {
+    label: string;
+    action: 'vote' | 'participate' | 'claim' | 'open' | 'create';
+    href?: string;
+  };
+  config?: Record<string, unknown>;
+};
+
+export type CityEventParticipation = {
+  id: string;
+  eventId: string;
+  userId: string;
+  trackId: string;
+  status: 'submitted' | 'accepted' | 'rejected' | 'winner';
+  createdAt: string;
+  track?: CityPulseTrack | null;
+};
+
+export type CityEventWinner = {
+  id: string;
+  eventId: string;
+  trackId: string;
+  userId?: string | null;
+  rank: number;
+  reason?: string | null;
+  showcaseUntil?: string | null;
+  track?: CityPulseTrack | null;
+};
+
+export type CityEventReward = {
+  key: string;
+  title: string;
+  description: string;
+  kind: 'badge' | 'booster' | 'showcase' | 'xp';
+  amount?: number;
+  metadata?: Record<string, unknown>;
 };
 
 export type SynauraCityData = {

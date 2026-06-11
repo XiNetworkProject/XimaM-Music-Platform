@@ -36,7 +36,6 @@ import {
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import TrackCover from '@/components/TrackCover';
-import { SynauraAppShell, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import type {
   CityArtist,
   CityAward,
@@ -104,6 +103,7 @@ export default function SynauraCityPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [voting, setVoting] = useState(false);
+  const [actingEventId, setActingEventId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -157,59 +157,103 @@ export default function SynauraCityPage() {
     }
   }, [battle, load, session?.user, voting]);
 
+  const participate = useCallback(async (event: CityEvent) => {
+    if (actingEventId) return;
+    if (!session?.user) {
+      window.location.href = '/auth/signin';
+      return;
+    }
+    const suggestedTrack = event.tracks?.[0]?._id || '';
+    const trackId = window.prompt('Colle l ID du son a inscrire dans cet event City.', suggestedTrack);
+    if (!trackId?.trim()) return;
+    setActingEventId(event.id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/city/events/${encodeURIComponent(event.id)}/participate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackId: trackId.trim() }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || 'Participation impossible.');
+      await load();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Participation impossible.');
+    } finally {
+      setActingEventId(null);
+    }
+  }, [actingEventId, load, session?.user]);
+
+  const claim = useCallback(async (event: CityEvent) => {
+    if (actingEventId) return;
+    if (!session?.user) {
+      window.location.href = '/auth/signin';
+      return;
+    }
+    setActingEventId(event.id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/city/events/${encodeURIComponent(event.id)}/claim`, { method: 'POST' });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || 'Recompense impossible.');
+      await load();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Recompense impossible.');
+    } finally {
+      setActingEventId(null);
+    }
+  }, [actingEventId, load, session?.user]);
+
   if (loading && !city) {
     return (
-      <SynauraAppShell>
-        <SynauraTopBar primaryHref="/city" primaryLabel="City" />
-        <div className="grid min-h-[60vh] place-items-center">
-          <div className="text-center">
-            <Loader2 className="mx-auto h-8 w-8 animate-spin" />
-            <p className="mt-3 text-sm font-black text-black/[0.45]">La ville se reveille...</p>
+      <CityStandaloneShell>
+        <div className="grid min-h-[72vh] place-items-center">
+          <div className="relative text-center text-[#fffaf2]">
+            <div className="absolute -inset-12 rounded-full bg-[#FF4B7A]/25 blur-3xl" />
+            <Loader2 className="relative mx-auto h-10 w-10 animate-spin text-[#7ef2ed]" />
+            <p className="relative mt-3 text-sm font-black uppercase tracking-[0.2em] text-white/60">La ville se reveille...</p>
           </div>
         </div>
-      </SynauraAppShell>
+      </CityStandaloneShell>
     );
   }
 
   if (!city) {
     return (
-      <SynauraAppShell>
-        <SynauraTopBar primaryHref="/city" primaryLabel="City" />
-        <div className="mx-auto max-w-xl rounded-[2rem] bg-[#fffaf2] p-8 text-center shadow-xl">
+      <CityStandaloneShell>
+        <div className="mx-auto mt-16 max-w-xl rounded-[2rem] border border-white/10 bg-[#fffaf2] p-8 text-center shadow-[0_30px_120px_rgba(255,75,122,.28)]">
           <Map className="mx-auto h-8 w-8 text-[#7C5CFF]" />
           <h1 className="mt-3 text-2xl font-black">La ville fait une courte pause</h1>
           <p className="mt-2 text-sm font-bold text-black/[0.48]">{error}</p>
-          <button onClick={() => void load()} className="mt-5 inline-flex h-11 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white">
+          <button onClick={() => void load()} className="mt-5 inline-flex h-11 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white shadow-[0_14px_35px_rgba(23,19,19,.24)] transition hover:-translate-y-0.5">
             <RefreshCw className="h-4 w-4" /> Reessayer
           </button>
         </div>
-      </SynauraAppShell>
+      </CityStandaloneShell>
     );
   }
 
   return (
-    <SynauraAppShell contentClassName="max-w-[1500px]">
-      <SynauraTopBar primaryHref="/upload" primaryLabel="Participer" secondaryHref="/ai-generator" secondaryLabel="Creer" />
-      <SynauraRouteNav />
-      <style>{`
-        @keyframes citySignal { 0%,100% { transform: scaleY(.35); opacity:.45 } 50% { transform: scaleY(1); opacity:1 } }
-        @keyframes cityScan { 0% { transform: scale(.25); opacity:.8 } 100% { transform: scale(1.15); opacity:0 } }
-        .city-signal span { transform-origin: bottom; animation: citySignal 1.1s ease-in-out infinite; }
-        .city-signal span:nth-child(2) { animation-delay:.12s }.city-signal span:nth-child(3) { animation-delay:.24s }.city-signal span:nth-child(4) { animation-delay:.36s }.city-signal span:nth-child(5) { animation-delay:.48s }
-      `}</style>
-
-      <section className="relative overflow-hidden rounded-[2rem] bg-[#171313] px-5 py-6 text-[#fffaf2] shadow-[0_26px_80px_rgba(23,19,19,.26)] sm:px-8 sm:py-9 lg:px-12 lg:py-11">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_10%,rgba(255,75,122,.38),transparent_30%),radial-gradient(circle_at_85%_15%,rgba(0,194,203,.30),transparent_32%),radial-gradient(circle_at_58%_100%,rgba(124,92,255,.30),transparent_42%)]" />
+    <CityStandaloneShell>
+      <section className="city-card relative overflow-visible rounded-[2rem] bg-[#171313] px-5 py-6 text-[#fffaf2] shadow-[0_35px_140px_rgba(0,0,0,.42)] ring-1 ring-white/[0.10] sm:px-8 sm:py-9 lg:px-12 lg:py-11">
+        <div className="city-fire pointer-events-none absolute -bottom-14 left-6 h-28 w-48 rounded-[50%] bg-[#ff4b7a] opacity-50 blur-3xl" />
+        <div className="city-fire city-fire-delayed pointer-events-none absolute -right-16 top-4 h-40 w-40 rounded-full bg-[#ff9f1c] opacity-50 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[2rem]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_10%,rgba(255,75,122,.55),transparent_30%),radial-gradient(circle_at_85%_15%,rgba(0,194,203,.42),transparent_32%),radial-gradient(circle_at_58%_100%,rgba(124,92,255,.42),transparent_42%)]" />
+          <div className="city-scanline absolute inset-0 opacity-30" />
+          <div className="city-orbit absolute -right-24 -top-24 h-72 w-72 rounded-full border border-[#7ef2ed]/25" />
+          <div className="city-orbit city-orbit-slow absolute -bottom-32 left-1/3 h-80 w-80 rounded-full border border-[#ff4b7a]/20" />
+        </div>
         <div className="relative grid gap-8 lg:grid-cols-[1.2fr_.8fr] lg:items-end">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ring-1 ring-white/[0.12]">
+            <div className="city-float inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ring-1 ring-white/[0.12] backdrop-blur-xl">
               <RadioTower className="h-4 w-4 text-[#7ef2ed]" /> En direct de Synaura City
             </div>
-            <h1 className="mt-5 max-w-4xl text-4xl font-black leading-[.96] tracking-tight sm:text-6xl lg:text-7xl">{city.cityMood.title}</h1>
+            <h1 className="mt-5 max-w-4xl text-5xl font-black leading-[.86] tracking-[-0.08em] sm:text-7xl lg:text-8xl">{city.cityMood.title}</h1>
             <p className="mt-4 max-w-2xl text-sm font-bold text-white/[0.56] sm:text-lg">{city.cityMood.subtitle} Reviens demain : la selection et les projecteurs auront bouge.</p>
             <div className="mt-6 flex flex-wrap gap-2">
-              <Link href="/upload" className="inline-flex h-11 items-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313]"><Rocket className="h-4 w-4" /> Lancer un drop</Link>
-              <Link href="/community" className="inline-flex h-11 items-center gap-2 rounded-full bg-white/10 px-5 text-sm font-black text-white ring-1 ring-white/[0.14]"><Users className="h-4 w-4" /> Rejoindre la ville</Link>
+              <Link href="/upload" className="city-pop inline-flex h-12 items-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] shadow-[0_0_35px_rgba(255,250,242,.28)]"><Rocket className="h-4 w-4" /> Lancer un drop</Link>
+              <Link href="/community" className="city-pop inline-flex h-12 items-center gap-2 rounded-full bg-white/10 px-5 text-sm font-black text-white ring-1 ring-white/[0.14] backdrop-blur-xl"><Users className="h-4 w-4" /> Rejoindre la ville</Link>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -253,7 +297,7 @@ export default function SynauraCityPage() {
           {city.events.map((event) => (
             event.kind === 'battle'
               ? <BattleCard key={event.id} event={event} voting={voting} playingId={currentId} isPlaying={audio.audioState.isPlaying} onPlay={play} onVote={vote} />
-              : <EventCard key={event.id} event={event} onPlay={play} />
+              : <EventCard key={event.id} event={event} busy={actingEventId === event.id} onPlay={play} onParticipate={participate} onClaim={claim} />
           ))}
         </div>
       </Section>
@@ -267,7 +311,49 @@ export default function SynauraCityPage() {
         <Badges badges={city.listenerBadges} />
         <CreatorProgress artist={city.creatorCard} />
       </section>
-    </SynauraAppShell>
+    </CityStandaloneShell>
+  );
+}
+
+function CityStandaloneShell({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="city-standalone relative min-h-screen overflow-hidden bg-[#F4EFE6] px-3 py-4 text-[#171313] sm:px-5 sm:py-6 lg:px-8">
+      <style>{`
+        @keyframes citySignal { 0%,100% { transform: scaleY(.35); opacity:.45 } 50% { transform: scaleY(1); opacity:1 } }
+        @keyframes cityScan { 0% { transform: translateX(-35%) skewX(-18deg); opacity:0 } 30%,70% { opacity:.48 } 100% { transform: translateX(135%) skewX(-18deg); opacity:0 } }
+        @keyframes cityDrift { 0%,100% { transform: translate3d(0,0,0) rotate(0deg) } 50% { transform: translate3d(18px,-28px,0) rotate(8deg) } }
+        @keyframes cityMeteor { 0% { transform: translate3d(0,0,0) rotate(-18deg); opacity:0 } 12% { opacity:1 } 100% { transform: translate3d(-76vw,72vh,0) rotate(-18deg); opacity:0 } }
+        @keyframes cityFire { 0%,100% { transform: scale(.9) translateY(0); filter:hue-rotate(0deg) } 50% { transform: scale(1.22) translateY(-12px); filter:hue-rotate(22deg) } }
+        @keyframes cityOrbit { to { transform: rotate(360deg) } }
+        @keyframes cityPop { 0%,100% { transform: translateY(0) scale(1) } 50% { transform: translateY(-4px) scale(1.02) } }
+        .city-signal span { transform-origin: bottom; animation: citySignal 1.1s ease-in-out infinite; }
+        .city-signal span:nth-child(2) { animation-delay:.12s }.city-signal span:nth-child(3) { animation-delay:.24s }.city-signal span:nth-child(4) { animation-delay:.36s }.city-signal span:nth-child(5) { animation-delay:.48s }
+        .city-scanline { background: linear-gradient(90deg,transparent,rgba(255,255,255,.42),transparent); animation: cityScan 3.8s ease-in-out infinite; }
+        .city-float { animation: cityDrift 5.2s ease-in-out infinite; }
+        .city-fire { animation: cityFire 1.7s ease-in-out infinite; }
+        .city-fire-delayed { animation-delay:.65s; }
+        .city-orbit { animation: cityOrbit 18s linear infinite; }
+        .city-orbit-slow { animation-duration: 28s; animation-direction: reverse; }
+        .city-pop { animation: cityPop 3s ease-in-out infinite; }
+        .city-card { transform-style: preserve-3d; }
+        .city-card:hover { transform: translateY(-3px); }
+        .city-meteor { animation: cityMeteor 7s linear infinite; }
+        .city-meteor:nth-child(2) { animation-delay:1.6s; top:18%; right:-8%; }
+        .city-meteor:nth-child(3) { animation-delay:3.4s; top:3%; right:28%; }
+        .city-meteor:nth-child(4) { animation-delay:5.2s; top:42%; right:-3%; }
+      `}</style>
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_8%_0%,rgba(255,111,97,.22),transparent_28%),radial-gradient(circle_at_94%_4%,rgba(124,92,255,.20),transparent_30%),radial-gradient(circle_at_60%_100%,rgba(0,194,203,.14),transparent_32%)]" />
+      <div className="pointer-events-none fixed inset-0 opacity-[0.28] [background-image:linear-gradient(#ded4c7_1px,transparent_1px),linear-gradient(90deg,#ded4c7_1px,transparent_1px)] [background-size:34px_34px]" />
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <span className="city-meteor absolute right-0 top-24 h-1 w-44 rounded-full bg-gradient-to-l from-transparent via-[#7ef2ed] to-white shadow-[0_0_28px_#7ef2ed]" />
+        <span className="city-meteor absolute h-1 w-36 rounded-full bg-gradient-to-l from-transparent via-[#ff4b7a] to-white shadow-[0_0_28px_#ff4b7a]" />
+        <span className="city-meteor absolute h-1 w-52 rounded-full bg-gradient-to-l from-transparent via-[#ffd667] to-white shadow-[0_0_28px_#ffd667]" />
+        <span className="city-meteor absolute h-1 w-40 rounded-full bg-gradient-to-l from-transparent via-[#b9a8ff] to-white shadow-[0_0_28px_#b9a8ff]" />
+      </div>
+      <div className="relative mx-auto max-w-[1500px] pb-16">
+        {children}
+      </div>
+    </main>
   );
 }
 
@@ -379,9 +465,30 @@ function PremiereCard({ track, index, playing, onPlay }: { track: CityPulseTrack
   );
 }
 
-function EventCard({ event, onPlay }: { event: CityEvent; onPlay: (track: CityTrack) => void }) {
+function EventCard({
+  event,
+  busy,
+  onPlay,
+  onParticipate,
+  onClaim,
+}: {
+  event: CityEvent;
+  busy: boolean;
+  onPlay: (track: CityTrack) => void;
+  onParticipate: (event: CityEvent) => void;
+  onClaim: (event: CityEvent) => void;
+}) {
   const Icon = iconMap[event.icon] || CalendarDays;
   const first = event.tracks?.[0];
+  const winner = event.winners?.[0];
+  const action = event.claimStatus === 'available' ? () => onClaim(event) : () => onParticipate(event);
+  const label = busy
+    ? 'Chargement...'
+    : event.claimStatus === 'available'
+      ? 'Reclamer'
+      : event.userParticipation
+        ? 'Participation envoyee'
+        : event.detailCta?.label || 'Participer';
   return (
     <article className="relative min-h-[260px] overflow-hidden rounded-[1.8rem] bg-[#171313] p-5 text-white shadow-[0_20px_55px_rgba(23,19,19,.18)]">
       {first ? <TrackCover trackId={first._id} src={first.coverUrl} title={first.title} className="absolute inset-0 h-full w-full rounded-none object-cover opacity-30" /> : null}
@@ -389,14 +496,22 @@ function EventCard({ event, onPlay }: { event: CityEvent; onPlay: (track: CityTr
       <div className="relative flex h-full min-h-[220px] flex-col">
         <div className="flex items-center justify-between">
           <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/[0.15]"><Icon className="h-5 w-5" style={{ color: event.accent }} /></span>
-          {event.challengeTag ? <span className="rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-black">{event.challengeTag}</span> : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            <span className="rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.12em]">{event.status || 'live'}</span>
+            {event.challengeTag ? <span className="rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-black">{event.challengeTag}</span> : null}
+          </div>
         </div>
         <div className="mt-auto">
           <p className="text-[10px] font-black uppercase tracking-[.14em] text-white/[0.44]">{event.subtitle}</p>
           <h3 className="mt-1 text-2xl font-black">{event.title}</h3>
           <p className="mt-2 max-w-md text-xs font-bold leading-relaxed text-white/[0.52]">{event.description}</p>
+          <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black text-white/58">
+            <span className="rounded-full bg-white/[0.08] px-2.5 py-1.5">{event.participationCount || 0} participations</span>
+            {event.reward ? <span className="rounded-full bg-white/[0.08] px-2.5 py-1.5">{event.reward.title}</span> : null}
+            {winner ? <span className="rounded-full bg-[#FFD667] px-2.5 py-1.5 text-[#171313]">Winner: {winner.track?.title || winner.trackId}</span> : null}
+          </div>
           <div className="mt-4 flex gap-2">
-            <Link href={event.kind === 'challenge' ? `/community?tag=${encodeURIComponent(event.challengeTag || '')}` : '/community'} className="inline-flex h-10 items-center gap-2 rounded-full bg-[#fffaf2] px-4 text-xs font-black text-[#171313]">Participer <ArrowRight className="h-3.5 w-3.5" /></Link>
+            <button disabled={busy || Boolean(event.userParticipation && event.claimStatus !== 'available')} onClick={action} className="inline-flex h-10 items-center gap-2 rounded-full bg-[#fffaf2] px-4 text-xs font-black text-[#171313] disabled:opacity-55">{label} <ArrowRight className="h-3.5 w-3.5" /></button>
             {first ? <button onClick={() => onPlay(first)} className="grid h-10 w-10 place-items-center rounded-full bg-white/10"><Play className="h-4 w-4" /></button> : null}
           </div>
         </div>
@@ -411,9 +526,10 @@ function BattleCard({ event, voting, playingId, isPlaying, onPlay, onVote }: { e
   return (
     <article className="overflow-hidden rounded-[1.8rem] bg-[#171313] p-5 text-white shadow-[0_20px_55px_rgba(23,19,19,.18)]">
       <div className="flex items-center justify-between gap-3">
-        <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-[#7ef2ed]">{event.subtitle}</p><h3 className="mt-1 text-2xl font-black">{event.title}</h3></div>
+        <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-[#7ef2ed]">{event.subtitle}</p><h3 className="mt-1 text-2xl font-black">{event.title}</h3><p className="mt-1 text-[10px] font-black text-white/36">{event.totalVotes || 0} votes reels · {event.status || 'live'}</p></div>
         <Vote className="h-6 w-6 text-[#FF7B91]" />
       </div>
+      {event.winnerTrackId ? <div className="mt-3 rounded-2xl bg-[#FFD667] px-3 py-2 text-xs font-black text-[#171313]">Gagnant: {tracks.find((track) => track._id === event.winnerTrackId)?.title || event.winnerTrackId}</div> : null}
       <div className="mt-4 grid grid-cols-2 gap-2">
         {tracks.map((track) => {
           const selected = event.selectedTrackId === track._id;

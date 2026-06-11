@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Animated,
+  Easing,
   FlatList,
   Image,
   InteractionManager,
@@ -18,13 +19,14 @@ import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   fetchRankingFeedChunk,
+  getSynauraCity,
   getArtistFollowState,
   getCommentsCount,
   getTrackLikeStatus,
   setTrackLike,
   toggleArtistFollow,
 } from '@/api/client';
-import type { Track } from '@/api/types';
+import type { SynauraCityData, Track } from '@/api/types';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
 import { CommentsSheet } from '@/components/swipe/CommentsSheet';
@@ -44,11 +46,24 @@ import {
 const PRELOAD_RANGE = 1;
 const COMMENTS_POLL_DELAY_MS = 900;
 const SUBSCRIPTION_PROMO_ID = 'synaura-subscription-interlude';
+const CITY_PROMO_ID = 'synaura-city-interlude';
+const SWIPE_TRIGGER_DISTANCE = 54;
+const SWIPE_TRIGGER_VELOCITY = 0.18;
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 const subscriptionPromo: Track = {
   _id: SUBSCRIPTION_PROMO_ID,
   title: 'Synaura+',
+  audioUrl: '',
+  duration: 0,
+  likes: [],
+  comments: [],
+  genre: [],
+};
+
+const cityPromo: Track = {
+  _id: CITY_PROMO_ID,
+  title: 'Synaura City',
   audioUrl: '',
   duration: 0,
   likes: [],
@@ -65,6 +80,13 @@ function injectSubscriptionPromo(tracks: Track[]) {
   const result = [...tracks];
   const insertAt = Math.min(result.length, 9 + Math.floor(Math.random() * 4));
   result.splice(insertAt, 0, subscriptionPromo);
+  return result;
+}
+
+function injectCityPromo(tracks: Track[]) {
+  if (tracks.length < 5 || tracks.some((track) => track._id === CITY_PROMO_ID)) return tracks;
+  const result = [...tracks];
+  result.splice(Math.min(result.length, 5), 0, cityPromo);
   return result;
 }
 
@@ -111,6 +133,7 @@ export function SwipeScreen() {
   const listRef = useRef<FlatList<Track>>(null);
   const headerOpacity = useRef(new Animated.Value(1)).current;
   const lastCommittedIndexRef = useRef(0);
+  const dragStartOffsetRef = useRef(0);
   const switchFeedMode = useCallback((nextMode: FeedMode) => {
     if (nextMode === feedMode) return;
     setFeedMode(nextMode);
@@ -120,6 +143,7 @@ export function SwipeScreen() {
   const activeTrack = tracks[activeIndex] || null;
   const activeId = activeTrack?._id || '';
   const isPromoActive = activeId === SUBSCRIPTION_PROMO_ID;
+  const isCityActive = activeId === CITY_PROMO_ID;
 
   const currentSeedGenre = useMemo(() => seedGenre || topGenre(activeTrack), [activeTrack, seedGenre]);
 
@@ -149,7 +173,7 @@ export function SwipeScreen() {
       fetchRankingFeedChunk(feedMode, 0, seedForReco)
         .then((chunk) => {
           if (cancelled || reqId !== lastRequestRef.current) return;
-          const feedTracks = injectSubscriptionPromo(withoutObsoleteRadios(chunk.tracks));
+          const feedTracks = injectCityPromo(injectSubscriptionPromo(withoutObsoleteRadios(chunk.tracks)));
           const merged = player.current?.audioUrl
             ? uniqueTracks([...(player.current._id.startsWith('radio-') ? [] : [player.current]), ...feedTracks])
             : feedTracks;
@@ -208,7 +232,7 @@ export function SwipeScreen() {
   // (auto-advance, lockscreen, mini-player), on scrolle vers la slide correspondante.
   // Pas de boucle car scrollToIndex(animated:false) ne declenche pas onMomentumScrollEnd.
   useEffect(() => {
-    if (loadState !== 'ready' || !tracks.length || !player.current || isPromoActive) return;
+    if (loadState !== 'ready' || !tracks.length || !player.current || isPromoActive || isCityActive) return;
     const idx = tracks.findIndex((t) => t._id === player.current?._id);
     if (idx < 0 || idx === activeIndex) return;
     setActiveIndex(idx);
@@ -221,7 +245,7 @@ export function SwipeScreen() {
         }, 80);
       }
     });
-  }, [player.current?._id, loadState, tracks, activeIndex, isPromoActive]);
+  }, [player.current?._id, loadState, tracks, activeIndex, isPromoActive, isCityActive]);
 
   // (4) Recuperer batch des compteurs commentaires
   useEffect(() => {
@@ -243,7 +267,7 @@ export function SwipeScreen() {
 
   // (5) Recuperer le statut like + likesCount du morceau actif
   useEffect(() => {
-    if (!activeId || isPromoActive || activeId.startsWith('ai-')) return;
+    if (!activeId || isPromoActive || isCityActive || activeId.startsWith('ai-')) return;
     if (fetchedLikeIdsRef.current.has(activeId)) return;
     fetchedLikeIdsRef.current.add(activeId);
     void getTrackLikeStatus(activeId).then((data) => {
@@ -251,18 +275,18 @@ export function SwipeScreen() {
       setLikedMap((current) => ({ ...current, [activeId]: data.liked }));
       setLikesMap((current) => ({ ...current, [activeId]: data.likesCount || current[activeId] || 0 }));
     });
-  }, [activeId, isPromoActive]);
+  }, [activeId, isPromoActive, isCityActive]);
 
   // (6) Statut follow de l'artiste
   useEffect(() => {
     const username = activeTrack?.artist?.username || '';
-    if (!username || isPromoActive) return;
+    if (!username || isPromoActive || isCityActive) return;
     if (fetchedFollowIdsRef.current.has(username)) return;
     fetchedFollowIdsRef.current.add(username);
     void getArtistFollowState(username).then((following) => {
       setFollowingMap((current) => ({ ...current, [username]: following }));
     });
-  }, [activeTrack?.artist?.username, isPromoActive]);
+  }, [activeTrack?.artist?.username, isPromoActive, isCityActive]);
 
   // (8) Preloading covers
   useEffect(() => {
@@ -313,7 +337,7 @@ export function SwipeScreen() {
   }, []);
 
   const handleToggleLike = useCallback(async () => {
-    if (!activeTrack || isPromoActive) return;
+    if (!activeTrack || isPromoActive || isCityActive) return;
     const id = activeTrack._id;
     if (id.startsWith('ai-')) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -330,16 +354,16 @@ export function SwipeScreen() {
       setLikedMap((current) => ({ ...current, [id]: result.liked }));
       setLikesMap((current) => ({ ...current, [id]: result.likesCount }));
     }
-  }, [activeTrack, isPromoActive, likedMap, triggerBurst]);
+  }, [activeTrack, isPromoActive, isCityActive, likedMap, triggerBurst]);
 
   const handleDoubleTapLike = useCallback(() => {
-    if (!activeTrack || isPromoActive) return;
+    if (!activeTrack || isPromoActive || isCityActive) return;
     if (!likedMap[activeTrack._id]) {
       void handleToggleLike();
     } else {
       triggerBurst();
     }
-  }, [activeTrack, handleToggleLike, isPromoActive, likedMap, triggerBurst]);
+  }, [activeTrack, handleToggleLike, isPromoActive, isCityActive, likedMap, triggerBurst]);
 
   const handleSlideAction = useCallback((action: 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save') => {
     if (!activeTrack) return;
@@ -379,7 +403,7 @@ export function SwipeScreen() {
 
   const handleToggleFollow = useCallback(async () => {
     const username = activeTrack?.artist?.username;
-    if (!username || isPromoActive) return;
+    if (!username || isPromoActive || isCityActive) return;
     if (followLoading[username]) return;
     const wasFollowing = Boolean(followingMap[username]);
     setFollowLoading((current) => ({ ...current, [username]: true }));
@@ -398,7 +422,7 @@ export function SwipeScreen() {
     } finally {
       setFollowLoading((current) => ({ ...current, [username]: false }));
     }
-  }, [activeTrack?.artist?.username, followLoading, followingMap, isPromoActive]);
+  }, [activeTrack?.artist?.username, followLoading, followingMap, isPromoActive, isCityActive]);
 
   const handleSeek = useCallback((seconds: number) => {
     void player.seekTo(seconds);
@@ -406,16 +430,19 @@ export function SwipeScreen() {
 
   // Stratégie de swipe : on ne réagit qu'à la fin du scroll (snap stable).
   // Pas d'onViewableItemsChanged qui peut firer pendant le drag et provoquer du play/pause spam.
-  const commitVisibleTrack = useCallback((offsetY: number) => {
-    const idx = Math.max(0, Math.min(tracks.length - 1, Math.round(offsetY / itemHeight)));
-    if (idx === lastCommittedIndexRef.current) return;
-    lastCommittedIndexRef.current = idx;
-    setActiveIndex(idx);
+  const commitIndex = useCallback((idx: number, animated = false) => {
+    const nextIndex = Math.max(0, Math.min(tracks.length - 1, idx));
+    if (nextIndex !== Math.round(dragStartOffsetRef.current / itemHeight)) {
+      try { listRef.current?.scrollToIndex({ index: nextIndex, animated }); } catch { /* ignore */ }
+    }
+    if (nextIndex === lastCommittedIndexRef.current) return;
+    lastCommittedIndexRef.current = nextIndex;
+    setActiveIndex(nextIndex);
     Haptics.selectionAsync().catch(() => {});
 
     // Lance la lecture de la slide stable. Idempotent grace au check ci-dessous.
-    const target = tracks[idx];
-    if (!target || target._id === SUBSCRIPTION_PROMO_ID) return;
+    const target = tracks[nextIndex];
+    if (!target?.audioUrl || target._id === SUBSCRIPTION_PROMO_ID || target._id === CITY_PROMO_ID) return;
     if (player.current?._id === target._id) return;
     clearTimeout(playbackCommitRef.current);
     playbackCommitRef.current = setTimeout(() => {
@@ -426,6 +453,29 @@ export function SwipeScreen() {
       });
     }, 160);
   }, [itemHeight, player, tracks]);
+
+  const commitVisibleTrack = useCallback((offsetY: number) => {
+    commitIndex(Math.round(offsetY / itemHeight), false);
+  }, [commitIndex, itemHeight]);
+
+  const handleScrollBeginDrag = useCallback((event: any) => {
+    dragStartOffsetRef.current = event.nativeEvent.contentOffset.y || 0;
+  }, []);
+
+  const handleScrollEndDrag = useCallback((event: any) => {
+    if (!tracks.length) return;
+    const endY = event.nativeEvent.contentOffset.y || 0;
+    const delta = endY - dragStartOffsetRef.current;
+    const velocityY = Number(event.nativeEvent.velocity?.y || 0);
+    const startIndex = Math.max(0, Math.min(tracks.length - 1, Math.round(dragStartOffsetRef.current / itemHeight)));
+    const wantsNext = delta > SWIPE_TRIGGER_DISTANCE || velocityY > SWIPE_TRIGGER_VELOCITY;
+    const wantsPrev = delta < -SWIPE_TRIGGER_DISTANCE || velocityY < -SWIPE_TRIGGER_VELOCITY;
+
+    if (wantsNext || wantsPrev) {
+      const nextIndex = Math.max(0, Math.min(tracks.length - 1, startIndex + (wantsNext ? 1 : -1)));
+      commitIndex(nextIndex, true);
+    }
+  }, [commitIndex, itemHeight, tracks.length]);
 
   const handleMomentumScrollEnd = useCallback((event: any) => {
     commitVisibleTrack(event.nativeEvent.contentOffset.y);
@@ -446,6 +496,18 @@ export function SwipeScreen() {
           bottomPad={tabBarHeight}
           isActive={isActive}
           onOpenSubscriptions={() => navigation.navigate('Subscriptions')}
+        />
+      );
+    }
+    if (id === CITY_PROMO_ID) {
+      return (
+        <CityInterludeSlide
+          height={itemHeight}
+          topPad={insets.top}
+          bottomPad={tabBarHeight}
+          isActive={isActive}
+          onOpenCity={() => navigation.navigate('City')}
+          onCreate={() => navigation.navigate('Upload')}
         />
       );
     }
@@ -584,6 +646,8 @@ export function SwipeScreen() {
           directionalLockEnabled
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
+          onScrollBeginDrag={handleScrollBeginDrag}
+          onScrollEndDrag={handleScrollEndDrag}
           onMomentumScrollEnd={handleMomentumScrollEnd}
           getItemLayout={(_, index) => ({ length: itemHeight, offset: itemHeight * index, index })}
           initialNumToRender={1}
@@ -632,8 +696,201 @@ export function SwipeScreen() {
   );
 }
 
+function CityInterludeSlide({
+  height,
+  topPad,
+  bottomPad,
+  isActive,
+  onOpenCity,
+  onCreate,
+}: {
+  height: number;
+  topPad: number;
+  bottomPad: number;
+  isActive: boolean;
+  onOpenCity: () => void;
+  onCreate: () => void;
+}) {
+  const [city, setCity] = useState<SynauraCityData | null>(null);
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isActive) {
+      pulse.setValue(0);
+      return;
+    }
+    const animation = Animated.loop(Animated.timing(pulse, {
+      toValue: 1,
+      duration: 2100,
+      easing: Easing.inOut(Easing.ease),
+      useNativeDriver: true,
+    }));
+    animation.start();
+    return () => animation.stop();
+  }, [isActive, pulse]);
+  useEffect(() => {
+    if (!isActive || city) return;
+    let active = true;
+    void getSynauraCity().then((next) => {
+      if (active) setCity(next);
+    }).catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [city, isActive]);
+
+  const liveEvent = city?.events?.find((event) => event.kind === 'battle' && event.isLive)
+    || city?.events?.find((event) => event.isLive)
+    || city?.events?.[0];
+  const topPulse = city?.pulse?.[0];
+
+  return (
+    <View style={[styles.citySlide, { height, paddingTop: topPad + 92, paddingBottom: bottomPad + 24 }]}>
+      <LinearGradient colors={['#fffaf2', '#fff1e6', '#efe9ff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.citySlideOrb,
+          {
+            opacity: pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.16, 0.36, 0.16] }),
+            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1.18] }) }],
+          },
+        ]}
+      />
+      <View style={styles.citySlideCard}>
+        <View style={styles.citySlideIcon}><Ionicons name="radio" size={25} color="#FFFAF2" /></View>
+        <Text style={styles.citySlideKicker}>{liveEvent?.kind === 'battle' ? 'Battle City' : 'Interlude City'}</Text>
+        <Text style={styles.citySlideTitle}>{liveEvent?.title || 'La ville passe dans Swipe.'}</Text>
+        <Text style={styles.citySlideText}>
+          {liveEvent?.description || city?.cityMood?.subtitle || 'Radar, battle et vitrine du jour peuvent apparaitre entre deux sons pour relancer la decouverte sans casser le flow.'}
+        </Text>
+        <View style={styles.citySlideStats}>
+          <View style={styles.citySlideStat}><Ionicons name="flame" size={16} color="#FF6F61" /><Text style={styles.citySlideStatText}>{topPulse ? `${topPulse.pulse}%` : 'Pulse'}</Text></View>
+          <View style={styles.citySlideStat}><Ionicons name="telescope" size={16} color="#7C5CFF" /><Text style={styles.citySlideStatText}>{liveEvent?.participationCount || 0} parts</Text></View>
+          <View style={styles.citySlideStat}><Ionicons name="flash" size={16} color="#00A7B2" /><Text style={styles.citySlideStatText}>{liveEvent?.totalVotes || 0} votes</Text></View>
+        </View>
+        <View style={styles.citySlideActions}>
+          <Pressable onPress={onOpenCity} style={styles.citySlidePrimary}><Text style={styles.citySlidePrimaryText}>Ouvrir City</Text></Pressable>
+          <Pressable onPress={onCreate} style={styles.citySlideSecondary}><Text style={styles.citySlideSecondaryText}>Drop</Text></Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0A0808' },
+  citySlide: {
+    width: '100%',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    backgroundColor: '#FFFAF2',
+  },
+  citySlideOrb: {
+    position: 'absolute',
+    right: -82,
+    top: 118,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: '#FF6F61',
+  },
+  citySlideCard: {
+    overflow: 'hidden',
+    borderRadius: 34,
+    borderWidth: 1,
+    borderColor: 'rgba(23,19,19,0.08)',
+    backgroundColor: 'rgba(255,250,242,0.88)',
+    padding: 22,
+    shadowColor: '#1E1914',
+    shadowOpacity: 0.16,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: 18 },
+    elevation: 10,
+  },
+  citySlideIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#171313',
+  },
+  citySlideKicker: {
+    marginTop: 22,
+    color: '#FF6F61',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  citySlideTitle: {
+    marginTop: 8,
+    color: '#171313',
+    fontSize: 40,
+    lineHeight: 40,
+    fontWeight: '900',
+    letterSpacing: -1.7,
+  },
+  citySlideText: {
+    marginTop: 14,
+    color: 'rgba(23,19,19,0.58)',
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '700',
+  },
+  citySlideStats: {
+    marginTop: 20,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  citySlideStat: {
+    height: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 19,
+    backgroundColor: 'rgba(23,19,19,0.055)',
+    paddingHorizontal: 12,
+  },
+  citySlideStatText: {
+    color: 'rgba(23,19,19,0.62)',
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  citySlideActions: {
+    marginTop: 24,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  citySlidePrimary: {
+    height: 46,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 23,
+    backgroundColor: '#171313',
+  },
+  citySlidePrimaryText: {
+    color: '#FFFAF2',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  citySlideSecondary: {
+    height: 46,
+    minWidth: 84,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 23,
+    backgroundColor: 'rgba(23,19,19,0.065)',
+  },
+  citySlideSecondaryText: {
+    color: '#171313',
+    fontSize: 13,
+    fontWeight: '900',
+  },
   headerGradient: {
     position: 'absolute',
     left: 0,

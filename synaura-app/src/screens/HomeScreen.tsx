@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -28,6 +28,7 @@ import {
   createPost,
   deleteComment,
   getCommentsPage,
+  getSynauraCity,
   getHomeData,
   getArtistFollowState,
   getNotifications,
@@ -40,7 +41,7 @@ import {
   toggleArtistFollow,
   uploadPostImage,
 } from '@/api/client';
-import type { Creator, HomeComment, HomeData, HomePost, Playlist, Track } from '@/api/types';
+import type { Creator, HomeComment, HomeData, HomePost, Playlist, SynauraCityData, Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
@@ -65,6 +66,7 @@ const quickActions = [
 type HomeFilter = (typeof filters)[number];
 type FeedItem =
   | { id: string; kind: 'composer' }
+  | { id: string; kind: 'city' }
   | { id: string; kind: 'post'; post: HomePost }
   | { id: string; kind: 'rail'; title: string; subtitle: string; label: string; tracks: Track[] }
   | { id: string; kind: 'track'; title: string; subtitle: string; label: string; track: Track }
@@ -148,6 +150,7 @@ function buildFeed(data: HomeData): FeedItem[] {
     });
   }
 
+  items.push({ id: 'city-feed-pulse', kind: 'city' });
   items.push({ id: 'composer', kind: 'composer' });
   if (data.posts[0]) items.push({ id: `post-${data.posts[0].id}`, kind: 'post', post: data.posts[0] });
   if (data.posts[1]) items.push({ id: `post-${data.posts[1].id}`, kind: 'post', post: data.posts[1] });
@@ -177,8 +180,8 @@ function buildFeed(data: HomeData): FeedItem[] {
 function matchesFilter(item: FeedItem, filter: HomeFilter) {
   if (filter === 'Pour toi') return true;
   if (filter === 'Sons') return item.kind === 'track' || item.kind === 'rail';
-  if (filter === 'Communaute') return item.kind === 'composer' || item.kind === 'post' || item.kind === 'creator';
-  return item.kind === 'playlist' || item.kind === 'library' || item.kind === 'studio' || item.kind === 'booster';
+  if (filter === 'Communaute') return item.kind === 'composer' || item.kind === 'post' || item.kind === 'creator' || item.kind === 'city';
+  return item.kind === 'playlist' || item.kind === 'library' || item.kind === 'studio' || item.kind === 'booster' || item.kind === 'city';
 }
 
 function shareTrack(track: Track) {
@@ -1017,6 +1020,7 @@ function FeedCard({
   onPostCreated: (post: HomePost) => void;
   onOpenWeb: (path: string) => void;
 }) {
+  if (item.kind === 'city') return <CityFeedPulse onOpen={() => onOpenWeb('/city')} onCreate={() => onOpenWeb('/upload')} />;
   if (item.kind === 'composer') return <ComposerCard onPublish={() => onNavigate('Profile')} onUpload={() => onOpenWeb('/upload')} onText={onCommunity} onStudio={() => onOpenWeb('/ai-generator')} onPostCreated={onPostCreated} />;
   if (item.kind === 'post') return <PostCard post={item.post} activeId={activeId} isPlaying={isPlaying} onOpen={() => onOpenWeb(`/posts/${item.post.id}`)} onOpenProfile={() => onOpenWeb(`/profile/${encodeURIComponent(item.post.handle.replace(/^@/, ''))}`)} onPlay={(track) => onPlay(allTracks, track)} onComments={() => onComments({ kind: 'post', id: item.post.id, title: item.post.author })} onRemix={(track) => onOpenWeb(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(track._id)}`)} />;
   if (item.kind === 'rail') {
@@ -1046,6 +1050,65 @@ function FeedCard({
   if (item.kind === 'studio') return <ActionCard icon="color-wand" title={item.title} text={item.text} label="Ouvrir" gradient={['#fffaf2', '#eee7ff', '#e2fbff']} iconColor={warm.paper} onPress={() => onOpenWeb('/ai-generator')} />;
   if (item.kind === 'booster') return <ActionCard icon="flash" title={item.title} text={item.text} label="Booster" gradient={['#fff6d7', '#ffe4f1', '#fffaf2']} iconColor="#FBBF24" onPress={() => onOpenWeb('/boosters')} />;
   return <LibraryCard stats={libraryStats} onOpen={() => onNavigate('Library')} />;
+}
+
+function CityFeedPulse({ onOpen, onCreate }: { onOpen: () => void; onCreate: () => void }) {
+  const [city, setCity] = useState<SynauraCityData | null>(null);
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const animation = Animated.loop(Animated.timing(pulse, {
+      toValue: 1,
+      duration: 2200,
+      easing: Easing.inOut(Easing.ease),
+      useNativeDriver: true,
+    }));
+    animation.start();
+    return () => animation.stop();
+  }, [pulse]);
+  useEffect(() => {
+    let active = true;
+    void getSynauraCity().then((next) => {
+      if (active) setCity(next);
+    }).catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const liveEvent = city?.events?.find((event) => event.kind === 'battle' && event.isLive)
+    || city?.events?.find((event) => event.isLive)
+    || city?.events?.[0];
+  const topPulse = city?.pulse?.[0];
+
+  return (
+    <MotionPressable onPress={onOpen} style={styles.cityFeedCard}>
+      <LinearGradient colors={['#fffaf2', '#fff0e4', '#efe9ff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.cityFeedOrb,
+          {
+            opacity: pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.14, 0.34, 0.14] }),
+            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.15] }) }],
+          },
+        ]}
+      />
+      <View style={styles.cityFeedHeader}>
+        <View style={styles.cityFeedIcon}><Ionicons name="radio" size={18} color={warm.paper} /></View>
+        <View style={styles.cityFeedCopy}>
+          <Text style={styles.cityFeedKicker}>{liveEvent?.kind === 'battle' ? 'Battle live' : 'Synaura City dans le feed'}</Text>
+          <Text style={styles.cityFeedTitle}>{liveEvent?.title || city?.cityMood?.title || 'Le quartier bouge maintenant'}</Text>
+        </View>
+        <Ionicons name="arrow-forward" size={18} color="rgba(23,19,19,0.42)" />
+      </View>
+      <Text style={styles.cityFeedText}>{liveEvent?.description || city?.cityMood?.subtitle || 'Vitrine du jour, Radar, battle et awards peuvent surgir entre deux sons, comme un evenement vivant de la home.'}</Text>
+      <View style={styles.cityFeedChips}>
+        <View style={styles.cityFeedChip}><Ionicons name="flame" size={13} color="#FF6F61" /><Text style={styles.cityFeedChipText}>{topPulse ? `Pulse ${topPulse.pulse}%` : 'Pulse live'}</Text></View>
+        <View style={styles.cityFeedChip}><Ionicons name="telescope" size={13} color="#7C5CFF" /><Text style={styles.cityFeedChipText}>{liveEvent?.participationCount || 0} participations</Text></View>
+        <Pressable onPress={onCreate} style={styles.cityFeedCta}><Text style={styles.cityFeedCtaText}>Drop</Text></Pressable>
+      </View>
+    </MotionPressable>
+  );
 }
 
 function ComposerCard({
@@ -1813,6 +1876,102 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 12 },
     elevation: 2,
+  },
+  cityFeedCard: {
+    width: '100%',
+    minHeight: 190,
+    overflow: 'hidden',
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: 'rgba(23,19,19,0.08)',
+    backgroundColor: warm.card,
+    padding: spacing.md,
+    shadowColor: '#1E1914',
+    shadowOpacity: 0.10,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 3,
+  },
+  cityFeedOrb: {
+    position: 'absolute',
+    right: -60,
+    top: -46,
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    backgroundColor: '#FF6F61',
+  },
+  cityFeedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  cityFeedIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: warm.ink,
+  },
+  cityFeedCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  cityFeedKicker: {
+    color: '#FF6F61',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  cityFeedTitle: {
+    marginTop: 3,
+    color: warm.ink,
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  cityFeedText: {
+    marginTop: spacing.md,
+    maxWidth: 300,
+    color: 'rgba(23,19,19,0.56)',
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '700',
+  },
+  cityFeedChips: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  cityFeedChip: {
+    height: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 17,
+    backgroundColor: 'rgba(23,19,19,0.055)',
+    paddingHorizontal: 11,
+  },
+  cityFeedChipText: {
+    color: warm.inkSoft,
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  cityFeedCta: {
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 17,
+    backgroundColor: warm.ink,
+    paddingHorizontal: spacing.md,
+  },
+  cityFeedCtaText: {
+    color: warm.paper,
+    fontSize: 10,
+    fontWeight: '900',
   },
   heroSkeleton: {
     height: 260,

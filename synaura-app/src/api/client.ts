@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import type {
   Creator,
+  CityEventDetail,
   CommunityFaq,
   CommunityPost,
   CommunityReply,
@@ -395,7 +396,7 @@ export async function getHomeData(): Promise<HomeData> {
       }
     : null;
   const normalizedPlaylists = [
-    ...(Array.isArray(libraryPlaylistsPayload?.playlists) ? libraryPlaylistsPayload.playlists : []),
+    ...(Array.isArray(libraryPlaylistsPayload?.playlists) ? libraryPlaylistsPayload?.playlists || [] : []),
     ...(Array.isArray(playlistsPayload.playlists) ? playlistsPayload.playlists : []),
   ]
     .map((playlist) => normalizePlaylist(playlist, fallbackCovers))
@@ -1975,6 +1976,13 @@ export async function getSynauraCity(): Promise<SynauraCityData> {
     events: (Array.isArray(city?.events) ? city.events : []).map((event: any) => ({
       ...event,
       tracks: (Array.isArray(event?.tracks) ? event.tracks : []).map(normalizeCityTrack),
+      userParticipation: event?.userParticipation
+        ? { ...event.userParticipation, track: event.userParticipation.track ? normalizeCityTrack(event.userParticipation.track) : null }
+        : null,
+      winners: (Array.isArray(event?.winners) ? event.winners : []).map((winner: any) => ({
+        ...winner,
+        track: winner?.track ? normalizeCityTrack(winner.track) : null,
+      })),
     })),
     hallOfFame: (Array.isArray(city?.hallOfFame) ? city.hallOfFame : []).map((award: any) => ({
       ...award,
@@ -1993,5 +2001,23 @@ export async function voteSynauraCityBattle(battleId: string, trackId: string): 
   await request('/api/city/vote', {
     method: 'POST',
     body: JSON.stringify({ battleId, trackId }),
+  });
+}
+
+export async function getCityEvent(eventId: string): Promise<CityEventDetail> {
+  return request<CityEventDetail>(`/api/city/events/${encodeURIComponent(eventId)}`);
+}
+
+export async function participateCityEvent(eventId: string, trackId: string): Promise<void> {
+  await request(`/api/city/events/${encodeURIComponent(eventId)}/participate`, {
+    method: 'POST',
+    body: JSON.stringify({ trackId }),
+  });
+}
+
+export async function claimCityEventReward(eventId: string): Promise<void> {
+  await request(`/api/city/events/${encodeURIComponent(eventId)}/claim`, {
+    method: 'POST',
+    body: JSON.stringify({}),
   });
 }

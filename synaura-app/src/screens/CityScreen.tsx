@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
+  Easing,
   Image,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -15,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getSynauraCity, voteSynauraCityBattle } from '@/api/client';
+import { claimCityEventReward, getSynauraCity, participateCityEvent, voteSynauraCityBattle } from '@/api/client';
 import type {
   CityArtist,
   CityAward,
@@ -82,6 +83,7 @@ export function CityScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [voting, setVoting] = useState(false);
+  const [actingEventId, setActingEventId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async (refresh = false) => {
@@ -127,9 +129,48 @@ export function CityScreen() {
     }
   }, [auth, battle, load, voting]);
 
+  const participate = useCallback(async (event: CityEvent) => {
+    if (actingEventId) return;
+    if (!auth.requireAuth()) return;
+    const trackId = event.tracks?.[0]?._id;
+    if (!trackId) {
+      Alert.alert('Aucun son disponible', 'Publie ou selectionne un son avant de participer a cet event.');
+      navigation.navigate('Upload');
+      return;
+    }
+    setActingEventId(event.id);
+    setError(null);
+    try {
+      await participateCityEvent(event.id, trackId);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      await load(true);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Participation impossible');
+    } finally {
+      setActingEventId(null);
+    }
+  }, [actingEventId, auth, load, navigation]);
+
+  const claim = useCallback(async (event: CityEvent) => {
+    if (actingEventId) return;
+    if (!auth.requireAuth()) return;
+    setActingEventId(event.id);
+    setError(null);
+    try {
+      await claimCityEventReward(event.id);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      await load(true);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Recompense impossible');
+    } finally {
+      setActingEventId(null);
+    }
+  }, [actingEventId, auth, load]);
+
   return (
     <View style={styles.root}>
       <View pointerEvents="none" style={StyleSheet.absoluteFill}><SynauraBackground variant="feed" /></View>
+      <CityChaosOverlay />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 8, 28) }]}
         showsVerticalScrollIndicator={false}
@@ -146,6 +187,7 @@ export function CityScreen() {
         {city ? (
           <>
             <CityHero city={city} onUpload={() => navigation.navigate('Upload')} onCommunity={() => navigation.navigate('Community')} />
+            <ImpactStrip city={city} />
             <SectionTitle icon="sparkles" title="La Vitrine du Jour" subtitle="Cinq raisons de lancer la lecture aujourd hui." />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRail}>
               {city.showcase.map((item, index) => <ShowcaseCard key={item.id} item={item} index={index} playing={player.current?._id === item.track._id && player.isPlaying} onPlay={play} />)}
@@ -175,7 +217,7 @@ export function CityScreen() {
               {city.events.map((event, index) => (
                 event.kind === 'battle'
                   ? <BattleCard key={event.id} event={event} voting={voting} player={player} onPlay={play} onVote={vote} />
-                  : <EventCard key={event.id} event={event} index={index} onParticipate={() => navigation.navigate('Community', { compose: event.kind === 'challenge', category: event.kind === 'challenge' ? 'remix' : undefined })} onPlay={play} />
+                  : <EventCard key={event.id} event={event} index={index} busy={actingEventId === event.id} onParticipate={() => participate(event)} onClaim={() => claim(event)} onPlay={play} />
               ))}
             </View>
 
@@ -186,6 +228,45 @@ export function CityScreen() {
           </>
         ) : null}
       </ScrollView>
+    </View>
+  );
+}
+
+function CityChaosOverlay() {
+  const drift = useRef(new Animated.Value(0)).current;
+  const meteor = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const driftLoop = Animated.loop(Animated.timing(drift, {
+      toValue: 1,
+      duration: 5200,
+      easing: Easing.inOut(Easing.ease),
+      useNativeDriver: true,
+    }));
+    const meteorLoop = Animated.loop(Animated.timing(meteor, {
+      toValue: 1,
+      duration: 2800,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: true,
+    }));
+    driftLoop.start();
+    meteorLoop.start();
+    return () => {
+      driftLoop.stop();
+      meteorLoop.stop();
+    };
+  }, [drift, meteor]);
+
+  const bob = drift.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, -18, 0] });
+  const spin = drift.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '16deg'] });
+  const meteorX = meteor.interpolate({ inputRange: [0, 1], outputRange: [180, -260] });
+  const meteorY = meteor.interpolate({ inputRange: [0, 1], outputRange: [-40, 280] });
+
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Animated.View style={[styles.orbHot, { transform: [{ translateY: bob }, { rotate: spin }] }]} />
+      <Animated.View style={[styles.orbCold, { transform: [{ translateY: Animated.multiply(bob, -0.8) }] }]} />
+      <Animated.View style={[styles.meteor, { transform: [{ translateX: meteorX }, { translateY: meteorY }, { rotate: '-22deg' }] }]} />
+      <View style={styles.gridGlow} />
     </View>
   );
 }
@@ -201,6 +282,7 @@ function LoadingCity() {
 
 function CityHero({ city, onUpload, onCommunity }: { city: SynauraCityData; onUpload: () => void; onCommunity: () => void }) {
   const pulse = useRef(new Animated.Value(0)).current;
+  const blast = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const animation = Animated.loop(Animated.sequence([
       Animated.timing(pulse, { toValue: 1, duration: 1300, useNativeDriver: true }),
@@ -209,10 +291,24 @@ function CityHero({ city, onUpload, onCommunity }: { city: SynauraCityData; onUp
     animation.start();
     return () => animation.stop();
   }, [pulse]);
+  useEffect(() => {
+    const animation = Animated.loop(Animated.timing(blast, {
+      toValue: 1,
+      duration: 2400,
+      easing: Easing.inOut(Easing.ease),
+      useNativeDriver: true,
+    }));
+    animation.start();
+    return () => animation.stop();
+  }, [blast]);
   return (
     <View style={styles.hero}>
-      <LinearGradient colors={['#171313', '#34203A', '#123B3C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={['#080506', '#261022', '#40204B', '#083638']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       <Animated.View style={[styles.heroSignal, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.48] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.15] }) }] }]} />
+      <Animated.View style={[styles.heroBlast, { opacity: blast.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.18, 0.72, 0.18] }), transform: [{ scale: blast.interpolate({ inputRange: [0, 1], outputRange: [0.75, 1.25] }) }] }]} />
+      <Animated.View style={[styles.heroFlame, { transform: [{ translateY: pulse.interpolate({ inputRange: [0, 1], outputRange: [8, -9] }) }, { scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.14] }) }] }]} />
+      <View style={styles.heroShardOne} />
+      <View style={styles.heroShardTwo} />
       <View style={styles.heroBadge}><Ionicons name="radio" size={14} color="#7EF2ED" /><Text style={styles.heroBadgeText}>SYNAURA CITY EST OUVERTE</Text></View>
       <Text style={styles.heroTitle}>{city.cityMood.title}</Text>
       <Text style={styles.heroSubtitle}>{city.cityMood.subtitle}</Text>
@@ -229,6 +325,17 @@ function CityHero({ city, onUpload, onCommunity }: { city: SynauraCityData; onUp
   );
 }
 
+function ImpactStrip({ city }: { city: SynauraCityData }) {
+  return (
+    <View style={styles.impactStrip}>
+      <LinearGradient colors={['rgba(255,75,122,0.24)', 'rgba(126,242,237,0.18)', 'rgba(124,92,255,0.24)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+      <View style={styles.impactPill}><Ionicons name="flame" size={14} color="#FFD667" /><Text style={styles.impactText}>{city.pulse.filter((track) => track.pulse >= 78).length} sons en feu</Text></View>
+      <View style={styles.impactPill}><Ionicons name="flash" size={14} color="#7EF2ED" /><Text style={styles.impactText}>Battle live</Text></View>
+      <View style={styles.impactPill}><Ionicons name="trophy" size={14} color="#FFFAF2" /><Text style={styles.impactText}>Awards ouverts</Text></View>
+    </View>
+  );
+}
+
 function HeroStat({ label, value }: { label: string; value: string }) {
   return <View style={styles.heroStat}><Text style={styles.heroStatValue}>{value}</Text><Text style={styles.heroStatLabel}>{label}</Text></View>;
 }
@@ -238,6 +345,7 @@ function SectionTitle({ icon, title, subtitle }: { icon: any; title: string; sub
     <View style={styles.sectionTitleWrap}>
       <View style={styles.sectionIcon}><Ionicons name={icon} size={17} color={paper} /></View>
       <View style={styles.sectionCopy}><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionSubtitle}>{subtitle}</Text></View>
+      <View style={styles.sectionSpark}><Ionicons name="sparkles" size={16} color="#FF4B7A" /></View>
     </View>
   );
 }
@@ -247,7 +355,8 @@ function ShowcaseCard({ item, index, playing, onPlay }: { item: CityShowcaseItem
     <Reveal delay={index * 55}>
       <MotionPressable onPress={() => onPlay(item.track)} style={styles.showcase}>
         <TrackCover track={item.track} active style={StyleSheet.absoluteFill} />
-        <LinearGradient colors={['rgba(23,19,19,0.05)', 'rgba(23,19,19,0.94)']} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={['rgba(255,75,122,0.06)', 'rgba(23,19,19,0.30)', 'rgba(23,19,19,0.96)']} style={StyleSheet.absoluteFill} />
+        <View style={[styles.cardBurst, { backgroundColor: item.accent }]} />
         <View style={styles.showcaseTop}>
           <View style={styles.showcaseLabel}><Ionicons name={iconName(item.icon)} size={12} color={item.accent} /><Text style={styles.showcaseLabelText}>{item.label}</Text></View>
           <View style={styles.showcasePlay}><Ionicons name={playing ? 'pause' : 'play'} size={15} color={ink} /></View>
@@ -261,6 +370,7 @@ function ShowcaseCard({ item, index, playing, onPlay }: { item: CityShowcaseItem
 function PulseCard({ track, rank, playing, onPlay }: { track: CityPulseTrack; rank: number; playing: boolean; onPlay: (track: Track) => void }) {
   return (
     <MotionPressable onPress={() => onPlay(track)} style={styles.pulseCard}>
+      <View style={styles.pulseFlare} />
       <Text style={styles.pulseRank}>{String(rank).padStart(2, '0')}</Text>
       <TrackCover track={track} active style={styles.pulseCover} />
       <View style={styles.pulseCopy}>
@@ -309,16 +419,55 @@ function PremiereCard({ track, index, playing, onPlay }: { track: CityPulseTrack
   );
 }
 
-function EventCard({ event, index, onParticipate, onPlay }: { event: CityEvent; index: number; onParticipate: () => void; onPlay: (track: Track) => void }) {
+function EventCard({
+  event,
+  index,
+  busy,
+  onParticipate,
+  onClaim,
+  onPlay,
+}: {
+  event: CityEvent;
+  index: number;
+  busy: boolean;
+  onParticipate: () => void;
+  onClaim: () => void;
+  onPlay: (track: Track) => void;
+}) {
   const first = event.tracks?.[0];
+  const winner = event.winners?.[0];
+  const cta = busy
+    ? 'Chargement...'
+    : event.claimStatus === 'available'
+      ? 'Reclamer'
+      : event.userParticipation
+        ? 'Participation envoyee'
+        : event.detailCta?.label || 'Participer';
   return (
     <Reveal delay={index * 45}>
       <View style={styles.eventCard}>
         {first ? <TrackCover track={first} active style={StyleSheet.absoluteFill} /> : null}
         <LinearGradient colors={['rgba(23,19,19,0.96)', 'rgba(23,19,19,0.72)', 'rgba(23,19,19,0.30)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFill} />
+        <View style={[styles.eventGlow, { backgroundColor: event.accent }]} />
         <View style={styles.eventIcon}><Ionicons name={iconName(event.icon)} size={20} color={event.accent} /></View>
-        {event.challengeTag ? <Text style={styles.eventTag}>{event.challengeTag}</Text> : null}
-        <View style={styles.eventBody}><Text style={styles.eventKicker}>{event.subtitle}</Text><Text style={styles.eventTitle}>{event.title}</Text><Text style={styles.eventDescription}>{event.description}</Text><View style={styles.eventActions}><MotionPressable onPress={onParticipate} style={styles.eventPrimary}><Text style={styles.eventPrimaryText}>Participer</Text><Ionicons name="arrow-forward" size={14} color={ink} /></MotionPressable>{first ? <MotionPressable onPress={() => onPlay(first)} style={styles.eventPlay}><Ionicons name="play" size={14} color={paper} /></MotionPressable> : null}</View></View>
+        <View style={styles.eventTagWrap}>
+          <Text style={styles.eventTag}>{event.status || 'live'}</Text>
+          {event.challengeTag ? <Text style={styles.eventTag}>{event.challengeTag}</Text> : null}
+        </View>
+        <View style={styles.eventBody}>
+          <Text style={styles.eventKicker}>{event.subtitle}</Text>
+          <Text style={styles.eventTitle}>{event.title}</Text>
+          <Text style={styles.eventDescription}>{event.description}</Text>
+          <View style={styles.eventMetaRow}>
+            <Text style={styles.eventMeta}>{event.participationCount || 0} participations</Text>
+            {event.reward ? <Text style={styles.eventMeta}>{event.reward.title}</Text> : null}
+            {winner ? <Text style={styles.eventWinner}>Winner: {winner.track?.title || winner.trackId}</Text> : null}
+          </View>
+          <View style={styles.eventActions}>
+            <MotionPressable disabled={busy || Boolean(event.userParticipation && event.claimStatus !== 'available')} onPress={event.claimStatus === 'available' ? onClaim : onParticipate} style={styles.eventPrimary}><Text style={styles.eventPrimaryText}>{cta}</Text><Ionicons name="arrow-forward" size={14} color={ink} /></MotionPressable>
+            {first ? <MotionPressable onPress={() => onPlay(first)} style={styles.eventPlay}><Ionicons name="play" size={14} color={paper} /></MotionPressable> : null}
+          </View>
+        </View>
       </View>
     </Reveal>
   );
@@ -329,7 +478,8 @@ function BattleCard({ event, voting, player, onPlay, onVote }: { event: CityEven
   const total = tracks.reduce((sum, track) => sum + Number(event.voteCounts?.[track._id] || 0), 0) || 1;
   return (
     <View style={styles.battle}>
-      <View style={styles.battleHeader}><View><Text style={styles.battleKicker}>{event.subtitle}</Text><Text style={styles.battleTitle}>{event.title}</Text></View><Ionicons name="flash" size={23} color="#7EF2ED" /></View>
+      <View style={styles.battleHeader}><View><Text style={styles.battleKicker}>{event.subtitle}</Text><Text style={styles.battleTitle}>{event.title}</Text><Text style={styles.battleMeta}>{event.totalVotes || 0} votes reels · {event.status || 'live'}</Text></View><Ionicons name="flash" size={23} color="#7EF2ED" /></View>
+      {event.winnerTrackId ? <Text style={styles.battleWinner}>Gagnant: {tracks.find((track) => track._id === event.winnerTrackId)?.title || event.winnerTrackId}</Text> : null}
       <View style={styles.battleGrid}>
         {tracks.map((track) => {
           const selected = event.selectedTrackId === track._id;
@@ -413,20 +563,28 @@ function CreatorProgress({ artist, onCreate }: { artist: CityArtist | null; onCr
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F4EFE6' },
   content: { paddingHorizontal: spacing.md, paddingBottom: 190 },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
-  roundButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.90)', borderWidth: 1, borderColor: border },
+  orbHot: { position: 'absolute', left: -90, top: 95, width: 230, height: 230, borderRadius: 115, backgroundColor: 'rgba(255,111,97,0.18)' },
+  orbCold: { position: 'absolute', right: -80, top: 260, width: 210, height: 210, borderRadius: 105, backgroundColor: 'rgba(0,194,203,0.14)' },
+  meteor: { position: 'absolute', right: -50, top: 70, width: 170, height: 3, borderRadius: 2, backgroundColor: '#FF6F61', shadowColor: '#FF6F61', shadowOpacity: 0.40, shadowRadius: 14 },
+  gridGlow: { ...StyleSheet.absoluteFillObject, opacity: 0.10, borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md, borderRadius: 24, borderWidth: 1, borderColor: border, backgroundColor: 'rgba(255,250,242,0.90)', padding: 6 },
+  roundButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.96)', borderWidth: 1, borderColor: border },
   topCopy: { flex: 1 },
-  topKicker: { color: '#7C5CFF', fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
+  topKicker: { color: '#7EF2ED', fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
   topTitle: { marginTop: 2, color: ink, fontSize: 25, fontWeight: '900' },
   loading: { minHeight: 420, alignItems: 'center', justifyContent: 'center' },
   loadingText: { marginTop: 12, color: muted, fontSize: 12, fontWeight: '900' },
   error: { marginBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 18, backgroundColor: '#FEF3F2', padding: spacing.md },
   errorText: { flex: 1, color: '#B42318', fontSize: 11, fontWeight: '800' },
-  hero: { minHeight: 390, overflow: 'hidden', borderRadius: 28, padding: spacing.lg, shadowColor: ink, shadowOpacity: 0.24, shadowRadius: 28, shadowOffset: { width: 0, height: 14 }, elevation: 10 },
+  hero: { minHeight: 430, overflow: 'hidden', borderRadius: 32, padding: spacing.lg, shadowColor: '#FF4B7A', shadowOpacity: 0.30, shadowRadius: 34, shadowOffset: { width: 0, height: 18 }, elevation: 12 },
   heroSignal: { position: 'absolute', right: -70, top: -70, width: 280, height: 280, borderRadius: 140, borderWidth: 1, borderColor: '#7EF2ED' },
+  heroBlast: { position: 'absolute', right: -92, bottom: -80, width: 285, height: 285, borderRadius: 143, backgroundColor: 'rgba(255,75,122,0.32)' },
+  heroFlame: { position: 'absolute', left: -36, bottom: -44, width: 180, height: 120, borderRadius: 90, backgroundColor: 'rgba(255,159,28,0.36)' },
+  heroShardOne: { position: 'absolute', right: 28, top: 88, width: 90, height: 14, borderRadius: 7, backgroundColor: 'rgba(126,242,237,0.65)', transform: [{ rotate: '-18deg' }] },
+  heroShardTwo: { position: 'absolute', right: 88, bottom: 138, width: 74, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,214,103,0.58)', transform: [{ rotate: '22deg' }] },
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', paddingHorizontal: 10, paddingVertical: 7 },
   heroBadgeText: { color: '#7EF2ED', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  heroTitle: { marginTop: spacing.xl, maxWidth: 290, color: paper, fontSize: 38, lineHeight: 39, fontWeight: '900' },
+  heroTitle: { marginTop: spacing.xl, maxWidth: 315, color: paper, fontSize: 44, lineHeight: 42, fontWeight: '900', letterSpacing: -1.8 },
   heroSubtitle: { marginTop: spacing.md, maxWidth: 310, color: 'rgba(255,250,242,0.52)', fontSize: 13, lineHeight: 19, fontWeight: '700' },
   heroStats: { marginTop: spacing.xl, flexDirection: 'row', gap: spacing.sm },
   heroStat: { flex: 1, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', padding: spacing.sm },
@@ -437,14 +595,19 @@ const styles = StyleSheet.create({
   heroPrimaryText: { color: ink, fontSize: 11, fontWeight: '900' },
   heroSecondary: { height: 43, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.10)', paddingHorizontal: spacing.md },
   heroSecondaryText: { color: paper, fontSize: 11, fontWeight: '900' },
+  impactStrip: { marginTop: spacing.md, minHeight: 56, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 24, borderWidth: 1, borderColor: border, padding: 8 },
+  impactPill: { flex: 1, minHeight: 39, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 18, backgroundColor: 'rgba(255,250,242,0.78)' },
+  impactText: { color: ink, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
   sectionTitleWrap: { marginTop: 30, marginBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  sectionIcon: { width: 40, height: 40, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: ink },
+  sectionIcon: { width: 40, height: 40, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313', shadowColor: '#7C5CFF', shadowOpacity: 0.26, shadowRadius: 14 },
   sectionCopy: { flex: 1 },
-  sectionTitle: { color: ink, fontSize: 21, fontWeight: '900' },
+  sectionTitle: { color: ink, fontSize: 22, fontWeight: '900' },
   sectionSubtitle: { marginTop: 2, color: muted, fontSize: 11, fontWeight: '700' },
+  sectionSpark: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.055)' },
   horizontalRail: { gap: spacing.sm, paddingRight: spacing.md },
   stack: { gap: spacing.sm },
-  showcase: { width: 218, height: 285, overflow: 'hidden', justifyContent: 'space-between', borderRadius: 24, backgroundColor: ink, padding: spacing.md },
+  showcase: { width: 232, height: 310, overflow: 'hidden', justifyContent: 'space-between', borderRadius: 28, backgroundColor: ink, padding: spacing.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', shadowColor: '#FF4B7A', shadowOpacity: 0.20, shadowRadius: 22, elevation: 9 },
+  cardBurst: { position: 'absolute', right: -36, top: -34, width: 112, height: 112, borderRadius: 56, opacity: 0.42 },
   showcaseTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   showcaseLabel: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.36)', paddingHorizontal: 8, paddingVertical: 6 },
   showcaseLabelText: { color: paper, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
@@ -453,7 +616,8 @@ const styles = StyleSheet.create({
   showcaseCaption: { color: 'rgba(255,250,242,0.46)', fontSize: 8, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase' },
   showcaseTitle: { marginTop: 5, color: paper, fontSize: 21, lineHeight: 23, fontWeight: '900' },
   showcaseArtist: { marginTop: 4, color: 'rgba(255,250,242,0.48)', fontSize: 10, fontWeight: '700' },
-  pulseCard: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 23, borderWidth: 1, borderColor: border, backgroundColor: 'rgba(255,250,242,0.90)', padding: spacing.sm },
+  pulseCard: { minHeight: 84, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,250,242,0.92)', padding: spacing.sm },
+  pulseFlare: { position: 'absolute', right: -30, top: -30, width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(124,92,255,0.14)' },
   pulseRank: { width: 20, color: 'rgba(23,19,19,0.26)', fontSize: 10, fontWeight: '900', textAlign: 'center' },
   pulseCover: { width: 58, height: 58, borderRadius: 17 },
   pulseCopy: { flex: 1, minWidth: 0 },
@@ -486,21 +650,28 @@ const styles = StyleSheet.create({
   premierePulse: { color: '#7EF2ED', fontSize: 7, fontWeight: '900', letterSpacing: 0.8 },
   premiereTitle: { marginTop: 5, color: paper, fontSize: 17, fontWeight: '900' },
   premiereArtist: { marginTop: 3, color: 'rgba(255,250,242,0.42)', fontSize: 9, fontWeight: '700' },
-  eventCard: { minHeight: 270, overflow: 'hidden', borderRadius: 27, backgroundColor: ink, padding: spacing.lg },
+  eventCard: { minHeight: 286, overflow: 'hidden', borderRadius: 30, backgroundColor: ink, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', shadowColor: '#00C2CB', shadowOpacity: 0.18, shadowRadius: 22, elevation: 8 },
+  eventGlow: { position: 'absolute', right: -52, bottom: -44, width: 170, height: 170, borderRadius: 85, opacity: 0.28 },
   eventIcon: { width: 43, height: 43, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)' },
-  eventTag: { position: 'absolute', right: spacing.lg, top: spacing.lg, overflow: 'hidden', borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.10)', paddingHorizontal: 9, paddingVertical: 6, color: paper, fontSize: 8, fontWeight: '900' },
+  eventTagWrap: { position: 'absolute', right: spacing.lg, top: spacing.lg, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 },
+  eventTag: { overflow: 'hidden', borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.10)', paddingHorizontal: 9, paddingVertical: 6, color: paper, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
   eventBody: { marginTop: 'auto' },
   eventKicker: { color: 'rgba(255,250,242,0.44)', fontSize: 8, fontWeight: '900', letterSpacing: 0.9, textTransform: 'uppercase' },
   eventTitle: { marginTop: 4, color: paper, fontSize: 25, fontWeight: '900' },
   eventDescription: { marginTop: 7, maxWidth: 300, color: 'rgba(255,250,242,0.50)', fontSize: 11, lineHeight: 16, fontWeight: '700' },
+  eventMetaRow: { marginTop: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  eventMeta: { overflow: 'hidden', borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 8, paddingVertical: 5, color: 'rgba(255,250,242,0.58)', fontSize: 8, fontWeight: '900' },
+  eventWinner: { overflow: 'hidden', borderRadius: 11, backgroundColor: '#FFD667', paddingHorizontal: 8, paddingVertical: 5, color: ink, fontSize: 8, fontWeight: '900' },
   eventActions: { marginTop: spacing.md, flexDirection: 'row', gap: spacing.sm },
   eventPrimary: { height: 39, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 20, backgroundColor: paper, paddingHorizontal: spacing.md },
   eventPrimaryText: { color: ink, fontSize: 10, fontWeight: '900' },
   eventPlay: { width: 39, height: 39, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)' },
-  battle: { overflow: 'hidden', borderRadius: 27, backgroundColor: ink, padding: spacing.md },
+  battle: { overflow: 'hidden', borderRadius: 30, backgroundColor: ink, padding: spacing.md, borderWidth: 1, borderColor: 'rgba(126,242,237,0.18)', shadowColor: '#7EF2ED', shadowOpacity: 0.20, shadowRadius: 24, elevation: 10 },
   battleHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   battleKicker: { color: '#7EF2ED', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
   battleTitle: { marginTop: 3, color: paper, fontSize: 22, fontWeight: '900' },
+  battleMeta: { marginTop: 3, color: 'rgba(255,250,242,0.36)', fontSize: 8, fontWeight: '900' },
+  battleWinner: { marginTop: spacing.sm, overflow: 'hidden', borderRadius: 14, backgroundColor: '#FFD667', paddingHorizontal: 10, paddingVertical: 8, color: ink, fontSize: 10, fontWeight: '900' },
   battleGrid: { marginTop: spacing.md, flexDirection: 'row', gap: spacing.sm },
   battleTrack: { flex: 1, minWidth: 0, borderRadius: 19, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.07)', padding: 7 },
   battleTrackSelected: { borderColor: '#7EF2ED' },
@@ -512,7 +683,7 @@ const styles = StyleSheet.create({
   voteButtonSelected: { backgroundColor: '#7EF2ED' },
   voteText: { color: paper, fontSize: 8, fontWeight: '900' },
   voteTextSelected: { color: ink },
-  radar: { marginTop: 30, overflow: 'hidden', borderRadius: 28, backgroundColor: '#103334', padding: spacing.lg },
+  radar: { marginTop: 30, overflow: 'hidden', borderRadius: 30, backgroundColor: '#103334', padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(126,242,237,0.18)' },
   radarRing: { position: 'absolute', right: -35, top: -45, width: 210, height: 210, borderRadius: 105, borderWidth: 1, borderColor: '#7EF2ED' },
   radarHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   radarIcon: { width: 43, height: 43, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7EF2ED' },
@@ -524,7 +695,7 @@ const styles = StyleSheet.create({
   radarCopy: { flex: 1, minWidth: 0 },
   radarTrack: { color: paper, fontSize: 10, fontWeight: '900' },
   radarArtist: { marginTop: 3, color: 'rgba(255,250,242,0.38)', fontSize: 8, fontWeight: '700' },
-  lightPanel: { marginTop: 30, borderRadius: 28, borderWidth: 1, borderColor: border, backgroundColor: 'rgba(255,250,242,0.90)', padding: spacing.lg },
+  lightPanel: { marginTop: 30, borderRadius: 30, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,250,242,0.93)', padding: spacing.lg, shadowColor: '#FF4B7A', shadowOpacity: 0.10, shadowRadius: 18 },
   panelHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   panelIcon: { width: 43, height: 43, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: ink },
   panelTitle: { color: ink, fontSize: 21, fontWeight: '900' },
@@ -546,7 +717,7 @@ const styles = StyleSheet.create({
   badgeBar: { marginTop: 6, height: 3, overflow: 'hidden', borderRadius: 2, backgroundColor: 'rgba(23,19,19,0.06)' },
   badgeBarFill: { height: 3, borderRadius: 2, backgroundColor: '#7C5CFF' },
   badgeProgress: { color: muted, fontSize: 8, fontWeight: '900' },
-  creatorProgress: { marginTop: 30, minHeight: 250, overflow: 'hidden', borderRadius: 28, padding: spacing.lg },
+  creatorProgress: { marginTop: 30, minHeight: 250, overflow: 'hidden', borderRadius: 30, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
   creatorProgressHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   creatorProgressIcon: { width: 43, height: 43, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)' },
   creatorProgressTitle: { color: paper, fontSize: 21, fontWeight: '900' },

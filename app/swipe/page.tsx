@@ -65,6 +65,7 @@ export default function SwipePage() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cityPulse, setCityPulse] = useState<{ title: string; event: string; pulse: number; votes: number } | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
@@ -100,6 +101,28 @@ export default function SwipePage() {
       }
     })();
 
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch('/api/city', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((city) => {
+        if (!mounted || !city?.dayKey) return;
+        const liveEvent = city.events?.find((event: any) => event.kind === 'battle' && event.isLive)
+          || city.events?.find((event: any) => event.isLive)
+          || city.events?.[0];
+        setCityPulse({
+          title: city.cityMood?.title || 'Synaura City',
+          event: liveEvent?.title || 'Event live',
+          pulse: city.pulse?.[0]?.pulse || 0,
+          votes: liveEvent?.totalVotes || 0,
+        });
+      })
+      .catch(() => {});
     return () => {
       mounted = false;
     };
@@ -246,6 +269,17 @@ export default function SwipePage() {
 
   return (
     <div className="fixed inset-0 z-[100] overflow-hidden bg-[#171313] text-white">
+      {cityPulse ? (
+        <button
+          type="button"
+          onClick={() => router.push('/city')}
+          className="absolute left-4 top-4 z-40 hidden max-w-[280px] rounded-[1.4rem] border border-white/12 bg-[#fffaf2]/92 p-3 text-left text-[#171313] shadow-[0_18px_55px_rgba(0,0,0,.26)] backdrop-blur-2xl md:block"
+        >
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF6F61]">Synaura City</p>
+          <p className="mt-1 line-clamp-1 text-sm font-black">{cityPulse.event}</p>
+          <p className="mt-1 text-[11px] font-bold text-black/50">{cityPulse.title} · Pulse {cityPulse.pulse}% · {cityPulse.votes} votes</p>
+        </button>
+      ) : null}
       <div
         ref={containerRef}
         onWheel={onWheel}
