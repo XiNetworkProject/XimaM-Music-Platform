@@ -44,6 +44,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     '/join',
     '/subscriptions',
     '/swipe',
+    '/city',
     '/community',
     '/download',
   ]);
@@ -64,7 +65,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     showTopSearch: !useFullScreenLayout && !hideTopSearch,
     showBottomNav: !useFullScreenLayout,
     useFullScreenLayout,
-    suppressGlobalPlayerPadding: isAuth || pathname.startsWith('/ai-generator') || pathname.startsWith('/studio') || isImmersivePlayer,
+    suppressGlobalPlayerPadding: isAuth || pathname.startsWith('/ai-generator') || pathname.startsWith('/studio') || pathname.startsWith('/city') || isImmersivePlayer,
     showGlobalShutdownNotice: !useFullScreenLayout,
   };
 }

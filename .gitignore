@@ -95,3 +95,5 @@ jspm_packages/
 
 # APK files
 *.apk
+
+.vercel
