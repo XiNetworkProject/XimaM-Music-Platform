@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,13 +14,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { deleteTrack, getMyProfile, getSubscriptionUsage, updateTrackMetadata, type MobileProfile, type MobileProfileTrack, type SubscriptionUsage } from '@/api/client';
+import { deleteTrack, getMyProfile, getSubscriptionUsage, getUserPosts, pinPost, unpinPost, updateTrackMetadata, type MobileProfile, type MobileProfileTrack, type SubscriptionUsage } from '@/api/client';
+import type { HomePost } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { TrackCover } from '@/components/TrackCover';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackEditBottomSheet, type TrackEditForm } from '@/components/profile/TrackEditBottomSheet';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors } from '@/theme/tokens';
+
+type ProfileTab = 'posts' | 'sons' | 'albums' | 'about';
 
 function compact(value: number) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
@@ -39,9 +43,12 @@ export function ProfileScreen() {
   const [editingTrack, setEditingTrack] = useState<MobileProfileTrack | null>(null);
   const [trackForm, setTrackForm] = useState<TrackEditForm>({ title: '', description: '', genreText: '', tagsText: '', isPublic: true });
   const [trackSaving, setTrackSaving] = useState(false);
+  const [posts, setPosts] = useState<HomePost[]>([]);
+  const [profileTab, setProfileTab] = useState<ProfileTab>('posts');
 
   const topTracks = useMemo(() => [...(profile?.tracks || [])].sort((a, b) => (b.plays || 0) - (a.plays || 0)).slice(0, 4), [profile?.tracks]);
   const recentTracks = useMemo(() => (profile?.tracks || []).slice(0, 6), [profile?.tracks]);
+  const featuredTrack = useMemo(() => profile?.tracks.find((track) => track._id === profile.featuredTrackId || track.rawId === profile.featuredTrackId || track.isFeatured) || profile?.tracks[0] || null, [profile]);
 
   const loadProfile = useCallback(async () => {
     if (!auth.user?.username) return;
@@ -54,6 +61,8 @@ export function ProfileScreen() {
       ]);
       setProfile(nextProfile);
       setUsage(nextUsage);
+      const nextPosts = await getUserPosts(nextProfile.id);
+      setPosts(nextPosts.map((post) => ({ ...post, isPinned: post.id === nextProfile.pinnedPostId })).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned))));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Profil impossible à charger');
     } finally {
@@ -118,6 +127,20 @@ export function ProfileScreen() {
     ]);
   };
 
+  const togglePinnedPost = async (postId: string) => {
+    const isPinned = profile?.pinnedPostId === postId;
+    setProfile((current) => current ? { ...current, pinnedPostId: isPinned ? null : postId } : current);
+    setPosts((current) => current
+      .map((post) => ({ ...post, isPinned: isPinned ? false : post.id === postId }))
+      .sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned))));
+    try {
+      if (isPinned) await unpinPost();
+      else await pinPost(postId);
+    } catch {
+      await loadProfile();
+    }
+  };
+
   if (!auth.user) {
     return (
       <SynauraBackground variant="warm">
@@ -127,7 +150,7 @@ export function ProfileScreen() {
             <Text style={styles.loginTitle}>Ton espace Synaura</Text>
             <Text style={styles.loginText}>Connecte-toi pour publier, gérer tes sons, suivre tes stats et synchroniser ta bibliothèque.</Text>
             <View style={styles.guestHighlights}>
-              <GuestHighlight icon="radio-outline" text="Retrouve ton feed et tes sons" />
+              <GuestHighlight icon="musical-notes-outline" text="Retrouve ton feed et tes sons" />
               <GuestHighlight icon="notifications-outline" text="Synchronise tes notifications" />
               <GuestHighlight icon="cloud-upload-outline" text="Publie depuis ton téléphone" />
             </View>
@@ -172,11 +195,21 @@ export function ProfileScreen() {
               {profile?.isArtist ? <Pill label="Artiste" /> : <Pill label="Membre" />}
               {profile?.genre?.slice(0, 2).map((genre) => <Pill key={genre} label={genre} />)}
               {profile?.location ? <Pill label={profile.location} /> : null}
+              {profile?.badges.slice(0, 3).map((badge) => <Text key={badge} style={styles.badge}>{badge}</Text>)}
             </View>
+            {profile && Object.keys(profile.socialLinks).length ? (
+              <View style={styles.socialRow}>
+                {Object.entries(profile.socialLinks).filter(([, url]) => Boolean(url)).slice(0, 5).map(([name, url]) => (
+                  <Pressable key={name} onPress={() => Linking.openURL(url)} style={styles.socialButton}>
+                    <Ionicons name={name.toLowerCase().includes('instagram') ? 'logo-instagram' : name.toLowerCase().includes('youtube') ? 'logo-youtube' : name.toLowerCase().includes('tiktok') ? 'logo-tiktok' : 'link-outline'} size={16} color="#171313" />
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
             <View style={styles.actions}>
               <Pressable onPress={() => navigation.navigate('Settings')} style={styles.actionPrimary}><Text style={styles.actionPrimaryText}>Modifier</Text></Pressable>
               <Pressable onPress={shareProfile} style={styles.actionGhost}><Ionicons name="share-outline" size={17} color="#171313" /></Pressable>
-              <Pressable onPress={() => navigation.navigate('Upload')} style={styles.actionGhost}><Ionicons name="cloud-upload-outline" size={17} color="#171313" /></Pressable>
+              <Pressable onPress={() => navigation.navigate('CreateHub')} style={styles.actionGhost}><Ionicons name="add" size={18} color="#171313" /></Pressable>
             </View>
           </View>
         </View>
@@ -190,24 +223,69 @@ export function ProfileScreen() {
           <Stat label="Plays" value={compact(profile?.totalPlays || 0)} />
         </View>
 
+        {featuredTrack ? (
+          <Pressable onPress={() => player.playTrack(featuredTrack)} style={styles.featured}>
+            <TrackCover track={featuredTrack} style={styles.featuredCover} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.featuredKicker}>SON VEDETTE</Text>
+              <Text numberOfLines={1} style={styles.featuredTitle}>{featuredTrack.title}</Text>
+              <Text style={styles.featuredMeta}>{compact(featuredTrack.plays || 0)} écoutes · {compact(featuredTrack.likesCount || 0)} likes</Text>
+            </View>
+            <View style={styles.featuredPlay}><Ionicons name="play" size={17} color="#FFFAF2" /></View>
+          </Pressable>
+        ) : null}
+
+        <View style={styles.profileTabs}>
+          {(['posts', 'sons', 'albums', 'about'] as ProfileTab[]).map((item) => (
+            <Pressable key={item} onPress={() => setProfileTab(item)} style={[styles.profileTab, profileTab === item && styles.profileTabActive]}>
+              <Text style={[styles.profileTabText, profileTab === item && styles.profileTabTextActive]}>{item}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {profileTab === 'about' ? <>
         <View style={styles.quickGrid}>
           <QuickAction icon="settings-outline" title="Paramètres" text="Profil, compte, sécurité" onPress={() => navigation.navigate('Settings')} />
-          <QuickAction icon="cloud-upload-outline" title="Publier" text="Upload mobile studio" onPress={() => navigation.navigate('Upload')} />
+          <QuickAction icon="add-circle-outline" title="Créer" text="Studio IA, upload et posts" onPress={() => navigation.navigate('CreateHub')} />
           <QuickAction icon="library-outline" title="Bibliothèque" text="Favoris et playlists" onPress={() => navigation.navigate('Library')} />
           <QuickAction icon="person-add-outline" title="Profil public" text="Voir comme visiteur" onPress={() => profile && navigation.navigate('PublicProfile', { username: profile.username })} />
         </View>
 
         {usage ? (
-          <View style={styles.card}>
+          <Pressable onPress={() => navigation.navigate('Subscriptions')} style={styles.card}>
             <SectionTitle title="Plan & quotas" action={usage.plan} />
             <UsageRow label="Tracks" used={usage.tracks.used} limit={usage.tracks.limit} percentage={usage.tracks.percentage} />
             <UsageRow label="Playlists" used={usage.playlists.used} limit={usage.playlists.limit} percentage={usage.playlists.percentage} />
-          </View>
+            <View style={styles.planLink}><Text style={styles.planLinkText}>Comparer et gérer les plans</Text><Ionicons name="arrow-forward" size={16} color="#7C5CFF" /></View>
+          </Pressable>
         ) : null}
+        </> : null}
 
+        {profileTab === 'sons' ? <>
         <TrackSection title="Top tracks" tracks={topTracks} onPlay={(track) => player.playTrack(track)} onEdit={openTrackEdit} onDelete={confirmDeleteTrack} />
         <TrackSection title="Derniers sons" tracks={recentTracks} onPlay={(track) => player.playTrack(track)} onEdit={openTrackEdit} onDelete={confirmDeleteTrack} />
+        </> : null}
 
+        {profileTab === 'posts' ? (
+        <View style={styles.card}>
+          <SectionTitle title="Publications" action={`${posts.length}`} />
+          {posts.length ? posts.slice(0, 8).map((post) => (
+            <Pressable key={post.id} onPress={() => navigation.navigate('PostDetail', { postId: post.id })} style={styles.postRow}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                {post.isPinned ? <Text style={styles.postPinned}>ÉPINGLÉ</Text> : null}
+                <Text numberOfLines={2} style={styles.postText}>{post.text}</Text>
+                <Text style={styles.postMeta}>{post.time} · {post.likesCount} j’aime · {post.commentsCount} commentaires</Text>
+              </View>
+              <Pressable accessibilityLabel={post.isPinned ? 'Désépingler' : 'Épingler'} onPress={(event) => { event.stopPropagation(); void togglePinnedPost(post.id); }} style={styles.miniIcon}>
+                <Ionicons name={post.isPinned ? 'pin' : 'pin-outline'} size={15} color={post.isPinned ? '#7C5CFF' : '#171313'} />
+              </Pressable>
+              <Ionicons name="chevron-forward" size={16} color="rgba(23,19,19,0.35)" />
+            </Pressable>
+          )) : <Pressable onPress={() => navigation.navigate('CreatePost')} style={styles.emptyAction}><Ionicons name="add-circle-outline" size={18} color="#7C5CFF" /><Text style={styles.emptyActionText}>Créer mon premier post</Text></Pressable>}
+        </View>
+        ) : null}
+
+        {profileTab === 'albums' ? (
         <View style={styles.card}>
           <SectionTitle title="Albums & playlists" action={`${profile?.playlists.length || 0}`} />
           {profile?.playlists.length ? profile.playlists.slice(0, 4).map((playlist) => (
@@ -220,6 +298,7 @@ export function ProfileScreen() {
             </View>
           )) : <Empty text="Aucun album ou playlist pour le moment." />}
         </View>
+        ) : null}
 
       </ScrollView>
       <TrackEditBottomSheet
@@ -341,11 +420,25 @@ const styles = StyleSheet.create({
   bio: { marginTop: 10, color: 'rgba(23,19,19,0.62)', fontSize: 13, lineHeight: 19, fontWeight: '700' },
   heroPills: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   pill: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(23,19,19,0.07)', color: '#171313', fontSize: 10, fontWeight: '900' },
+  badge: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(124,92,255,0.13)', color: '#5B3FD6', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
+  socialRow: { marginTop: 11, flexDirection: 'row', gap: 7 },
+  socialButton: { width: 35, height: 35, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },
   actions: { marginTop: 15, flexDirection: 'row', gap: 8 },
   actionPrimary: { flex: 1, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
   actionPrimaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   actionGhost: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  featured: { minHeight: 82, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 11, backgroundColor: '#171313' },
+  featuredCover: { width: 60, height: 60, borderRadius: 17 },
+  featuredKicker: { color: '#C7B8FF', fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
+  featuredTitle: { marginTop: 4, color: '#FFFAF2', fontSize: 15, fontWeight: '900' },
+  featuredMeta: { marginTop: 3, color: 'rgba(255,250,242,0.42)', fontSize: 10, fontWeight: '800' },
+  featuredPlay: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.12)' },
+  profileTabs: { flexDirection: 'row', gap: 7 },
+  profileTab: { flex: 1, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.82)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.07)' },
+  profileTabActive: { backgroundColor: '#171313', borderColor: '#171313' },
+  profileTabText: { color: 'rgba(23,19,19,0.52)', fontSize: 10, fontWeight: '900', textTransform: 'capitalize' },
+  profileTabTextActive: { color: '#FFFAF2' },
   stat: { width: '48%', borderRadius: 20, padding: 14, backgroundColor: 'rgba(255,250,242,0.86)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
   statValue: { color: '#171313', fontSize: 24, fontWeight: '900', letterSpacing: -0.6 },
   statLabel: { marginTop: 3, color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
@@ -355,6 +448,8 @@ const styles = StyleSheet.create({
   quickTitle: { marginTop: 10, color: '#171313', fontSize: 14, fontWeight: '900' },
   quickText: { marginTop: 3, color: 'rgba(23,19,19,0.48)', fontSize: 11, lineHeight: 16, fontWeight: '700' },
   card: { gap: 10, borderRadius: 24, padding: 14, backgroundColor: 'rgba(255,250,242,0.88)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
+  planLink: { minHeight: 38, borderRadius: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 11, backgroundColor: 'rgba(124,92,255,0.08)' },
+  planLinkText: { color: '#7C5CFF', fontSize: 10, fontWeight: '900' },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { color: '#171313', fontSize: 17, fontWeight: '900', letterSpacing: -0.2 },
   sectionAction: { color: 'rgba(23,19,19,0.42)', fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
@@ -380,6 +475,12 @@ const styles = StyleSheet.create({
   playlistCover: { width: 48, height: 48, borderRadius: 14, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.07)' },
   playlistTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
   playlistMeta: { marginTop: 3, color: 'rgba(23,19,19,0.45)', fontSize: 10, fontWeight: '800' },
+  postRow: { minHeight: 68, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 11, backgroundColor: 'rgba(23,19,19,0.045)' },
+  postText: { color: '#171313', fontSize: 12, lineHeight: 17, fontWeight: '800' },
+  postPinned: { marginBottom: 4, color: '#7C5CFF', fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
+  postMeta: { marginTop: 5, color: 'rgba(23,19,19,0.42)', fontSize: 9, fontWeight: '800' },
+  emptyAction: { minHeight: 50, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: 'rgba(124,92,255,0.08)' },
+  emptyActionText: { color: '#5B3FD6', fontSize: 11, fontWeight: '900' },
   empty: { borderRadius: 18, padding: 14, backgroundColor: 'rgba(23,19,19,0.045)', color: 'rgba(23,19,19,0.48)', fontSize: 12, fontWeight: '800', textAlign: 'center' },
   error: { overflow: 'hidden', borderRadius: 16, padding: 12, backgroundColor: 'rgba(239,68,68,0.1)', color: colors.danger, fontSize: 12, fontWeight: '800', textAlign: 'center' },
 });

@@ -13,9 +13,6 @@ import type {
   LibraryStats,
   NotificationCenterData,
   Playlist,
-  RadioItem,
-  RadioMeta,
-  RadioStation,
   RankingFeedChunk,
   SearchResults,
   SynauraNotification,
@@ -24,8 +21,6 @@ import type {
 
 const fallbackBaseUrl = 'https://xima-m-music-platform.vercel.app';
 const fallbackCover = 'https://xima-m-music-platform.vercel.app/default-cover.svg';
-const radioMixxCover = 'https://xima-m-music-platform.vercel.app/mixxparty1.png';
-const radioXimamCover = 'https://xima-m-music-platform.vercel.app/ximam-radio-x.svg';
 const tints = ['#8B5CF6', '#38BDF8', '#FB7185', '#F59E0B', '#14B8A6', '#EF4444'];
 let authTokenProvider: (() => string | null) | null = null;
 
@@ -108,12 +103,33 @@ function absoluteAsset(url: string | null | undefined) {
   return url;
 }
 
+function isLikelyExpiredMobileAIMedia(url: unknown, createdAt?: unknown) {
+  if (typeof url !== 'string' || !/^https?:\/\//i.test(url.trim())) return true;
+  try {
+    const host = new URL(url.trim()).hostname.toLowerCase();
+    const temporary = host === 'musicfile.api.box' || host === 'tempfile.aiquickdraw.com' || host.endsWith('.removeai.ai');
+    if (!temporary) return false;
+    const created = typeof createdAt === 'string' ? Date.parse(createdAt) : Number.NaN;
+    return !Number.isFinite(created) || Date.now() - created > 14 * 24 * 60 * 60 * 1000;
+  } catch {
+    return true;
+  }
+}
+
+function firstPlayableMobileAIMedia(values: unknown[], createdAt?: unknown) {
+  for (const value of values) {
+    if (typeof value !== 'string' || !value.trim()) continue;
+    if (!isLikelyExpiredMobileAIMedia(value, createdAt)) return value.trim();
+  }
+  return '';
+}
+
 function authHeaders(extra?: HeadersInit): HeadersInit {
   const token = authTokenProvider?.();
   return {
     Accept: 'application/json',
     'Cache-Control': 'no-store',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}`, 'X-Auth-Token': token } : {}),
     ...(extra || {}),
   };
 }
@@ -322,71 +338,6 @@ function normalizePost(raw: any): HomePost | null {
   };
 }
 
-function buildRadioTrack(id: string, title: string, artist: string, streamUrl: string, coverUrl: string, genre: string[]): Track {
-  return {
-    _id: id,
-    title,
-    artist: {
-      _id: `artist-${id}`,
-      name: artist,
-      username: artist.toLowerCase().replace(/\s+/g, ''),
-      artistName: artist,
-    },
-    audioUrl: streamUrl,
-    coverUrl,
-    duration: 0,
-    likes: [],
-    comments: [],
-    plays: 0,
-    genre,
-    album: 'Radio Synaura',
-  };
-}
-
-async function getRadioItems(): Promise<RadioItem[]> {
-  const [mixx, ximam] = await Promise.allSettled([
-    request<any>('/api/radio/status?station=mixx_party'),
-    request<any>('/api/radio/status?station=ximam'),
-  ]);
-  const mixxData = mixx.status === 'fulfilled' ? mixx.value?.data : null;
-  const ximamData = ximam.status === 'fulfilled' ? ximam.value?.data : null;
-
-  return [
-    {
-      id: 'radio-mixx',
-      title: safeString(mixxData?.name || 'Mixx Party Radio', 'Mixx Party Radio'),
-      subtitle: safeString(mixxData?.description || 'radio live en continu', 'radio live en continu'),
-      station: 'Mixx Party',
-      listeners: compact(mixxData?.stats?.listeners || 0),
-      color: '#EF4444',
-      track: buildRadioTrack(
-        'radio-mixx-party',
-        safeString(mixxData?.currentTrack?.title || 'Mixx Party Radio', 'Mixx Party Radio'),
-        safeString(mixxData?.currentTrack?.artist || 'Mixx Party', 'Mixx Party'),
-        safeString(mixxData?.streamUrl, 'https://manager11.streamradio.fr:2425/stream'),
-        radioMixxCover,
-        ['Electronic', 'Dance'],
-      ),
-    },
-    {
-      id: 'radio-ximam',
-      title: safeString(ximamData?.name || 'XimaM Music Radio', 'XimaM Music Radio'),
-      subtitle: safeString(ximamData?.description || 'radio createur en continu', 'radio createur en continu'),
-      station: 'XimaM Radio',
-      listeners: compact(ximamData?.stats?.listeners || 0),
-      color: '#8B5CF6',
-      track: buildRadioTrack(
-        'radio-ximam',
-        safeString(ximamData?.currentTrack?.title || 'XimaM Music Radio', 'XimaM Music Radio'),
-        safeString(ximamData?.currentTrack?.artist || 'XimaM', 'XimaM'),
-        safeString(ximamData?.streamUrl, 'https://manager11.streamradio.fr:2745/stream'),
-        radioXimamCover,
-        ['Creator Radio', 'Synaura'],
-      ),
-    },
-  ];
-}
-
 export async function getHomeFeed(): Promise<Track[]> {
   const endpoints = [
     '/api/ranking/feed?limit=80&ai=1&strategy=reco',
@@ -406,14 +357,13 @@ export async function getHomeFeed(): Promise<Track[]> {
 }
 
 export async function getHomeData(): Promise<HomeData> {
-  const [feed, trending, recent, boosted, playlists, artists, radios, libraryPlaylists, libraryFavorites, libraryRecent] = await Promise.allSettled([
+  const [feed, trending, recent, boosted, playlists, artists, libraryPlaylists, libraryFavorites, libraryRecent] = await Promise.allSettled([
     request<FeedResponse>('/api/recommendations/feed?limit=24'),
     request<FeedResponse>('/api/tracks/trending?limit=18'),
     request<FeedResponse>('/api/tracks/recent?limit=18'),
     request<FeedResponse>('/api/tracks/boosted?limit=8'),
     request<FeedResponse>('/api/playlists/popular?limit=8'),
     request<FeedResponse>('/api/artists?sort=trending&limit=8'),
-    getRadioItems(),
     optionalRequest<FeedResponse>('/api/playlists'),
     optionalRequest<FeedResponse>('/api/tracks?liked=true&limit=60'),
     optionalRequest<FeedResponse>('/api/tracks?recent=true&limit=40'),
@@ -443,22 +393,26 @@ export async function getHomeData(): Promise<HomeData> {
         ai: collectTracks(libraryRecentPayload || {}).filter((track) => track.isAI || track._id.startsWith('ai-')).length,
       }
     : null;
+  const normalizedPlaylists = [
+    ...(Array.isArray(libraryPlaylistsPayload?.playlists) ? libraryPlaylistsPayload.playlists : []),
+    ...(Array.isArray(playlistsPayload.playlists) ? playlistsPayload.playlists : []),
+  ]
+    .map((playlist) => normalizePlaylist(playlist, fallbackCovers))
+    .filter((playlist): playlist is Playlist => Boolean(playlist));
+  const playlistsById = new Map(normalizedPlaylists.map((playlist) => [playlist.id, playlist]));
 
   return {
     forYou,
     trending: trendingTracks,
     recent: recentTracks,
     boosted: boostedTracks,
-    playlists: (Array.isArray(playlistsPayload.playlists) ? playlistsPayload.playlists : [])
-      .map((playlist) => normalizePlaylist(playlist, fallbackCovers))
-      .filter((playlist): playlist is Playlist => Boolean(playlist)),
+    playlists: Array.from(playlistsById.values()),
     creators: (Array.isArray(artistsPayload.artists) ? artistsPayload.artists : [])
       .map(normalizeCreator)
       .filter((creator): creator is Creator => Boolean(creator)),
     posts: (Array.isArray(feedPayload.posts) ? feedPayload.posts : [])
       .map(normalizePost)
       .filter((post): post is HomePost => Boolean(post)),
-    radios: radios.status === 'fulfilled' ? radios.value : [],
     libraryStats,
     nextCursor: feedPayload.nextCursor == null ? null : String(feedPayload.nextCursor),
     hasMore: Boolean(feedPayload.hasMore),
@@ -1124,6 +1078,10 @@ export type MobileProfile = {
   followerCount: number;
   followingCount: number;
   isFollowing?: boolean;
+  socialLinks: Record<string, string>;
+  badges: string[];
+  featuredTrackId?: string | null;
+  pinnedPostId?: string | null;
   tracks: MobileProfileTrack[];
   playlists: MobileProfilePlaylist[];
   createdAt?: string;
@@ -1160,6 +1118,41 @@ export type SubscriptionUsage = {
   plan: string;
   tracks: { used: number; limit: number; percentage: number };
   playlists: { used: number; limit: number; percentage: number };
+};
+
+export type SubscriptionPlan = {
+  id: 'free' | 'starter' | 'pro';
+  name: string;
+  label: string;
+  description: string;
+  price: number;
+  priceMonthly: number;
+  priceYearly: number;
+  currency: string;
+  interval: string;
+  badge?: string | null;
+  features: string[];
+  creditsMonthly: number;
+  popular?: boolean;
+  recommended?: boolean;
+  stripePriceIds: { month: string; year: string };
+  limits: {
+    maxTracks: number;
+    maxPlaylists: number;
+    audioQuality: string;
+    fileMaxMb: number;
+    ads: boolean;
+    analytics: boolean;
+    collaborations: boolean;
+    apiAccess: boolean;
+    support: string;
+  };
+};
+
+export type CurrentSubscription = {
+  hasSubscription: boolean;
+  subscription: { id: string; name: string; price: number; currency: string; interval: string } | null;
+  userSubscription: { status: string; currentPeriodEnd?: string | null } | null;
 };
 
 export type UpdateProfileInput = {
@@ -1201,6 +1194,11 @@ function normalizeMobileProfile(raw: any): MobileProfile {
     username: raw?.username,
     avatar: absoluteAsset(raw?.avatar),
   };
+  const preferences = raw?.preferences && typeof raw.preferences === 'object' ? raw.preferences : {};
+  const socialLinks = preferences?.socialLinks && typeof preferences.socialLinks === 'object' ? preferences.socialLinks : {};
+  const badges = Array.isArray(preferences?.profileBadges)
+    ? preferences.profileBadges.filter(Boolean).map((item: unknown) => String(item))
+    : [];
   return {
     id: String(raw?.id || raw?._id || ''),
     username: safeString(raw?.username, 'user'),
@@ -1223,6 +1221,10 @@ function normalizeMobileProfile(raw: any): MobileProfile {
     followerCount: Number(raw?.followerCount || raw?.follower_count || 0),
     followingCount: Number(raw?.followingCount || raw?.following_count || 0),
     isFollowing: Boolean(raw?.isFollowing || raw?.is_following),
+    socialLinks,
+    badges,
+    featuredTrackId: preferences?.featuredTrackId ? String(preferences.featuredTrackId) : null,
+    pinnedPostId: preferences?.pinnedPostId ? String(preferences.pinnedPostId) : null,
     tracks: (Array.isArray(raw?.tracks) ? raw.tracks : [])
       .map((item: any) => normalizeProfileTrack(item, baseProfile))
       .filter((item: MobileProfileTrack | null): item is MobileProfileTrack => Boolean(item)),
@@ -1245,6 +1247,14 @@ export async function getPublicProfile(username: string): Promise<MobileProfile>
   return normalizeMobileProfile(json);
 }
 
+export async function getUserPosts(creatorId: string, limit = 30): Promise<HomePost[]> {
+  if (!creatorId) return [];
+  const json = await request<any>(`/api/posts?creator_id=${encodeURIComponent(creatorId)}&limit=${Math.min(30, Math.max(1, limit))}`);
+  return (Array.isArray(json?.posts) ? json.posts : [])
+    .map(normalizePost)
+    .filter((post: HomePost | null): post is HomePost => Boolean(post));
+}
+
 export async function getMyProfile(username?: string | null): Promise<MobileProfile> {
   if (!username) {
     const me = await request<any>('/api/auth/mobile/me');
@@ -1261,6 +1271,35 @@ export async function updateProfile(username: string, input: UpdateProfileInput)
     body: JSON.stringify(input),
   });
   return normalizeMobileProfile({ ...json, username });
+}
+
+export async function getUserPreferences(): Promise<Record<string, any>> {
+  const json = await request<any>('/api/user/preferences');
+  return json?.preferences && typeof json.preferences === 'object' ? json.preferences : {};
+}
+
+export async function updateUserPreferences(input: Record<string, unknown>): Promise<Record<string, any>> {
+  const json = await request<any>('/api/user/preferences', {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+  return json?.preferences && typeof json.preferences === 'object' ? json.preferences : {};
+}
+
+export async function pinPost(postId: string): Promise<void> {
+  await updateUserPreferences({ pinnedPostId: postId });
+}
+
+export async function unpinPost(): Promise<void> {
+  await updateUserPreferences({ pinnedPostId: null });
+}
+
+export async function setFeaturedTrack(trackId: string): Promise<void> {
+  await updateUserPreferences({ featuredTrackId: trackId });
+}
+
+export async function removeFeaturedTrack(): Promise<void> {
+  await updateUserPreferences({ featuredTrackId: null });
 }
 
 export async function uploadProfileImage(username: string, type: 'avatar' | 'banner', asset: UploadAsset): Promise<string> {
@@ -1321,6 +1360,67 @@ export async function getSubscriptionUsage(): Promise<SubscriptionUsage | null> 
   return optionalRequest<SubscriptionUsage>('/api/subscriptions/usage');
 }
 
+export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+  const json = await request<any>('/api/subscriptions');
+  return (Array.isArray(json?.plans) ? json.plans : []).map((raw: any) => {
+    const id = ['starter', 'pro'].includes(String(raw?.id)) ? String(raw.id) as 'starter' | 'pro' : 'free';
+    const monthly = Number(raw?.priceMonthly ?? raw?.price ?? 0) || 0;
+    const yearlyFallback = id === 'starter' ? 47.88 : id === 'pro' ? 143.88 : 0;
+    return {
+      ...raw,
+      id,
+      name: String(raw?.name || id),
+      label: String(raw?.label || raw?.name || id).replace(/^./, (char) => char.toUpperCase()),
+      description: String(raw?.description || ''),
+      price: monthly,
+      priceMonthly: monthly,
+      priceYearly: Number(raw?.priceYearly ?? yearlyFallback) || 0,
+      currency: String(raw?.currency || 'EUR'),
+      interval: String(raw?.interval || 'mois'),
+      features: Array.isArray(raw?.features) ? raw.features.map(String) : [],
+      creditsMonthly: Number(raw?.creditsMonthly || 0),
+      stripePriceIds: {
+        month: String(raw?.stripePriceIds?.month || ''),
+        year: String(raw?.stripePriceIds?.year || ''),
+      },
+      limits: {
+        maxTracks: Number(raw?.limits?.maxTracks ?? 0),
+        maxPlaylists: Number(raw?.limits?.maxPlaylists ?? 0),
+        audioQuality: String(raw?.limits?.audioQuality || '128kbps'),
+        fileMaxMb: Number(raw?.limits?.fileMaxMb ?? 80),
+        ads: Boolean(raw?.limits?.ads),
+        analytics: Boolean(raw?.limits?.analytics),
+        collaborations: Boolean(raw?.limits?.collaborations),
+        apiAccess: Boolean(raw?.limits?.apiAccess),
+        support: String(raw?.limits?.support || 'Communautaire'),
+      },
+    } satisfies SubscriptionPlan;
+  });
+}
+
+export async function getCurrentSubscription(): Promise<CurrentSubscription | null> {
+  return optionalRequest<CurrentSubscription>('/api/subscriptions/my-subscription');
+}
+
+export async function refreshSubscription(): Promise<void> {
+  await request('/api/subscriptions/refresh', { method: 'POST' });
+}
+
+export async function createSubscriptionCheckout(priceId: string): Promise<{ checkoutUrl: string; sessionId: string }> {
+  return request('/api/billing/create-subscription', {
+    method: 'POST',
+    body: JSON.stringify({ priceId }),
+  });
+}
+
+export async function cancelSubscription(): Promise<void> {
+  await request('/api/billing/cancel-subscription', { method: 'POST' });
+}
+
+export async function downgradeSubscriptionToFree(): Promise<void> {
+  await request('/api/billing/downgrade-to-free', { method: 'POST' });
+}
+
 export async function deleteAccount(): Promise<void> {
   await request<any>('/api/account/delete', { method: 'POST' });
 }
@@ -1348,29 +1448,6 @@ export async function deleteTrack(trackId: string): Promise<void> {
 /* ─────────────────────────────────────────────
    TikTok Player feed (parite avec le web)
    ───────────────────────────────────────────── */
-
-export const RADIO_TRACKS: Track[] = [
-  buildRadioTrack(
-    'radio-mixx-party',
-    'Mixx Party Radio',
-    'Mixx Party',
-    'https://manager11.streamradio.fr:2425/stream',
-    radioMixxCover,
-    ['Electronic', 'Dance'],
-  ),
-  buildRadioTrack(
-    'radio-ximam',
-    'XimaM Music Radio',
-    'XimaM',
-    'https://manager11.streamradio.fr:2745/stream',
-    radioXimamCover,
-    ['Electronic'],
-  ),
-];
-
-export function isRadioTrackId(id: string | null | undefined) {
-  return !!id && String(id).startsWith('radio-');
-}
 
 function injectBoosted(regular: Track[], boosted: Track[], interval: number): Track[] {
   const ids = new Set(regular.map((t) => t._id));
@@ -1438,32 +1515,8 @@ export async function fetchRankingFeedChunk(
   };
 }
 
-export function insertRadioTracks(tracks: Track[], strategy: FeedStrategy): Track[] {
-  if (!tracks.length) return [...RADIO_TRACKS];
-  const result = [...tracks];
-  const positions = strategy === 'boost' ? [4, 11] : strategy === 'trending' ? [6] : [8];
-  RADIO_TRACKS.forEach((radioTrack, index) => {
-    if (result.some((t) => t._id === radioTrack._id)) return;
-    const fallbackPos = Math.min(result.length, 6 + index * 6);
-    const insertAt = Math.min(result.length, positions[index] ?? fallbackPos);
-    result.splice(insertAt, 0, radioTrack);
-  });
-  return result;
-}
-
-export async function getRadioStatus(station: RadioStation): Promise<RadioMeta | null> {
-  const json = await optionalRequest<any>(`/api/radio/status?station=${station}`);
-  if (!json) return null;
-  const data = json?.data;
-  const title = String(data?.currentTrack?.title || '').trim();
-  const artist = String(data?.currentTrack?.artist || '').trim();
-  const listeners = parseInt(data?.stats?.listeners ?? 0, 10) || 0;
-  if (!title) return null;
-  return { station, title, artist, listeners };
-}
-
 export async function getCommentsCount(trackIds: string[]): Promise<Record<string, number>> {
-  const usable = trackIds.filter((id) => id && !isRadioTrackId(id) && !id.startsWith('ai-'));
+  const usable = trackIds.filter((id) => id && !id.startsWith('radio-') && !id.startsWith('ai-'));
   if (!usable.length) return {};
   const json = await optionalRequest<any>('/api/tracks/comments-count', {
     method: 'POST',
@@ -1492,19 +1545,25 @@ export async function setTrackLike(trackId: string, like: boolean): Promise<{ li
   };
 }
 
-export async function toggleArtistFollow(artistId: string): Promise<{ following: boolean } | null> {
-  if (!artistId) return null;
-  const json = await optionalRequest<any>(`/api/users/${encodeURIComponent(artistId)}/follow`, {
+export async function toggleArtistFollow(username: string): Promise<{ following: boolean } | null> {
+  if (!username) return null;
+  const json = await optionalRequest<any>(`/api/users/${encodeURIComponent(username)}/follow`, {
     method: 'POST',
   });
   if (!json) return null;
-  return { following: Boolean(json?.following) };
+  return {
+    following: Boolean(
+      json?.following ??
+      json?.isFollowing ??
+      (json?.action === 'followed'),
+    ),
+  };
 }
 
-export async function getArtistFollowState(artistId: string): Promise<boolean> {
-  if (!artistId) return false;
-  const json = await optionalRequest<any>(`/api/users/${encodeURIComponent(artistId)}/follow`);
-  return Boolean(json?.following);
+export async function getArtistFollowState(username: string): Promise<boolean> {
+  if (!username) return false;
+  const json = await optionalRequest<any>(`/api/users/${encodeURIComponent(username)}/follow`);
+  return Boolean(json?.isFollowing ?? json?.following);
 }
 
 export async function shareTrackToFeed(trackId: string, content?: string): Promise<HomePost | null> {
@@ -1528,4 +1587,366 @@ export function buildShareUrls(track: Track | null): { trackUrl: string; shareTe
     trackUrl,
     shareText: `Ecoute ${track.title} de ${artist} sur Synaura\n${trackUrl}`,
   };
+}
+
+export type AIStudioTrack = {
+  id: string;
+  suno_id?: string;
+  title: string;
+  audio_url: string;
+  stream_audio_url?: string;
+  image_url?: string;
+  cover_video_url?: string;
+  cover_video_poster_url?: string;
+  music_video_url?: string;
+  music_video_poster_url?: string;
+  music_video_task_id?: string;
+  source_links?: string | Record<string, unknown>;
+  library_folder?: string;
+  duration: number;
+  prompt?: string;
+  lyrics?: string;
+  style?: string;
+  tags?: string[];
+  model_name?: string;
+  created_at?: string;
+  is_favorite?: boolean;
+  is_public?: boolean;
+  is_liked?: boolean;
+  generation_id?: string;
+  generation?: Partial<AIStudioGeneration>;
+};
+
+export type AIStudioGeneration = {
+  id: string;
+  task_id: string;
+  prompt: string;
+  model: string;
+  status: 'pending' | 'completed' | 'failed';
+  created_at: string;
+  is_favorite?: boolean;
+  is_public?: boolean;
+  is_trashed?: boolean;
+  metadata?: { title?: string; style?: string; instrumental?: boolean; [key: string]: unknown };
+  tracks?: AIStudioTrack[];
+};
+
+export type AIStudioQuota = {
+  plan_type: string;
+  monthly_limit: number;
+  used_this_month: number;
+  remaining: number;
+  reset_date?: string;
+  aiGenerationEnabled?: boolean;
+  monthlyCredits?: number;
+  creditBalance?: number;
+};
+
+export type StartAIGenerationInput = {
+  customMode: boolean;
+  instrumental: boolean;
+  model: string;
+  title?: string;
+  style?: string;
+  prompt: string;
+  negativeTags?: string;
+  vocalGender?: 'm' | 'f';
+  styleWeight?: number;
+  weirdnessConstraint?: number;
+  audioWeight?: number;
+  durationHint?: string;
+};
+
+export type AIStatusTrack = {
+  id: string;
+  title: string;
+  audio?: string;
+  stream?: string;
+  image?: string;
+  duration?: number;
+  raw?: Record<string, unknown>;
+};
+
+function parseAIStudioSourceLinks(value: unknown): Record<string, any> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, any>;
+  if (typeof value !== 'string' || !value.trim()) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizeAIStudioTrack(raw: any): AIStudioTrack | null {
+  const id = String(raw?.id || raw?.suno_id || raw?.audioId || raw?.trackId || '');
+  if (!id) return null;
+  const sourceLinks = parseAIStudioSourceLinks(raw?.source_links || raw?.sourceLinks);
+  const mediaCreatedAt = sourceLinks.provider_urls_refreshed_at || sourceLinks.media_cached_at || raw?.media_fetched_at || raw?.created_at || raw?.createdAt;
+  const imageCandidate = firstPlayableMobileAIMedia([
+    sourceLinks.cached_image_url,
+    sourceLinks.image_url,
+    sourceLinks.cover,
+    raw?.image_url,
+    raw?.imageUrl,
+    raw?.image,
+    sourceLinks.provider_image_url,
+    raw?.music_video_poster_url,
+    sourceLinks.music_video_poster_url,
+    raw?.cover_video_poster_url,
+    sourceLinks.cover_video_poster_url,
+  ], mediaCreatedAt);
+  return {
+    ...raw,
+    id,
+    suno_id: raw?.suno_id || raw?.sunoId || raw?.audioId,
+    title: safeString(raw?.title, 'Création Synaura'),
+    audio_url: String(raw?.audio_url || raw?.audioUrl || raw?.audio || ''),
+    stream_audio_url: raw?.stream_audio_url || raw?.streamAudioUrl || raw?.stream || undefined,
+    image_url: absoluteAsset(typeof imageCandidate === 'string' ? imageCandidate : undefined) || undefined,
+    cover_video_url: raw?.cover_video_url || sourceLinks.cover_video_url || undefined,
+    cover_video_poster_url: raw?.cover_video_poster_url || sourceLinks.cover_video_poster_url || undefined,
+    music_video_url: raw?.music_video_url || sourceLinks.music_video_url || undefined,
+    music_video_poster_url: raw?.music_video_poster_url || sourceLinks.music_video_poster_url || undefined,
+    music_video_task_id: raw?.music_video_task_id || sourceLinks.music_video_task_id || undefined,
+    source_links: raw?.source_links || raw?.sourceLinks || sourceLinks,
+    library_folder: String(sourceLinks.library_folder || raw?.library_folder || '').trim() || undefined,
+    duration: Number(raw?.duration || 0),
+    prompt: raw?.prompt || undefined,
+    lyrics: raw?.lyrics || undefined,
+    style: raw?.style || undefined,
+    tags: Array.isArray(raw?.tags) ? raw.tags.map(String) : typeof raw?.tags === 'string' ? raw.tags.split(',').map((tag: string) => tag.trim()).filter(Boolean) : [],
+    model_name: raw?.model_name || raw?.modelName || undefined,
+    created_at: raw?.created_at || raw?.createdAt || raw?.createTime || undefined,
+    is_favorite: Boolean(raw?.is_favorite || raw?.isFavorite || raw?.is_liked),
+    is_liked: Boolean(raw?.is_liked || raw?.isLiked || raw?.is_favorite),
+    is_public: Boolean(raw?.is_public || raw?.isPublic),
+    generation_id: raw?.generation_id || raw?.generationId || raw?.generation?.id,
+    generation: raw?.generation,
+  };
+}
+
+function normalizeAIStudioGeneration(raw: any): AIStudioGeneration | null {
+  const id = String(raw?.id || raw?.task_id || raw?.taskId || '');
+  if (!id) return null;
+  const tracks = (Array.isArray(raw?.tracks) ? raw.tracks : [])
+    .map(normalizeAIStudioTrack)
+    .filter((track: AIStudioTrack | null): track is AIStudioTrack => Boolean(track));
+  return {
+    ...raw,
+    id,
+    task_id: String(raw?.task_id || raw?.taskId || id),
+    prompt: String(raw?.prompt || raw?.description || ''),
+    model: String(raw?.model || raw?.model_name || raw?.modelName || 'V4_5'),
+    status: String(raw?.status || 'pending').toLowerCase() as AIStudioGeneration['status'],
+    created_at: String(raw?.created_at || raw?.createdAt || new Date().toISOString()),
+    is_favorite: Boolean(raw?.is_favorite || raw?.isFavorite),
+    is_public: Boolean(raw?.is_public || raw?.isPublic),
+    is_trashed: Boolean(raw?.is_trashed || raw?.isTrashed),
+    metadata: {
+      ...(raw?.metadata && typeof raw.metadata === 'object' ? raw.metadata : {}),
+      ...(raw?.title ? { title: raw.title } : {}),
+      ...(raw?.style ? { style: raw.style } : {}),
+    },
+    tracks,
+  };
+}
+
+export async function getAIStudioLibrary(search = ''): Promise<AIStudioGeneration[]> {
+  const query = search.trim() ? `&search=${encodeURIComponent(search.trim())}` : '';
+  const trackQuery = search.trim() ? `?search=${encodeURIComponent(search.trim())}` : '';
+  const fetchTracks = async () => {
+    try {
+      return await request<any>(`/api/ai/library/tracks${trackQuery}`);
+    } catch {
+      return request<any>('/api/ai/library/tracks', {
+        method: 'POST',
+        body: JSON.stringify({ accessToken: authTokenProvider?.() || undefined, search: search.trim(), limit: 100, offset: 0 }),
+      });
+    }
+  };
+  const [libraryResult, generationsResult, tracksResult] = await Promise.allSettled([
+    request<any>(`/api/ai/library?limit=100&offset=0${query}`),
+    request<any>('/api/ai/generations'),
+    fetchTracks(),
+  ]);
+
+  const byId = new Map<string, AIStudioGeneration>();
+  const addGeneration = (raw: any) => {
+    const generation = normalizeAIStudioGeneration(raw);
+    if (!generation) return;
+    const key = generation.id || generation.task_id;
+    const previous = byId.get(key);
+    byId.set(key, {
+      ...previous,
+      ...generation,
+      tracks: uniqueById([...(previous?.tracks || []), ...(generation.tracks || [])]),
+    });
+  };
+
+  if (libraryResult.status === 'fulfilled') {
+    (Array.isArray(libraryResult.value?.generations) ? libraryResult.value.generations : []).forEach(addGeneration);
+  }
+  if (generationsResult.status === 'fulfilled') {
+    (Array.isArray(generationsResult.value?.generations) ? generationsResult.value.generations : []).forEach(addGeneration);
+  }
+  if (tracksResult.status === 'fulfilled') {
+    for (const rawTrack of Array.isArray(tracksResult.value?.tracks) ? tracksResult.value.tracks : []) {
+      const track = normalizeAIStudioTrack(rawTrack);
+      if (!track) continue;
+      const rawGeneration = rawTrack?.generation || {};
+      const generationId = String(track.generation_id || rawGeneration?.id || rawGeneration?.task_id || rawGeneration?.taskId || `track-${track.id}`);
+      const previous = byId.get(generationId);
+      const base = previous || normalizeAIStudioGeneration({ ...rawGeneration, id: generationId, tracks: [] });
+      if (!base) continue;
+      byId.set(generationId, { ...base, tracks: uniqueById([...(base.tracks || []), track]) });
+    }
+  }
+
+  const results = Array.from(byId.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  if (!results.length && [libraryResult, generationsResult, tracksResult].every((result) => result.status === 'rejected')) {
+    const rejected = [libraryResult, generationsResult, tracksResult].find((result) => result.status === 'rejected') as PromiseRejectedResult | undefined;
+    if (rejected) throw rejected.reason;
+  }
+  return results;
+}
+
+function uniqueById<T extends { id: string }>(items: T[]) {
+  const map = new Map<string, T>();
+  items.forEach((item) => map.set(item.id, { ...(map.get(item.id) || {}), ...item }));
+  return Array.from(map.values());
+}
+
+export async function getAIStudioCredits(): Promise<number> {
+  let json;
+  try {
+    json = await request<any>('/api/ai/credits');
+  } catch {
+    json = await request<any>('/api/ai/credits', {
+      method: 'POST',
+      body: JSON.stringify({ accessToken: authTokenProvider?.() || undefined }),
+    });
+  }
+  return Number(json?.balance || 0);
+}
+
+export async function getAIStudioQuota(): Promise<AIStudioQuota | null> {
+  return optionalRequest<AIStudioQuota>('/api/ai/quota');
+}
+
+export async function startAIGeneration(input: StartAIGenerationInput): Promise<{ taskId: string; model: string; modelAdjusted?: boolean; credits?: { balance?: number } }> {
+  return request('/api/suno/generate', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export async function startAIRemix(input: StartAIGenerationInput & { uploadUrl: string; sourceDurationSec?: number }): Promise<{ taskId: string; model: string; modelAdjusted?: boolean; credits?: { balance?: number } }> {
+  return request('/api/suno/upload-cover', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export async function getAIGenerationStatus(taskId: string): Promise<{ taskId: string; status: string; tracks: AIStatusTrack[] }> {
+  const json = await request<any>(`/api/suno/status?taskId=${encodeURIComponent(taskId)}`);
+  return {
+    taskId,
+    status: String(json?.status || 'pending'),
+    tracks: Array.isArray(json?.tracks) ? json.tracks : [],
+  };
+}
+
+export async function saveAIGenerationTracks(taskId: string, tracks: AIStatusTrack[]): Promise<void> {
+  await request('/api/suno/save-tracks', {
+    method: 'POST',
+    body: JSON.stringify({ taskId, tracks, status: 'completed' }),
+  });
+}
+
+export async function getAIStudioLibraryTracks(search = ''): Promise<AIStudioTrack[]> {
+  const query = search.trim() ? `?search=${encodeURIComponent(search.trim())}` : '';
+  let json;
+  try {
+    json = await request<any>(`/api/ai/library/tracks${query}`);
+  } catch {
+    json = await request<any>('/api/ai/library/tracks', {
+      method: 'POST',
+      body: JSON.stringify({ accessToken: authTokenProvider?.() || undefined, search: search.trim(), limit: 100, offset: 0 }),
+    });
+  }
+  return (Array.isArray(json?.tracks) ? json.tracks : [])
+    .map(normalizeAIStudioTrack)
+    .filter((track: AIStudioTrack | null): track is AIStudioTrack => Boolean(track));
+}
+
+export async function setAIGenerationTrashed(generationId: string, isTrashed: boolean): Promise<boolean> {
+  const json = await request<any>(`/api/ai/generations/${encodeURIComponent(generationId)}/trash`, {
+    method: 'POST',
+    body: JSON.stringify({ is_trashed: isTrashed }),
+  });
+  return Boolean(json?.is_trashed);
+}
+
+export async function setAITrackFavorite(trackId: string, isFavorite: boolean): Promise<boolean> {
+  const json = await request<any>(`/api/ai/tracks/${encodeURIComponent(trackId)}/favorite`, {
+    method: 'POST',
+    body: JSON.stringify({ is_favorite: isFavorite }),
+  });
+  return Boolean(json?.is_favorite);
+}
+
+export async function setAITrackPublic(trackId: string, isPublic: boolean): Promise<boolean> {
+  const json = await request<any>(`/api/ai/tracks/${encodeURIComponent(trackId)}/visibility`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isPublic }),
+  });
+  return Boolean(json?.isPublic);
+}
+
+export async function setAITrackFolder(trackId: string, libraryFolder: string): Promise<string | null> {
+  const json = await request<any>(`/api/ai/tracks/${encodeURIComponent(trackId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ libraryFolder }),
+  });
+  return typeof json?.libraryFolder === 'string' && json.libraryFolder.trim() ? json.libraryFolder.trim() : null;
+}
+
+export async function repairAIStudioMedia(limit = 80): Promise<{ scannedGenerations: number; updatedTracks: number; errors?: string[] }> {
+  return request('/api/suno/repair-tracks', {
+    method: 'POST',
+    body: JSON.stringify({ limit }),
+  });
+}
+
+export type AITimestampedLyrics = {
+  alignedWords: Array<{ word?: string; startS?: number; endS?: number; start?: number; end?: number; [key: string]: unknown }>;
+  waveformData: number[];
+  hootCer: number | null;
+  isStreamed: boolean;
+};
+
+export async function getTimestampedAILyrics(taskId: string, audioId: string): Promise<AITimestampedLyrics> {
+  return request('/api/suno/timestamped-lyrics', {
+    method: 'POST',
+    body: JSON.stringify({ taskId, audioId }),
+  });
+}
+
+export async function generateAIMusicVideo(trackId: string, taskId: string, audioId: string): Promise<{ success: boolean; taskId?: string; credits?: { balance?: number } }> {
+  return request('/api/suno/generate-music-video', {
+    method: 'POST',
+    body: JSON.stringify({ trackId, taskId, audioId }),
+  });
+}
+
+export type CreditPackId = 'petit' | 'moyen' | 'populaire' | 'best_value';
+
+export async function createCreditsCheckout(packId: CreditPackId): Promise<{ checkoutUrl: string; sessionId: string }> {
+  const accessToken = authTokenProvider?.() || undefined;
+  return request('/api/billing/credits/checkout', {
+    method: 'POST',
+    body: JSON.stringify({ packId, accessToken, mobile: true }),
+  });
+}
+
+export async function generateAILyrics(prompt: string): Promise<{ taskId?: string; status: string; best?: string | null; variants?: Array<{ text: string; title?: string }> }> {
+  return request('/api/suno/generate-lyrics', {
+    method: 'POST',
+    body: JSON.stringify({ prompt }),
+  });
 }

@@ -155,7 +155,7 @@ async function attachAuthors(posts: any[]) {
 
 function legacyCategory(category: string) {
   if (category === 'feedback') return 'question';
-  if (category === 'collab' || category === 'remix' || category === 'prompts' || category === 'weekly-top') return 'suggestion';
+  if (category === 'collab' || category === 'remix' || category === 'prompts' || category === 'weekly-top' || category === 'ai_prompt' || category === 'top_tracks' || category === 'announcement') return 'suggestion';
   return category;
 }
 
@@ -362,7 +362,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Titre, contenu et catégorie requis' }, { status: 400 });
     }
 
-    const validCategories = ['feedback', 'collab', 'remix', 'prompts', 'weekly-top', 'question', 'suggestion', 'bug', 'general'];
+    const validCategories = ['feedback', 'collab', 'remix', 'prompts', 'weekly-top', 'ai_prompt', 'top_tracks', 'question', 'announcement', 'suggestion', 'bug', 'general'];
     if (!validCategories.includes(category)) {
       return NextResponse.json({ error: 'Catégorie invalide' }, { status: 400 });
     }

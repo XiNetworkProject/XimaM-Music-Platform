@@ -1,4 +1,3 @@
-import { Linking } from 'react-native';
 import { API_BASE_URL, getTrackById } from '@/api/client';
 import type { Track } from '@/api/types';
 
@@ -69,11 +68,12 @@ export async function openInternalLink(
     navigation.navigate('Upload');
     return true;
   }
-  if (root === 'ai-generator' || root === 'studio' || root === 'boosters') {
-    const target = /^https?:\/\//i.test(String(urlOrPath || ''))
-      ? String(urlOrPath)
-      : `${API_BASE_URL}${String(urlOrPath || path).startsWith('/') ? String(urlOrPath || path) : `/${String(urlOrPath || path)}`}`;
-    await Linking.openURL(target);
+  if (root === 'ai-generator' || root === 'studio') {
+    navigation.navigate('AIStudio');
+    return true;
+  }
+  if (root === 'boosters' || root === 'subscriptions' || root === 'pricing') {
+    navigation.navigate('Subscriptions');
     return true;
   }
   return false;

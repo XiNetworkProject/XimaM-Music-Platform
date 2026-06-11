@@ -42,21 +42,23 @@ const categories = [
   { id: 'feedback', label: 'Avis', icon: 'heart', tint: '#FF6F61' },
   { id: 'collab', label: 'Feat', icon: 'people', tint: '#7C5CFF' },
   { id: 'remix', label: 'Remix', icon: 'flash', tint: '#F59E0B' },
-  { id: 'prompts', label: 'Prompts', icon: 'sparkles', tint: '#14B8A6' },
-  { id: 'weekly-top', label: 'Top sons', icon: 'trophy', tint: '#38BDF8' },
+  { id: 'ai_prompt', label: 'Prompts IA', icon: 'sparkles', tint: '#14B8A6' },
+  { id: 'top_tracks', label: 'Top sons', icon: 'trophy', tint: '#38BDF8' },
+  { id: 'question', label: 'Questions', icon: 'help-circle', tint: '#F59E0B' },
+  { id: 'announcement', label: 'Annonces', icon: 'megaphone', tint: '#EF4444' },
 ] as const;
 
 const intentions = [
   { category: 'feedback', title: 'Avis sur mon son', text: 'Mix, hook, cover ou potentiel.', icon: 'heart', tint: '#FF6F61' },
   { category: 'collab', title: 'Recherche feat', text: 'Trouve une voix ou un beatmaker.', icon: 'people', tint: '#7C5CFF' },
   { category: 'remix', title: 'Défi remix', text: 'Lance une source à transformer.', icon: 'flash', tint: '#F59E0B' },
-  { category: 'prompts', title: 'Battle de prompts', text: 'Compare les recettes créatives.', icon: 'sparkles', tint: '#14B8A6' },
+  { category: 'ai_prompt', title: 'Partager un prompt', text: 'Compare les recettes créatives.', icon: 'sparkles', tint: '#14B8A6' },
 ] as const;
 
 const weeklyLoops = [
   { category: 'feedback', title: 'Feedback Friday', text: "sons en attente d'avis", icon: 'chatbubbles', status: 'ouvert', tint: '#FF6F61' },
   { category: 'collab', title: 'Open feat', text: 'artistes cherchent une voix', icon: 'mic', status: 'live', tint: '#7C5CFF' },
-  { category: 'prompts', title: 'Prompt battle', text: 'prompts en compétition', icon: 'sparkles', status: 'battle', tint: '#14B8A6' },
+  { category: 'ai_prompt', title: 'Prompt battle', text: 'prompts en compétition', icon: 'sparkles', status: 'battle', tint: '#14B8A6' },
 ] as const;
 
 const emptyStats: CommunityStats = {
@@ -195,9 +197,14 @@ export function CommunityScreen() {
           <Text style={styles.pageTitle}>Communauté</Text>
           <Text style={styles.pageSubtitle}>Des avis utiles, des feats et des idées à remixer.</Text>
         </View>
-        <Pressable accessibilityLabel="FAQ communauté" onPress={() => setFaqOpen(true)} style={styles.circleButton}>
-          <Ionicons name="help-circle-outline" size={23} color="#171313" />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable accessibilityLabel="Ouvrir le hub créer" onPress={() => navigation.navigate('CreateHub')} style={styles.circleButton}>
+            <Ionicons name="add" size={23} color="#171313" />
+          </Pressable>
+          <Pressable accessibilityLabel="FAQ communauté" onPress={() => setFaqOpen(true)} style={styles.circleButton}>
+            <Ionicons name="help-circle-outline" size={23} color="#171313" />
+          </Pressable>
+        </View>
       </View>
 
       <Reveal distance={8}>
@@ -643,6 +650,7 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: 14, gap: 12 },
   headerContent: { gap: 18, marginBottom: 14 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerActions: { flexDirection: 'row', gap: 7 },
   kicker: { color: 'rgba(23,19,19,0.46)', fontSize: 10, fontWeight: '900', letterSpacing: 1.8 },
   pageTitle: { color: '#171313', fontSize: 38, lineHeight: 43, fontWeight: '900', marginTop: 4 },
   pageSubtitle: { color: 'rgba(23,19,19,0.58)', fontSize: 13, lineHeight: 18, fontWeight: '700', marginTop: 5, maxWidth: 290 },

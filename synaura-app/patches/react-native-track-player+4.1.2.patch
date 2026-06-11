@@ -1181,3 +1181,21 @@ index b2409a0..cde61d5 100644
              )
          )
      }
+diff --git a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
+--- a/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
++++ b/node_modules/react-native-track-player/android/src/main/java/com/doublesymmetry/trackplayer/service/MusicService.kt
+@@ -94,7 +94,15 @@ class MusicService : HeadlessJsTaskService() {
+     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+         startTask(getTaskConfig(intent))
+-        startAndStopEmptyNotificationToAvoidANR()
++        try {
++            startAndStopEmptyNotificationToAvoidANR()
++        } catch (error: IllegalStateException) {
++            // Android 12+ can reject a sticky service restart after the app process
++            // was killed. Ending that stale restart prevents a process-level crash.
++            Timber.w(error, "Foreground playback service restart was rejected")
++            stopSelf(startId)
++            return START_NOT_STICKY
++        }
+         return START_STICKY
+     }

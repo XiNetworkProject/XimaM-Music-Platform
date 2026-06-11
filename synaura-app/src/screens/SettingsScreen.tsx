@@ -11,6 +11,7 @@ import {
   getSubscriptionUsage,
   updateNotificationPrefs,
   updateProfile,
+  updateUserPreferences,
   type MobileProfile,
   type NotificationPrefs,
   type ReferralData,
@@ -23,6 +24,7 @@ import legalContent from '@/legal/legalDocuments.json';
 import { useAppUpdate } from '@/updates/UpdateProvider';
 import { SHOW_SHUTDOWN_NOTICES } from '@/config/features';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
+import { validateSocialUrl, type SocialPlatform } from '@/utils/validateSocialUrl';
 
 type Tab = 'profil' | 'compte' | 'preferences' | 'notifications' | 'parrainage' | 'abonnement' | 'updates' | 'securite' | 'legal';
 type LegalDocument = (typeof legalContent)[number];
@@ -51,7 +53,7 @@ export function SettingsScreen() {
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: '', bio: '', location: '', website: '', artistName: '', genreText: '', isArtist: false });
+  const [form, setForm] = useState({ name: '', bio: '', location: '', website: '', artistName: '', genreText: '', isArtist: false, instagram: '', youtube: '', tiktok: '', spotify: '', soundcloud: '', deezer: '', apple_music: '', twitch: '', discord: '', x: '', custom: '', badgesText: '', featuredTrackId: '' });
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [selectedLegalId, setSelectedLegalId] = useState<string | null>(null);
   const selectedLegal = legalContent.find((document) => document.id === selectedLegalId) || null;
@@ -90,6 +92,19 @@ export function SettingsScreen() {
         artistName: nextProfile.artistName || '',
         genreText: nextProfile.genre.join(', '),
         isArtist: nextProfile.isArtist,
+        instagram: nextProfile.socialLinks.instagram || '',
+        youtube: nextProfile.socialLinks.youtube || '',
+        tiktok: nextProfile.socialLinks.tiktok || '',
+        spotify: nextProfile.socialLinks.spotify || '',
+        soundcloud: nextProfile.socialLinks.soundcloud || '',
+        deezer: nextProfile.socialLinks.deezer || '',
+        apple_music: nextProfile.socialLinks.apple_music || '',
+        twitch: nextProfile.socialLinks.twitch || '',
+        discord: nextProfile.socialLinks.discord || '',
+        x: nextProfile.socialLinks.x || '',
+        custom: nextProfile.socialLinks.custom || '',
+        badgesText: nextProfile.badges.join(', '),
+        featuredTrackId: nextProfile.featuredTrackId || '',
       });
     } finally {
       setLoading(false);
@@ -102,6 +117,12 @@ export function SettingsScreen() {
 
   const saveProfile = async () => {
     if (!profile) return;
+    const socialPlatforms: SocialPlatform[] = ['instagram', 'youtube', 'tiktok', 'spotify', 'soundcloud', 'deezer', 'apple_music', 'twitch', 'discord', 'x', 'custom'];
+    const invalid = socialPlatforms.map((platform) => ({ platform, error: validateSocialUrl(platform, form[platform]) })).find((item) => item.error);
+    if (invalid) {
+      Alert.alert('Lien social invalide', `${invalid.platform}: ${invalid.error}`);
+      return;
+    }
     setSaving(true);
     try {
       const next = await updateProfile(profile.username, {
@@ -113,7 +134,25 @@ export function SettingsScreen() {
         artistName: form.artistName.trim(),
         genre: form.genreText.split(',').map((item) => item.trim()).filter(Boolean),
       });
+      await updateUserPreferences({
+        socialLinks: {
+          instagram: form.instagram.trim(),
+          youtube: form.youtube.trim(),
+          tiktok: form.tiktok.trim(),
+          spotify: form.spotify.trim(),
+          soundcloud: form.soundcloud.trim(),
+          deezer: form.deezer.trim(),
+          apple_music: form.apple_music.trim(),
+          twitch: form.twitch.trim(),
+          discord: form.discord.trim(),
+          x: form.x.trim(),
+          custom: form.custom.trim(),
+        },
+        profileBadges: form.badgesText.split(',').map((item) => item.trim()).filter(Boolean).slice(0, 6),
+        featuredTrackId: form.featuredTrackId || null,
+      });
       setProfile(next);
+      await load();
     } finally {
       setSaving(false);
     }
@@ -195,6 +234,30 @@ export function SettingsScreen() {
             <Toggle label="Compte artiste" value={form.isArtist} onValueChange={(value) => setForm((current) => ({ ...current, isArtist: value }))} />
             <Field label="Nom artiste" value={form.artistName} onChangeText={(value) => setForm((current) => ({ ...current, artistName: value }))} />
             <Field label="Genres" value={form.genreText} onChangeText={(value) => setForm((current) => ({ ...current, genreText: value }))} hint="separes par virgules" />
+            <Text style={styles.groupTitle}>Réseaux & identité sociale</Text>
+            <Field label="Instagram" value={form.instagram} onChangeText={(value) => setForm((current) => ({ ...current, instagram: value }))} hint="URL complète" />
+            <Field label="YouTube" value={form.youtube} onChangeText={(value) => setForm((current) => ({ ...current, youtube: value }))} hint="URL complète" />
+            <Field label="TikTok" value={form.tiktok} onChangeText={(value) => setForm((current) => ({ ...current, tiktok: value }))} hint="URL complète" />
+            <Field label="Spotify" value={form.spotify} onChangeText={(value) => setForm((current) => ({ ...current, spotify: value }))} hint="https://open.spotify.com/..." />
+            <Field label="SoundCloud" value={form.soundcloud} onChangeText={(value) => setForm((current) => ({ ...current, soundcloud: value }))} hint="https://soundcloud.com/..." />
+            <Field label="Deezer" value={form.deezer} onChangeText={(value) => setForm((current) => ({ ...current, deezer: value }))} hint="https://deezer.com/..." />
+            <Field label="Apple Music" value={form.apple_music} onChangeText={(value) => setForm((current) => ({ ...current, apple_music: value }))} hint="https://music.apple.com/..." />
+            <Field label="Twitch" value={form.twitch} onChangeText={(value) => setForm((current) => ({ ...current, twitch: value }))} hint="https://twitch.tv/..." />
+            <Field label="Discord" value={form.discord} onChangeText={(value) => setForm((current) => ({ ...current, discord: value }))} hint="https://discord.gg/..." />
+            <Field label="X / Twitter" value={form.x} onChangeText={(value) => setForm((current) => ({ ...current, x: value }))} hint="https://x.com/..." />
+            <Field label="Lien personnalisé" value={form.custom} onChangeText={(value) => setForm((current) => ({ ...current, custom: value }))} hint="https://..." />
+            <Field label="Badges" value={form.badgesText} onChangeText={(value) => setForm((current) => ({ ...current, badgesText: value }))} hint="séparés par virgules" />
+            {profile?.tracks.length ? (
+              <View style={{ gap: 8 }}>
+                <Text style={styles.groupTitle}>Son vedette</Text>
+                {profile.tracks.slice(0, 8).map((track) => (
+                  <Pressable key={track._id} onPress={() => setForm((current) => ({ ...current, featuredTrackId: track._id }))} style={[styles.featureChoice, form.featuredTrackId === track._id && styles.featureChoiceActive]}>
+                    <Ionicons name={form.featuredTrackId === track._id ? 'radio-button-on' : 'radio-button-off'} size={18} color={form.featuredTrackId === track._id ? '#7C5CFF' : 'rgba(23,19,19,0.35)'} />
+                    <Text numberOfLines={1} style={styles.featureChoiceText}>{track.title}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
             <Pressable disabled={saving} onPress={saveProfile} style={[styles.primary, saving && styles.disabled]}>
               {saving ? <ActivityIndicator color="#FFFAF2" /> : <Text style={styles.primaryText}>Sauvegarder</Text>}
             </Pressable>
@@ -251,6 +314,10 @@ export function SettingsScreen() {
             <Info label="Plan" value={usage?.plan || 'free'} />
             <Usage label="Tracks" used={usage?.tracks.used || 0} limit={usage?.tracks.limit ?? 0} percentage={usage?.tracks.percentage || 0} />
             <Usage label="Playlists" used={usage?.playlists.used || 0} limit={usage?.playlists.limit ?? 0} percentage={usage?.playlists.percentage || 0} />
+            <Pressable onPress={() => navigation.navigate('Subscriptions')} style={styles.primary}>
+              <Ionicons name="diamond-outline" size={17} color="#FFFAF2" />
+              <Text style={styles.primaryText}>Comparer et gérer les plans</Text>
+            </Pressable>
           </Section>
         ) : null}
 
@@ -440,6 +507,9 @@ const styles = StyleSheet.create({
   sectionText: { marginTop: 5, color: 'rgba(23,19,19,0.5)', fontSize: 12, lineHeight: 18, fontWeight: '700' },
   sectionBody: { marginTop: 15, gap: 12 },
   groupTitle: { marginTop: 4, color: '#8B5CF6', fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
+  featureChoice: { minHeight: 46, borderRadius: 17, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: 'rgba(23,19,19,0.045)', borderWidth: 1, borderColor: 'transparent' },
+  featureChoiceActive: { backgroundColor: 'rgba(124,92,255,0.1)', borderColor: 'rgba(124,92,255,0.28)' },
+  featureChoiceText: { flex: 1, color: '#171313', fontSize: 12, fontWeight: '900' },
   field: { gap: 7 },
   fieldHead: { flexDirection: 'row', justifyContent: 'space-between' },
   label: { color: '#171313', fontSize: 12, fontWeight: '900' },
@@ -469,7 +539,7 @@ const styles = StyleSheet.create({
   legalBullet: { width: 6, height: 6, borderRadius: 3, marginTop: 7, backgroundColor: '#7C5CFF' },
   legalNumber: { minWidth: 18, color: '#7C5CFF', fontSize: 11, lineHeight: 19, fontWeight: '900' },
   legalListText: { flex: 1 },
-  primary: { height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
+  primary: { height: 48, borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#171313' },
   primaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   secondary: { height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.07)' },
   secondaryText: { color: '#171313', fontSize: 13, fontWeight: '900' },

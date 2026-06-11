@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image, StyleSheet, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
 import Video from 'react-native-video';
 import type { Track } from '@/api/types';
@@ -61,13 +61,36 @@ export function TrackCover({
     [posterSource, source, track, videoSource],
   );
   const [videoFailed, setVideoFailed] = useState(false);
-  const showVideo = !!video && !videoFailed && active && autoPlayVideo && settings.coverVideos && !settings.dataSaver && !settings.reducedMotion;
+  const [imageFailed, setImageFailed] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  const wantsVideo = !!video && !videoFailed && active && autoPlayVideo && settings.coverVideos && !settings.dataSaver && !settings.reducedMotion;
+  const showVideo = wantsVideo && videoReady;
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [image]);
+
+  useEffect(() => {
+    setVideoFailed(false);
+  }, [video]);
+
+  useEffect(() => {
+    setVideoReady(false);
+    if (!wantsVideo) return;
+    const timer = setTimeout(() => setVideoReady(true), 900);
+    return () => clearTimeout(timer);
+  }, [video, wantsVideo]);
 
   return (
     <View style={[styles.root, style]}>
-      {image ? (
-        <Image source={{ uri: image }} style={[StyleSheet.absoluteFill, imageStyle]} resizeMode={contentFit === 'contain' ? 'contain' : 'cover'} />
-      ) : null}
+      <Image
+        source={image && !imageFailed ? { uri: image } : require('../assets/synaura-symbol-2026.png')}
+        style={[StyleSheet.absoluteFill, imageStyle, !image || imageFailed ? styles.fallback : null]}
+        resizeMode={image && !imageFailed && contentFit !== 'contain' ? 'cover' : 'contain'}
+        resizeMethod="resize"
+        fadeDuration={0}
+        onError={() => setImageFailed(true)}
+      />
       {showVideo ? (
         <Video
           source={{ uri: video }}
@@ -91,7 +114,13 @@ export function TrackCover({
 
 const styles = StyleSheet.create({
   root: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
     overflow: 'hidden',
     backgroundColor: 'rgba(23,19,19,0.08)',
+  },
+  fallback: {
+    backgroundColor: '#FFFAF2',
   },
 });

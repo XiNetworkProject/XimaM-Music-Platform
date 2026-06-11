@@ -1,12 +1,12 @@
 {
-  "title": "Synaura mobile prend vie",
+  "title": "Synaura mobile 0.5",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Nouvelle Communaute native, vivante et connectee au compte Synaura",
-    "Swipe et player fortement fluidifies et stabilises",
-    "Minuteur de sommeil et economiseur de donnees",
-    "Partage direct d'un son vers une demande d'avis",
-    "Authentification mobile et navigation fiabilisees"
+    "Swipe plus fluide avec changement de son et lecture stabilises",
+    "Suivi des artistes fiable depuis le Swipe, l'accueil et le lecteur",
+    "Studio IA mobile complet avec bibliotheque, covers et credits",
+    "Profils sociaux, posts epingles, Communaute et abonnements enrichis",
+    "Radios obsoletes retirees des flux web et mobile"
   ]
 }

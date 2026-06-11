@@ -91,9 +91,9 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   }, [canInteract, track?.likesCount, track?.commentsCount, trackId, visible]);
 
   useEffect(() => {
-    if (!visible || !artistId || isRadio) return;
-    void getArtistFollowState(artistId).then(setFollowing);
-  }, [artistId, isRadio, visible]);
+    if (!visible || !track?.artist?.username || isRadio) return;
+    void getArtistFollowState(track.artist.username).then(setFollowing);
+  }, [isRadio, track?.artist?.username, visible]);
 
   // Subtle cover pulse only when playing (less aggressive than before).
   useEffect(() => {
@@ -165,16 +165,17 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   }, [canInteract, liked, trackId]);
 
   const toggleFollow = useCallback(async () => {
-    if (!artistId || followBusy) return;
+    const username = track?.artist?.username;
+    if (!username || followBusy) return;
     setFollowBusy(true);
     try {
-      const result = await toggleArtistFollow(artistId);
+      const result = await toggleArtistFollow(username);
       if (result) setFollowing(result.following);
       Haptics.selectionAsync().catch(() => {});
     } finally {
       setFollowBusy(false);
     }
-  }, [artistId, followBusy]);
+  }, [followBusy, track?.artist?.username]);
 
   const cycleSleepTimer = useCallback(() => {
     const next = !player.sleepTimerEnd ? 15 : sleepMinutes > 45 ? null : sleepMinutes > 20 ? 60 : 30;

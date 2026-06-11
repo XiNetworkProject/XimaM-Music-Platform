@@ -4,6 +4,7 @@ import {
   Animated,
   FlatList,
   Image,
+  InteractionManager,
   Pressable,
   StyleSheet,
   Text,
@@ -19,23 +20,20 @@ import {
   fetchRankingFeedChunk,
   getArtistFollowState,
   getCommentsCount,
-  getRadioStatus,
   getTrackLikeStatus,
-  insertRadioTracks,
-  isRadioTrackId,
   setTrackLike,
   toggleArtistFollow,
 } from '@/api/client';
-import type { RadioMeta, Track } from '@/api/types';
+import type { Track } from '@/api/types';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
-import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { CommentsSheet } from '@/components/swipe/CommentsSheet';
 import { HeartBurst } from '@/components/swipe/HeartBurst';
 import { LyricsSheet } from '@/components/swipe/LyricsSheet';
 import { QueueSheet } from '@/components/swipe/QueueSheet';
 import { ShareSheet } from '@/components/swipe/ShareSheet';
 import { SwipeSlide } from '@/components/swipe/SwipeSlide';
+import { SubscriptionPromoSlide } from '@/components/swipe/SubscriptionPromoSlide';
 import {
   FEED_MODE_META,
   FeedMode,
@@ -43,10 +41,32 @@ import {
   uniqueTracks,
 } from '@/components/swipe/helpers';
 
-const PRELOAD_RANGE = 2;
-const RADIO_POLL_MS = 8000;
-const COMMENTS_POLL_DELAY_MS = 600;
+const PRELOAD_RANGE = 1;
+const COMMENTS_POLL_DELAY_MS = 900;
+const SUBSCRIPTION_PROMO_ID = 'synaura-subscription-interlude';
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
+
+const subscriptionPromo: Track = {
+  _id: SUBSCRIPTION_PROMO_ID,
+  title: 'Synaura+',
+  audioUrl: '',
+  duration: 0,
+  likes: [],
+  comments: [],
+  genre: [],
+};
+
+function withoutObsoleteRadios(tracks: Track[]) {
+  return tracks.filter((track) => !!track.audioUrl && !track._id.startsWith('radio-'));
+}
+
+function injectSubscriptionPromo(tracks: Track[]) {
+  if (tracks.length < 8 || tracks.some((track) => track._id === SUBSCRIPTION_PROMO_ID)) return tracks;
+  const result = [...tracks];
+  const insertAt = Math.min(result.length, 9 + Math.floor(Math.random() * 4));
+  result.splice(insertAt, 0, subscriptionPromo);
+  return result;
+}
 
 export function SwipeScreen() {
   const navigation = useNavigation<any>();
@@ -58,8 +78,6 @@ export function SwipeScreen() {
 
   const player = usePlayer();
   const library = useLibrary();
-  const { settings } = useMobileSettings();
-
   const [feedMode, setFeedMode] = useState<FeedMode>('reco');
   const [seedGenre, setSeedGenre] = useState<string | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -82,11 +100,11 @@ export function SwipeScreen() {
   const [commentsCounts, setCommentsCounts] = useState<Record<string, number>>({});
   const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
   const [followLoading, setFollowLoading] = useState<Record<string, boolean>>({});
-  const [radioMeta, setRadioMeta] = useState<RadioMeta | null>(null);
 
   const queueBoundRef = useRef('');
   const lastRequestRef = useRef(0);
   const burstTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const playbackCommitRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const fetchedCommentIdsRef = useRef<Set<string>>(new Set());
   const fetchedLikeIdsRef = useRef<Set<string>>(new Set());
   const fetchedFollowIdsRef = useRef<Set<string>>(new Set());
@@ -101,7 +119,7 @@ export function SwipeScreen() {
 
   const activeTrack = tracks[activeIndex] || null;
   const activeId = activeTrack?._id || '';
-  const isRadioActive = isRadioTrackId(activeId);
+  const isPromoActive = activeId === SUBSCRIPTION_PROMO_ID;
 
   const currentSeedGenre = useMemo(() => seedGenre || topGenre(activeTrack), [activeTrack, seedGenre]);
 
@@ -125,18 +143,20 @@ export function SwipeScreen() {
     setCursor(0);
     setHasMore(true);
     queueBoundRef.current = '';
-    setRadioMeta(null);
 
     const seedForReco = feedMode === 'reco' ? currentSeedGenre : null;
 
-    fetchRankingFeedChunk(feedMode, 0, seedForReco)
-      .then((chunk) => {
-        if (cancelled || reqId !== lastRequestRef.current) return;
-        const merged = insertRadioTracks(chunk.tracks, feedMode).filter((track) => !!track.audioUrl);
-        setTracks(merged);
-        setCursor(chunk.nextCursor);
-        setHasMore(chunk.hasMore);
-        setLoadState(merged.length ? 'ready' : 'error');
+      fetchRankingFeedChunk(feedMode, 0, seedForReco)
+        .then((chunk) => {
+          if (cancelled || reqId !== lastRequestRef.current) return;
+          const feedTracks = injectSubscriptionPromo(withoutObsoleteRadios(chunk.tracks));
+          const merged = player.current?.audioUrl
+            ? uniqueTracks([...(player.current._id.startsWith('radio-') ? [] : [player.current]), ...feedTracks])
+            : feedTracks;
+          setTracks(merged);
+          setCursor(chunk.nextCursor);
+          setHasMore(chunk.hasMore);
+          setLoadState(merged.length ? 'ready' : 'error');
       })
       .catch(() => {
         if (cancelled || reqId !== lastRequestRef.current) return;
@@ -147,6 +167,15 @@ export function SwipeScreen() {
       cancelled = true;
     };
   }, [feedMode, reloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Un titre lance depuis le mini-player, le Studio ou la bibliotheque reste la
+  // premiere slide de Swipe au lieu d'etre remplace par le feed.
+  useEffect(() => {
+    if (loadState !== 'ready' || !player.current?.audioUrl) return;
+    if (tracks.some((track) => track._id === player.current?._id)) return;
+    queueBoundRef.current = '';
+    setTracks((current) => uniqueTracks([player.current!, ...current]));
+  }, [loadState, player.current?._id, player.current?.audioUrl, tracks]);
 
   // (2) Synchronise la queue du player une fois le feed pret (premier bind, ou changement de mode).
   // On NE re-bind PAS au simple focus de l'ecran : on garde la lecture en cours stable.
@@ -161,14 +190,16 @@ export function SwipeScreen() {
     const currentId = player.current?._id;
     const idxInFeed = currentId ? tracks.findIndex((t) => t._id === currentId) : -1;
     if (idxInFeed >= 0) {
-      void player.setQueueOnly(tracks, idxInFeed);
+      const playable = withoutObsoleteRadios(tracks);
+      const queueIndex = playable.findIndex((track) => track._id === currentId);
+      void player.setQueueOnly(playable, Math.max(0, queueIndex));
       setActiveIndex(idxInFeed);
       // On scrolle a la slide correspondante des que la liste est montee.
       requestAnimationFrame(() => {
         try { listRef.current?.scrollToIndex({ index: idxInFeed, animated: false }); } catch { /* ignore */ }
       });
-    } else {
-      void player.setQueueAndPlay(tracks, 0);
+    } else if (!player.current || player.current._id.startsWith('radio-')) {
+      void player.setQueueAndPlay(withoutObsoleteRadios(tracks), 0);
       setActiveIndex(0);
     }
   }, [feedMode, loadState, player, tracks]);
@@ -177,7 +208,7 @@ export function SwipeScreen() {
   // (auto-advance, lockscreen, mini-player), on scrolle vers la slide correspondante.
   // Pas de boucle car scrollToIndex(animated:false) ne declenche pas onMomentumScrollEnd.
   useEffect(() => {
-    if (loadState !== 'ready' || !tracks.length || !player.current) return;
+    if (loadState !== 'ready' || !tracks.length || !player.current || isPromoActive) return;
     const idx = tracks.findIndex((t) => t._id === player.current?._id);
     if (idx < 0 || idx === activeIndex) return;
     setActiveIndex(idx);
@@ -190,7 +221,7 @@ export function SwipeScreen() {
         }, 80);
       }
     });
-  }, [player.current?._id, loadState, tracks, activeIndex]);
+  }, [player.current?._id, loadState, tracks, activeIndex, isPromoActive]);
 
   // (4) Recuperer batch des compteurs commentaires
   useEffect(() => {
@@ -198,7 +229,7 @@ export function SwipeScreen() {
     const ids = tracks
       .slice(Math.max(0, activeIndex - 2), Math.min(tracks.length, activeIndex + 3))
       .map((t) => t._id)
-      .filter((id) => id && !isRadioTrackId(id) && !id.startsWith('ai-') && !fetchedCommentIdsRef.current.has(id));
+      .filter((id) => id && id !== SUBSCRIPTION_PROMO_ID && !id.startsWith('ai-') && !fetchedCommentIdsRef.current.has(id));
     if (!ids.length) return;
     ids.forEach((id) => fetchedCommentIdsRef.current.add(id));
     const timer = setTimeout(async () => {
@@ -212,7 +243,7 @@ export function SwipeScreen() {
 
   // (5) Recuperer le statut like + likesCount du morceau actif
   useEffect(() => {
-    if (!activeId || isRadioActive || activeId.startsWith('ai-')) return;
+    if (!activeId || isPromoActive || activeId.startsWith('ai-')) return;
     if (fetchedLikeIdsRef.current.has(activeId)) return;
     fetchedLikeIdsRef.current.add(activeId);
     void getTrackLikeStatus(activeId).then((data) => {
@@ -220,38 +251,18 @@ export function SwipeScreen() {
       setLikedMap((current) => ({ ...current, [activeId]: data.liked }));
       setLikesMap((current) => ({ ...current, [activeId]: data.likesCount || current[activeId] || 0 }));
     });
-  }, [activeId, isRadioActive]);
+  }, [activeId, isPromoActive]);
 
   // (6) Statut follow de l'artiste
   useEffect(() => {
-    const artistId = activeTrack?.artist?._id || '';
-    if (!artistId || isRadioActive) return;
-    if (fetchedFollowIdsRef.current.has(artistId)) return;
-    fetchedFollowIdsRef.current.add(artistId);
-    void getArtistFollowState(artistId).then((following) => {
-      setFollowingMap((current) => ({ ...current, [artistId]: following }));
+    const username = activeTrack?.artist?.username || '';
+    if (!username || isPromoActive) return;
+    if (fetchedFollowIdsRef.current.has(username)) return;
+    fetchedFollowIdsRef.current.add(username);
+    void getArtistFollowState(username).then((following) => {
+      setFollowingMap((current) => ({ ...current, [username]: following }));
     });
-  }, [activeTrack?.artist?._id, isRadioActive]);
-
-  // (7) Radio now playing
-  useEffect(() => {
-    if (!activeId || !activeId.startsWith('radio-')) {
-      setRadioMeta(null);
-      return;
-    }
-    const station = activeId === 'radio-ximam' ? 'ximam' : 'mixx_party';
-    let cancelled = false;
-    const tick = async () => {
-      const meta = await getRadioStatus(station);
-      if (!cancelled && meta) setRadioMeta(meta);
-    };
-    void tick();
-    const id = setInterval(() => void tick(), RADIO_POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [activeId]);
+  }, [activeTrack?.artist?.username, isPromoActive]);
 
   // (8) Preloading covers
   useEffect(() => {
@@ -272,7 +283,7 @@ export function SwipeScreen() {
       const seedForReco = feedMode === 'reco' ? currentSeedGenre : null;
       const chunk = await fetchRankingFeedChunk(feedMode, cursor, seedForReco);
       const seen = new Set(tracks.map((t) => t._id));
-      const fresh = chunk.tracks.filter((t) => !seen.has(t._id) && !!t.audioUrl);
+      const fresh = withoutObsoleteRadios(chunk.tracks).filter((t) => !seen.has(t._id));
       if (!fresh.length) {
         setHasMore(false);
       } else {
@@ -298,10 +309,11 @@ export function SwipeScreen() {
 
   useEffect(() => () => {
     clearTimeout(burstTimerRef.current);
+    clearTimeout(playbackCommitRef.current);
   }, []);
 
   const handleToggleLike = useCallback(async () => {
-    if (!activeTrack || isRadioActive) return;
+    if (!activeTrack || isPromoActive) return;
     const id = activeTrack._id;
     if (id.startsWith('ai-')) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -318,16 +330,16 @@ export function SwipeScreen() {
       setLikedMap((current) => ({ ...current, [id]: result.liked }));
       setLikesMap((current) => ({ ...current, [id]: result.likesCount }));
     }
-  }, [activeTrack, isRadioActive, likedMap, triggerBurst]);
+  }, [activeTrack, isPromoActive, likedMap, triggerBurst]);
 
   const handleDoubleTapLike = useCallback(() => {
-    if (!activeTrack || isRadioActive) return;
+    if (!activeTrack || isPromoActive) return;
     if (!likedMap[activeTrack._id]) {
       void handleToggleLike();
     } else {
       triggerBurst();
     }
-  }, [activeTrack, handleToggleLike, isRadioActive, likedMap, triggerBurst]);
+  }, [activeTrack, handleToggleLike, isPromoActive, likedMap, triggerBurst]);
 
   const handleSlideAction = useCallback((action: 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save') => {
     if (!activeTrack) return;
@@ -366,19 +378,27 @@ export function SwipeScreen() {
   }, [activeTrack, handleToggleLike, library, player]);
 
   const handleToggleFollow = useCallback(async () => {
-    const artistId = activeTrack?.artist?._id;
-    if (!artistId || isRadioActive) return;
-    setFollowLoading((current) => ({ ...current, [artistId]: true }));
+    const username = activeTrack?.artist?.username;
+    if (!username || isPromoActive) return;
+    if (followLoading[username]) return;
+    const wasFollowing = Boolean(followingMap[username]);
+    setFollowLoading((current) => ({ ...current, [username]: true }));
+    setFollowingMap((current) => ({ ...current, [username]: !wasFollowing }));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     try {
-      const result = await toggleArtistFollow(artistId);
+      const result = await toggleArtistFollow(username);
       if (result) {
-        setFollowingMap((current) => ({ ...current, [artistId]: result.following }));
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        setFollowingMap((current) => ({ ...current, [username]: result.following }));
+        if (result.following) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      } else {
+        setFollowingMap((current) => ({ ...current, [username]: wasFollowing }));
       }
+    } catch {
+      setFollowingMap((current) => ({ ...current, [username]: wasFollowing }));
     } finally {
-      setFollowLoading((current) => ({ ...current, [artistId]: false }));
+      setFollowLoading((current) => ({ ...current, [username]: false }));
     }
-  }, [activeTrack?.artist?._id, isRadioActive]);
+  }, [activeTrack?.artist?.username, followLoading, followingMap, isPromoActive]);
 
   const handleSeek = useCallback((seconds: number) => {
     void player.seekTo(seconds);
@@ -395,23 +415,20 @@ export function SwipeScreen() {
 
     // Lance la lecture de la slide stable. Idempotent grace au check ci-dessous.
     const target = tracks[idx];
-    if (!target) return;
+    if (!target || target._id === SUBSCRIPTION_PROMO_ID) return;
     if (player.current?._id === target._id) return;
-    const queueIndex = player.queue.findIndex((item) => item._id === target._id);
-    if (queueIndex >= 0) {
-      void player.playQueueIndex(queueIndex);
-    } else {
-      void player.playTrack(target);
-    }
+    clearTimeout(playbackCommitRef.current);
+    playbackCommitRef.current = setTimeout(() => {
+      InteractionManager.runAfterInteractions(() => {
+        const queueIndex = player.queue.findIndex((item) => item._id === target._id);
+        if (queueIndex >= 0) void player.playQueueIndex(queueIndex);
+        else void player.playTrack(target);
+      });
+    }, 160);
   }, [itemHeight, player, tracks]);
 
   const handleMomentumScrollEnd = useCallback((event: any) => {
     commitVisibleTrack(event.nativeEvent.contentOffset.y);
-  }, [commitVisibleTrack]);
-
-  const handleScrollEndDrag = useCallback((event: any) => {
-    const velocity = Math.abs(Number(event.nativeEvent.velocity?.y || 0));
-    if (velocity < 0.12) commitVisibleTrack(event.nativeEvent.contentOffset.y);
   }, [commitVisibleTrack]);
 
   const handleEndReached = useCallback(() => {
@@ -421,14 +438,25 @@ export function SwipeScreen() {
   const renderItem = useCallback(({ item, index }: { item: Track; index: number }) => {
     const id = item._id;
     const isActive = isFocused && index === activeIndex;
+    if (id === SUBSCRIPTION_PROMO_ID) {
+      return (
+        <SubscriptionPromoSlide
+          height={itemHeight}
+          topPad={insets.top}
+          bottomPad={tabBarHeight}
+          isActive={isActive}
+          onOpenSubscriptions={() => navigation.navigate('Subscriptions')}
+        />
+      );
+    }
     const isPlayingThis = isActive && player.current?._id === id && player.isPlaying;
     const likedHere = !!likedMap[id];
     const likesHere = likesMap[id] ?? item.likesCount ?? 0;
     const commentsHere = commentsCounts[id] ?? item.commentsCount ?? 0;
     const sharesHere = item.sharesCount ?? item.shares ?? 0;
-    const artistId = item.artist?._id || '';
-    const isFollowing = !!followingMap[artistId];
-    const isFollowingLoading = !!followLoading[artistId];
+    const artistKey = item.artist?.username || '';
+    const isFollowing = !!followingMap[artistKey];
+    const isFollowingLoading = !!followLoading[artistKey];
 
     return (
       <SwipeSlide
@@ -443,11 +471,9 @@ export function SwipeScreen() {
         sharesCount={sharesHere}
         isFollowing={isFollowing}
         followLoading={isFollowingLoading}
-        radioMeta={radioMeta}
         height={itemHeight}
         topPad={insets.top}
         bottomPad={tabBarHeight}
-        onTogglePlay={() => void player.togglePlayPause()}
         onDoubleTapLike={handleDoubleTapLike}
         onPress={() => void player.togglePlayPause()}
         onAction={handleSlideAction}
@@ -473,7 +499,6 @@ export function SwipeScreen() {
     likedMap,
     likesMap,
     player,
-    radioMeta,
     tabBarHeight,
   ]);
 
@@ -484,21 +509,12 @@ export function SwipeScreen() {
 
   return (
     <View style={styles.root}>
-      {/* Fond ambient leger pour garder le scroll fluide sur Android. */}
-      {!settings.dataSaver && activeTrack?.coverUrl ? (
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <Image
-            source={{ uri: activeTrack.coverUrl }}
-            style={[StyleSheet.absoluteFill, { opacity: 0.18, transform: [{ scale: 1.08 }] }]}
-            resizeMode="cover"
-          />
-          <LinearGradient
-            colors={['rgba(13,10,14,0.7)', 'rgba(13,10,14,0.84)', 'rgba(13,10,14,0.98)']}
-            locations={[0, 0.5, 1]}
-            style={StyleSheet.absoluteFill}
-          />
-        </View>
-      ) : null}
+      <LinearGradient
+        pointerEvents="none"
+        colors={['#120D11', '#0D0A0E', '#080607']}
+        locations={[0, 0.52, 1]}
+        style={StyleSheet.absoluteFill}
+      />
 
       <LinearGradient colors={['rgba(10,8,8,0.88)', 'rgba(10,8,8,0.0)']} style={[styles.headerGradient, { height: insets.top + 96 }]} pointerEvents="none" />
 
@@ -561,18 +577,19 @@ export function SwipeScreen() {
           data={tracks}
           keyExtractor={(item) => item._id}
           renderItem={renderItem}
-          snapToInterval={itemHeight}
-          snapToAlignment="start"
+          pagingEnabled
           decelerationRate="fast"
-          disableIntervalMomentum
+          bounces={false}
+          overScrollMode="never"
+          directionalLockEnabled
+          scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
           onMomentumScrollEnd={handleMomentumScrollEnd}
-          onScrollEndDrag={handleScrollEndDrag}
           getItemLayout={(_, index) => ({ length: itemHeight, offset: itemHeight * index, index })}
           initialNumToRender={1}
           windowSize={3}
           maxToRenderPerBatch={1}
-          updateCellsBatchingPeriod={80}
+          updateCellsBatchingPeriod={48}
           onScrollToIndexFailed={(info) => listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false })}
           removeClippedSubviews
           onEndReached={handleEndReached}

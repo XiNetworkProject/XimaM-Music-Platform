@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -28,6 +29,7 @@ import {
   deleteComment,
   getCommentsPage,
   getHomeData,
+  getArtistFollowState,
   getNotifications,
   loadMixedPosts,
   loadRankingTracks,
@@ -35,9 +37,10 @@ import {
   sendRecommendationImpressions,
   togglePostLike,
   toggleTrackLike,
+  toggleArtistFollow,
   uploadPostImage,
 } from '@/api/client';
-import type { Creator, HomeComment, HomeData, HomePost, Playlist, RadioItem, Track } from '@/api/types';
+import type { Creator, HomeComment, HomeData, HomePost, Playlist, Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
@@ -64,7 +67,6 @@ type FeedItem =
   | { id: string; kind: 'post'; post: HomePost }
   | { id: string; kind: 'rail'; title: string; subtitle: string; label: string; tracks: Track[] }
   | { id: string; kind: 'track'; title: string; subtitle: string; label: string; track: Track }
-  | { id: string; kind: 'radio'; radio: RadioItem }
   | { id: string; kind: 'playlist'; playlist: Playlist }
   | { id: string; kind: 'creator'; creators: Creator[] }
   | { id: string; kind: 'studio'; title: string; text: string }
@@ -79,7 +81,6 @@ const emptyHome: HomeData = {
   playlists: [],
   creators: [],
   posts: [],
-  radios: [],
 };
 
 function artistName(track: Track) {
@@ -163,12 +164,10 @@ function buildFeed(data: HomeData): FeedItem[] {
 
   if (data.creators.length) items.push({ id: 'creator-rail', kind: 'creator', creators: data.creators.slice(0, 8) });
   if (data.posts[2]) items.push({ id: `post-${data.posts[2].id}`, kind: 'post', post: data.posts[2] });
-  if (data.radios[0]) items.push({ id: data.radios[0].id, kind: 'radio', radio: data.radios[0] });
   items.push({ id: 'studio', kind: 'studio', title: 'Creer dans ce style', text: "Pars d'un son que tu aimes, remixe l'ambiance et publie ta version." });
   if (data.playlists[0]) items.push({ id: `playlist-${data.playlists[0].id}`, kind: 'playlist', playlist: data.playlists[0] });
   items.push({ id: 'booster', kind: 'booster', title: 'Boosters du jour', text: 'Active les mises en avant et les campagnes sans sortir de la logique Synaura.' });
   if (data.playlists[1]) items.push({ id: `playlist-${data.playlists[1].id}`, kind: 'playlist', playlist: data.playlists[1] });
-  if (data.radios[1]) items.push({ id: data.radios[1].id, kind: 'radio', radio: data.radios[1] });
   items.push({ id: 'library', kind: 'library' });
   if (data.posts[3]) items.push({ id: `post-${data.posts[3].id}`, kind: 'post', post: data.posts[3] });
   return items;
@@ -178,7 +177,7 @@ function matchesFilter(item: FeedItem, filter: HomeFilter) {
   if (filter === 'Pour toi') return true;
   if (filter === 'Sons') return item.kind === 'track' || item.kind === 'rail';
   if (filter === 'Communaute') return item.kind === 'composer' || item.kind === 'post' || item.kind === 'creator';
-  return item.kind === 'playlist' || item.kind === 'library' || item.kind === 'radio' || item.kind === 'studio' || item.kind === 'booster';
+  return item.kind === 'playlist' || item.kind === 'library' || item.kind === 'studio' || item.kind === 'booster';
 }
 
 function shareTrack(track: Track) {
@@ -425,8 +424,8 @@ export function HomeScreen() {
 
   const header = (
     <>
-      <TopBar unread={unreadNotifications} onNotifications={() => setNotificationsOpen(true)} onPublish={() => openWebPath('/upload')} />
-      <TopSearchStrip onSearch={() => setSearchOpen(true)} onStudio={() => openWebPath('/ai-generator')} />
+      <TopBar unread={unreadNotifications} onNotifications={() => setNotificationsOpen(true)} onPublish={() => navigation.navigate('CreateHub')} />
+      <TopSearchStrip onSearch={() => setSearchOpen(true)} onStudio={() => navigation.navigate('AIStudio')} />
       {SHOW_SHUTDOWN_NOTICES ? <AnnouncementStrip onPress={() => openWebPath('/fermeture')} /> : null}
       {heroTracks.length ? (
         <MiniCarousel
@@ -434,13 +433,13 @@ export function HomeScreen() {
           activeId={player.current?._id}
           isPlaying={player.isPlaying}
           onPlay={(track) => playQueue(heroTracks, track)}
-          onCreate={(track) => openWebPath(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(track._id)}&title=${encodeURIComponent(track.title)}`)}
+          onCreate={() => navigation.navigate('AIStudio')}
         />
       ) : null}
       <QuickActions
         onListen={() => navigation.navigate('Discover')}
-        onCreate={() => openWebPath('/ai-generator')}
-        onPublish={() => openWebPath('/upload')}
+        onCreate={() => navigation.navigate('AIStudio')}
+        onPublish={() => navigation.navigate('CreateHub')}
         onCommunity={() => navigation.navigate('Community')}
       />
       <FilterBar value={filter} onChange={setFilter} />
@@ -1040,9 +1039,6 @@ function FeedCard({
       />
     );
   }
-  if (item.kind === 'radio') {
-    return <RadioCard radio={item.radio} activeId={activeId} isPlaying={isPlaying} onPlay={() => onPlay([item.radio.track], item.radio.track)} />;
-  }
   if (item.kind === 'playlist') return <PlaylistCard playlist={item.playlist} onOpen={() => onOpenWeb(`/playlists/${item.playlist.id}`)} />;
   if (item.kind === 'creator') return <CreatorRail creators={item.creators} onOpen={(creator) => onOpenWeb(`/profile/${encodeURIComponent(creator.handle.replace(/^@/, ''))}`)} />;
   if (item.kind === 'studio') return <ActionCard icon="color-wand" title={item.title} text={item.text} label="Ouvrir" gradient={['#fffaf2', '#eee7ff', '#e2fbff']} iconColor={warm.paper} onPress={() => onOpenWeb('/ai-generator')} />;
@@ -1424,6 +1420,36 @@ function PlaylistCard({ playlist, onOpen }: { playlist: Playlist; onOpen: () => 
 }
 
 function CreatorRail({ creators, onOpen }: { creators: Creator[]; onOpen: (creator: Creator) => void }) {
+  const [following, setFollowing] = useState<Record<string, boolean>>({});
+  const [pending, setPending] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all(creators.map(async (creator) => [creator.id, await getArtistFollowState(creator.handle.replace(/^@/, ''))] as const))
+      .then((entries) => {
+        if (mounted) setFollowing(Object.fromEntries(entries));
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, [creators]);
+
+  const toggleFollow = async (creator: Creator) => {
+    if (pending[creator.id]) return;
+    const before = Boolean(following[creator.id]);
+    setPending((current) => ({ ...current, [creator.id]: true }));
+    setFollowing((current) => ({ ...current, [creator.id]: !before }));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    try {
+      const result = await toggleArtistFollow(creator.handle.replace(/^@/, ''));
+      if (!result) setFollowing((current) => ({ ...current, [creator.id]: before }));
+      else setFollowing((current) => ({ ...current, [creator.id]: result.following }));
+    } catch {
+      setFollowing((current) => ({ ...current, [creator.id]: before }));
+    } finally {
+      setPending((current) => ({ ...current, [creator.id]: false }));
+    }
+  };
+
   return (
     <View style={styles.card}>
       <SectionHeader title="Createurs a suivre" subtitle="profils qui publient, remixent et font bouger la home" icon="people" />
@@ -1437,35 +1463,21 @@ function CreatorRail({ creators, onOpen }: { creators: Creator[]; onOpen: (creat
             <Text numberOfLines={1} style={styles.creatorName}>{creator.name}</Text>
             <Text numberOfLines={1} style={styles.creatorHandle}>{creator.handle}</Text>
             <Text numberOfLines={1} style={styles.creatorFollowers}>{creator.followers}</Text>
-            <View style={styles.creatorButton}>
-              <Text style={styles.creatorButtonText}>Voir profil</Text>
-            </View>
+            <Pressable
+              disabled={pending[creator.id]}
+              onPress={(event) => {
+                event.stopPropagation();
+                void toggleFollow(creator);
+              }}
+              style={[styles.creatorButton, following[creator.id] && styles.creatorButtonFollowing]}
+            >
+              <Ionicons name={pending[creator.id] ? 'ellipsis-horizontal' : following[creator.id] ? 'checkmark' : 'add'} size={13} color={following[creator.id] ? warm.paper : warm.inkSoft} />
+              <Text style={[styles.creatorButtonText, following[creator.id] && styles.creatorButtonTextFollowing]}>
+                {following[creator.id] ? 'Suivi' : 'Suivre'}
+              </Text>
+            </Pressable>
           </MotionPressable>
         ))}
-      </View>
-    </View>
-  );
-}
-
-function RadioCard({ radio, activeId, isPlaying, onPlay }: { radio: RadioItem; activeId?: string; isPlaying: boolean; onPlay: () => void }) {
-  const playingThis = activeId === radio.track._id && isPlaying;
-  return (
-    <View style={styles.inkCard}>
-      <View style={styles.radioRow}>
-        <View style={[styles.radioIcon, { backgroundColor: `${radio.color}33` }]}>
-          <Ionicons name="radio" size={28} color="#FEE2E2" />
-        </View>
-        <View style={styles.radioMeta}>
-          <View style={styles.radioTitleRow}>
-            <Text numberOfLines={1} style={styles.radioTitle}>{radio.title}</Text>
-            <Text style={[styles.liveBadge, { backgroundColor: `${radio.color}66` }]}>LIVE</Text>
-          </View>
-          <Text numberOfLines={1} style={styles.radioSubtitle}>{radio.subtitle}</Text>
-          <Text style={styles.radioStats}>{radio.listeners} auditeurs · {radio.station}</Text>
-        </View>
-        <Pressable onPress={onPlay} style={styles.radioPlay}>
-          <Ionicons name={playingThis ? 'pause' : 'play'} size={20} color={warm.ink} />
-        </Pressable>
       </View>
     </View>
   );
@@ -2644,73 +2656,20 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     height: 32,
     alignSelf: 'stretch',
+    flexDirection: 'row',
+    gap: 5,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(23,19,19,0.06)',
   },
+  creatorButtonFollowing: { backgroundColor: warm.ink },
   creatorButtonText: {
     color: warm.inkSoft,
     fontSize: 11,
     fontWeight: '900',
   },
-  radioRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  radioIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioMeta: {
-    flex: 1,
-    minWidth: 0,
-  },
-  radioTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  radioTitle: {
-    flex: 1,
-    minWidth: 0,
-    color: warm.paper,
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  liveBadge: {
-    overflow: 'hidden',
-    borderRadius: 999,
-    color: '#FEE2E2',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  radioSubtitle: {
-    marginTop: 3,
-    color: 'rgba(255,250,242,0.45)',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  radioStats: {
-    marginTop: 7,
-    color: 'rgba(255,250,242,0.52)',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  radioPlay: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: warm.paper,
-  },
+  creatorButtonTextFollowing: { color: warm.paper },
   actionCard: {
     overflow: 'hidden',
     borderRadius: 24,

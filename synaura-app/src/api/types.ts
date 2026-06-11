@@ -37,15 +37,6 @@ export type Track = {
   style?: string;
 };
 
-export type RadioStation = 'mixx_party' | 'ximam';
-
-export type RadioMeta = {
-  station: RadioStation;
-  title: string;
-  artist: string;
-  listeners: number;
-};
-
 export type FeedStrategy = 'reco' | 'trending' | 'boost';
 
 export type RankingFeedChunk = {
@@ -73,16 +64,6 @@ export type Creator = {
   tint: string;
 };
 
-export type RadioItem = {
-  id: string;
-  title: string;
-  subtitle: string;
-  station: string;
-  listeners: string;
-  color: string;
-  track: Track;
-};
-
 export type HomePost = {
   id: string;
   type: 'text' | 'photo' | 'track_share' | 'repost';
@@ -97,6 +78,8 @@ export type HomePost = {
   likesCount: number;
   commentsCount: number;
   isLiked: boolean;
+  isPinned?: boolean;
+  pinnedAt?: string;
   track?: Track;
 };
 
@@ -128,7 +111,6 @@ export type HomeData = {
   playlists: Playlist[];
   creators: Creator[];
   posts: HomePost[];
-  radios: RadioItem[];
   libraryStats?: LibraryStats | null;
   nextCursor?: string | null;
   hasMore?: boolean;

@@ -19,7 +19,9 @@ function safeParseTracks(raw: string | null): Track[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((item) => item?._id && item?.audioUrl) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((item) => item?._id && item?.audioUrl && !String(item._id).startsWith('radio-'))
+      : [];
   } catch {
     return [];
   }
@@ -54,14 +56,14 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
   }, [favorites]);
 
   const toggleFavorite = useCallback((track: Track) => {
-    if (!track?._id) return;
+    if (!track?._id || track._id.startsWith('radio-')) return;
     const exists = favorites.some((item) => item._id === track._id);
     const next = exists ? favorites.filter((item) => item._id !== track._id) : [track, ...favorites];
     persistFavorites(next.slice(0, 200));
   }, [favorites, persistFavorites]);
 
   const addRecent = useCallback((track: Track) => {
-    if (!track?._id) return;
+    if (!track?._id || track._id.startsWith('radio-')) return;
     setRecent((current) => {
       if (current[0]?._id === track._id) return current;
       const next = [track, ...current.filter((item) => item._id !== track._id)].slice(0, 50);

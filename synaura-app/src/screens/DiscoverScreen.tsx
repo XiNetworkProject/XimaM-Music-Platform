@@ -21,7 +21,7 @@ import { spacing } from '@/theme/tokens';
 import { SynauraBackground } from '@/components/SynauraBackground';
 
 const genres = ['Tout', 'Pop', 'Hip-Hop', 'Rap', 'Rock', 'Electronic', 'R&B', 'Jazz', 'Lo-Fi', 'Indie', 'Ambient'];
-const emptyData: HomeData = { forYou: [], trending: [], recent: [], boosted: [], playlists: [], creators: [], posts: [], radios: [] };
+const emptyData: HomeData = { forYou: [], trending: [], recent: [], boosted: [], playlists: [], creators: [], posts: [] };
 
 function artistName(track: Track) {
   return track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste Synaura';
@@ -142,7 +142,7 @@ export function DiscoverScreen() {
             <DiscoverRows title="Top hits" tracks={trending.slice(0, 6)} player={player} onPlay={(track) => playFrom(trending, track)} />
             <DiscoverRail title="Fraîchement publié" subtitle="les dernières sorties Synaura" tracks={recent} player={player} onPlay={(track) => playFrom(recent, track)} />
             <CreatorRail creators={data.creators.slice(0, 8)} onOpen={(username) => navigation.navigate('PublicProfile', { username })} />
-            <PlaylistRail playlists={data.playlists.slice(0, 8)} />
+            <PlaylistRail playlists={data.playlists.slice(0, 8)} onOpen={(playlistId) => navigation.navigate('PlaylistDetail', { playlistId })} />
           </>
         )}
       </ScrollView>
@@ -246,18 +246,18 @@ function CreatorRail({ creators, onOpen }: { creators: HomeData['creators']; onO
   );
 }
 
-function PlaylistRail({ playlists }: { playlists: HomeData['playlists'] }) {
+function PlaylistRail({ playlists, onOpen }: { playlists: HomeData['playlists']; onOpen: (playlistId: string) => void }) {
   if (!playlists.length) return null;
   return (
     <View style={styles.section}>
       <SectionTitle title="Playlists visibles" subtitle="des portes d’entrée dans le catalogue" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
         {playlists.map((playlist) => (
-          <View key={playlist.id} style={styles.tile}>
+          <Pressable key={playlist.id} onPress={() => onOpen(playlist.id)} style={styles.tile}>
             <Image source={{ uri: playlist.covers[0] || undefined }} style={styles.playlistCover} />
             <Text numberOfLines={1} style={styles.tileTitle}>{playlist.title}</Text>
             <Text numberOfLines={1} style={styles.tileArtist}>{playlist.tracks}</Text>
-          </View>
+          </Pressable>
         ))}
       </ScrollView>
     </View>

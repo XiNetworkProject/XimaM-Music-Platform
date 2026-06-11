@@ -89,6 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
         if (!mounted) return;
+        setAuthTokenProvider(() => storedToken);
         setToken(storedToken);
         setUser(storedUser);
       })
@@ -101,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const persistSession = useCallback(async (nextToken: string | null, nextUser: MobileUser | null) => {
+    setAuthTokenProvider(() => nextToken);
     setToken(nextToken);
     setUser(nextUser);
     if (nextToken) await AsyncStorage.setItem(TOKEN_KEY, nextToken);

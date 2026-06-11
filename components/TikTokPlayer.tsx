@@ -285,20 +285,8 @@ function MusicVideoLayer({
   );
 }
 
-function insertRadioTracks(tracks: Track[], mode: FeedMode): Track[] {
-  if (!tracks.length) return RADIO_TRACKS;
-
-  const result = [...tracks];
-  const positions = mode === 'boost' ? [4, 11] : mode === 'trending' ? [6] : [8];
-
-  RADIO_TRACKS.forEach((radioTrack, radioIndex) => {
-    if (result.some((track) => trackId(track) === radioTrack._id)) return;
-    const fallback = Math.min(result.length, 6 + radioIndex * 6);
-    const insertAt = Math.min(result.length, positions[radioIndex] ?? fallback);
-    result.splice(insertAt, 0, radioTrack);
-  });
-
-  return result;
+function insertRadioTracks(tracks: Track[], _mode: FeedMode): Track[] {
+  return tracks.filter((track) => !isRadioId(trackId(track)));
 }
 
 async function fetchFeedChunk(mode: FeedMode, cursor: number, seedGenre: string | null) {

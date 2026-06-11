@@ -2844,20 +2844,12 @@ export default function SynauraWarmFeed() {
       setLibraryStats(null);
     }
 
-    await refreshRadio();
     setLoading(false);
-  }, [refreshRadio, userId]);
+  }, [userId]);
 
   useEffect(() => {
     void refreshHomeData();
   }, [refreshHomeData]);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      void refreshRadio();
-    }, 30000);
-    return () => window.clearInterval(interval);
-  }, [refreshRadio]);
 
   const loadMoreFeed = useCallback(async () => {
     if (loadingMoreFeed) return;
@@ -2979,10 +2971,10 @@ export default function SynauraWarmFeed() {
         boostedTracks,
         playlists,
         creators,
-        radios: radioItems,
+        radios: [],
         libraryStats,
       }),
-    [posts, forYouTracks, trendingTracks, recentTracks, boostedTracks, playlists, creators, radioItems, libraryStats],
+    [posts, forYouTracks, trendingTracks, recentTracks, boostedTracks, playlists, creators, libraryStats],
   );
 
   const feedItems = useMemo(() => [...baseFeedItems, ...extraFeedItems], [baseFeedItems, extraFeedItems]);
@@ -2996,7 +2988,7 @@ export default function SynauraWarmFeed() {
   }, [filter, hasMoreMusic, hasMorePosts, loading]);
 
   const rightColumnTracks = useMemo(() => uniqueTracks([...boostedTracks, ...trendingTracks, ...forYouTracks]).slice(0, 6), [boostedTracks, trendingTracks, forYouTracks]);
-  const primaryRadio = radioItems[0] || null;
+  const primaryRadio = null;
 
   const handlePostCreated = useCallback((post: PostItem) => {
     setPosts((current) => [post, ...current.filter((item) => item.id !== post.id)]);

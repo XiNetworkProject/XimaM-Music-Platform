@@ -39,6 +39,16 @@ export async function GET(
 
     console.log(`✅ Profil trouvé pour: ${username}`);
     const isOwnProfile = Boolean(currentUserId && String(currentUserId) === String(profile.id));
+    let isFollowing = false;
+    if (currentUserId && !isOwnProfile) {
+      const { data: follow } = await supabaseAdmin
+        .from('user_follows')
+        .select('following_id')
+        .eq('follower_id', currentUserId)
+        .eq('following_id', profile.id)
+        .maybeSingle();
+      isFollowing = Boolean(follow);
+    }
 
     // Récupérer les tracks "manuelles" de l'utilisateur
     let tracksQuery = supabaseAdmin
@@ -160,6 +170,8 @@ export async function GET(
       playlistsCount,
       followerCount: profile.follower_count || 0,
       followingCount: profile.following_count || 0,
+      isFollowing,
+      preferences: profile.preferences || {},
       tracks: tracks_final || [],
       playlists: playlists || [],
       lastSeen: profile.last_seen,

@@ -1,4 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import TrackPlayer, {
   AppKilledPlaybackBehavior,
   Capability,
@@ -43,9 +45,14 @@ type PlayerContextValue = {
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 let playerReady = false;
+const PLAYER_STATE_KEY = 'synaura.player.state.v2';
 
 function artistName(track: Track) {
   return track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste Synaura';
+}
+
+function isPlayableTrack(track: Track | null | undefined) {
+  return Boolean(track?.audioUrl && !track._id.startsWith('radio-'));
 }
 
 function toNativeTrack(track: Track) {
@@ -63,9 +70,13 @@ function toNativeTrack(track: Track) {
 
 async function setupPlayer() {
   if (playerReady) return;
-  await TrackPlayer.setupPlayer({
-    autoHandleInterruptions: true,
-  });
+  try {
+    await TrackPlayer.setupPlayer({
+      autoHandleInterruptions: true,
+    });
+  } catch (error) {
+    if (!/already|initialized/i.test(String(error))) throw error;
+  }
   await TrackPlayer.updateOptions({
     android: {
       appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
@@ -106,6 +117,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const lastRecordedTrackIdRef = useRef<string | null>(null);
   const commandChainRef = useRef<Promise<unknown>>(Promise.resolve());
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restoredRef = useRef(false);
+  const restoreStartedRef = useRef(false);
+  const queueRef = useRef<Track[]>([]);
+  const currentIndexRef = useRef(0);
+  const repeatModeRef = useRef<PlayerRepeatMode>('off');
+  const shuffleRef = useRef(false);
+  const wasPlayingRef = useRef(false);
 
   const playbackState = usePlaybackState();
   const activeTrack = useActiveTrack();
@@ -121,7 +139,98 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setupPlayer().catch((error) => console.warn('[SynauraPlayer] setup failed', error));
+    if (restoreStartedRef.current) return;
+    restoreStartedRef.current = true;
+    let cancelled = false;
+    const restore = async () => {
+      try {
+        await setupPlayer();
+        const raw = await AsyncStorage.getItem(PLAYER_STATE_KEY);
+        if (!raw || cancelled) return;
+        const saved = JSON.parse(raw) as {
+          queue?: Track[];
+          currentIndex?: number;
+          position?: number;
+          wasPlaying?: boolean;
+          repeatMode?: PlayerRepeatMode;
+          shuffleEnabled?: boolean;
+        };
+        const savedQueue = Array.isArray(saved.queue) ? saved.queue.filter(isPlayableTrack) : [];
+        if (!savedQueue.length) {
+          await TrackPlayer.reset().catch(() => {});
+          return;
+        }
+        const savedIndex = Math.max(0, Math.min(savedQueue.length - 1, Number(saved.currentIndex || 0)));
+        const nativeQueue = await TrackPlayer.getQueue().catch(() => []);
+        const nativeIndex = await TrackPlayer.getActiveTrackIndex().catch(() => undefined);
+        const nativeTrackId = typeof nativeIndex === 'number' && nativeIndex >= 0
+          ? String(nativeQueue[nativeIndex]?.id || '')
+          : '';
+        const matchingNativeIndex = nativeTrackId
+          ? savedQueue.findIndex((track) => track._id === nativeTrackId)
+          : -1;
+        const restoredIndex = matchingNativeIndex >= 0 ? matchingNativeIndex : savedIndex;
+        byIdRef.current.clear();
+        savedQueue.forEach((track) => byIdRef.current.set(track._id, track));
+        queueRef.current = savedQueue;
+        currentIndexRef.current = restoredIndex;
+        currentRef.current = savedQueue[restoredIndex];
+        setQueue(savedQueue);
+        setCurrentIndex(restoredIndex);
+        setCurrent(savedQueue[restoredIndex]);
+        setRepeatModeState(saved.repeatMode || 'off');
+        setShuffleEnabled(Boolean(saved.shuffleEnabled));
+
+        if (matchingNativeIndex < 0) {
+          await TrackPlayer.reset();
+          await TrackPlayer.add(savedQueue.map(toNativeTrack));
+          await TrackPlayer.skip(savedIndex);
+          if (Number(saved.position || 0) > 0) await TrackPlayer.seekTo(Number(saved.position)).catch(() => {});
+        }
+        await TrackPlayer.setRepeatMode(saved.repeatMode === 'one' ? RepeatMode.Track : saved.repeatMode === 'all' ? RepeatMode.Queue : RepeatMode.Off);
+        if (matchingNativeIndex < 0) {
+          if (saved.wasPlaying) await TrackPlayer.play().catch(() => {});
+          else await TrackPlayer.pause().catch(() => {});
+        }
+      } catch (error) {
+        console.warn('[SynauraPlayer] restore failed', error);
+      } finally {
+        restoredRef.current = true;
+      }
+    };
+    void restore();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => { queueRef.current = queue; }, [queue]);
+  useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
+  useEffect(() => { repeatModeRef.current = repeatMode; }, [repeatMode]);
+  useEffect(() => { shuffleRef.current = shuffleEnabled; }, [shuffleEnabled]);
+  useEffect(() => { wasPlayingRef.current = playbackState.state === State.Playing; }, [playbackState.state]);
+
+  useEffect(() => {
+    const persist = async () => {
+      if (!restoredRef.current || !queueRef.current.length) return;
+      const position = await TrackPlayer.getProgress().then((value) => value.position).catch(() => 0);
+      await AsyncStorage.setItem(PLAYER_STATE_KEY, JSON.stringify({
+        queue: queueRef.current,
+        currentIndex: currentIndexRef.current,
+        position,
+        wasPlaying: wasPlayingRef.current,
+        repeatMode: repeatModeRef.current,
+        shuffleEnabled: shuffleRef.current,
+        savedAt: Date.now(),
+      }));
+    };
+    const interval = setInterval(() => void persist(), 4000);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') void persist();
+    });
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+      void persist();
+    };
   }, []);
 
   const setSleepTimer = useCallback((minutes: number | null) => {
@@ -189,7 +298,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   );
 
   const setQueueAndPlay = useCallback(async (tracks: Track[], startIndex: number) => runPlayerCommand(async () => {
-    const playable = tracks.filter((track) => !!track.audioUrl);
+    const playable = tracks.filter(isPlayableTrack);
     if (!playable.length) return;
     const index = Math.max(0, Math.min(playable.length - 1, startIndex || 0));
     await setupPlayer();
@@ -213,7 +322,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
    * Utile pour synchroniser le SwipeScreen avec un feed elargi sans interrompre l'audio.
    */
   const setQueueOnly = useCallback(async (tracks: Track[], startIndex: number) => runPlayerCommand(async () => {
-    const playable = tracks.filter((track) => !!track.audioUrl);
+    const playable = tracks.filter(isPlayableTrack);
     if (!playable.length) return;
     const index = Math.max(0, Math.min(playable.length - 1, startIndex || 0));
     await setupPlayer();
@@ -245,6 +354,26 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Le Swipe place toujours le titre actif en tete de sa file. Quand il est
+    // deja lu par le moteur natif, on reconstruit le reste autour de lui sans
+    // reset : aucune micro-coupure, aucune bascule pause/play en entrant.
+    const nativeCurrentIndex = previousId ? nativeIds.indexOf(previousId) : -1;
+    if (previousId === playable[index]._id && nativeCurrentIndex >= 0) {
+      const removable = nativeIds
+        .map((_, nativeIndex) => nativeIndex)
+        .filter((nativeIndex) => nativeIndex !== nativeCurrentIndex)
+        .sort((a, b) => b - a);
+      for (const nativeIndex of removable) {
+        await TrackPlayer.remove(nativeIndex).catch(() => {});
+      }
+      const remaining = await TrackPlayer.getQueue().catch(() => []);
+      if (remaining.length) {
+        const nextTracks = playable.filter((track) => track._id !== previousId);
+        if (nextTracks.length) await TrackPlayer.add(nextTracks.map(toNativeTrack));
+        return;
+      }
+    }
+
     await TrackPlayer.reset();
     await TrackPlayer.add(playable.map(toNativeTrack));
     await TrackPlayer.skip(index);
@@ -255,10 +384,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }), [runPlayerCommand]);
 
   const playTrack = useCallback(async (track: Track) => {
-    if (!track.audioUrl) return;
+    if (!isPlayableTrack(track)) return;
     if (currentRef.current?._id === track._id) {
-      if (playbackState.state === State.Playing) await TrackPlayer.pause();
-      else await TrackPlayer.play();
+      await TrackPlayer.play();
       return;
     }
     const existingIndex = queue.findIndex((item) => item._id === track._id);
@@ -267,10 +395,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     await setQueueAndPlay([track], 0);
-  }, [playbackState.state, queue, setQueueAndPlay]);
+  }, [queue, setQueueAndPlay]);
 
   const addNext = useCallback(async (track: Track) => {
-    if (!track.audioUrl) return;
+    if (!isPlayableTrack(track)) return;
     await setupPlayer();
     byIdRef.current.set(track._id, track);
     await TrackPlayer.add(toNativeTrack(track), Math.min(queue.length, currentIndex + 1));
@@ -347,12 +475,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const togglePlayPause = useCallback(async () => runPlayerCommand(async () => {
     if (!currentRef.current) return;
-    if (playbackState.state === State.Playing) {
+    const currentState = await TrackPlayer.getPlaybackState().then((value) => value.state).catch(() => State.None);
+    if (currentState === State.Playing) {
       await TrackPlayer.pause();
     } else {
       await TrackPlayer.play();
     }
-  }), [playbackState.state, runPlayerCommand]);
+  }), [runPlayerCommand]);
 
   const next = useCallback(async () => runPlayerCommand(async () => {
     if (currentRef.current) void recordTrackEvent(currentRef.current._id, 'next');

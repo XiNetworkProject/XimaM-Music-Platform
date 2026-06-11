@@ -218,7 +218,7 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
               </View>
             ) : (
               <View style={styles.notice}>
-                <Text style={styles.noticeText}>Les radios, lives et sons IA ne se republient pas. Utilise le partage par lien.</Text>
+                <Text style={styles.noticeText}>Les sons IA ne se republient pas encore. Utilise le partage par lien.</Text>
               </View>
             )}
           </View>

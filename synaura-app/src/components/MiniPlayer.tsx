@@ -15,7 +15,7 @@ type Props = {
   onOpen?: () => void;
 };
 
-const HIDDEN_ROUTES = ['Swipe', 'Login', 'Register', 'ForgotPassword'];
+const HIDDEN_ROUTES = ['Swipe', 'Login', 'Register', 'ForgotPassword', 'CreateHub', 'CreatePost', 'Upload'];
 
 export function MiniPlayer({ activeRoute, onOpen }: Props) {
   const insets = useSafeAreaInsets();

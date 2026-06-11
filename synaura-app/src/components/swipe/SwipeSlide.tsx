@@ -2,7 +2,7 @@ import React, { memo, useEffect, useRef } from 'react';
 import { Animated, Easing, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { Track, RadioMeta } from '@/api/types';
+import type { Track } from '@/api/types';
 import { fmtCount, trackArtistName } from './helpers';
 import { InteractiveSeekBar } from './InteractiveSeekBar';
 import { TrackCover } from '@/components/TrackCover';
@@ -22,12 +22,10 @@ type Props = {
   sharesCount: number;
   isFollowing: boolean;
   followLoading?: boolean;
-  radioMeta?: RadioMeta | null;
   height: number;
   topPad: number;
   bottomPad: number;
 
-  onTogglePlay: () => void;
   onDoubleTapLike: () => void;
   onPress: () => void;
   onAction: (action: ActionLabel) => void;
@@ -187,11 +185,9 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
     sharesCount,
     isFollowing,
     followLoading,
-    radioMeta,
     height,
     topPad,
     bottomPad,
-    onTogglePlay,
     onDoubleTapLike,
     onPress,
     onAction,
@@ -200,48 +196,66 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
     onOpenArtist,
   } = props;
 
-  const isRadio = track._id.startsWith('radio-');
   const isAi = !!track.isAI || track._id.startsWith('ai-');
   const genres = (track.genre || []).filter(Boolean).slice(0, 2);
   const lastTapRef = useRef(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playButtonOpacity = useRef(new Animated.Value(isPlaying ? 0 : 1)).current;
-  const coverScale = useRef(new Animated.Value(isPlaying ? 1.04 : 1)).current;
+  const slideReveal = useRef(new Animated.Value(isActive ? 1 : 0)).current;
 
   useEffect(() => {
     Animated.timing(playButtonOpacity, { toValue: isPlaying ? 0 : 1, duration: 220, useNativeDriver: true }).start();
-    Animated.timing(coverScale, {
-      toValue: isPlaying ? 1.04 : 1,
-      duration: 1100,
+  }, [isPlaying, playButtonOpacity]);
+
+  useEffect(() => {
+    if (!isActive && tapTimerRef.current) {
+      clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = null;
+      lastTapRef.current = 0;
+    }
+    Animated.timing(slideReveal, {
+      toValue: isActive ? 1 : 0,
+      duration: isActive ? 150 : 90,
+      easing: Easing.out(Easing.quad),
       useNativeDriver: true,
-      easing: Easing.inOut(Easing.quad),
     }).start();
-  }, [coverScale, isPlaying, playButtonOpacity]);
+  }, [isActive, slideReveal]);
+
+  useEffect(() => () => {
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+  }, []);
 
   const handleTap = () => {
+    if (!isActive) return;
     const now = Date.now();
     if (now - lastTapRef.current < 260) {
+      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = null;
       lastTapRef.current = 0;
       onDoubleTapLike();
       return;
     }
     lastTapRef.current = now;
-    setTimeout(() => {
+    tapTimerRef.current = setTimeout(() => {
       if (lastTapRef.current === now) onPress();
+      tapTimerRef.current = null;
     }, 270);
   };
 
-  const displayTitle = isActive && isRadio && radioMeta?.title ? radioMeta.title : track.title;
-  const displayArtist = isActive && isRadio && radioMeta?.artist ? radioMeta.artist : trackArtistName(track);
+  const displayTitle = track.title;
+  const displayArtist = trackArtistName(track);
 
   return (
     <View style={[styles.page, { height }]}>
       <Pressable accessibilityLabel={isPlaying ? 'Mettre en pause' : 'Lire'} onPress={handleTap} style={styles.pressArea}>
-        <Animated.View style={[styles.coverShell, { transform: [{ scale: coverScale }] }]}>
+        <Animated.View
+          style={styles.coverShell}
+        >
           <View style={styles.cover}>
             <TrackCover
               track={track}
-              active={isActive && isPlaying}
-              autoPlayVideo={isActive && isPlaying}
+              active={isActive}
+              autoPlayVideo={false}
               style={StyleSheet.absoluteFill}
               imageStyle={styles.coverImage}
             />
@@ -264,12 +278,6 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
             </Animated.View>
 
             <View style={[styles.topBadges, { paddingTop: topPad + 4 }]}>
-              {isRadio ? (
-                <View style={[styles.badge, { backgroundColor: '#EF4444' }]}>
-                  <View style={styles.badgeDot} />
-                  <Text style={styles.badgeText}>LIVE</Text>
-                </View>
-              ) : null}
               {track.isBoosted ? (
                 <View style={[styles.badge, { backgroundColor: '#FFFAF2' }]}>
                   <Ionicons name="flash" size={11} color="#171313" />
@@ -292,8 +300,17 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
         </Animated.View>
       </Pressable>
 
-      <View style={[styles.actionsColumn, { bottom: bottomPad + 92 }]}>
-        {!isRadio && track.artist?.username ? (
+      <Animated.View
+        style={[
+          styles.actionsColumn,
+          {
+            bottom: bottomPad + 92,
+            opacity: slideReveal,
+            transform: [{ translateX: slideReveal.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
+          },
+        ]}
+      >
+        {track.artist?.username ? (
           <View style={styles.profileCluster}>
             <Pressable accessibilityLabel="Ouvrir le profil artiste" onPress={onOpenArtist} style={styles.profileAvatar}>
               {track.artist.avatar ? (
@@ -307,7 +324,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
             <FollowBubble
               isFollowing={isFollowing}
               loading={followLoading}
-              disabled={!track.artist._id}
+              disabled={!track.artist.username}
               onPress={onToggleFollow}
             />
           </View>
@@ -319,7 +336,6 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
           active={isLiked}
           count={likesCount}
           label="Like"
-          disabled={isRadio}
           highlightColor="#FF4B7A"
           onPress={() => onAction('like')}
         />
@@ -327,7 +343,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
           icon="chatbubble-ellipses-outline"
           count={commentsCount}
           label="Commentaires"
-          disabled={isRadio || isAi}
+          disabled={isAi}
           onPress={() => onAction('comment')}
         />
         <ActionButton
@@ -340,7 +356,6 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
           icon="list"
           count="File"
           label="Ajouter a la file"
-          disabled={isRadio}
           onPress={() => onAction('queue')}
         />
         {track.lyrics ? (
@@ -360,11 +375,20 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
           highlightColor="#7C5CFF"
           onPress={() => onAction('save')}
         />
-      </View>
+      </Animated.View>
 
-      <View style={[styles.metaPanel, { bottom: bottomPad + 14 }]}>
+      <Animated.View
+        style={[
+          styles.metaPanel,
+          {
+            bottom: bottomPad + 14,
+            opacity: slideReveal,
+            transform: [{ translateY: slideReveal.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
+          },
+        ]}
+      >
         <View style={styles.metaTopRow}>
-          <Text style={styles.eyebrow}>{isRadio ? 'RADIO LIVE SYNAURA' : isAi ? 'CREATION IA SYNAURA' : 'FIL SONORE SYNAURA'}</Text>
+          <Text style={styles.eyebrow}>{isAi ? 'CREATION IA SYNAURA' : 'FIL SONORE SYNAURA'}</Text>
           <View style={styles.nowBadge}>
             <View style={[styles.nowDot, isPlaying && styles.nowDotActive]} />
             <Text style={styles.nowText}>{isPlaying ? 'PLAY' : 'PAUSE'}</Text>
@@ -372,13 +396,13 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
         </View>
         <Text numberOfLines={2} style={styles.title}>{displayTitle}</Text>
         <View style={styles.artistRow}>
-          <Pressable accessibilityLabel="Ouvrir le profil artiste" disabled={!track.artist?.username || isRadio} onPress={onOpenArtist} style={styles.artistNameButton}>
+          <Pressable accessibilityLabel="Ouvrir le profil artiste" disabled={!track.artist?.username} onPress={onOpenArtist} style={styles.artistNameButton}>
             <Text numberOfLines={1} style={styles.artist}>@{displayArtist}</Text>
           </Pressable>
-          {track.artist?.username && !isRadio ? (
+          {track.artist?.username ? (
             <Pressable
               accessibilityLabel={isFollowing ? 'Deja suivi' : 'Suivre'}
-              disabled={!track.artist._id || followLoading}
+              disabled={!track.artist.username || followLoading}
               onPress={onToggleFollow}
               style={[styles.inlineFollow, isFollowing && styles.inlineFollowDone]}
             >
@@ -388,22 +412,13 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
             </Pressable>
           ) : null}
         </View>
-        {isRadio && radioMeta?.listeners ? (
-          <Text style={styles.listeners}>{fmtCount(radioMeta.listeners)} auditeurs en direct</Text>
-        ) : track.plays ? (
+        {track.plays ? (
           <Text style={styles.plays}>{fmtCount(track.plays)} ecoutes</Text>
         ) : null}
         <View style={styles.seekWrap}>
-          {!isRadio ? (
-            isActive ? <ActiveSeekBar fallbackDuration={track.duration || 0} onSeek={onSeek} /> : <View style={styles.seekPlaceholder} />
-          ) : (
-            <View style={styles.liveLine}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>EN DIRECT</Text>
-            </View>
-          )}
+          {isActive ? <ActiveSeekBar fallbackDuration={track.duration || 0} onSeek={onSeek} /> : <View style={styles.seekPlaceholder} />}
         </View>
-      </View>
+      </Animated.View>
 
     </View>
   );
@@ -466,7 +481,6 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
   },
-  badgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFAF2' },
   badgeText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
   actionsColumn: {
     position: 'absolute',
@@ -577,13 +591,9 @@ const styles = StyleSheet.create({
   inlineFollowDone: { backgroundColor: 'rgba(255,250,242,0.15)' },
   inlineFollowText: { color: '#171313', fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   inlineFollowTextDone: { color: '#FFFAF2' },
-  listeners: { marginTop: 6, color: 'rgba(255,75,122,0.85)', fontSize: 12, fontWeight: '800' },
   plays: { marginTop: 6, color: 'rgba(255,250,242,0.5)', fontSize: 11, fontWeight: '700' },
   seekWrap: { marginTop: 12 },
   seekPlaceholder: { height: 28 },
-  liveLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
-  liveText: { color: 'rgba(255,250,242,0.78)', fontSize: 11, fontWeight: '900', letterSpacing: 1.4 },
 });
 
 export default SwipeSlide;
