@@ -13,8 +13,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
-import { getHomeData } from '@/api/client';
-import type { HomeData, Track } from '@/api/types';
+import { getHomeData, getSynauraCity } from '@/api/client';
+import type { HomeData, SynauraCityData, Track } from '@/api/types';
+import { EventTicker, EventsRail } from '@/components/events/SynauraEvents';
 import { TrackCover } from '@/components/TrackCover';
 import { usePlayer } from '@/player/PlayerProvider';
 import { spacing } from '@/theme/tokens';
@@ -43,6 +44,7 @@ function matchesGenre(track: Track, genre: string) {
 export function DiscoverScreen() {
   const navigation = useNavigation<any>();
   const [data, setData] = useState<HomeData>(emptyData);
+  const [city, setCity] = useState<SynauraCityData | null>(null);
   const [genre, setGenre] = useState('Tout');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -53,7 +55,10 @@ export function DiscoverScreen() {
     setLoading(true);
     setError(null);
     try {
-      setData(await getHomeData());
+      const [homeResult, cityResult] = await Promise.allSettled([getHomeData(), getSynauraCity()]);
+      if (homeResult.status === 'rejected') throw homeResult.reason;
+      setData(homeResult.value);
+      if (cityResult.status === 'fulfilled') setCity(cityResult.value);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Chargement impossible');
     } finally {
@@ -130,6 +135,7 @@ export function DiscoverScreen() {
           ))}
         </ScrollView>
 
+        <EventTicker city={city} onPress={() => navigation.navigate('City')} tone="cyan" />
         {heroTrack ? <DiscoverHero track={heroTrack} playing={player.current?._id === heroTrack._id && player.isPlaying} onPlay={() => playFrom(filtered.length ? filtered : allTracks, heroTrack)} /> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {loading && !allTracks.length ? <ActivityIndicator color={warm.ink} style={styles.loader} /> : null}
@@ -139,6 +145,8 @@ export function DiscoverScreen() {
         ) : (
           <>
             <DiscoverRail title="Pour toi" subtitle="une sélection qui suit tes écoutes" tracks={forYou} player={player} onPlay={(track) => playFrom(forYou, track)} />
+            {city?.pulse?.length ? <DiscoverRail title="Sons qui montent" subtitle="le Pulse Synaura en temps réel" tracks={city.pulse.slice(0, 10)} player={player} onPlay={(track) => playFrom(city.pulse, track)} /> : null}
+            <EventsRail city={city} onOpen={() => navigation.navigate('City')} />
             <DiscoverRows title="Top hits" tracks={trending.slice(0, 6)} player={player} onPlay={(track) => playFrom(trending, track)} />
             <DiscoverRail title="Fraîchement publié" subtitle="les dernières sorties Synaura" tracks={recent} player={player} onPlay={(track) => playFrom(recent, track)} />
             <CreatorRail creators={data.creators.slice(0, 8)} onOpen={(username) => navigation.navigate('PublicProfile', { username })} />

@@ -216,7 +216,7 @@ function cityEventReward(event: CityEvent): CityEventReward {
   if (event.kind === 'challenge') {
     return {
       key: 'challenge-drop',
-      title: 'Participant City Challenge',
+      title: 'Participant Event Challenge',
       description: 'Soumets un son au theme de la semaine.',
       kind: 'badge',
     };
@@ -232,7 +232,7 @@ function cityEventReward(event: CityEvent): CityEventReward {
   return {
     key: 'seasonal-spark',
     title: 'Saison Synaura',
-    description: 'Participe a l event saisonnier de la ville.',
+    description: 'Participe a l event saisonnier Synaura.',
     kind: 'badge',
   };
 }
@@ -622,7 +622,7 @@ export async function GET(request: NextRequest) {
 
     const showcaseCandidates: Array<[string, string, string, string, string, CityTrack | null]> = [
       ['rising', 'Son qui monte', 'Le Pulse accelere maintenant', '#7C5CFF', 'rocket', rising],
-      ['new-talent', 'Nouveau talent', 'Un univers vient de rejoindre la ville', '#00A7B2', 'person-add', newTalentTrack],
+      ['new-talent', 'Nouveau talent', 'Un univers vient de rejoindre Synaura', '#00A7B2', 'person-add', newTalentTrack],
       ['ai-original', 'Creation IA originale', 'Une idee impossible devenue musique', '#FF4B7A', 'sparkles', aiPick],
       ['wtf', 'Son WTF', 'La surprise du jour', '#F59E0B', 'happy', funnyPick],
       ['favorite', 'Coup de coeur Synaura', 'Choisi pour sa personnalite', '#E11D48', 'heart', featured],
@@ -654,7 +654,7 @@ export async function GET(request: NextRequest) {
         id: `${weekKey}-friday`,
         kind: 'friday_drop',
         title: 'Synaura Friday Drop',
-        subtitle: 'Chaque vendredi, la ville change de son',
+        subtitle: 'Chaque vendredi, la scene change de son',
         description: 'Les nouvelles sorties de la semaine arrivent ensemble sous les projecteurs.',
         icon: 'calendar',
         accent: '#FF4B7A',
@@ -706,7 +706,7 @@ export async function GET(request: NextRequest) {
     const bestNewcomer = spotlightArtists[0] || null;
     const hallOfFame: CityAward[] = [
       { id: 'pulse', title: 'Son de la semaine', subtitle: 'Le plus fort Pulse du moment', icon: 'trophy', track: pulse[0] || null },
-      { id: 'discovered', title: 'Artiste le plus decouvert', subtitle: 'La ville ouvre son univers', icon: 'telescope', artist: topArtist },
+      { id: 'discovered', title: 'Artiste le plus decouvert', subtitle: 'Synaura ouvre son univers', icon: 'telescope', artist: topArtist },
       { id: 'newcomer', title: 'Meilleur nouveau venu', subtitle: 'Premiers pas, grosse impression', icon: 'star', artist: bestNewcomer },
       { id: 'commented', title: 'Son le plus commente', subtitle: 'Celui qui fait parler la communaute', icon: 'chatbubbles', track: [...pulse].sort((a, b) => b.recentComments - a.recentComments)[0] || null },
       { id: 'ai', title: 'Meilleure musique IA', subtitle: 'La creation artificielle la plus vivante', icon: 'sparkles', track: pulse.filter((track) => track.isAI)[0] || null },
@@ -723,7 +723,7 @@ export async function GET(request: NextRequest) {
       { id: 'talent-scout', title: 'Decouvreur de talent', description: 'Ecoute cinq pepites detectees par le Radar.', icon: 'telescope', unlocked: starts >= 5, progress: Math.min(starts, 5), target: 5 },
       { id: 'daily-listener', title: 'Journee en musique', description: 'Ecoute dix sons sur Synaura.', icon: 'headset', unlocked: starts >= 10, progress: Math.min(starts, 10), target: 10 },
       { id: 'full-listen', title: 'Supporter officiel', description: 'Ecoute cinq creations jusqu au bout.', icon: 'ribbon', unlocked: completes >= 5, progress: Math.min(completes, 5), target: 5 },
-      { id: 'city-voice', title: 'Voix de la ville', description: 'Partage trois sons qui meritent plus de lumiere.', icon: 'megaphone', unlocked: shares >= 3, progress: Math.min(shares, 3), target: 3 },
+      { id: 'city-voice', title: 'Voix du Pulse', description: 'Partage trois sons qui meritent plus de lumiere.', icon: 'megaphone', unlocked: shares >= 3, progress: Math.min(shares, 3), target: 3 },
       { id: 'battle-voter', title: 'Jure Synaura', description: 'Vote dans une Battle IA.', icon: 'flash', unlocked: Boolean(hydratedBattle?.selectedTrackId), progress: hydratedBattle?.selectedTrackId ? 1 : 0, target: 1 },
     ];
 
@@ -734,7 +734,7 @@ export async function GET(request: NextRequest) {
       weekKey,
       generatedAt: now.toISOString(),
       cityMood: {
-        title: pulse[0]?.pulse >= 78 ? 'La ville est en feu' : 'La ville se reveille',
+        title: pulse[0]?.pulse >= 78 ? 'Le Pulse est en feu' : 'Le Pulse se reveille',
         subtitle: `${pulse.filter((track) => track.pulse >= 60).length} sons prennent de la vitesse aujourd hui.`,
         activeListeners: new Set(userEvents.map((event: any) => event.user_id).filter(Boolean)).size || Math.max(1, pulse.reduce((sum, track) => sum + track.recentPlays, 0)),
         reactionsToday,
@@ -756,6 +756,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('city: failed to build Synaura City', error);
-    return NextResponse.json({ error: 'Impossible de charger Synaura City pour le moment.' }, { status: 500 });
+    return NextResponse.json({ error: 'Impossible de charger Synaura Events pour le moment.' }, { status: 500 });
   }
 }

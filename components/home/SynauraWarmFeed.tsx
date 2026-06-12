@@ -14,7 +14,7 @@ import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch'
 import TrackCreateRemixActions from '@/components/TrackCreateRemixActions';
 import TrackCover from '@/components/TrackCover';
 import SynauraAndroidHomeBanner from '@/components/mobile/SynauraAndroidHomeBanner';
-import SynauraCityTeaser from '@/components/city/SynauraCityTeaser';
+import SynauraEventsRail from '@/components/synaura/SynauraEventsRail';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { sendTrackEvents } from '@/lib/analyticsClient';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
@@ -2591,7 +2591,7 @@ function CityFeedPulseCard() {
           <Radio className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF6F61]">{liveEvent?.kind === 'battle' ? 'Battle live' : 'Synaura City dans le feed'}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF6F61]">{liveEvent?.kind === 'battle' ? 'Battle live' : 'Events · Synaura Pulse'}</p>
           <h3 className="mt-1 text-2xl font-black tracking-tight">{liveEvent?.title || city?.cityMood?.title || 'Le quartier bouge maintenant'}</h3>
           <p className="mt-2 max-w-xl text-sm font-bold leading-6 text-black/54">
             {liveEvent?.description || city?.cityMood?.subtitle || 'Vitrine du jour, Radar, battle et awards peuvent surgir entre deux sons, sans quitter le rythme de la home.'}
@@ -2604,7 +2604,7 @@ function CityFeedPulseCard() {
               <Sparkles className="h-3.5 w-3.5 text-[#7C5CFF]" /> {liveEvent?.participationCount || 0} participations
             </span>
             <Link href="/city" className="inline-flex h-8 items-center rounded-full bg-[#171313] px-4 text-[10px] font-black uppercase tracking-[0.12em] text-[#fffaf2]">
-              Ouvrir City
+              Ouvrir Events
             </Link>
           </div>
         </div>
@@ -3125,8 +3125,8 @@ export default function SynauraWarmFeed() {
       <SynauraRouteNav />
       <SynauraAnnouncementStrip />
       <SynauraAndroidHomeBanner />
-      <SynauraCityTeaser />
       <MiniCarousel tracks={heroTracks} />
+      <SynauraEventsRail className="mb-5 mt-4" />
       <MobileActions />
 
       <div className="grid min-w-0 gap-5 overflow-hidden xl:grid-cols-[minmax(0,760px)_330px] xl:justify-center">

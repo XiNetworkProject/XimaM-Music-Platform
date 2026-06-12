@@ -34,12 +34,12 @@ export default function SynauraCityTeaser() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#7ef2ed]">Synaura City est ouverte</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#7ef2ed]">Synaura Pulse est en live</span>
             {pulse ? <span className="rounded-full bg-white/10 px-2 py-1 text-[9px] font-black">Pulse {pulse.pulse}%</span> : null}
           </div>
           <h2 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">{city?.cityMood?.title || 'Chaque jour, quelque chose se passe.'}</h2>
           <p className="mt-1 max-w-2xl text-xs font-bold text-white/[0.54] sm:text-sm">
-            Nouveaux talents, vitrine du jour, Radar, battles, challenges et awards dans un seul quartier vivant.
+            Nouveaux talents, Pulse, battles, challenges et temps forts dans un seul espace vivant.
           </p>
           <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black text-white/[0.66]">
             <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.08] px-2.5 py-1.5"><Activity className="h-3 w-3" /> Pulse</span>

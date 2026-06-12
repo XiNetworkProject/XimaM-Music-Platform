@@ -35,6 +35,7 @@ import {
   SynauraInkPanel,
   SynauraTopBar,
 } from '@/components/synaura/SynauraShell';
+import SynauraStudioEventBar from '@/components/synaura/SynauraStudioEventBar';
 
 const DEBUG_AI_STUDIO = process.env.NODE_ENV !== 'production';
 
@@ -3354,6 +3355,17 @@ function AIGeneratorContent() {
             </Link>
           </div>
         </section>
+
+        <SynauraStudioEventBar
+          trackId={selectedTrackForVisibility?.id ? String(selectedTrackForVisibility.id) : null}
+          onApply={(event) => {
+            setGenerationModeKind('custom');
+            setCustomMode(true);
+            setDescription(event.description || `Cree un morceau pour ${event.title}.`);
+            setStyle([event.theme, event.challengeTag, event.title].filter(Boolean).join(', '));
+            notify.success('Brief charge', `${event.title} est pret dans le Studio.`);
+          }}
+        />
 
         <section className="hidden relative overflow-hidden rounded-[1.35rem] border border-black/[0.08] bg-[radial-gradient(circle_at_12%_0%,rgba(255,111,97,0.24),transparent_34%),radial-gradient(circle_at_88%_12%,rgba(0,194,203,0.18),transparent_32%),linear-gradient(135deg,#211918_0%,#171313_48%,#0d1117_100%)] p-3.5 text-white shadow-[0_28px_80px_rgba(20,15,10,0.22)] sm:rounded-[1.75rem] sm:p-5 lg:p-6">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_15%,rgba(255,111,97,0.28),transparent_34%),radial-gradient(circle_at_84%_18%,rgba(0,194,203,0.18),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_42%)]" />

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
-import { Compass, Home, Library, LogIn, RadioTower, Sparkles, Upload, UserPlus, Users } from 'lucide-react';
+import { CalendarDays, Compass, Home, Library, LogIn, Sparkles, Upload, UserPlus, Users } from 'lucide-react';
 import NotificationCenter from '@/components/NotificationCenter';
 import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
@@ -22,7 +22,7 @@ const SYNAURA_SHELL_BRAND = {
 
 const SYNAURA_ROUTE_ITEMS = [
   { href: '/', label: 'Accueil', icon: Home },
-  { href: '/city', label: 'City', icon: RadioTower },
+  { href: '/city', label: 'Events', icon: CalendarDays },
   { href: '/discover', label: 'Découvrir', icon: Compass },
   { href: '/library', label: 'Bibliothèque', icon: Library },
   { href: '/community', label: 'Communauté', icon: Users },

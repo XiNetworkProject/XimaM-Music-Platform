@@ -1,12 +1,12 @@
 {
-  "title": "Synaura mobile 0.6.3",
+  "title": "Synaura mobile 0.7.0",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Swipe beaucoup plus fluide: un petit geste suffit pour changer de son",
-    "Les covers video (MP4) sont de retour dans le Swipe",
-    "Synaura City passe en mode nuit neon, plus belle et plus lisible",
-    "Participation aux events City reparee: choisis ton son dans une liste",
-    "Animations retravaillees sur le Swipe et la City"
+    "Nouvel espace Events / Pulse fidele au design Synaura",
+    "Battles, challenges, recompenses, Radar et nouveaux talents reunis",
+    "Pulse et Events integres a l'accueil, Discover, Swipe, Upload et Studio IA",
+    "Publication directe d'un nouveau son dans un event",
+    "Progression artiste visible sur les profils"
   ]
 }

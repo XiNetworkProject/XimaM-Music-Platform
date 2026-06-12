@@ -77,7 +77,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       await supabaseAdmin.from('notifications').insert({
         user_id: session.user.id,
         type: 'city_reward',
-        title: 'Recompense Synaura City',
+        title: 'Recompense Synaura Events',
         message: 'Ta recompense City a ete reclamee.',
         category: 'city',
         data: { eventId, rewardKey: reward.reward_key },

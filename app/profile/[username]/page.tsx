@@ -19,8 +19,10 @@ import dynamic from 'next/dynamic';
 import { AnimatePresence } from 'framer-motion';
 import { UModal, UModalBody, UModalTitle, UModalFooter, UDrawer, UButton, UInput, UTextarea } from '@/components/ui/UnifiedUI';
 import CreatorFeed from '@/components/CreatorFeed';
-import { SynauraAppShell, SynauraTopBar, SynauraInkPanel, SynauraPanel } from '@/components/synaura/SynauraShell';
+import { SynauraAppShell, SynauraTopBar, SynauraInkPanel, SynauraPanel, SynauraRouteNav } from '@/components/synaura/SynauraShell';
 import TrackCreateRemixActions from '@/components/TrackCreateRemixActions';
+import SynauraPulseBar from '@/components/synaura/SynauraPulseBar';
+import { getArtistLevel } from '@/lib/synauraCity';
 
 const BoosterOpenModal = dynamic(() => import('@/components/BoosterOpenModal'), { ssr: false });
 
@@ -259,6 +261,13 @@ export default function SynauraProfile() {
   const totalPlays = profile.totalPlays || 0;
   const followerCount = profile.followerCount || 0;
   const followingCount = profile.followingCount || 0;
+  const artistProgress = getArtistLevel(
+    userTracks.length * 90 +
+    Number(totalPlays || 0) +
+    Number(profile.totalLikes || 0) * 8 +
+    Number(followerCount || 0) * 35,
+  );
+  const artistProgressPercent = Math.min(100, Math.round((artistProgress.xp / Math.max(1, artistProgress.nextLevelXp)) * 100));
   const isTrackPlaying = (tid: string) => audioState.currentTrackIndex !== -1 && audioState.tracks[audioState.currentTrackIndex]?._id === tid && audioState.isPlaying;
 
   /* ═══════════ RENDER ═══════════ */
@@ -271,6 +280,7 @@ export default function SynauraProfile() {
         primaryHref="/ai-generator"
         primaryLabel="Studio"
       />
+      <SynauraRouteNav />
       <div className="space-y-4 pb-32">
         <SynauraInkPanel className="overflow-hidden">
           <div className="relative">
@@ -422,6 +432,24 @@ export default function SynauraProfile() {
             </div>
           </div>
         </SynauraInkPanel>
+
+        <SynauraPanel className="p-4 sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[1rem] bg-[#171313] text-xl font-black text-white">{artistProgress.level}</div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7c5cff]">Progression artiste</p>
+                <h2 className="mt-1 truncate text-xl font-black text-[#171313]">{artistProgress.levelName}</h2>
+                <p className="mt-1 text-xs font-bold text-black/42">{userTracks.length} sons · {fmtK(totalPlays)} ecoutes · {fmtK(followerCount)} fans</p>
+              </div>
+            </div>
+            <button onClick={() => router.push('/city')} className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-4 text-xs font-black text-black/58 transition hover:bg-[#171313] hover:text-white">
+              <Sparkles size={14} /> Voir les Events
+            </button>
+          </div>
+          <SynauraPulseBar value={artistProgressPercent} className="mt-4" />
+          <p className="mt-2 text-[10px] font-black text-black/35">{Math.max(0, artistProgress.nextLevelXp - artistProgress.xp)} XP avant le prochain niveau</p>
+        </SynauraPanel>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_360px]">
           <div className="min-w-0 space-y-4">

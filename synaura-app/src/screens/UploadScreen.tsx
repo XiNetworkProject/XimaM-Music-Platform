@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,15 +21,18 @@ import {
   createAlbumPlaylistMobile,
   createUploadedTrack,
   getCoverVideoPosterUrl,
+  getSynauraCity,
   isUploadCoverVideo,
+  participateCityEvent,
   uploadToCloudinaryMobile,
   type UploadAsset,
 } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { TrackCover } from '@/components/TrackCover';
+import { EventChoice, EventTicker } from '@/components/events/SynauraEvents';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { usePlayer } from '@/player/PlayerProvider';
-import type { Track } from '@/api/types';
+import type { SynauraCityData, Track } from '@/api/types';
 
 type ReleaseType = 'single' | 'ep' | 'album';
 type Step = 1 | 2 | 3;
@@ -145,6 +148,14 @@ export function UploadScreen() {
   const [tempPublicIds, setTempPublicIds] = useState<{ audio: string[]; cover?: string; coverVideo?: string }>({ audio: [] });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [city, setCity] = useState<SynauraCityData | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void getSynauraCity().then((next) => active && setCity(next)).catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   const selectedCount = releaseType === 'single' ? (audio ? 1 : 0) : tracks.length;
   const releaseLabel = releaseType === 'single' ? 'Single' : releaseType === 'ep' ? 'EP' : 'Album';
@@ -202,6 +213,7 @@ export function UploadScreen() {
     setScheduledAt('');
     setError(null);
     setSuccess(null);
+    setSelectedEventId(null);
     setProgress({ audio: 0, cover: 0, save: 0 });
     setTempPublicIds({ audio: [] });
   };
@@ -403,7 +415,17 @@ export function UploadScreen() {
       }
 
       setProgress({ audio: 100, cover: 100, save: 100 });
-      setSuccess(releaseType === 'single' ? 'Ton single est publie.' : `${uploadedTracks.length} pistes publiees dans ${releaseLabel}.`);
+      let eventMessage = '';
+      if (selectedEventId && firstTrackId) {
+        try {
+          await participateCityEvent(selectedEventId, firstTrackId);
+          const selectedEvent = city?.events.find((event) => event.id === selectedEventId);
+          eventMessage = selectedEvent ? ` Il rejoint « ${selectedEvent.title} ».` : ' Il rejoint aussi ton event.';
+        } catch {
+          eventMessage = ' Le son est publié, mais son inscription à l’event devra être relancée.';
+        }
+      }
+      setSuccess(`${releaseType === 'single' ? 'Ton single est publie.' : `${uploadedTracks.length} pistes publiees dans ${releaseLabel}.`}${eventMessage}`);
       setTempPublicIds({ audio: [] });
 
       if (firstTrackId && previewTrack && releaseType === 'single') {
@@ -482,6 +504,8 @@ export function UploadScreen() {
           <ContextBox label="Sortie" value={scheduledLabel} />
           <ContextBox label="Plan" value="Free" />
         </View>
+
+        <EventTicker city={city} onPress={() => navigation.navigate('City')} tone="coral" text="Challenge en cours · publie ton son dans un Event Synaura pour gagner en visibilité" />
 
         <View style={styles.stepNav}>
           {[1, 2, 3].map((item) => {
@@ -637,6 +661,8 @@ export function UploadScreen() {
                 <ChipGrid items={['Maintenant', 'Programmer']} selected={[scheduleMode === 'now' ? 'Maintenant' : 'Programmer']} onToggle={(item) => setScheduleMode(item === 'Maintenant' ? 'now' : 'scheduled')} dark />
                 {scheduleMode === 'scheduled' ? <Field dark label="Date ISO ou locale" value={scheduledAt} onChangeText={setScheduledAt} placeholder="2026-06-08 18:00" /> : null}
               </Collapsible>
+
+              <EventChoice events={city?.events || []} selectedId={selectedEventId} onSelect={setSelectedEventId} />
 
               <Field dark label="Annee copyright" value={copyrightYear} onChangeText={setCopyrightYear} placeholder="2026" />
 

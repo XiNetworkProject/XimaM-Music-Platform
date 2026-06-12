@@ -27,6 +27,7 @@ import {
   getAIStudioCredits,
   getAIStudioLibrary,
   getAIStudioQuota,
+  getSynauraCity,
   getUserPreferences,
   createCreditsCheckout,
   generateAILyrics,
@@ -50,12 +51,13 @@ import {
 } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { SynauraBackground } from '@/components/SynauraBackground';
+import { EventChoice, EventTicker } from '@/components/events/SynauraEvents';
 import { TrackCover } from '@/components/TrackCover';
 import { aiStudioPresets, type MobileAIStudioPreset } from '@/constants/aiStudioPresets';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors } from '@/theme/tokens';
 import { getSunoErrorMessage } from '@/utils/getSunoErrorMessage';
-import type { Track } from '@/api/types';
+import type { SynauraCityData, Track } from '@/api/types';
 
 type StudioTab = 'create' | 'library';
 type StudioMode = 'simple' | 'custom' | 'remix';
@@ -136,7 +138,26 @@ export function AIStudioScreen() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [repairingMedia, setRepairingMedia] = useState(false);
   const [repairMessage, setRepairMessage] = useState('');
+  const [city, setCity] = useState<SynauraCityData | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    let active = true;
+    void getSynauraCity().then((next) => active && setCity(next)).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const selectEvent = useCallback((eventId: string | null) => {
+    setSelectedEventId(eventId);
+    if (!eventId) return;
+    const event = city?.events.find((item) => item.id === eventId);
+    if (!event) return;
+    const direction = [event.theme, event.challengeTag, event.description].filter(Boolean).join(', ');
+    if (direction) setStyle((current) => current.trim() ? `${current}, ${direction}` : direction);
+    setDescription((current) => current.trim() ? current : `Créer pour ${event.title}: ${event.description}`);
+    setTab('create');
+  }, [city?.events]);
 
   const loadStudio = useCallback(async (refresh = false) => {
     if (!auth.requireAuth()) {
@@ -514,6 +535,8 @@ export function AIStudioScreen() {
           <Segment active={tab === 'library'} label={`Bibliothèque ${libraryTracks.length}`} icon="library-outline" onPress={() => switchTab('library')} />
         </View>
 
+        <EventTicker city={city} onPress={() => navigation.navigate('City')} tone="violet" text="Crée pour le challenge actuel · transforme une idée Studio en moment Synaura Live" />
+
         <View style={styles.studioConsole}>
           <View style={styles.consoleBrand}><View style={styles.consoleDot} /><Text style={styles.consoleBrandText}>STUDIO CONNECTÉ</Text></View>
           <View style={styles.consoleMetrics}>
@@ -541,6 +564,7 @@ export function AIStudioScreen() {
 
         {tab === 'create' ? (
           <>
+            <EventChoice events={city?.events || []} selectedId={selectedEventId} onSelect={selectEvent} />
             <View style={styles.modeRow}>
               {(['simple', 'custom', 'remix'] as StudioMode[]).map((item) => (
                 <Pressable key={item} onPress={() => setMode(item)} style={[styles.mode, mode === item && styles.modeActive]}>

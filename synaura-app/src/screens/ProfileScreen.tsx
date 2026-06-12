@@ -18,6 +18,7 @@ import { deleteTrack, getMyProfile, getSubscriptionUsage, getUserPosts, pinPost,
 import type { HomePost } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { TrackCover } from '@/components/TrackCover';
+import { CreatorLevelCard } from '@/components/events/SynauraEvents';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackEditBottomSheet, type TrackEditForm } from '@/components/profile/TrackEditBottomSheet';
 import { usePlayer } from '@/player/PlayerProvider';
@@ -222,6 +223,13 @@ export function ProfileScreen() {
           <Stat label="Sons" value={compact(profile?.tracksCount || 0)} />
           <Stat label="Plays" value={compact(profile?.totalPlays || 0)} />
         </View>
+
+        <CreatorLevelCard
+          tracks={profile?.tracksCount || 0}
+          plays={profile?.totalPlays || 0}
+          likes={(profile?.tracks || []).reduce((sum, track) => sum + Number(track.likesCount || 0), 0)}
+          onOpen={() => navigation.navigate('City')}
+        />
 
         {featuredTrack ? (
           <Pressable onPress={() => player.playTrack(featuredTrack)} style={styles.featured}>

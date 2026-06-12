@@ -62,7 +62,7 @@ const subscriptionPromo: Track = {
 
 const cityPromo: Track = {
   _id: CITY_PROMO_ID,
-  title: 'Synaura City',
+  title: 'Synaura Events',
   audioUrl: '',
   duration: 0,
   likes: [],
@@ -758,11 +758,11 @@ function CityInterludeSlide({
         ]}
       />
       <View style={styles.citySlideCard}>
-        <View style={styles.citySlideIcon}><Ionicons name="radio" size={25} color="#FFFAF2" /></View>
-        <Text style={styles.citySlideKicker}>{liveEvent?.kind === 'battle' ? 'Battle City' : 'Interlude City'}</Text>
-        <Text style={styles.citySlideTitle}>{liveEvent?.title || 'La ville passe dans Swipe.'}</Text>
+        <View style={styles.citySlideIcon}><Ionicons name="pulse" size={25} color="#FFFAF2" /></View>
+        <Text style={styles.citySlideKicker}>{liveEvent?.kind === 'battle' ? 'BATTLE IA EN COURS' : 'SYNAURA PULSE'}</Text>
+        <Text style={styles.citySlideTitle}>{liveEvent?.title || 'Le live passe dans Swipe.'}</Text>
         <Text style={styles.citySlideText}>
-          {liveEvent?.description || city?.cityMood?.subtitle || 'Radar, battle et vitrine du jour peuvent apparaitre entre deux sons pour relancer la decouverte sans casser le flow.'}
+          {liveEvent?.description || city?.cityMood?.subtitle || 'Radar, battles, challenges et nouveaux talents apparaissent entre deux sons sans casser le flow.'}
         </Text>
         <View style={styles.citySlideStats}>
           <View style={styles.citySlideStat}><Ionicons name="flame" size={16} color="#FF6F61" /><Text style={styles.citySlideStatText}>{topPulse ? `${topPulse.pulse}%` : 'Pulse'}</Text></View>
@@ -770,8 +770,8 @@ function CityInterludeSlide({
           <View style={styles.citySlideStat}><Ionicons name="flash" size={16} color="#00A7B2" /><Text style={styles.citySlideStatText}>{liveEvent?.totalVotes || 0} votes</Text></View>
         </View>
         <View style={styles.citySlideActions}>
-          <Pressable onPress={onOpenCity} style={styles.citySlidePrimary}><Text style={styles.citySlidePrimaryText}>Ouvrir City</Text></Pressable>
-          <Pressable onPress={onCreate} style={styles.citySlideSecondary}><Text style={styles.citySlideSecondaryText}>Drop</Text></Pressable>
+          <Pressable onPress={onOpenCity} style={styles.citySlidePrimary}><Text style={styles.citySlidePrimaryText}>Voir les Events</Text></Pressable>
+          <Pressable onPress={onCreate} style={styles.citySlideSecondary}><Text style={styles.citySlideSecondaryText}>Participer</Text></Pressable>
         </View>
       </View>
     </View>

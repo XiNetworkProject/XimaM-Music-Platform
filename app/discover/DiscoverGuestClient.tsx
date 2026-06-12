@@ -15,6 +15,7 @@ import {
   SynauraTopBar,
 } from '@/components/synaura/SynauraShell';
 import { useAudioPlayer } from '@/app/providers';
+import SynauraEventsRail from '@/components/synaura/SynauraEventsRail';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import {
   AlbumTile,
@@ -171,6 +172,7 @@ export default function DiscoverGuestClient({
       <SynauraTopBar searchHref="/discover" searchLabel="Rechercher un son, un genre ou un artiste..." />
       <SynauraRouteNav />
       <SynauraAnnouncementStrip />
+      <SynauraEventsRail variant="discover" className="mx-auto mb-5 max-w-[1080px]" />
 
       <div className="mx-auto grid max-w-[1080px] gap-5">
         <main className="min-w-0 space-y-5 pb-28">

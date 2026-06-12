@@ -1096,7 +1096,7 @@ function CityFeedPulse({ onOpen, onCreate }: { onOpen: () => void; onCreate: () 
       <View style={styles.cityFeedHeader}>
         <View style={styles.cityFeedIcon}><Ionicons name="radio" size={18} color={warm.paper} /></View>
         <View style={styles.cityFeedCopy}>
-          <Text style={styles.cityFeedKicker}>{liveEvent?.kind === 'battle' ? 'Battle live' : 'Synaura City dans le feed'}</Text>
+          <Text style={styles.cityFeedKicker}>{liveEvent?.kind === 'battle' ? 'Battle live' : 'Synaura Events dans le feed'}</Text>
           <Text style={styles.cityFeedTitle}>{liveEvent?.title || city?.cityMood?.title || 'Le quartier bouge maintenant'}</Text>
         </View>
         <Ionicons name="arrow-forward" size={18} color="rgba(23,19,19,0.42)" />

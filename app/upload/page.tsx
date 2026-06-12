@@ -31,6 +31,8 @@ import FeaturingSearch, { type FeaturingArtist } from '@/components/upload/Featu
 import ScheduleSelector from '@/components/upload/ScheduleSelector';
 import TrackListEditor, { type TrackMeta } from '@/components/upload/TrackListEditor';
 import UploadPreview from '@/components/upload/UploadPreview';
+import SynauraEventsRail from '@/components/synaura/SynauraEventsRail';
+import SynauraEventEntryPanel from '@/components/synaura/SynauraEventEntryPanel';
 
 // ─── Compression image ────────────────────────────────────
 const MAX_COVER_VIDEO_SECONDS = 7;
@@ -214,6 +216,7 @@ export default function UploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ audio: 0, cover: 0 });
   const [tempPublicIds, setTempPublicIds] = useState<{ audio?: string; cover?: string; coverVideo?: string }>({});
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   // Plan
   const [planKey, setPlanKey] = useState<'free' | 'starter' | 'pro' | 'enterprise'>('free');
@@ -437,6 +440,7 @@ export default function UploadPage() {
       const isPublic = visibility === 'public';
       const featuringData = featuring.map((f) => ({ id: f.id, name: f.name, isExternal: f.isExternal || false }));
       const extraFields = { mood, language, tags, featuring: featuringData, credits, release_type: releaseType, visibility, scheduled_at: scheduleMode === 'scheduled' && scheduledAt ? new Date(scheduledAt).toISOString() : null };
+      const publishedTrackIds: string[] = [];
 
       if (releaseType === 'single') {
         const tr = uploadedTracks[0]!;
@@ -455,7 +459,9 @@ export default function UploadPage() {
             ...extraFields,
         }),
       });
-        if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erreur sauvegarde'); }
+        const savedTrack = await res.json().catch(() => null);
+        if (!res.ok) { throw new Error(savedTrack?.error || 'Erreur sauvegarde'); }
+        if (savedTrack?.trackId) publishedTrackIds.push(String(savedTrack.trackId));
         notify.success('Publie !', 'Ton titre a ete publie avec succes !');
       } else {
         const albumName = title || `Album ${new Date().toLocaleDateString()}`;
@@ -488,9 +494,21 @@ export default function UploadPage() {
           });
           if (!tRes.ok) throw new Error(`Erreur piste ${i + 1}`);
           const tJson = await tRes.json();
+          if (tJson?.trackId) publishedTrackIds.push(String(tJson.trackId));
           await fetch(`/api/playlists/${encodeURIComponent(playlist._id)}/tracks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trackId: tJson.trackId }) });
         }
         notify.success('Publie !', `${uploadedTracks.length} piste(s) publiees dans ${albumName}.`);
+      }
+
+      if (selectedEventId && publishedTrackIds[0]) {
+        const eventResponse = await fetch(`/api/city/events/${encodeURIComponent(selectedEventId)}/participate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trackId: publishedTrackIds[0] }),
+        });
+        const eventPayload = await eventResponse.json().catch(() => null);
+        if (eventResponse.ok) notify.success('Event rejoint', 'Ton son est maintenant inscrit dans l event.');
+        else notify.error('Event non rejoint', eventPayload?.error || 'Le son est publie, mais son inscription a l event a echoue.');
       }
 
         sessionStorage.setItem('fromUpload', 'true');
@@ -563,6 +581,7 @@ export default function UploadPage() {
       />
       <SynauraRouteNav />
       <SynauraAnnouncementStrip />
+      <SynauraEventsRail variant="compact" className="mb-4" />
 
       <section className="mb-4 overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-[#171313] text-white shadow-[0_28px_80px_rgba(20,15,10,0.22)]">
         <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-stretch">
@@ -1005,6 +1024,8 @@ export default function UploadPage() {
                   <Section title="Date de publication" icon={Clock3} defaultOpen>
                     <ScheduleSelector mode={scheduleMode} scheduledAt={scheduledAt} onModeChange={setScheduleMode} onDateChange={setScheduledAt} />
                   </Section>
+
+                  <SynauraEventEntryPanel selectedEventId={selectedEventId} onChange={setSelectedEventId} dark />
 
                   <label className="grid max-w-xs gap-1.5">
                     <span className="text-xs font-black uppercase tracking-[0.14em] text-white/36">Annee copyright</span>

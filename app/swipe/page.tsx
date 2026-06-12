@@ -116,7 +116,7 @@ export default function SwipePage() {
           || city.events?.find((event: any) => event.isLive)
           || city.events?.[0];
         setCityPulse({
-          title: city.cityMood?.title || 'Synaura City',
+          title: city.cityMood?.title || 'Synaura Pulse',
           event: liveEvent?.title || 'Event live',
           pulse: city.pulse?.[0]?.pulse || 0,
           votes: liveEvent?.totalVotes || 0,
@@ -275,7 +275,7 @@ export default function SwipePage() {
           onClick={() => router.push('/city')}
           className="absolute left-4 top-4 z-40 hidden max-w-[280px] rounded-[1.4rem] border border-white/12 bg-[#fffaf2]/92 p-3 text-left text-[#171313] shadow-[0_18px_55px_rgba(0,0,0,.26)] backdrop-blur-2xl md:block"
         >
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF6F61]">Synaura City</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF6F61]">Events · Synaura Pulse</p>
           <p className="mt-1 line-clamp-1 text-sm font-black">{cityPulse.event}</p>
           <p className="mt-1 text-[11px] font-bold text-black/50">{cityPulse.title} · Pulse {cityPulse.pulse}% · {cityPulse.votes} votes</p>
         </button>

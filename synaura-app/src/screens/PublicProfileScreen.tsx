@@ -9,6 +9,7 @@ import type { HomePost } from '@/api/types';
 import type { RootTabsParamList } from '@/navigation/Tabs';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
+import { CreatorLevelCard } from '@/components/events/SynauraEvents';
 import { usePlayer } from '@/player/PlayerProvider';
 import { MotionPressable } from '@/components/motion/Motion';
 
@@ -148,6 +149,13 @@ export function PublicProfileScreen() {
             </View>
           </View>
         </View>
+
+        <CreatorLevelCard
+          tracks={profile.tracksCount}
+          plays={profile.totalPlays}
+          likes={profile.tracks.reduce((sum, track) => sum + Number(track.likesCount || 0), 0)}
+          onOpen={() => navigation.navigate('City')}
+        />
 
         {featuredTrack ? (
           <Pressable onPress={() => player.playTrack(featuredTrack)} style={styles.featured}>
