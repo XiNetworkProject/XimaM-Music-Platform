@@ -9,6 +9,7 @@ import {
   getNotificationPrefs,
   getReferralData,
   getSubscriptionUsage,
+  getUserPreferences,
   updateNotificationPrefs,
   updateProfile,
   updateUserPreferences,
@@ -26,7 +27,14 @@ import { SHOW_SHUTDOWN_NOTICES } from '@/config/features';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { validateSocialUrl, type SocialPlatform } from '@/utils/validateSocialUrl';
 
-type Tab = 'profil' | 'compte' | 'preferences' | 'notifications' | 'parrainage' | 'abonnement' | 'updates' | 'securite' | 'legal';
+type Tab = 'profil' | 'compte' | 'preferences' | 'notifications' | 'events' | 'parrainage' | 'abonnement' | 'updates' | 'securite' | 'legal';
+type EventPrefs = {
+  autoParticipate: boolean;
+  voteReminders: boolean;
+  showBadges: boolean;
+  resultNotifications: boolean;
+  allowPulse: boolean;
+};
 type LegalDocument = (typeof legalContent)[number];
 const LEGAL_BASE_URL = 'https://www.synaura.fr';
 const allLegalDocuments = [
@@ -51,6 +59,7 @@ export function SettingsScreen() {
   const [notif, setNotif] = useState<NotificationPrefs | null>(null);
   const [referral, setReferral] = useState<ReferralData | null>(null);
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
+  const [eventPrefs, setEventPrefs] = useState<EventPrefs>({ autoParticipate: false, voteReminders: true, showBadges: true, resultNotifications: true, allowPulse: true });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', bio: '', location: '', website: '', artistName: '', genreText: '', isArtist: false, instagram: '', youtube: '', tiktok: '', spotify: '', soundcloud: '', deezer: '', apple_music: '', twitch: '', discord: '', x: '', custom: '', badgesText: '', featuredTrackId: '' });
@@ -63,6 +72,7 @@ export function SettingsScreen() {
     { key: 'compte', label: 'Compte', icon: 'id-card-outline' },
     { key: 'preferences', label: 'Prefs', icon: 'options-outline' },
     { key: 'notifications', label: 'Notifs', icon: 'notifications-outline' },
+    { key: 'events', label: 'Events', icon: 'flash-outline' },
     { key: 'parrainage', label: 'Parrainage', icon: 'gift-outline' },
     { key: 'abonnement', label: 'Plan', icon: 'diamond-outline' },
     { key: 'updates', label: 'Mises a jour', icon: 'cloud-download-outline' },
@@ -74,16 +84,18 @@ export function SettingsScreen() {
     if (!auth.user?.username) return;
     setLoading(true);
     try {
-      const [nextProfile, nextNotif, nextReferral, nextUsage] = await Promise.all([
+      const [nextProfile, nextNotif, nextReferral, nextUsage, nextPreferences] = await Promise.all([
         getMyProfile(auth.user.username),
         getNotificationPrefs().catch(() => null),
         getReferralData(),
         getSubscriptionUsage(),
+        getUserPreferences().catch(() => ({})),
       ]);
       setProfile(nextProfile);
       setNotif(nextNotif);
       setReferral(nextReferral);
       setUsage(nextUsage);
+      setEventPrefs((current) => ({ ...current, ...((nextPreferences as Record<string, any>).events || {}) }));
       setForm({
         name: nextProfile.name || '',
         bio: nextProfile.bio || '',
@@ -163,6 +175,12 @@ export function SettingsScreen() {
     setNotif(optimistic);
     const saved = await updateNotificationPrefs(patch);
     setNotif(saved);
+  };
+
+  const patchEventPrefs = async (patch: Partial<EventPrefs>) => {
+    const next = { ...eventPrefs, ...patch };
+    setEventPrefs(next);
+    await updateUserPreferences({ events: next });
   };
 
   const confirmDelete = () => {
@@ -297,6 +315,20 @@ export function SettingsScreen() {
                 ))}
               </>
             ) : <Text style={styles.muted}>Chargement des preferences...</Text>}
+          </Section>
+        ) : null}
+
+        {tab === 'events' ? (
+          <Section title="Synaura Events" text="Choisis comment ton profil, tes sons et tes rappels participent au Pulse.">
+            <Toggle label="Rappels de vote" value={eventPrefs.voteReminders} onValueChange={(value) => void patchEventPrefs({ voteReminders: value })} />
+            <Toggle label="Résultats des events" value={eventPrefs.resultNotifications} onValueChange={(value) => void patchEventPrefs({ resultNotifications: value })} />
+            <Toggle label="Afficher mes badges" value={eventPrefs.showBadges} onValueChange={(value) => void patchEventPrefs({ showBadges: value })} />
+            <Toggle label="Autoriser mes sons dans Pulse" value={eventPrefs.allowPulse} onValueChange={(value) => void patchEventPrefs({ allowPulse: value })} />
+            <Toggle label="Participation automatique aux events compatibles" value={eventPrefs.autoParticipate} onValueChange={(value) => void patchEventPrefs({ autoParticipate: value })} />
+            <Pressable onPress={() => navigation.navigate('City')} style={styles.primary}>
+              <Ionicons name="flash-outline" size={17} color="#FFFAF2" />
+              <Text style={styles.primaryText}>Ouvrir Events et les votes</Text>
+            </Pressable>
           </Section>
         ) : null}
 

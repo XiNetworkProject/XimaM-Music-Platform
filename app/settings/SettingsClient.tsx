@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import {
   AlertTriangle,
   Bell,
+  CalendarDays,
   Camera,
   Check,
   Copy,
@@ -31,7 +32,7 @@ import { UModal, UModalBody } from '@/components/ui/UnifiedUI';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import { registerPushSubscription, unregisterPushSubscription } from '@/lib/pushClient';
 
-type SettingsTab = 'profil' | 'compte' | 'parrainage' | 'preferences' | 'securite' | 'legal';
+type SettingsTab = 'profil' | 'compte' | 'parrainage' | 'preferences' | 'events' | 'securite' | 'legal';
 
 type ProfileForm = {
   name: string;
@@ -49,6 +50,8 @@ type LocalPrefs = {
   autoplay: boolean;
   highQuality: boolean;
   activityVisible: boolean;
+  reducedMotion: boolean;
+  dataSaver: boolean;
 };
 
 const PREFS_KEY = 'ui.settings.v1';
@@ -284,7 +287,7 @@ export default function SettingsClient() {
 
   const initialTab = (searchParams.get('tab') || 'profil') as SettingsTab;
   const [tab, setTab] = useState<SettingsTab>(
-    (['profil', 'compte', 'parrainage', 'preferences', 'securite', 'legal'] as SettingsTab[]).includes(initialTab) ? initialTab : 'profil'
+    (['profil', 'compte', 'parrainage', 'preferences', 'events', 'securite', 'legal'] as SettingsTab[]).includes(initialTab) ? initialTab : 'profil'
   );
 
   const [referralData, setReferralData] = useState<any>(null);
@@ -314,6 +317,8 @@ export default function SettingsClient() {
     autoplay: false,
     highQuality: true,
     activityVisible: true,
+    reducedMotion: false,
+    dataSaver: false,
   });
 
   const [notifPerm, setNotifPerm] = useState<'default' | 'denied' | 'granted'>('default');
@@ -344,6 +349,43 @@ export default function SettingsClient() {
   const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>(defaultNotifPrefs);
   const [notifPrefsLoading, setNotifPrefsLoading] = useState(false);
   const [notifPrefsSaving, setNotifPrefsSaving] = useState(false);
+  const [eventPrefs, setEventPrefs] = useState({
+    autoParticipate: false,
+    voteReminders: true,
+    showBadges: true,
+    resultNotifications: true,
+    allowPulse: true,
+  });
+  const [eventPrefsSaving, setEventPrefsSaving] = useState(false);
+
+  useEffect(() => {
+    if (tab !== 'events') return;
+    fetch('/api/user/preferences', { cache: 'no-store' })
+      .then((response) => response.json())
+      .then((data) => setEventPrefs((current) => ({ ...current, ...(data?.preferences?.events || {}) })))
+      .catch(() => {});
+  }, [tab]);
+
+  const updateEventPref = async (key: keyof typeof eventPrefs, value: boolean) => {
+    const previous = { ...eventPrefs };
+    const next = { ...eventPrefs, [key]: value };
+    setEventPrefs(next);
+    setEventPrefsSaving(true);
+    try {
+      const response = await fetch('/api/user/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ events: next }),
+      });
+      if (!response.ok) throw new Error();
+      notify.success('Events', 'Préférence mise à jour');
+    } catch {
+      setEventPrefs(previous);
+      notify.error('Events', 'Impossible de sauvegarder cette préférence');
+    } finally {
+      setEventPrefsSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (tab !== 'preferences') return;
@@ -411,6 +453,8 @@ export default function SettingsClient() {
         autoplay: typeof parsed?.autoplay === 'boolean' ? parsed.autoplay : prev.autoplay,
         highQuality: typeof parsed?.highQuality === 'boolean' ? parsed.highQuality : prev.highQuality,
         activityVisible: typeof parsed?.activityVisible === 'boolean' ? parsed.activityVisible : prev.activityVisible,
+        reducedMotion: typeof parsed?.reducedMotion === 'boolean' ? parsed.reducedMotion : prev.reducedMotion,
+        dataSaver: typeof parsed?.dataSaver === 'boolean' ? parsed.dataSaver : prev.dataSaver,
       }));
     } catch {
       // silent
@@ -740,6 +784,7 @@ export default function SettingsClient() {
                   }
                 }} />
                 <SettingsNavItem active={tab === 'preferences'} icon={Sparkles} label="Préférences" onClick={() => setTabAndUrl('preferences')} />
+                <SettingsNavItem active={tab === 'events'} icon={CalendarDays} label="Events & Pulse" onClick={() => setTabAndUrl('events')} />
                 <SettingsNavItem active={tab === 'securite'} icon={Shield} label="Sécurité" onClick={() => setTabAndUrl('securite')} />
                 <SettingsNavItem active={tab === 'legal'} icon={FileText} label="Légal" onClick={() => setTabAndUrl('legal')} />
               </div>
@@ -1189,6 +1234,8 @@ export default function SettingsClient() {
                         <ToggleCard checked={prefs.autoplay} onChange={(v) => setPrefs((p) => ({ ...p, autoplay: v }))} label="Lecture automatique" description="Active le démarrage automatique quand c’est possible." />
                         <ToggleCard checked={prefs.highQuality} onChange={(v) => setPrefs((p) => ({ ...p, highQuality: v }))} label="Qualité audio élevée" description="Préférence de qualité quand plusieurs flux sont disponibles." />
                         <ToggleCard checked={prefs.activityVisible} onChange={(v) => setPrefs((p) => ({ ...p, activityVisible: v }))} label="Afficher mon activité" description="Affichage de votre activité récente sur cet appareil." />
+                        <ToggleCard checked={prefs.reducedMotion} onChange={(v) => setPrefs((p) => ({ ...p, reducedMotion: v }))} label="Réduire les animations" description="Limite les mouvements et transitions décoratives." />
+                        <ToggleCard checked={prefs.dataSaver} onChange={(v) => setPrefs((p) => ({ ...p, dataSaver: v }))} label="Économie de données" description="Réduit les médias animés et privilégie les flux légers." />
                       </div>
                     </InnerCard>
 
@@ -1274,6 +1321,35 @@ export default function SettingsClient() {
                       </div>
                     </InnerCard>
                   </div>
+                </div>
+              </WarmCard>
+            )}
+
+            {tab === 'events' && (
+              <WarmCard className="space-y-4">
+                <SectionHeader
+                  eyebrow="Synaura Events"
+                  title="Votes, badges et Pulse"
+                  description="Gère la façon dont ton profil et tes sons participent aux rendez-vous de la communauté."
+                />
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+                  <InnerCard>
+                    <div className="grid gap-3">
+                      <ToggleCard checked={eventPrefs.voteReminders} onChange={(value) => void updateEventPref('voteReminders', value)} label="Rappels de vote" description="Être prévenu avant les votes du matin, de l’après-midi et du soir." />
+                      <ToggleCard checked={eventPrefs.resultNotifications} onChange={(value) => void updateEventPref('resultNotifications', value)} label="Résultats des events" description="Recevoir les gagnants et récompenses après chaque session." />
+                      <ToggleCard checked={eventPrefs.showBadges} onChange={(value) => void updateEventPref('showBadges', value)} label="Afficher mes badges" description="Montrer tes badges et ta progression sur ton profil artiste." />
+                      <ToggleCard checked={eventPrefs.allowPulse} onChange={(value) => void updateEventPref('allowPulse', value)} label="Autoriser mes sons dans Pulse" description="Permettre la sélection algorithmique de tes sons publics." />
+                      <ToggleCard checked={eventPrefs.autoParticipate} onChange={(value) => void updateEventPref('autoParticipate', value)} label="Participation automatique compatible" description="Proposer automatiquement tes nouveaux sons aux events compatibles." />
+                    </div>
+                  </InnerCard>
+                  <InnerCard>
+                    <div className="text-sm font-black text-[#171313]">Trois rendez-vous par jour</div>
+                    <div className="mt-2 text-sm font-semibold leading-6 text-black/52">Vote du matin, de l’après-midi et du soir. Les participants et récompenses changent à chaque session.</div>
+                    <Link href="/city" className="mt-4 inline-flex h-11 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white">
+                      <CalendarDays className="h-4 w-4" /> Ouvrir Events
+                    </Link>
+                    {eventPrefsSaving ? <div className="mt-3 text-xs font-bold text-black/36">Sauvegarde...</div> : null}
+                  </InnerCard>
                 </div>
               </WarmCard>
             )}
@@ -1404,4 +1480,3 @@ export default function SettingsClient() {
     </SynauraAppShell>
   );
 }
-

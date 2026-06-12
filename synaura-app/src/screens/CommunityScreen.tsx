@@ -26,15 +26,18 @@ import {
   getCommunityPosts,
   getCommunityReplies,
   getCommunityStats,
+  getSynauraCity,
   likeCommunityPost,
 } from '@/api/client';
-import type { CommunityFaq, CommunityPost, CommunityReply, CommunityStats, Track } from '@/api/types';
+import type { CommunityFaq, CommunityPost, CommunityReply, CommunityStats, SynauraCityData, Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { TrackCover } from '@/components/TrackCover';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
+import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
+import { EventTicker, EventsRail, VoteCountdownBanner } from '@/components/events/SynauraEvents';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
 const categories = [
@@ -99,6 +102,7 @@ export function CommunityScreen() {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [stats, setStats] = useState<CommunityStats>(emptyStats);
   const [faqs, setFaqs] = useState<CommunityFaq[]>([]);
+  const [city, setCity] = useState<SynauraCityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -112,14 +116,16 @@ export function CommunityScreen() {
     else setLoading(true);
     setError('');
     try {
-      const [postData, nextStats, nextFaqs] = await Promise.all([
+      const [postData, nextStats, nextFaqs, nextCity] = await Promise.all([
         getCommunityPosts(category, 1, 18),
         getCommunityStats(),
         getCommunityFaq(20),
+        getSynauraCity().catch(() => null),
       ]);
       setPosts(postData.posts);
       setStats(nextStats);
       setFaqs(nextFaqs);
+      setCity(nextCity);
     } catch (loadError: any) {
       setError(loadError?.message || 'Impossible de charger la communauté.');
     } finally {
@@ -204,6 +210,7 @@ export function CommunityScreen() {
           <Pressable accessibilityLabel="FAQ communauté" onPress={() => setFaqOpen(true)} style={styles.circleButton}>
             <Ionicons name="help-circle-outline" size={23} color="#171313" />
           </Pressable>
+          <MobileAccountButton compact />
         </View>
       </View>
 
@@ -223,6 +230,10 @@ export function CommunityScreen() {
           </MotionPressable>
         </View>
       </Reveal>
+
+      {city ? <EventTicker city={city} tone="coral" onPress={() => navigation.navigate('City')} /> : null}
+      {city ? <VoteCountdownBanner current={city.currentVoteSession} next={city.nextVoteSession} onOpen={() => navigation.navigate('City')} onNotify={() => navigation.navigate('Settings')} /> : null}
+      <EventsRail city={city} onOpen={() => navigation.navigate('City')} title="Votes, Pulse et challenges" />
 
       <QuickComposer
         name={auth.user?.name || auth.user?.username || 'Synaura'}
@@ -287,7 +298,7 @@ export function CommunityScreen() {
         </Pressable>
       </View>
     </View>
-  ), [auth.user?.avatar, auth.user?.name, auth.user?.username, category, collabPosts, load, openComposer, remixPosts, stats]);
+  ), [auth.user?.avatar, auth.user?.name, auth.user?.username, category, city, collabPosts, load, navigation, openComposer, remixPosts, stats]);
 
   return (
     <SynauraBackground variant="warm">

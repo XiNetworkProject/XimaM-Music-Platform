@@ -1984,6 +1984,18 @@ export async function getSynauraCity(): Promise<SynauraCityData> {
         track: winner?.track ? normalizeCityTrack(winner.track) : null,
       })),
     })),
+    voteSessions: (Array.isArray(city?.voteSessions) ? city.voteSessions : []).map((event: any) => ({
+      ...event,
+      tracks: (Array.isArray(event?.tracks) ? event.tracks : []).map(normalizeCityTrack),
+    })),
+    currentVoteSession: city?.currentVoteSession ? {
+      ...city.currentVoteSession,
+      tracks: (Array.isArray(city.currentVoteSession?.tracks) ? city.currentVoteSession.tracks : []).map(normalizeCityTrack),
+    } : null,
+    nextVoteSession: city?.nextVoteSession ? {
+      ...city.nextVoteSession,
+      tracks: (Array.isArray(city.nextVoteSession?.tracks) ? city.nextVoteSession.tracks : []).map(normalizeCityTrack),
+    } : null,
     hallOfFame: (Array.isArray(city?.hallOfFame) ? city.hallOfFame : []).map((award: any) => ({
       ...award,
       track: award?.track ? normalizeCityTrack(award.track) : null,

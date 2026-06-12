@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -39,8 +39,9 @@ import type {
 import { useAuth } from '@/auth/AuthProvider';
 import { TrackCover } from '@/components/TrackCover';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
-import { EventCard as EventSummaryCard, EventTicker, PulseBadge, PulseBar, SectionHeader } from '@/components/events/SynauraEvents';
+import { EventCard as EventSummaryCard, EventTicker, PulseBadge, PulseBar, SectionHeader, VoteCountdownBanner } from '@/components/events/SynauraEvents';
 import { SynauraBackground } from '@/components/SynauraBackground';
+import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors, spacing } from '@/theme/tokens';
 
@@ -82,6 +83,7 @@ function iconName(value: string): any {
 export function CityScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
   const auth = useAuth();
   const player = usePlayer();
   const [city, setCity] = useState<SynauraCityData | null>(null);
@@ -122,13 +124,12 @@ export function CityScreen() {
     else await player.playTrack(track);
   }, [player]);
 
-  const battle = useMemo(() => city?.events.find((event) => event.kind === 'battle') || null, [city?.events]);
-  const vote = useCallback(async (trackId: string) => {
-    if (!battle || voting || !auth.requireAuth()) return;
+  const vote = useCallback(async (eventId: string, trackId: string) => {
+    if (voting || !auth.requireAuth()) return;
     setVoting(true);
     setError(null);
     try {
-      await voteSynauraCityBattle(battle.id, trackId);
+      await voteSynauraCityBattle(eventId, trackId);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setToast('Vote enregistré. Ton avis compte dans le Pulse.');
       await load(true);
@@ -137,7 +138,7 @@ export function CityScreen() {
     } finally {
       setVoting(false);
     }
-  }, [auth, battle, load, voting]);
+  }, [auth, load, voting]);
 
   const openParticipate = useCallback((event: CityEvent) => {
     if (auth.requireAuth()) setPickerEvent(event);
@@ -180,6 +181,7 @@ export function CityScreen() {
     <View style={styles.root}>
       <SynauraBackground variant="warm" />
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 10 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.text} />}
@@ -187,10 +189,14 @@ export function CityScreen() {
         <View style={styles.topbar}>
           <MotionPressable onPress={() => navigation.goBack()} style={styles.roundButton}><Ionicons name="chevron-back" size={20} color={colors.text} /></MotionPressable>
           <View style={styles.topCopy}><Text style={styles.topKicker}>SYNAURA LIVE</Text><Text style={styles.topTitle}>Events</Text></View>
-          <MotionPressable onPress={() => void load(true)} style={styles.roundButton}><Ionicons name="refresh" size={18} color={colors.text} /></MotionPressable>
+          <View style={styles.topActions}>
+            <MotionPressable onPress={() => void load(true)} style={styles.roundButton}><Ionicons name="refresh" size={18} color={colors.text} /></MotionPressable>
+            <MobileAccountButton compact />
+          </View>
         </View>
 
         {city ? <EventTicker city={city} /> : null}
+        {city ? <VoteCountdownBanner current={city.currentVoteSession} next={city.nextVoteSession} onOpen={() => scrollRef.current?.scrollTo({ y: 430, animated: true })} onNotify={() => setToast('Rappel activé pour le prochain vote.')} /> : null}
         {loading && !city ? <LoadingEvents /> : null}
         {error ? <View style={styles.error}><Ionicons name="alert-circle" size={16} color={colors.danger} /><Text style={styles.errorText}>{error}</Text></View> : null}
 
@@ -202,7 +208,7 @@ export function CityScreen() {
             <View style={styles.stack}>
               {city.events.map((event, index) => (
                 event.kind === 'battle'
-                  ? <BattleCard key={event.id} event={event} voting={voting} player={player} onPlay={play} onVote={vote} />
+                  ? <BattleCard key={event.id} event={event} voting={voting} player={player} onPlay={play} onVote={(trackId) => vote(event.id, trackId)} />
                   : <LiveEventCard key={event.id} event={event} index={index} busy={actingEventId === event.id} onParticipate={() => openParticipate(event)} onClaim={() => claim(event)} onPlay={play} />
               ))}
             </View>
@@ -383,10 +389,11 @@ function LiveEventCard({ event, index, busy, onParticipate, onClaim, onPlay }: {
 function BattleCard({ event, voting, player, onPlay, onVote }: { event: CityEvent; voting: boolean; player: ReturnType<typeof usePlayer>; onPlay: (track: Track) => void; onVote: (trackId: string) => void }) {
   const tracks = event.tracks || [];
   const total = tracks.reduce((sum, track) => sum + Number(event.voteCounts?.[track._id] || 0), 0) || 1;
+  const canVote = Boolean(event.isLive);
   return (
     <View style={styles.battle}>
       <LinearGradient colors={['#EEE9FF', '#FFF4ED']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <View style={styles.battleHeader}><View style={styles.battleHeaderCopy}><Text style={styles.battleKicker}>BATTLE IA EN COURS</Text><Text style={styles.battleTitle}>{event.title}</Text><Text style={styles.battleMeta}>{event.totalVotes || 0} votes · quel son mérite la vitrine ?</Text></View><View style={styles.battleFlash}><Ionicons name="flash" size={20} color={colors.paper} /></View></View>
+      <View style={styles.battleHeader}><View style={styles.battleHeaderCopy}><Text style={styles.battleKicker}>{canVote ? 'VOTE EN COURS' : event.isEnded ? 'VOTE TERMINÉ' : 'PROCHAIN VOTE'}</Text><Text style={styles.battleTitle}>{event.title}</Text><Text style={styles.battleMeta}>{event.totalVotes || 0} votes · quel son mérite la vitrine ?</Text></View><View style={styles.battleFlash}><Ionicons name="flash" size={20} color={colors.paper} /></View></View>
       <View style={styles.battleGrid}>
         {tracks.slice(0, 2).map((track) => {
           const selected = event.selectedTrackId === track._id;
@@ -398,7 +405,7 @@ function BattleCard({ event, voting, player, onPlay, onVote }: { event: CityEven
               <Text numberOfLines={1} style={styles.battleTrackTitle}>{track.title}</Text>
               <Text numberOfLines={1} style={styles.battleArtist}>{artistName(track)}</Text>
               <PulseBar value={percent} height={5} />
-              <MotionPressable disabled={voting} onPress={() => onVote(track._id)} style={[styles.voteButton, selected && styles.voteButtonSelected]}><Ionicons name={selected ? 'checkmark' : 'flash'} size={12} color={colors.paper} /><Text style={styles.voteText}>{selected ? 'Ton vote' : `Voter · ${percent}%`}</Text></MotionPressable>
+              <MotionPressable disabled={voting || !canVote} onPress={() => onVote(track._id)} style={[styles.voteButton, selected && styles.voteButtonSelected, !canVote && { opacity: 0.45 }]}><Ionicons name={selected ? 'checkmark' : 'flash'} size={12} color={colors.paper} /><Text style={styles.voteText}>{selected ? 'Ton vote' : canVote ? `Voter · ${percent}%` : event.isEnded ? `Résultat · ${percent}%` : 'Bientôt'}</Text></MotionPressable>
             </View>
           );
         })}
@@ -500,6 +507,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.md, paddingBottom: 190, gap: spacing.md },
   topbar: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   roundButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.88)', borderWidth: 1, borderColor: colors.border },
   topCopy: { flex: 1 },
   topKicker: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },

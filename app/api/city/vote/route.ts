@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     const { data: event, error: eventError } = await supabaseAdmin
       .from('city_events')
-      .select('id, kind, status, ends_at')
+      .select('id, kind, status, starts_at, ends_at')
       .eq('id', battleId)
       .maybeSingle();
     if (eventError) {
@@ -54,6 +54,9 @@ export async function POST(request: NextRequest) {
       throw eventError;
     }
     if (!event || event.kind !== 'battle') return NextResponse.json({ error: 'Battle introuvable.' }, { status: 404 });
+    if (event.starts_at && Date.now() < new Date(event.starts_at).getTime()) {
+      return NextResponse.json({ error: 'Ce vote n est pas encore ouvert.' }, { status: 400 });
+    }
     if (event.ends_at && Date.now() > new Date(event.ends_at).getTime()) {
       return NextResponse.json({ error: 'Cette battle est terminee.' }, { status: 400 });
     }

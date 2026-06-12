@@ -115,6 +115,16 @@ export type CityEvent = {
   config?: Record<string, unknown>;
 };
 
+export type CityVoteSession = CityEvent & {
+  kind: 'battle';
+  config: {
+    format: 'vote_session';
+    sessionKey: 'morning' | 'afternoon' | 'evening';
+    sessionLabel: string;
+    maxVotesPerUser: number;
+  };
+};
+
 export type CityEventParticipation = {
   id: string;
   eventId: string;
@@ -162,6 +172,9 @@ export type SynauraCityData = {
   radar: CityPulseTrack[];
   premieres: CityPulseTrack[];
   events: CityEvent[];
+  voteSessions: CityVoteSession[];
+  currentVoteSession: CityVoteSession | null;
+  nextVoteSession: CityVoteSession | null;
   hallOfFame: CityAward[];
   listenerBadges: CityBadge[];
   creatorCard: CityArtist | null;

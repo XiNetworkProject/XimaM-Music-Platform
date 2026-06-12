@@ -51,6 +51,7 @@ import {
 } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { SynauraBackground } from '@/components/SynauraBackground';
+import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { EventChoice, EventTicker } from '@/components/events/SynauraEvents';
 import { TrackCover } from '@/components/TrackCover';
 import { aiStudioPresets, type MobileAIStudioPreset } from '@/constants/aiStudioPresets';
@@ -524,7 +525,7 @@ export function AIStudioScreen() {
         <View style={styles.top}>
           <Pressable onPress={() => navigation.goBack()} style={styles.iconButton}><Ionicons name="chevron-back" size={22} color={colors.text} /></Pressable>
           <Pressable onPress={() => setShowCredits(true)} style={styles.creditPill}><Ionicons name="sparkles" size={14} color={colors.coral} /><Text style={styles.creditText}>{credits} crédits</Text><Ionicons name="add-circle" size={16} color={colors.text} /></Pressable>
-          <Pressable onPress={() => navigation.navigate('CreateHub')} style={styles.iconButton}><Ionicons name="apps-outline" size={20} color={colors.text} /></Pressable>
+          <MobileAccountButton compact />
         </View>
         <Text style={styles.kicker}>{tab === 'create' ? 'SYNAURA AI STUDIO' : 'BIBLIOTHÈQUE IA'}</Text>
         <Text style={[styles.title, tab === 'library' && styles.titleCompact]}>{tab === 'create' ? currentTitle : 'Tes créations'}</Text>

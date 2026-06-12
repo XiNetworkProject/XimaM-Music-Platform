@@ -20,6 +20,7 @@ import { TrackCover } from '@/components/TrackCover';
 import { usePlayer } from '@/player/PlayerProvider';
 import { spacing } from '@/theme/tokens';
 import { SynauraBackground } from '@/components/SynauraBackground';
+import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 
 const genres = ['Tout', 'Pop', 'Hip-Hop', 'Rap', 'Rock', 'Electronic', 'R&B', 'Jazz', 'Lo-Fi', 'Indie', 'Ambient'];
 const emptyData: HomeData = { forYou: [], trending: [], recent: [], boosted: [], playlists: [], creators: [], posts: [] };
@@ -106,9 +107,12 @@ export function DiscoverScreen() {
             <Text style={styles.kicker}>Catalogue ouvert</Text>
             <Text style={styles.title}>Découvrir</Text>
           </View>
-          <Pressable onPress={() => heroTrack && playFrom(filtered.length ? filtered : allTracks, heroTrack)} style={styles.playAll}>
-            <Ionicons name={player.isPlaying ? 'pause' : 'play'} size={18} color={warm.paper} />
-          </Pressable>
+          <View style={styles.topActions}>
+            <Pressable onPress={() => heroTrack && playFrom(filtered.length ? filtered : allTracks, heroTrack)} style={styles.playAll}>
+              <Ionicons name={player.isPlaying ? 'pause' : 'play'} size={18} color={warm.paper} />
+            </Pressable>
+            <MobileAccountButton />
+          </View>
         </View>
 
         <View style={styles.search}>
@@ -297,6 +301,7 @@ const styles = StyleSheet.create({
   fieldViolet: { right: -270, top: 250, backgroundColor: '#7C5CFF' },
   fieldCyan: { left: -260, bottom: 50, backgroundColor: '#00C2CB' },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   kicker: { color: warm.muted, fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { marginTop: 2, color: warm.ink, fontSize: 32, fontWeight: '900' },
   playAll: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: warm.ink },

@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { CityEvent, CityPulseTrack, SynauraCityData } from '@/api/types';
+import type { CityEvent, CityPulseTrack, CityVoteSession, SynauraCityData } from '@/api/types';
 import { colors, spacing } from '@/theme/tokens';
+import { TrackCover } from '@/components/TrackCover';
 
 type Tone = 'violet' | 'coral' | 'cyan' | 'ink';
 
@@ -58,6 +59,65 @@ export function EventTicker({
       <Text numberOfLines={2} style={[styles.tickerText, { color: palette.ink }]}>{content}</Text>
       {onPress ? <Ionicons name="arrow-forward" size={16} color={palette.ink} /> : null}
     </Pressable>
+  );
+}
+
+function countdownLabel(target?: string) {
+  const delta = Math.max(0, new Date(target || 0).getTime() - Date.now());
+  const hours = Math.floor(delta / 3_600_000);
+  const minutes = Math.floor((delta % 3_600_000) / 60_000);
+  const seconds = Math.floor((delta % 60_000) / 1_000);
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+export function VoteCountdownBanner({
+  current,
+  next,
+  onOpen,
+  onNotify,
+}: {
+  current?: CityVoteSession | null;
+  next?: CityVoteSession | null;
+  onOpen: () => void;
+  onNotify?: () => void;
+}) {
+  const session = current || next;
+  const pulse = useRef(new Animated.Value(0)).current;
+  const [remaining, setRemaining] = useState(() => countdownLabel(current?.endsAt || next?.startsAt));
+
+  useEffect(() => {
+    const timer = setInterval(() => setRemaining(countdownLabel(current?.endsAt || next?.startsAt)), 1000);
+    return () => clearInterval(timer);
+  }, [current?.endsAt, next?.startsAt]);
+
+  useEffect(() => {
+    const animation = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1, duration: 1600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+    ]));
+    animation.start();
+    return () => animation.stop();
+  }, [pulse]);
+
+  if (!session) return null;
+  return (
+    <View style={styles.countdown}>
+      <LinearGradient colors={['#211B1E', '#34252F', '#1B3034']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <Animated.View style={[styles.countdownHalo, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.24] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.76, 1.25] }) }] }]} />
+      <View style={styles.countdownTop}>
+        <View style={styles.countdownLogo}><Ionicons name={current ? 'flash' : 'time'} size={18} color={colors.paper} /></View>
+        <View style={styles.countdownCopy}><Text style={styles.countdownKicker}>{current ? 'VOTE EN COURS' : 'PROCHAIN VOTE DANS'}</Text><Text style={styles.countdownTitle}>{session.title}</Text></View>
+        <View style={styles.countdownCovers}>
+          {(session.tracks || []).slice(0, 2).map((track, index) => <TrackCover key={track._id} track={track} style={[styles.countdownCover, index > 0 && styles.countdownCoverOverlap]} />)}
+        </View>
+      </View>
+      <Text style={styles.countdownTime}>{remaining}</Text>
+      <Text style={styles.countdownText}>{current ? 'Écoute les participants et choisis celui qui mérite la vitrine.' : 'Les sons sélectionnés seront révélés bientôt.'}</Text>
+      <View style={styles.countdownActions}>
+        <Pressable onPress={onOpen} style={styles.countdownPrimary}><Ionicons name={current ? 'checkmark-circle' : 'headset'} size={15} color={colors.text} /><Text style={styles.countdownPrimaryText}>{current ? 'Écouter et voter' : 'Voir les participants'}</Text></Pressable>
+        {!current && onNotify ? <Pressable onPress={onNotify} style={styles.countdownNotify}><Ionicons name="notifications-outline" size={16} color={colors.paper} /></Pressable> : null}
+      </View>
+    </View>
   );
 }
 
@@ -253,6 +313,22 @@ const styles = StyleSheet.create({
   tickerSignal: { position: 'absolute', right: -30, top: -55, width: 150, height: 150, borderRadius: 75 },
   tickerIcon: { width: 37, height: 37, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   tickerText: { flex: 1, fontSize: 11, lineHeight: 16, fontWeight: '900' },
+  countdown: { minHeight: 238, overflow: 'hidden', gap: 9, borderRadius: 27, padding: 16 },
+  countdownHalo: { position: 'absolute', right: -40, top: -55, width: 180, height: 180, borderRadius: 90, backgroundColor: colors.violet },
+  countdownTop: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  countdownLogo: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.13)' },
+  countdownCopy: { flex: 1, minWidth: 0 },
+  countdownKicker: { color: '#D2C4FF', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
+  countdownTitle: { marginTop: 3, color: colors.paper, fontSize: 13, fontWeight: '900' },
+  countdownCovers: { flexDirection: 'row', alignItems: 'center' },
+  countdownCover: { width: 42, height: 42, borderRadius: 14, borderWidth: 2, borderColor: '#211B1E' },
+  countdownCoverOverlap: { marginLeft: -12 },
+  countdownTime: { color: colors.paper, fontSize: 37, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  countdownText: { maxWidth: 290, color: 'rgba(255,250,242,0.52)', fontSize: 10, lineHeight: 15, fontWeight: '800' },
+  countdownActions: { marginTop: 2, flexDirection: 'row', gap: 8 },
+  countdownPrimary: { minHeight: 42, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 21, backgroundColor: colors.paper, paddingHorizontal: 13 },
+  countdownPrimaryText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  countdownNotify: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.12)' },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10, marginBottom: spacing.md },
   sectionCopy: { flex: 1, minWidth: 0 },
   sectionEyebrow: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.3 },

@@ -35,6 +35,10 @@ import {
   SynauraRouteNav,
   SynauraTopBar,
 } from '@/components/synaura/SynauraShell';
+import SynauraCountdownBanner from '@/components/synaura/SynauraCountdownBanner';
+import SynauraEventCard from '@/components/synaura/SynauraEventCard';
+import SynauraTickerBanner from '@/components/synaura/SynauraTickerBanner';
+import type { SynauraCityData } from '@/lib/synauraCity';
 
 type CommunityStats = {
   resolvedQuestions: number;
@@ -220,15 +224,17 @@ export default function CommunityPage() {
   });
   const [recentPosts, setRecentPosts] = useState<CommunityPost[]>([]);
   const [popularFaqs, setPopularFaqs] = useState<CommunityFaq[]>([]);
+  const [city, setCity] = useState<SynauraCityData | null>(null);
 
   useEffect(() => {
     const fetchCommunityData = async () => {
       try {
         setLoading(true);
-        const [statsRes, postsRes, faqRes] = await Promise.all([
+        const [statsRes, postsRes, faqRes, cityRes] = await Promise.all([
           fetch('/api/community/stats', { cache: 'no-store' }),
           fetch('/api/community/posts?limit=6&sort=recent', { cache: 'no-store' }),
           fetch('/api/community/faq?limit=4&sort=popular', { cache: 'no-store' }),
+          fetch('/api/city', { cache: 'no-store' }),
         ]);
 
         if (statsRes.ok) setStats(await statsRes.json());
@@ -253,6 +259,7 @@ export default function CommunityPage() {
           const faqData = await faqRes.json();
           setPopularFaqs(Array.isArray(faqData?.faqs) ? faqData.faqs : []);
         }
+        if (cityRes.ok) setCity(await cityRes.json());
       } catch {
         notify.error('Communauté', 'Erreur lors du chargement');
       } finally {
@@ -314,6 +321,29 @@ export default function CommunityPage() {
       <SynauraAnnouncementStrip />
 
       <div className="min-w-0 space-y-4 pb-14 sm:space-y-5 sm:pb-28">
+        {city ? <SynauraTickerBanner text={`Synaura Pulse · ${city.cityMood.subtitle} · ${city.voteSessions?.filter((event) => event.isLive).length || 0} vote en cours`} tone="coral" action={<Link href="/city" className="inline-flex h-9 items-center rounded-full bg-[#171313] px-4 text-xs font-black text-white">Events</Link>} /> : null}
+        {city ? (
+          <SynauraCountdownBanner
+            current={city.currentVoteSession || null}
+            next={city.nextVoteSession || null}
+            onOpen={() => window.location.assign('/city')}
+            onNotify={() => notify.success('Events', 'Rappel activé pour le prochain vote')}
+          />
+        ) : null}
+        {city?.events?.length ? (
+          <section>
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <div><p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Pulse & Events</p><h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">Ce qui se passe maintenant</h2></div>
+              <Link href="/city" className="rounded-full bg-[#171313] px-4 py-2 text-xs font-black text-white">Tout voir</Link>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {city.events.filter((event) => event.isLive || event.status === 'scheduled').slice(0, 3).map((event) => (
+                <SynauraEventCard key={event.id} event={event} compact onPrimary={() => window.location.assign('/city')} />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         <SynauraInkPanel className="p-3 sm:p-6 lg:p-7">
           <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.08fr)_420px] lg:items-stretch xl:gap-6">
             <div className="flex min-h-[220px] min-w-0 flex-col justify-between rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4 sm:min-h-[360px] sm:rounded-[1.6rem] sm:p-6">

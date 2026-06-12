@@ -315,6 +315,16 @@ export type CityEventReward = {
   metadata?: Record<string, unknown>;
 };
 
+export type CityVoteSession = CityEvent & {
+  kind: 'battle';
+  config: {
+    format: 'vote_session';
+    sessionKey: 'morning' | 'afternoon' | 'evening';
+    sessionLabel: string;
+    maxVotesPerUser: number;
+  };
+};
+
 export type CityEventDetail = {
   event: Record<string, unknown>;
   tracks: Array<Record<string, unknown>>;
@@ -346,6 +356,9 @@ export type SynauraCityData = {
   radar: CityPulseTrack[];
   premieres: CityPulseTrack[];
   events: CityEvent[];
+  voteSessions: CityVoteSession[];
+  currentVoteSession: CityVoteSession | null;
+  nextVoteSession: CityVoteSession | null;
   hallOfFame: CityAward[];
   listenerBadges: CityBadge[];
   creatorCard: CityArtist | null;

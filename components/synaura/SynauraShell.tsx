@@ -4,9 +4,24 @@ import type { CSSProperties, ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
-import { CalendarDays, Compass, Home, Library, LogIn, Sparkles, Upload, UserPlus, Users } from 'lucide-react';
+import {
+  ArrowUpDown,
+  Compass,
+  CreditCard,
+  HelpCircle,
+  Home,
+  Library,
+  LogIn,
+  LogOut,
+  Settings,
+  Sparkles,
+  Upload,
+  User,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import NotificationCenter from '@/components/NotificationCenter';
 import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
@@ -22,9 +37,8 @@ const SYNAURA_SHELL_BRAND = {
 
 const SYNAURA_ROUTE_ITEMS = [
   { href: '/', label: 'Accueil', icon: Home },
-  { href: '/city', label: 'Events', icon: CalendarDays },
   { href: '/discover', label: 'Découvrir', icon: Compass },
-  { href: '/library', label: 'Bibliothèque', icon: Library },
+  { href: '/swipe', label: 'Swipe', icon: ArrowUpDown },
   { href: '/community', label: 'Communauté', icon: Users },
   { href: '/ai-generator', label: 'Studio', icon: Sparkles },
   { href: '/upload', label: 'Publier', icon: Upload },
@@ -33,10 +47,76 @@ const SYNAURA_ROUTE_ITEMS = [
 const SYNAURA_MOBILE_ROUTE_ITEMS = [
   { href: '/', label: 'Accueil', icon: Home },
   { href: '/discover', label: 'Explorer', icon: Compass },
-  { href: '/library', label: 'Biblio', icon: Library },
-  { href: '/community', label: 'Commu', icon: Users },
+  { href: '/swipe', label: 'Swipe', icon: ArrowUpDown },
+  { href: '/community', label: 'Communauté', icon: Users },
   { href: '/ai-generator', label: 'Studio', icon: Sparkles },
 ] as const;
+
+function SynauraAccountMenu({ compact = false }: { compact?: boolean }) {
+  const { data: session } = useSession();
+  const user = session?.user;
+  if (!user) return null;
+
+  const username = user.username || '';
+  const avatar = (user as any).avatar || user.image || '';
+  const profileHref = username ? `/profile/${username}` : '/profile';
+  const links = [
+    { href: profileHref, label: 'Mon profil', icon: User },
+    { href: '/ai-generator', label: 'Studio', icon: Sparkles },
+    { href: '/library', label: 'Bibliothèque', icon: Library },
+    { href: '/settings', label: 'Paramètres', icon: Settings },
+    { href: '/subscriptions', label: 'Abonnement', icon: CreditCard },
+    { href: '/legal', label: 'Aide et centre légal', icon: HelpCircle },
+  ];
+
+  return (
+    <details className="group relative">
+      <summary
+        className={cx(
+          'flex cursor-pointer list-none items-center gap-2 rounded-full border border-black/[0.08] bg-white p-1 pr-2.5 shadow-[0_8px_24px_rgba(30,25,20,0.10)] transition hover:bg-black/[0.04]',
+          compact && 'p-0.5 pr-1.5',
+        )}
+        aria-label="Ouvrir le menu du compte"
+      >
+        <span className={cx('grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-[#171313] text-xs font-black text-white', compact && 'h-7 w-7')}>
+          {avatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatar} alt="" className="h-full w-full object-cover" />
+          ) : (
+            (user.name || username || 'S').slice(0, 1).toUpperCase()
+          )}
+        </span>
+        <span className="hidden max-w-[110px] truncate text-xs font-black text-[#171313] xl:block">
+          {user.name || username}
+        </span>
+      </summary>
+
+      <div className="absolute right-0 top-[calc(100%+0.55rem)] z-[80] w-64 overflow-hidden rounded-[1.4rem] border border-black/[0.09] bg-[#fffaf2]/98 p-2 shadow-[0_24px_70px_rgba(30,25,20,0.22)] backdrop-blur-2xl">
+        <div className="mb-1 rounded-[1rem] bg-black/[0.045] px-3 py-2.5">
+          <p className="truncate text-sm font-black text-[#171313]">{user.name || username || 'Compte Synaura'}</p>
+          {username ? <p className="truncate text-xs font-bold text-black/42">@{username}</p> : null}
+        </div>
+        {links.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link key={item.href} href={item.href} className="flex items-center gap-3 rounded-[0.95rem] px-3 py-2.5 text-sm font-black text-black/62 transition hover:bg-black hover:text-white">
+              <Icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => signOut({ callbackUrl: '/' })}
+          className="mt-1 flex w-full items-center gap-3 rounded-[0.95rem] px-3 py-2.5 text-left text-sm font-black text-[#d92d20] transition hover:bg-[#d92d20] hover:text-white"
+        >
+          <LogOut className="h-4 w-4" />
+          Déconnexion
+        </button>
+      </div>
+    </details>
+  );
+}
 
 function routeIsActive(pathname: string | null, href: string) {
   if (!pathname) return href === '/';
@@ -215,6 +295,7 @@ export function SynauraTopBar({
               >
                 <Sparkles className="h-4 w-4" /> {secondaryLabel}
               </Link>
+              <SynauraAccountMenu compact={compact} />
             </>
           )}
           <Link

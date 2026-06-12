@@ -52,6 +52,7 @@ import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
 import { openInternalLink } from '@/navigation/internalLinks';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
+import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { SHOW_SHUTDOWN_NOTICES } from '@/config/features';
 import { CityHomeBanner } from '@/components/city/CityHomeBanner';
 
@@ -428,7 +429,7 @@ export function HomeScreen() {
 
   const header = (
     <>
-      <TopBar unread={unreadNotifications} onNotifications={() => setNotificationsOpen(true)} onPublish={() => navigation.navigate('CreateHub')} />
+      <TopBar unread={unreadNotifications} onNotifications={() => setNotificationsOpen(true)} />
       <TopSearchStrip onSearch={() => setSearchOpen(true)} onStudio={() => navigation.navigate('AIStudio')} />
       {SHOW_SHUTDOWN_NOTICES ? <AnnouncementStrip onPress={() => openWebPath('/fermeture')} /> : null}
       {heroTracks.length ? (
@@ -550,7 +551,7 @@ function DecorativeBackground() {
   );
 }
 
-function TopBar({ unread, onNotifications, onPublish }: { unread: number; onNotifications: () => void; onPublish: () => void }) {
+function TopBar({ unread, onNotifications }: { unread: number; onNotifications: () => void }) {
   return (
     <View style={styles.topBar}>
       <View style={styles.brandBox}>
@@ -564,9 +565,7 @@ function TopBar({ unread, onNotifications, onPublish }: { unread: number; onNoti
         <Ionicons name="notifications-outline" size={20} color={warm.inkSoft} />
         {unread > 0 ? <View style={styles.notificationBadge}><Text style={styles.notificationBadgeText}>{unread > 9 ? '9+' : unread}</Text></View> : null}
       </MotionPressable>
-      <MotionPressable onPress={onPublish} style={styles.publishButton}>
-        <Text style={styles.publishText}>Publier</Text>
-      </MotionPressable>
+      <MobileAccountButton />
     </View>
   );
 }

@@ -45,10 +45,10 @@ export type RootTabsParamList = {
 
 const Tab = createBottomTabNavigator<RootTabsParamList>();
 const HIDDEN_ROUTES = new Set<keyof RootTabsParamList>([
+  'Profile',
   'Upload',
   'Library',
   'CreateHub',
-  'AIStudio',
   'CreatePost',
   'Settings',
   'Subscriptions',
@@ -115,6 +115,7 @@ export function Tabs() {
     Swipe: 'Swipe',
     Community: 'Communauté',
     Profile: 'Profil',
+    AIStudio: 'Studio',
     Upload: 'Upload',
     Library: 'Bibliothèque',
     CreateHub: 'Créer',
@@ -161,6 +162,7 @@ export function Tabs() {
             route.name === 'Discover' ? 'compass' :
             route.name === 'Swipe' ? 'swap-vertical' :
             route.name === 'Community' ? 'people' :
+            route.name === 'AIStudio' ? 'sparkles' :
             route.name === 'Upload' ? 'add-circle' :
             route.name === 'Library' ? 'library' :
             route.name === 'Settings' ? 'settings' : 'person-circle';
@@ -174,11 +176,11 @@ export function Tabs() {
       <Tab.Screen name="Discover" component={DiscoverScreen} />
       <Tab.Screen name="Swipe" component={SwipeScreen} />
       <Tab.Screen name="Community" component={CommunityScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="AIStudio" component={AIStudioScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="Upload" component={UploadScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="Library" component={LibraryScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="CreateHub" component={CreateHubScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="AIStudio" component={AIStudioScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="CreatePost" component={CreatePostScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="Subscriptions" component={SubscriptionsScreen} options={{ tabBarButton: () => null }} />

@@ -15,6 +15,7 @@ import {
   type CityPulseTrack,
   type CityShowcaseItem,
   type CityTrack,
+  type CityVoteSession,
   type SynauraCityData,
 } from '@/lib/synauraCity';
 
@@ -33,7 +34,69 @@ const CHALLENGES = [
 ] as const;
 
 function dateKey(date = new Date()) {
-  return date.toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Paris',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+function parisTime(day: string, hour: number) {
+  const [year, month, date] = day.split('-').map(Number);
+  const guess = new Date(Date.UTC(year, month - 1, date, hour, 0, 0));
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Paris',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(guess).map((part) => [part.type, part.value]),
+  );
+  const represented = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute));
+  return new Date(guess.getTime() - (represented - guess.getTime()));
+}
+
+function makeVoteSessions(day: string, pulse: CityPulseTrack[], preferences: any): CityVoteSession[] {
+  const schedules = [
+    { key: 'morning', label: 'Vote du matin', start: 9, end: 12, accent: '#00A7B2' },
+    { key: 'afternoon', label: "Vote de l'après-midi", start: 14, end: 17, accent: '#7C5CFF' },
+    { key: 'evening', label: 'Vote du soir', start: 20, end: 23, accent: '#FF4B7A' },
+  ] as const;
+
+  return schedules.map((session) => {
+    const id = `${day}-vote-${session.key}`;
+    const tracks = rotate(pulse.slice(0, 12), id).slice(0, 2);
+    const selectedTrackId = preferences?.cityBattleVotes?.[id] || null;
+    const voteCounts = Object.fromEntries(tracks.map((track) => [
+      track._id,
+      Math.max(2, Math.round(track.pulse * 0.22 + track.recentLikes * 1.4 + stableNumber(`${id}-${track._id}`) % 8)),
+    ]));
+    if (selectedTrackId && voteCounts[selectedTrackId] !== undefined) voteCounts[selectedTrackId] += 1;
+    return {
+      id,
+      kind: 'battle',
+      title: session.label,
+      subtitle: 'Quel son mérite la vitrine ?',
+      description: 'Écoute les participants et choisis celui qui doit gagner la lumière pendant les prochaines heures.',
+      icon: 'flash',
+      accent: session.accent,
+      startsAt: parisTime(day, session.start).toISOString(),
+      endsAt: parisTime(day, session.end).toISOString(),
+      tracks,
+      selectedTrackId,
+      voteCounts,
+      config: {
+        format: 'vote_session',
+        sessionKey: session.key,
+        sessionLabel: session.label,
+        maxVotesPerUser: 1,
+      },
+    };
+  });
 }
 
 function isoWeekKey(date = new Date()) {
@@ -641,11 +704,8 @@ export async function GET(request: NextRequest) {
       .slice(0, 8);
 
     const challenge = CHALLENGES[stableNumber(weekKey) % CHALLENGES.length];
-    const battleTracks = rotate(pulse.slice(0, 8), weekKey).slice(0, 2);
     const profilePreferences = (currentProfileRes.data as any)?.preferences || {};
-    const selectedTrackId = profilePreferences?.cityBattleVotes?.[weekKey] || null;
-    const baseVoteCounts = Object.fromEntries(battleTracks.map((track) => [track._id, Math.max(3, Math.round(track.pulse * 0.42 + track.recentLikes * 1.8))]));
-    if (selectedTrackId && baseVoteCounts[selectedTrackId] !== undefined) baseVoteCounts[selectedTrackId] += 1;
+    const voteSessions = makeVoteSessions(dayKey, pulse, profilePreferences);
     const season = seasonalEvent(now.getMonth());
     const weekEndsAt = new Date(now.getTime() + 7 * DAY_MS).toISOString();
     const liveStartsAt = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
@@ -676,20 +736,7 @@ export async function GET(request: NextRequest) {
         theme: challenge[0],
         tracks: pulse.filter((track) => (track.tags || []).some((tag) => tag.toLowerCase().includes(challenge[1].slice(1).toLowerCase()))).slice(0, 4),
       },
-      {
-        id: weekKey,
-        kind: 'battle',
-        title: 'Battle IA',
-        subtitle: 'Quel son merite la lumiere ?',
-        description: 'Vote pour ton favori. Le gagnant rejoint la vitrine pendant 24 heures.',
-        icon: 'flash',
-        accent: '#00A7B2',
-        startsAt: liveStartsAt,
-        endsAt: weekEndsAt,
-        tracks: battleTracks,
-        selectedTrackId,
-        voteCounts: baseVoteCounts,
-      },
+      ...voteSessions,
       {
         id: `${weekKey}-season`,
         kind: 'seasonal',
@@ -700,7 +747,12 @@ export async function GET(request: NextRequest) {
       },
     ];
     const hydratedEvents = await tryHydratePersistedEvents(events, pulse, userId, dayKey, weekKey, now, profilePreferences);
-    const hydratedBattle = hydratedEvents.find((event) => event.kind === 'battle') || events.find((event) => event.kind === 'battle') || null;
+    const hydratedVoteSessions = hydratedEvents.filter((event): event is CityVoteSession => event.kind === 'battle' && event.config?.format === 'vote_session');
+    const hydratedBattle = hydratedVoteSessions.find((event) => event.selectedTrackId) || hydratedVoteSessions[0] || null;
+    const currentVoteSession = hydratedVoteSessions.find((event) => event.isLive) || null;
+    const nextVoteSession = hydratedVoteSessions
+      .filter((event) => event.status === 'scheduled')
+      .sort((a, b) => new Date(a.startsAt || 0).getTime() - new Date(b.startsAt || 0).getTime())[0] || null;
 
     const topArtist = [...artists].sort((a, b) => b.totalPlays + b.totalLikes * 3 - (a.totalPlays + a.totalLikes * 3))[0] || null;
     const bestNewcomer = spotlightArtists[0] || null;
@@ -718,6 +770,8 @@ export async function GET(request: NextRequest) {
     const starts = userEvents.filter((event: any) => event.event_type === 'play_start').length;
     const completes = userEvents.filter((event: any) => event.event_type === 'play_complete').length;
     const shares = userEvents.filter((event: any) => event.event_type === 'share').length;
+    const selectedVotes = hydratedVoteSessions.filter((event) => event.selectedTrackId).length;
+    const participatedEvents = hydratedEvents.filter((event) => event.userParticipation).length;
     const listenerBadges: CityBadge[] = [
       { id: 'first-fan', title: 'Fan de la premiere heure', description: 'Aime un son avant qu il atteigne 100 ecoutes.', icon: 'heart', unlocked: userLikes.length > 0, progress: Math.min(userLikes.length, 1), target: 1 },
       { id: 'talent-scout', title: 'Decouvreur de talent', description: 'Ecoute cinq pepites detectees par le Radar.', icon: 'telescope', unlocked: starts >= 5, progress: Math.min(starts, 5), target: 5 },
@@ -725,6 +779,10 @@ export async function GET(request: NextRequest) {
       { id: 'full-listen', title: 'Supporter officiel', description: 'Ecoute cinq creations jusqu au bout.', icon: 'ribbon', unlocked: completes >= 5, progress: Math.min(completes, 5), target: 5 },
       { id: 'city-voice', title: 'Voix du Pulse', description: 'Partage trois sons qui meritent plus de lumiere.', icon: 'megaphone', unlocked: shares >= 3, progress: Math.min(shares, 3), target: 3 },
       { id: 'battle-voter', title: 'Jure Synaura', description: 'Vote dans une Battle IA.', icon: 'flash', unlocked: Boolean(hydratedBattle?.selectedTrackId), progress: hydratedBattle?.selectedTrackId ? 1 : 0, target: 1 },
+      { id: 'active-voter', title: 'Voteur actif', description: 'Participe aux trois votes d une meme journee.', icon: 'checkmark-done', unlocked: selectedVotes >= 3, progress: Math.min(selectedVotes, 3), target: 3 },
+      { id: 'event-player', title: 'Challenge valide', description: 'Soumets un son dans un event Synaura.', icon: 'trophy', unlocked: participatedEvents >= 1, progress: Math.min(participatedEvents, 1), target: 1 },
+      { id: 'faithful-fan', title: 'Fan fidele', description: 'Ecoute vingt creations jusqu au bout.', icon: 'heart-circle', unlocked: completes >= 20, progress: Math.min(completes, 20), target: 20 },
+      { id: 'ambassador', title: 'Ambassadeur Synaura', description: 'Partage dix sons ou events avec ton entourage.', icon: 'people', unlocked: shares >= 10, progress: Math.min(shares, 10), target: 10 },
     ];
 
     const creatorCard = currentProfileRes.data ? artistFromProfile(currentProfileRes.data) : null;
@@ -746,6 +804,9 @@ export async function GET(request: NextRequest) {
       radar,
       premieres,
       events: hydratedEvents,
+      voteSessions: hydratedVoteSessions,
+      currentVoteSession,
+      nextVoteSession,
       hallOfFame,
       listenerBadges,
       creatorCard,

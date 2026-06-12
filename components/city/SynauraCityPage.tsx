@@ -34,6 +34,7 @@ import TrackCover from '@/components/TrackCover';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import { SynauraButton, SynauraGhostButton } from '@/components/synaura/SynauraButton';
 import SynauraColorBand from '@/components/synaura/SynauraColorBand';
+import SynauraCountdownBanner from '@/components/synaura/SynauraCountdownBanner';
 import SynauraCreatorSpotlight from '@/components/synaura/SynauraCreatorSpotlight';
 import SynauraEventCard from '@/components/synaura/SynauraEventCard';
 import SynauraPulseBadge from '@/components/synaura/SynauraPulseBadge';
@@ -122,7 +123,7 @@ export default function SynauraCityPage() {
     void audio.playTrack(playerTrack(track));
   }, [audio, currentId]);
 
-  const battle = city?.events.find((event) => event.kind === 'battle') || null;
+  const battle = city?.currentVoteSession || city?.events.find((event) => event.kind === 'battle' && event.isLive) || null;
   const vote = useCallback(async (trackId: string) => {
     if (!battle || voting) return;
     if (!session?.user) {
@@ -271,6 +272,13 @@ export default function SynauraCityPage() {
             </div>
           </div>
         </SynauraColorBand>
+
+        <SynauraCountdownBanner
+          current={city.currentVoteSession || null}
+          next={city.nextVoteSession || null}
+          onOpen={() => document.getElementById('battle-live')?.scrollIntoView({ behavior: 'smooth' })}
+          onNotify={() => setToast('Rappel activé pour la prochaine session de vote.')}
+        />
 
         {error ? <div className="rounded-[1.2rem] border border-[#ff6f61]/20 bg-[#ff6f61]/10 px-4 py-3 text-center text-sm font-black text-[#a73c34]">{error}</div> : null}
 

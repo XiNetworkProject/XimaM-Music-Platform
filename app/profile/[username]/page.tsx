@@ -7,7 +7,9 @@ import {
   Share2, Upload, UserPlus, Sparkles, Calendar, X, MessageCircle,
   Send, Search, Users, Disc3, ExternalLink, Crown,
   ArrowUpRight, Library, Mic2, Shield, ListPlus, ListEnd, Trash2,
+  Settings,
 } from "lucide-react";
+import { FaInstagram, FaSoundcloud, FaSpotify, FaTiktok, FaXTwitter, FaYoutube } from 'react-icons/fa6';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
@@ -179,6 +181,21 @@ export default function SynauraProfile() {
     setShowShareModal(true);
   }, [getProfileUrl, profile?.name, profile?.username]);
   const memberSince = useMemo(() => { const raw = profile?.createdAt || profile?.created_at; if (!raw) return null; const d = new Date(raw); return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }); }, [profile]);
+  const socialLinks = useMemo(() => {
+    const links = profile?.preferences?.socialLinks || {};
+    return [
+      { key: 'instagram', label: 'Instagram', href: links.instagram, icon: FaInstagram },
+      { key: 'tiktok', label: 'TikTok', href: links.tiktok, icon: FaTiktok },
+      { key: 'youtube', label: 'YouTube', href: links.youtube, icon: FaYoutube },
+      { key: 'spotify', label: 'Spotify', href: links.spotify, icon: FaSpotify },
+      { key: 'soundcloud', label: 'SoundCloud', href: links.soundcloud, icon: FaSoundcloud },
+      { key: 'x', label: 'X', href: links.x, icon: FaXTwitter },
+    ].filter((item) => typeof item.href === 'string' && item.href.trim());
+  }, [profile?.preferences?.socialLinks]);
+  const selectedBadges = useMemo(
+    () => (Array.isArray(profile?.preferences?.profileBadges) ? profile.preferences.profileBadges : []).slice(0, 6),
+    [profile?.preferences?.profileBadges],
+  );
 
   /* ═══════════ LOADING ═══════════ */
   if (loading) return (
@@ -344,6 +361,7 @@ export default function SynauraProfile() {
                       {userTracks.some((t) => t?.is_ai || String(t?.id || '').startsWith('ai-')) ? <ProfileBadge label="Créateur IA" /> : null}
                       {totalPlays > 1000 ? <ProfileBadge label="Top tendance" /> : null}
                       {topProfileTracks.length ? <ProfileBadge label="Remix actif" /> : null}
+                      {selectedBadges.map((badge: string) => <ProfileBadge key={badge} label={badge} />)}
                     </div>
                     {profile.artistName && <p className="mt-1 text-sm font-medium text-white/56">{profile.artistName}</p>}
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -381,6 +399,26 @@ export default function SynauraProfile() {
                         )}
                       </div>
                     )}
+                    {socialLinks.length ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {socialLinks.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <a
+                              key={item.key}
+                              href={item.href}
+                              target="_blank"
+                              rel="noreferrer"
+                              title={item.label}
+                              aria-label={item.label}
+                              className="grid h-10 w-10 place-items-center rounded-full border border-white/12 bg-white/8 text-white/72 transition hover:-translate-y-0.5 hover:bg-white hover:text-[#171313]"
+                            >
+                              <Icon className="h-4 w-4" />
+                            </a>
+                          );
+                        })}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
@@ -392,6 +430,9 @@ export default function SynauraProfile() {
                       </HeroActionPrimary>
                       <HeroActionSecondary onClick={() => router.push('/stats')}>
                         <BarChart3 size={15} /> Statistiques
+                      </HeroActionSecondary>
+                      <HeroActionSecondary onClick={() => router.push('/settings')}>
+                        <Settings size={15} /> Paramètres
                       </HeroActionSecondary>
                       <HeroActionSecondary onClick={handleShareProfile}>
                         <Share2 size={15} /> Partager le profil
