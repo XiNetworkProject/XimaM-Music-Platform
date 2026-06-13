@@ -1,185 +1,112 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
+import { getApiSession } from '@/lib/getApiSession';
 
 export const dynamic = 'force-dynamic';
+
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category') || 'all';
     const sort = searchParams.get('sort') || 'trending';
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const page = Math.max(0, Number(searchParams.get('page') || 0));
+    const limit = clamp(Number(searchParams.get('limit') || 24), 6, 48);
+    const profilePage = Math.max(0, Number(searchParams.get('profilePage') || page));
+    const profileLimit = clamp(Number(searchParams.get('profileLimit') || 12), 4, 24);
+    const from = page * limit;
+    const profileFrom = profilePage * profileLimit;
 
-    console.log('🔍 API Discover - Paramètres:', { category, sort, limit });
+    const session = await getApiSession(request).catch(() => null);
+    const userId = String((session?.user as any)?.id || '');
 
-    // Récupérer les tracks avec filtres
-    let tracksQuery = supabase
+    let tracksQuery = supabaseAdmin
       .from('tracks')
       .select(`
-        id,
-        title,
-        creator_id,
-        cover_url,
-        audio_url,
-        duration,
-        plays,
-        likes,
-        is_featured,
-        genre,
-        created_at
-      `);
+        id, title, creator_id, cover_url, audio_url, duration, plays, likes,
+        is_featured, genre, created_at,
+        profiles!tracks_creator_id_fkey (id, username, name, avatar, is_artist, artist_name)
+      `, { count: 'exact' });
 
-    // Filtrer par catégorie
-    if (category && category !== 'all') {
-      tracksQuery = tracksQuery.contains('genre', [category]);
-    }
+    if (category !== 'all') tracksQuery = tracksQuery.contains('genre', [category]);
+    if (sort === 'newest') tracksQuery = tracksQuery.order('created_at', { ascending: false });
+    else if (sort === 'popular') tracksQuery = tracksQuery.order('likes', { ascending: false }).order('plays', { ascending: false });
+    else if (sort === 'hidden') tracksQuery = tracksQuery.order('plays', { ascending: true }).order('likes', { ascending: false });
+    else if (sort === 'featured') tracksQuery = tracksQuery.order('is_featured', { ascending: false }).order('plays', { ascending: false });
+    else tracksQuery = tracksQuery.order('plays', { ascending: false }).order('created_at', { ascending: false });
 
-    // Trier selon l'algorithme
-    switch (sort) {
-      case 'trending':
-        // Tri par score trending (plays + likes + récence)
-        tracksQuery = tracksQuery.order('plays', { ascending: false });
-        break;
-      case 'newest':
-        tracksQuery = tracksQuery.order('created_at', { ascending: false });
-        break;
-      case 'popular':
-        tracksQuery = tracksQuery.order('likes', { ascending: false });
-        break;
-      case 'featured':
-        tracksQuery = tracksQuery.order('is_featured', { ascending: false }).order('plays', { ascending: false });
-        break;
-      default:
-        tracksQuery = tracksQuery.order('plays', { ascending: false });
-    }
-
-    tracksQuery = tracksQuery.limit(limit);
-
-    const { data: tracks, error: tracksError } = await tracksQuery;
-
-    if (tracksError) {
-      console.error('❌ Erreur tracks:', tracksError);
-      return NextResponse.json({ error: 'Erreur récupération tracks' }, { status: 500 });
-    }
-
-    // Récupérer les créateurs avec les bonnes colonnes
-    const creatorIds = Array.from(new Set(tracks?.map(track => track.creator_id).filter(Boolean) || []));
-    let creators: any[] = [];
-
-    if (creatorIds.length > 0) {
-      const { data: creatorsData, error: creatorsError } = await supabase
+    const [tracksResult, profilesResult] = await Promise.all([
+      tracksQuery.range(from, from + limit - 1),
+      supabaseAdmin
         .from('profiles')
-        .select('id, username, name, avatar, bio')
-        .in('id', creatorIds);
+        .select('id, username, name, avatar, bio, created_at', { count: 'exact' })
+        .not('username', 'is', null)
+        .order(sort === 'newest' ? 'created_at' : 'username', { ascending: sort !== 'newest' })
+        .range(profileFrom, profileFrom + profileLimit - 1),
+    ]);
 
-      if (!creatorsError && creatorsData) {
-        creators = creatorsData;
-      }
+    if (tracksResult.error) throw tracksResult.error;
+    if (profilesResult.error) throw profilesResult.error;
+
+    const rows = tracksResult.data || [];
+    const trackIds = rows.map((track: any) => track.id);
+    let liked = new Set<string>();
+    if (userId && trackIds.length) {
+      const { data } = await supabaseAdmin.from('track_likes').select('track_id').eq('user_id', userId).in('track_id', trackIds);
+      liked = new Set((data || []).map((entry: any) => String(entry.track_id)));
     }
 
-    // Algorithme intelligent pour le formatage
-    const formattedTracks = (tracks || []).map(track => {
-      const creator = creators.find(c => c.id === track.creator_id);
-      const now = new Date();
-      const trackDate = new Date(track.created_at);
-      const daysSinceCreation = Math.floor((now.getTime() - trackDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      // Algorithme pour déterminer si c'est nouveau
-      const isNew = daysSinceCreation <= 7;
-      
-      // Algorithme pour trending (combinaison plays + likes + récence)
-      const trendingScore = (track.plays || 0) + ((track.likes || 0) * 2) + Math.max(0, 30 - daysSinceCreation);
-      const isTrending = trendingScore > 100;
-      
-      return {
-        _id: track.id,
-        title: track.title,
-        artist: {
-          _id: track.creator_id,
-          username: creator?.username || 'Utilisateur inconnu',
-          name: creator?.name || creator?.username || 'Utilisateur inconnu',
-          avatar: creator?.avatar || '',
-          isArtist: false
-        },
-        genre: track.genre || [],
-        plays: track.plays || 0,
-        likes: track.likes || 0,
-        createdAt: track.created_at,
-        coverUrl: track.cover_url,
-        audioUrl: track.audio_url,
-        duration: track.duration || 0,
-        isFeatured: track.is_featured || false,
-        isNew: isNew,
-        trendingScore: trendingScore
-      };
-    });
+    const tracks = rows.map((track: any) => ({
+      _id: track.id,
+      title: track.title,
+      artist: {
+        _id: track.creator_id,
+        username: track.profiles?.username || '',
+        name: track.profiles?.name || track.profiles?.artist_name || track.profiles?.username || 'Artiste Synaura',
+        artistName: track.profiles?.artist_name || track.profiles?.name || track.profiles?.username || 'Artiste Synaura',
+        avatar: track.profiles?.avatar || '',
+      },
+      coverUrl: track.cover_url,
+      audioUrl: track.audio_url,
+      duration: track.duration || 0,
+      plays: track.plays || 0,
+      likes: Array.isArray(track.likes) ? track.likes : [],
+      likesCount: Array.isArray(track.likes) ? track.likes.length : Number(track.likes || 0),
+      genre: track.genre || [],
+      createdAt: track.created_at,
+      isFeatured: Boolean(track.is_featured),
+      isLiked: liked.has(track.id),
+    }));
 
-    // Récupérer les artistes depuis l'API artists qui fonctionne
-    console.log('🔍 Récupération des artistes...');
-    
-    try {
-      const artistsResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/artists?sort=trending&limit=8`);
-      let artists = [];
-      
-      if (artistsResponse.ok) {
-        const artistsData = await artistsResponse.json();
-        artists = artistsData.artists || [];
-        console.log('✅ Artistes récupérés depuis API artists:', artists.length);
-      } else {
-        console.log('⚠️ Erreur API artists, utilisation de données par défaut');
-      }
-      
-      console.log('✅ API Discover - Données récupérées:', {
-        tracks: formattedTracks.length,
-        artists: artists.length,
-        category,
-        sort
-      });
+    const artists = (profilesResult.data || []).map((profile: any) => ({
+      _id: profile.id,
+      username: profile.username || '',
+      name: profile.name || profile.username || 'Membre Synaura',
+      avatar: profile.avatar || '',
+      bio: profile.bio || '',
+      createdAt: profile.created_at,
+      isNew: Date.now() - new Date(profile.created_at || 0).getTime() < 14 * 86400000,
+    }));
 
-      return NextResponse.json({
-        tracks: formattedTracks,
-        artists: artists,
-        total: formattedTracks.length,
-        category,
-        sort,
-        algorithm: {
-          newThreshold: 7, // jours
-          trendingThreshold: 100, // score
-          artistTrendingThreshold: 30 // score simplifié
-        }
-      }, { headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }});
-      
-    } catch (artistsError) {
-      console.log('⚠️ Erreur lors de la récupération des artistes:', artistsError);
-      
-      // Retourner les tracks même sans artistes
-      return NextResponse.json({
-        tracks: formattedTracks,
-        artists: [],
-        total: formattedTracks.length,
-        category,
-        sort,
-        algorithm: {
-          newThreshold: 7,
-          trendingThreshold: 100,
-          artistTrendingThreshold: 30
-        }
-      }, { headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }});
-    }
-
-  } catch (error) {
-    console.error('❌ Erreur API Discover:', error);
-    return NextResponse.json(
-      { error: 'Erreur interne du serveur' },
-      { status: 500 }
-    );
+    const totalTracks = tracksResult.count || 0;
+    const totalArtists = profilesResult.count || 0;
+    return NextResponse.json({
+      tracks,
+      artists,
+      page,
+      nextPage: page + 1,
+      hasMore: from + tracks.length < totalTracks,
+      total: totalTracks,
+      profilePage,
+      nextProfilePage: profilePage + 1,
+      hasMoreProfiles: profileFrom + artists.length < totalArtists,
+      totalArtists,
+      category,
+      sort,
+    }, { headers: { 'Cache-Control': 'no-store' } });
+  } catch (error: any) {
+    console.error('Discover API error:', error);
+    return NextResponse.json({ error: error?.message || 'Erreur interne du serveur' }, { status: 500 });
   }
 }

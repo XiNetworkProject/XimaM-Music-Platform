@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -39,7 +40,7 @@ import type {
 import { useAuth } from '@/auth/AuthProvider';
 import { TrackCover } from '@/components/TrackCover';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
-import { EventCard as EventSummaryCard, EventTicker, PulseBadge, PulseBar, SectionHeader, VoteCountdownBanner } from '@/components/events/SynauraEvents';
+import { BattleDuel, EventCard as EventSummaryCard, EventTicker, PulseBadge, PulseBar, SectionHeader, VoteCountdownBanner } from '@/components/events/SynauraEvents';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { usePlayer } from '@/player/PlayerProvider';
@@ -95,6 +96,7 @@ export function CityScreen() {
   const [detailEvent, setDetailEvent] = useState<CityEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [celebrationEvent, setCelebrationEvent] = useState<CityEvent | null>(null);
 
   const load = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true);
@@ -125,6 +127,20 @@ export function CityScreen() {
     const timer = setTimeout(() => setToast(null), 3400);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (!city) return;
+    const winner = city.events.find((event) => event.userIsWinner && event.celebration);
+    if (!winner) return;
+    void AsyncStorage.getItem(`synaura.city.win.seen.${winner.id}`).then((seen) => {
+      if (seen !== '1') setCelebrationEvent(winner);
+    });
+  }, [city]);
+
+  const closeCelebration = useCallback(() => {
+    if (celebrationEvent) void AsyncStorage.setItem(`synaura.city.win.seen.${celebrationEvent.id}`, '1');
+    setCelebrationEvent(null);
+  }, [celebrationEvent]);
 
   const play = useCallback(async (track: Track) => {
     if (player.current?._id === track._id) await player.togglePlayPause();
@@ -286,6 +302,16 @@ export function CityScreen() {
         }}
       />
 
+      <WinnerCelebration
+        event={celebrationEvent}
+        busy={Boolean(actingEventId)}
+        onClose={closeCelebration}
+        onClaim={() => {
+          if (!celebrationEvent) return;
+          void claim(celebrationEvent).finally(closeCelebration);
+        }}
+      />
+
       {toast ? <View pointerEvents="none" style={[styles.toast, { bottom: insets.bottom + 112 }]}><Ionicons name="checkmark-circle" size={16} color={colors.paper} /><Text style={styles.toastText}>{toast}</Text></View> : null}
     </View>
   );
@@ -425,6 +451,7 @@ function BattleCard({ event, voting, player, onPlay, onVote, onDetails }: { even
     <View style={styles.battle}>
       <LinearGradient colors={['#EEE9FF', '#FFF4ED']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       <View style={styles.battleHeader}><View style={styles.battleHeaderCopy}><Text style={styles.battleKicker}>{canVote ? 'VOTE EN COURS' : event.isEnded ? 'VOTE TERMINÉ' : 'PROCHAIN VOTE'}</Text><Text style={styles.battleTitle}>{event.title}</Text><Text style={styles.battleMeta}>{event.totalVotes || 0} votes · quel son mérite la vitrine ?</Text></View><MotionPressable onPress={onDetails} style={styles.battleFlash}><Ionicons name="people" size={20} color={colors.paper} /></MotionPressable></View>
+      <BattleDuel event={event} />
       <View style={styles.battleGrid}>
         {tracks.slice(0, 2).map((track) => {
           const selected = event.selectedTrackId === track._id;
@@ -599,6 +626,33 @@ function TrackPickerSheet({ event, busy, onClose, onPick, onCreate }: { event: C
   );
 }
 
+function WinnerCelebration({ event, busy, onClose, onClaim }: { event: CityEvent | null; busy: boolean; onClose: () => void; onClaim: () => void }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={Boolean(event)} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.winnerBackdrop}>
+        <View style={[styles.winnerCard, { paddingBottom: insets.bottom + 18 }]}>
+          <LinearGradient colors={['#2A2026', '#171313']} style={StyleSheet.absoluteFill} />
+          <View style={styles.winnerTrophy}><Ionicons name="trophy" size={26} color={colors.text} /></View>
+          <Text style={styles.winnerKicker}>VICTOIRE SYNAURA</Text>
+          <Text style={styles.winnerTitle}>{event?.celebration?.title || 'Ton titre gagne la battle'}</Text>
+          <Text style={styles.winnerText}>{event?.celebration?.message}</Text>
+          {event ? <BattleDuel event={event} /> : null}
+          <View style={styles.winnerReward}>
+            <Text style={styles.winnerRewardKicker}>GAIN DISPONIBLE</Text>
+            <Text style={styles.winnerRewardTitle}>{event?.reward?.title || 'Mise en avant Synaura'}</Text>
+            <Text style={styles.winnerRewardText}>{event?.reward?.description || 'Ton titre passe sous les projecteurs pendant 24 h.'}</Text>
+          </View>
+          <View style={styles.winnerActions}>
+            <MotionPressable disabled={busy} onPress={onClaim} style={styles.winnerClaim}><Ionicons name="sparkles" size={16} color={colors.text} /><Text style={styles.winnerClaimText}>{busy ? 'Activation...' : 'Activer mon gain'}</Text></MotionPressable>
+            <MotionPressable onPress={onClose} style={styles.winnerLater}><Text style={styles.winnerLaterText}>Plus tard</Text></MotionPressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.md, paddingBottom: 190, gap: spacing.md },
@@ -688,6 +742,21 @@ const styles = StyleSheet.create({
   voteButton: { height: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 16, backgroundColor: colors.text },
   voteButtonSelected: { backgroundColor: colors.violet },
   voteText: { color: colors.paper, fontSize: 8, fontWeight: '900' },
+  winnerBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.74)', padding: 15 },
+  winnerCard: { width: '100%', maxWidth: 440, overflow: 'hidden', borderRadius: 31, padding: 18, elevation: 18 },
+  winnerTrophy: { width: 54, height: 54, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFD667' },
+  winnerKicker: { marginTop: 16, color: '#FF9A90', fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
+  winnerTitle: { marginTop: 6, color: colors.paper, fontSize: 27, lineHeight: 30, fontWeight: '900' },
+  winnerText: { marginTop: 8, color: 'rgba(255,250,242,0.58)', fontSize: 10, lineHeight: 16, fontWeight: '700' },
+  winnerReward: { borderRadius: 19, backgroundColor: 'rgba(255,250,242,0.08)', padding: 12 },
+  winnerRewardKicker: { color: 'rgba(255,250,242,0.38)', fontSize: 7, fontWeight: '900', letterSpacing: 1.1 },
+  winnerRewardTitle: { marginTop: 5, color: colors.paper, fontSize: 13, fontWeight: '900' },
+  winnerRewardText: { marginTop: 4, color: 'rgba(255,250,242,0.48)', fontSize: 9, lineHeight: 14, fontWeight: '700' },
+  winnerActions: { marginTop: 13, flexDirection: 'row', gap: 8 },
+  winnerClaim: { minHeight: 44, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 22, backgroundColor: colors.paper },
+  winnerClaimText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  winnerLater: { minHeight: 44, justifyContent: 'center', borderRadius: 22, backgroundColor: 'rgba(255,250,242,0.1)', paddingHorizontal: 15 },
+  winnerLaterText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
   radar: { overflow: 'hidden', borderRadius: 28, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(221,248,245,0.72)', padding: 14 },
   radarRing: { position: 'absolute', right: -40, top: -40, width: 180, height: 180, borderRadius: 90, borderWidth: 2, borderColor: colors.cyan },
   radarRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 19, backgroundColor: 'rgba(255,250,242,0.72)', padding: 8 },

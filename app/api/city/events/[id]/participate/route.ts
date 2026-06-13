@@ -41,15 +41,11 @@ async function writeLegacyParticipation(userId: string, eventId: string, trackId
   const previous = preferences.cityParticipations && typeof preferences.cityParticipations === 'object'
     ? preferences.cityParticipations
     : {};
-  const previousRewards = preferences.cityRewards && typeof preferences.cityRewards === 'object'
-    ? preferences.cityRewards
-    : {};
   const now = new Date().toISOString();
   const cityParticipations = { ...previous, [eventId]: { trackId, at: now } };
-  const cityRewards = { ...previousRewards, [eventId]: { status: 'available', updatedAt: now } };
   const { error } = await supabaseAdmin
     .from('profiles')
-    .update({ preferences: { ...preferences, cityParticipations, cityRewards }, updated_at: now })
+    .update({ preferences: { ...preferences, cityParticipations }, updated_at: now })
     .eq('id', userId);
   if (error) throw error;
 }
@@ -126,16 +122,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         source: 'submission',
         metadata: { submittedBy: session.user.id },
       }, { onConflict: 'event_id,track_id' });
-
-    await supabaseAdmin
-      .from('city_user_rewards')
-      .upsert({
-        event_id: eventId,
-        user_id: session.user.id,
-        reward_key: event.kind === 'friday_drop' ? 'friday-drop' : event.kind === 'seasonal' ? 'seasonal-spark' : 'challenge-drop',
-        status: 'available',
-        metadata: { source: 'participation', trackId },
-      }, { onConflict: 'event_id,user_id,reward_key' });
 
     await writeLegacyParticipation(session.user.id, eventId, trackId).catch(() => {});
 

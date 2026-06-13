@@ -106,6 +106,13 @@ export type CityEvent = {
   canParticipate?: boolean;
   winnerTrackId?: string | null;
   winners?: CityEventWinner[];
+  userIsWinner?: boolean;
+  celebration?: {
+    title: string;
+    message: string;
+    trackId?: string | null;
+    rewardTitle?: string | null;
+  } | null;
   reward?: CityEventReward | null;
   claimStatus?: 'none' | 'available' | 'claimed' | 'expired';
   detailCta?: {

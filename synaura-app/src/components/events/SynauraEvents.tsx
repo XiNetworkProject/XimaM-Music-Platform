@@ -101,6 +101,7 @@ export function VoteCountdownBanner({
       </View>
       <Text style={styles.countdownTime}>{remaining}</Text>
       <Text style={styles.countdownText}>{current ? 'Écoute les deux sons, puis donne la lumière à ton favori.' : 'Découvre déjà les artistes sélectionnés pour le prochain duel.'}</Text>
+      <BattleDuel event={session} compact />
       <View style={styles.countdownParticipants}>
         <View style={styles.countdownCovers}>
           {(session.tracks || []).slice(0, 3).map((track, index) => <TrackCover key={track._id} track={track} style={[styles.countdownCover, index > 0 && styles.countdownCoverOverlap]} />)}
@@ -111,6 +112,51 @@ export function VoteCountdownBanner({
         <Pressable onPress={onOpen} style={styles.countdownPrimary}><Ionicons name={current ? 'flash' : 'headset'} size={15} color={colors.text} /><Text style={styles.countdownPrimaryText}>{current ? 'Ouvrir le vote' : 'Voir les participants'}</Text></Pressable>
         {!current && onNotify ? <Pressable onPress={onNotify} style={styles.countdownNotify}><Ionicons name="notifications-outline" size={16} color={colors.paper} /></Pressable> : null}
       </View>
+    </View>
+  );
+}
+
+export function BattleDuel({ event, compact = false }: { event: CityEvent; compact?: boolean }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+  const tracks = (event.tracks || []).slice(0, 2);
+  useEffect(() => {
+    const animation = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+    ]));
+    animation.start();
+    return () => animation.stop();
+  }, [pulse]);
+  if (tracks.length < 2) return null;
+  return (
+    <View style={[styles.duel, compact && styles.duelCompact]}>
+      {tracks.map((track, index) => {
+        const winner = event.winnerTrackId === track._id;
+        return (
+          <Animated.View
+            key={track._id}
+            style={[
+              styles.duelCard,
+              compact && styles.duelCardCompact,
+              {
+                transform: [
+                  { translateX: pulse.interpolate({ inputRange: [0, 1], outputRange: [0, index === 0 ? 4 : -4] }) },
+                  { rotate: index === 0 ? '-4deg' : '4deg' },
+                  { scale: winner ? 1.04 : pulse.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1.01] }) },
+                ],
+              },
+            ]}
+          >
+            <TrackCover track={track} active={winner} style={styles.duelCover} />
+            <View style={styles.duelLabel}><Text numberOfLines={1} style={styles.duelTitle}>{track.title}</Text></View>
+            {winner ? <View style={styles.duelWinner}><Ionicons name="trophy" size={12} color={colors.text} /></View> : null}
+          </Animated.View>
+        );
+      })}
+      <Animated.View style={[styles.duelVs, { transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.15] }) }] }]}>
+        <Ionicons name={event.isEnded ? 'trophy' : 'flash'} size={compact ? 15 : 19} color={colors.paper} />
+        {!compact ? <Text style={styles.duelVsText}>VS</Text> : null}
+      </Animated.View>
     </View>
   );
 }
@@ -327,6 +373,16 @@ const styles = StyleSheet.create({
   countdownPrimary: { minHeight: 42, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 21, backgroundColor: colors.paper, paddingHorizontal: 13 },
   countdownPrimaryText: { color: colors.text, fontSize: 10, fontWeight: '900' },
   countdownNotify: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.12)' },
+  duel: { minHeight: 180, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 8 },
+  duelCompact: { minHeight: 105, gap: 5, paddingVertical: 2 },
+  duelCard: { width: '42%', aspectRatio: 0.88, overflow: 'hidden', borderRadius: 22, borderWidth: 2, borderColor: 'rgba(255,250,242,0.26)', backgroundColor: colors.text },
+  duelCardCompact: { maxWidth: 105, borderRadius: 17 },
+  duelCover: { width: '100%', height: '100%' },
+  duelLabel: { position: 'absolute', left: 5, right: 5, bottom: 5, borderRadius: 12, backgroundColor: 'rgba(23,19,19,0.82)', paddingHorizontal: 7, paddingVertical: 6 },
+  duelTitle: { color: colors.paper, fontSize: 8, fontWeight: '900' },
+  duelWinner: { position: 'absolute', right: 7, top: 7, width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFD667' },
+  duelVs: { position: 'absolute', left: '50%', zIndex: 2, width: 48, height: 48, marginLeft: -24, borderRadius: 24, borderWidth: 3, borderColor: colors.text, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet, elevation: 8 },
+  duelVsText: { marginTop: -2, color: colors.paper, fontSize: 7, fontWeight: '900' },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10, marginBottom: spacing.md },
   sectionCopy: { flex: 1, minWidth: 0 },
   sectionEyebrow: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.3 },

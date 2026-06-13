@@ -80,16 +80,6 @@ export async function POST(request: NextRequest) {
       }, { onConflict: 'event_id,user_id' });
     if (error) throw error;
 
-    await supabaseAdmin
-      .from('city_user_rewards')
-      .upsert({
-        event_id: battleId,
-        user_id: session.user.id,
-        reward_key: 'battle-jury',
-        status: 'available',
-        metadata: { source: 'vote' },
-      }, { onConflict: 'event_id,user_id,reward_key' });
-
     await writeLegacyVote(session.user.id, battleId, trackId).catch(() => {});
 
     return NextResponse.json({ success: true, battleId, trackId });

@@ -49,6 +49,7 @@ export async function GET(req: NextRequest) {
       aiGenerationEnabled: entitlements.features.aiGeneration,
       monthlyCredits: entitlements.ai.monthlyCredits ?? 0,
       creditBalance: creditRow?.balance ?? 0,
+      availableModels: entitlements.ai.availableModels,
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Erreur serveur' }, { status: 500 });

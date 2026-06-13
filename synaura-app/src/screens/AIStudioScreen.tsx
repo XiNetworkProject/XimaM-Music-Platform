@@ -126,6 +126,8 @@ export function AIStudioScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
+  const [modelNotice, setModelNotice] = useState('');
+  const [liveModel, setLiveModel] = useState('');
   const [librarySearch, setLibrarySearch] = useState('');
   const [libraryFilter, setLibraryFilter] = useState<'all' | 'instrumental' | 'lyrics' | 'liked' | 'trashed'>('all');
   const [libraryFolder, setLibraryFolder] = useState('');
@@ -218,6 +220,7 @@ export function AIStudioScreen() {
           if (active?.taskId) {
             setLiveTaskId(String(active.taskId));
             setLiveStatus(String(active.status || 'pending'));
+            if (active.model) setLiveModel(String(active.model));
           }
         } catch {}
       }
@@ -386,7 +389,14 @@ export function AIStudioScreen() {
       }
       setLiveTaskId(result.taskId);
       setLiveStatus('pending');
-      await AsyncStorage.setItem(ACTIVE_TASK_KEY, JSON.stringify({ taskId: result.taskId, status: 'pending', title: title || description, startedAt: Date.now() }));
+      setLiveModel(result.model);
+      if (result.modelAdjusted) {
+        setModelNotice(`${String(result.requestedModel || model).replace('_', '.')} n'est pas inclus dans ton plan. La génération utilise réellement ${result.model.replace('_', '.')}.`);
+        setModel(result.model);
+      } else {
+        setModelNotice(`Génération lancée avec ${result.model.replace('_', '.')}.`);
+      }
+      await AsyncStorage.setItem(ACTIVE_TASK_KEY, JSON.stringify({ taskId: result.taskId, status: 'pending', title: title || description, model: result.model, startedAt: Date.now() }));
       if (result.credits?.balance != null) setCredits(Number(result.credits.balance));
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (generationError) {
@@ -411,7 +421,7 @@ export function AIStudioScreen() {
         id: `live-${liveTaskId}`,
         task_id: liveTaskId,
         prompt: description,
-        model,
+        model: liveModel || model,
         status: 'pending',
         created_at: new Date().toISOString(),
         metadata: { title: title || description || 'Création en cours', style, instrumental },
@@ -428,13 +438,13 @@ export function AIStudioScreen() {
             stream_audio_url: raw.stream,
             image_url: raw.image,
             duration: Number(raw.duration || 0),
-            model_name: model,
+            model_name: liveModel || model,
           },
         });
       });
     }
     return rows;
-  }, [description, instrumental, library, liveTaskId, liveTracks, model, style, title]);
+  }, [description, instrumental, library, liveModel, liveTaskId, liveTracks, model, style, title]);
   const visibleLibraryTracks = useMemo(() => libraryTracks.filter(({ generation, track }) => {
     const query = librarySearch.trim().toLowerCase();
     const haystack = `${track.title} ${track.style || ''} ${track.prompt || ''} ${generation.prompt || ''}`.toLowerCase();
@@ -637,7 +647,15 @@ export function AIStudioScreen() {
             </Pressable>
             {advancedOpen ? (
               <View style={styles.panel}>
-                <ChoiceRow label="Modèle" values={MODELS} value={model} onChange={setModel} />
+                <ModelChoiceRow
+                  available={quota?.availableModels || ['V4_5']}
+                  value={model}
+                  onChange={(nextModel) => {
+                    setModelNotice('');
+                    setModel(nextModel);
+                  }}
+                  onUpgrade={() => navigation.navigate('Subscriptions')}
+                />
                 <ChoiceRow label="Durée cible" values={DURATIONS.map(String)} value={String(duration)} suffix=" sec" onChange={(value) => setDuration(Number(value))} />
                 {mode !== 'simple' ? (
                   <>
@@ -657,12 +675,19 @@ export function AIStudioScreen() {
               <Text style={styles.generateCost}>{GENERATION_COST} crédits</Text>
             </Pressable>
             <Pressable onPress={() => setShowCredits(true)} style={styles.buyButton}><Ionicons name="sparkles-outline" size={16} color={colors.violet} /><Text style={styles.buyText}>Acheter des crédits</Text><Ionicons name="arrow-forward" size={16} color={colors.violet} /></Pressable>
+            {modelNotice ? (
+              <View style={styles.modelNotice}>
+                <Ionicons name="information-circle-outline" size={17} color={colors.violet} />
+                <Text style={styles.modelNoticeText}>{modelNotice}</Text>
+                {quota?.plan_type !== 'pro' ? <Pressable onPress={() => navigation.navigate('Subscriptions')}><Text style={styles.modelNoticeLink}>Voir Pro</Text></Pressable> : null}
+              </View>
+            ) : null}
 
             {liveTaskId ? (
               <View style={styles.livePanel}>
                 <View style={styles.liveTop}><View style={styles.liveDot} /><Text style={styles.liveKicker}>GÉNÉRATION LIVE</Text><Text style={styles.liveStatus}>{liveStatus || 'pending'}</Text></View>
                 <Text style={styles.liveTitle}>{title || description || 'Création en cours'}</Text>
-                <Text style={styles.liveTask}>#{liveTaskId.slice(-8)}</Text>
+                <Text style={styles.liveTask}>{(liveModel || model).replace('_', '.')} · #{liveTaskId.slice(-8)}</Text>
                 <GenerationTimeline status={liveStatus} hasTracks={liveTracks.length > 0} />
                 {liveTracks.map((track) => <StudioTrackRow key={track.id} title={track.title} image={track.image} playing={player.current?._id === `ai-${track.id}`} onPlay={() => play(track)} />)}
               </View>
@@ -713,6 +738,25 @@ function Field({ label, value, onChangeText, placeholder, multiline, tall }: { l
 
 function ChoiceRow({ label, values, value, suffix = '', onChange }: { label: string; values: string[]; value: string; suffix?: string; onChange: (value: string) => void }) {
   return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><View style={styles.choices}>{values.map((item) => <Pressable key={item || 'auto'} onPress={() => onChange(item)} style={[styles.choice, value === item && styles.choiceActive]}><Text style={[styles.choiceText, value === item && styles.choiceTextActive]}>{item === '' ? 'Auto' : item === 'f' ? 'Femme' : item === 'm' ? 'Homme' : item}{suffix}</Text></Pressable>)}</View></View>;
+}
+
+function ModelChoiceRow({ available, value, onChange, onUpgrade }: { available: string[]; value: string; onChange: (value: string) => void; onUpgrade: () => void }) {
+  return (
+    <View style={styles.field}>
+      <View style={styles.fieldHead}><Text style={styles.fieldLabel}>MODÈLE</Text><Text style={styles.tagCount}>modèle réellement utilisé</Text></View>
+      <View style={styles.choices}>
+        {MODELS.map((item) => {
+          const unlocked = available.includes(item);
+          return (
+            <Pressable key={item} onPress={() => unlocked ? onChange(item) : onUpgrade()} style={[styles.choice, value === item && styles.choiceActive, !unlocked && styles.choiceLocked]}>
+              <Text style={[styles.choiceText, value === item && styles.choiceTextActive]}>{item.replace('_', '.')}</Text>
+              {!unlocked ? <Ionicons name="lock-closed" size={9} color={colors.textTertiary} /> : null}
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 function Meter({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
@@ -972,6 +1016,7 @@ const styles = StyleSheet.create({
   choices: { flexDirection: 'row', gap: 7 },
   choice: { flex: 1, minHeight: 38, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(244,239,230,0.82)' },
   choiceActive: { backgroundColor: colors.black },
+  choiceLocked: { opacity: 0.46, borderWidth: 1, borderColor: colors.border },
   choiceText: { color: colors.textTertiary, fontSize: 10, fontWeight: '900' },
   choiceTextActive: { color: colors.paper },
   meterHead: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -987,6 +1032,9 @@ const styles = StyleSheet.create({
   generateCost: { color: 'rgba(255,250,242,0.56)', fontSize: 10, fontWeight: '900' },
   buyButton: { height: 45, borderRadius: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,250,242,0.82)', borderWidth: 1, borderColor: colors.border },
   buyText: { color: colors.violet, fontSize: 11, fontWeight: '900' },
+  modelNotice: { minHeight: 46, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, backgroundColor: 'rgba(124,92,255,0.09)', borderWidth: 1, borderColor: 'rgba(124,92,255,0.2)' },
+  modelNoticeText: { flex: 1, color: colors.textSecondary, fontSize: 9, lineHeight: 14, fontWeight: '800' },
+  modelNoticeLink: { color: colors.violet, fontSize: 9, fontWeight: '900' },
   livePanel: { borderRadius: 24, padding: 14, gap: 9, backgroundColor: 'rgba(124,92,255,0.10)', borderWidth: 1, borderColor: 'rgba(124,92,255,0.24)' },
   liveTop: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#34D399' },

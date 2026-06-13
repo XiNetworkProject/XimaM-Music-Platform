@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
-import { getHomeData, getSynauraCity } from '@/api/client';
+import { getDiscoverPage, getHomeData, getSynauraCity } from '@/api/client';
 import type { HomeData, SynauraCityData, Track } from '@/api/types';
 import { EventTicker, EventsRail } from '@/components/events/SynauraEvents';
 import { TrackCover } from '@/components/TrackCover';
@@ -23,6 +23,12 @@ import { SynauraBackground } from '@/components/SynauraBackground';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 
 const genres = ['Tout', 'Pop', 'Hip-Hop', 'Rap', 'Rock', 'Electronic', 'R&B', 'Jazz', 'Lo-Fi', 'Indie', 'Ambient'];
+const sorts = [
+  { id: 'trending', label: 'Moment', icon: 'pulse' },
+  { id: 'newest', label: 'Nouveaux', icon: 'sparkles' },
+  { id: 'popular', label: 'Plus aimés', icon: 'heart' },
+  { id: 'hidden', label: 'Pépites', icon: 'diamond' },
+] as const;
 const emptyData: HomeData = { forYou: [], trending: [], recent: [], boosted: [], playlists: [], creators: [], posts: [] };
 
 function artistName(track: Track) {
@@ -48,6 +54,12 @@ export function DiscoverScreen() {
   const [city, setCity] = useState<SynauraCityData | null>(null);
   const [genre, setGenre] = useState('Tout');
   const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<(typeof sorts)[number]['id']>('trending');
+  const [exploreTracks, setExploreTracks] = useState<Track[]>([]);
+  const [exploreCreators, setExploreCreators] = useState<HomeData['creators']>([]);
+  const [nextPage, setNextPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [paging, setPaging] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const player = usePlayer();
@@ -56,24 +68,48 @@ export function DiscoverScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [homeResult, cityResult] = await Promise.allSettled([getHomeData(), getSynauraCity()]);
+      const [homeResult, cityResult, discoverResult] = await Promise.allSettled([getHomeData(), getSynauraCity(), getDiscoverPage({ sort, page: 0 })]);
       if (homeResult.status === 'rejected') throw homeResult.reason;
       setData(homeResult.value);
       if (cityResult.status === 'fulfilled') setCity(cityResult.value);
+      if (discoverResult.status === 'fulfilled') {
+        setExploreTracks(discoverResult.value.tracks);
+        setExploreCreators(discoverResult.value.artists);
+        setNextPage(discoverResult.value.nextPage);
+        setHasMore(discoverResult.value.hasMore || discoverResult.value.hasMoreProfiles);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Chargement impossible');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sort]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  const loadMore = useCallback(async () => {
+    if (paging || !hasMore || query.trim()) return;
+    setPaging(true);
+    try {
+      const page = await getDiscoverPage({ sort, page: nextPage, profilePage: nextPage });
+      setExploreTracks((current) => uniqueTracks([...current, ...page.tracks]));
+      setExploreCreators((current) => {
+        const byId = new Map(current.map((creator) => [creator.id, creator]));
+        page.artists.forEach((creator) => byId.set(creator.id, creator));
+        return Array.from(byId.values());
+      });
+      setNextPage(page.nextPage);
+      setHasMore(page.hasMore || page.hasMoreProfiles);
+    } finally {
+      setPaging(false);
+    }
+  }, [hasMore, nextPage, paging, query, sort]);
+
   const allTracks = useMemo(
-    () => uniqueTracks([...data.forYou, ...data.trending, ...data.recent, ...data.boosted]),
-    [data],
+    () => uniqueTracks([...data.forYou, ...data.trending, ...data.recent, ...data.boosted, ...exploreTracks]),
+    [data, exploreTracks],
   );
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -101,6 +137,11 @@ export function DiscoverScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={warm.ink} />}
+        onScroll={({ nativeEvent }) => {
+          const remaining = nativeEvent.contentSize.height - nativeEvent.layoutMeasurement.height - nativeEvent.contentOffset.y;
+          if (remaining < 700) void loadMore();
+        }}
+        scrollEventThrottle={220}
       >
         <View style={styles.topRow}>
           <View>
@@ -138,8 +179,21 @@ export function DiscoverScreen() {
             </Pressable>
           ))}
         </ScrollView>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sorts}>
+          {sorts.map((item) => (
+            <Pressable key={item.id} onPress={() => setSort(item.id)} style={[styles.sort, sort === item.id && styles.sortActive]}>
+              <Ionicons name={item.icon} size={14} color={sort === item.id ? warm.paper : '#7C5CFF'} />
+              <Text style={[styles.sortText, sort === item.id && styles.sortTextActive]}>{item.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
 
         <EventTicker city={city} onPress={() => navigation.navigate('City')} tone="cyan" />
+        <Pressable onPress={() => navigation.navigate('Subscriptions')} style={styles.plusNudge}>
+          <View style={styles.plusIcon}><Ionicons name="sparkles" size={18} color={warm.paper} /></View>
+          <View style={{ flex: 1 }}><Text style={styles.plusTitle}>Plus de Studio, sans casser ton flow</Text><Text style={styles.plusText}>Découvre les modèles IA et outils inclus dans Synaura Plus.</Text></View>
+          <Ionicons name="arrow-forward" size={17} color={warm.ink} />
+        </Pressable>
         {heroTrack ? <DiscoverHero track={heroTrack} playing={player.current?._id === heroTrack._id && player.isPlaying} onPlay={() => playFrom(filtered.length ? filtered : allTracks, heroTrack)} /> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {loading && !allTracks.length ? <ActivityIndicator color={warm.ink} style={styles.loader} /> : null}
@@ -155,6 +209,9 @@ export function DiscoverScreen() {
             <DiscoverRail title="Fraîchement publié" subtitle="les dernières sorties Synaura" tracks={recent} player={player} onPlay={(track) => playFrom(recent, track)} />
             <CreatorRail creators={data.creators.slice(0, 8)} onOpen={(username) => navigation.navigate('PublicProfile', { username })} />
             <PlaylistRail playlists={data.playlists.slice(0, 8)} onOpen={(playlistId) => navigation.navigate('PlaylistDetail', { playlistId })} />
+            <DiscoverRows title={sort === 'hidden' ? 'Pépites à dénicher' : 'Explorer sans fin'} tracks={exploreTracks} player={player} onPlay={(track) => playFrom(exploreTracks, track)} />
+            <CreatorRail title="Tous les profils Synaura" subtitle="nouveaux, actifs et encore peu connus" creators={exploreCreators} onOpen={(username) => navigation.navigate('PublicProfile', { username })} />
+            {paging ? <ActivityIndicator color="#7C5CFF" style={styles.loader} /> : null}
           </>
         )}
       </ScrollView>
@@ -238,11 +295,11 @@ function DiscoverRows({ title, tracks, player, onPlay }: { title: string; tracks
   );
 }
 
-function CreatorRail({ creators, onOpen }: { creators: HomeData['creators']; onOpen: (username: string) => void }) {
+function CreatorRail({ title = 'Artistes chauds', subtitle = 'des profils à suivre maintenant', creators, onOpen }: { title?: string; subtitle?: string; creators: HomeData['creators']; onOpen: (username: string) => void }) {
   if (!creators.length) return null;
   return (
     <View style={styles.section}>
-      <SectionTitle title="Artistes chauds" subtitle="des profils à suivre maintenant" />
+      <SectionTitle title={title} subtitle={subtitle} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
         {creators.map((creator) => (
           <Pressable key={creator.id} onPress={() => onOpen(creator.handle.replace(/^@/, ''))} style={styles.creator}>
@@ -308,10 +365,19 @@ const styles = StyleSheet.create({
   search: { marginTop: spacing.lg, height: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 24, borderWidth: 1, borderColor: warm.border, backgroundColor: 'rgba(255,250,242,0.88)', paddingHorizontal: spacing.md },
   searchInput: { flex: 1, color: warm.ink, fontSize: 13, fontWeight: '800' },
   genres: { gap: spacing.sm, paddingVertical: spacing.md },
+  sorts: { gap: spacing.sm, paddingBottom: spacing.md },
+  sort: { minHeight: 38, borderRadius: 19, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 13, backgroundColor: 'rgba(124,92,255,0.08)', borderWidth: 1, borderColor: 'rgba(124,92,255,0.12)' },
+  sortActive: { backgroundColor: warm.ink, borderColor: warm.ink },
+  sortText: { color: warm.soft, fontSize: 10, fontWeight: '900' },
+  sortTextActive: { color: warm.paper },
   genre: { height: 36, justifyContent: 'center', borderRadius: 18, backgroundColor: 'rgba(23,19,19,0.055)', paddingHorizontal: 14 },
   genreActive: { backgroundColor: warm.ink },
   genreText: { color: warm.soft, fontSize: 11, fontWeight: '900' },
   genreTextActive: { color: warm.paper },
+  plusNudge: { minHeight: 72, marginTop: spacing.md, borderRadius: 22, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 12, backgroundColor: 'rgba(255,250,242,0.88)', borderWidth: 1, borderColor: 'rgba(124,92,255,0.18)' },
+  plusIcon: { width: 43, height: 43, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7C5CFF' },
+  plusTitle: { color: warm.ink, fontSize: 12, fontWeight: '900' },
+  plusText: { marginTop: 3, color: warm.muted, fontSize: 9, lineHeight: 13, fontWeight: '700' },
   heroCard: { minHeight: 270, overflow: 'hidden', justifyContent: 'flex-end', borderRadius: 24, backgroundColor: warm.ink },
   heroImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   heroContent: { padding: spacing.lg },

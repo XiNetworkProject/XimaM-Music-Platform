@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Bell, Play, Vote } from 'lucide-react';
 import TrackCover from '@/components/TrackCover';
 import type { CityVoteSession } from '@/lib/synauraCity';
+import SynauraBattleDuel from '@/components/synaura/SynauraBattleDuel';
 
 function durationLabel(target?: string) {
   const delta = Math.max(0, new Date(target || 0).getTime() - Date.now());
@@ -75,12 +76,8 @@ export default function SynauraCountdownBanner({
           </div>
         </div>
 
-        <div className="flex min-h-32 items-center justify-center -space-x-5 lg:min-w-64">
-          {covers.map((track, index) => (
-            <motion.div key={track._id} animate={{ y: [0, index % 2 ? 7 : -7, 0] }} transition={{ duration: 3.4 + index * 0.5, repeat: Infinity, ease: 'easeInOut' }} className="relative">
-              <TrackCover trackId={track._id} src={track.coverUrl} title={track.title} className="h-24 w-24 rounded-[1.35rem] border-4 border-[#171313] object-cover shadow-xl sm:h-32 sm:w-32" />
-            </motion.div>
-          ))}
+        <div className="min-h-32 lg:min-w-72">
+          {covers.length >= 2 ? <SynauraBattleDuel event={session} compact /> : covers.map((track) => <TrackCover key={track._id} trackId={track._id} src={track.coverUrl} title={track.title} className="h-28 w-28 rounded-[1.35rem] object-cover" />)}
         </div>
       </div>
     </section>

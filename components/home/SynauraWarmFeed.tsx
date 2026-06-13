@@ -898,6 +898,7 @@ function buildFeedItems({
 }) {
   const items: FeedItem[] = [];
 
+  items.push({ id: 'composer', kind: 'composer' });
   if (forYouTracks.length) {
     items.push({
       id: 'rail-for-you',
@@ -932,7 +933,6 @@ function buildFeedItems({
     });
   }
   items.push({ id: 'city-feed-pulse', kind: 'city' });
-  items.push({ id: 'composer', kind: 'composer' });
   if (posts[0]) items.push(posts[0]);
   if (posts[1]) items.push(posts[1]);
   if (trendingTracks.length) {

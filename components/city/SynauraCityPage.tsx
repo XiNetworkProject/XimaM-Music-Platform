@@ -41,6 +41,7 @@ import SynauraPulseBadge from '@/components/synaura/SynauraPulseBadge';
 import SynauraPulseBar from '@/components/synaura/SynauraPulseBar';
 import SynauraSectionHeader from '@/components/synaura/SynauraSectionHeader';
 import SynauraTickerBanner from '@/components/synaura/SynauraTickerBanner';
+import SynauraBattleDuel from '@/components/synaura/SynauraBattleDuel';
 import type { CityAward, CityBadge, CityEvent, CityPulseTrack, CityTrack, SynauraCityData } from '@/lib/synauraCity';
 
 type MyTrack = {
@@ -89,6 +90,7 @@ export default function SynauraCityPage() {
   const [pickerEvent, setPickerEvent] = useState<CityEvent | null>(null);
   const [detailEvent, setDetailEvent] = useState<CityEvent | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [celebrationEvent, setCelebrationEvent] = useState<CityEvent | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -120,6 +122,17 @@ export default function SynauraCityPage() {
     const timer = setTimeout(() => setToast(null), 3600);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (!city || typeof window === 'undefined') return;
+    const winner = city.events.find((event) => event.userIsWinner && event.celebration && window.localStorage.getItem(`synaura.city.win.seen.${event.id}`) !== '1');
+    if (winner) setCelebrationEvent(winner);
+  }, [city]);
+
+  const closeCelebration = useCallback(() => {
+    if (celebrationEvent && typeof window !== 'undefined') window.localStorage.setItem(`synaura.city.win.seen.${celebrationEvent.id}`, '1');
+    setCelebrationEvent(null);
+  }, [celebrationEvent]);
 
   const currentId = audio.audioState.tracks[audio.audioState.currentTrackIndex]?._id;
   const play = useCallback((track: CityTrack) => {
@@ -373,6 +386,32 @@ export default function SynauraCityPage() {
       />
 
       <AnimatePresence>
+        {celebrationEvent ? (
+          <motion.div className="fixed inset-0 z-[140] grid place-items-center bg-[#171313]/72 p-4 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div initial={{ y: 30, scale: 0.92 }} animate={{ y: 0, scale: 1 }} exit={{ y: 20, scale: 0.94 }} className="relative w-full max-w-xl overflow-hidden rounded-[2rem] bg-[#171313] p-5 text-white shadow-[0_32px_120px_rgba(23,19,19,.55)] sm:p-7">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(255,111,97,.34),transparent_38%),radial-gradient(circle_at_90%_10%,rgba(124,92,255,.38),transparent_42%)]" />
+              <div className="relative">
+                <motion.div animate={{ rotate: [0, -8, 8, 0], scale: [1, 1.12, 1] }} transition={{ duration: 1.8, repeat: Infinity }} className="grid h-14 w-14 place-items-center rounded-[1.15rem] bg-[#ffd667] text-[#171313]"><Trophy className="h-7 w-7" /></motion.div>
+                <p className="mt-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#ff9a90]">Victoire Synaura</p>
+                <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{celebrationEvent.celebration?.title}</h2>
+                <p className="mt-3 text-sm font-bold leading-6 text-white/58">{celebrationEvent.celebration?.message}</p>
+                <SynauraBattleDuel event={celebrationEvent} />
+                <div className="mt-2 rounded-[1.2rem] bg-white/8 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/38">Gain disponible</p>
+                  <p className="mt-1 text-sm font-black">{celebrationEvent.reward?.title || 'Mise en avant Synaura'}</p>
+                  <p className="mt-1 text-xs font-bold text-white/45">{celebrationEvent.reward?.description || 'Ton titre passe sous les projecteurs.'}</p>
+                </div>
+                <div className="mt-5 flex gap-2">
+                  <SynauraButton className="flex-1 bg-white text-[#171313]" onClick={() => { void claim(celebrationEvent); closeCelebration(); }}>Activer mon gain</SynauraButton>
+                  <SynauraGhostButton onClick={closeCelebration}>Plus tard</SynauraGhostButton>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {toast ? (
           <motion.div initial={{ opacity: 0, y: 22, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: 0.96 }} className="fixed bottom-24 left-1/2 z-[90] -translate-x-1/2 rounded-full bg-[#171313] px-5 py-3 text-sm font-black text-white shadow-[0_18px_55px_rgba(23,19,19,0.24)] sm:bottom-6">
             {toast}
@@ -428,6 +467,7 @@ function BattlePanel({ event, voting, currentId, isPlaying, onPlay, onVote }: { 
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[1rem] bg-white/10"><Vote className="h-6 w-6" /></span>
           </div>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2"><SynauraBattleDuel event={event} /></div>
             {tracks.map((track) => {
               const selected = event.selectedTrackId === track._id;
               const percent = Math.round((Number(event.voteCounts?.[track._id] || 0) / total) * 100);

@@ -19,6 +19,7 @@ import type {
   SearchResults,
   SynauraNotification,
   Track,
+  DiscoverPage,
 } from './types';
 
 const fallbackBaseUrl = 'https://xima-m-music-platform.vercel.app';
@@ -418,6 +419,30 @@ export async function getHomeData(): Promise<HomeData> {
     libraryStats,
     nextCursor: feedPayload.nextCursor == null ? null : String(feedPayload.nextCursor),
     hasMore: Boolean(feedPayload.hasMore),
+  };
+}
+
+export async function getDiscoverPage(input: { page?: number; profilePage?: number; sort?: string; category?: string; limit?: number } = {}): Promise<DiscoverPage> {
+  const params = new URLSearchParams({
+    page: String(input.page || 0),
+    profilePage: String(input.profilePage ?? input.page ?? 0),
+    sort: input.sort || 'trending',
+    category: input.category || 'all',
+    limit: String(input.limit || 24),
+    profileLimit: '12',
+  });
+  const payload = await request<any>(`/api/discover?${params.toString()}`);
+  return {
+    tracks: (Array.isArray(payload?.tracks) ? payload.tracks : []).map(normalizeTrack).filter((track: Track | null): track is Track => Boolean(track)),
+    artists: (Array.isArray(payload?.artists) ? payload.artists : []).map(normalizeCreator).filter((creator: Creator | null): creator is Creator => Boolean(creator)),
+    page: Number(payload?.page || 0),
+    nextPage: Number(payload?.nextPage || 1),
+    hasMore: Boolean(payload?.hasMore),
+    total: Number(payload?.total || 0),
+    profilePage: Number(payload?.profilePage || 0),
+    nextProfilePage: Number(payload?.nextProfilePage || 1),
+    hasMoreProfiles: Boolean(payload?.hasMoreProfiles),
+    totalArtists: Number(payload?.totalArtists || 0),
   };
 }
 
@@ -1642,6 +1667,7 @@ export type AIStudioQuota = {
   aiGenerationEnabled?: boolean;
   monthlyCredits?: number;
   creditBalance?: number;
+  availableModels?: string[];
 };
 
 export type StartAIGenerationInput = {
@@ -1836,11 +1862,11 @@ export async function getAIStudioQuota(): Promise<AIStudioQuota | null> {
   return optionalRequest<AIStudioQuota>('/api/ai/quota');
 }
 
-export async function startAIGeneration(input: StartAIGenerationInput): Promise<{ taskId: string; model: string; modelAdjusted?: boolean; credits?: { balance?: number } }> {
+export async function startAIGeneration(input: StartAIGenerationInput): Promise<{ taskId: string; model: string; requestedModel?: string; modelAdjusted?: boolean; credits?: { balance?: number } }> {
   return request('/api/suno/generate', { method: 'POST', body: JSON.stringify(input) });
 }
 
-export async function startAIRemix(input: StartAIGenerationInput & { uploadUrl: string; sourceDurationSec?: number }): Promise<{ taskId: string; model: string; modelAdjusted?: boolean; credits?: { balance?: number } }> {
+export async function startAIRemix(input: StartAIGenerationInput & { uploadUrl: string; sourceDurationSec?: number }): Promise<{ taskId: string; model: string; requestedModel?: string; modelAdjusted?: boolean; credits?: { balance?: number } }> {
   return request('/api/suno/upload-cover', { method: 'POST', body: JSON.stringify(input) });
 }
 

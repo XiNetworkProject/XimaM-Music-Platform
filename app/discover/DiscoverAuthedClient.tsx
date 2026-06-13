@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Disc3, Play, Search, Sparkles, X, Zap } from 'lucide-react';
 import {
@@ -35,6 +35,12 @@ const GENRES = [
   'Reggae', 'Latin', 'Afro',
 ];
 const DISCOVER_TABS = ['Tout', 'Sons', 'IA', 'Artistes', 'Albums', 'Playlists'] as const;
+const CATALOG_SORTS = [
+  { id: 'trending', label: 'Moment' },
+  { id: 'newest', label: 'Nouveaux' },
+  { id: 'popular', label: 'Plus aimés' },
+  { id: 'hidden', label: 'Pépites' },
+] as const;
 type DiscoverTab = typeof DISCOVER_TABS[number];
 
 function greeting() {
@@ -147,6 +153,13 @@ export default function DiscoverAuthedClient({
   const [artists, setArtists] = useState(initialArtists);
   const [boostedTracks, setBoostedTracks] = useState<any[]>([]);
   const [albums, setAlbums] = useState<DiscoverAlbumLite[]>([]);
+  const [catalogSort, setCatalogSort] = useState<(typeof CATALOG_SORTS)[number]['id']>('trending');
+  const [catalogTracks, setCatalogTracks] = useState<DiscoverTrackLite[]>([]);
+  const [catalogArtists, setCatalogArtists] = useState<DiscoverArtistLite[]>([]);
+  const [catalogPage, setCatalogPage] = useState(0);
+  const [catalogHasMore, setCatalogHasMore] = useState(true);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const catalogSentinel = useRef<HTMLDivElement>(null);
 
   const refreshData = useCallback(async () => {
     try {
@@ -195,6 +208,41 @@ export default function DiscoverAuthedClient({
     const t = setTimeout(refreshData, 600);
     return () => clearTimeout(t);
   }, [refreshData]);
+
+  const loadCatalog = useCallback(async (page: number, reset = false) => {
+    if (catalogLoading && !reset) return;
+    setCatalogLoading(true);
+    try {
+      const category = activeGenre === 'Tout' ? 'all' : activeGenre;
+      const response = await fetch(`/api/discover?sort=${catalogSort}&category=${encodeURIComponent(category)}&page=${page}&profilePage=${page}&limit=24`, { cache: 'no-store' });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json?.error || 'Catalogue indisponible');
+      const nextTracks = Array.isArray(json?.tracks) ? json.tracks : [];
+      const nextArtists = Array.isArray(json?.artists) ? json.artists : [];
+      setCatalogTracks((current) => uniqById(reset ? nextTracks : [...current, ...nextTracks]));
+      setCatalogArtists((current) => uniqById(reset ? nextArtists : [...current, ...nextArtists]));
+      setCatalogPage(Number(json?.nextPage || page + 1));
+      setCatalogHasMore(Boolean(json?.hasMore || json?.hasMoreProfiles));
+    } catch {
+      setCatalogHasMore(false);
+    } finally {
+      setCatalogLoading(false);
+    }
+  }, [activeGenre, catalogLoading, catalogSort]);
+
+  useEffect(() => {
+    void loadCatalog(0, true);
+  }, [activeGenre, catalogSort]);
+
+  useEffect(() => {
+    const node = catalogSentinel.current;
+    if (!node || !catalogHasMore) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting && !catalogLoading) void loadCatalog(catalogPage);
+    }, { rootMargin: '700px' });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [catalogHasMore, catalogLoading, catalogPage, loadCatalog]);
 
   const handleGenreClick = useCallback((genre: string) => {
     setActiveGenre(genre);
@@ -372,6 +420,13 @@ export default function DiscoverAuthedClient({
               </div>
 
               <SynauraFilterTabs items={GENRES} active={activeGenre} onChange={handleGenreClick} />
+              <div className="no-scrollbar flex gap-2 overflow-x-auto">
+                {CATALOG_SORTS.map((item) => (
+                  <button key={item.id} type="button" onClick={() => setCatalogSort(item.id)} className={`h-9 shrink-0 rounded-full px-4 text-xs font-black transition ${catalogSort === item.id ? 'bg-[#7c5cff] text-white' : 'bg-[#7c5cff]/10 text-[#5c43c7] hover:bg-[#7c5cff]/18'}`}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </SynauraPanel>
 
@@ -606,6 +661,24 @@ export default function DiscoverAuthedClient({
                 </SynauraInkPanel>
               ) : null}
 
+              {(activeTab === 'Tout' || activeTab === 'Sons') && catalogTracks.length > 0 ? (
+                <SynauraInkPanel className="p-4 sm:p-5">
+                  <SectionHeader title={catalogSort === 'hidden' ? 'Pépites à dénicher' : 'Explorer sans fin'} subtitle="Le catalogue continue au fil de ton exploration" />
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                    {catalogTracks.map((track) => <TrackTile key={track._id} track={track} grid />)}
+                  </div>
+                </SynauraInkPanel>
+              ) : null}
+
+              {(activeTab === 'Tout' || activeTab === 'Artistes') && catalogArtists.length > 0 ? (
+                <SynauraInkPanel className="p-4 sm:p-5">
+                  <SectionHeader title="Tous les profils Synaura" subtitle="Nouveaux, actifs et encore peu connus" />
+                  <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                    {catalogArtists.map((artist) => <ArtistTile key={artist._id} artist={artist} />)}
+                  </div>
+                </SynauraInkPanel>
+              ) : null}
+
               {(activeTab === 'Tout' || activeTab === 'Playlists') && !isFiltered && playlists.length > 0 ? (
                 <SynauraInkPanel className="p-4 sm:p-5">
                   <SectionHeader title="Playlists populaires" subtitle="Compilations de la communaute" />
@@ -636,6 +709,9 @@ export default function DiscoverAuthedClient({
                   </button>
                 </SynauraPanel>
               ) : null}
+              <div ref={catalogSentinel} className="grid min-h-10 place-items-center text-xs font-black text-black/35">
+                {catalogLoading ? 'Synaura cherche la suite…' : catalogHasMore ? '' : 'Tu as exploré tout ce lot.'}
+              </div>
             </>
           )}
         </main>

@@ -116,6 +116,19 @@ export type HomeData = {
   hasMore?: boolean;
 };
 
+export type DiscoverPage = {
+  tracks: Track[];
+  artists: Creator[];
+  page: number;
+  nextPage: number;
+  hasMore: boolean;
+  total: number;
+  profilePage: number;
+  nextProfilePage: number;
+  hasMoreProfiles: boolean;
+  totalArtists: number;
+};
+
 export type FeedResponse = {
   tracks?: Track[];
   items?: Array<{ type?: string; kind?: string; track?: Track; post?: unknown; data?: unknown }>;
@@ -276,6 +289,13 @@ export type CityEvent = {
   canParticipate?: boolean;
   winnerTrackId?: string | null;
   winners?: CityEventWinner[];
+  userIsWinner?: boolean;
+  celebration?: {
+    title: string;
+    message: string;
+    trackId?: string | null;
+    rewardTitle?: string | null;
+  } | null;
   reward?: CityEventReward | null;
   claimStatus?: 'none' | 'available' | 'claimed' | 'expired';
   detailCta?: {

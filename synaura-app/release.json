@@ -1,12 +1,12 @@
 {
-  "title": "Synaura mobile 0.8.1",
+  "title": "Synaura mobile 0.8.2",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Votes Events repares et listes reelles des artistes inscrits",
-    "Nouvelle presentation mobile des votes avec covers, compteur et acces direct",
-    "Swipe stabilise sans retour furtif sur le son precedent",
-    "Lecture et vote accessibles depuis le detail de chaque Event",
-    "Navigation web mobile restauree avec Bibliotheque et Communaute"
+    "Battles animees avec deux covers, gagnants, celebrations et recompenses reelles",
+    "Votes et participations fiabilises : seuls les gagnants obtiennent les gains City",
+    "Discover infini avec tris, pepites, nouveaux profils et catalogue progressif",
+    "Studio IA transparent sur le modele reellement utilise et acces V5.5 selon le plan",
+    "Abonnements plus lisibles et publication rapide remontee en haut de la Home"
   ]
 }

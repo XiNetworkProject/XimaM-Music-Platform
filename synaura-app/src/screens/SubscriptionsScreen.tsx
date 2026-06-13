@@ -188,6 +188,16 @@ export function SubscriptionsScreen() {
           </View>
         </View>
 
+        <View style={styles.unlockPanel}>
+          <View style={styles.unlockHead}><Text style={styles.sectionKicker}>CE QUE TU DÉBLOQUES</Text><Ionicons name="arrow-forward-circle" size={20} color={colors.coral} /></View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.unlockRail}>
+            <UnlockCard icon="sparkles" title="Studio V5.5" text="Le modèle le plus avancé, clairement identifié dans le Studio." />
+            <UnlockCard icon="flash" title="Crédits mensuels" text="Plus de générations et de remixes sans recharger à chaque session." />
+            <UnlockCard icon="analytics" title="Outils artiste" text="Analytics, collaboration et limites de publication étendues." />
+            <UnlockCard icon="download" title="Écoute libre" text="Qualité audio supérieure et téléchargements selon ton plan." />
+          </ScrollView>
+        </View>
+
         {usage ? (
           <View style={styles.usagePanel}>
             <Text style={styles.sectionKicker}>UTILISATION ACTUELLE</Text>
@@ -265,6 +275,10 @@ function CompareRow({ label, starter, pro }: { label: string; starter: string; p
   return <View style={styles.compareRow}><Text style={styles.compareLabel}>{label}</Text><Text style={styles.compareValue}>{starter}</Text><Text style={[styles.compareValue, { color: colors.violet }]}>{pro}</Text></View>;
 }
 
+function UnlockCard({ icon, title, text }: { icon: keyof typeof Ionicons.glyphMap; title: string; text: string }) {
+  return <View style={styles.unlockCard}><View style={styles.unlockIcon}><Ionicons name={icon} size={18} color={colors.paper} /></View><Text style={styles.unlockTitle}>{title}</Text><Text style={styles.unlockText}>{text}</Text></View>;
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: 15, gap: 14 },
@@ -284,6 +298,13 @@ const styles = StyleSheet.create({
   currentName: { marginTop: 4, color: colors.paper, fontSize: 17, fontWeight: '900' },
   currentRight: { maxWidth: '55%', alignItems: 'flex-end' },
   currentDate: { marginBottom: 4, color: colors.paper, fontSize: 10, fontWeight: '900', textAlign: 'right' },
+  unlockPanel: { borderRadius: 23, paddingVertical: 14, backgroundColor: 'rgba(255,250,242,0.86)', borderWidth: 1, borderColor: colors.border },
+  unlockHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, marginBottom: 11 },
+  unlockRail: { gap: 9, paddingHorizontal: 14, paddingRight: 24 },
+  unlockCard: { width: 150, minHeight: 132, borderRadius: 20, padding: 12, backgroundColor: 'rgba(244,239,230,0.92)' },
+  unlockIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  unlockTitle: { marginTop: 11, color: colors.text, fontSize: 12, fontWeight: '900' },
+  unlockText: { marginTop: 5, color: colors.textTertiary, fontSize: 9, lineHeight: 13, fontWeight: '700' },
   usagePanel: { borderRadius: 22, padding: 14, gap: 13, backgroundColor: 'rgba(255,250,242,0.86)', borderWidth: 1, borderColor: colors.border },
   sectionKicker: { color: colors.violet, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   usageRow: { gap: 7 },

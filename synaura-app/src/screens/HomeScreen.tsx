@@ -117,6 +117,7 @@ function removeCommentTree(comments: HomeComment[], commentId: string): HomeComm
 
 function buildFeed(data: HomeData): FeedItem[] {
   const items: FeedItem[] = [];
+  items.push({ id: 'composer', kind: 'composer' });
   if (data.forYou.length) {
     items.push({
       id: 'rail-for-you',
@@ -152,7 +153,6 @@ function buildFeed(data: HomeData): FeedItem[] {
   }
 
   items.push({ id: 'city-feed-pulse', kind: 'city' });
-  items.push({ id: 'composer', kind: 'composer' });
   if (data.posts[0]) items.push({ id: `post-${data.posts[0].id}`, kind: 'post', post: data.posts[0] });
   if (data.posts[1]) items.push({ id: `post-${data.posts[1].id}`, kind: 'post', post: data.posts[1] });
 

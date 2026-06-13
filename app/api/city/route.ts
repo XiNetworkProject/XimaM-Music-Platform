@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
+import { createNotification } from '@/lib/notifications';
 import {
   getArtistLevel,
   getPulseState,
@@ -445,7 +446,7 @@ async function hydratePersistedEvents(
     const row = eventById.get(event.id);
     const eventTracks = tracksByEvent.get(event.id) || event.tracks || [];
     const voteCounts = votesByEvent.get(event.id) || Object.fromEntries(eventTracks.map((track) => [track._id, 0]));
-    const winners = winnersByEvent.get(event.id) || [];
+    let winners = winnersByEvent.get(event.id) || [];
     let winnerTrackId = winners[0]?.trackId || null;
 
     if (!winnerTrackId && (row?.status === 'ended' || row?.status === 'resolved')) {
@@ -467,6 +468,26 @@ async function hydratePersistedEvents(
           .select('*')
           .maybeSingle();
         winnerTrackId = inserted?.track_id || bestTrack._id;
+        const winnerUserId = String(bestTrack.artist?._id || '');
+        winners = [{
+          id: String(inserted?.id || `winner-${event.id}-${bestTrack._id}`),
+          eventId: event.id,
+          trackId: bestTrack._id,
+          userId: winnerUserId || null,
+          rank: 1,
+          reason: event.kind === 'battle' ? 'Vote de la communaute' : 'Meilleur signal Pulse',
+          showcaseUntil: inserted?.showcase_until || new Date(now.getTime() + DAY_MS).toISOString(),
+          track: bestTrack,
+        }];
+        if (winnerUserId) {
+          await supabaseAdmin.from('city_user_rewards').upsert({
+            event_id: event.id,
+            user_id: winnerUserId,
+            reward_key: event.reward?.key || cityEventReward(event).key,
+            status: 'available',
+            metadata: { trackId: bestTrack._id, rank: 1, autoResolved: true },
+          }, { onConflict: 'event_id,user_id,reward_key' });
+        }
       }
     }
 
@@ -508,6 +529,8 @@ async function hydratePersistedEvents(
       createdAt: participation.created_at,
       track: trackMap.get(String(participation.track_id)) || null,
     } : null;
+    const userIsWinner = Boolean(userId && winners.some((winner) => String(winner.userId || '') === userId));
+    const reward = row?.reward || event.reward || cityEventReward(event);
 
     return decorateCityEvent({
       ...event,
@@ -522,7 +545,7 @@ async function hydratePersistedEvents(
       challengeTag: row?.challenge_tag || event.challengeTag,
       theme: row?.theme || event.theme,
       config: row?.config || event.config,
-      reward: row?.reward || event.reward || cityEventReward(event),
+      reward,
       tracks: eventTracks,
       voteCounts,
       selectedTrackId: selectedByEvent.get(event.id) || event.selectedTrackId || null,
@@ -531,7 +554,14 @@ async function hydratePersistedEvents(
       userParticipation,
       winners,
       winnerTrackId,
-      claimStatus: rewardRow?.status || (userParticipation ? 'available' : 'none'),
+      userIsWinner,
+      claimStatus: userIsWinner ? rewardRow?.status || 'available' : 'none',
+      celebration: userIsWinner ? {
+        title: 'Ton titre remporte la lumiere',
+        message: `"${winners[0]?.track?.title || 'Ton titre'}" gagne ${event.title}. Sa mise en avant Synaura est prete.`,
+        trackId: winnerTrackId,
+        rewardTitle: reward?.title || null,
+      } : null,
     }, now);
   }));
 
@@ -557,6 +587,7 @@ function applyLegacyEventState(
     for (const profile of legacyProfiles) {
       const profileId = String(profile?.id || '');
       const preferences = profile?.preferences && typeof profile.preferences === 'object' ? profile.preferences : {};
+      if (profileId === userId) rewardEntry = preferences?.cityRewards?.[event.id] || null;
       const voteTrackId = String(preferences?.cityBattleVotes?.[event.id] || '');
       if (event.kind === 'battle' && voteTrackId && voteCounts[voteTrackId] !== undefined) {
         voteCounts[voteTrackId] = Number(voteCounts[voteTrackId] || 0) + 1;
@@ -590,7 +621,6 @@ function applyLegacyEventState(
             createdAt: participant.createdAt || now.toISOString(),
             track,
           };
-          rewardEntry = preferences?.cityRewards?.[event.id] || null;
         }
       }
     }
@@ -612,17 +642,99 @@ function applyLegacyEventState(
     }
 
     const submittedTracks = participants.map((entry) => entry.track).filter(Boolean) as CityPulseTrack[];
+    const eventTracks = uniqueTracks([...submittedTracks, ...(event.tracks || [])]);
+    const eventStatus = event.status || cityEventStatus(event, now);
+    const ended = eventStatus === 'ended' || eventStatus === 'resolved' || eventStatus === 'archived';
+    const winnerTrack = ended
+      ? event.kind === 'battle'
+        ? [...eventTracks].sort((a, b) => Number(voteCounts[b._id] || 0) - Number(voteCounts[a._id] || 0) || b.pulse - a.pulse)[0]
+        : [...submittedTracks].sort((a, b) => b.pulse - a.pulse)[0]
+      : null;
+    const winnerParticipant = winnerTrack
+      ? participants.find((participant) => participant.trackId === winnerTrack._id)
+      : null;
+    const winnerUserId = String(winnerParticipant?.userId || winnerTrack?.artist?._id || '');
+    const userIsWinner = Boolean(userId && winnerTrack && winnerUserId === userId);
+    const reward = event.reward || cityEventReward(event);
+    const winners: CityEventWinner[] = winnerTrack ? [{
+      id: `legacy-winner-${event.id}-${winnerTrack._id}`,
+      eventId: event.id,
+      trackId: winnerTrack._id,
+      userId: winnerUserId || null,
+      rank: 1,
+      reason: event.kind === 'battle' ? 'Vote de la communaute' : 'Meilleur signal Pulse',
+      showcaseUntil: new Date(now.getTime() + DAY_MS).toISOString(),
+      track: winnerTrack,
+    }] : [];
     return decorateCityEvent({
       ...event,
-      tracks: uniqueTracks([...submittedTracks, ...(event.tracks || [])]),
-      participants,
+      status: eventStatus,
+      tracks: eventTracks,
+      participants: participants.map((participant) => participant.trackId === winnerTrack?._id ? { ...participant, status: 'winner' } : participant),
       voteCounts,
       selectedTrackId,
       userParticipation,
       participationCount: participants.length,
-      claimStatus: rewardEntry?.status || (userParticipation ? 'available' : 'none'),
+      winners,
+      winnerTrackId: winnerTrack?._id || null,
+      userIsWinner,
+      reward,
+      claimStatus: userIsWinner ? rewardEntry?.status || 'available' : 'none',
+      celebration: userIsWinner ? {
+        title: 'Ton titre remporte la lumiere',
+        message: `"${winnerTrack?.title}" gagne ${event.title}. Sa mise en avant Synaura est prete.`,
+        trackId: winnerTrack?._id || null,
+        rewardTitle: reward?.title || null,
+      } : null,
     }, now);
   });
+}
+
+async function ensureLegacyWinnerReward(events: CityEvent[], userId: string | null, legacyProfiles: any[], now = new Date()) {
+  if (!userId) return events;
+  const profile = legacyProfiles.find((entry: any) => String(entry?.id || '') === userId);
+  if (!profile) return events;
+  const preferences = profile.preferences && typeof profile.preferences === 'object' ? profile.preferences : {};
+  const currentRewards = preferences.cityRewards && typeof preferences.cityRewards === 'object' ? preferences.cityRewards : {};
+  const winnerEvents = events.filter((event) => event.userIsWinner && event.winnerTrackId && !currentRewards[event.id]);
+  if (!winnerEvents.length) return events;
+
+  const createdAt = now.toISOString();
+  const nextRewards = { ...currentRewards };
+  for (const event of winnerEvents) {
+    nextRewards[event.id] = {
+      status: 'available',
+      eventId: event.id,
+      trackId: event.winnerTrackId,
+      rewardKey: event.reward?.key || 'city-winner',
+      reward: event.reward || cityEventReward(event),
+      createdAt,
+      updatedAt: createdAt,
+    };
+  }
+  const { error } = await supabaseAdmin
+    .from('profiles')
+    .update({ preferences: { ...preferences, cityRewards: nextRewards }, updated_at: createdAt })
+    .eq('id', userId);
+  if (error) {
+    console.warn('city: legacy winner reward persistence failed', error.message);
+    return events;
+  }
+
+  await Promise.all(winnerEvents.map((event) => createNotification({
+    userId,
+    type: 'general',
+    title: 'Tu as gagne un Event Synaura',
+    message: `"${event.winners?.[0]?.track?.title || 'Ton titre'}" remporte ${event.title}. Ta recompense est disponible.`,
+    actionUrl: '/city',
+    relatedId: event.winnerTrackId || undefined,
+    data: { surface: 'city', eventId: event.id, trackId: event.winnerTrackId, kind: 'city_win' },
+    skipPrefCheck: true,
+  }).catch(() => null)));
+
+  return events.map((event) => winnerEvents.some((winner) => winner.id === event.id)
+    ? { ...event, claimStatus: 'available' as const }
+    : event);
 }
 
 async function tryHydratePersistedEvents(
@@ -637,14 +749,15 @@ async function tryHydratePersistedEvents(
   try {
     const hydrated = await hydratePersistedEvents(events, pulse, userId, dayKey, weekKey, now);
     // Les actions legacy (faites avant migration) restent visibles.
-    return hydrated.map((event) => {
+    const merged = hydrated.map((event) => {
       if (event.userParticipation || !legacyProfiles.length) return event;
       const legacy = applyLegacyEventState([event], pulse, userId, legacyProfiles, now)[0];
       return legacy.userParticipation ? legacy : event;
     });
+    return ensureLegacyWinnerReward(merged, userId, legacyProfiles, now);
   } catch (error) {
     if (!cityTableMissing(error)) console.error('city: persisted events unavailable', error);
-    return applyLegacyEventState(events, pulse, userId, legacyProfiles, now);
+    return ensureLegacyWinnerReward(applyLegacyEventState(events, pulse, userId, legacyProfiles, now), userId, legacyProfiles, now);
   }
 }
 
@@ -701,8 +814,23 @@ export async function GET(request: NextRequest) {
     const followerMap = new Map<string, number>();
     for (const row of followsRes.data || []) followerMap.set(String(row.following_id), (followerMap.get(String(row.following_id)) || 0) + 1);
 
+    const activeFeaturedTrackIds = new Set<string>();
+    for (const profile of legacyProfilesRes.data || []) {
+      const preferences = profile?.preferences && typeof profile.preferences === 'object' ? profile.preferences : {};
+      const featured = preferences.cityFeaturedTracks && typeof preferences.cityFeaturedTracks === 'object' ? preferences.cityFeaturedTracks : {};
+      for (const [trackId, entry] of Object.entries(featured) as Array<[string, any]>) {
+        if (new Date(entry?.endsAt || 0).getTime() > now.getTime()) activeFeaturedTrackIds.add(trackId);
+      }
+    }
+
     const pulse = allTracks
       .map((track) => toPulse(track, statsMap.get(track._id) || statsMap.get(track._id.replace(/^ai-/, '')), commentMap.get(track._id) || 0, followerMap.get(String(track.artist?._id || '')) || 0))
+      .map((track) => activeFeaturedTrackIds.has(track._id) ? {
+        ...track,
+        pulse: Math.min(100, track.pulse + 14),
+        pulseState: getPulseState(Math.min(100, track.pulse + 14)),
+        pulseReasons: ['Gagnant Event', ...track.pulseReasons].slice(0, 3),
+      } : track)
       .sort((a, b) => b.pulse - a.pulse || b.recentLikes - a.recentLikes || Number(b.plays || 0) - Number(a.plays || 0));
 
     const tracksByArtist = new Map<string, CityTrack[]>();
