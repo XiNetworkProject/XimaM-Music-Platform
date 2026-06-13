@@ -82,7 +82,6 @@ export function VoteCountdownBanner({
   onNotify?: () => void;
 }) {
   const session = current || next;
-  const pulse = useRef(new Animated.Value(0)).current;
   const [remaining, setRemaining] = useState(() => countdownLabel(current?.endsAt || next?.startsAt));
 
   useEffect(() => {
@@ -90,31 +89,26 @@ export function VoteCountdownBanner({
     return () => clearInterval(timer);
   }, [current?.endsAt, next?.startsAt]);
 
-  useEffect(() => {
-    const animation = Animated.loop(Animated.sequence([
-      Animated.timing(pulse, { toValue: 1, duration: 1600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      Animated.timing(pulse, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-    ]));
-    animation.start();
-    return () => animation.stop();
-  }, [pulse]);
-
   if (!session) return null;
   return (
     <View style={styles.countdown}>
-      <LinearGradient colors={['#211B1E', '#34252F', '#1B3034']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <Animated.View style={[styles.countdownHalo, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.24] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.76, 1.25] }) }] }]} />
+      {session.tracks?.[0] ? <TrackCover track={session.tracks[0]} style={StyleSheet.absoluteFill} /> : null}
+      <LinearGradient colors={['rgba(23,19,19,0.50)', 'rgba(23,19,19,0.78)', 'rgba(23,19,19,0.97)']} locations={[0, 0.48, 1]} style={StyleSheet.absoluteFill} />
       <View style={styles.countdownTop}>
-        <View style={styles.countdownLogo}><Ionicons name={current ? 'flash' : 'time'} size={18} color={colors.paper} /></View>
+        <View style={styles.countdownLogo}><Ionicons name={current ? 'flash' : 'time'} size={18} color={colors.text} /></View>
         <View style={styles.countdownCopy}><Text style={styles.countdownKicker}>{current ? 'VOTE EN COURS' : 'PROCHAIN VOTE DANS'}</Text><Text style={styles.countdownTitle}>{session.title}</Text></View>
-        <View style={styles.countdownCovers}>
-          {(session.tracks || []).slice(0, 2).map((track, index) => <TrackCover key={track._id} track={track} style={[styles.countdownCover, index > 0 && styles.countdownCoverOverlap]} />)}
-        </View>
+        <View style={styles.countdownLive}><View style={styles.countdownLiveDot} /><Text style={styles.countdownLiveText}>{current ? 'LIVE' : 'À VENIR'}</Text></View>
       </View>
       <Text style={styles.countdownTime}>{remaining}</Text>
-      <Text style={styles.countdownText}>{current ? 'Écoute les participants et choisis celui qui mérite la vitrine.' : 'Les sons sélectionnés seront révélés bientôt.'}</Text>
+      <Text style={styles.countdownText}>{current ? 'Écoute les deux sons, puis donne la lumière à ton favori.' : 'Découvre déjà les artistes sélectionnés pour le prochain duel.'}</Text>
+      <View style={styles.countdownParticipants}>
+        <View style={styles.countdownCovers}>
+          {(session.tracks || []).slice(0, 3).map((track, index) => <TrackCover key={track._id} track={track} style={[styles.countdownCover, index > 0 && styles.countdownCoverOverlap]} />)}
+        </View>
+        <Text style={styles.countdownParticipantsText}>{session.participants?.length || session.tracks?.length || 0} participants · {session.totalVotes || 0} votes</Text>
+      </View>
       <View style={styles.countdownActions}>
-        <Pressable onPress={onOpen} style={styles.countdownPrimary}><Ionicons name={current ? 'checkmark-circle' : 'headset'} size={15} color={colors.text} /><Text style={styles.countdownPrimaryText}>{current ? 'Écouter et voter' : 'Voir les participants'}</Text></Pressable>
+        <Pressable onPress={onOpen} style={styles.countdownPrimary}><Ionicons name={current ? 'flash' : 'headset'} size={15} color={colors.text} /><Text style={styles.countdownPrimaryText}>{current ? 'Ouvrir le vote' : 'Voir les participants'}</Text></Pressable>
         {!current && onNotify ? <Pressable onPress={onNotify} style={styles.countdownNotify}><Ionicons name="notifications-outline" size={16} color={colors.paper} /></Pressable> : null}
       </View>
     </View>
@@ -313,18 +307,22 @@ const styles = StyleSheet.create({
   tickerSignal: { position: 'absolute', right: -30, top: -55, width: 150, height: 150, borderRadius: 75 },
   tickerIcon: { width: 37, height: 37, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   tickerText: { flex: 1, fontSize: 11, lineHeight: 16, fontWeight: '900' },
-  countdown: { minHeight: 238, overflow: 'hidden', gap: 9, borderRadius: 27, padding: 16 },
-  countdownHalo: { position: 'absolute', right: -40, top: -55, width: 180, height: 180, borderRadius: 90, backgroundColor: colors.violet },
+  countdown: { minHeight: 300, overflow: 'hidden', justifyContent: 'flex-end', gap: 10, borderRadius: 29, borderWidth: 1, borderColor: 'rgba(23,19,19,0.12)', padding: 17 },
   countdownTop: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  countdownLogo: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.13)' },
+  countdownLogo: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
   countdownCopy: { flex: 1, minWidth: 0 },
-  countdownKicker: { color: '#D2C4FF', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  countdownTitle: { marginTop: 3, color: colors.paper, fontSize: 13, fontWeight: '900' },
+  countdownKicker: { color: '#FFB2A7', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
+  countdownTitle: { marginTop: 3, color: colors.paper, fontSize: 15, fontWeight: '900' },
+  countdownLive: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 13, backgroundColor: 'rgba(255,250,242,0.13)', paddingHorizontal: 8, paddingVertical: 6 },
+  countdownLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.coral },
+  countdownLiveText: { color: colors.paper, fontSize: 7, fontWeight: '900', letterSpacing: 0.8 },
   countdownCovers: { flexDirection: 'row', alignItems: 'center' },
-  countdownCover: { width: 42, height: 42, borderRadius: 14, borderWidth: 2, borderColor: '#211B1E' },
+  countdownCover: { width: 43, height: 43, borderRadius: 14, borderWidth: 2, borderColor: colors.paper },
   countdownCoverOverlap: { marginLeft: -12 },
-  countdownTime: { color: colors.paper, fontSize: 37, fontWeight: '900', fontVariant: ['tabular-nums'] },
-  countdownText: { maxWidth: 290, color: 'rgba(255,250,242,0.52)', fontSize: 10, lineHeight: 15, fontWeight: '800' },
+  countdownTime: { color: colors.paper, fontSize: 43, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  countdownText: { maxWidth: 310, color: 'rgba(255,250,242,0.68)', fontSize: 11, lineHeight: 16, fontWeight: '800' },
+  countdownParticipants: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  countdownParticipantsText: { flex: 1, color: 'rgba(255,250,242,0.66)', fontSize: 9, fontWeight: '900' },
   countdownActions: { marginTop: 2, flexDirection: 'row', gap: 8 },
   countdownPrimary: { minHeight: 42, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 21, backgroundColor: colors.paper, paddingHorizontal: 13 },
   countdownPrimaryText: { color: colors.text, fontSize: 10, fontWeight: '900' },

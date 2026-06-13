@@ -87,6 +87,7 @@ export default function SynauraCityPage() {
   const [voting, setVoting] = useState(false);
   const [actingEventId, setActingEventId] = useState<string | null>(null);
   const [pickerEvent, setPickerEvent] = useState<CityEvent | null>(null);
+  const [detailEvent, setDetailEvent] = useState<CityEvent | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -107,6 +108,12 @@ export default function SynauraCityPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!detailEvent || !city) return;
+    const refreshed = city.events.find((event) => event.id === detailEvent.id);
+    if (refreshed && refreshed !== detailEvent) setDetailEvent(refreshed);
+  }, [city, detailEvent]);
 
   useEffect(() => {
     if (!toast) return;
@@ -276,7 +283,7 @@ export default function SynauraCityPage() {
         <SynauraCountdownBanner
           current={city.currentVoteSession || null}
           next={city.nextVoteSession || null}
-          onOpen={() => document.getElementById('battle-live')?.scrollIntoView({ behavior: 'smooth' })}
+          onOpen={() => setDetailEvent(city.currentVoteSession || city.nextVoteSession || null)}
           onNotify={() => setToast('Rappel activé pour la prochaine session de vote.')}
         />
 
@@ -294,6 +301,7 @@ export default function SynauraCityPage() {
                   else if (event.claimStatus === 'available') void claim(event);
                   else openParticipate(event);
                 }}
+                onSecondary={() => setDetailEvent(event)}
               />
             ))}
           </div>
@@ -350,6 +358,19 @@ export default function SynauraCityPage() {
       </div>
 
       <TrackPickerModal event={pickerEvent} busy={Boolean(actingEventId)} onClose={() => setPickerEvent(null)} onPick={(trackId) => pickerEvent && void participate(pickerEvent, trackId)} />
+      <EventDetailModal
+        event={detailEvent}
+        voting={voting}
+        currentId={currentId}
+        isPlaying={audio.audioState.isPlaying}
+        onClose={() => setDetailEvent(null)}
+        onPlay={play}
+        onVote={(trackId) => void vote(trackId)}
+        onParticipate={(event) => {
+          setDetailEvent(null);
+          openParticipate(event);
+        }}
+      />
 
       <AnimatePresence>
         {toast ? (
@@ -565,6 +586,94 @@ function TrackPickerModal({ event, busy, onClose, onPick }: { event: CityEvent |
           </motion.div>
         </motion.div>
       ) : null}
+    </AnimatePresence>
+  );
+}
+
+function EventDetailModal({
+  event,
+  voting,
+  currentId,
+  isPlaying,
+  onClose,
+  onPlay,
+  onVote,
+  onParticipate,
+}: {
+  event: CityEvent | null;
+  voting: boolean;
+  currentId?: string;
+  isPlaying: boolean;
+  onClose: () => void;
+  onPlay: (track: CityTrack) => void;
+  onVote: (trackId: string) => void;
+  onParticipate: (event: CityEvent) => void;
+}) {
+  if (!event) return null;
+  const participants = event.participants?.length
+    ? event.participants
+    : (event.tracks || []).map((track) => ({
+        id: `track-${track._id}`,
+        eventId: event.id,
+        userId: String(track.artist?._id || ''),
+        username: track.artist?.username || null,
+        name: artistName(track),
+        avatar: track.artist?.avatar || null,
+        trackId: track._id,
+        status: 'contender' as const,
+        track,
+      }));
+
+  return (
+    <AnimatePresence>
+      <motion.div className="fixed inset-0 z-[110] grid place-items-end bg-black/42 p-2 backdrop-blur-sm sm:place-items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+        <motion.div initial={{ y: 34, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }} onClick={(click: React.MouseEvent) => click.stopPropagation()} className="max-h-[88vh] w-full max-w-2xl overflow-hidden rounded-[1.9rem] border border-black/[0.08] bg-[#fffaf2] shadow-[0_32px_100px_rgba(23,19,19,0.28)]">
+          <div className="relative overflow-hidden border-b border-black/[0.07] bg-[#171313] p-5 text-white sm:p-6">
+            <div className="absolute inset-0 opacity-70" style={{ backgroundImage: `linear-gradient(135deg, ${event.accent || '#7c5cff'}88, transparent 62%)` }} />
+            <div className="relative flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/52">{event.isLive ? 'En live maintenant' : event.status === 'scheduled' ? 'Bientot ouvert' : 'Event Synaura'}</p>
+                <h2 className="mt-2 text-3xl font-black tracking-tight">{event.title}</h2>
+                <p className="mt-2 max-w-xl text-sm font-bold text-white/58">{event.description}</p>
+                <div className="mt-4 flex gap-2 text-[10px] font-black uppercase tracking-[0.1em]">
+                  <span className="rounded-full bg-white/10 px-3 py-2">{participants.length} inscrit{participants.length > 1 ? 's' : ''}</span>
+                  {event.kind === 'battle' ? <span className="rounded-full bg-white/10 px-3 py-2">{event.totalVotes || 0} votes</span> : null}
+                </div>
+              </div>
+              <button onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 transition hover:bg-white/16"><X className="h-4 w-4" /></button>
+            </div>
+          </div>
+          <div className="max-h-[52vh] space-y-2 overflow-y-auto p-4">
+            {participants.length ? participants.map((participant) => {
+              const track = participant.track;
+              if (!track) return null;
+              const selected = event.selectedTrackId === track._id;
+              return (
+                <div key={participant.id} className={`flex min-w-0 items-center gap-3 rounded-[1.25rem] p-3 ${selected ? 'bg-[#7c5cff]/12 ring-2 ring-[#7c5cff]/25' : 'bg-black/[0.035]'}`}>
+                  <button onClick={() => onPlay(track)} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[1rem]">
+                    <TrackCover trackId={track._id} src={track.coverUrl} title={track.title} className="h-full w-full object-cover" />
+                    <span className="absolute inset-0 grid place-items-center bg-black/16 text-white">{currentId === track._id && isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}</span>
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-black">{track.title}</p>
+                    <p className="mt-1 truncate text-xs font-bold text-black/42">{participant.name}{participant.username ? ` · @${participant.username}` : ''}</p>
+                  </div>
+                  {event.kind === 'battle' ? (
+                    <button disabled={!event.isLive || voting} onClick={() => onVote(track._id)} className={`h-10 shrink-0 rounded-full px-4 text-xs font-black ${selected ? 'bg-[#7c5cff] text-white' : 'bg-[#171313] text-white disabled:opacity-35'}`}>
+                      {selected ? 'Voté' : 'Voter'}
+                    </button>
+                  ) : null}
+                </div>
+              );
+            }) : <div className="rounded-[1.2rem] bg-black/[0.035] p-6 text-center text-sm font-black text-black/42">Aucun son inscrit pour le moment. Le premier peut etre le tien.</div>}
+          </div>
+          {event.kind !== 'battle' && !event.isEnded ? (
+            <div className="border-t border-black/[0.07] p-4">
+              <SynauraButton className="w-full" onClick={() => onParticipate(event)}>{event.userParticipation ? 'Changer mon son inscrit' : 'Inscrire un de mes sons'}</SynauraButton>
+            </div>
+          ) : null}
+        </motion.div>
+      </motion.div>
     </AnimatePresence>
   );
 }

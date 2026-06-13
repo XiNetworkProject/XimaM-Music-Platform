@@ -47,8 +47,8 @@ const SYNAURA_ROUTE_ITEMS = [
 const SYNAURA_MOBILE_ROUTE_ITEMS = [
   { href: '/', label: 'Accueil', icon: Home },
   { href: '/discover', label: 'Explorer', icon: Compass },
-  { href: '/swipe', label: 'Swipe', icon: ArrowUpDown },
-  { href: '/community', label: 'Communauté', icon: Users },
+  { href: '/library', label: 'Biblio', icon: Library },
+  { href: '/community', label: 'Commu', icon: Users },
   { href: '/ai-generator', label: 'Studio', icon: Sparkles },
 ] as const;
 

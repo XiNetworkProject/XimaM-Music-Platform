@@ -1,12 +1,12 @@
 {
-  "title": "Synaura mobile 0.8.0",
+  "title": "Synaura mobile 0.8.1",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Navigation mobile simplifiee autour d'Accueil, Explorer, Swipe, Communaute et Studio",
-    "Profil et parametres accessibles rapidement depuis le nouvel avatar menu",
-    "Votes Synaura du matin, de l'apres-midi et du soir avec compte a rebours anime",
-    "Events et Pulse integres directement dans la Communaute",
-    "Nouveaux reglages Events, badges et progression artiste enrichie"
+    "Votes Events repares et listes reelles des artistes inscrits",
+    "Nouvelle presentation mobile des votes avec covers, compteur et acces direct",
+    "Swipe stabilise sans retour furtif sur le son precedent",
+    "Lecture et vote accessibles depuis le detail de chaque Event",
+    "Navigation web mobile restauree avec Bibliotheque et Communaute"
   ]
 }

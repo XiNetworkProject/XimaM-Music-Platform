@@ -92,6 +92,7 @@ export function CityScreen() {
   const [voting, setVoting] = useState(false);
   const [actingEventId, setActingEventId] = useState<string | null>(null);
   const [pickerEvent, setPickerEvent] = useState<CityEvent | null>(null);
+  const [detailEvent, setDetailEvent] = useState<CityEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -114,6 +115,12 @@ export function CityScreen() {
   }, [load]);
 
   useEffect(() => {
+    if (!detailEvent || !city) return;
+    const refreshed = city.events.find((event) => event.id === detailEvent.id);
+    if (refreshed && refreshed !== detailEvent) setDetailEvent(refreshed);
+  }, [city, detailEvent]);
+
+  useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 3400);
     return () => clearTimeout(timer);
@@ -125,7 +132,12 @@ export function CityScreen() {
   }, [player]);
 
   const vote = useCallback(async (eventId: string, trackId: string) => {
-    if (voting || !auth.requireAuth()) return;
+    if (voting) return;
+    if (!auth.requireAuth()) {
+      setToast('Connecte-toi pour voter.');
+      navigation.navigate('Login');
+      return;
+    }
     setVoting(true);
     setError(null);
     try {
@@ -138,11 +150,16 @@ export function CityScreen() {
     } finally {
       setVoting(false);
     }
-  }, [auth, load, voting]);
+  }, [auth, load, navigation, voting]);
 
   const openParticipate = useCallback((event: CityEvent) => {
-    if (auth.requireAuth()) setPickerEvent(event);
-  }, [auth]);
+    if (auth.requireAuth()) {
+      setPickerEvent(event);
+      return;
+    }
+    setToast('Connecte-toi pour inscrire un son.');
+    navigation.navigate('Login');
+  }, [auth, navigation]);
 
   const participate = useCallback(async (event: CityEvent, trackId: string) => {
     if (actingEventId) return;
@@ -196,7 +213,7 @@ export function CityScreen() {
         </View>
 
         {city ? <EventTicker city={city} /> : null}
-        {city ? <VoteCountdownBanner current={city.currentVoteSession} next={city.nextVoteSession} onOpen={() => scrollRef.current?.scrollTo({ y: 430, animated: true })} onNotify={() => setToast('Rappel activé pour le prochain vote.')} /> : null}
+        {city ? <VoteCountdownBanner current={city.currentVoteSession} next={city.nextVoteSession} onOpen={() => setDetailEvent(city.currentVoteSession || city.nextVoteSession || null)} onNotify={() => setToast('Rappel activé pour le prochain vote.')} /> : null}
         {loading && !city ? <LoadingEvents /> : null}
         {error ? <View style={styles.error}><Ionicons name="alert-circle" size={16} color={colors.danger} /><Text style={styles.errorText}>{error}</Text></View> : null}
 
@@ -208,8 +225,8 @@ export function CityScreen() {
             <View style={styles.stack}>
               {city.events.map((event, index) => (
                 event.kind === 'battle'
-                  ? <BattleCard key={event.id} event={event} voting={voting} player={player} onPlay={play} onVote={(trackId) => vote(event.id, trackId)} />
-                  : <LiveEventCard key={event.id} event={event} index={index} busy={actingEventId === event.id} onParticipate={() => openParticipate(event)} onClaim={() => claim(event)} onPlay={play} />
+                  ? <BattleCard key={event.id} event={event} voting={voting} player={player} onPlay={play} onVote={(trackId) => vote(event.id, trackId)} onDetails={() => setDetailEvent(event)} />
+                  : <LiveEventCard key={event.id} event={event} index={index} busy={actingEventId === event.id} onDetails={() => setDetailEvent(event)} onParticipate={() => openParticipate(event)} onClaim={() => claim(event)} onPlay={play} />
               ))}
             </View>
 
@@ -244,6 +261,19 @@ export function CityScreen() {
           </>
         ) : null}
       </ScrollView>
+
+      <EventDetailSheet
+        event={detailEvent}
+        player={player}
+        voting={voting}
+        onClose={() => setDetailEvent(null)}
+        onPlay={play}
+        onVote={(eventId, trackId) => void vote(eventId, trackId)}
+        onParticipate={(event) => {
+          setDetailEvent(null);
+          openParticipate(event);
+        }}
+      />
 
       <TrackPickerSheet
         event={pickerEvent}
@@ -365,20 +395,21 @@ function PremiereCard({ track, index, playing, onPlay }: { track: CityPulseTrack
   );
 }
 
-function LiveEventCard({ event, index, busy, onParticipate, onClaim, onPlay }: { event: CityEvent; index: number; busy: boolean; onParticipate: () => void; onClaim: () => void; onPlay: (track: Track) => void }) {
+function LiveEventCard({ event, index, busy, onDetails, onParticipate, onClaim, onPlay }: { event: CityEvent; index: number; busy: boolean; onDetails: () => void; onParticipate: () => void; onClaim: () => void; onPlay: (track: Track) => void }) {
   const first = event.tracks?.[0];
   const participated = Boolean(event.userParticipation);
   const claimable = event.claimStatus === 'available';
   return (
     <Reveal delay={index * 40}>
       <View style={styles.liveEvent}>
-        <EventSummaryCard event={event} onOpen={claimable ? onClaim : onParticipate} />
+        <EventSummaryCard event={event} onOpen={onDetails} />
         <Text style={styles.liveEventDescription}>{event.description}</Text>
         <View style={styles.liveEventActions}>
           <MotionPressable disabled={busy || (participated && !claimable)} onPress={claimable ? onClaim : onParticipate} style={[styles.primaryButton, participated && !claimable && styles.doneButton]}>
             <Ionicons name={participated && !claimable ? 'checkmark' : claimable ? 'gift' : 'add'} size={15} color={colors.paper} />
             <Text style={styles.primaryButtonText}>{busy ? 'Chargement...' : claimable ? 'Récupérer' : participated ? 'Inscrit' : 'Participer'}</Text>
           </MotionPressable>
+          <MotionPressable onPress={onDetails} style={styles.secondaryButton}><Ionicons name="people" size={15} color={colors.text} /><Text style={styles.secondaryButtonText}>Inscrits</Text></MotionPressable>
           {first ? <MotionPressable onPress={() => onPlay(first)} style={styles.iconAction}><Ionicons name="play" size={15} color={colors.text} /></MotionPressable> : null}
         </View>
       </View>
@@ -386,14 +417,14 @@ function LiveEventCard({ event, index, busy, onParticipate, onClaim, onPlay }: {
   );
 }
 
-function BattleCard({ event, voting, player, onPlay, onVote }: { event: CityEvent; voting: boolean; player: ReturnType<typeof usePlayer>; onPlay: (track: Track) => void; onVote: (trackId: string) => void }) {
+function BattleCard({ event, voting, player, onPlay, onVote, onDetails }: { event: CityEvent; voting: boolean; player: ReturnType<typeof usePlayer>; onPlay: (track: Track) => void; onVote: (trackId: string) => void; onDetails: () => void }) {
   const tracks = event.tracks || [];
   const total = tracks.reduce((sum, track) => sum + Number(event.voteCounts?.[track._id] || 0), 0) || 1;
   const canVote = Boolean(event.isLive);
   return (
     <View style={styles.battle}>
       <LinearGradient colors={['#EEE9FF', '#FFF4ED']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <View style={styles.battleHeader}><View style={styles.battleHeaderCopy}><Text style={styles.battleKicker}>{canVote ? 'VOTE EN COURS' : event.isEnded ? 'VOTE TERMINÉ' : 'PROCHAIN VOTE'}</Text><Text style={styles.battleTitle}>{event.title}</Text><Text style={styles.battleMeta}>{event.totalVotes || 0} votes · quel son mérite la vitrine ?</Text></View><View style={styles.battleFlash}><Ionicons name="flash" size={20} color={colors.paper} /></View></View>
+      <View style={styles.battleHeader}><View style={styles.battleHeaderCopy}><Text style={styles.battleKicker}>{canVote ? 'VOTE EN COURS' : event.isEnded ? 'VOTE TERMINÉ' : 'PROCHAIN VOTE'}</Text><Text style={styles.battleTitle}>{event.title}</Text><Text style={styles.battleMeta}>{event.totalVotes || 0} votes · quel son mérite la vitrine ?</Text></View><MotionPressable onPress={onDetails} style={styles.battleFlash}><Ionicons name="people" size={20} color={colors.paper} /></MotionPressable></View>
       <View style={styles.battleGrid}>
         {tracks.slice(0, 2).map((track) => {
           const selected = event.selectedTrackId === track._id;
@@ -463,6 +494,71 @@ function CreatorProgress({ artist, onCreate }: { artist: CityArtist | null; onCr
       <Text style={styles.creatorTitle}>Ton activité construit ton statut.</Text>
       {artist ? <View style={styles.creatorBody}><Image source={artist.avatar ? { uri: artist.avatar } : require('../assets/synaura-symbol-2026.png')} style={styles.creatorAvatar} /><View style={styles.creatorCopy}><Text style={styles.creatorLevel}>NIVEAU {artist.level}</Text><Text style={styles.creatorLevelName}>{artist.levelName}</Text><Text style={styles.creatorXp}>{artist.xp} XP · {artist.trackCount} sons</Text></View><View style={styles.creatorFullBar}><LinearGradient colors={[colors.cyan, colors.violet, colors.coral]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.creatorBarFill, { width: `${progress}%` }]} /></View><Text style={styles.creatorNext}>{Math.max(0, artist.nextLevelXp - artist.xp)} XP avant le prochain niveau</Text></View> : <View style={styles.creatorEmpty}><Text style={styles.creatorEmptyText}>Publie ton premier son pour créer ta carte artiste.</Text><MotionPressable onPress={onCreate} style={styles.creatorButton}><Text style={styles.creatorButtonText}>Commencer</Text></MotionPressable></View>}
     </View>
+  );
+}
+
+function EventDetailSheet({
+  event,
+  player,
+  voting,
+  onClose,
+  onPlay,
+  onVote,
+  onParticipate,
+}: {
+  event: CityEvent | null;
+  player: ReturnType<typeof usePlayer>;
+  voting: boolean;
+  onClose: () => void;
+  onPlay: (track: Track) => void;
+  onVote: (eventId: string, trackId: string) => void;
+  onParticipate: (event: CityEvent) => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const participants = event?.participants?.length
+    ? event.participants
+    : (event?.tracks || []).map((track) => ({
+        id: `track-${track._id}`,
+        eventId: event?.id || '',
+        userId: String(track.artist?._id || ''),
+        username: track.artist?.username || null,
+        name: artistName(track),
+        avatar: track.artist?.avatar || null,
+        trackId: track._id,
+        status: 'contender' as const,
+        track,
+      }));
+
+  return (
+    <Modal visible={Boolean(event)} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.sheetBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={[styles.eventDetailSheet, { paddingBottom: insets.bottom + 14 }]}>
+          <View style={styles.eventDetailHero}>
+            {event?.tracks?.[0] ? <TrackCover track={event.tracks[0]} style={StyleSheet.absoluteFill} /> : null}
+            <LinearGradient colors={['rgba(23,19,19,0.36)', 'rgba(23,19,19,0.94)']} style={StyleSheet.absoluteFill} />
+            <View style={styles.eventDetailTop}><View style={styles.eventDetailStatus}><View style={styles.eventDetailDot} /><Text style={styles.eventDetailStatusText}>{event?.isLive ? 'EN LIVE' : 'EVENT SYNAURA'}</Text></View><MotionPressable onPress={onClose} style={styles.eventDetailClose}><Ionicons name="close" size={18} color={colors.paper} /></MotionPressable></View>
+            <View style={styles.eventDetailHeroCopy}><Text style={styles.eventDetailTitle}>{event?.title}</Text><Text style={styles.eventDetailDescription}>{event?.description}</Text><Text style={styles.eventDetailMeta}>{participants.length} inscrit{participants.length > 1 ? 's' : ''}{event?.kind === 'battle' ? ` · ${event.totalVotes || 0} votes` : ''}</Text></View>
+          </View>
+          <ScrollView style={styles.eventDetailList} contentContainerStyle={styles.eventDetailListContent} showsVerticalScrollIndicator={false}>
+            {participants.length ? participants.map((participant) => {
+              const track = participant.track as Track | null | undefined;
+              if (!track) return null;
+              const selected = event?.selectedTrackId === track._id;
+              const playing = player.current?._id === track._id && player.isPlaying;
+              return (
+                <View key={participant.id} style={[styles.eventParticipant, selected && styles.eventParticipantSelected]}>
+                  <MotionPressable onPress={() => onPlay(track)} style={styles.eventParticipantCover}><TrackCover track={track} active={playing} style={StyleSheet.absoluteFill} /><View style={styles.eventParticipantPlay}><Ionicons name={playing ? 'pause' : 'play'} size={13} color={colors.text} /></View></MotionPressable>
+                  <View style={styles.eventParticipantCopy}><Text numberOfLines={1} style={styles.eventParticipantTrack}>{track.title}</Text><Text numberOfLines={1} style={styles.eventParticipantArtist}>{participant.name}{participant.username ? ` · @${participant.username}` : ''}</Text></View>
+                  {event?.kind === 'battle' ? <MotionPressable disabled={!event.isLive || voting} onPress={() => onVote(event.id, track._id)} style={[styles.eventParticipantVote, selected && styles.eventParticipantVoteSelected, (!event.isLive || voting) && styles.eventParticipantVoteDisabled]}><Ionicons name={selected ? 'checkmark' : 'flash'} size={13} color={colors.paper} /><Text style={styles.eventParticipantVoteText}>{selected ? 'Voté' : 'Voter'}</Text></MotionPressable> : null}
+                </View>
+              );
+            }) : <View style={styles.eventDetailEmpty}><Ionicons name="musical-notes" size={25} color={colors.textTertiary} /><Text style={styles.eventDetailEmptyText}>Aucun son inscrit. Tu peux être le premier.</Text></View>}
+          </ScrollView>
+          {event && event.kind !== 'battle' && !event.isEnded ? <MotionPressable onPress={() => onParticipate(event)} style={styles.eventDetailAction}><Ionicons name="add-circle" size={16} color={colors.paper} /><Text style={styles.eventDetailActionText}>{event.userParticipation ? 'Changer mon son inscrit' : 'Inscrire un de mes sons'}</Text></MotionPressable> : null}
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -631,6 +727,34 @@ const styles = StyleSheet.create({
   creatorButton: { alignSelf: 'flex-start', minHeight: 39, justifyContent: 'center', borderRadius: 20, backgroundColor: colors.paper, paddingHorizontal: 15 },
   creatorButtonText: { color: colors.text, fontSize: 10, fontWeight: '900' },
   sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(23,19,19,0.38)' },
+  eventDetailSheet: { maxHeight: '88%', overflow: 'hidden', borderTopLeftRadius: 32, borderTopRightRadius: 32, backgroundColor: colors.paper },
+  eventDetailHero: { minHeight: 238, justifyContent: 'space-between', overflow: 'hidden', padding: 16 },
+  eventDetailTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  eventDetailStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 14, backgroundColor: 'rgba(255,250,242,0.16)', paddingHorizontal: 9, paddingVertical: 7 },
+  eventDetailDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.coral },
+  eventDetailStatusText: { color: colors.paper, fontSize: 8, fontWeight: '900', letterSpacing: 1 },
+  eventDetailClose: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.14)' },
+  eventDetailHeroCopy: { gap: 7 },
+  eventDetailTitle: { color: colors.paper, fontSize: 28, lineHeight: 31, fontWeight: '900' },
+  eventDetailDescription: { color: 'rgba(255,250,242,0.68)', fontSize: 10, lineHeight: 15, fontWeight: '700' },
+  eventDetailMeta: { color: '#FFB2A7', fontSize: 9, fontWeight: '900' },
+  eventDetailList: { maxHeight: 355 },
+  eventDetailListContent: { gap: 8, padding: 12 },
+  eventParticipant: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 21, backgroundColor: 'rgba(23,19,19,0.045)', padding: 9 },
+  eventParticipantSelected: { borderWidth: 1, borderColor: colors.violet, backgroundColor: 'rgba(124,92,255,0.1)' },
+  eventParticipantCover: { width: 58, height: 58, overflow: 'hidden', borderRadius: 16 },
+  eventParticipantPlay: { position: 'absolute', right: 5, bottom: 5, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
+  eventParticipantCopy: { flex: 1, minWidth: 0 },
+  eventParticipantTrack: { color: colors.text, fontSize: 11, fontWeight: '900' },
+  eventParticipantArtist: { marginTop: 4, color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
+  eventParticipantVote: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 18, backgroundColor: colors.text, paddingHorizontal: 11 },
+  eventParticipantVoteSelected: { backgroundColor: colors.violet },
+  eventParticipantVoteDisabled: { opacity: 0.38 },
+  eventParticipantVoteText: { color: colors.paper, fontSize: 8, fontWeight: '900' },
+  eventDetailEmpty: { minHeight: 150, alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 22, backgroundColor: 'rgba(23,19,19,0.035)', padding: 18 },
+  eventDetailEmptyText: { color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
+  eventDetailAction: { minHeight: 48, marginHorizontal: 12, marginTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 24, backgroundColor: colors.text },
+  eventDetailActionText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
   sheet: { maxHeight: '78%', borderTopLeftRadius: 30, borderTopRightRadius: 30, backgroundColor: colors.paper, padding: 16 },
   sheetHandle: { alignSelf: 'center', width: 48, height: 5, borderRadius: 3, backgroundColor: 'rgba(23,19,19,0.16)' },
   sheetKicker: { marginTop: 14, color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },

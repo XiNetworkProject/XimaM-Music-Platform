@@ -9,6 +9,7 @@ import {
   type CityAward,
   type CityBadge,
   type CityEvent,
+  type CityEventParticipant,
   type CityEventParticipation,
   type CityEventReward,
   type CityEventWinner,
@@ -60,22 +61,20 @@ function parisTime(day: string, hour: number) {
   return new Date(guess.getTime() - (represented - guess.getTime()));
 }
 
-function makeVoteSessions(day: string, pulse: CityPulseTrack[], preferences: any): CityVoteSession[] {
+function makeVoteSessions(day: string, pulse: CityPulseTrack[]): CityVoteSession[] {
   const schedules = [
-    { key: 'morning', label: 'Vote du matin', start: 9, end: 12, accent: '#00A7B2' },
-    { key: 'afternoon', label: "Vote de l'après-midi", start: 14, end: 17, accent: '#7C5CFF' },
-    { key: 'evening', label: 'Vote du soir', start: 20, end: 23, accent: '#FF4B7A' },
+    { key: 'morning', label: 'Vote du matin', start: 0, end: 8, accent: '#00A7B2' },
+    { key: 'afternoon', label: "Vote de l'après-midi", start: 8, end: 16, accent: '#7C5CFF' },
+    { key: 'evening', label: 'Vote du soir', start: 16, end: 24, accent: '#FF4B7A' },
   ] as const;
 
   return schedules.map((session) => {
     const id = `${day}-vote-${session.key}`;
     const tracks = rotate(pulse.slice(0, 12), id).slice(0, 2);
-    const selectedTrackId = preferences?.cityBattleVotes?.[id] || null;
     const voteCounts = Object.fromEntries(tracks.map((track) => [
       track._id,
       Math.max(2, Math.round(track.pulse * 0.22 + track.recentLikes * 1.4 + stableNumber(`${id}-${track._id}`) % 8)),
     ]));
-    if (selectedTrackId && voteCounts[selectedTrackId] !== undefined) voteCounts[selectedTrackId] += 1;
     return {
       id,
       kind: 'battle',
@@ -87,7 +86,7 @@ function makeVoteSessions(day: string, pulse: CityPulseTrack[], preferences: any
       startsAt: parisTime(day, session.start).toISOString(),
       endsAt: parisTime(day, session.end).toISOString(),
       tracks,
-      selectedTrackId,
+      selectedTrackId: null,
       voteCounts,
       config: {
         format: 'vote_session',
@@ -319,7 +318,7 @@ function decorateCityEvent(event: CityEvent, now = new Date()): CityEvent {
     isLive: live,
     isEnded: ended,
     totalVotes,
-    participationCount: event.participationCount || 0,
+    participationCount: event.participationCount || event.participants?.length || (event.kind === 'battle' ? event.tracks?.length || 0 : 0),
     canParticipate: event.canParticipate ?? (!ended && event.kind !== 'battle'),
     reward: event.reward || cityEventReward(event),
     claimStatus: event.claimStatus || 'none',
@@ -473,6 +472,33 @@ async function hydratePersistedEvents(
 
     const participation = userParticipationByEvent.get(event.id);
     const rewardRow = rewardsByEvent.get(event.id);
+    const participants: CityEventParticipant[] = event.kind === 'battle'
+      ? eventTracks.map((track) => ({
+          id: `contender-${event.id}-${track._id}`,
+          eventId: event.id,
+          userId: String(track.artist?._id || ''),
+          username: track.artist?.username || null,
+          name: String(track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste Synaura'),
+          avatar: track.artist?.avatar || null,
+          trackId: track._id,
+          status: 'contender',
+          track,
+        }))
+      : (participationByEvent.get(event.id) || []).map((entry: any) => {
+          const track = trackMap.get(String(entry.track_id)) || null;
+          return {
+            id: String(entry.id),
+            eventId: event.id,
+            userId: String(entry.user_id),
+            username: track?.artist?.username || null,
+            name: String(track?.artist?.artistName || track?.artist?.name || track?.artist?.username || 'Artiste Synaura'),
+            avatar: track?.artist?.avatar || null,
+            trackId: String(entry.track_id),
+            createdAt: entry.created_at || null,
+            status: entry.status || 'submitted',
+            track,
+          } satisfies CityEventParticipant;
+        });
     const userParticipation: CityEventParticipation | null = participation ? {
       id: String(participation.id),
       eventId: String(participation.event_id),
@@ -500,7 +526,8 @@ async function hydratePersistedEvents(
       tracks: eventTracks,
       voteCounts,
       selectedTrackId: selectedByEvent.get(event.id) || event.selectedTrackId || null,
-      participationCount: (participationByEvent.get(event.id) || []).length,
+      participants,
+      participationCount: participants.length,
       userParticipation,
       winners,
       winnerTrackId,
@@ -515,33 +542,84 @@ function applyLegacyEventState(
   events: CityEvent[],
   pulse: CityPulseTrack[],
   userId: string | null,
-  legacyPrefs: any,
+  legacyProfiles: any[],
   now = new Date(),
 ) {
   const trackMap = new Map(pulse.map((track) => [track._id, track]));
-  const participations = legacyPrefs?.cityParticipations && typeof legacyPrefs.cityParticipations === 'object'
-    ? legacyPrefs.cityParticipations
-    : {};
-  const rewards = legacyPrefs?.cityRewards && typeof legacyPrefs.cityRewards === 'object'
-    ? legacyPrefs.cityRewards
-    : {};
 
   return events.map((event) => {
-    const participation = participations[event.id];
-    const rewardEntry = rewards[event.id];
-    const userParticipation: CityEventParticipation | null = participation?.trackId && userId ? {
-      id: `legacy-${event.id}`,
-      eventId: event.id,
-      userId,
-      trackId: String(participation.trackId),
-      status: 'submitted',
-      createdAt: participation.at || now.toISOString(),
-      track: trackMap.get(String(participation.trackId)) || null,
-    } : null;
+    const voteCounts = { ...(event.voteCounts || {}) };
+    const participants: CityEventParticipant[] = [];
+    let selectedTrackId: string | null = null;
+    let userParticipation: CityEventParticipation | null = null;
+    let rewardEntry: any = null;
+
+    for (const profile of legacyProfiles) {
+      const profileId = String(profile?.id || '');
+      const preferences = profile?.preferences && typeof profile.preferences === 'object' ? profile.preferences : {};
+      const voteTrackId = String(preferences?.cityBattleVotes?.[event.id] || '');
+      if (event.kind === 'battle' && voteTrackId && voteCounts[voteTrackId] !== undefined) {
+        voteCounts[voteTrackId] = Number(voteCounts[voteTrackId] || 0) + 1;
+        if (profileId === userId) selectedTrackId = voteTrackId;
+      }
+
+      const participation = preferences?.cityParticipations?.[event.id];
+      const trackId = String(participation?.trackId || '');
+      const track = trackMap.get(trackId) || null;
+      if (event.kind !== 'battle' && trackId && track) {
+        const participant: CityEventParticipant = {
+          id: `legacy-${event.id}-${profileId}-${trackId}`,
+          eventId: event.id,
+          userId: profileId,
+          username: profile?.username || track.artist?.username || null,
+          name: String(profile?.artist_name || profile?.name || profile?.username || track.artist?.artistName || track.artist?.name || 'Artiste Synaura'),
+          avatar: profile?.avatar || track.artist?.avatar || null,
+          trackId,
+          createdAt: participation?.at || null,
+          status: 'submitted',
+          track,
+        };
+        participants.push(participant);
+        if (profileId === userId) {
+          userParticipation = {
+            id: participant.id,
+            eventId: event.id,
+            userId: profileId,
+            trackId,
+            status: 'submitted',
+            createdAt: participant.createdAt || now.toISOString(),
+            track,
+          };
+          rewardEntry = preferences?.cityRewards?.[event.id] || null;
+        }
+      }
+    }
+
+    if (event.kind === 'battle') {
+      for (const track of event.tracks || []) {
+        participants.push({
+          id: `contender-${event.id}-${track._id}`,
+          eventId: event.id,
+          userId: String(track.artist?._id || ''),
+          username: track.artist?.username || null,
+          name: String(track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste Synaura'),
+          avatar: track.artist?.avatar || null,
+          trackId: track._id,
+          status: 'contender',
+          track,
+        });
+      }
+    }
+
+    const submittedTracks = participants.map((entry) => entry.track).filter(Boolean) as CityPulseTrack[];
     return decorateCityEvent({
       ...event,
+      tracks: uniqueTracks([...submittedTracks, ...(event.tracks || [])]),
+      participants,
+      voteCounts,
+      selectedTrackId,
       userParticipation,
-      participationCount: Math.max(event.participationCount || 0, userParticipation ? 1 : 0),
+      participationCount: participants.length,
       claimStatus: rewardEntry?.status || (userParticipation ? 'available' : 'none'),
     }, now);
   });
@@ -554,19 +632,19 @@ async function tryHydratePersistedEvents(
   dayKey: string,
   weekKey: string,
   now = new Date(),
-  legacyPrefs: any = null,
+  legacyProfiles: any[] = [],
 ) {
   try {
     const hydrated = await hydratePersistedEvents(events, pulse, userId, dayKey, weekKey, now);
     // Les actions legacy (faites avant migration) restent visibles.
     return hydrated.map((event) => {
-      if (event.userParticipation || !legacyPrefs) return event;
-      const legacy = applyLegacyEventState([event], pulse, userId, legacyPrefs, now)[0];
+      if (event.userParticipation || !legacyProfiles.length) return event;
+      const legacy = applyLegacyEventState([event], pulse, userId, legacyProfiles, now)[0];
       return legacy.userParticipation ? legacy : event;
     });
   } catch (error) {
     if (!cityTableMissing(error)) console.error('city: persisted events unavailable', error);
-    return applyLegacyEventState(events, pulse, userId, legacyPrefs, now);
+    return applyLegacyEventState(events, pulse, userId, legacyProfiles, now);
   }
 }
 
@@ -581,7 +659,7 @@ export async function GET(request: NextRequest) {
     const since30d = new Date(now.getTime() - 30 * DAY_MS).toISOString();
     const since90d = new Date(now.getTime() - 90 * DAY_MS).toISOString();
 
-    const [normalRes, aiRes, statsRes, profilesRes, commentsRes, followsRes, userEventsRes, userLikesRes, currentProfileRes] = await Promise.all([
+    const [normalRes, aiRes, statsRes, profilesRes, commentsRes, followsRes, userEventsRes, userLikesRes, currentProfileRes, legacyProfilesRes] = await Promise.all([
       supabaseAdmin
         .from('tracks')
         .select('*, profiles:profiles!tracks_creator_id_fkey(id, username, name, artist_name, avatar, bio, genre, created_at, is_verified)')
@@ -602,6 +680,7 @@ export async function GET(request: NextRequest) {
       userId ? supabaseAdmin.from('track_events').select('track_id, event_type, created_at').eq('user_id', userId).gte('created_at', since30d).limit(3000) : Promise.resolve({ data: [] } as any),
       userId ? supabaseAdmin.from('track_likes').select('track_id, created_at').eq('user_id', userId).gte('created_at', since30d).limit(1000) : Promise.resolve({ data: [] } as any),
       userId ? supabaseAdmin.from('profiles').select('id, username, name, artist_name, avatar, bio, genre, created_at, preferences').eq('id', userId).maybeSingle() : Promise.resolve({ data: null } as any),
+      supabaseAdmin.from('profiles').select('id, username, name, artist_name, avatar, preferences').limit(1000),
     ]);
 
     const normal = (normalRes.data || []).map(normalTrack).filter(Boolean) as CityTrack[];
@@ -705,7 +784,7 @@ export async function GET(request: NextRequest) {
 
     const challenge = CHALLENGES[stableNumber(weekKey) % CHALLENGES.length];
     const profilePreferences = (currentProfileRes.data as any)?.preferences || {};
-    const voteSessions = makeVoteSessions(dayKey, pulse, profilePreferences);
+    const voteSessions = makeVoteSessions(dayKey, pulse);
     const season = seasonalEvent(now.getMonth());
     const weekEndsAt = new Date(now.getTime() + 7 * DAY_MS).toISOString();
     const liveStartsAt = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
@@ -746,7 +825,11 @@ export async function GET(request: NextRequest) {
         tracks: rotate(pulse, `${weekKey}-season`).slice(0, 4),
       },
     ];
-    const hydratedEvents = await tryHydratePersistedEvents(events, pulse, userId, dayKey, weekKey, now, profilePreferences);
+    const legacyProfiles = [...(legacyProfilesRes.data || [])];
+    if (currentProfileRes.data && !legacyProfiles.some((profile: any) => String(profile.id) === String(currentProfileRes.data.id))) {
+      legacyProfiles.push(currentProfileRes.data);
+    }
+    const hydratedEvents = await tryHydratePersistedEvents(events, pulse, userId, dayKey, weekKey, now, legacyProfiles);
     const hydratedVoteSessions = hydratedEvents.filter((event): event is CityVoteSession => event.kind === 'battle' && event.config?.format === 'vote_session');
     const hydratedBattle = hydratedVoteSessions.find((event) => event.selectedTrackId) || hydratedVoteSessions[0] || null;
     const currentVoteSession = hydratedVoteSessions.find((event) => event.isLive) || null;

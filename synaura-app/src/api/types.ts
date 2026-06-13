@@ -271,6 +271,7 @@ export type CityEvent = {
   voteCounts?: Record<string, number>;
   totalVotes?: number;
   participationCount?: number;
+  participants?: CityEventParticipant[];
   userParticipation?: CityEventParticipation | null;
   canParticipate?: boolean;
   winnerTrackId?: string | null;
@@ -283,6 +284,19 @@ export type CityEvent = {
     href?: string;
   };
   config?: Record<string, unknown>;
+};
+
+export type CityEventParticipant = {
+  id: string;
+  eventId: string;
+  userId: string;
+  username?: string | null;
+  name: string;
+  avatar?: string | null;
+  trackId: string;
+  createdAt?: string | null;
+  status: 'submitted' | 'accepted' | 'rejected' | 'winner' | 'contender';
+  track?: CityPulseTrack | null;
 };
 
 export type CityEventParticipation = {

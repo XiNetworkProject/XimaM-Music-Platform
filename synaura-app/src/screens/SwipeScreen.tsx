@@ -126,12 +126,15 @@ export function SwipeScreen() {
   const lastRequestRef = useRef(0);
   const burstTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const playbackCommitRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pendingSwipeReleaseRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pendingSwipeTrackRef = useRef<string | null>(null);
   const fetchedCommentIdsRef = useRef<Set<string>>(new Set());
   const fetchedLikeIdsRef = useRef<Set<string>>(new Set());
   const fetchedFollowIdsRef = useRef<Set<string>>(new Set());
   const listRef = useRef<FlatList<Track>>(null);
   const headerOpacity = useRef(new Animated.Value(1)).current;
   const lastCommittedIndexRef = useRef(0);
+  const activeIndexRef = useRef(0);
   const dragStartOffsetRef = useRef(0);
   const switchFeedMode = useCallback((nextMode: FeedMode) => {
     if (nextMode === feedMode) return;
@@ -145,6 +148,10 @@ export function SwipeScreen() {
   const isCityActive = activeId === CITY_PROMO_ID;
 
   const currentSeedGenre = useMemo(() => seedGenre || topGenre(activeTrack), [activeTrack, seedGenre]);
+
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
 
   useEffect(() => {
     if (isFocused) return;
@@ -216,13 +223,21 @@ export function SwipeScreen() {
       const playable = withoutObsoleteRadios(tracks);
       const queueIndex = playable.findIndex((track) => track._id === currentId);
       void player.setQueueOnly(playable, Math.max(0, queueIndex));
-      setActiveIndex(idxInFeed);
+      const pendingIndex = pendingSwipeTrackRef.current
+        ? tracks.findIndex((track) => track._id === pendingSwipeTrackRef.current)
+        : -1;
+      const displayIndex = pendingIndex >= 0 ? pendingIndex : idxInFeed;
+      activeIndexRef.current = displayIndex;
+      lastCommittedIndexRef.current = displayIndex;
+      setActiveIndex(displayIndex);
       // On scrolle a la slide correspondante des que la liste est montee.
       requestAnimationFrame(() => {
-        try { listRef.current?.scrollToIndex({ index: idxInFeed, animated: false }); } catch { /* ignore */ }
+        try { listRef.current?.scrollToIndex({ index: displayIndex, animated: false }); } catch { /* ignore */ }
       });
     } else if (!player.current || player.current._id.startsWith('radio-')) {
       void player.setQueueAndPlay(withoutObsoleteRadios(tracks), 0);
+      activeIndexRef.current = 0;
+      lastCommittedIndexRef.current = 0;
       setActiveIndex(0);
     }
   }, [feedMode, loadState, player, tracks]);
@@ -232,8 +247,17 @@ export function SwipeScreen() {
   // Pas de boucle car scrollToIndex(animated:false) ne declenche pas onMomentumScrollEnd.
   useEffect(() => {
     if (loadState !== 'ready' || !tracks.length || !player.current || isPromoActive || isCityActive) return;
+    if (pendingSwipeTrackRef.current) {
+      if (player.current._id === pendingSwipeTrackRef.current) {
+        pendingSwipeTrackRef.current = null;
+        clearTimeout(pendingSwipeReleaseRef.current);
+      }
+      return;
+    }
     const idx = tracks.findIndex((t) => t._id === player.current?._id);
-    if (idx < 0 || idx === activeIndex) return;
+    if (idx < 0 || idx === activeIndexRef.current) return;
+    activeIndexRef.current = idx;
+    lastCommittedIndexRef.current = idx;
     setActiveIndex(idx);
     requestAnimationFrame(() => {
       try {
@@ -244,7 +268,7 @@ export function SwipeScreen() {
         }, 80);
       }
     });
-  }, [player.current?._id, loadState, tracks, activeIndex, isPromoActive, isCityActive]);
+  }, [player.current?._id, loadState, tracks, isPromoActive, isCityActive]);
 
   // (4) Recuperer batch des compteurs commentaires
   useEffect(() => {
@@ -333,6 +357,7 @@ export function SwipeScreen() {
   useEffect(() => () => {
     clearTimeout(burstTimerRef.current);
     clearTimeout(playbackCommitRef.current);
+    clearTimeout(pendingSwipeReleaseRef.current);
   }, []);
 
   const handleToggleLike = useCallback(async () => {
@@ -434,6 +459,7 @@ export function SwipeScreen() {
     const nextIndex = Math.max(0, Math.min(tracks.length - 1, idx));
     if (nextIndex === lastCommittedIndexRef.current) return;
     lastCommittedIndexRef.current = nextIndex;
+    activeIndexRef.current = nextIndex;
     setActiveIndex(nextIndex);
     Haptics.selectionAsync().catch(() => {});
 
@@ -441,6 +467,11 @@ export function SwipeScreen() {
     const target = tracks[nextIndex];
     if (!target?.audioUrl || target._id === SUBSCRIPTION_PROMO_ID || target._id === CITY_PROMO_ID) return;
     if (player.current?._id === target._id) return;
+    pendingSwipeTrackRef.current = target._id;
+    clearTimeout(pendingSwipeReleaseRef.current);
+    pendingSwipeReleaseRef.current = setTimeout(() => {
+      pendingSwipeTrackRef.current = null;
+    }, 2400);
     clearTimeout(playbackCommitRef.current);
     playbackCommitRef.current = setTimeout(() => {
       InteractionManager.runAfterInteractions(() => {
