@@ -3,6 +3,8 @@ import { Animated, Image, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { DiscoverScreen } from '@/screens/DiscoverScreen';
 import { LibraryScreen } from '@/screens/LibraryScreen';
@@ -80,7 +82,17 @@ function AnimatedTabButton({ children, accessibilityState, onPress, style, ...pr
   };
 
   return (
-    <Pressable {...props} accessibilityState={accessibilityState} onPress={onPress} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} style={style}>
+    <Pressable
+      {...props}
+      accessibilityState={accessibilityState}
+      onPress={(event) => {
+        void Haptics.selectionAsync().catch(() => {});
+        onPress?.(event);
+      }}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      style={style}
+    >
       <Animated.View style={[styles.tabMotion, { transform: [{ translateY: lift }, { scale }] }]}>
         {children}
       </Animated.View>
@@ -142,7 +154,7 @@ export function Tabs() {
           borderTopWidth: 0,
           borderWidth: 1,
           borderColor: 'rgba(23,19,19,0.14)',
-          backgroundColor: 'rgba(255,250,242,0.99)',
+          backgroundColor: 'rgba(255,250,242,0.82)',
           shadowColor: '#1E1914',
           shadowOpacity: 0.24,
           shadowRadius: 32,
@@ -150,7 +162,9 @@ export function Tabs() {
           elevation: 18,
           paddingTop: 7,
           paddingBottom: Math.max(6, insets.bottom ? 4 : 8),
+          overflow: 'hidden',
         },
+        tabBarBackground: () => <BlurView intensity={72} tint="light" style={StyleSheet.absoluteFillObject} />,
         tabBarLabelStyle: { fontSize: 10, fontWeight: '900', marginTop: 0 },
         tabBarActiveTintColor: colors.black,
         tabBarInactiveTintColor: colors.textTertiary,
@@ -168,7 +182,11 @@ export function Tabs() {
             route.name === 'Settings' ? 'settings' : 'person-circle';
           const premium = route.name === 'Swipe';
           if (premium) return <PremiumSwipeIcon />;
-          return <Ionicons name={icon as any} size={22} color={focused ? colors.black : colors.textTertiary} />;
+          return (
+            <View style={[styles.iconDock, focused && styles.iconDockActive]}>
+              <Ionicons name={icon as any} size={20} color={focused ? colors.black : colors.textTertiary} />
+            </View>
+          );
         },
       })}
     >
@@ -195,6 +213,18 @@ export function Tabs() {
 
 const styles = StyleSheet.create({
   tabMotion: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  iconDock: {
+    width: 35,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconDockActive: {
+    backgroundColor: 'rgba(139,92,246,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.16)',
+  },
   premiumTab: {
     width: 54,
     height: 54,

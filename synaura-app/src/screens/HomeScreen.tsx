@@ -55,6 +55,9 @@ import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { SHOW_SHUTDOWN_NOTICES } from '@/config/features';
 import { CityHomeBanner } from '@/components/city/CityHomeBanner';
+import { MobileHeader, MOBILE_HEADER_EXPANDED_HEIGHT } from '@/components/mobile/MobileHeader';
+import { MobileActionCard } from '@/components/mobile/MobileActionCard';
+import { MobileWaveform } from '@/components/mobile/MobileWaveform';
 
 const filters = ['Pour toi', 'Sons', 'Communaute', 'Plus'] as const;
 const quickActions = [
@@ -218,6 +221,7 @@ export function HomeScreen() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const seenIdsRef = React.useRef<Set<string>>(new Set());
   const impressionIdsRef = React.useRef<Set<string>>(new Set());
+  const headerScrollY = React.useRef(new Animated.Value(0)).current;
   const player = usePlayer();
   const library = useLibrary();
   const auth = useAuth();
@@ -429,8 +433,6 @@ export function HomeScreen() {
 
   const header = (
     <>
-      <TopBar unread={unreadNotifications} onNotifications={() => setNotificationsOpen(true)} />
-      <TopSearchStrip onSearch={() => setSearchOpen(true)} onStudio={() => navigation.navigate('AIStudio')} />
       {SHOW_SHUTDOWN_NOTICES ? <AnnouncementStrip onPress={() => openWebPath('/fermeture')} /> : null}
       {heroTracks.length ? (
         <MiniCarousel
@@ -457,12 +459,21 @@ export function HomeScreen() {
   return (
     <View style={styles.root}>
       <DecorativeBackground />
+      <MobileHeader
+        scrollY={headerScrollY}
+        unread={unreadNotifications}
+        onSearch={() => setSearchOpen(true)}
+        onPublish={() => navigation.navigate('CreateHub')}
+        onNotifications={() => setNotificationsOpen(true)}
+      />
       <FlatList
         data={feed}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={header}
-        contentContainerStyle={[styles.content, { paddingTop: Math.max(14, insets.top + 8) }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + MOBILE_HEADER_EXPANDED_HEIGHT + 16 }]}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: headerScrollY } } }], { useNativeDriver: false })}
+        scrollEventThrottle={16}
         onEndReached={loadMore}
         onEndReachedThreshold={0.55}
         onViewableItemsChanged={({ viewableItems }) => {
@@ -714,6 +725,7 @@ function MiniCarousel({
           <Text style={styles.heroTitle}>Decouvre, remixe, publie.</Text>
           <Text style={styles.heroCopy}>Lance un mix de sons IA et indes, puis cree ton univers musical a partir de ce que tu aimes.</Text>
           <Text style={styles.heroNow} numberOfLines={1}>En tete maintenant : {item.title} · {artistName(item)}</Text>
+          <MobileWaveform active={playingThis} dark style={styles.heroWaveform} />
           <View style={styles.heroActions}>
             <MotionPressable style={styles.heroPrimary} onPress={() => onPlay(item)}>
               <Ionicons name={playingThis ? 'pause' : 'play'} size={15} color={warm.ink} />
@@ -753,20 +765,12 @@ function QuickActions({
   onCommunity: () => void;
 }) {
   const actions = [onListen, onCreate, onPublish, onCommunity];
+  const tones = ['violet', 'cyan', 'coral', 'gold'] as const;
   return (
     <View style={styles.quickGrid}>
       {quickActions.map((item, index) => (
         <Reveal key={item.label} delay={70 + index * 55} style={styles.quickReveal}>
-          <MotionPressable onPress={actions[index]} style={styles.quickItem}>
-            <View style={styles.quickIcon}>
-              <Ionicons name={item.icon} size={18} color={item.tint} />
-            </View>
-            <View style={styles.quickCopy}>
-              <Text numberOfLines={1} style={styles.quickLabel}>{item.label}</Text>
-              <Text numberOfLines={1} style={styles.quickCaption}>{item.caption}</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={14} color="rgba(23,19,19,0.24)" />
-          </MotionPressable>
+          <MobileActionCard title={item.label} caption={item.caption} icon={item.icon} tone={tones[index]} onPress={actions[index]} />
         </Reveal>
       ))}
     </View>
@@ -2056,6 +2060,9 @@ const styles = StyleSheet.create({
     color: 'rgba(255,250,242,0.45)',
     fontSize: 11,
     fontWeight: '800',
+  },
+  heroWaveform: {
+    marginTop: 10,
   },
   heroActions: {
     marginTop: spacing.md,

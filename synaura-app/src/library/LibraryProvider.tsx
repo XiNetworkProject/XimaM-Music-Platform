@@ -1,12 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Track } from '@/api/types';
 
 type LibraryContextValue = {
   favorites: Track[];
   recent: Track[];
+  downloaded: Track[];
   isFavorite: (trackId: string) => boolean;
+  isDownloaded: (trackId: string) => boolean;
   toggleFavorite: (track: Track) => void;
+  downloadTrack: (track: Track) => Promise<void>;
+  removeDownload: (trackId: string) => Promise<void>;
   addRecent: (track: Track) => void;
   clearRecent: () => void;
 };
@@ -14,6 +19,8 @@ type LibraryContextValue = {
 const LibraryContext = createContext<LibraryContextValue | null>(null);
 const FAVORITES_KEY = 'synaura.library.favorites';
 const RECENT_KEY = 'synaura.library.recent';
+const DOWNLOADED_KEY = 'synaura.library.downloaded';
+const DOWNLOAD_DIRECTORY = `${FileSystem.documentDirectory}synaura-downloads/`;
 
 function safeParseTracks(raw: string | null): Track[] {
   if (!raw) return [];
@@ -30,16 +37,19 @@ function safeParseTracks(raw: string | null): Track[] {
 export function LibraryProvider({ children }: { children: React.ReactNode }) {
   const [favorites, setFavorites] = useState<Track[]>([]);
   const [recent, setRecent] = useState<Track[]>([]);
+  const [downloaded, setDownloaded] = useState<Track[]>([]);
 
   useEffect(() => {
     let mounted = true;
     Promise.all([
       AsyncStorage.getItem(FAVORITES_KEY),
       AsyncStorage.getItem(RECENT_KEY),
-    ]).then(([favRaw, recentRaw]) => {
+      AsyncStorage.getItem(DOWNLOADED_KEY),
+    ]).then(([favRaw, recentRaw, downloadedRaw]) => {
       if (!mounted) return;
       setFavorites(safeParseTracks(favRaw));
       setRecent(safeParseTracks(recentRaw));
+      setDownloaded(safeParseTracks(downloadedRaw));
     }).catch(() => {});
     return () => {
       mounted = false;
@@ -62,6 +72,33 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     persistFavorites(next.slice(0, 200));
   }, [favorites, persistFavorites]);
 
+  const isDownloaded = useCallback((trackId: string) => {
+    return downloaded.some((track) => track._id === trackId);
+  }, [downloaded]);
+
+  const removeDownload = useCallback(async (trackId: string) => {
+    const existing = downloaded.find((track) => track._id === trackId);
+    if (existing?.audioUrl?.startsWith('file:')) {
+      await FileSystem.deleteAsync(existing.audioUrl, { idempotent: true }).catch(() => {});
+    }
+    const next = downloaded.filter((track) => track._id !== trackId);
+    setDownloaded(next);
+    await AsyncStorage.setItem(DOWNLOADED_KEY, JSON.stringify(next));
+  }, [downloaded]);
+
+  const downloadTrack = useCallback(async (track: Track) => {
+    if (!track?._id || !/^https?:\/\//i.test(track.audioUrl || '')) return;
+    await FileSystem.makeDirectoryAsync(DOWNLOAD_DIRECTORY, { intermediates: true }).catch(() => {});
+    const safeId = encodeURIComponent(track._id).replace(/%/g, '_');
+    const destination = `${DOWNLOAD_DIRECTORY}${safeId}.audio`;
+    await FileSystem.deleteAsync(destination, { idempotent: true }).catch(() => {});
+    const result = await FileSystem.downloadAsync(track.audioUrl, destination);
+    const offlineTrack = { ...track, audioUrl: result.uri, remoteAudioUrl: track.audioUrl } as Track;
+    const next = [offlineTrack, ...downloaded.filter((item) => item._id !== track._id)].slice(0, 100);
+    setDownloaded(next);
+    await AsyncStorage.setItem(DOWNLOADED_KEY, JSON.stringify(next));
+  }, [downloaded]);
+
   const addRecent = useCallback((track: Track) => {
     if (!track?._id || track._id.startsWith('radio-')) return;
     setRecent((current) => {
@@ -80,11 +117,15 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<LibraryContextValue>(() => ({
     favorites,
     recent,
+    downloaded,
     isFavorite,
+    isDownloaded,
     toggleFavorite,
+    downloadTrack,
+    removeDownload,
     addRecent,
     clearRecent,
-  }), [addRecent, clearRecent, favorites, isFavorite, recent, toggleFavorite]);
+  }), [addRecent, clearRecent, downloaded, downloadTrack, favorites, isDownloaded, isFavorite, recent, removeDownload, toggleFavorite]);
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;
 }

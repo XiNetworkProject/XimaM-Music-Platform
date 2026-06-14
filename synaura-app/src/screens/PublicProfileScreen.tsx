@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { followUser, getPublicProfile, getUserPosts, type MobileProfile } from '@/api/client';
@@ -12,6 +13,8 @@ import { TrackCover } from '@/components/TrackCover';
 import { CreatorLevelCard } from '@/components/events/SynauraEvents';
 import { usePlayer } from '@/player/PlayerProvider';
 import { MotionPressable } from '@/components/motion/Motion';
+import { MobileBadge } from '@/components/mobile/MobileBadge';
+import { MobileSocialLinks } from '@/components/mobile/MobileSocialLinks';
 
 type Tab = 'posts' | 'sons' | 'albums' | 'about';
 
@@ -121,20 +124,14 @@ export function PublicProfileScreen() {
         </View>
 
         <View style={styles.hero}>
-          <View style={styles.banner}>{profile.banner ? <Image source={{ uri: profile.banner }} style={StyleSheet.absoluteFillObject} /> : null}</View>
+          <View style={styles.banner}>{profile.banner ? <Image source={{ uri: profile.banner }} style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#FFB4A8', '#BCA7FF', '#8DE7EE']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />}</View>
           <View style={styles.heroBody}>
             <View style={styles.avatar}>{profile.avatar ? <Image source={{ uri: profile.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.avatarText}>{profile.name.slice(0, 1).toUpperCase()}</Text>}</View>
             <Text style={styles.name}>{profile.name}</Text>
             <Text style={styles.handle}>@{profile.username}</Text>
             <Text style={styles.bio}>{profile.bio || 'Artiste Synaura'}</Text>
             {profile.badges.length ? <View style={styles.badges}>{profile.badges.slice(0, 4).map((badge) => <Text key={badge} style={styles.badge}>{badge}</Text>)}</View> : null}
-            {Object.keys(profile.socialLinks).length ? (
-              <View style={styles.socials}>
-                {Object.entries(profile.socialLinks).filter(([, url]) => Boolean(url)).slice(0, 5).map(([name, url]) => (
-                  <Pressable key={name} onPress={() => Linking.openURL(url)} style={styles.social}><Ionicons name={name.toLowerCase().includes('instagram') ? 'logo-instagram' : name.toLowerCase().includes('youtube') ? 'logo-youtube' : name.toLowerCase().includes('tiktok') ? 'logo-tiktok' : 'link-outline'} size={16} color="#171313" /></Pressable>
-                ))}
-              </View>
-            ) : null}
+            <View style={styles.socials}><MobileSocialLinks links={profile.socialLinks} /></View>
             <View style={styles.stats}>
               <Stat label="Followers" value={compact(profile.followerCount)} />
               <Stat label="Sons" value={compact(profile.tracksCount)} />
@@ -156,6 +153,13 @@ export function PublicProfileScreen() {
           likes={profile.tracks.reduce((sum, track) => sum + Number(track.likesCount || 0), 0)}
           onOpen={() => navigation.navigate('City')}
         />
+
+        {profile.badges.length ? (
+          <View style={styles.badgePanel}>
+            <Text style={styles.badgePanelTitle}>Badges de l’artiste</Text>
+            {profile.badges.slice(0, 3).map((badge, index) => <MobileBadge key={badge} label={badge} tier={index === 0 ? 'prism' : index === 1 ? 'gold' : 'silver'} description="Débloqué sur Synaura." />)}
+          </View>
+        ) : null}
 
         {featuredTrack ? (
           <Pressable onPress={() => player.playTrack(featuredTrack)} style={styles.featured}>
@@ -282,6 +286,8 @@ const styles = StyleSheet.create({
   badge: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5, color: '#5B3FD6', backgroundColor: 'rgba(124,92,255,0.12)', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   socials: { marginTop: 10, flexDirection: 'row', gap: 7 },
   social: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },
+  badgePanel: { gap: 8, borderRadius: 24, padding: 14, backgroundColor: 'rgba(255,250,242,0.76)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
+  badgePanelTitle: { color: '#171313', fontSize: 17, fontWeight: '900' },
   stats: { marginTop: 14, flexDirection: 'row', gap: 8 },
   stat: { flex: 1, alignItems: 'center', borderRadius: 18, backgroundColor: 'rgba(23,19,19,0.045)', padding: 12 },
   statValue: { color: '#171313', fontSize: 18, fontWeight: '900' },

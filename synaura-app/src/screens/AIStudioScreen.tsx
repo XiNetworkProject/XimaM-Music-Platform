@@ -52,6 +52,8 @@ import {
 import { useAuth } from '@/auth/AuthProvider';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
+import { MobileAnimatedLogo } from '@/components/mobile/MobileAnimatedLogo';
+import { MobileWaveform } from '@/components/mobile/MobileWaveform';
 import { EventChoice, EventTicker } from '@/components/events/SynauraEvents';
 import { TrackCover } from '@/components/TrackCover';
 import { aiStudioPresets, type MobileAIStudioPreset } from '@/constants/aiStudioPresets';
@@ -686,6 +688,13 @@ export function AIStudioScreen() {
             {liveTaskId ? (
               <View style={styles.livePanel}>
                 <View style={styles.liveTop}><View style={styles.liveDot} /><Text style={styles.liveKicker}>GÉNÉRATION LIVE</Text><Text style={styles.liveStatus}>{liveStatus || 'pending'}</Text></View>
+                <View style={styles.liveVisual}>
+                  <MobileAnimatedLogo loading size={52} />
+                  <View style={styles.liveVisualCopy}>
+                    <Text style={styles.liveVisualKicker}>COMPOSITION EN COURS</Text>
+                    <MobileWaveform active style={styles.liveWaveform} />
+                  </View>
+                </View>
                 <Text style={styles.liveTitle}>{title || description || 'Création en cours'}</Text>
                 <Text style={styles.liveTask}>{(liveModel || model).replace('_', '.')} · #{liveTaskId.slice(-8)}</Text>
                 <GenerationTimeline status={liveStatus} hasTracks={liveTracks.length > 0} />
@@ -1037,6 +1046,10 @@ const styles = StyleSheet.create({
   modelNoticeLink: { color: colors.violet, fontSize: 9, fontWeight: '900' },
   livePanel: { borderRadius: 24, padding: 14, gap: 9, backgroundColor: 'rgba(124,92,255,0.10)', borderWidth: 1, borderColor: 'rgba(124,92,255,0.24)' },
   liveTop: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  liveVisual: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: 20, padding: 10, backgroundColor: 'rgba(255,249,239,0.7)' },
+  liveVisualCopy: { flex: 1, minWidth: 0 },
+  liveVisualKicker: { color: colors.textTertiary, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
+  liveWaveform: { height: 24, marginTop: 7 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#34D399' },
   liveKicker: { flex: 1, color: colors.violet, fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
   liveStatus: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },

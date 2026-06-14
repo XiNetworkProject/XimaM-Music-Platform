@@ -1,12 +1,13 @@
 {
-  "title": "Synaura mobile 0.8.2",
+  "title": "Synaura mobile 0.9.0",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Battles animees avec deux covers, gagnants, celebrations et recompenses reelles",
-    "Votes et participations fiabilises : seuls les gagnants obtiennent les gains City",
-    "Discover infini avec tris, pepites, nouveaux profils et catalogue progressif",
-    "Studio IA transparent sur le modele reellement utilise et acces V5.5 selon le plan",
-    "Abonnements plus lisibles et publication rapide remontee en haut de la Home"
+    "Nouvelle base visuelle mobile premium avec fond dynamique, header compact et recherche plein ecran",
+    "Swipe fluidifie : disparition du retour temporaire vers le titre precedent",
+    "Notifications telephone, relais Android en arriere-plan et ouverture directe des contenus",
+    "Player enrichi avec gestes, telechargement hors ligne et actions mieux organisees",
+    "Bibliotheque completee avec hors ligne, file d'attente, playlists et artistes suivis",
+    "Discover, Studio, profils, navigation et ecrans de notifications harmonises"
   ]
 }

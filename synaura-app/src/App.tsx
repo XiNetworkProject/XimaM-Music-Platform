@@ -16,6 +16,8 @@ import { colors } from '@/theme/tokens';
 import { AnimatedBootSplash } from '@/components/AnimatedBootSplash';
 import { UpdateProvider } from '@/updates/UpdateProvider';
 import { MobileSettingsProvider } from '@/settings/MobileSettingsProvider';
+import { NativeNotificationsProvider } from '@/notifications/NativeNotificationsProvider';
+import { navigationRef } from '@/navigation/navigationRef';
 
 export type RootStackParamList = {
   Tabs: { screen?: string; params?: Record<string, unknown> } | undefined;
@@ -56,7 +58,9 @@ export default function App() {
           <AuthProvider>
             <LibraryProvider>
               <PlayerProvider>
+              <NativeNotificationsProvider>
               <NavigationContainer
+                ref={navigationRef}
                 theme={navTheme}
                 onStateChange={(state) => {
                   setActiveRoute(getActiveRouteName(state));
@@ -73,6 +77,7 @@ export default function App() {
                 <FullPlayerModal visible={playerOpen} onClose={() => setPlayerOpen(false)} />
               </NavigationContainer>
               <AnimatedBootSplash />
+              </NativeNotificationsProvider>
               </PlayerProvider>
             </LibraryProvider>
           </AuthProvider>

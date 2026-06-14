@@ -12,6 +12,12 @@ import { colors, spacing } from '@/theme/tokens';
 
 const emptyResults: SearchResults = { tracks: [], posts: [], artists: [], playlists: [] };
 const notificationCategories = ['all', 'social', 'music', 'system'] as const;
+const searchSuggestions = [
+  { label: 'En feu', icon: 'flame', tone: '#FF6B6B' },
+  { label: 'Nouveaux talents', icon: 'sparkles', tone: '#8B5CF6' },
+  { label: 'Electronic', icon: 'pulse', tone: '#22D3EE' },
+  { label: 'Rap', icon: 'mic', tone: '#F5B84B' },
+] as const;
 
 function artistName(track: Track) {
   return track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste Synaura';
@@ -79,9 +85,9 @@ export function UniversalSearchModal({ visible, onClose }: { visible: boolean; o
   };
 
   return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <View style={styles.scrim}>
-        <View style={[styles.sheet, { paddingTop: Math.max(insets.top, spacing.md) }]}>
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+      <View style={styles.searchScreen}>
+        <View style={[styles.searchSheet, { paddingTop: Math.max(insets.top, spacing.md) }]}>
           <SheetHeader title="Recherche Synaura" subtitle={loading ? 'Recherche...' : total ? `${total} resultats` : 'sons, posts, playlists et createurs'} onClose={onClose} />
           <View style={styles.searchInputWrap}>
             <Ionicons name="search" size={19} color={colors.textTertiary} />
@@ -89,7 +95,24 @@ export function UniversalSearchModal({ visible, onClose }: { visible: boolean; o
             {query ? <Pressable onPress={() => setQuery('')}><Ionicons name="close-circle" size={20} color={colors.textTertiary} /></Pressable> : null}
           </View>
           <ScrollView contentContainerStyle={styles.results} keyboardShouldPersistTaps="handled">
-            {query.trim().length < 2 ? <Empty icon="search" title="Recherche universelle" text="Tape au moins deux caracteres." /> : null}
+            {query.trim().length < 2 ? (
+              <View style={styles.discovery}>
+                <Text style={styles.discoveryKicker}>EXPLORER SYNAURA</Text>
+                <Text style={styles.discoveryTitle}>Trouve ta prochaine obsession.</Text>
+                <Text style={styles.discoveryText}>Sons en feu, artistes qui arrivent et ambiances à écouter maintenant.</Text>
+                <View style={styles.suggestionGrid}>
+                  {searchSuggestions.map((item) => (
+                    <Pressable key={item.label} onPress={() => setQuery(item.label)} style={[styles.suggestion, { backgroundColor: `${item.tone}18`, borderColor: `${item.tone}38` }]}>
+                      <View style={[styles.suggestionIcon, { backgroundColor: item.tone }]}>
+                        <Ionicons name={item.icon} size={17} color={colors.paper} />
+                      </View>
+                      <Text style={styles.suggestionText}>{item.label}</Text>
+                      <Ionicons name="arrow-forward" size={15} color={colors.textSecondary} />
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
             {!loading && query.trim().length >= 2 && total === 0 ? <Empty icon="search" title="Aucun resultat" text={`Rien pour "${query.trim()}".`} /> : null}
             {results.tracks.length ? <ResultTitle label="Sons" icon="musical-notes" /> : null}
             {results.tracks.map((track) => (
@@ -198,6 +221,8 @@ function Empty({ icon, title, text }: { icon: keyof typeof Ionicons.glyphMap; ti
 
 const styles = StyleSheet.create({
   scrim: { flex: 1, backgroundColor: 'rgba(23,19,19,0.34)', justifyContent: 'flex-start', padding: spacing.md },
+  searchScreen: { flex: 1, backgroundColor: colors.background },
+  searchSheet: { flex: 1, overflow: 'hidden', backgroundColor: colors.background },
   sheet: { maxHeight: '88%', overflow: 'hidden', borderRadius: 26, borderWidth: 1, borderColor: '#D8CBB8', backgroundColor: '#FFF7EC', shadowColor: '#1E1914', shadowOpacity: 0.28, shadowRadius: 35, elevation: 14 },
   notificationSheet: { width: '100%', maxHeight: '68%', alignSelf: 'center' },
   sheetHeader: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderColor: '#E2D6C4', backgroundColor: '#FFFAF2' },
@@ -206,6 +231,14 @@ const styles = StyleSheet.create({
   searchInputWrap: { margin: spacing.md, height: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 24, backgroundColor: '#EFE4D4', paddingHorizontal: spacing.md },
   searchInput: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '800' },
   results: { padding: spacing.md, paddingBottom: 50, gap: spacing.sm },
+  discovery: { paddingTop: spacing.md },
+  discoveryKicker: { color: colors.violet, fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
+  discoveryTitle: { marginTop: 8, maxWidth: 310, color: colors.text, fontSize: 30, lineHeight: 33, fontWeight: '900' },
+  discoveryText: { marginTop: 8, maxWidth: 330, color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  suggestionGrid: { marginTop: spacing.lg, gap: spacing.sm },
+  suggestion: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 20, borderWidth: 1, paddingHorizontal: 12 },
+  suggestionIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  suggestionText: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '900' },
   resultSectionTitle: { marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
   resultSectionText: { color: colors.textTertiary, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   resultRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 17, backgroundColor: '#EFE4D4', padding: spacing.sm },

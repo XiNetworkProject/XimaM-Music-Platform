@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
-  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { deleteTrack, getMyProfile, getSubscriptionUsage, getUserPosts, pinPost, unpinPost, updateTrackMetadata, type MobileProfile, type MobileProfileTrack, type SubscriptionUsage } from '@/api/client';
@@ -23,6 +23,8 @@ import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackEditBottomSheet, type TrackEditForm } from '@/components/profile/TrackEditBottomSheet';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors } from '@/theme/tokens';
+import { MobileBadge } from '@/components/mobile/MobileBadge';
+import { MobileSocialLinks } from '@/components/mobile/MobileSocialLinks';
 
 type ProfileTab = 'posts' | 'sons' | 'albums' | 'about';
 
@@ -178,7 +180,7 @@ export function ProfileScreen() {
       >
         <View style={styles.hero}>
           <View style={styles.banner}>
-            {profile?.banner ? <Image source={{ uri: profile.banner }} style={StyleSheet.absoluteFillObject} /> : <View style={styles.bannerFallback} />}
+            {profile?.banner ? <Image source={{ uri: profile.banner }} style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#FFB4A8', '#BCA7FF', '#8DE7EE']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bannerFallback}><Ionicons name="musical-notes" size={34} color="rgba(255,249,239,0.72)" /></LinearGradient>}
           </View>
           <View style={styles.heroBody}>
             <View style={styles.avatarWrap}>
@@ -198,15 +200,7 @@ export function ProfileScreen() {
               {profile?.location ? <Pill label={profile.location} /> : null}
               {profile?.badges.slice(0, 3).map((badge) => <Text key={badge} style={styles.badge}>{badge}</Text>)}
             </View>
-            {profile && Object.keys(profile.socialLinks).length ? (
-              <View style={styles.socialRow}>
-                {Object.entries(profile.socialLinks).filter(([, url]) => Boolean(url)).slice(0, 5).map(([name, url]) => (
-                  <Pressable key={name} onPress={() => Linking.openURL(url)} style={styles.socialButton}>
-                    <Ionicons name={name.toLowerCase().includes('instagram') ? 'logo-instagram' : name.toLowerCase().includes('youtube') ? 'logo-youtube' : name.toLowerCase().includes('tiktok') ? 'logo-tiktok' : 'link-outline'} size={16} color="#171313" />
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
+            {profile ? <View style={styles.socialRow}><MobileSocialLinks links={profile.socialLinks} /></View> : null}
             <View style={styles.actions}>
               <Pressable onPress={() => navigation.navigate('Settings')} style={styles.actionPrimary}><Text style={styles.actionPrimaryText}>Modifier</Text></Pressable>
               <Pressable onPress={shareProfile} style={styles.actionGhost}><Ionicons name="share-outline" size={17} color="#171313" /></Pressable>
@@ -230,6 +224,20 @@ export function ProfileScreen() {
           likes={(profile?.tracks || []).reduce((sum, track) => sum + Number(track.likesCount || 0), 0)}
           onOpen={() => navigation.navigate('City')}
         />
+
+        {profile?.badges.length ? (
+          <View style={styles.badgesPanel}>
+            <SectionTitle title="Badges à l’honneur" action={`${profile.badges.length}`} />
+            {profile.badges.slice(0, 3).map((badge, index) => (
+              <MobileBadge
+                key={badge}
+                label={badge}
+                tier={index === 0 ? 'prism' : index === 1 ? 'gold' : 'silver'}
+                description={index === 0 ? 'Badge principal visible sur ton univers.' : 'Débloqué grâce à ton activité Synaura.'}
+              />
+            ))}
+          </View>
+        ) : null}
 
         {featuredTrack ? (
           <Pressable onPress={() => player.playTrack(featuredTrack)} style={styles.featured}>
@@ -417,7 +425,7 @@ const styles = StyleSheet.create({
   registerText: { color: '#7C5CFF', fontSize: 13, fontWeight: '900' },
   hero: { overflow: 'hidden', borderRadius: 30, backgroundColor: 'rgba(255,250,242,0.92)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
   banner: { height: 138, backgroundColor: '#171313' },
-  bannerFallback: { flex: 1, backgroundColor: '#171313' },
+  bannerFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   heroBody: { padding: 16, marginTop: -52 },
   avatarWrap: { width: 104, height: 104, borderRadius: 30, borderWidth: 4, borderColor: '#FFFAF2', backgroundColor: '#E8DCCA', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%' },
@@ -430,7 +438,7 @@ const styles = StyleSheet.create({
   pill: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(23,19,19,0.07)', color: '#171313', fontSize: 10, fontWeight: '900' },
   badge: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(124,92,255,0.13)', color: '#5B3FD6', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   socialRow: { marginTop: 11, flexDirection: 'row', gap: 7 },
-  socialButton: { width: 35, height: 35, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },
+  badgesPanel: { gap: 8, borderRadius: 24, padding: 14, backgroundColor: 'rgba(255,250,242,0.7)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
   actions: { marginTop: 15, flexDirection: 'row', gap: 8 },
   actionPrimary: { flex: 1, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
   actionPrimaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },

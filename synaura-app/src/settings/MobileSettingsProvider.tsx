@@ -9,6 +9,7 @@ export type MobileSettings = {
   reducedMotion: boolean;
   dataSaver: boolean;
   coverVideos: boolean;
+  dynamicBackground: boolean;
 };
 
 const DEFAULT_SETTINGS: MobileSettings = {
@@ -19,6 +20,7 @@ const DEFAULT_SETTINGS: MobileSettings = {
   reducedMotion: false,
   dataSaver: false,
   coverVideos: true,
+  dynamicBackground: true,
 };
 
 export const MOBILE_SETTINGS_KEY = 'synaura.mobile.settings.v1';

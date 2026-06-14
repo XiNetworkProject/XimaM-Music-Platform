@@ -583,6 +583,29 @@ export async function deleteNotification(notificationId: number) {
   });
 }
 
+export async function registerNativePushToken(input: {
+  token: string;
+  platform: string;
+  deviceName?: string | null;
+  appVersion?: string | null;
+}) {
+  await request('/api/notifications/push/native', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function unregisterNativePushToken(token: string) {
+  await request('/api/notifications/push/native', {
+    method: 'DELETE',
+    body: JSON.stringify({ token }),
+  });
+}
+
+export async function sendNativePushTest() {
+  await request('/api/notifications/push/native', { method: 'PATCH' });
+}
+
 function normalizeCommunityAuthor(raw: any) {
   const author = raw?.author || raw?.profile || raw?.profiles || {};
   return {
@@ -1364,6 +1387,13 @@ export async function followUser(username: string): Promise<{ isFollowing: boole
   const json = await request<any>(`/api/users/${encodeURIComponent(username)}/follow`, { method: 'POST' });
   const action = json?.action === 'unfollowed' ? 'unfollowed' : 'followed';
   return { action, isFollowing: action === 'followed' };
+}
+
+export async function getFollowingCreators(): Promise<Creator[]> {
+  const json = await request<any>('/api/users/following?limit=60');
+  return (Array.isArray(json?.following) ? json.following : [])
+    .map(normalizeCreator)
+    .filter((creator: Creator | null): creator is Creator => Boolean(creator));
 }
 
 export async function getNotificationPrefs(): Promise<NotificationPrefs> {

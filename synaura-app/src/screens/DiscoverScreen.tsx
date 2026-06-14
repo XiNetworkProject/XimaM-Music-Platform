@@ -21,8 +21,15 @@ import { usePlayer } from '@/player/PlayerProvider';
 import { spacing } from '@/theme/tokens';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
+import { MobileSectionTitle } from '@/components/mobile/MobileSectionTitle';
 
 const genres = ['Tout', 'Pop', 'Hip-Hop', 'Rap', 'Rock', 'Electronic', 'R&B', 'Jazz', 'Lo-Fi', 'Indie', 'Ambient'];
+const ambienceTiles = [
+  { label: 'Electronic', icon: 'pulse', colors: ['#8B5CF6', '#22D3EE'] },
+  { label: 'Rap', icon: 'mic', colors: ['#171313', '#FF6B6B'] },
+  { label: 'Pop', icon: 'heart', colors: ['#EC4899', '#F5B84B'] },
+  { label: 'Ambient', icon: 'moon', colors: ['#22D3EE', '#8B5CF6'] },
+] as const;
 const sorts = [
   { id: 'trending', label: 'Moment', icon: 'pulse' },
   { id: 'newest', label: 'Nouveaux', icon: 'sparkles' },
@@ -189,6 +196,20 @@ export function DiscoverScreen() {
         </ScrollView>
 
         <EventTicker city={city} onPress={() => navigation.navigate('City')} tone="cyan" />
+        <View style={styles.ambienceSection}>
+          <MobileSectionTitle title="Ambiances" subtitle="entre par une couleur, reste pour le son" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ambienceRail}>
+            {ambienceTiles.map((item) => (
+              <Pressable key={item.label} onPress={() => setGenre(item.label)} style={styles.ambiencePressable}>
+                <LinearGradient colors={item.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ambienceTile}>
+                  <Ionicons name={item.icon} size={20} color={warm.paper} />
+                  <Text style={styles.ambienceLabel}>{item.label}</Text>
+                  <View style={styles.ambienceLine} />
+                </LinearGradient>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
         <Pressable onPress={() => navigation.navigate('Subscriptions')} style={styles.plusNudge}>
           <View style={styles.plusIcon}><Ionicons name="sparkles" size={18} color={warm.paper} /></View>
           <View style={{ flex: 1 }}><Text style={styles.plusTitle}>Plus de Studio, sans casser ton flow</Text><Text style={styles.plusText}>Découvre les modèles IA et outils inclus dans Synaura Plus.</Text></View>
@@ -334,12 +355,7 @@ function PlaylistRail({ playlists, onOpen }: { playlists: HomeData['playlists'];
 }
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <View style={styles.sectionTitleWrap}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.sectionSubtitle}>{subtitle}</Text>
-    </View>
-  );
+  return <MobileSectionTitle title={title} subtitle={subtitle} style={styles.sectionTitleWrap} />;
 }
 
 const warm = {
@@ -386,12 +402,16 @@ const styles = StyleSheet.create({
   heroNow: { marginTop: spacing.sm, color: 'rgba(255,250,242,0.58)', fontSize: 12, fontWeight: '800' },
   heroButton: { marginTop: spacing.lg, height: 44, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 22, backgroundColor: warm.paper, paddingHorizontal: spacing.lg },
   heroButtonText: { color: warm.ink, fontSize: 13, fontWeight: '900' },
+  ambienceSection: { marginTop: spacing.lg },
+  ambienceRail: { gap: spacing.sm, paddingRight: spacing.md },
+  ambiencePressable: { borderRadius: 20, overflow: 'hidden' },
+  ambienceTile: { width: 132, height: 92, justifyContent: 'space-between', borderRadius: 20, padding: 13 },
+  ambienceLabel: { color: warm.paper, fontSize: 15, fontWeight: '900' },
+  ambienceLine: { width: 46, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,250,242,0.68)' },
   error: { marginTop: spacing.md, color: '#B91C1C', fontSize: 12, fontWeight: '800', textAlign: 'center' },
   loader: { marginVertical: spacing.xl },
   section: { marginTop: spacing.xl },
   sectionTitleWrap: { marginBottom: spacing.md },
-  sectionTitle: { color: warm.ink, fontSize: 20, fontWeight: '900' },
-  sectionSubtitle: { marginTop: 3, color: warm.muted, fontSize: 12, fontWeight: '700' },
   rail: { gap: spacing.sm, paddingRight: spacing.md },
   tile: { width: 148, borderRadius: 20, backgroundColor: 'rgba(255,250,242,0.76)', padding: spacing.sm },
   tileCoverWrap: { aspectRatio: 1, overflow: 'hidden', borderRadius: 16, backgroundColor: 'rgba(23,19,19,0.06)' },

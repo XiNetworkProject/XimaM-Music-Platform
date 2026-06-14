@@ -26,6 +26,7 @@ import { useAppUpdate } from '@/updates/UpdateProvider';
 import { SHOW_SHUTDOWN_NOTICES } from '@/config/features';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { validateSocialUrl, type SocialPlatform } from '@/utils/validateSocialUrl';
+import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
 
 type Tab = 'profil' | 'compte' | 'preferences' | 'notifications' | 'events' | 'parrainage' | 'abonnement' | 'updates' | 'securite' | 'legal';
 type EventPrefs = {
@@ -52,6 +53,7 @@ export function SettingsScreen() {
   const auth = useAuth();
   const appUpdate = useAppUpdate();
   const mobileSettings = useMobileSettings();
+  const nativePush = useNativeNotifications();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('profil');
@@ -296,15 +298,54 @@ export function SettingsScreen() {
             <Toggle label="Autoplay" value={mobileSettings.settings.autoplay} onValueChange={(value) => void mobileSettings.updateSettings({ autoplay: value })} />
             <Toggle label="Qualite audio haute" value={mobileSettings.settings.highQuality} onValueChange={(value) => void mobileSettings.updateSettings({ highQuality: value })} />
             <Toggle label="Pochettes video" value={mobileSettings.settings.coverVideos} onValueChange={(value) => void mobileSettings.updateSettings({ coverVideos: value })} />
+            <Toggle label="Fond dynamique" value={mobileSettings.settings.dynamicBackground} onValueChange={(value) => void mobileSettings.updateSettings({ dynamicBackground: value })} />
             <Toggle label="Economiseur de donnees" value={mobileSettings.settings.dataSaver} onValueChange={(value) => void mobileSettings.updateSettings({ dataSaver: value })} />
             <Toggle label="Activite visible" value={mobileSettings.settings.activityVisible} onValueChange={(value) => void mobileSettings.updateSettings({ activityVisible: value })} />
-            <Toggle label="Push appareil" value={mobileSettings.settings.pushDevice} onValueChange={(value) => void mobileSettings.updateSettings({ pushDevice: value })} />
+            <Toggle
+              label="Push appareil"
+              value={mobileSettings.settings.pushDevice}
+              onValueChange={(value) => {
+                void mobileSettings.updateSettings({ pushDevice: value });
+                if (value) void nativePush.enable();
+                else void nativePush.disable();
+              }}
+            />
             <Toggle label="Reduire les animations" value={mobileSettings.settings.reducedMotion} onValueChange={(value) => void mobileSettings.updateSettings({ reducedMotion: value })} />
           </Section>
         ) : null}
 
         {tab === 'notifications' ? (
           <Section title="Notifications" text="Choisis les alertes que tu veux garder.">
+            <View style={styles.updateStatus}>
+              <Ionicons
+                name={nativePush.status === 'ready' || nativePush.status === 'fallback' ? 'checkmark-circle' : nativePush.status === 'denied' ? 'close-circle' : 'phone-portrait-outline'}
+                size={20}
+                color={nativePush.status === 'ready' || nativePush.status === 'fallback' ? '#16A34A' : nativePush.status === 'denied' ? '#B91C1C' : '#7C5CFF'}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.updateStatusTitle}>
+                  {nativePush.status === 'ready'
+                    ? 'Ce téléphone est connecté au push Synaura'
+                    : nativePush.status === 'fallback'
+                      ? 'Relais de notifications Android actif'
+                    : nativePush.status === 'requesting'
+                      ? 'Connexion du téléphone...'
+                      : nativePush.status === 'denied'
+                        ? 'Notifications refusées par Android'
+                        : 'Notifications téléphone à activer'}
+                </Text>
+                {nativePush.error ? <Text style={styles.updateStatusText}>{nativePush.error}</Text> : null}
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable onPress={() => void nativePush.enable()} style={[styles.secondary, { flex: 1 }]}>
+                <Text style={styles.secondaryText}>Activer</Text>
+              </Pressable>
+              <Pressable onPress={() => void nativePush.sendTest()} style={[styles.primary, { flex: 1 }]}>
+                <Ionicons name="notifications-outline" size={16} color="#FFFAF2" />
+                <Text style={styles.primaryText}>Tester</Text>
+              </Pressable>
+            </View>
             {notif ? (
               <>
                 <Text style={styles.groupTitle}>Canaux</Text>

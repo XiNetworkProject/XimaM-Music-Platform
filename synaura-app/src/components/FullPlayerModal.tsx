@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -32,6 +33,7 @@ import { QueueSheet } from '@/components/swipe/QueueSheet';
 import { ShareSheet } from '@/components/swipe/ShareSheet';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
+import { MobileWaveform } from '@/components/mobile/MobileWaveform';
 import { fmtCount, trackArtistName } from '@/components/swipe/helpers';
 
 type Props = {
@@ -209,6 +211,16 @@ export function FullPlayerModal({ visible, onClose }: Props) {
         ]}
       >
         <SynauraBackground variant="warm" />
+        {track.coverUrl ? (
+          <View pointerEvents="none" style={styles.coverBackdrop}>
+            <Image source={{ uri: track.coverUrl }} blurRadius={42} style={StyleSheet.absoluteFillObject} />
+            <LinearGradient
+              colors={['rgba(244,239,230,0.46)', 'rgba(244,239,230,0.84)', '#F4EFE6']}
+              locations={[0, 0.48, 1]}
+              style={StyleSheet.absoluteFillObject}
+            />
+          </View>
+        ) : null}
 
         <View {...panResponder.panHandlers} style={[styles.header, { paddingTop: insets.top + 8 }]}> 
           <Pressable
@@ -335,6 +347,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
           </View>
 
           <View style={styles.progressWrap}>
+            <MobileWaveform active={player.isPlaying} style={styles.playerWaveform} />
             {!isRadio ? (
               <InteractiveSeekBar
                 variant="warm"
@@ -423,6 +436,17 @@ export function FullPlayerModal({ visible, onClose }: Props) {
               active={isFavorite}
               onPress={() => library.toggleFavorite(track)}
             />
+            <PlayerAction
+              icon={library.isDownloaded(track._id) ? 'checkmark-circle' : 'download-outline'}
+              label={library.isDownloaded(track._id) ? 'Hors ligne' : 'Télécharger'}
+              activeColor="#16A34A"
+              active={library.isDownloaded(track._id)}
+              disabled={!/^https?:\/\//i.test(track.audioUrl || '') && !library.isDownloaded(track._id)}
+              onPress={() => {
+                if (library.isDownloaded(track._id)) void library.removeDownload(track._id);
+                else void library.downloadTrack(track);
+              }}
+            />
           </View>
 
           {track.genre?.length ? (
@@ -492,6 +516,10 @@ function PlayerAction({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F4EFE6' },
+  coverBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.55,
+  },
   header: {
     paddingHorizontal: 16,
     paddingBottom: 14,
@@ -657,6 +685,7 @@ const styles = StyleSheet.create({
   followText: { color: '#171313', fontSize: 11, fontWeight: '900', letterSpacing: 0.6 },
   followTextDone: { color: '#FFFAF2' },
   progressWrap: { marginTop: 16 },
+  playerWaveform: { height: 26, marginBottom: 7, opacity: 0.8 },
   liveLine: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
   liveText: { color: 'rgba(23,19,19,0.7)', fontSize: 11, fontWeight: '900', letterSpacing: 1.4 },
@@ -713,11 +742,13 @@ const styles = StyleSheet.create({
   actionRow: {
     marginTop: 18,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 6,
+    justifyContent: 'center',
+    rowGap: 14,
+    columnGap: 4,
   },
-  actionBtn: { alignItems: 'center', gap: 6, flex: 1 },
+  actionBtn: { width: '31%', alignItems: 'center', gap: 6 },
   actionCircle: {
     width: 44,
     height: 44,

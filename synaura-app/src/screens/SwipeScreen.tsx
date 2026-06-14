@@ -248,10 +248,9 @@ export function SwipeScreen() {
   useEffect(() => {
     if (loadState !== 'ready' || !tracks.length || !player.current || isPromoActive || isCityActive) return;
     if (pendingSwipeTrackRef.current) {
-      if (player.current._id === pendingSwipeTrackRef.current) {
-        pendingSwipeTrackRef.current = null;
-        clearTimeout(pendingSwipeReleaseRef.current);
-      }
+      // TrackPlayer peut émettre brièvement l'ancien index juste après le nouveau.
+      // Pendant cette fenêtre de stabilisation, la slide choisie par le geste reste
+      // la source de vérité afin d'éviter le rebond 62 -> 63 -> 62 -> 63.
       return;
     }
     const idx = tracks.findIndex((t) => t._id === player.current?._id);
@@ -471,7 +470,7 @@ export function SwipeScreen() {
     clearTimeout(pendingSwipeReleaseRef.current);
     pendingSwipeReleaseRef.current = setTimeout(() => {
       pendingSwipeTrackRef.current = null;
-    }, 2400);
+    }, 1400);
     clearTimeout(playbackCommitRef.current);
     playbackCommitRef.current = setTimeout(() => {
       InteractionManager.runAfterInteractions(() => {
@@ -479,7 +478,7 @@ export function SwipeScreen() {
         if (queueIndex >= 0) void player.playQueueIndex(queueIndex);
         else void player.playTrack(target);
       });
-    }, 160);
+    }, 90);
   }, [player, tracks]);
 
   const commitVisibleTrack = useCallback((offsetY: number) => {

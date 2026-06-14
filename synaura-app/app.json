@@ -3,21 +3,25 @@
     "name": "Synaura",
     "slug": "synaura",
     "scheme": "synaura",
-    "version": "0.8.2",
+    "version": "0.9.0",
     "icon": "./src/assets/synaura-symbol-2026.png",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "bundleIdentifier": "com.synaura.music",
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
       "package": "com.synaura.music",
-      "versionCode": 14,
+      "versionCode": 15,
       "newArchEnabled": false,
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/synaura-symbol-2026.png",
@@ -40,11 +44,24 @@
           "imageWidth": 170,
           "resizeMode": "contain"
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./src/assets/synaura-symbol-2026.png",
+          "color": "#8B5CF6",
+          "defaultChannel": "synaura-activity"
+        }
+      ],
+      "expo-background-task"
     ],
     "extra": {
       "apiBaseUrl": "https://xima-m-music-platform.vercel.app",
-      "mobileReleaseManifestUrl": "https://ekddunxvtatdvxbszcsh.supabase.co/storage/v1/object/public/mobile-releases/latest.json"
-    }
+      "mobileReleaseManifestUrl": "https://ekddunxvtatdvxbszcsh.supabase.co/storage/v1/object/public/mobile-releases/latest.json",
+      "eas": {
+        "projectId": "9159837f-1150-456d-885a-1751a7f616ea"
+      }
+    },
+    "owner": "ximamoff"
   }
 }

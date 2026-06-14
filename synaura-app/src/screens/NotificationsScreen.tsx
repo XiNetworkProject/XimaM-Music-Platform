@@ -12,9 +12,28 @@ import { usePlayer } from '@/player/PlayerProvider';
 const tabs = [
   { id: 'all', label: 'Toutes' },
   { id: 'social', label: 'Social' },
-  { id: 'music', label: 'Music' },
-  { id: 'system', label: 'System' },
+  { id: 'music', label: 'Musique' },
+  { id: 'system', label: 'Système' },
 ] as const;
+
+function notificationVisual(item: SynauraNotification) {
+  if (item.type.includes('like')) return { icon: 'heart' as const, color: '#EC4899', background: 'rgba(236,72,153,0.12)', action: 'Voir le son' };
+  if (item.type.includes('comment') || item.type.includes('message')) return { icon: 'chatbubble-ellipses' as const, color: '#8B5CF6', background: 'rgba(139,92,246,0.12)', action: 'Répondre' };
+  if (item.type.includes('follower')) return { icon: 'person-add' as const, color: '#0891B2', background: 'rgba(34,211,238,0.13)', action: 'Voir le profil' };
+  if (item.type.includes('milestone')) return { icon: 'flame' as const, color: '#FF6B6B', background: 'rgba(255,107,107,0.14)', action: 'Voir les stats' };
+  if (item.category === 'music') return { icon: 'musical-notes' as const, color: '#16A34A', background: 'rgba(34,197,94,0.12)', action: 'Écouter' };
+  return { icon: 'notifications' as const, color: '#B7791F', background: 'rgba(245,184,75,0.14)', action: 'Ouvrir' };
+}
+
+function relativeDate(value: string) {
+  const diff = Math.max(0, Date.now() - new Date(value).getTime());
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "À l'instant";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} h`;
+  return `${Math.floor(hours / 24)} j`;
+}
 
 export function NotificationsScreen() {
   const insets = useSafeAreaInsets();
@@ -35,8 +54,8 @@ export function NotificationsScreen() {
       const data = await getNotifications(category);
       setItems(data.notifications);
       setUnread(data.unread);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Impossible de charger les notifications');
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Impossible de charger les notifications');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -44,7 +63,7 @@ export function NotificationsScreen() {
   }, [category]);
 
   React.useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   const openNotification = async (item: SynauraNotification) => {
@@ -75,10 +94,10 @@ export function NotificationsScreen() {
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}><Ionicons name="chevron-back" size={20} color="#171313" /></Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={styles.eyebrow}>{unread} non lues</Text>
+            <Text style={styles.eyebrow}>{unread ? `${unread} non lue${unread > 1 ? 's' : ''}` : 'Tout est à jour'}</Text>
             <Text style={styles.title}>Notifications</Text>
           </View>
-          <Pressable onPress={markAll} style={styles.markBtn}><Text style={styles.markText}>Tout lu</Text></Pressable>
+          <Pressable onPress={markAll} disabled={!unread} style={[styles.markBtn, !unread && styles.markBtnDisabled]}><Text style={styles.markText}>Tout lu</Text></Pressable>
         </View>
         <View style={styles.tabs}>
           {tabs.map((tab) => (
@@ -93,21 +112,36 @@ export function NotificationsScreen() {
           data={items}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load('refresh')} />}
-          ListEmptyComponent={!loading ? <Text style={styles.empty}>Aucune notification pour le moment.</Text> : null}
-          renderItem={({ item }) => (
-            <Pressable onPress={() => openNotification(item)} style={[styles.card, !item.isRead && styles.cardUnread]}>
-              <View style={[styles.dot, item.isRead && styles.dotRead]} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <Text style={styles.message}>{item.message}</Text>
-                <Text style={styles.meta}>{item.category} · {new Date(item.createdAt).toLocaleDateString()}</Text>
-              </View>
-              <Pressable onPress={() => remove(item.id)} style={styles.trash}>
-                <Ionicons name="trash-outline" size={17} color="#B91C1C" />
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load('refresh')} />}
+          ListEmptyComponent={!loading ? (
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyIcon}><Ionicons name="notifications-off-outline" size={24} color="#8B5CF6" /></View>
+              <Text style={styles.emptyTitle}>Tout est calme</Text>
+              <Text style={styles.empty}>Tes likes, commentaires, votes et nouveaux sons apparaîtront ici.</Text>
+            </View>
+          ) : null}
+          renderItem={({ item }) => {
+            const visual = notificationVisual(item);
+            return (
+              <Pressable onPress={() => void openNotification(item)} style={[styles.card, !item.isRead && styles.cardUnread]}>
+                <View style={[styles.visual, { backgroundColor: visual.background }]}>
+                  <Ionicons name={visual.icon} size={19} color={visual.color} />
+                  {!item.isRead ? <View style={styles.unreadDot} /> : null}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardTitle}>{item.title}</Text>
+                  <Text style={styles.message}>{item.message}</Text>
+                  <View style={styles.cardFooter}>
+                    <Text style={styles.actionText}>{item.actionUrl ? visual.action : item.category}</Text>
+                    <Text style={styles.meta}>{relativeDate(item.createdAt)}</Text>
+                  </View>
+                </View>
+                <Pressable onPress={(event) => { event.stopPropagation(); void remove(item.id); }} style={styles.trash}>
+                  <Ionicons name="close" size={16} color="rgba(23,19,19,0.42)" />
+                </Pressable>
               </Pressable>
-            </Pressable>
-          )}
+            );
+          }}
         />
       </View>
     </SynauraBackground>
@@ -121,6 +155,7 @@ const styles = StyleSheet.create({
   eyebrow: { color: '#8B5CF6', fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
   title: { color: '#171313', fontSize: 28, fontWeight: '900' },
   markBtn: { borderRadius: 999, backgroundColor: '#171313', paddingHorizontal: 12, paddingVertical: 9 },
+  markBtnDisabled: { opacity: 0.32 },
   markText: { color: '#FFF7ED', fontSize: 12, fontWeight: '900' },
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   tab: { borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.66)', paddingHorizontal: 12, paddingVertical: 9 },
@@ -128,14 +163,19 @@ const styles = StyleSheet.create({
   tabText: { color: '#6B5F5A', fontWeight: '800', fontSize: 12 },
   tabTextActive: { color: '#FFF7ED' },
   list: { paddingBottom: 140, gap: 10 },
-  card: { flexDirection: 'row', gap: 10, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.78)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)', padding: 14 },
+  card: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.78)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)', padding: 13 },
   cardUnread: { borderColor: 'rgba(139,92,246,0.32)', backgroundColor: 'rgba(255,250,244,0.94)' },
-  dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#8B5CF6', marginTop: 6 },
-  dotRead: { backgroundColor: 'rgba(23,19,19,0.18)' },
+  visual: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  unreadDot: { position: 'absolute', top: -2, right: -2, width: 9, height: 9, borderRadius: 5, backgroundColor: '#8B5CF6', borderWidth: 2, borderColor: '#FFF9EF' },
   cardTitle: { color: '#171313', fontSize: 15, fontWeight: '900' },
   message: { color: '#5A4E49', fontSize: 13, lineHeight: 19, marginTop: 3 },
-  meta: { color: '#9B8F89', fontSize: 11, fontWeight: '800', marginTop: 8, textTransform: 'uppercase' },
-  trash: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(185,28,28,0.08)', alignItems: 'center', justifyContent: 'center' },
-  empty: { textAlign: 'center', color: '#6B5F5A', marginTop: 42, fontWeight: '800' },
+  cardFooter: { marginTop: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  actionText: { color: '#8B5CF6', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  meta: { color: '#9B8F89', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  trash: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(23,19,19,0.04)', alignItems: 'center', justifyContent: 'center' },
+  emptyCard: { marginTop: 42, alignItems: 'center', borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.72)', padding: 24 },
+  emptyIcon: { width: 54, height: 54, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(139,92,246,0.12)' },
+  emptyTitle: { marginTop: 12, color: '#171313', fontSize: 17, fontWeight: '900' },
+  empty: { marginTop: 5, textAlign: 'center', color: '#6B5F5A', lineHeight: 18, fontWeight: '700' },
   error: { color: '#B91C1C', fontWeight: '800', marginBottom: 10 },
 });

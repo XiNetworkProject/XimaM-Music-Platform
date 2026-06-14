@@ -100,16 +100,19 @@ export async function createNotification(opts: CreateNotificationOpts) {
     skipPrefCheck,
   } = opts;
 
-  if (!skipPrefCheck) {
-    const prefs = await getUserPrefs(userId);
-    if (prefs) {
-      const prefKey = TYPE_TO_PREF_KEY[type];
-      if (prefKey && prefs[prefKey] === false) return null;
-      if (prefs.in_app_enabled === false) return null;
-    }
+  const prefs = !skipPrefCheck ? await getUserPrefs(userId) : null;
+  if (prefs) {
+    const prefKey = TYPE_TO_PREF_KEY[type];
+    if (prefKey && prefs[prefKey] === false) return null;
   }
 
   const category = TYPE_TO_CATEGORY[type] || 'general';
+  const shouldInsertInApp = prefs?.in_app_enabled !== false;
+
+  if (!shouldInsertInApp) {
+    sendPushInBackground(userId, type, title, message, actionUrl);
+    return { pushOnly: true };
+  }
 
   const extendedData = {
     ...(data || {}),
@@ -188,58 +191,107 @@ async function sendPushInBackground(
   body: string,
   url?: string,
 ) {
-  if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
-    console.warn('[notifications] VAPID keys not configured, skipping push');
-    return;
-  }
-
   try {
     const prefs = await getUserPrefs(userId);
     if (prefs?.push_enabled === false) return;
 
-    const { data: subs } = await supabaseAdmin
-      .from('push_subscriptions')
-      .select('endpoint, p256dh, auth')
-      .eq('user_id', userId);
-
-    if (!subs?.length) return;
-
-    const payload = JSON.stringify({
-      title,
-      body,
-      icon: '/brand/2026/synaura-symbol-2026-white.png',
-      badge: '/brand/2026/synaura-symbol-2026-white.png',
-      url: url || '/',
-      tag: `synaura-${type}-${Date.now()}`,
-      data: { type },
-    });
-
-    const expired: string[] = [];
-    for (const sub of subs) {
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          payload,
-          { TTL: 86400 },
-        );
-      } catch (err: any) {
-        if (err?.statusCode === 404 || err?.statusCode === 410) {
-          expired.push(sub.endpoint);
-        } else {
-          console.warn('[notifications] push failed for endpoint:', err?.statusCode || err?.message);
-        }
-      }
-    }
-
-    if (expired.length) {
-      await supabaseAdmin
-        .from('push_subscriptions')
-        .delete()
-        .eq('user_id', userId)
-        .in('endpoint', expired);
-    }
+    await Promise.allSettled([
+      sendWebPush(userId, type, title, body, url),
+      sendNativePush(userId, type, title, body, url),
+    ]);
   } catch (e) {
     console.error('[notifications] push error:', e);
+  }
+}
+
+async function sendWebPush(userId: string, type: NotifType, title: string, body: string, url?: string) {
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return;
+
+  const { data: subs } = await supabaseAdmin
+    .from('push_subscriptions')
+    .select('endpoint, p256dh, auth')
+    .eq('user_id', userId)
+    .neq('p256dh', 'expo');
+  if (!subs?.length) return;
+
+  const payload = JSON.stringify({
+    title,
+    body,
+    icon: '/brand/2026/synaura-symbol-2026-white.png',
+    badge: '/brand/2026/synaura-symbol-2026-white.png',
+    url: url || '/',
+    tag: `synaura-${type}-${Date.now()}`,
+    data: { type },
+  });
+
+  const expired: string[] = [];
+  for (const sub of subs) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload,
+        { TTL: 86400 },
+      );
+    } catch (err: any) {
+      if (err?.statusCode === 404 || err?.statusCode === 410) {
+        expired.push(sub.endpoint);
+      } else {
+        console.warn('[notifications] web push failed:', err?.statusCode || err?.message);
+      }
+    }
+  }
+
+  if (expired.length) {
+    await supabaseAdmin
+      .from('push_subscriptions')
+      .delete()
+      .eq('user_id', userId)
+      .in('endpoint', expired);
+  }
+}
+
+async function sendNativePush(userId: string, type: NotifType, title: string, body: string, url?: string) {
+  const { data: subscriptions, error } = await supabaseAdmin
+    .from('push_subscriptions')
+    .select('endpoint')
+    .eq('user_id', userId)
+    .eq('p256dh', 'expo');
+  if (error || !subscriptions?.length) return;
+
+  const tokens = subscriptions.map((entry) => entry.endpoint).filter(Boolean);
+  const response = await fetch('https://exp.host/--/api/v2/push/send', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Accept-Encoding': 'gzip, deflate',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(tokens.map((to) => ({
+      to,
+      title,
+      body,
+      sound: 'default',
+      priority: 'high',
+      channelId: 'synaura-activity',
+      data: { type, url: url || '/notifications' },
+    }))),
+  });
+  if (!response.ok) {
+    console.warn('[notifications] native push service failed:', response.status);
+    return;
+  }
+
+  const payload = await response.json().catch(() => null);
+  const tickets = Array.isArray(payload?.data) ? payload.data : [payload?.data];
+  const expired = tickets
+    .map((ticket: any, index: number) => ticket?.details?.error === 'DeviceNotRegistered' ? tokens[index] : null)
+    .filter(Boolean);
+  if (expired.length) {
+    await supabaseAdmin
+      .from('push_subscriptions')
+      .delete()
+      .eq('p256dh', 'expo')
+      .in('endpoint', expired);
   }
 }
 

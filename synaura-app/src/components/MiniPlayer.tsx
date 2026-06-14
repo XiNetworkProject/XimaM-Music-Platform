@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Animated, Easing, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,6 +9,7 @@ import { useLibrary } from '@/library/LibraryProvider';
 import { trackArtistName } from '@/components/swipe/helpers';
 import { TrackCover } from '@/components/TrackCover';
 import { MotionPressable } from '@/components/motion/Motion';
+import { MobileWaveform } from '@/components/mobile/MobileWaveform';
 
 type Props = {
   activeRoute?: string;
@@ -23,6 +24,8 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
   const playerProgress = usePlayerProgress(500);
   const library = useLibrary();
   const slide = useRef(new Animated.Value(0)).current;
+  const gestureX = useRef(new Animated.Value(0)).current;
+  const coverPulse = useRef(new Animated.Value(0)).current;
   const isVisible = !!player.current && !HIDDEN_ROUTES.includes(activeRoute || '');
 
   useEffect(() => {
@@ -33,6 +36,20 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
       useNativeDriver: true,
     }).start();
   }, [isVisible, slide]);
+
+  useEffect(() => {
+    if (!isVisible || !player.isPlaying) {
+      coverPulse.stopAnimation();
+      coverPulse.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(coverPulse, { toValue: 1, duration: 1600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(coverPulse, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [coverPulse, isVisible, player.isPlaying]);
 
   if (!player.current) return null;
 
@@ -56,15 +73,37 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
     void player.next();
   };
 
+  const handlePrevious = () => {
+    Haptics.selectionAsync().catch(() => {});
+    void player.previous();
+  };
+
+  const panResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 14 || gesture.dy < -18,
+    onPanResponderMove: (_, gesture) => {
+      gestureX.setValue(Math.max(-110, Math.min(110, gesture.dx)));
+    },
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dy < -55 && Math.abs(gesture.dy) > Math.abs(gesture.dx)) onOpen?.();
+      else if (gesture.dx < -70) handleNext();
+      else if (gesture.dx > 70) handlePrevious();
+      Animated.spring(gestureX, { toValue: 0, speed: 28, bounciness: 7, useNativeDriver: true }).start();
+    },
+    onPanResponderTerminate: () => {
+      Animated.spring(gestureX, { toValue: 0, speed: 28, bounciness: 7, useNativeDriver: true }).start();
+    },
+  }), [gestureX, onOpen, player]);
+
   return (
     <Animated.View
+      {...panResponder.panHandlers}
       pointerEvents={isVisible ? 'box-none' : 'none'}
-      style={[styles.wrap, { bottom: 74 + insets.bottom, opacity, transform: [{ translateY }] }]}
+      style={[styles.wrap, { bottom: 82 + insets.bottom, opacity, transform: [{ translateY }, { translateX: gestureX }] }]}
     >
       <Pressable accessibilityLabel="Ouvrir le lecteur" onPress={onOpen} style={styles.card}>
         <View style={styles.progressTrack}>
           <LinearGradient
-            colors={['#7C5CFF', '#3B2FE6']}
+            colors={['#22D3EE', '#8B5CF6', '#EC4899', '#FF6B6B']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={[styles.progressFill, { width: `${progress * 100}%` }]}
@@ -72,17 +111,18 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
         </View>
 
         <View style={styles.content}>
-          <View style={styles.coverWrap}>
+          <Animated.View style={[styles.coverWrap, { transform: [{ scale: coverPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) }] }]}>
             {player.current.coverUrl || player.current.coverVideoUrl || player.current.coverVideoPosterUrl ? (
               <TrackCover track={player.current} active={isVisible} style={StyleSheet.absoluteFill} />
             ) : (
               <Ionicons name="musical-note" size={18} color="rgba(23,19,19,0.5)" />
             )}
-          </View>
+          </Animated.View>
           <View style={styles.meta}>
             <View style={styles.metaTop}>
               <View style={[styles.stateDot, player.isPlaying && styles.stateDotActive]} />
               <Text style={styles.stateText}>{player.isPlaying ? 'En lecture' : 'En pause'}</Text>
+              <MobileWaveform active={player.isPlaying} compact style={styles.waveform} />
             </View>
             <Text style={styles.title} numberOfLines={1}>{player.current.title}</Text>
             <Text style={styles.artist} numberOfLines={1}>{trackArtistName(player.current)}</Text>
@@ -142,23 +182,23 @@ const styles = StyleSheet.create({
     zIndex: 30,
   },
   card: {
-    borderRadius: 22,
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(23,19,19,0.08)',
-    backgroundColor: 'rgba(255,250,242,0.98)',
+    backgroundColor: 'rgba(255,249,239,0.97)',
     shadowColor: '#1E1914',
-    shadowOpacity: 0.2,
-    shadowRadius: 32,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 14,
+    shadowOpacity: 0.16,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 12,
   },
   progressTrack: {
-    height: 2,
+    height: 3,
     backgroundColor: 'rgba(23,19,19,0.08)',
   },
   progressFill: {
-    height: 2,
+    height: 3,
   },
   content: {
     minHeight: 60,
@@ -179,6 +219,7 @@ const styles = StyleSheet.create({
   },
   meta: { flex: 1, minWidth: 0 },
   metaTop: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 2 },
+  waveform: { marginLeft: 2 },
   stateDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(23,19,19,0.22)' },
   stateDotActive: { backgroundColor: '#22C55E' },
   stateText: {
