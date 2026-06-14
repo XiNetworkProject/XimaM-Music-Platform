@@ -12,11 +12,6 @@ import {
 } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { navigationRef } from '@/navigation/navigationRef';
-import {
-  pollNotificationFallback,
-  registerBackgroundNotificationFallback,
-  unregisterBackgroundNotificationFallback,
-} from '@/notifications/backgroundNotificationTask';
 import { usePlayer } from '@/player/PlayerProvider';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
@@ -32,7 +27,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export type NativePushStatus = 'disabled' | 'requesting' | 'ready' | 'fallback' | 'denied' | 'unsupported' | 'error';
+export type NativePushStatus = 'disabled' | 'requesting' | 'ready' | 'denied' | 'unsupported' | 'error';
 
 type NativeNotificationsContextValue = {
   status: NativePushStatus;
@@ -152,17 +147,10 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
         appVersion: Constants.expoConfig?.version,
       });
       await AsyncStorage.setItem(TOKEN_KEY, result.data);
-      await unregisterBackgroundNotificationFallback().catch(() => {});
       setToken(result.data);
       setStatus('ready');
       return true;
     } catch (nextError) {
-      const fallbackReady = await registerBackgroundNotificationFallback().catch(() => false);
-      if (fallbackReady) {
-        setStatus('fallback');
-        setError('Relais Android actif. Les alertes peuvent arriver avec un léger délai lorsque l’app est fermée.');
-        return true;
-      }
       setStatus('error');
       setError(nextError instanceof Error ? nextError.message : 'Activation push impossible.');
       return false;
@@ -173,31 +161,18 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
     const stored = token || await AsyncStorage.getItem(TOKEN_KEY);
     if (stored && auth.token) await unregisterNativePushToken(stored).catch(() => {});
     await AsyncStorage.removeItem(TOKEN_KEY);
-    await unregisterBackgroundNotificationFallback().catch(() => {});
     setToken(null);
     setStatus('disabled');
     setError(null);
   }, [auth.token, token]);
 
   const sendTest = useCallback(async () => {
-    const ready = status === 'ready' || status === 'fallback' || await enable();
+    const ready = status === 'ready' || await enable();
     if (!ready) {
       await Notifications.scheduleNotificationAsync({
         content: {
           title: 'Test local Synaura',
           body: 'Les alertes locales fonctionnent. Le push distant doit encore être activé.',
-          data: { url: '/notifications' },
-          sound: 'default',
-        },
-        trigger: null,
-      });
-      return;
-    }
-    if (status === 'fallback') {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Notifications Synaura actives',
-          body: 'Le relais Android peut maintenant afficher tes alertes, même après avoir quitté l’app.',
           data: { url: '/notifications' },
           sound: 'default',
         },
@@ -216,13 +191,6 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
     if (auth.user && mobileSettings.settings.pushDevice) void enable();
     if (!mobileSettings.settings.pushDevice) void disable();
   }, [auth.user?.id, mobileSettings.settings.pushDevice]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (status !== 'fallback') return;
-    void pollNotificationFallback();
-    const interval = setInterval(() => void pollNotificationFallback(), 45_000);
-    return () => clearInterval(interval);
-  }, [status]);
 
   useEffect(() => {
     const received = Notifications.addNotificationReceivedListener(() => {});

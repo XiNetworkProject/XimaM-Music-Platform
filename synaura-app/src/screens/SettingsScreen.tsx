@@ -318,16 +318,14 @@ export function SettingsScreen() {
           <Section title="Notifications" text="Choisis les alertes que tu veux garder.">
             <View style={styles.updateStatus}>
               <Ionicons
-                name={nativePush.status === 'ready' || nativePush.status === 'fallback' ? 'checkmark-circle' : nativePush.status === 'denied' ? 'close-circle' : 'phone-portrait-outline'}
+                name={nativePush.status === 'ready' ? 'checkmark-circle' : nativePush.status === 'denied' ? 'close-circle' : 'phone-portrait-outline'}
                 size={20}
-                color={nativePush.status === 'ready' || nativePush.status === 'fallback' ? '#16A34A' : nativePush.status === 'denied' ? '#B91C1C' : '#7C5CFF'}
+                color={nativePush.status === 'ready' ? '#16A34A' : nativePush.status === 'denied' ? '#B91C1C' : '#7C5CFF'}
               />
               <View style={{ flex: 1 }}>
                 <Text style={styles.updateStatusTitle}>
                   {nativePush.status === 'ready'
                     ? 'Ce téléphone est connecté au push Synaura'
-                    : nativePush.status === 'fallback'
-                      ? 'Relais de notifications Android actif'
                     : nativePush.status === 'requesting'
                       ? 'Connexion du téléphone...'
                       : nativePush.status === 'denied'
