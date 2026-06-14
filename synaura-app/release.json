@@ -3,6 +3,7 @@
   "mandatory": true,
   "minimumVersionCode": 2,
   "releaseNotes": [
+    "Correctif urgent du crash au lancement observe sur la version 0.9.0",
     "Nouvelle base visuelle mobile premium avec fond dynamique, header compact et recherche plein ecran",
     "Swipe fluidifie : disparition du retour temporaire vers le titre precedent",
     "Notifications telephone et ouverture directe des contenus",
@@ -11,4 +12,3 @@
     "Discover, Studio, profils, navigation et ecrans de notifications harmonises"
   ]
 }
-    "Correctif urgent du crash au lancement observe sur la version 0.9.0",
