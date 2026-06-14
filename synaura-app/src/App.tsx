@@ -18,6 +18,7 @@ import { UpdateProvider } from '@/updates/UpdateProvider';
 import { MobileSettingsProvider } from '@/settings/MobileSettingsProvider';
 import { NativeNotificationsProvider } from '@/notifications/NativeNotificationsProvider';
 import { navigationRef } from '@/navigation/navigationRef';
+import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 
 export type RootStackParamList = {
   Tabs: { screen?: string; params?: Record<string, unknown> } | undefined;
@@ -59,6 +60,7 @@ export default function App() {
             <LibraryProvider>
               <PlayerProvider>
               <NativeNotificationsProvider>
+              <AppErrorBoundary>
               <NavigationContainer
                 ref={navigationRef}
                 theme={navTheme}
@@ -76,6 +78,7 @@ export default function App() {
                 <MiniPlayer activeRoute={activeRoute} onOpen={() => setPlayerOpen(true)} />
                 <FullPlayerModal visible={playerOpen} onClose={() => setPlayerOpen(false)} />
               </NavigationContainer>
+              </AppErrorBoundary>
               <AnimatedBootSplash />
               </NativeNotificationsProvider>
               </PlayerProvider>

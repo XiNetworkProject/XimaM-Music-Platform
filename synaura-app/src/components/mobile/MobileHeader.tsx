@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -25,6 +25,7 @@ export function MobileHeader({
 }) {
   const insets = useSafeAreaInsets();
   const player = usePlayer();
+  const [compact, setCompact] = useState(false);
   const progress = scrollY.interpolate({ inputRange: [0, 78], outputRange: [0, 1], extrapolate: 'clamp' });
   const height = scrollY.interpolate({
     inputRange: [0, 78],
@@ -32,10 +33,20 @@ export function MobileHeader({
     extrapolate: 'clamp',
   });
 
+  useEffect(() => {
+    const listener = scrollY.addListener(({ value }) => {
+      setCompact((current) => {
+        const next = current ? value > 28 : value > 48;
+        return current === next ? current : next;
+      });
+    });
+    return () => scrollY.removeListener(listener);
+  }, [scrollY]);
+
   return (
     <Animated.View style={[styles.shell, { height }]}>
       <BlurView intensity={72} tint="light" style={StyleSheet.absoluteFill} />
-      <Animated.View style={[styles.large, { paddingTop: insets.top + 7, opacity: progress.interpolate({ inputRange: [0, 0.64], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -14] }) }] }]}>
+      <Animated.View pointerEvents={compact ? 'none' : 'auto'} style={[styles.large, { paddingTop: insets.top + 7, opacity: progress.interpolate({ inputRange: [0, 0.64], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -14] }) }] }]}>
         <View style={styles.brandRow}>
           <MobileAnimatedLogo playing={player.isPlaying} loading={player.isLoading} size={46} />
           <View style={styles.brandCopy}><Text style={styles.brand}>Synaura</Text><Text style={styles.signature}>ÉCOUTE · CRÉE · REMIX</Text></View>
@@ -50,7 +61,7 @@ export function MobileHeader({
         </Pressable>
       </Animated.View>
 
-      <Animated.View pointerEvents="box-none" style={[styles.compact, { paddingTop: insets.top + 7, opacity: progress, transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>
+      <Animated.View pointerEvents={compact ? 'auto' : 'none'} style={[styles.compact, { paddingTop: insets.top + 7, opacity: progress, transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>
         <MobileAnimatedLogo playing={player.isPlaying} loading={player.isLoading} size={39} />
         <Pressable accessibilityLabel="Rechercher sur Synaura" onPress={onSearch} style={styles.compactSearch}>
           <Ionicons name="search" size={16} color={colors.textTertiary} />

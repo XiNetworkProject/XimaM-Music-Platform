@@ -51,16 +51,11 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
     return () => loop.stop();
   }, [coverPulse, isVisible, player.isPlaying]);
 
-  if (!player.current) return null;
-
-  const progress = playerProgress.durationSec > 0 ? Math.min(1, playerProgress.positionSec / playerProgress.durationSec) : 0;
-  const isFavorite = library.isFavorite(player.current._id);
-  const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [120, 0] });
-  const opacity = slide;
-
   const handleLike = () => {
-    Haptics.selectionAsync().catch(() => {});
-    library.toggleFavorite(player.current!);
+    if (player.current) {
+      Haptics.selectionAsync().catch(() => {});
+      library.toggleFavorite(player.current);
+    }
   };
 
   const handlePlayPause = () => {
@@ -93,6 +88,13 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
       Animated.spring(gestureX, { toValue: 0, speed: 28, bounciness: 7, useNativeDriver: true }).start();
     },
   }), [gestureX, onOpen, player]);
+
+  if (!player.current) return null;
+
+  const progress = playerProgress.durationSec > 0 ? Math.min(1, playerProgress.positionSec / playerProgress.durationSec) : 0;
+  const isFavorite = library.isFavorite(player.current._id);
+  const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [120, 0] });
+  const opacity = slide;
 
   return (
     <Animated.View

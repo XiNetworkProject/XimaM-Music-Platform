@@ -1,8 +1,12 @@
 {
-  "title": "Synaura mobile 0.9.2",
+  "title": "Synaura mobile 0.9.3",
   "mandatory": true,
   "minimumVersionCode": 2,
   "releaseNotes": [
+    "Corrige le crash immediat lors de l'ouverture de Swipe ou du lancement d'un son",
+    "Corrige les zones tactiles decalees du header mobile",
+    "Recherche mobile replacee par une modale compacte et lisible",
+    "Ajoute un ecran de recuperation pour eviter les fermetures brutales sur erreur d'interface",
     "Correctif urgent du crash au lancement observe sur certains telephones apres le logo",
     "Demarrage securise : notifications natives mises en pause au boot le temps de reactivation propre",
     "Etat audio local renouvele pour eviter de restaurer une ancienne file corrompue",
