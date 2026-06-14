@@ -1,9 +1,11 @@
 {
-  "title": "Synaura mobile 0.9.1",
+  "title": "Synaura mobile 0.9.2",
   "mandatory": true,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Correctif urgent du crash au lancement observe sur la version 0.9.0",
+    "Correctif urgent du crash au lancement observe sur certains telephones apres le logo",
+    "Demarrage securise : notifications natives mises en pause au boot le temps de reactivation propre",
+    "Etat audio local renouvele pour eviter de restaurer une ancienne file corrompue",
     "Nouvelle base visuelle mobile premium avec fond dynamique, header compact et recherche plein ecran",
     "Swipe fluidifie : disparition du retour temporaire vers le titre precedent",
     "Notifications telephone et ouverture directe des contenus",

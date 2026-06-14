@@ -45,7 +45,7 @@ type PlayerContextValue = {
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 let playerReady = false;
-const PLAYER_STATE_KEY = 'synaura.player.state.v2';
+const PLAYER_STATE_KEY = 'synaura.player.state.v3';
 
 function artistName(track: Track) {
   return track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste Synaura';
