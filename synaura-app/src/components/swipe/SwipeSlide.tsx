@@ -79,9 +79,11 @@ function ActionButton({
           color={active ? highlightColor || '#FF4B7A' : '#FFFAF2'}
         />
       </Animated.View>
-      <Text numberOfLines={1} style={styles.actionLabel}>
-        {typeof count === 'number' && count > 0 ? fmtCount(count) : typeof count === 'string' && count ? count : label || ''}
-      </Text>
+      {(typeof count === 'number' && count > 0) || (typeof count === 'string' && count) ? (
+        <Text numberOfLines={1} style={styles.actionLabel}>
+          {typeof count === 'number' ? fmtCount(count) : count}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -197,7 +199,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
   } = props;
 
   const isAi = !!track.isAI || track._id.startsWith('ai-');
-  const genres = (track.genre || []).filter(Boolean).slice(0, 2);
+  const genres = (track.genre || []).filter((genre) => Boolean(genre) && genre.length <= 20).slice(0, 1);
   const lastTapRef = useRef(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playButtonOpacity = useRef(new Animated.Value(isPlaying ? 0 : 1)).current;
@@ -307,7 +309,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
               </View>
             </Animated.View>
 
-            <View style={[styles.topBadges, { paddingTop: topPad + 4 }]}>
+            <View style={[styles.topBadges, { top: topPad + 58 }]}>
               {track.isBoosted ? (
                 <View style={[styles.badge, { backgroundColor: '#FFFAF2' }]}>
                   <Ionicons name="flash" size={11} color="#171313" />
@@ -383,24 +385,9 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
           onPress={() => onAction('share')}
         />
         <ActionButton
-          icon="list"
-          count="File"
-          label="Ajouter a la file"
-          onPress={() => onAction('queue')}
-        />
-        {track.lyrics ? (
-          <ActionButton
-            icon="document-text-outline"
-            count="Lyrics"
-            label="Voir les paroles"
-            onPress={() => onAction('lyrics')}
-          />
-        ) : null}
-        <ActionButton
           icon="bookmark-outline"
           iconActive="bookmark"
           active={isFavorite}
-          count="Save"
           label={isFavorite ? 'Retirer des favoris' : 'Sauver dans la bibliotheque'}
           highlightColor="#7C5CFF"
           onPress={() => onAction('save')}
@@ -418,10 +405,9 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
         ]}
       >
         <View style={styles.metaTopRow}>
-          <Text style={styles.eyebrow}>{isAi ? 'CREATION IA SYNAURA' : 'FIL SONORE SYNAURA'}</Text>
           <View style={styles.nowBadge}>
             <View style={[styles.nowDot, isPlaying && styles.nowDotActive]} />
-            <Text style={styles.nowText}>{isPlaying ? 'PLAY' : 'PAUSE'}</Text>
+            <Text style={styles.nowText}>{isAi ? 'CRÉATION IA' : isPlaying ? 'EN LECTURE' : 'EN PAUSE'}</Text>
           </View>
         </View>
         <Text numberOfLines={2} style={styles.title}>{displayTitle}</Text>
@@ -444,6 +430,12 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
         </View>
         {track.plays ? (
           <Text style={styles.plays}>{fmtCount(track.plays)} ecoutes</Text>
+        ) : null}
+        {track.lyrics ? (
+          <Pressable accessibilityLabel="Voir les paroles" onPress={() => onAction('lyrics')} style={styles.lyricsButton}>
+            <Ionicons name="document-text-outline" size={13} color="rgba(255,250,242,0.82)" />
+            <Text style={styles.lyricsText}>Paroles</Text>
+          </Pressable>
         ) : null}
         <View style={styles.seekWrap}>
           {isActive ? <ActiveSeekBar fallbackDuration={track.duration || 0} onSeek={onSeek} /> : <View style={styles.seekPlaceholder} />}
@@ -468,24 +460,21 @@ function ActiveSeekBar({ fallbackDuration, onSeek }: { fallbackDuration: number;
 const styles = StyleSheet.create({
   page: { width: '100%', position: 'relative' },
   pressArea: { flex: 1 },
-  coverShell: { flex: 1, padding: 10, paddingBottom: 6 },
+  coverShell: { flex: 1 },
   cover: {
     flex: 1,
     overflow: 'hidden',
-    borderRadius: 30,
     backgroundColor: '#171313',
-    borderWidth: 1,
-    borderColor: 'rgba(255,250,242,0.1)',
   },
-  coverImage: { borderRadius: 30 },
+  coverImage: {},
   playOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   playCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 74,
+    height: 74,
+    borderRadius: 37,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(13,10,14,0.55)',
+    backgroundColor: 'rgba(13,10,14,0.38)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.22)',
     shadowColor: '#000',
@@ -496,9 +485,8 @@ const styles = StyleSheet.create({
   },
   topBadges: {
     position: 'absolute',
-    left: 22,
-    right: 22,
-    top: 0,
+    left: 16,
+    right: 82,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
@@ -514,21 +502,15 @@ const styles = StyleSheet.create({
   badgeText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
   actionsColumn: {
     position: 'absolute',
-    right: 12,
+    right: 9,
     alignItems: 'center',
     gap: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 8,
-    borderRadius: 28,
-    backgroundColor: 'rgba(10,8,8,0.28)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,250,242,0.12)',
   },
-  profileCluster: { alignItems: 'center', justifyContent: 'center', width: 56, height: 66, marginBottom: 6 },
+  profileCluster: { alignItems: 'center', justifyContent: 'center', width: 50, height: 60, marginBottom: 4 },
   profileAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.7)',
@@ -564,15 +546,15 @@ const styles = StyleSheet.create({
     borderColor: '#0E0A0D',
   },
   followBubbleDone: { backgroundColor: '#7C5CFF' },
-  actionButton: { width: 56, alignItems: 'center', gap: 3 },
+  actionButton: { width: 48, alignItems: 'center', gap: 3 },
   actionButtonDisabled: { opacity: 0.38 },
   actionCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,250,242,0.13)',
+    backgroundColor: 'rgba(15,12,14,0.32)',
     borderWidth: 1,
     borderColor: 'rgba(255,250,242,0.18)',
     shadowColor: '#000',
@@ -582,20 +564,19 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   actionLabel: {
-    maxWidth: 56,
+    maxWidth: 50,
     color: 'rgba(255,250,242,0.74)',
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '900',
     letterSpacing: 0.1,
     textAlign: 'center',
   },
   metaPanel: {
     position: 'absolute',
-    left: 22,
-    right: 92,
+    left: 18,
+    right: 76,
   },
   metaTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  eyebrow: { color: 'rgba(255,250,242,0.55)', fontSize: 10, fontWeight: '900', letterSpacing: 1.6 },
   nowBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -603,12 +584,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,250,242,0.12)',
+    backgroundColor: 'rgba(15,12,14,0.3)',
   },
   nowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,250,242,0.36)' },
   nowDotActive: { backgroundColor: '#22C55E' },
-  nowText: { color: 'rgba(255,250,242,0.72)', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  title: { marginTop: 9, color: '#FFFAF2', fontSize: 27, lineHeight: 31, fontWeight: '900', letterSpacing: -0.35 },
+  nowText: { color: 'rgba(255,250,242,0.76)', fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
+  title: { marginTop: 8, color: '#FFFAF2', fontSize: 27, lineHeight: 30, fontWeight: '900', letterSpacing: -0.35 },
   artistRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   artistNameButton: { maxWidth: '72%' },
   artist: { color: 'rgba(255,250,242,0.86)', fontSize: 13, fontWeight: '900' },
@@ -622,6 +603,18 @@ const styles = StyleSheet.create({
   inlineFollowText: { color: '#171313', fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   inlineFollowTextDone: { color: '#FFFAF2' },
   plays: { marginTop: 6, color: 'rgba(255,250,242,0.5)', fontSize: 11, fontWeight: '700' },
+  lyricsButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    height: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,250,242,0.12)',
+    paddingHorizontal: 10,
+  },
+  lyricsText: { color: 'rgba(255,250,242,0.82)', fontSize: 10, fontWeight: '800' },
   seekWrap: { marginTop: 12 },
   seekPlaceholder: { height: 28 },
 });

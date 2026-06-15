@@ -33,7 +33,7 @@ export function PlaylistDetailScreen() {
 
   return (
     <SynauraBackground variant="warm">
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 64 }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}>
         <View style={styles.topbar}>
           <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}><Ionicons name="chevron-back" size={20} color="#171313" /></Pressable>
           <Text style={styles.topTitle}>Playlist</Text>
@@ -69,19 +69,19 @@ export function PlaylistDetailScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingBottom: 150 },
-  topbar: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.76)', alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: '#171313', fontSize: 28, fontWeight: '900' },
-  hero: { alignItems: 'center', borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.82)', padding: 18, borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
-  coverWrap: { width: 190, height: 190, borderRadius: 34, backgroundColor: '#E7DDD4', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  title: { color: '#171313', fontSize: 26, fontWeight: '900', textAlign: 'center', marginTop: 14 },
+  topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  iconBtn: { width: 40, height: 40, borderRadius: 11, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  topTitle: { color: '#171313', fontSize: 24, fontWeight: '900' },
+  hero: { alignItems: 'center', borderRadius: 16, backgroundColor: '#FFFFFF', padding: 15, borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
+  coverWrap: { width: 170, height: 170, borderRadius: 16, backgroundColor: '#E7DDD4', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  title: { color: '#171313', fontSize: 23, fontWeight: '900', textAlign: 'center', marginTop: 12 },
   meta: { color: '#6B5F5A', fontWeight: '800', marginTop: 5 },
   description: { color: '#5A4E49', lineHeight: 20, textAlign: 'center', marginTop: 10 },
-  playAll: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, backgroundColor: '#171313', paddingHorizontal: 18, paddingVertical: 12 },
+  playAll: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 11, backgroundColor: '#171313', paddingHorizontal: 18, paddingVertical: 12 },
   playAllText: { color: '#FFF7ED', fontWeight: '900' },
-  list: { marginTop: 14, gap: 10 },
-  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.78)', padding: 10 },
-  trackCover: { width: 54, height: 54, borderRadius: 16 },
+  list: { marginTop: 12 },
+  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(17,17,17,0.07)', paddingVertical: 10 },
+  trackCover: { width: 52, height: 52, borderRadius: 10 },
   trackTitle: { color: '#171313', fontWeight: '900', fontSize: 15 },
   trackMeta: { color: '#6B5F5A', fontWeight: '700', marginTop: 3 },
   empty: { textAlign: 'center', color: '#6B5F5A', fontWeight: '800', marginTop: 60 },

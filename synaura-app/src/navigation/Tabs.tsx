@@ -1,12 +1,12 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Image, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { HomeScreen } from '@/screens/HomeScreen';
-import { DiscoverScreen } from '@/screens/DiscoverScreen';
+import { HomeV2Screen } from '@/screens/HomeV2Screen';
+import { DiscoverV2Screen } from '@/screens/DiscoverV2Screen';
 import { LibraryScreen } from '@/screens/LibraryScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
 import { SwipeScreen } from '@/screens/SwipeScreen';
@@ -22,6 +22,8 @@ import { AIStudioScreen } from '@/screens/AIStudioScreen';
 import { CreatePostScreen } from '@/screens/CreatePostScreen';
 import { SubscriptionsScreen } from '@/screens/SubscriptionsScreen';
 import { CityScreen } from '@/screens/CityScreen';
+import { TrackDetailScreen } from '@/screens/TrackDetailScreen';
+import { SearchScreen } from '@/screens/SearchScreen';
 import { colors } from '@/theme/tokens';
 import type { Track } from '@/api/types';
 
@@ -43,6 +45,8 @@ export type RootTabsParamList = {
   Notifications: undefined;
   PostDetail: { postId: string };
   PlaylistDetail: { playlistId: string };
+  TrackDetail: { trackId: string; track?: Track };
+  Search: { query?: string } | undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabsParamList>();
@@ -59,27 +63,21 @@ const HIDDEN_ROUTES = new Set<keyof RootTabsParamList>([
   'Notifications',
   'PostDetail',
   'PlaylistDetail',
+  'TrackDetail',
+  'Search',
 ]);
 
 function AnimatedTabButton({ children, accessibilityState, onPress, style, ...props }: any) {
   const scale = useRef(new Animated.Value(1)).current;
-  const lift = useRef(new Animated.Value(0)).current;
   const selected = Boolean(accessibilityState?.selected);
 
   useEffect(() => {
     if (!selected) return;
     Animated.sequence([
-      Animated.spring(scale, { toValue: 1.12, speed: 35, bounciness: 8, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1, speed: 25, bounciness: 6, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1.08, speed: 34, bounciness: 6, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, speed: 28, bounciness: 4, useNativeDriver: true }),
     ]).start();
   }, [scale, selected]);
-
-  const setPressed = (pressed: boolean) => {
-    Animated.parallel([
-      Animated.spring(scale, { toValue: pressed ? 0.9 : 1, speed: 34, bounciness: pressed ? 0 : 6, useNativeDriver: true }),
-      Animated.spring(lift, { toValue: pressed ? 2 : 0, speed: 32, bounciness: 4, useNativeDriver: true }),
-    ]).start();
-  };
 
   return (
     <Pressable
@@ -89,109 +87,100 @@ function AnimatedTabButton({ children, accessibilityState, onPress, style, ...pr
         void Haptics.selectionAsync().catch(() => {});
         onPress?.(event);
       }}
-      onPressIn={() => setPressed(true)}
-      onPressOut={() => setPressed(false)}
+      onPressIn={() => Animated.spring(scale, { toValue: 0.92, speed: 34, bounciness: 0, useNativeDriver: true }).start()}
+      onPressOut={() => Animated.spring(scale, { toValue: 1, speed: 28, bounciness: 4, useNativeDriver: true }).start()}
       style={style}
     >
-      <Animated.View style={[styles.tabMotion, { transform: [{ translateY: lift }, { scale }] }]}>
+      <Animated.View style={[styles.tabMotion, { transform: [{ scale }] }]}>
         {children}
       </Animated.View>
     </Pressable>
   );
 }
 
-function PremiumSwipeIcon() {
-  const pulse = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    const animation = Animated.loop(Animated.sequence([
-      Animated.timing(pulse, { toValue: 1.07, duration: 1200, useNativeDriver: true }),
-      Animated.timing(pulse, { toValue: 1, duration: 1200, useNativeDriver: true }),
-    ]));
-    animation.start();
-    return () => animation.stop();
-  }, [pulse]);
+function SynauraScrollIcon({ focused }: { focused: boolean }) {
   return (
-    <Animated.View style={[styles.premiumTab, { transform: [{ scale: pulse }] }]}>
-      <View style={styles.premiumGradient}>
-        <Image source={require('../assets/synaura-symbol-2026.png')} resizeMode="contain" style={styles.premiumLogo} />
-      </View>
-    </Animated.View>
+    <View style={[styles.scrollTab, focused && styles.scrollTabActive]}>
+      <Text style={[styles.scrollLetter, focused && styles.scrollLetterActive]}>S</Text>
+    </View>
+  );
+}
+
+const PRIMARY_ROUTES = ['Home', 'Discover', 'Swipe', 'Community', 'AIStudio'] as const;
+const PRIMARY_LABELS: Record<(typeof PRIMARY_ROUTES)[number], string> = {
+  Home: 'Accueil',
+  Discover: 'Découvrir',
+  Swipe: 'Scroll',
+  Community: 'Communauté',
+  AIStudio: 'Studio',
+};
+const PRIMARY_ICONS: Record<Exclude<(typeof PRIMARY_ROUTES)[number], 'Swipe'>, keyof typeof Ionicons.glyphMap> = {
+  Home: 'home-outline',
+  Discover: 'compass-outline',
+  Community: 'people-outline',
+  AIStudio: 'sparkles-outline',
+};
+
+function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
+  const routes = state.routes.filter((route) => PRIMARY_ROUTES.includes(route.name as any));
+
+  return (
+    <View pointerEvents="box-none" style={[styles.dockWrap, { paddingBottom: insets.bottom }]}>
+      <BlurView intensity={72} tint="light" style={styles.dock}>
+        {routes.map((route) => {
+          const focused = state.routes[state.index]?.key === route.key;
+          const isScroll = route.name === 'Swipe';
+          const label = PRIMARY_LABELS[route.name as keyof typeof PRIMARY_LABELS];
+          const onPress = () => {
+            void Haptics.selectionAsync().catch(() => {});
+            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+          };
+          return (
+            <Pressable
+              key={route.key}
+              accessibilityRole="button"
+              accessibilityState={focused ? { selected: true } : {}}
+              accessibilityLabel={label}
+              testID={`tab-${route.name.toLowerCase()}`}
+              onPress={onPress}
+              style={[styles.dockItem, isScroll && styles.dockItemScroll]}
+            >
+              {isScroll ? (
+                <SynauraScrollIcon focused={focused} />
+              ) : (
+                <View style={[styles.iconDock, focused && styles.iconDockActive]}>
+                  <Ionicons
+                    name={PRIMARY_ICONS[route.name as keyof typeof PRIMARY_ICONS]}
+                    size={20}
+                    color={focused ? colors.black : colors.textTertiary}
+                  />
+                </View>
+              )}
+              <Text numberOfLines={1} style={[styles.dockLabel, focused && styles.dockLabelActive, isScroll && styles.dockLabelScroll]}>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </BlurView>
+    </View>
   );
 }
 
 export function Tabs() {
-  const insets = useSafeAreaInsets();
-  const labels: Partial<Record<keyof RootTabsParamList, string>> = {
-    Home: 'Accueil',
-    Discover: 'Découvrir',
-    Swipe: 'Swipe',
-    Community: 'Communauté',
-    Profile: 'Profil',
-    AIStudio: 'Studio',
-    Upload: 'Upload',
-    Library: 'Bibliothèque',
-    CreateHub: 'Créer',
-    Settings: 'Paramètres',
-  };
-
   return (
     <Tab.Navigator
       backBehavior="history"
-      screenOptions={({ route }) => ({
+      tabBar={(props) => <SynauraTabBar {...props} />}
+      screenOptions={() => ({
         headerShown: false,
-        tabBarShowLabel: true,
         tabBarHideOnKeyboard: true,
-        tabBarAccessibilityLabel: labels[route.name] || 'Synaura',
-        tabBarLabel: route.name === 'Swipe' ? () => null : labels[route.name] || route.name,
-        tabBarButtonTestID: `tab-${route.name.toLowerCase()}`,
-        tabBarStyle: {
-          position: 'absolute',
-          left: 10,
-          right: 10,
-          bottom: Math.max(10, insets.bottom + 2),
-          height: 66,
-          borderRadius: 26,
-          borderTopWidth: 0,
-          borderWidth: 1,
-          borderColor: 'rgba(23,19,19,0.14)',
-          backgroundColor: 'rgba(255,250,242,0.82)',
-          shadowColor: '#1E1914',
-          shadowOpacity: 0.24,
-          shadowRadius: 32,
-          shadowOffset: { width: 0, height: 14 },
-          elevation: 18,
-          paddingTop: 7,
-          paddingBottom: Math.max(6, insets.bottom ? 4 : 8),
-          overflow: 'hidden',
-        },
-        tabBarBackground: () => <BlurView intensity={72} tint="light" style={StyleSheet.absoluteFillObject} />,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '900', marginTop: 0 },
-        tabBarActiveTintColor: colors.black,
-        tabBarInactiveTintColor: colors.textTertiary,
-        tabBarItemStyle: HIDDEN_ROUTES.has(route.name) ? { display: 'none' } : route.name === 'Swipe' ? { borderRadius: 18, marginTop: -13 } : { borderRadius: 18 },
-        tabBarButton: (props) => <AnimatedTabButton {...props} />,
-        tabBarIcon: ({ focused }) => {
-          const icon =
-            route.name === 'Home' ? 'musical-notes' :
-            route.name === 'Discover' ? 'compass' :
-            route.name === 'Swipe' ? 'swap-vertical' :
-            route.name === 'Community' ? 'people' :
-            route.name === 'AIStudio' ? 'sparkles' :
-            route.name === 'Upload' ? 'add-circle' :
-            route.name === 'Library' ? 'library' :
-            route.name === 'Settings' ? 'settings' : 'person-circle';
-          const premium = route.name === 'Swipe';
-          if (premium) return <PremiumSwipeIcon />;
-          return (
-            <View style={[styles.iconDock, focused && styles.iconDockActive]}>
-              <Ionicons name={icon as any} size={20} color={focused ? colors.black : colors.textTertiary} />
-            </View>
-          );
-        },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Discover" component={DiscoverScreen} />
+      <Tab.Screen name="Home" component={HomeV2Screen} />
+      <Tab.Screen name="Discover" component={DiscoverV2Screen} />
       <Tab.Screen name="Swipe" component={SwipeScreen} />
       <Tab.Screen name="Community" component={CommunityScreen} />
       <Tab.Screen name="AIStudio" component={AIStudioScreen} />
@@ -207,6 +196,8 @@ export function Tabs() {
       <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="PostDetail" component={PostDetailScreen} options={{ tabBarButton: () => null }} />
       <Tab.Screen name="PlaylistDetail" component={PlaylistDetailScreen} options={{ tabBarButton: () => null }} />
+      <Tab.Screen name="TrackDetail" component={TrackDetailScreen} options={{ tabBarButton: () => null }} />
+      <Tab.Screen name="Search" component={SearchScreen} options={{ tabBarButton: () => null }} />
     </Tab.Navigator>
   );
 }
@@ -214,37 +205,64 @@ export function Tabs() {
 const styles = StyleSheet.create({
   tabMotion: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   iconDock: {
-    width: 35,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 26,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconDockActive: {
-    backgroundColor: 'rgba(139,92,246,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.16)',
-  },
-  premiumTab: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    shadowColor: '#FF4B7A',
-    shadowOpacity: 0.32,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 12,
-  },
-  premiumGradient: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+  iconDockActive: { backgroundColor: 'rgba(115,87,198,0.11)' },
+  scrollTab: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#EDE8F7',
+  },
+  scrollTabActive: {
+    backgroundColor: colors.black,
+    borderColor: colors.black,
+  },
+  scrollLetter: {
+    color: '#7357C6',
+    fontSize: 21,
+    lineHeight: 24,
+    fontWeight: '900',
+  },
+  scrollLetterActive: { color: '#FFFAF2' },
+  dockWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 80,
+    backgroundColor: 'rgba(250,250,249,0.96)',
+  },
+  dock: {
+    height: 60,
     overflow: 'hidden',
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.96)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderColor: 'rgba(17,17,17,0.08)',
+    backgroundColor: 'rgba(250,250,249,0.94)',
+    paddingHorizontal: 8,
   },
-  premiumLogo: { width: 46, height: 46 },
+  dockItem: {
+    flex: 1,
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 1,
+  },
+  dockItemScroll: {},
+  dockLabel: {
+    maxWidth: '100%',
+    color: colors.textTertiary,
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  dockLabelActive: { color: colors.black },
+  dockLabelScroll: { marginTop: -1 },
 });

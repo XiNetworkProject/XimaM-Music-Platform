@@ -26,28 +26,28 @@ const VARIANTS: Record<Variant, {
   cyanAlpha: number;
 }> = {
   warm: {
-    base: '#F4EFE6',
-    paper: '#FFFAF2',
-    paperDark: '#EFE8DD',
-    coral: '#FF6F61',
-    violet: '#7C5CFF',
-    cyan: '#00C2CB',
-    gridLine: '#DED4C7',
-    coralAlpha: 0.22,
-    violetAlpha: 0.20,
-    cyanAlpha: 0.14,
+    base: '#F7F6F3',
+    paper: '#FFFFFF',
+    paperDark: '#EEECE8',
+    coral: '#D96D63',
+    violet: '#7357C6',
+    cyan: '#4A9EAA',
+    gridLine: '#D8D5D0',
+    coralAlpha: 0.055,
+    violetAlpha: 0.05,
+    cyanAlpha: 0.035,
   },
   feed: {
-    base: '#F4EFE6',
-    paper: '#FFFAF2',
-    paperDark: '#EFE8DD',
-    coral: '#FF6F61',
-    violet: '#7C5CFF',
-    cyan: '#00C2CB',
-    gridLine: '#DED4C7',
-    coralAlpha: 0.11,
-    violetAlpha: 0.10,
-    cyanAlpha: 0.07,
+    base: '#F7F6F3',
+    paper: '#FFFFFF',
+    paperDark: '#EEECE8',
+    coral: '#D96D63',
+    violet: '#7357C6',
+    cyan: '#4A9EAA',
+    gridLine: '#D8D5D0',
+    coralAlpha: 0.025,
+    violetAlpha: 0.025,
+    cyanAlpha: 0.02,
   },
   dark: {
     base: '#0D0A0E',
@@ -70,7 +70,7 @@ const VARIANTS: Record<Variant, {
  * - 2 blobs lumineux (corail haut-gauche + violet haut-droit)
  * - grille fine 34px
  */
-export function SynauraBackground({ children, variant = 'warm', showGrid = true, animated = true }: Props) {
+export function SynauraBackground({ children, variant = 'warm', showGrid = false, animated = true }: Props) {
   const palette = VARIANTS[variant];
   const { width, height } = useWindowDimensions();
   const { settings } = useMobileSettings();
@@ -97,7 +97,7 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = true,
   }, [animated, drift, settings.dynamicBackground, settings.reducedMotion]);
 
   return (
-    <View style={[styles.root, { backgroundColor: palette.base }]}>
+    <View pointerEvents={children ? 'auto' : 'none'} style={[styles.root, !children && styles.backdrop, { backgroundColor: palette.base }]}>
       <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid slice" style={StyleSheet.absoluteFill}>
         <Defs>
           {/* haut-gauche : corail */}
@@ -145,17 +145,16 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = true,
         <Rect x={0} y={0} width={w} height={h} fill="url(#g-violet)" />
         <Rect x={0} y={0} width={w} height={h} fill="url(#g-cyan)" />
         <Rect x={0} y={0} width={w} height={h} fill="url(#g-track)" />
-        {variant !== 'feed' ? <Rect x={0} y={0} width={w} height={h} fill="url(#g-blob-coral)" /> : null}
-        {variant !== 'feed' ? <Rect x={0} y={0} width={w} height={h} fill="url(#g-blob-violet)" /> : null}
+        {variant === 'dark' ? <Rect x={0} y={0} width={w} height={h} fill="url(#g-blob-violet)" /> : null}
         {showGrid ? <Rect x={0} y={0} width={w} height={h} fill="url(#paperGrid)" opacity={0.32} /> : null}
-        <Rect x={0} y={0} width={w} height={h} fill="url(#paperGrain)" opacity={variant === 'dark' ? 0.15 : 0.24} />
+        <Rect x={0} y={0} width={w} height={h} fill="url(#paperGrain)" opacity={variant === 'dark' ? 0.12 : 0.08} />
       </Svg>
       <Animated.View
         pointerEvents="none"
         style={[
           styles.waveField,
           {
-            opacity: settings.dynamicBackground ? drift.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.22] }) : 0.1,
+            opacity: settings.dynamicBackground ? drift.interpolate({ inputRange: [0, 1], outputRange: [0.025, 0.05] }) : 0,
             transform: [
               { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [-24, 18] }) },
               { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [8, -12] }) },
@@ -175,5 +174,6 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = true,
 
 const styles = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden' },
+  backdrop: { ...StyleSheet.absoluteFillObject },
   waveField: { ...StyleSheet.absoluteFillObject },
 });

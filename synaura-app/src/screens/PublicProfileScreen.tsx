@@ -15,6 +15,7 @@ import { usePlayer } from '@/player/PlayerProvider';
 import { MotionPressable } from '@/components/motion/Motion';
 import { MobileBadge } from '@/components/mobile/MobileBadge';
 import { MobileSocialLinks } from '@/components/mobile/MobileSocialLinks';
+import { AppHeader } from '@/components/ui/AppHeader';
 
 type Tab = 'posts' | 'sons' | 'albums' | 'about';
 
@@ -116,12 +117,8 @@ export function PublicProfileScreen() {
 
   return (
     <SynauraBackground variant="warm">
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]} showsVerticalScrollIndicator={false}>
-        <View style={styles.topbar}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.back}><Ionicons name="chevron-back" size={20} color="#171313" /></Pressable>
-          <Text style={styles.topTitle}>Profil</Text>
-          <Pressable onPress={share} style={styles.back}><Ionicons name="share-outline" size={18} color="#171313" /></Pressable>
-        </View>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: 0 }]} showsVerticalScrollIndicator={false}>
+        <AppHeader flush title="Profil artiste" subtitle={`@${profile.username}`} onBack={() => navigation.goBack()} action={{ icon: 'share-outline', label: 'Partager', onPress: () => void share() }} />
 
         <View style={styles.hero}>
           <View style={styles.banner}>{profile.banner ? <Image source={{ uri: profile.banner }} style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#FFB4A8', '#BCA7FF', '#8DE7EE']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />}</View>
@@ -268,58 +265,58 @@ function Info({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 16, paddingBottom: 170, gap: 14 },
+  content: { paddingHorizontal: 16, paddingBottom: 130, gap: 11 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  back: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.88)' },
+  back: { width: 42, height: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   topTitle: { color: '#171313', fontSize: 17, fontWeight: '900' },
   title: { color: '#171313', fontSize: 24, fontWeight: '900' },
-  hero: { overflow: 'hidden', borderRadius: 30, backgroundColor: 'rgba(255,250,242,0.92)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
-  banner: { height: 140, backgroundColor: '#171313' },
-  heroBody: { padding: 16, alignItems: 'center', marginTop: -58 },
-  avatar: { width: 112, height: 112, borderRadius: 32, overflow: 'hidden', borderWidth: 4, borderColor: '#FFFAF2', backgroundColor: '#E8DCCA', alignItems: 'center', justifyContent: 'center' },
+  hero: { overflow: 'hidden', borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
+  banner: { height: 112, backgroundColor: '#171313' },
+  heroBody: { padding: 14, alignItems: 'center', marginTop: -46 },
+  avatar: { width: 92, height: 92, borderRadius: 22, overflow: 'hidden', borderWidth: 3, borderColor: '#FFFFFF', backgroundColor: '#E8DCCA', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#171313', fontSize: 36, fontWeight: '900' },
-  name: { marginTop: 12, color: '#171313', fontSize: 26, fontWeight: '900', letterSpacing: -0.8 },
+  name: { marginTop: 10, color: '#171313', fontSize: 23, fontWeight: '900' },
   handle: { marginTop: 2, color: 'rgba(23,19,19,0.45)', fontSize: 12, fontWeight: '800' },
   bio: { marginTop: 9, color: 'rgba(23,19,19,0.58)', textAlign: 'center', fontSize: 13, lineHeight: 19, fontWeight: '700' },
   badges: { marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6 },
   badge: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5, color: '#5B3FD6', backgroundColor: 'rgba(124,92,255,0.12)', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   socials: { marginTop: 10, flexDirection: 'row', gap: 7 },
   social: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },
-  badgePanel: { gap: 8, borderRadius: 24, padding: 14, backgroundColor: 'rgba(255,250,242,0.76)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
+  badgePanel: { gap: 8, borderRadius: 14, padding: 13, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
   badgePanelTitle: { color: '#171313', fontSize: 17, fontWeight: '900' },
-  stats: { marginTop: 14, flexDirection: 'row', gap: 8 },
-  stat: { flex: 1, alignItems: 'center', borderRadius: 18, backgroundColor: 'rgba(23,19,19,0.045)', padding: 12 },
+  stats: { marginTop: 12, flexDirection: 'row', borderTopWidth: 1, borderTopColor: 'rgba(17,17,17,0.075)' },
+  stat: { flex: 1, alignItems: 'center', padding: 11 },
   statValue: { color: '#171313', fontSize: 18, fontWeight: '900' },
   statLabel: { marginTop: 3, color: 'rgba(23,19,19,0.42)', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   actions: { marginTop: 14, flexDirection: 'row', gap: 8, alignSelf: 'stretch' },
-  featured: { minHeight: 82, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 11, backgroundColor: '#171313' },
-  featuredCover: { width: 60, height: 60, borderRadius: 17 },
+  featured: { minHeight: 76, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 9, backgroundColor: '#171313' },
+  featuredCover: { width: 58, height: 58, borderRadius: 10 },
   featuredKicker: { color: '#C7B8FF', fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   featuredTitle: { marginTop: 4, color: '#FFFAF2', fontSize: 15, fontWeight: '900' },
   featuredMeta: { marginTop: 3, color: 'rgba(255,250,242,0.42)', fontSize: 10, fontWeight: '800' },
   featuredPlay: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.12)' },
-  primary: { flex: 1, height: 44, borderRadius: 22, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
+  primary: { flex: 1, height: 44, borderRadius: 11, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
   primaryFollowing: { backgroundColor: '#7C5CFF' },
   primaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
-  secondary: { flex: 1, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.07)' },
+  secondary: { flex: 1, height: 44, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.06)' },
   secondaryText: { color: '#171313', fontSize: 13, fontWeight: '900' },
   tabs: { flexDirection: 'row', gap: 8 },
-  tab: { flex: 1, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.82)' },
+  tab: { flex: 1, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   tabActive: { backgroundColor: '#171313' },
   tabText: { color: 'rgba(23,19,19,0.58)', fontSize: 12, fontWeight: '900', textTransform: 'capitalize' },
   tabTextActive: { color: '#FFFAF2' },
-  card: { gap: 10, borderRadius: 24, padding: 14, backgroundColor: 'rgba(255,250,242,0.88)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
+  card: { gap: 8, borderRadius: 14, padding: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
   sorts: { flexDirection: 'row', gap: 8 },
   sort: { flex: 1, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.055)' },
   sortActive: { backgroundColor: '#171313' },
   sortText: { color: 'rgba(23,19,19,0.55)', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   sortTextActive: { color: '#FFFAF2' },
-  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, backgroundColor: 'rgba(23,19,19,0.045)', padding: 9 },
+  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(17,17,17,0.06)', paddingVertical: 9 },
   trackCover: { width: 52, height: 52, borderRadius: 15 },
   trackTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
   trackMeta: { marginTop: 3, color: 'rgba(23,19,19,0.45)', fontSize: 10, fontWeight: '800' },
-  albumRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, backgroundColor: 'rgba(23,19,19,0.045)', padding: 9 },
+  albumRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(17,17,17,0.06)', paddingVertical: 9 },
   post: { gap: 10, borderRadius: 20, backgroundColor: 'rgba(23,19,19,0.045)', padding: 11 },
   postHead: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   postAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },

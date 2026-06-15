@@ -1,10 +1,12 @@
-import React, { useCallback } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { FlatList, StyleSheet, View } from 'react-native';
 import type { Track } from '@/api/types';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
-import { colors, radius, spacing } from '@/theme/tokens';
-import { TrackCard } from './TrackCard';
+import { spacing } from '@/theme/tokens';
+import { EmptyState } from './ui/EmptyState';
+import { TrackActionsSheet } from './ui/TrackActionsSheet';
+import { TrackListItem } from './ui/TrackListItem';
 
 type Props = {
   tracks: Track[];
@@ -14,11 +16,15 @@ type Props = {
   refreshing?: boolean;
   onRefresh?: () => void;
   bottomInset?: number;
+  emptyActionLabel?: string;
+  onEmptyAction?: () => void;
+  topInset?: number;
 };
 
-export function TrackList({ tracks, emptyTitle, emptyText, header, refreshing, onRefresh, bottomInset = 180 }: Props) {
+export function TrackList({ tracks, emptyTitle, emptyText, header, refreshing, onRefresh, bottomInset = 180, emptyActionLabel, onEmptyAction, topInset = 64 }: Props) {
   const player = usePlayer();
   const library = useLibrary();
+  const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
 
   const playAt = useCallback(async (index: number) => {
     await player.setQueueAndPlay(tracks, index);
@@ -28,26 +34,25 @@ export function TrackList({ tracks, emptyTitle, emptyText, header, refreshing, o
     <FlatList
       data={tracks}
       keyExtractor={(item) => item._id}
-      contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}
+      contentContainerStyle={[styles.content, { paddingBottom: bottomInset, paddingTop: topInset }]}
       refreshing={refreshing}
       onRefresh={onRefresh}
       ListHeaderComponent={header}
       ListEmptyComponent={
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>{emptyTitle}</Text>
-          {emptyText ? <Text style={styles.emptyText}>{emptyText}</Text> : null}
-        </View>
+        <EmptyState title={emptyTitle} text={emptyText} actionLabel={emptyActionLabel} onAction={onEmptyAction} />
       }
       renderItem={({ item, index }) => (
-        <TrackCard
+        <TrackListItem
           track={item}
           active={player.current?._id === item._id}
           favorite={library.isFavorite(item._id)}
           onToggleFavorite={() => library.toggleFavorite(item)}
-          onPress={() => playAt(index)}
+          onPlay={() => playAt(index)}
+          onMore={() => setSelectedTrack(item)}
         />
       )}
       ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+      ListFooterComponent={<TrackActionsSheet track={selectedTrack} onClose={() => setSelectedTrack(null)} />}
     />
   );
 }
@@ -56,29 +61,5 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: 64,
-  },
-  empty: {
-    minHeight: 220,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.xl,
-    backgroundColor: colors.surface,
-    padding: spacing.xl,
-  },
-  emptyTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  emptyText: {
-    marginTop: spacing.sm,
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 19,
-    textAlign: 'center',
   },
 });

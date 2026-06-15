@@ -8,7 +8,7 @@ import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { MobileAnimatedLogo } from '@/components/mobile/MobileAnimatedLogo';
 import { colors, shadows } from '@/theme/tokens';
 
-export const MOBILE_HEADER_EXPANDED_HEIGHT = 116;
+export const MOBILE_HEADER_EXPANDED_HEIGHT = 108;
 
 export function MobileHeader({
   scrollY,
@@ -45,13 +45,13 @@ export function MobileHeader({
 
   return (
     <Animated.View style={[styles.shell, { height }]}>
-      <BlurView intensity={72} tint="light" style={StyleSheet.absoluteFill} />
+      <BlurView intensity={46} tint="light" style={StyleSheet.absoluteFill} />
       <Animated.View pointerEvents={compact ? 'none' : 'auto'} style={[styles.large, { paddingTop: insets.top + 7, opacity: progress.interpolate({ inputRange: [0, 0.64], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -14] }) }] }]}>
         <View style={styles.brandRow}>
           <MobileAnimatedLogo playing={player.isPlaying} loading={player.isLoading} size={46} />
           <View style={styles.brandCopy}><Text style={styles.brand}>Synaura</Text><Text style={styles.signature}>ÉCOUTE · CRÉE · REMIX</Text></View>
           <HeaderIcon icon="notifications-outline" badge={unread} onPress={onNotifications} />
-          <Pressable accessibilityLabel="Publier" onPress={onPublish} style={styles.publish}><Ionicons name="add" size={17} color={colors.paper} /><Text style={styles.publishText}>Publier</Text></Pressable>
+          <Pressable accessibilityLabel="Publier" onPress={onPublish} style={styles.add}><Ionicons name="add" size={21} color={colors.paper} /></Pressable>
           <MobileAccountButton compact />
         </View>
         <Pressable accessibilityLabel="Rechercher sur Synaura" onPress={onSearch} style={styles.largeSearch}>

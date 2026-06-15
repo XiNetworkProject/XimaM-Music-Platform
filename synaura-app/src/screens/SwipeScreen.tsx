@@ -179,7 +179,7 @@ export function SwipeScreen() {
       fetchRankingFeedChunk(feedMode, 0, seedForReco)
         .then((chunk) => {
           if (cancelled || reqId !== lastRequestRef.current) return;
-          const feedTracks = injectCityPromo(injectSubscriptionPromo(withoutObsoleteRadios(chunk.tracks)));
+          const feedTracks = withoutObsoleteRadios(chunk.tracks);
           const merged = player.current?.audioUrl
             ? uniqueTracks([...(player.current._id.startsWith('radio-') ? [] : [player.current]), ...feedTracks])
             : feedTracks;
@@ -610,8 +610,15 @@ export function SwipeScreen() {
 
       <Animated.View style={[styles.header, headerStyle]} pointerEvents="box-none">
         <View style={styles.headerInner}>
+          <View style={styles.scrollIdentity}>
+            <View style={styles.scrollMark}><Text style={styles.scrollMarkText}>S</Text></View>
+            <View>
+              <Text style={styles.scrollName}>Scroll</Text>
+              <Text style={styles.scrollSubtitle}>Synaura</Text>
+            </View>
+          </View>
           <View style={styles.modeWrap}>
-            {(Object.keys(FEED_MODE_META) as FeedMode[]).map((mode) => {
+            {(['reco', 'trending'] as FeedMode[]).map((mode) => {
               const active = mode === feedMode;
               return (
                 <Pressable
@@ -634,18 +641,6 @@ export function SwipeScreen() {
             {player.queue.length ? <View style={styles.queueBadge}><Text style={styles.queueBadgeText}>{player.queue.length}</Text></View> : null}
           </Pressable>
         </View>
-        <View style={styles.swipeHint}>
-          <Ionicons name="swap-horizontal" size={13} color="rgba(255,250,242,0.62)" />
-          <Text style={styles.swipeHintText}>Glisse verticalement pour changer de son</Text>
-        </View>
-        {tracks.length > 1 ? (
-          <View style={styles.indicator}>
-            <Text style={styles.indicatorText}>
-              {activeIndex + 1}<Text style={styles.indicatorTextDim}> / {tracks.length}</Text>
-            </Text>
-            {currentSeedGenre ? <Text style={styles.indicatorGenre}>{currentSeedGenre.toUpperCase()}</Text> : null}
-          </View>
-        ) : null}
       </Animated.View>
 
       {loadState === 'loading' || loadState === 'idle' ? (
@@ -873,7 +868,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 4,
   },
   citySlideStat: {
     height: 38,
@@ -934,23 +929,37 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     zIndex: 14,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingBottom: 8,
-    gap: 8,
   },
-  headerInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  modeWrap: {
-    flex: 1,
+  headerInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  scrollIdentity: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,250,242,0.08)',
+    alignItems: 'center',
+    gap: 7,
+  },
+  scrollMark: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFAF2',
+  },
+  scrollMarkText: { color: '#171313', fontSize: 17, fontWeight: '900' },
+  scrollName: { color: '#FFFAF2', fontSize: 11, lineHeight: 12, fontWeight: '900' },
+  scrollSubtitle: { marginTop: 1, color: 'rgba(255,250,242,0.5)', fontSize: 8, fontWeight: '800' },
+  modeWrap: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(15,12,14,0.24)',
     borderRadius: 999,
-    padding: 5,
+    padding: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255,250,242,0.14)',
+    borderColor: 'rgba(255,250,242,0.12)',
   },
   modeButton: {
-    flex: 1,
-    paddingVertical: 9,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
@@ -965,16 +974,14 @@ const styles = StyleSheet.create({
   },
   modeButtonText: {
     color: 'rgba(255,250,242,0.7)',
-    fontSize: 11,
+    fontSize: 8,
     fontWeight: '900',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
   },
-  modeButtonTextActive: { color: '#171313', letterSpacing: 0.5 },
+  modeButtonTextActive: { color: '#171313' },
   queueButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,250,242,0.08)',
@@ -994,49 +1001,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   queueBadgeText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
-  swipeHint: {
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,250,242,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,250,242,0.1)',
-  },
-  swipeHintText: {
-    color: 'rgba(255,250,242,0.62)',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  indicator: {
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: 'rgba(13,10,14,0.45)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  indicatorText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900', fontVariant: ['tabular-nums'], letterSpacing: 0.4 },
-  indicatorTextDim: { color: 'rgba(255,250,242,0.5)' },
-  indicatorGenre: {
-    color: 'rgba(255,250,242,0.5)',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-    backgroundColor: 'rgba(0,0,0,0.32)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
   loadingScreen: {
     flex: 1,
     alignItems: 'center',

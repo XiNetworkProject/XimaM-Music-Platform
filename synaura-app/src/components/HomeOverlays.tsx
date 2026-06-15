@@ -108,6 +108,14 @@ export function UniversalSearchModal({ visible, onClose }: { visible: boolean; o
                 </View>
               </View>
             ) : null}
+            <Pressable onPress={() => { onClose(); navigation.navigate('Search', query.trim() ? { query: query.trim() } : undefined); }} style={styles.fullSearch}>
+              <View style={styles.fullSearchIcon}><Ionicons name="search" size={17} color={colors.paper} /></View>
+              <View style={styles.resultCopy}>
+                <Text style={styles.fullSearchTitle}>{query.trim().length >= 2 ? 'Voir tous les résultats' : 'Ouvrir la recherche complète'}</Text>
+                <Text style={styles.fullSearchText}>Historique, tendances, artistes, playlists et communauté</Text>
+              </View>
+              <Ionicons name="arrow-forward" size={16} color={colors.textSecondary} />
+            </Pressable>
             {!loading && query.trim().length >= 2 && total === 0 ? <Empty icon="search" title="Aucun resultat" text={`Rien pour "${query.trim()}".`} /> : null}
             {results.tracks.length ? <ResultTitle label="Sons" icon="musical-notes" /> : null}
             {results.tracks.map((track) => (
@@ -230,6 +238,10 @@ const styles = StyleSheet.create({
   suggestionRow: { marginTop: spacing.md, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   suggestion: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 19, borderWidth: 1, paddingHorizontal: 12 },
   suggestionText: { color: colors.text, fontSize: 11, fontWeight: '900' },
+  fullSearch: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.sm },
+  fullSearchIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
+  fullSearchTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  fullSearchText: { marginTop: 2, color: colors.textTertiary, fontSize: 9, lineHeight: 13, fontWeight: '700' },
   resultSectionTitle: { marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
   resultSectionText: { color: colors.textTertiary, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   resultRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 17, backgroundColor: '#EFE4D4', padding: spacing.sm },

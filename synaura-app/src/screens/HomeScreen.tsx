@@ -54,17 +54,14 @@ import { openInternalLink } from '@/navigation/internalLinks';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { SHOW_SHUTDOWN_NOTICES } from '@/config/features';
-import { CityHomeBanner } from '@/components/city/CityHomeBanner';
 import { MobileHeader, MOBILE_HEADER_EXPANDED_HEIGHT } from '@/components/mobile/MobileHeader';
 import { MobileActionCard } from '@/components/mobile/MobileActionCard';
 import { MobileWaveform } from '@/components/mobile/MobileWaveform';
 
 const filters = ['Pour toi', 'Sons', 'Communaute', 'Plus'] as const;
 const quickActions = [
-  { label: 'Ecouter', caption: 'Trouver ton prochain son', icon: 'musical-notes', tint: '#7C5CFF' },
-  { label: 'Creer', caption: 'Ouvrir le studio IA', icon: 'sparkles', tint: '#00A7B2' },
-  { label: 'Publier', caption: 'Partager une creation', icon: 'cloud-upload', tint: '#E65E54' },
-  { label: 'Communaute', caption: 'Voir ce qui bouge', icon: 'mic', tint: '#D88A00' },
+  { label: 'Entrer dans le Scroll', caption: 'Découvrir un son après l’autre', icon: 'musical-notes' },
+  { label: 'Ouvrir le Studio', caption: 'Créer une musique à ton image', icon: 'sparkles' },
 ] as const;
 
 type HomeFilter = (typeof filters)[number];
@@ -120,7 +117,6 @@ function removeCommentTree(comments: HomeComment[], commentId: string): HomeComm
 
 function buildFeed(data: HomeData): FeedItem[] {
   const items: FeedItem[] = [];
-  items.push({ id: 'composer', kind: 'composer' });
   if (data.forYou.length) {
     items.push({
       id: 'rail-for-you',
@@ -155,29 +151,7 @@ function buildFeed(data: HomeData): FeedItem[] {
     });
   }
 
-  items.push({ id: 'city-feed-pulse', kind: 'city' });
-  if (data.posts[0]) items.push({ id: `post-${data.posts[0].id}`, kind: 'post', post: data.posts[0] });
-  if (data.posts[1]) items.push({ id: `post-${data.posts[1].id}`, kind: 'post', post: data.posts[1] });
-
-  if (data.trending.length) {
-    items.push({
-      id: 'rail-trending',
-      kind: 'rail',
-      title: 'Tendances maintenant',
-      subtitle: 'les pistes qui prennent de la vitesse en ce moment',
-      label: 'trending',
-      tracks: data.trending.slice(0, 8),
-    });
-  }
-
   if (data.creators.length) items.push({ id: 'creator-rail', kind: 'creator', creators: data.creators.slice(0, 8) });
-  if (data.posts[2]) items.push({ id: `post-${data.posts[2].id}`, kind: 'post', post: data.posts[2] });
-  items.push({ id: 'studio', kind: 'studio', title: 'Creer dans ce style', text: "Pars d'un son que tu aimes, remixe l'ambiance et publie ta version." });
-  if (data.playlists[0]) items.push({ id: `playlist-${data.playlists[0].id}`, kind: 'playlist', playlist: data.playlists[0] });
-  items.push({ id: 'booster', kind: 'booster', title: 'Boosters du jour', text: 'Active les mises en avant et les campagnes sans sortir de la logique Synaura.' });
-  if (data.playlists[1]) items.push({ id: `playlist-${data.playlists[1].id}`, kind: 'playlist', playlist: data.playlists[1] });
-  items.push({ id: 'library', kind: 'library' });
-  if (data.posts[3]) items.push({ id: `post-${data.posts[3].id}`, kind: 'post', post: data.posts[3] });
   return items;
 }
 
@@ -444,13 +418,9 @@ export function HomeScreen() {
         />
       ) : null}
       <QuickActions
-        onListen={() => navigation.navigate('Discover')}
-        onCreate={() => navigation.navigate('AIStudio')}
-        onPublish={() => navigation.navigate('CreateHub')}
-        onCommunity={() => navigation.navigate('Community')}
+        onScroll={() => navigation.navigate('Swipe')}
+        onStudio={() => navigation.navigate('AIStudio')}
       />
-      <CityHomeBanner onOpen={() => navigation.navigate('City')} />
-      <FilterBar value={filter} onChange={setFilter} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {loading && !feed.length ? <LoadingCards /> : null}
     </>
@@ -754,18 +724,14 @@ function MiniCarousel({
 }
 
 function QuickActions({
-  onListen,
-  onCreate,
-  onPublish,
-  onCommunity,
+  onScroll,
+  onStudio,
 }: {
-  onListen: () => void;
-  onCreate: () => void;
-  onPublish: () => void;
-  onCommunity: () => void;
+  onScroll: () => void;
+  onStudio: () => void;
 }) {
-  const actions = [onListen, onCreate, onPublish, onCommunity];
-  const tones = ['violet', 'cyan', 'coral', 'gold'] as const;
+  const actions = [onScroll, onStudio];
+  const tones = ['violet', 'cyan'] as const;
   return (
     <View style={styles.quickGrid}>
       {quickActions.map((item, index) => (

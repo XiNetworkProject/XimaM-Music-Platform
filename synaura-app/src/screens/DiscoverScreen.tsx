@@ -13,9 +13,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
-import { getDiscoverPage, getHomeData, getSynauraCity } from '@/api/client';
-import type { HomeData, SynauraCityData, Track } from '@/api/types';
-import { EventTicker, EventsRail } from '@/components/events/SynauraEvents';
+import { getDiscoverPage, getHomeData } from '@/api/client';
+import type { HomeData, Track } from '@/api/types';
 import { TrackCover } from '@/components/TrackCover';
 import { usePlayer } from '@/player/PlayerProvider';
 import { spacing } from '@/theme/tokens';
@@ -25,10 +24,10 @@ import { MobileSectionTitle } from '@/components/mobile/MobileSectionTitle';
 
 const genres = ['Tout', 'Pop', 'Hip-Hop', 'Rap', 'Rock', 'Electronic', 'R&B', 'Jazz', 'Lo-Fi', 'Indie', 'Ambient'];
 const ambienceTiles = [
-  { label: 'Electronic', icon: 'pulse', colors: ['#8B5CF6', '#22D3EE'] },
-  { label: 'Rap', icon: 'mic', colors: ['#171313', '#FF6B6B'] },
-  { label: 'Pop', icon: 'heart', colors: ['#EC4899', '#F5B84B'] },
-  { label: 'Ambient', icon: 'moon', colors: ['#22D3EE', '#8B5CF6'] },
+  { label: 'Electronic', icon: 'pulse', colors: ['#6F6680', '#A4B6BC'] },
+  { label: 'Rap', icon: 'mic', colors: ['#292527', '#A77F7B'] },
+  { label: 'Pop', icon: 'heart', colors: ['#B88299', '#C6A875'] },
+  { label: 'Ambient', icon: 'moon', colors: ['#8BAEB3', '#8D82A6'] },
 ] as const;
 const sorts = [
   { id: 'trending', label: 'Moment', icon: 'pulse' },
@@ -58,7 +57,6 @@ function matchesGenre(track: Track, genre: string) {
 export function DiscoverScreen() {
   const navigation = useNavigation<any>();
   const [data, setData] = useState<HomeData>(emptyData);
-  const [city, setCity] = useState<SynauraCityData | null>(null);
   const [genre, setGenre] = useState('Tout');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<(typeof sorts)[number]['id']>('trending');
@@ -75,10 +73,9 @@ export function DiscoverScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [homeResult, cityResult, discoverResult] = await Promise.allSettled([getHomeData(), getSynauraCity(), getDiscoverPage({ sort, page: 0 })]);
+      const [homeResult, discoverResult] = await Promise.allSettled([getHomeData(), getDiscoverPage({ sort, page: 0 })]);
       if (homeResult.status === 'rejected') throw homeResult.reason;
       setData(homeResult.value);
-      if (cityResult.status === 'fulfilled') setCity(cityResult.value);
       if (discoverResult.status === 'fulfilled') {
         setExploreTracks(discoverResult.value.tracks);
         setExploreCreators(discoverResult.value.artists);
@@ -195,9 +192,8 @@ export function DiscoverScreen() {
           ))}
         </ScrollView>
 
-        <EventTicker city={city} onPress={() => navigation.navigate('City')} tone="cyan" />
         <View style={styles.ambienceSection}>
-          <MobileSectionTitle title="Ambiances" subtitle="entre par une couleur, reste pour le son" />
+          <MobileSectionTitle title="Ambiances" subtitle="une porte simple vers ton prochain son" />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ambienceRail}>
             {ambienceTiles.map((item) => (
               <Pressable key={item.label} onPress={() => setGenre(item.label)} style={styles.ambiencePressable}>
@@ -210,11 +206,6 @@ export function DiscoverScreen() {
             ))}
           </ScrollView>
         </View>
-        <Pressable onPress={() => navigation.navigate('Subscriptions')} style={styles.plusNudge}>
-          <View style={styles.plusIcon}><Ionicons name="sparkles" size={18} color={warm.paper} /></View>
-          <View style={{ flex: 1 }}><Text style={styles.plusTitle}>Plus de Studio, sans casser ton flow</Text><Text style={styles.plusText}>Découvre les modèles IA et outils inclus dans Synaura Plus.</Text></View>
-          <Ionicons name="arrow-forward" size={17} color={warm.ink} />
-        </Pressable>
         {heroTrack ? <DiscoverHero track={heroTrack} playing={player.current?._id === heroTrack._id && player.isPlaying} onPlay={() => playFrom(filtered.length ? filtered : allTracks, heroTrack)} /> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {loading && !allTracks.length ? <ActivityIndicator color={warm.ink} style={styles.loader} /> : null}
@@ -224,14 +215,11 @@ export function DiscoverScreen() {
         ) : (
           <>
             <DiscoverRail title="Pour toi" subtitle="une sélection qui suit tes écoutes" tracks={forYou} player={player} onPlay={(track) => playFrom(forYou, track)} />
-            {city?.pulse?.length ? <DiscoverRail title="Sons qui montent" subtitle="le Pulse Synaura en temps réel" tracks={city.pulse.slice(0, 10)} player={player} onPlay={(track) => playFrom(city.pulse, track)} /> : null}
-            <EventsRail city={city} onOpen={() => navigation.navigate('City')} />
-            <DiscoverRows title="Top hits" tracks={trending.slice(0, 6)} player={player} onPlay={(track) => playFrom(trending, track)} />
-            <DiscoverRail title="Fraîchement publié" subtitle="les dernières sorties Synaura" tracks={recent} player={player} onPlay={(track) => playFrom(recent, track)} />
+            <DiscoverRows title="Tendances" tracks={trending.slice(0, 6)} player={player} onPlay={(track) => playFrom(trending, track)} />
+            <DiscoverRail title="Nouveaux sons" subtitle="les dernières sorties Synaura" tracks={recent} player={player} onPlay={(track) => playFrom(recent, track)} />
             <CreatorRail creators={data.creators.slice(0, 8)} onOpen={(username) => navigation.navigate('PublicProfile', { username })} />
-            <PlaylistRail playlists={data.playlists.slice(0, 8)} onOpen={(playlistId) => navigation.navigate('PlaylistDetail', { playlistId })} />
-            <DiscoverRows title={sort === 'hidden' ? 'Pépites à dénicher' : 'Explorer sans fin'} tracks={exploreTracks} player={player} onPlay={(track) => playFrom(exploreTracks, track)} />
-            <CreatorRail title="Tous les profils Synaura" subtitle="nouveaux, actifs et encore peu connus" creators={exploreCreators} onOpen={(username) => navigation.navigate('PublicProfile', { username })} />
+            <DiscoverRows title={sort === 'hidden' ? 'Pépites à dénicher' : 'Continuer à explorer'} tracks={exploreTracks} player={player} onPlay={(track) => playFrom(exploreTracks, track)} />
+            <CreatorRail title="Artistes à découvrir" subtitle="nouveaux, actifs et encore peu connus" creators={exploreCreators} onOpen={(username) => navigation.navigate('PublicProfile', { username })} />
             {paging ? <ActivityIndicator color="#7C5CFF" style={styles.loader} /> : null}
           </>
         )}
@@ -255,7 +243,7 @@ function DiscoverHero({ track, playing, onPlay }: { track: Track; playing: boole
       <LinearGradient colors={['rgba(23,19,19,0.28)', 'rgba(23,19,19,0.96)']} style={StyleSheet.absoluteFill} />
       <View style={styles.heroContent}>
         <Text style={styles.heroKicker}>Entre par les tendances</Text>
-        <Text numberOfLines={2} style={styles.heroTitle}>Découvre, écoute, enchaîne.</Text>
+        <Text numberOfLines={2} style={styles.heroTitle}>Écoute quelque chose de nouveau.</Text>
         <Text numberOfLines={1} style={styles.heroNow}>{track.title} · {artistName(track)}</Text>
         <Pressable onPress={onPlay} style={styles.heroButton}>
           <Ionicons name={playing ? 'pause' : 'play'} size={18} color={warm.ink} />

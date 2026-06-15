@@ -90,7 +90,7 @@ export function NotificationsScreen() {
 
   return (
     <SynauraBackground variant="warm">
-      <View style={[styles.screen, { paddingTop: insets.top + 64 }]}>
+      <View style={[styles.screen, { paddingTop: insets.top + 12 }]}>
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}><Ionicons name="chevron-back" size={20} color="#171313" /></Pressable>
           <View style={{ flex: 1 }}>
@@ -150,20 +150,20 @@ export function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.76)', alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  iconBtn: { width: 40, height: 40, borderRadius: 11, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   eyebrow: { color: '#8B5CF6', fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
-  title: { color: '#171313', fontSize: 28, fontWeight: '900' },
-  markBtn: { borderRadius: 999, backgroundColor: '#171313', paddingHorizontal: 12, paddingVertical: 9 },
+  title: { color: '#171313', fontSize: 24, fontWeight: '900' },
+  markBtn: { borderRadius: 10, backgroundColor: '#171313', paddingHorizontal: 12, paddingVertical: 9 },
   markBtnDisabled: { opacity: 0.32 },
   markText: { color: '#FFF7ED', fontSize: 12, fontWeight: '900' },
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  tab: { borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.66)', paddingHorizontal: 12, paddingVertical: 9 },
+  tab: { borderRadius: 10, backgroundColor: '#FFFFFF', paddingHorizontal: 12, paddingVertical: 9 },
   tabActive: { backgroundColor: '#171313' },
   tabText: { color: '#6B5F5A', fontWeight: '800', fontSize: 12 },
   tabTextActive: { color: '#FFF7ED' },
-  list: { paddingBottom: 140, gap: 10 },
-  card: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.78)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)', padding: 13 },
+  list: { paddingBottom: 120, gap: 8 },
+  card: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, borderRadius: 13, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)', padding: 12 },
   cardUnread: { borderColor: 'rgba(139,92,246,0.32)', backgroundColor: 'rgba(255,250,244,0.94)' },
   visual: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   unreadDot: { position: 'absolute', top: -2, right: -2, width: 9, height: 9, borderRadius: 5, backgroundColor: '#8B5CF6', borderWidth: 2, borderColor: '#FFF9EF' },
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   actionText: { color: '#8B5CF6', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   meta: { color: '#9B8F89', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
   trash: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(23,19,19,0.04)', alignItems: 'center', justifyContent: 'center' },
-  emptyCard: { marginTop: 42, alignItems: 'center', borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.72)', padding: 24 },
+  emptyCard: { marginTop: 42, alignItems: 'center', borderRadius: 14, backgroundColor: '#FFFFFF', padding: 24 },
   emptyIcon: { width: 54, height: 54, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(139,92,246,0.12)' },
   emptyTitle: { marginTop: 12, color: '#171313', fontSize: 17, fontWeight: '900' },
   empty: { marginTop: 5, textAlign: 'center', color: '#6B5F5A', lineHeight: 18, fontWeight: '700' },

@@ -511,20 +511,39 @@ export function AIStudioScreen() {
   if (!auth.user) {
     return (
       <View style={styles.root}>
-        <SynauraBackground variant="warm" />
-        <View style={[styles.authGate, { paddingTop: insets.top }]}>
-          <View style={styles.authIcon}><Ionicons name="sparkles" size={32} color={colors.paper} /></View>
-          <Text style={styles.authTitle}>Ton Studio IA t’attend</Text>
-          <Text style={styles.authText}>Connecte-toi pour retrouver tes crédits, tes presets et ta bibliothèque.</Text>
-          <Pressable onPress={() => navigation.getParent()?.navigate('Login')} style={styles.authButton}><Text style={styles.authButtonText}>Se connecter</Text></Pressable>
-        </View>
+        <SynauraBackground variant="warm">
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.authGate, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 92 }]}>
+          <View style={styles.authTop}>
+            <View>
+              <Text style={styles.authKicker}>STUDIO SYNAURA</Text>
+              <Text style={styles.authPageTitle}>Crée sans casser ton élan.</Text>
+            </View>
+            <View style={styles.authIcon}><Ionicons name="sparkles" size={24} color={colors.paper} /></View>
+          </View>
+          <View style={styles.authPreview}>
+            <View style={styles.authPreviewOrb}><Ionicons name="musical-notes" size={28} color={colors.paper} /></View>
+            <Text style={styles.authPreviewTitle}>Une idée devient un morceau.</Text>
+            <Text style={styles.authPreviewText}>Prompt, vibe, voix et durée dans un parcours simple pensé pour mobile.</Text>
+            <View style={styles.authFeatures}>
+              <AuthFeature icon="flash-outline" text="Générations et presets" />
+              <AuthFeature icon="library-outline" text="Bibliothèque synchronisée" />
+              <AuthFeature icon="cloud-upload-outline" text="Publication directe" />
+            </View>
+          </View>
+          <View>
+            <Text style={styles.authTitle}>Retrouve ton Studio</Text>
+            <Text style={styles.authText}>Connecte-toi pour accéder à tes crédits, tes créations et ton historique.</Text>
+            <Pressable onPress={() => navigation.getParent()?.navigate('Login')} style={styles.authButton}><Text style={styles.authButtonText}>Se connecter</Text></Pressable>
+          </View>
+        </ScrollView>
+        </SynauraBackground>
       </View>
     );
   }
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SynauraBackground variant="warm" />
+      <SynauraBackground variant="warm">
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -733,8 +752,13 @@ export function AIStudioScreen() {
         if (text) await Clipboard.setStringAsync(text);
       }} />
       <CreditShopModal visible={showCredits} balance={credits} onClose={() => setShowCredits(false)} onComplete={() => loadStudio(true)} />
+      </SynauraBackground>
     </KeyboardAvoidingView>
   );
+}
+
+function AuthFeature({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  return <View style={styles.authFeature}><Ionicons name={icon} size={15} color={colors.text} /><Text style={styles.authFeatureText}>{text}</Text></View>;
 }
 
 function Segment({ active, label, icon, onPress }: { active: boolean; label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
@@ -956,24 +980,24 @@ function CreditShopModal({ visible, balance, onClose, onComplete }: { visible: b
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 15, gap: 14 },
+  content: { paddingHorizontal: 16, gap: 11 },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  iconButton: { width: 45, height: 45, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.88)', borderWidth: 1, borderColor: colors.border },
-  creditPill: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingHorizontal: 13, height: 40, backgroundColor: 'rgba(255,250,242,0.9)', borderWidth: 1, borderColor: 'rgba(255,111,97,0.26)' },
+  iconButton: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  creditPill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 11, paddingHorizontal: 11, height: 36, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   creditText: { color: colors.text, fontSize: 12, fontWeight: '900' },
   kicker: { marginTop: 9, color: colors.coral, fontSize: 10, fontWeight: '900', letterSpacing: 1.8 },
-  title: { color: colors.text, fontSize: 37, lineHeight: 39, fontWeight: '900' },
-  titleCompact: { fontSize: 30, lineHeight: 33 },
+  title: { color: colors.text, fontSize: 26, lineHeight: 30, fontWeight: '900' },
+  titleCompact: { fontSize: 24, lineHeight: 28 },
   subtitle: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700' },
-  tabs: { flexDirection: 'row', padding: 4, borderRadius: 22, backgroundColor: 'rgba(255,250,242,0.72)', borderWidth: 1, borderColor: colors.border },
-  studioConsole: { borderRadius: 22, padding: 14, gap: 14, backgroundColor: colors.black, shadowColor: colors.black, shadowOpacity: 0.18, shadowRadius: 14, elevation: 6 },
+  tabs: { flexDirection: 'row', padding: 3, borderRadius: 13, backgroundColor: '#EDEBE7', borderWidth: 1, borderColor: colors.border },
+  studioConsole: { borderRadius: 14, padding: 12, gap: 11, backgroundColor: colors.black },
   consoleBrand: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   consoleDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#34D399' },
   consoleBrandText: { color: 'rgba(255,250,242,0.58)', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
   consoleMetrics: { flexDirection: 'row', justifyContent: 'space-between' },
   consoleValue: { color: colors.paper, fontSize: 13, fontWeight: '900' },
   consoleLabel: { marginTop: 3, color: 'rgba(255,250,242,0.42)', fontSize: 7, fontWeight: '900', letterSpacing: 0.8 },
-  librarySummary: { minHeight: 66, borderRadius: 22, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, backgroundColor: 'rgba(255,250,242,0.86)', borderWidth: 1, borderColor: colors.border },
+  librarySummary: { minHeight: 58, borderRadius: 13, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   summaryStat: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   summaryValue: { color: colors.text, fontSize: 15, fontWeight: '900' },
   summaryLabel: { marginTop: 3, color: colors.textTertiary, fontSize: 7, fontWeight: '900', letterSpacing: 0.8 },
@@ -985,28 +1009,28 @@ const styles = StyleSheet.create({
   orbSuccess: { backgroundColor: '#059669' },
   orbKicker: { color: colors.textTertiary, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
   orbText: { marginTop: 3, color: colors.text, fontSize: 12, fontWeight: '900' },
-  segment: { flex: 1, minHeight: 43, borderRadius: 18, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
+  segment: { flex: 1, minHeight: 38, borderRadius: 10, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' },
   segmentActive: { backgroundColor: colors.black },
   segmentText: { color: colors.textTertiary, fontSize: 11, fontWeight: '900' },
   segmentTextActive: { color: colors.paper },
   modeRow: { flexDirection: 'row', gap: 8 },
-  mode: { flex: 1, height: 42, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.76)', borderWidth: 1, borderColor: colors.border },
+  mode: { flex: 1, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   modeActive: { backgroundColor: colors.black, borderColor: colors.black },
   modeText: { color: colors.textTertiary, fontSize: 11, fontWeight: '900' },
   modeTextActive: { color: colors.paper },
-  panel: { borderRadius: 24, padding: 14, gap: 14, backgroundColor: 'rgba(255,250,242,0.88)', borderWidth: 1, borderColor: colors.border },
+  panel: { borderRadius: 14, padding: 12, gap: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   panelHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   panelKicker: { color: colors.textTertiary, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   panelCount: { color: colors.violet, fontSize: 11, fontWeight: '900' },
   presetRow: { gap: 9, paddingRight: 14 },
-  preset: { width: 144, minHeight: 118, borderRadius: 18, padding: 11, backgroundColor: 'rgba(244,239,230,0.92)', borderWidth: 1, borderColor: colors.border },
+  preset: { width: 132, minHeight: 106, borderRadius: 12, padding: 10, backgroundColor: '#F3F1EE', borderWidth: 1, borderColor: colors.border },
   presetIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   presetTitle: { marginTop: 11, color: colors.text, fontSize: 13, lineHeight: 16, fontWeight: '900' },
   presetText: { marginTop: 4, color: colors.textTertiary, fontSize: 10, lineHeight: 14, fontWeight: '700' },
   field: { gap: 7 },
   fieldHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   fieldLabel: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', letterSpacing: 1.3, textTransform: 'uppercase' },
-  input: { minHeight: 46, borderRadius: 16, paddingHorizontal: 13, color: colors.text, backgroundColor: 'rgba(244,239,230,0.82)', borderWidth: 1, borderColor: colors.border, fontSize: 13, fontWeight: '700' },
+  input: { minHeight: 44, borderRadius: 10, paddingHorizontal: 12, color: colors.text, backgroundColor: '#F4F3F0', borderWidth: 1, borderColor: colors.border, fontSize: 13, fontWeight: '700' },
   inputMulti: { minHeight: 88, paddingTop: 12, paddingBottom: 12 },
   inputTall: { minHeight: 150 },
   remixPicker: { minHeight: 66, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: 'rgba(124,92,255,0.09)', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(124,92,255,0.34)' },
@@ -1036,7 +1060,7 @@ const styles = StyleSheet.create({
   advancedIcon: { width: 40, height: 40, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
   advancedTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   advancedText: { marginTop: 3, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
-  generateButton: { minHeight: 58, borderRadius: 26, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 17, backgroundColor: colors.black, shadowColor: colors.black, shadowOpacity: 0.2, shadowRadius: 14, elevation: 7 },
+  generateButton: { minHeight: 50, borderRadius: 13, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 15, backgroundColor: colors.black },
   generateText: { flex: 1, color: colors.paper, fontSize: 14, fontWeight: '900' },
   generateCost: { color: 'rgba(255,250,242,0.56)', fontSize: 10, fontWeight: '900' },
   buyButton: { height: 45, borderRadius: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,250,242,0.82)', borderWidth: 1, borderColor: colors.border },
@@ -1087,8 +1111,8 @@ const styles = StyleSheet.create({
   generationTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   generationMeta: { marginTop: 4, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
   generationStatus: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
-  trackRow: { minHeight: 76, borderRadius: 21, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 10, backgroundColor: 'rgba(255,250,242,0.88)', borderWidth: 1, borderColor: colors.border },
-  trackCover: { width: 56, height: 56, borderRadius: 16, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.06)' },
+  trackRow: { minHeight: 68, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  trackCover: { width: 52, height: 52, borderRadius: 10, overflow: 'hidden', backgroundColor: 'rgba(17,17,17,0.06)' },
   trackTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   trackText: { marginTop: 4, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
   trackPlay: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
@@ -1099,11 +1123,21 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', borderRadius: 24, padding: 28, backgroundColor: 'rgba(255,250,242,0.82)', borderWidth: 1, borderColor: colors.border },
   emptyTitle: { marginTop: 12, color: colors.text, fontSize: 17, fontWeight: '900' },
   emptyText: { marginTop: 5, color: colors.textTertiary, textAlign: 'center', fontSize: 11, lineHeight: 17, fontWeight: '700' },
-  authGate: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 },
-  authIcon: { width: 70, height: 70, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
-  authTitle: { marginTop: 16, color: colors.text, fontSize: 25, fontWeight: '900', textAlign: 'center' },
-  authText: { marginTop: 7, color: colors.textSecondary, fontSize: 13, lineHeight: 19, fontWeight: '700', textAlign: 'center' },
-  authButton: { marginTop: 18, height: 48, borderRadius: 24, justifyContent: 'center', paddingHorizontal: 22, backgroundColor: colors.black },
+  authGate: { flexGrow: 1, paddingHorizontal: 16, gap: 18 },
+  authTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
+  authKicker: { color: colors.violet, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
+  authPageTitle: { marginTop: 4, maxWidth: 250, color: colors.text, fontSize: 24, lineHeight: 27, fontWeight: '900' },
+  authIcon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
+  authPreview: { overflow: 'hidden', borderRadius: 16, backgroundColor: colors.black, padding: 16 },
+  authPreviewOrb: { width: 52, height: 52, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  authPreviewTitle: { marginTop: 20, color: colors.paper, fontSize: 23, lineHeight: 26, fontWeight: '900' },
+  authPreviewText: { marginTop: 7, color: 'rgba(255,255,255,0.58)', fontSize: 11, lineHeight: 17, fontWeight: '700' },
+  authFeatures: { marginTop: 18, gap: 8 },
+  authFeature: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.88)', paddingHorizontal: 11 },
+  authFeatureText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  authTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
+  authText: { marginTop: 5, color: colors.textSecondary, fontSize: 11, lineHeight: 17, fontWeight: '700' },
+  authButton: { marginTop: 13, height: 46, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22, backgroundColor: colors.black },
   authButtonText: { color: colors.paper, fontSize: 13, fontWeight: '900' },
   modalShade: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(8,6,8,0.72)' },
   inspector: { maxHeight: '92%', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 18, paddingBottom: 24, backgroundColor: colors.paper },

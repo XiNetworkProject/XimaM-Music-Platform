@@ -25,6 +25,7 @@ import { usePlayer } from '@/player/PlayerProvider';
 import { colors } from '@/theme/tokens';
 import { MobileBadge } from '@/components/mobile/MobileBadge';
 import { MobileSocialLinks } from '@/components/mobile/MobileSocialLinks';
+import { AppHeader } from '@/components/ui/AppHeader';
 
 type ProfileTab = 'posts' | 'sons' | 'albums' | 'about';
 
@@ -174,10 +175,11 @@ export function ProfileScreen() {
   return (
     <SynauraBackground variant="warm">
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 14 }]}
+        contentContainerStyle={[styles.content, { paddingTop: 0 }]}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadProfile} />}
         showsVerticalScrollIndicator={false}
       >
+        <AppHeader flush title="Profil" subtitle="Ton univers sur Synaura" action={{ icon: 'settings-outline', label: 'Paramètres', onPress: () => navigation.navigate('Settings') }} />
         <View style={styles.hero}>
           <View style={styles.banner}>
             {profile?.banner ? <Image source={{ uri: profile.banner }} style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#FFB4A8', '#BCA7FF', '#8DE7EE']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bannerFallback}><Ionicons name="musical-notes" size={34} color="rgba(255,249,239,0.72)" /></LinearGradient>}
@@ -409,7 +411,7 @@ function Empty({ text }: { text: string }) {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 16, paddingBottom: 190, gap: 14 },
+  content: { paddingHorizontal: 16, paddingBottom: 145, gap: 11 },
   loginHero: { borderRadius: 30, backgroundColor: 'rgba(255,250,242,0.9)', padding: 20, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
   loginIcon: { width: 74, height: 74, borderRadius: 26, backgroundColor: '#171313', alignItems: 'center', justifyContent: 'center' },
   loginTitle: { marginTop: 16, color: '#171313', fontSize: 28, fontWeight: '900', letterSpacing: -1 },
@@ -423,47 +425,47 @@ const styles = StyleSheet.create({
   primaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   registerButton: { height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCCFBB', backgroundColor: '#FFFFFF' },
   registerText: { color: '#7C5CFF', fontSize: 13, fontWeight: '900' },
-  hero: { overflow: 'hidden', borderRadius: 30, backgroundColor: 'rgba(255,250,242,0.92)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
-  banner: { height: 138, backgroundColor: '#171313' },
+  hero: { overflow: 'hidden', borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  banner: { height: 118, backgroundColor: colors.black },
   bannerFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  heroBody: { padding: 16, marginTop: -52 },
-  avatarWrap: { width: 104, height: 104, borderRadius: 30, borderWidth: 4, borderColor: '#FFFAF2', backgroundColor: '#E8DCCA', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  heroBody: { padding: 13, marginTop: -43 },
+  avatarWrap: { width: 86, height: 86, borderRadius: 24, borderWidth: 3, borderColor: colors.surface, backgroundColor: '#E8DCCA', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%' },
   avatarText: { color: '#171313', fontSize: 34, fontWeight: '900' },
   nameRow: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: { color: '#171313', fontSize: 25, fontWeight: '900', letterSpacing: -0.8 },
+  name: { color: colors.text, fontSize: 21, fontWeight: '900', letterSpacing: -0.4 },
   handle: { marginTop: 2, color: 'rgba(23,19,19,0.48)', fontSize: 12, fontWeight: '800' },
   bio: { marginTop: 10, color: 'rgba(23,19,19,0.62)', fontSize: 13, lineHeight: 19, fontWeight: '700' },
   heroPills: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   pill: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(23,19,19,0.07)', color: '#171313', fontSize: 10, fontWeight: '900' },
   badge: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(124,92,255,0.13)', color: '#5B3FD6', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   socialRow: { marginTop: 11, flexDirection: 'row', gap: 7 },
-  badgesPanel: { gap: 8, borderRadius: 24, padding: 14, backgroundColor: 'rgba(255,250,242,0.7)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
+  badgesPanel: { gap: 8, borderRadius: 14, padding: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   actions: { marginTop: 15, flexDirection: 'row', gap: 8 },
-  actionPrimary: { flex: 1, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
+  actionPrimary: { flex: 1, height: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
   actionPrimaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
-  actionGhost: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  featured: { minHeight: 82, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 11, backgroundColor: '#171313' },
+  actionGhost: { width: 40, height: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEECE8' },
+  statsGrid: { flexDirection: 'row', gap: 2 },
+  featured: { minHeight: 74, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 9, backgroundColor: colors.black },
   featuredCover: { width: 60, height: 60, borderRadius: 17 },
   featuredKicker: { color: '#C7B8FF', fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   featuredTitle: { marginTop: 4, color: '#FFFAF2', fontSize: 15, fontWeight: '900' },
   featuredMeta: { marginTop: 3, color: 'rgba(255,250,242,0.42)', fontSize: 10, fontWeight: '800' },
   featuredPlay: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.12)' },
   profileTabs: { flexDirection: 'row', gap: 7 },
-  profileTab: { flex: 1, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.82)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.07)' },
+  profileTab: { flex: 1, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   profileTabActive: { backgroundColor: '#171313', borderColor: '#171313' },
   profileTabText: { color: 'rgba(23,19,19,0.52)', fontSize: 10, fontWeight: '900', textTransform: 'capitalize' },
   profileTabTextActive: { color: '#FFFAF2' },
-  stat: { width: '48%', borderRadius: 20, padding: 14, backgroundColor: 'rgba(255,250,242,0.86)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
-  statValue: { color: '#171313', fontSize: 24, fontWeight: '900', letterSpacing: -0.6 },
+  stat: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRightWidth: 1, borderColor: colors.border },
+  statValue: { color: colors.text, fontSize: 18, fontWeight: '900' },
   statLabel: { marginTop: 3, color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   quickAction: { width: '48%', minHeight: 116, borderRadius: 22, padding: 13, backgroundColor: 'rgba(255,250,242,0.86)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
   quickIcon: { width: 36, height: 36, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(124,92,255,0.1)' },
   quickTitle: { marginTop: 10, color: '#171313', fontSize: 14, fontWeight: '900' },
   quickText: { marginTop: 3, color: 'rgba(23,19,19,0.48)', fontSize: 11, lineHeight: 16, fontWeight: '700' },
-  card: { gap: 10, borderRadius: 24, padding: 14, backgroundColor: 'rgba(255,250,242,0.88)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
+  card: { gap: 9, borderRadius: 14, padding: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   planLink: { minHeight: 38, borderRadius: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 11, backgroundColor: 'rgba(124,92,255,0.08)' },
   planLinkText: { color: '#7C5CFF', fontSize: 10, fontWeight: '900' },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
