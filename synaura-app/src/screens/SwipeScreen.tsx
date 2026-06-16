@@ -89,6 +89,14 @@ function injectCityPromo(tracks: Track[]) {
   return result;
 }
 
+function isInterludeTrack(id?: string | null) {
+  return id === SUBSCRIPTION_PROMO_ID || id === CITY_PROMO_ID;
+}
+
+function withScrollInterludes(tracks: Track[]) {
+  return injectSubscriptionPromo(injectCityPromo(uniqueTracks(tracks)));
+}
+
 export function SwipeScreen() {
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
@@ -180,9 +188,9 @@ export function SwipeScreen() {
         .then((chunk) => {
           if (cancelled || reqId !== lastRequestRef.current) return;
           const feedTracks = withoutObsoleteRadios(chunk.tracks);
-          const merged = player.current?.audioUrl
-            ? uniqueTracks([...(player.current._id.startsWith('radio-') ? [] : [player.current]), ...feedTracks])
-            : feedTracks;
+          const merged = withScrollInterludes(player.current?.audioUrl
+            ? [ ...(player.current._id.startsWith('radio-') ? [] : [player.current]), ...feedTracks ]
+            : feedTracks);
           setTracks(merged);
           setCursor(chunk.nextCursor);
           setHasMore(chunk.hasMore);
@@ -204,7 +212,7 @@ export function SwipeScreen() {
     if (loadState !== 'ready' || !player.current?.audioUrl) return;
     if (tracks.some((track) => track._id === player.current?._id)) return;
     queueBoundRef.current = '';
-    setTracks((current) => uniqueTracks([player.current!, ...current]));
+    setTracks((current) => withScrollInterludes([player.current!, ...current]));
   }, [loadState, player.current?._id, player.current?.audioUrl, tracks]);
 
   // (2) Synchronise la queue du player une fois le feed pret (premier bind, ou changement de mode).
@@ -275,7 +283,7 @@ export function SwipeScreen() {
     const ids = tracks
       .slice(Math.max(0, activeIndex - 2), Math.min(tracks.length, activeIndex + 3))
       .map((t) => t._id)
-      .filter((id) => id && id !== SUBSCRIPTION_PROMO_ID && !id.startsWith('ai-') && !fetchedCommentIdsRef.current.has(id));
+      .filter((id) => id && !isInterludeTrack(id) && !id.startsWith('ai-') && !fetchedCommentIdsRef.current.has(id));
     if (!ids.length) return;
     ids.forEach((id) => fetchedCommentIdsRef.current.add(id));
     const timer = setTimeout(async () => {
@@ -333,7 +341,7 @@ export function SwipeScreen() {
       if (!fresh.length) {
         setHasMore(false);
       } else {
-        const merged = uniqueTracks([...tracks, ...fresh]);
+        const merged = withScrollInterludes([...tracks, ...fresh]);
         setTracks(merged);
         setCursor(chunk.nextCursor);
         setHasMore(chunk.hasMore);

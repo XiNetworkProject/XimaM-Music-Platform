@@ -1,15 +1,11 @@
 {
-  "title": "Synaura mobile 0.9.4",
+  "title": "Synaura mobile 0.9.5",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Nouvelle direction mobile premium harmonisee sur les pages principales et secondaires",
-    "Nouvelle fiche morceau avec lecture, favoris, commentaires, partage et recommandations",
-    "Commentaires, partage et actions morceau transformes en bottom sheets tactiles",
-    "Recherche enrichie avec tendances, artistes, sons, playlists et communaute",
-    "Bibliotheque reorganisee avec favoris, historique, hors ligne, file et playlists",
-    "Profils, notifications, reglages, publication et abonnements remis en coherence",
-    "Navigation, mini-player, Scroll Synaura et zones tactiles stabilises",
-    "Corrections de fluidite, d'espacement et de donnees artiste"
+    "Accueil enrichi avec posts, artistes, playlists, Pulse, sections pour toi et tendances adaptees au style mobile premium",
+    "Decouvrir restaure les anciens rails utiles: pour toi, tendances, nouveaux sons, artistes, playlists, posts et pepites",
+    "Scroll Synaura reintegre les interludes Events et Synaura+ entre les musiques sans casser la queue audio",
+    "Corrections de coherence sur les filtres, le chargement progressif et les sections d'exploration"
   ]
 }
