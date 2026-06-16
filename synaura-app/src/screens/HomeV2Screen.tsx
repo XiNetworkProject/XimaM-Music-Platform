@@ -146,7 +146,7 @@ export function HomeV2Screen() {
                 </Pressable>
                 <Pressable onPress={() => navigation.navigate('Swipe')} style={styles.heroScroll}>
                   <Text style={styles.heroScrollLetter}>S</Text>
-                  <Text style={styles.heroScrollText}>Entrer dans le Scroll</Text>
+                  <Text style={styles.heroScrollText}>Scroll</Text>
                 </Pressable>
               </View>
             </View>
@@ -173,9 +173,9 @@ export function HomeV2Screen() {
           onScroll={() => navigation.navigate('Swipe')}
         />
 
-        <TrackRail title="Pour toi" subtitle="Une selection qui suit tes ecoutes" tracks={forYou.length ? forYou : recommendations} player={player} onPlay={(track) => playFrom(forYou.length ? forYou : recommendations, track)} onSeeAll={() => navigation.navigate('Discover')} />
-        <TrackRail title="Tendances maintenant" subtitle="Les sons qui circulent fort" tracks={trending} player={player} onPlay={(track) => playFrom(trending, track)} onSeeAll={() => navigation.navigate('Discover')} />
-        <TrackRail title="Mis en avant" subtitle="Boosts, coups de coeur et sorties a pousser" tracks={boosted} player={player} onPlay={(track) => playFrom(boosted, track)} onSeeAll={() => navigation.navigate('Discover')} />
+        <TrackRail title="Pour toi" tracks={forYou.length ? forYou : recommendations} player={player} onPlay={(track) => playFrom(forYou.length ? forYou : recommendations, track)} onSeeAll={() => navigation.navigate('Discover')} />
+        <TrackRail title="Tendances maintenant" tracks={trending} player={player} onPlay={(track) => playFrom(trending, track)} onSeeAll={() => navigation.navigate('Discover')} />
+        <TrackRail title="Mis en avant" tracks={boosted} player={player} onPlay={(track) => playFrom(boosted, track)} onSeeAll={() => navigation.navigate('Discover')} />
 
         {data.creators.length ? (
           <>
@@ -274,7 +274,7 @@ function TrackRail({
   onSeeAll,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   tracks: Track[];
   player: ReturnType<typeof usePlayer>;
   onPlay: (track: Track) => void;
@@ -284,7 +284,7 @@ function TrackRail({
   return (
     <View>
       <SectionHeader title={title} action={onSeeAll ? 'Tout voir' : undefined} onPress={onSeeAll} />
-      <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+      {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trackRail}>
         {tracks.map((track) => (
           <TrackTile
@@ -316,7 +316,6 @@ function CommunityComposerCard({
       <View style={styles.composerBody}>
         <Text style={styles.composerKicker}>PUBLIER MAINTENANT</Text>
         <Text style={styles.composerTitle}>Quoi de neuf dans ton univers ?</Text>
-        <Text style={styles.composerText}>Texte, image, partage de son, avis ou feat : le feed reste vivant depuis l'accueil.</Text>
         <View style={styles.composerActions}>
           <PillAction icon="chatbubble-outline" label="Post" active onPress={onPost} />
           <PillAction icon="musical-notes-outline" label="Son" onPress={onUpload} />
@@ -356,7 +355,6 @@ function PulseCard({
           ))}
         </View>
       </View>
-      <Text style={styles.pulseText}>Posts, artistes et titres qui remontent dans l'app, sans quitter ton fil.</Text>
       <View style={styles.pulseStats}>
         <MiniStat value={tracks.length} label="sons" />
         <MiniStat value={postsCount} label="posts" />
@@ -502,8 +500,7 @@ function CommunityEmptyCard({ onPost }: { onPost: () => void }) {
     <View style={styles.emptyCommunity}>
       <Ionicons name="chatbubbles-outline" size={22} color={colors.textSecondary} />
       <View style={{ flex: 1 }}>
-        <Text style={styles.emptyCommunityTitle}>Le feed communautaire t'attend</Text>
-        <Text style={styles.emptyCommunityText}>Partage une idee, un extrait ou une demande d'avis.</Text>
+        <Text style={styles.emptyCommunityTitle}>Aucun post pour l'instant</Text>
       </View>
       <Pressable onPress={onPost} style={styles.emptyCommunityButton}><Ionicons name="add" size={18} color={colors.paper} /></Pressable>
     </View>

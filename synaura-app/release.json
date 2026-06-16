@@ -1,11 +1,10 @@
 {
-  "title": "Synaura mobile 0.9.5",
+  "title": "Synaura mobile 0.9.6",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Accueil enrichi avec posts, artistes, playlists, Pulse, sections pour toi et tendances adaptees au style mobile premium",
-    "Decouvrir restaure les anciens rails utiles: pour toi, tendances, nouveaux sons, artistes, playlists, posts et pepites",
-    "Scroll Synaura reintegre les interludes Events et Synaura+ entre les musiques sans casser la queue audio",
-    "Corrections de coherence sur les filtres, le chargement progressif et les sections d'exploration"
+    "Accueil et Decouvrir gardent les sections riches restaurees, mais sans phrases explicatives inutiles",
+    "Sections plus nettes: titres, cartes, covers, stats et actions prioritaires",
+    "Nettoyage des textes internes ou trop descriptifs visibles dans l'app"
   ]
 }

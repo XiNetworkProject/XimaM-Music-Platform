@@ -217,10 +217,10 @@ export function DiscoverV2Screen() {
           </Pressable>
         ) : loading ? <ActivityIndicator color={colors.text} style={styles.loader} /> : null}
 
-        <Rail title="Pour toi" subtitle="Selection adaptee a tes ecoutes" tracks={forYou} player={player} onPlay={(track) => playFrom(forYou, track)} />
+        <Rail title="Pour toi" tracks={forYou} player={player} onPlay={(track) => playFrom(forYou, track)} />
 
         <View style={styles.ambienceSection}>
-          <SectionTitle title="Explorer par envie" subtitle="Des entrees rapides, sans perdre le catalogue" />
+          <SectionTitle title="Explorer par envie" />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.ambienceRail}>
             {ambiances.map((item) => (
               <Pressable
@@ -245,16 +245,15 @@ export function DiscoverV2Screen() {
           </ScrollView>
         </View>
 
-        <Rows title="Tendances" subtitle="Classement vivant des sons qui circulent" tracks={trending.slice(0, 7)} player={player} onPlay={(track) => playFrom(trending, track)} />
+        <Rows title="Tendances" tracks={trending.slice(0, 7)} player={player} onPlay={(track) => playFrom(trending, track)} />
 
         <CreatorRail
           title="Artistes qui montent"
-          subtitle="Nouveaux profils, createurs actifs et univers a suivre"
           creators={creators.slice(0, 10)}
           onOpen={(username) => navigation.navigate('PublicProfile', { username })}
         />
 
-        <Rail title="Nouveaux sons" subtitle="Les dernieres sorties sur Synaura" tracks={fresh.slice(0, 12)} player={player} onPlay={(track) => playFrom(fresh, track)} />
+        <Rail title="Nouveaux sons" tracks={fresh.slice(0, 12)} player={player} onPlay={(track) => playFrom(fresh, track)} />
 
         <PlaylistRail playlists={playlists} onOpen={(playlistId) => navigation.navigate('PlaylistDetail', { playlistId })} />
 
@@ -267,13 +266,12 @@ export function DiscoverV2Screen() {
           onPlay={(track) => playFrom([track, ...forYou, ...trending], track)}
         />
 
-        <Rail title="Pepites peu connues" subtitle="Moins d'ecoutes, mais de vraies surprises" tracks={hidden} player={player} onPlay={(track) => playFrom(hidden, track)} />
+        <Rail title="Pepites peu connues" tracks={hidden} player={player} onPlay={(track) => playFrom(hidden, track)} />
 
-        <Rows title="Continuer a explorer" subtitle="Catalogue et profils charges petit a petit" tracks={fresh.slice(8, 20)} player={player} onPlay={(track) => playFrom(fresh, track)} />
+        <Rows title="Continuer a explorer" tracks={fresh.slice(8, 20)} player={player} onPlay={(track) => playFrom(fresh, track)} />
 
         <CreatorRail
           title="Tous les profils Synaura"
-          subtitle="On charge progressivement pour garder l'app fluide"
           creators={creators.slice(10, 18)}
           onOpen={(username) => navigation.navigate('PublicProfile', { username })}
         />
@@ -285,12 +283,12 @@ export function DiscoverV2Screen() {
   );
 }
 
-function SectionTitle({ title, subtitle, action }: { title: string; subtitle: string; action?: string }) {
+function SectionTitle({ title, subtitle, action }: { title: string; subtitle?: string; action?: string }) {
   return (
     <View style={styles.sectionTitle}>
       <View style={{ flex: 1 }}>
         <Text style={styles.sectionHeading}>{title}</Text>
-        <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+        {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
       </View>
       {action ? <Text style={styles.sectionAction}>{action}</Text> : null}
     </View>
@@ -305,7 +303,7 @@ function Rail({
   onPlay,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   tracks: Track[];
   player: ReturnType<typeof usePlayer>;
   onPlay: (track: Track) => void;
@@ -353,7 +351,7 @@ function Rows({
   onPlay,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   tracks: Track[];
   player: ReturnType<typeof usePlayer>;
   onPlay: (track: Track) => void;
@@ -381,7 +379,7 @@ function Rows({
   );
 }
 
-function CreatorRail({ title, subtitle, creators, onOpen }: { title: string; subtitle: string; creators: Creator[]; onOpen: (username: string) => void }) {
+function CreatorRail({ title, subtitle, creators, onOpen }: { title: string; subtitle?: string; creators: Creator[]; onOpen: (username: string) => void }) {
   if (!creators.length) return null;
   return (
     <View>
@@ -408,7 +406,7 @@ function PlaylistRail({ playlists, onOpen }: { playlists: Playlist[]; onOpen: (p
   if (!playlists.length) return null;
   return (
     <View>
-      <SectionTitle title="Playlists et ambiances" subtitle="Des portes d'entree dans le catalogue" />
+      <SectionTitle title="Playlists et ambiances" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.playlistRail}>
         {playlists.map((playlist) => {
           const covers = playlist.covers.filter(Boolean).slice(0, 4);
@@ -447,7 +445,7 @@ function PostRail({
   if (!posts.length) return null;
   return (
     <View>
-      <SectionTitle title="Posts et avis" subtitle="La communaute ne doit pas disparaitre de Discover" />
+      <SectionTitle title="Posts et avis" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.postRail}>
         {posts.map((post) => {
           const playing = Boolean(post.track && activeId === post.track._id && isPlaying);
