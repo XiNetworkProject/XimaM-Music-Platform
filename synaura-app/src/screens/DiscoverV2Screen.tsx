@@ -410,13 +410,23 @@ function PlaylistRail({ playlists, onOpen }: { playlists: Playlist[]; onOpen: (p
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.playlistRail}>
         {playlists.map((playlist) => {
           const covers = playlist.covers.filter(Boolean).slice(0, 4);
+          const banner = playlist.bannerUrl || playlist.collection?.bannerUrl;
+          const badge = playlist.badge || playlist.collection?.badge;
           return (
             <Pressable key={playlist.id} onPress={() => onOpen(playlist.id)} style={styles.playlistTile}>
-              <View style={styles.playlistCover}>
-                {covers.length ? covers.map((cover, index) => (
-                  <Image key={`${cover}-${index}`} source={{ uri: cover }} style={styles.playlistCoverPart} />
-                )) : <Ionicons name="albums-outline" size={26} color={colors.textTertiary} />}
-              </View>
+              {banner ? (
+                <View style={styles.playlistBanner}>
+                  <Image source={{ uri: banner }} style={StyleSheet.absoluteFillObject} />
+                  <LinearGradient colors={['rgba(23,19,19,0.02)', 'rgba(23,19,19,0.66)']} style={StyleSheet.absoluteFillObject} />
+                  {badge ? <Text numberOfLines={1} style={styles.playlistBadge}>{badge}</Text> : null}
+                </View>
+              ) : (
+                <View style={styles.playlistCover}>
+                  {covers.length ? covers.map((cover, index) => (
+                    <Image key={`${cover}-${index}`} source={{ uri: cover }} style={styles.playlistCoverPart} />
+                  )) : <Ionicons name="albums-outline" size={26} color={colors.textTertiary} />}
+                </View>
+              )}
               <Text numberOfLines={1} style={styles.playlistTitle}>{playlist.title}</Text>
               <Text numberOfLines={1} style={styles.playlistMeta}>{playlist.tracks || playlist.vibe}</Text>
             </Pressable>
@@ -555,6 +565,8 @@ const styles = StyleSheet.create({
   playlistTile: { width: 128 },
   playlistCover: { width: 128, height: 96, flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden', borderRadius: 14, backgroundColor: 'rgba(23,19,19,0.06)', alignItems: 'center', justifyContent: 'center' },
   playlistCoverPart: { width: '50%', height: '50%' },
+  playlistBanner: { width: 128, height: 96, overflow: 'hidden', borderRadius: 14, backgroundColor: 'rgba(23,19,19,0.08)', justifyContent: 'flex-end', padding: 9 },
+  playlistBadge: { color: colors.paper, fontSize: 9, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
   playlistTitle: { marginTop: 8, color: colors.text, fontSize: 12, fontWeight: '900' },
   playlistMeta: { marginTop: 2, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
   postRail: { gap: 11, paddingRight: 18 },

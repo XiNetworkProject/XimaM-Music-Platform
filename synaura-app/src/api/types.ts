@@ -52,6 +52,31 @@ export type Playlist = {
   covers: string[];
   tracks: string;
   vibe: string;
+  slug?: string;
+  bannerUrl?: string | null;
+  coverUrl?: string | null;
+  isEditorial?: boolean;
+  badge?: string;
+  themeColors?: string[];
+  downloadEnabled?: boolean;
+  commentsEnabled?: boolean;
+  collection?: {
+    id: string;
+    playlistId: string;
+    slug: string;
+    title: string;
+    subtitle: string;
+    description: string;
+    kind: string;
+    bannerUrl: string | null;
+    coverUrl: string | null;
+    themeColors: string[];
+    badge: string;
+    isFeatured: boolean;
+    isPublished: boolean;
+    downloadEnabled: boolean;
+    commentsEnabled: boolean;
+  } | null;
 };
 
 export type Creator = {

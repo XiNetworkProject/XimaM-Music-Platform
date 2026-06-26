@@ -25,6 +25,7 @@
     "fix:migration:final": "node scripts/fix-migration-final.js",
     "test:supabase": "node scripts/test-supabase-connection.js",
     "test:supabase:auth": "node scripts/test-supabase-auth.js",
+    "migrate:collections": "node scripts/run-editorial-collections-migration.js",
     "publish:android": "node scripts/publish-android-release.js"
   },
   "dependencies": {

@@ -15,6 +15,11 @@ export type DiscoverPlaylistLite = {
   name: string;
   description?: string;
   coverUrl?: string | null;
+  bannerUrl?: string | null;
+  publicUrl?: string | null;
+  isEditorial?: boolean;
+  editorialCollection?: { slug?: string; badge?: string; bannerUrl?: string | null } | null;
+  collection?: { slug?: string; badge?: string; bannerUrl?: string | null } | null;
 };
 
 export type DiscoverAlbumLite = {
@@ -358,24 +363,28 @@ export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: n
 }
 
 export function PlaylistTile({ playlist }: { playlist: DiscoverPlaylistLite }) {
+  const collection = playlist.editorialCollection || playlist.collection || null;
+  const href = playlist.publicUrl || (collection?.slug ? `/playlists/${encodeURIComponent(collection.slug)}` : `/playlists/${encodeURIComponent(playlist._id)}`);
+  const visual = collection?.bannerUrl || playlist.bannerUrl || playlist.coverUrl || '/default-cover.svg';
   return (
     <Link
-      href={`/playlists/${encodeURIComponent(playlist._id)}`}
+      href={href}
       className="group/card min-w-[152px] max-w-[152px] shrink-0 overflow-hidden rounded-[1.55rem] border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] sm:min-w-[208px] sm:max-w-[208px] sm:rounded-[1.75rem]"
       style={{ scrollSnapAlign: 'start' }}
     >
       <div className="relative overflow-hidden rounded-[1.3rem]">
         <img
-          src={playlist.coverUrl || '/default-cover.svg'}
+          src={visual}
           alt={playlist.name}
-          className="aspect-square w-full object-cover transition duration-300 group-hover/card:scale-[1.03]"
+          className={`${collection?.bannerUrl || playlist.bannerUrl ? 'aspect-[1.35]' : 'aspect-square'} w-full object-cover transition duration-300 group-hover/card:scale-[1.03]`}
           loading="lazy"
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).src = '/default-cover.svg';
           }}
         />
+        {(collection?.bannerUrl || playlist.bannerUrl) ? <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" /> : null}
         <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-1 text-[10px] font-black text-white/82 backdrop-blur-sm">
-          Playlist
+          {collection?.badge || (playlist.isEditorial ? 'Synaura' : 'Playlist')}
         </span>
       </div>
       <div className="mt-3">

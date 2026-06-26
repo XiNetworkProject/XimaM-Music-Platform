@@ -103,6 +103,10 @@ type Playlist = {
   tracks: string;
   vibe: string;
   href: string;
+  banner?: string | null;
+  badge?: string;
+  isEditorial?: boolean;
+  themeColors?: string[];
 };
 
 type Creator = {
@@ -369,7 +373,9 @@ function normalizePlaylist(raw: any, fallbackCovers: string[]) {
   const id = String(raw?._id || raw?.id || '');
   if (!id) return null;
 
-  const cover = typeof raw?.coverUrl === 'string' && raw.coverUrl ? raw.coverUrl : '/default-cover.svg';
+  const collection = raw?.editorialCollection || raw?.collection || null;
+  const cover = typeof (collection?.coverUrl || raw?.coverUrl) === 'string' && (collection?.coverUrl || raw?.coverUrl) ? (collection?.coverUrl || raw?.coverUrl) : '/default-cover.svg';
+  const banner = typeof (collection?.bannerUrl || raw?.bannerUrl) === 'string' && (collection?.bannerUrl || raw?.bannerUrl) ? (collection?.bannerUrl || raw?.bannerUrl) : null;
   const covers = [cover, ...fallbackCovers].slice(0, 4);
   while (covers.length < 4) covers.push(cover);
 
@@ -377,12 +383,16 @@ function normalizePlaylist(raw: any, fallbackCovers: string[]) {
 
   return {
     id,
-    title: safeString(raw?.name || raw?.title, 'Playlist'),
-    curator: safeString(raw?.creator?.artistName || raw?.creator?.name || 'Synaura Picks', 'Synaura Picks'),
+    title: safeString(collection?.title || raw?.name || raw?.title, 'Playlist'),
+    curator: safeString(raw?.creator?.artistName || raw?.creator?.name || (collection ? 'Synaura' : 'Synaura Picks'), 'Synaura Picks'),
     covers,
     tracks: `${trackCount || 0} sons`,
-    vibe: safeString(raw?.description, 'selection communautaire'),
-    href: `/playlists/${encodeURIComponent(id)}`,
+    vibe: safeString(collection?.subtitle || raw?.description, 'selection communautaire'),
+    href: collection?.slug ? `/playlists/${encodeURIComponent(collection.slug)}` : `/playlists/${encodeURIComponent(id)}`,
+    banner,
+    badge: collection?.badge || (raw?.isEditorial ? 'Synaura Originals' : undefined),
+    isEditorial: Boolean(collection || raw?.isEditorial),
+    themeColors: Array.isArray(collection?.themeColors) ? collection.themeColors : undefined,
   } satisfies Playlist;
 }
 
@@ -2354,6 +2364,7 @@ function RailCard({ item }: { item: Extract<FeedItem, { kind: 'rail' }> }) {
 
 function PlaylistCard({ item }: { item: Extract<FeedItem, { kind: 'playlist' }> }) {
   const playlist = item.playlist;
+  const colors = playlist.themeColors?.length ? playlist.themeColors : ['#8B5CF6', '#EC4899', '#22D3EE'];
   return (
     <Card className="p-3 sm:p-5">
       <div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
@@ -2363,18 +2374,26 @@ function PlaylistCard({ item }: { item: Extract<FeedItem, { kind: 'playlist' }> 
             {playlist.curator} · {playlist.vibe}
           </p>
         </div>
-        <span className="rounded-full bg-black/[0.055] px-3 py-1.5 text-xs font-black text-black/58">playlist</span>
+        <span className="rounded-full bg-black/[0.055] px-3 py-1.5 text-xs font-black text-black/58">{playlist.badge || 'playlist'}</span>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[124px_1fr]">
-        <div className="grid h-[140px] grid-cols-2 overflow-hidden rounded-[1rem] sm:h-[124px] sm:rounded-[1.15rem]">
-          {playlist.covers.map((cover, index) => (
-            <img key={index} src={cover} alt="" className="h-full w-full object-cover" />
-          ))}
-        </div>
+        {playlist.banner ? (
+          <div className="relative h-[140px] overflow-hidden rounded-[1rem] sm:h-[124px] sm:rounded-[1.15rem]" style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1] || colors[0]}, ${colors[2] || colors[0]})` }}>
+            <img src={playlist.banner} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
+            <p className="absolute bottom-3 left-3 right-3 text-sm font-black leading-tight text-white">{playlist.badge || playlist.title}</p>
+          </div>
+        ) : (
+          <div className="grid h-[140px] grid-cols-2 overflow-hidden rounded-[1rem] sm:h-[124px] sm:rounded-[1.15rem]">
+            {playlist.covers.map((cover, index) => (
+              <img key={index} src={cover} alt="" className="h-full w-full object-cover" />
+            ))}
+          </div>
+        )}
         <div className="flex min-w-0 flex-col justify-between">
           <div className="min-w-0">
             <p className="text-xl font-black leading-tight sm:text-2xl">{playlist.tracks}</p>
-            <p className="mt-1 text-sm leading-6 text-black/52">Une vraie playlist issue des surfaces deja presentes dans l'app.</p>
+            <p className="mt-1 text-sm leading-6 text-black/52">{playlist.isEditorial ? 'Une collection officielle avec page dediee, actions et import admin.' : "Une vraie playlist issue des surfaces deja presentes dans l'app."}</p>
           </div>
           <Link
             href={playlist.href}

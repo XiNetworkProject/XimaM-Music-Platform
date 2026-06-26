@@ -1,10 +1,10 @@
 {
-  "title": "Synaura mobile 0.9.6",
+  "title": "Synaura mobile 0.9.7",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Accueil et Decouvrir gardent les sections riches restaurees, mais sans phrases explicatives inutiles",
-    "Sections plus nettes: titres, cartes, covers, stats et actions prioritaires",
-    "Nettoyage des textes internes ou trop descriptifs visibles dans l'app"
+    "Ajout des collections officielles type Synaura Originals avec pages dediees",
+    "Accueil et Decouvrir mettent en avant les collections editoriales",
+    "Lecture, likes, commentaires, partage et telechargement depuis les pages playlist"
   ]
 }

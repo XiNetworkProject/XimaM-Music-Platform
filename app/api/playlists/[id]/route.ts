@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin as supabase } from '@/lib/supabase';
+import { getEditorialCollectionByPlaylistId, getEditorialCollectionBySlug, isUuidLike, normalizeLegacyCollectionFromPlaylist, unpackLegacyCollectionDescription } from '@/lib/editorialCollections';
 
 // GET - Récupérer une playlist spécifique
 export async function GET(
@@ -11,6 +12,12 @@ export async function GET(
     const { id } = params;
     const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || null;
+    const collectionBySlug = isUuidLike(id) ? null : await getEditorialCollectionBySlug(id);
+    const playlistId = collectionBySlug?.playlistId || id;
+
+    if (!isUuidLike(playlistId)) {
+      return NextResponse.json({ error: 'Playlist non trouvÃ©e' }, { status: 404 });
+    }
 
     const { data: playlist, error } = await supabase
       .from('playlists')
@@ -25,7 +32,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', id)
+      .eq('id', playlistId)
       .single();
 
     if (error || !playlist) {
@@ -33,7 +40,10 @@ export async function GET(
     }
 
     // Respecter la confidentialité: si privée et non propriétaire
-    if (playlist.is_public === false && playlist.creator_id !== userId) {
+    const editorialCollection = collectionBySlug || await getEditorialCollectionByPlaylistId(playlist.id) || normalizeLegacyCollectionFromPlaylist(playlist);
+    const cleanDescription = unpackLegacyCollectionDescription(playlist.description).description;
+
+    if ((playlist.is_public === false && playlist.creator_id !== userId) || (editorialCollection && !editorialCollection.isPublished && playlist.creator_id !== userId)) {
       return NextResponse.json({ error: 'Playlist privée' }, { status: 403 });
     }
 
@@ -67,7 +77,7 @@ export async function GET(
     const formattedPlaylist = {
       _id: playlist.id,
       name: playlist.name,
-      description: playlist.description || '',
+      description: cleanDescription || '',
       coverUrl: playlist.cover_url,
       trackCount: trackList.length || 0,
       duration: totalDuration || 0,
@@ -78,7 +88,10 @@ export async function GET(
       createdAt: playlist.created_at,
       updatedAt: playlist.updated_at,
       likes: playlist.likes || [],
-      followers: playlist.followers || []
+      followers: playlist.followers || [],
+      editorialCollection,
+      collection: editorialCollection,
+      publicUrl: editorialCollection?.slug ? `/playlists/${editorialCollection.slug}` : `/playlists/${playlist.id}`,
     };
 
     return NextResponse.json(formattedPlaylist);

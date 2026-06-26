@@ -264,18 +264,50 @@ function uniqueTracks(tracks: Track[]) {
 function normalizePlaylist(raw: any, fallbackCovers: string[]): Playlist | null {
   const id = String(raw?._id || raw?.id || '');
   if (!id) return null;
-  const cover = absoluteAsset(raw?.coverUrl || raw?.cover_url) || fallbackCover;
+  const collection = raw?.editorialCollection || raw?.collection || null;
+  const cover = absoluteAsset(collection?.coverUrl || raw?.coverUrl || raw?.cover_url) || fallbackCover;
+  const bannerUrl = absoluteAsset(collection?.bannerUrl || raw?.bannerUrl || raw?.banner_url) || null;
   const covers = [cover, ...fallbackCovers].slice(0, 4);
   while (covers.length < 4) covers.push(cover);
   const trackCount = Array.isArray(raw?.tracks) ? raw.tracks.length : Number(raw?.trackCount || 0);
+  const themeColors = Array.isArray(collection?.themeColors)
+    ? collection.themeColors.filter(Boolean).map((entry: unknown) => String(entry))
+    : Array.isArray(raw?.themeColors)
+      ? raw.themeColors.filter(Boolean).map((entry: unknown) => String(entry))
+      : undefined;
 
   return {
     id,
-    title: safeString(raw?.name || raw?.title, 'Playlist'),
-    curator: safeString(raw?.creator?.artistName || raw?.creator?.name || 'Synaura Picks', 'Synaura Picks'),
+    title: safeString(collection?.title || raw?.name || raw?.title, 'Playlist'),
+    curator: safeString(raw?.creator?.artistName || raw?.creator?.name || (collection ? 'Synaura' : 'Synaura Picks'), 'Synaura Picks'),
     covers,
     tracks: `${trackCount || 0} sons`,
-    vibe: safeString(raw?.description, 'selection communautaire'),
+    vibe: safeString(collection?.subtitle || raw?.description, 'selection communautaire'),
+    slug: collection?.slug || raw?.slug,
+    bannerUrl,
+    coverUrl: cover,
+    isEditorial: Boolean(collection || raw?.isEditorial),
+    badge: collection?.badge || raw?.badge,
+    themeColors,
+    downloadEnabled: collection?.downloadEnabled ?? raw?.downloadEnabled,
+    commentsEnabled: collection?.commentsEnabled ?? raw?.commentsEnabled,
+    collection: collection ? {
+      id: String(collection.id || ''),
+      playlistId: String(collection.playlistId || id),
+      slug: String(collection.slug || ''),
+      title: safeString(collection.title, 'Collection Synaura'),
+      subtitle: safeString(collection.subtitle, ''),
+      description: safeString(collection.description, ''),
+      kind: safeString(collection.kind, 'collection'),
+      bannerUrl,
+      coverUrl: absoluteAsset(collection.coverUrl) || cover,
+      themeColors: themeColors || ['#8B5CF6', '#EC4899', '#22D3EE'],
+      badge: safeString(collection.badge, 'Synaura Originals'),
+      isFeatured: collection.isFeatured !== false,
+      isPublished: collection.isPublished === true,
+      downloadEnabled: collection.downloadEnabled !== false,
+      commentsEnabled: collection.commentsEnabled !== false,
+    } : null,
   };
 }
 
@@ -517,6 +549,7 @@ export async function getPostDetail(postId: string): Promise<HomePost> {
 export type PlaylistDetail = Playlist & {
   description?: string;
   tracksList: Track[];
+  duration?: number;
 };
 
 export async function getPlaylistDetail(playlistId: string): Promise<PlaylistDetail> {
@@ -532,6 +565,7 @@ export async function getPlaylistDetail(playlistId: string): Promise<PlaylistDet
     ...base,
     description: raw?.description || '',
     tracksList: tracks,
+    duration: Number(raw?.duration || 0),
   };
 }
 
