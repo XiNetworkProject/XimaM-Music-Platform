@@ -1,10 +1,10 @@
 {
-  "title": "Synaura mobile 0.9.8",
+  "title": "Synaura mobile 0.9.9",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Collections officielles mises en avant dans l'accueil et Decouvrir",
-    "Pages collection premium avec ambiance basee sur la banniere",
-    "Gestion admin complete des collections, images, visibilite et titres"
+    "Page collection/playlist native refondue, calee sur la version web",
+    "Hero immersif, carte stats, recherche, filtres genre et tri",
+    "Fiches titres avec lecture, like, file d'attente, partage et telechargement"
   ]
 }
