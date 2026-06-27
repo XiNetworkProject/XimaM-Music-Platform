@@ -6,7 +6,6 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getPlaylistDetail, setTrackLike, type PlaylistDetail } from '@/api/client';
 import type { Track } from '@/api/types';
-import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
@@ -95,12 +94,15 @@ export function PlaylistDetailScreen() {
   }, [collection?.downloadEnabled, library, playlist?.downloadEnabled]);
 
   return (
-    <SynauraBackground variant="warm">
+    <View style={styles.root}>
+      <LinearGradient colors={[colors[0] || '#8B5CF6', colors[1] || '#EC4899', colors[2] || '#22D3EE']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
+      {banner ? <Image source={{ uri: banner }} style={styles.backgroundImage} blurRadius={24} /> : null}
+      <View style={styles.backgroundShade} />
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 132 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.topbar}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}><Ionicons name="chevron-back" size={20} color="#171313" /></Pressable>
+          <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}><Ionicons name="chevron-back" size={20} color="#FFF9EF" /></Pressable>
           <Text style={styles.topTitle}>{isEditorial ? 'Collection' : 'Playlist'}</Text>
-          <Pressable onPress={shareCollection} style={styles.iconBtn}><Ionicons name="share-social-outline" size={18} color="#171313" /></Pressable>
+          <Pressable onPress={shareCollection} style={styles.iconBtn}><Ionicons name="share-social-outline" size={18} color="#FFF9EF" /></Pressable>
         </View>
 
         {loading ? <ActivityIndicator color="#8B5CF6" style={{ marginTop: 60 }} /> : null}
@@ -154,17 +156,17 @@ export function PlaylistDetailScreen() {
                     </Pressable>
                     <View style={styles.actions}>
                       <Pressable onPress={() => toggleLike(track)} style={[styles.actionBtn, liked[track._id] && styles.actionLiked]}>
-                        <Ionicons name={liked[track._id] ? 'heart' : 'heart-outline'} size={18} color={liked[track._id] ? '#EC4899' : '#6B5F5A'} />
+                        <Ionicons name={liked[track._id] ? 'heart' : 'heart-outline'} size={18} color={liked[track._id] ? '#EC4899' : '#FFF9EF'} />
                         {likeCounts[track._id] ? <Text style={styles.actionCount}>{likeCounts[track._id]}</Text> : null}
                       </Pressable>
                       {collection?.commentsEnabled !== false && playlist.commentsEnabled !== false ? (
                         <Pressable onPress={() => navigation.navigate('TrackDetail', { trackId: track._id, track })} style={styles.actionBtn}>
-                          <Ionicons name="chatbubble-outline" size={17} color="#6B5F5A" />
+                          <Ionicons name="chatbubble-outline" size={17} color="#FFF9EF" />
                         </Pressable>
                       ) : null}
-                      <Pressable onPress={() => shareTrack(track)} style={styles.actionBtn}><Ionicons name="share-social-outline" size={17} color="#6B5F5A" /></Pressable>
-                      {canDownload ? <Pressable onPress={() => downloadTrack(track)} style={styles.actionBtn}><Ionicons name="download-outline" size={18} color="#6B5F5A" /></Pressable> : null}
-                      <Pressable onPress={() => navigation.navigate('TrackDetail', { trackId: track._id, track })} style={styles.actionBtn}><Ionicons name="ellipsis-horizontal" size={18} color="#6B5F5A" /></Pressable>
+                      <Pressable onPress={() => shareTrack(track)} style={styles.actionBtn}><Ionicons name="share-social-outline" size={17} color="#FFF9EF" /></Pressable>
+                      {canDownload ? <Pressable onPress={() => downloadTrack(track)} style={styles.actionBtn}><Ionicons name="download-outline" size={18} color="#FFF9EF" /></Pressable> : null}
+                      <Pressable onPress={() => navigation.navigate('TrackDetail', { trackId: track._id, track })} style={styles.actionBtn}><Ionicons name="ellipsis-horizontal" size={18} color="#FFF9EF" /></Pressable>
                     </View>
                   </View>
                 );
@@ -187,16 +189,19 @@ export function PlaylistDetailScreen() {
           </>
         ) : !loading ? <Text style={styles.empty}>Playlist introuvable.</Text> : null}
       </ScrollView>
-    </SynauraBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#171313' },
+  backgroundImage: { ...StyleSheet.absoluteFillObject, opacity: 0.24, transform: [{ scale: 1.15 }] },
+  backgroundShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(23,19,19,0.72)' },
   content: { paddingHorizontal: 18 },
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  iconBtn: { width: 42, height: 42, borderRadius: 15, backgroundColor: '#FFF9EF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(17,17,17,0.08)' },
-  topTitle: { flex: 1, color: '#171313', fontSize: 24, fontWeight: '900' },
-  hero: { minHeight: 420, borderRadius: 30, overflow: 'hidden', backgroundColor: '#171313', borderWidth: 1, borderColor: 'rgba(17,17,17,0.08)', shadowColor: '#171313', shadowOpacity: 0.16, shadowRadius: 22, shadowOffset: { width: 0, height: 12 }, elevation: 4 },
+  iconBtn: { width: 42, height: 42, borderRadius: 15, backgroundColor: 'rgba(255,249,239,0.14)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,249,239,0.16)' },
+  topTitle: { flex: 1, color: '#FFF9EF', fontSize: 24, fontWeight: '900' },
+  hero: { minHeight: 420, borderRadius: 30, overflow: 'hidden', backgroundColor: '#171313', borderWidth: 1, borderColor: 'rgba(255,249,239,0.16)', shadowColor: '#000', shadowOpacity: 0.24, shadowRadius: 26, shadowOffset: { width: 0, height: 16 }, elevation: 6 },
   heroEditorial: { minHeight: 470 },
   bannerImage: { ...StyleSheet.absoluteFillObject, opacity: 0.32 },
   heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(23,19,19,0.42)' },
@@ -215,26 +220,26 @@ const styles = StyleSheet.create({
   primaryActionText: { color: '#171313', fontSize: 14, fontWeight: '900' },
   secondaryAction: { width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(255,249,239,0.16)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,249,239,0.14)' },
   sectionHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 22, marginBottom: 10 },
-  sectionTitle: { color: '#171313', fontSize: 24, fontWeight: '900' },
-  sectionMeta: { color: '#7C7470', fontSize: 12, fontWeight: '900' },
+  sectionTitle: { color: '#FFF9EF', fontSize: 24, fontWeight: '900' },
+  sectionMeta: { color: 'rgba(255,249,239,0.58)', fontSize: 12, fontWeight: '900' },
   list: { gap: 12 },
-  trackCard: { borderRadius: 24, backgroundColor: '#FFF9EF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)', padding: 10 },
-  trackCardActive: { borderColor: 'rgba(139,92,246,0.42)', backgroundColor: '#FFFFFF' },
+  trackCard: { borderRadius: 24, backgroundColor: 'rgba(255,249,239,0.12)', borderWidth: 1, borderColor: 'rgba(255,249,239,0.14)', padding: 10 },
+  trackCardActive: { borderColor: 'rgba(255,249,239,0.42)', backgroundColor: 'rgba(255,249,239,0.20)' },
   trackMain: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   trackCover: { width: 56, height: 56, borderRadius: 16 },
   trackCopy: { flex: 1, minWidth: 0 },
-  trackTitle: { color: '#171313', fontSize: 15, fontWeight: '900' },
-  trackMeta: { color: '#7C7470', fontSize: 12, fontWeight: '700', marginTop: 4 },
-  duration: { color: '#9A918B', fontSize: 11, fontWeight: '900' },
+  trackTitle: { color: '#FFF9EF', fontSize: 15, fontWeight: '900' },
+  trackMeta: { color: 'rgba(255,249,239,0.62)', fontSize: 12, fontWeight: '700', marginTop: 4 },
+  duration: { color: 'rgba(255,249,239,0.48)', fontSize: 11, fontWeight: '900' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingLeft: 68 },
-  actionBtn: { minWidth: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(17,17,17,0.045)', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', paddingHorizontal: 9, gap: 4 },
+  actionBtn: { minWidth: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,249,239,0.13)', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', paddingHorizontal: 9, gap: 4 },
   actionLiked: { backgroundColor: 'rgba(236,72,153,0.10)' },
   actionCount: { color: '#EC4899', fontSize: 11, fontWeight: '900' },
-  aboutCard: { marginTop: 18, borderRadius: 28, backgroundColor: '#FFF9EF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)', padding: 18 },
-  aboutEyebrow: { color: '#8B5CF6', fontSize: 11, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
-  aboutTitle: { color: '#171313', fontSize: 22, fontWeight: '900', marginTop: 5 },
-  aboutText: { color: '#6B5F5A', fontSize: 14, lineHeight: 20, fontWeight: '700', marginTop: 8 },
-  aboutLink: { alignSelf: 'flex-start', marginTop: 14, height: 42, borderRadius: 21, backgroundColor: 'rgba(17,17,17,0.055)', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  aboutCard: { marginTop: 18, borderRadius: 28, backgroundColor: 'rgba(255,249,239,0.12)', borderWidth: 1, borderColor: 'rgba(255,249,239,0.14)', padding: 18 },
+  aboutEyebrow: { color: '#FFF9EF', fontSize: 11, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
+  aboutTitle: { color: '#FFF9EF', fontSize: 22, fontWeight: '900', marginTop: 5 },
+  aboutText: { color: 'rgba(255,249,239,0.68)', fontSize: 14, lineHeight: 20, fontWeight: '700', marginTop: 8 },
+  aboutLink: { alignSelf: 'flex-start', marginTop: 14, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,249,239,0.86)', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 7 },
   aboutLinkText: { color: '#171313', fontSize: 12, fontWeight: '900' },
-  empty: { textAlign: 'center', color: '#6B5F5A', fontWeight: '800', marginTop: 60 },
+  empty: { textAlign: 'center', color: 'rgba(255,249,239,0.68)', fontWeight: '800', marginTop: 60 },
 });

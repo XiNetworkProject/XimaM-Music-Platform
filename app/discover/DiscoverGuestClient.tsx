@@ -20,6 +20,7 @@ import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import {
   AlbumTile,
   ArtistTile,
+  CollectionSpotlight,
   HorizontalScroller,
   PlaylistTile,
   SectionHeader,
@@ -263,6 +264,8 @@ export default function DiscoverGuestClient({
               <SynauraFilterTabs items={GENRES} active={activeGenre} onChange={handleGenreClick} />
             </div>
           </SynauraPanel>
+
+          {!isSearching && !isFiltered ? <CollectionSpotlight playlists={playlists} /> : null}
 
           {isSearching ? (
             <SynauraInkPanel className="p-4 sm:p-5">

@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin as supabase } from '@/lib/supabase';
-import { getEditorialCollectionByPlaylistId, getEditorialCollectionBySlug, isUuidLike, normalizeLegacyCollectionFromPlaylist, unpackLegacyCollectionDescription } from '@/lib/editorialCollections';
+import {
+  getEditorialCollectionByPlaylistId,
+  getEditorialCollectionBySlug,
+  isUuidLike,
+  normalizeLegacyCollectionFromPlaylist,
+  unpackLegacyCollectionDescription,
+} from '@/lib/editorialCollections';
 
 // GET - Récupérer une playlist spécifique
 export async function GET(
@@ -13,7 +19,22 @@ export async function GET(
     const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || null;
     const collectionBySlug = isUuidLike(id) ? null : await getEditorialCollectionBySlug(id);
-    const playlistId = collectionBySlug?.playlistId || id;
+    let legacyBySlug: any = null;
+
+    if (!collectionBySlug && !isUuidLike(id)) {
+      const { data: possibleLegacyPlaylists } = await supabase
+        .from('playlists')
+        .select('*')
+        .eq('is_public', true)
+        .order('created_at', { ascending: false })
+        .limit(120);
+      legacyBySlug = (possibleLegacyPlaylists || []).find((playlist: any) => {
+        const legacy = normalizeLegacyCollectionFromPlaylist(playlist);
+        return legacy?.slug === id;
+      }) || null;
+    }
+
+    const playlistId = collectionBySlug?.playlistId || legacyBySlug?.id || id;
 
     if (!isUuidLike(playlistId)) {
       return NextResponse.json({ error: 'Playlist non trouvÃ©e' }, { status: 404 });

@@ -392,12 +392,13 @@ export async function getHomeFeed(): Promise<Track[]> {
 }
 
 export async function getHomeData(): Promise<HomeData> {
-  const [feed, trending, recent, boosted, playlists, artists, libraryPlaylists, libraryFavorites, libraryRecent] = await Promise.allSettled([
+  const [feed, trending, recent, boosted, playlists, featuredCollections, artists, libraryPlaylists, libraryFavorites, libraryRecent] = await Promise.allSettled([
     request<FeedResponse>('/api/recommendations/feed?limit=24'),
     request<FeedResponse>('/api/tracks/trending?limit=18'),
     request<FeedResponse>('/api/tracks/recent?limit=18'),
     request<FeedResponse>('/api/tracks/boosted?limit=8'),
     request<FeedResponse>('/api/playlists/popular?limit=8'),
+    optionalRequest<FeedResponse>('/api/editorial-collections/featured'),
     request<FeedResponse>('/api/artists?sort=trending&limit=8'),
     optionalRequest<FeedResponse>('/api/playlists'),
     optionalRequest<FeedResponse>('/api/tracks?liked=true&limit=60'),
@@ -409,6 +410,7 @@ export async function getHomeData(): Promise<HomeData> {
   const recentPayload = recent.status === 'fulfilled' ? recent.value : {};
   const boostedPayload = boosted.status === 'fulfilled' ? boosted.value : {};
   const playlistsPayload = playlists.status === 'fulfilled' ? playlists.value : {};
+  const featuredCollectionsPayload = featuredCollections.status === 'fulfilled' ? featuredCollections.value : {};
   const artistsPayload = artists.status === 'fulfilled' ? artists.value : {};
   const libraryPlaylistsPayload = libraryPlaylists.status === 'fulfilled' ? libraryPlaylists.value : null;
   const libraryFavoritesPayload = libraryFavorites.status === 'fulfilled' ? libraryFavorites.value : null;
@@ -429,6 +431,23 @@ export async function getHomeData(): Promise<HomeData> {
       }
     : null;
   const normalizedPlaylists = [
+    ...(Array.isArray((featuredCollectionsPayload as any).collections)
+      ? ((featuredCollectionsPayload as any).collections || []).map((collection: any) => ({
+          _id: collection.playlistId,
+          id: collection.playlistId,
+          name: collection.title,
+          title: collection.title,
+          description: collection.subtitle || collection.description,
+          coverUrl: collection.coverUrl || collection.bannerUrl,
+          bannerUrl: collection.bannerUrl,
+          publicUrl: collection.publicUrl || `/playlists/${collection.slug || collection.playlistId}`,
+          isEditorial: true,
+          trackCount: collection.trackCount || 0,
+          editorialCollection: collection,
+          collection,
+          creator: { name: 'Synaura', artistName: 'Synaura', username: 'synaura' },
+        }))
+      : []),
     ...(Array.isArray(libraryPlaylistsPayload?.playlists) ? libraryPlaylistsPayload?.playlists || [] : []),
     ...(Array.isArray(playlistsPayload.playlists) ? playlistsPayload.playlists : []),
   ]

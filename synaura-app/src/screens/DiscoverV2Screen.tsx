@@ -137,6 +137,10 @@ export function DiscoverV2Screen() {
   const posts = useMemo(() => home.posts.slice(0, 5), [home.posts]);
   const playlists = useMemo(() => home.playlists.slice(0, 8), [home.playlists]);
   const hero = trending[0] || forYou[0] || fresh[0];
+  const featuredCollection = useMemo(
+    () => playlists.find((playlist) => playlist.isEditorial || playlist.collection || playlist.bannerUrl) || null,
+    [playlists],
+  );
 
   const playFrom = useCallback(async (queue: Track[], track: Track) => {
     const playable = queue.filter((item) => item.audioUrl);
@@ -216,6 +220,13 @@ export function DiscoverV2Screen() {
             </View>
           </Pressable>
         ) : loading ? <ActivityIndicator color={colors.text} style={styles.loader} /> : null}
+
+        {featuredCollection ? (
+          <CollectionFeatureCard
+            playlist={featuredCollection}
+            onPress={() => navigation.navigate('PlaylistDetail', { playlistId: featuredCollection.slug || featuredCollection.id })}
+          />
+        ) : null}
 
         <Rail title="Pour toi" tracks={forYou} player={player} onPlay={(track) => playFrom(forYou, track)} />
 
@@ -413,7 +424,7 @@ function PlaylistRail({ playlists, onOpen }: { playlists: Playlist[]; onOpen: (p
           const banner = playlist.bannerUrl || playlist.collection?.bannerUrl;
           const badge = playlist.badge || playlist.collection?.badge;
           return (
-            <Pressable key={playlist.id} onPress={() => onOpen(playlist.id)} style={styles.playlistTile}>
+            <Pressable key={playlist.id} onPress={() => onOpen(playlist.slug || playlist.id)} style={styles.playlistTile}>
               {banner ? (
                 <View style={styles.playlistBanner}>
                   <Image source={{ uri: banner }} style={StyleSheet.absoluteFillObject} />
@@ -434,6 +445,29 @@ function PlaylistRail({ playlists, onOpen }: { playlists: Playlist[]; onOpen: (p
         })}
       </ScrollView>
     </View>
+  );
+}
+
+function CollectionFeatureCard({ playlist, onPress }: { playlist: Playlist; onPress: () => void }) {
+  const collection = playlist.collection;
+  const cardColors = collection?.themeColors?.length ? collection.themeColors : playlist.themeColors?.length ? playlist.themeColors : ['#8B5CF6', '#EC4899', '#22D3EE'];
+  const banner = playlist.bannerUrl || collection?.bannerUrl || playlist.coverUrl || playlist.covers[0];
+
+  return (
+    <Pressable onPress={onPress} style={styles.collectionFeature}>
+      <LinearGradient colors={cardColors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
+      {banner ? <Image source={{ uri: banner }} style={styles.collectionFeatureImage} /> : null}
+      <LinearGradient colors={['rgba(19,16,17,0.20)', 'rgba(19,16,17,0.86)']} style={StyleSheet.absoluteFillObject} />
+      <View style={styles.collectionFeatureBody}>
+        <Text style={styles.collectionFeatureBadge}>{playlist.badge || collection?.badge || 'Collection officielle'}</Text>
+        <Text numberOfLines={2} style={styles.collectionFeatureTitle}>{collection?.title || playlist.title}</Text>
+        <Text numberOfLines={2} style={styles.collectionFeatureText}>{collection?.subtitle || playlist.vibe}</Text>
+        <View style={styles.collectionFeatureAction}>
+          <Ionicons name="albums-outline" size={17} color={colors.text} />
+          <Text style={styles.collectionFeatureActionText}>Explorer</Text>
+        </View>
+      </View>
+    </Pressable>
   );
 }
 
@@ -526,6 +560,14 @@ const styles = StyleSheet.create({
   heroScroll: { height: 37, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 11 },
   heroScrollS: { color: colors.paper, fontSize: 18, fontWeight: '900' },
   heroScrollText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
+  collectionFeature: { minHeight: 300, borderRadius: 28, overflow: 'hidden', marginTop: 14, marginBottom: 2, backgroundColor: colors.text, shadowColor: colors.text, shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 5 },
+  collectionFeatureImage: { ...StyleSheet.absoluteFillObject, opacity: 0.48 },
+  collectionFeatureBody: { flex: 1, justifyContent: 'flex-end', padding: 18 },
+  collectionFeatureBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: 999, backgroundColor: 'rgba(255,249,239,0.18)', paddingHorizontal: 12, paddingVertical: 7, color: colors.paper, fontSize: 10, fontWeight: '900', letterSpacing: 1.3, textTransform: 'uppercase' },
+  collectionFeatureTitle: { marginTop: 12, color: colors.paper, fontSize: 31, lineHeight: 32, fontWeight: '900' },
+  collectionFeatureText: { marginTop: 10, color: 'rgba(255,249,239,0.78)', fontSize: 14, lineHeight: 20, fontWeight: '800' },
+  collectionFeatureAction: { alignSelf: 'flex-start', marginTop: 16, height: 46, borderRadius: 23, backgroundColor: colors.paper, paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  collectionFeatureActionText: { color: colors.text, fontSize: 13, fontWeight: '900' },
   loader: { marginVertical: 90 },
   sectionTitle: { marginTop: 18, marginBottom: 9, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
   sectionHeading: { color: colors.text, fontSize: 18, fontWeight: '900' },

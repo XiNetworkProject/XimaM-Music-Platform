@@ -19,6 +19,7 @@ import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import {
   AlbumTile,
   ArtistTile,
+  CollectionSpotlight,
   HorizontalScroller,
   PlaylistTile,
   SectionHeader,
@@ -179,9 +180,14 @@ export default function DiscoverAuthedClient({
         setPlaylists(
           pl.playlists.map((p: any) => ({
             _id: String(p?._id || p?.id || ''),
-            name: String(p?.name || 'Playlist'),
+            name: String(p?.name || p?.title || 'Playlist'),
             description: typeof p?.description === 'string' ? p.description : '',
             coverUrl: p?.coverUrl ?? null,
+            bannerUrl: p?.bannerUrl ?? p?.editorialCollection?.bannerUrl ?? p?.collection?.bannerUrl ?? null,
+            publicUrl: p?.publicUrl ?? null,
+            isEditorial: Boolean(p?.isEditorial || p?.editorialCollection || p?.collection),
+            editorialCollection: p?.editorialCollection ?? null,
+            collection: p?.collection ?? p?.editorialCollection ?? null,
           })),
         );
       }
@@ -429,6 +435,8 @@ export default function DiscoverAuthedClient({
               </div>
             </div>
           </SynauraPanel>
+
+          {!isSearching && !isFiltered ? <CollectionSpotlight playlists={playlists} /> : null}
 
           {isSearching ? (
             <SynauraInkPanel className="p-4 sm:p-5">

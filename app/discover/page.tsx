@@ -52,14 +52,38 @@ async function fetchFromApi(baseUrl: string, path: string): Promise<DiscoverTrac
 
 async function fetchPlaylists(baseUrl: string): Promise<DiscoverPlaylistLite[]> {
   try {
-    const res = await fetch(`${baseUrl}/api/playlists/popular?limit=12`, { cache: 'no-store' });
-    const json = await res.json().catch(() => ({}));
-    return (Array.isArray(json?.playlists) ? json.playlists : []).map((p: any) => ({
-          _id: String(p?._id || p?.id || ''),
-          name: String(p?.name || 'Playlist'),
-          description: typeof p?.description === 'string' ? p.description : '',
+    const [popularRes, featuredRes] = await Promise.all([
+      fetch(`${baseUrl}/api/playlists/popular?limit=12`, { cache: 'no-store' }),
+      fetch(`${baseUrl}/api/editorial-collections/featured`, { cache: 'no-store' }),
+    ]);
+    const popularJson = await popularRes.json().catch(() => ({}));
+    const featuredJson = await featuredRes.json().catch(() => ({}));
+    const featuredPlaylists = (Array.isArray(featuredJson?.collections) ? featuredJson.collections : []).map((collection: any) => ({
+      _id: collection.playlistId,
+      id: collection.playlistId,
+      name: collection.title,
+      title: collection.title,
+      description: collection.subtitle || collection.description,
+      coverUrl: collection.coverUrl || collection.bannerUrl,
+      bannerUrl: collection.bannerUrl,
+      publicUrl: collection.publicUrl || `/playlists/${collection.slug || collection.playlistId}`,
+      isEditorial: true,
+      editorialCollection: collection,
+      collection,
+    }));
+    return [...featuredPlaylists, ...(Array.isArray(popularJson?.playlists) ? popularJson.playlists : [])].map((p: any) => ({
+      _id: String(p?._id || p?.id || ''),
+      name: String(p?.name || p?.title || 'Playlist'),
+      description: typeof p?.description === 'string' ? p.description : '',
       coverUrl: p?.coverUrl ?? null,
-    })).filter((p: any) => p._id);
+      bannerUrl: p?.bannerUrl ?? p?.editorialCollection?.bannerUrl ?? p?.collection?.bannerUrl ?? null,
+      publicUrl: p?.publicUrl ?? null,
+      isEditorial: Boolean(p?.isEditorial || p?.editorialCollection || p?.collection),
+      editorialCollection: p?.editorialCollection ?? null,
+      collection: p?.collection ?? p?.editorialCollection ?? null,
+    }))
+      .filter((p: any) => p._id)
+      .filter((p: any, index: number, all: any[]) => all.findIndex((item) => item._id === p._id) === index);
   } catch {
     return [];
   }

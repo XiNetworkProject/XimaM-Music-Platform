@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Database, ImageIcon, Library, Loader2, Music2, Plus, RefreshCw, UploadCloud } from 'lucide-react';
+import { CheckCircle2, Copy, Database, Eye, EyeOff, ImageIcon, Library, Loader2, Music2, Plus, RefreshCw, Save, Trash2, UploadCloud, XCircle } from 'lucide-react';
 import { notify } from '@/components/NotificationCenter';
 
 type Collection = {
@@ -21,7 +21,9 @@ type Collection = {
   isPublished: boolean;
   downloadEnabled: boolean;
   commentsEnabled: boolean;
+  position?: number;
   trackCount?: number;
+  legacy?: boolean;
 };
 
 type BatchRow = {
@@ -30,6 +32,15 @@ type BatchRow = {
   genre?: string;
   style?: string;
   tags?: string;
+};
+
+type AdminTrack = {
+  _id: string;
+  title: string;
+  artist?: { name?: string; username?: string };
+  coverUrl?: string | null;
+  duration?: number;
+  genre?: string[];
 };
 
 function slugify(value: string) {
@@ -134,8 +145,42 @@ export default function EditorialCollectionsAdmin() {
   const [csvText, setCsvText] = useState('filename,title,genre,style,tags\n');
   const [defaultGenre, setDefaultGenre] = useState('Synaura Originals');
   const [existingTrackIds, setExistingTrackIds] = useState('');
+  const [edit, setEdit] = useState({
+    title: '',
+    slug: '',
+    subtitle: '',
+    description: '',
+    badge: '',
+    kind: '',
+    colors: '',
+    position: '0',
+  });
+  const [editBannerFile, setEditBannerFile] = useState<File | null>(null);
+  const [editCoverFile, setEditCoverFile] = useState<File | null>(null);
+  const [tracks, setTracks] = useState<AdminTrack[]>([]);
+  const [tracksLoading, setTracksLoading] = useState(false);
+  const [deletePhysical, setDeletePhysical] = useState(false);
 
   const selected = useMemo(() => collections.find((collection) => collection.id === selectedId) || null, [collections, selectedId]);
+
+  const loadTracks = useCallback(async (collectionId = selectedId) => {
+    if (!collectionId) {
+      setTracks([]);
+      return;
+    }
+    setTracksLoading(true);
+    try {
+      const res = await fetch(`/api/admin/editorial-collections/${collectionId}/tracks`, { cache: 'no-store' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Chargement des titres impossible');
+      setTracks(Array.isArray(json.tracks) ? json.tracks : []);
+    } catch (error: any) {
+      notify.error('Titres', error.message || 'Erreur');
+      setTracks([]);
+    } finally {
+      setTracksLoading(false);
+    }
+  }, [selectedId]);
 
   const load = async () => {
     setLoading(true);
@@ -157,6 +202,26 @@ export default function EditorialCollectionsAdmin() {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!selected) {
+      setTracks([]);
+      return;
+    }
+    setEdit({
+      title: selected.title || '',
+      slug: selected.slug || '',
+      subtitle: selected.subtitle || '',
+      description: selected.description || '',
+      badge: selected.badge || '',
+      kind: selected.kind || '',
+      colors: (selected.themeColors || []).join(','),
+      position: String(selected.position || 0),
+    });
+    setEditBannerFile(null);
+    setEditCoverFile(null);
+    void loadTracks(selected.id);
+  }, [selected?.id, loadTracks]);
 
   const runMigration = async () => {
     setSaving(true);
@@ -239,6 +304,102 @@ export default function EditorialCollectionsAdmin() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveSelected = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      let bannerUrl = selected.bannerUrl;
+      let coverUrl = selected.coverUrl;
+      if (editBannerFile) {
+        setProgress('Upload nouvelle banniere...');
+        const uploaded = await uploadToCloudinary(editBannerFile, 'image', 'ximam/editorial-banners');
+        bannerUrl = uploaded.secure_url;
+      }
+      if (editCoverFile) {
+        setProgress('Upload nouvelle cover...');
+        const uploaded = await uploadToCloudinary(editCoverFile, 'image', 'ximam/editorial-covers');
+        coverUrl = uploaded.secure_url;
+      }
+
+      const res = await fetch(`/api/admin/editorial-collections/${selected.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: edit.title,
+          slug: edit.slug,
+          subtitle: edit.subtitle,
+          description: edit.description,
+          badge: edit.badge,
+          kind: edit.kind,
+          bannerUrl,
+          coverUrl,
+          themeColors: edit.colors.split(',').map((entry) => entry.trim()).filter(Boolean),
+          position: Number(edit.position || 0),
+          isPublished: selected.isPublished,
+          isFeatured: selected.isFeatured,
+          downloadEnabled: selected.downloadEnabled,
+          commentsEnabled: selected.commentsEnabled,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Sauvegarde impossible');
+      notify.success('Collection sauvegardee');
+      setEditBannerFile(null);
+      setEditCoverFile(null);
+      await load();
+    } catch (error: any) {
+      notify.error('Sauvegarde', error.message || 'Erreur');
+    } finally {
+      setProgress('');
+      setSaving(false);
+    }
+  };
+
+  const deleteSelected = async () => {
+    if (!selected) return;
+    if (!window.confirm(`Supprimer "${selected.title}" et sa playlist ?`)) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/editorial-collections/${selected.id}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Suppression impossible');
+      notify.success('Collection supprimee');
+      setSelectedId('');
+      setTracks([]);
+      await load();
+    } catch (error: any) {
+      notify.error('Suppression', error.message || 'Erreur');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeTrack = async (trackId: string) => {
+    if (!selected) return;
+    if (deletePhysical && !window.confirm('Supprimer aussi le titre de Synaura ?')) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/editorial-collections/${selected.id}/tracks?trackId=${encodeURIComponent(trackId)}${deletePhysical ? '&deleteTrack=1' : ''}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Retrait impossible');
+      notify.success(deletePhysical ? 'Titre supprime' : 'Titre retire');
+      await Promise.all([load(), loadTracks(selected.id)]);
+    } catch (error: any) {
+      notify.error('Titre', error.message || 'Erreur');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const copySelectedLink = async () => {
+    if (!selected) return;
+    const url = `${window.location.origin}/playlists/${selected.slug || selected.playlistId}`;
+    await navigator.clipboard.writeText(url);
+    notify.success('Lien copie', url);
   };
 
   const importBatch = async () => {
@@ -423,10 +584,79 @@ export default function EditorialCollectionsAdmin() {
                   </div>
                 </div>
                 <div className="grid gap-2 p-3 sm:grid-cols-4">
-                  <button onClick={() => updateSelected({ isPublished: !selected.isPublished } as any)} className="rounded-full bg-black px-3 py-2 text-xs font-black text-white">{selected.isPublished ? 'Depublier' : 'Publier'}</button>
+                  <button onClick={() => updateSelected({ isPublished: !selected.isPublished } as any)} className="inline-flex items-center justify-center gap-1 rounded-full bg-black px-3 py-2 text-xs font-black text-white">
+                    {selected.isPublished ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    {selected.isPublished ? 'Depublier' : 'Publier'}
+                  </button>
                   <button onClick={() => updateSelected({ isFeatured: !selected.isFeatured } as any)} className="rounded-full bg-black/[0.06] px-3 py-2 text-xs font-black text-black/62">{selected.isFeatured ? 'Retirer feature' : 'Feature'}</button>
                   <button onClick={() => updateSelected({ downloadEnabled: !selected.downloadEnabled } as any)} className="rounded-full bg-black/[0.06] px-3 py-2 text-xs font-black text-black/62">{selected.downloadEnabled ? 'Download ON' : 'Download OFF'}</button>
                   <button onClick={() => updateSelected({ commentsEnabled: !selected.commentsEnabled } as any)} className="rounded-full bg-black/[0.06] px-3 py-2 text-xs font-black text-black/62">{selected.commentsEnabled ? 'Coms ON' : 'Coms OFF'}</button>
+                </div>
+
+                <div className="border-t border-black/10 p-3">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-black/38">Gestion complete</p>
+                      <p className="text-sm font-black text-[#171313]">Modifier, masquer, remplacer les medias, gerer les titres</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={copySelectedLink} className="grid h-10 w-10 place-items-center rounded-full bg-black/[0.06] text-black/58">
+                        <Copy className="h-4 w-4" />
+                      </button>
+                      <button type="button" onClick={saveSelected} disabled={saving} className="inline-flex h-10 items-center gap-2 rounded-full bg-[#171313] px-4 text-xs font-black text-white disabled:opacity-50">
+                        <Save className="h-4 w-4" />
+                        Sauver
+                      </button>
+                      <button type="button" onClick={deleteSelected} disabled={saving} className="grid h-10 w-10 place-items-center rounded-full bg-red-500/10 text-red-500 disabled:opacity-50">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="grid gap-1 text-xs font-black uppercase tracking-[0.14em] text-black/45">Titre<input value={edit.title} onChange={(e) => setEdit((v) => ({ ...v, title: e.target.value }))} className="h-11 rounded-2xl border border-black/10 bg-[#fffaf2] px-3 text-sm normal-case tracking-normal text-[#171313]" /></label>
+                    <label className="grid gap-1 text-xs font-black uppercase tracking-[0.14em] text-black/45">Slug<input value={edit.slug} onChange={(e) => setEdit((v) => ({ ...v, slug: slugify(e.target.value) }))} className="h-11 rounded-2xl border border-black/10 bg-[#fffaf2] px-3 text-sm normal-case tracking-normal text-[#171313]" /></label>
+                    <label className="grid gap-1 text-xs font-black uppercase tracking-[0.14em] text-black/45">Sous-titre<input value={edit.subtitle} onChange={(e) => setEdit((v) => ({ ...v, subtitle: e.target.value }))} className="h-11 rounded-2xl border border-black/10 bg-[#fffaf2] px-3 text-sm normal-case tracking-normal text-[#171313]" /></label>
+                    <label className="grid gap-1 text-xs font-black uppercase tracking-[0.14em] text-black/45">Badge<input value={edit.badge} onChange={(e) => setEdit((v) => ({ ...v, badge: e.target.value }))} className="h-11 rounded-2xl border border-black/10 bg-[#fffaf2] px-3 text-sm normal-case tracking-normal text-[#171313]" /></label>
+                    <label className="grid gap-1 text-xs font-black uppercase tracking-[0.14em] text-black/45">Type<input value={edit.kind} onChange={(e) => setEdit((v) => ({ ...v, kind: e.target.value }))} className="h-11 rounded-2xl border border-black/10 bg-[#fffaf2] px-3 text-sm normal-case tracking-normal text-[#171313]" /></label>
+                    <label className="grid gap-1 text-xs font-black uppercase tracking-[0.14em] text-black/45">Position<input value={edit.position} onChange={(e) => setEdit((v) => ({ ...v, position: e.target.value.replace(/[^0-9-]/g, '') }))} className="h-11 rounded-2xl border border-black/10 bg-[#fffaf2] px-3 text-sm normal-case tracking-normal text-[#171313]" /></label>
+                    <label className="md:col-span-2 grid gap-1 text-xs font-black uppercase tracking-[0.14em] text-black/45">Couleurs<input value={edit.colors} onChange={(e) => setEdit((v) => ({ ...v, colors: e.target.value }))} className="h-11 rounded-2xl border border-black/10 bg-[#fffaf2] px-3 text-sm normal-case tracking-normal text-[#171313]" /></label>
+                    <label className="md:col-span-2 grid gap-1 text-xs font-black uppercase tracking-[0.14em] text-black/45">Description<textarea value={edit.description} onChange={(e) => setEdit((v) => ({ ...v, description: e.target.value }))} rows={3} className="rounded-2xl border border-black/10 bg-[#fffaf2] px-3 py-3 text-sm normal-case tracking-normal text-[#171313]" /></label>
+                    <FileInput label="Remplacer banniere" icon={<ImageIcon className="h-4 w-4" />} file={editBannerFile} onFile={setEditBannerFile} />
+                    <FileInput label="Remplacer cover" icon={<Library className="h-4 w-4" />} file={editCoverFile} onFile={setEditCoverFile} />
+                  </div>
+
+                  <div className="mt-4 rounded-[1.25rem] border border-black/10 bg-[#fffaf2] p-3">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.16em] text-black/38">Titres</p>
+                        <p className="text-sm font-black">{tracks.length} dans la collection</p>
+                      </div>
+                      <button type="button" onClick={() => setDeletePhysical((v) => !v)} className={`inline-flex h-9 items-center gap-2 rounded-full px-3 text-xs font-black ${deletePhysical ? 'bg-red-500 text-white' : 'bg-black/[0.06] text-black/58'}`}>
+                        {deletePhysical ? <XCircle className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
+                        {deletePhysical ? 'Suppression definitive' : 'Retirer seulement'}
+                      </button>
+                    </div>
+                    <div className="grid max-h-[360px] gap-2 overflow-auto pr-1">
+                      {tracksLoading ? <div className="rounded-2xl bg-white p-3 text-sm font-bold text-black/45">Chargement des titres...</div> : null}
+                      {!tracksLoading && !tracks.length ? <div className="rounded-2xl bg-white p-3 text-sm font-bold text-black/45">Aucun titre dans cette collection.</div> : null}
+                      {tracks.map((track, index) => (
+                        <div key={track._id} className="flex items-center gap-3 rounded-2xl bg-white p-2">
+                          <span className="w-6 text-right text-xs font-black text-black/28">{index + 1}</span>
+                          <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-black/[0.06]">
+                            {track.coverUrl ? <img src={track.coverUrl} alt="" className="h-full w-full object-cover" /> : null}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-black">{track.title}</p>
+                            <p className="truncate text-xs font-bold text-black/42">{track.artist?.name || track.artist?.username || 'Synaura'} {track.genre?.[0] ? `- ${track.genre[0]}` : ''}</p>
+                          </div>
+                          <button type="button" onClick={() => removeTrack(track._id)} disabled={saving} className="grid h-9 w-9 place-items-center rounded-full bg-red-500/10 text-red-500 disabled:opacity-40">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             ) : loading ? (

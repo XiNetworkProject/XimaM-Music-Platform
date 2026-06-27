@@ -82,6 +82,10 @@ export function HomeV2Screen() {
   );
   const recent = useMemo(() => uniqueTracks(data.recent).slice(0, 8), [data.recent]);
   const hero = recommendations[0] || recent[0] || player.current;
+  const featuredCollection = useMemo(
+    () => data.playlists.find((playlist) => playlist.isEditorial || playlist.collection || playlist.bannerUrl) || null,
+    [data.playlists],
+  );
 
   const playFrom = useCallback(async (tracks: Track[], track: Track) => {
     const playable = tracks.filter((item) => item.audioUrl);
@@ -173,6 +177,13 @@ export function HomeV2Screen() {
           onScroll={() => navigation.navigate('Swipe')}
         />
 
+        {featuredCollection ? (
+          <CollectionFeatureCard
+            playlist={featuredCollection}
+            onPress={() => navigation.navigate('PlaylistDetail', { playlistId: featuredCollection.slug || featuredCollection.id })}
+          />
+        ) : null}
+
         <TrackRail title="Pour toi" tracks={forYou.length ? forYou : recommendations} player={player} onPlay={(track) => playFrom(forYou.length ? forYou : recommendations, track)} onSeeAll={() => navigation.navigate('Discover')} />
         <TrackRail title="Tendances maintenant" tracks={trending} player={player} onPlay={(track) => playFrom(trending, track)} onSeeAll={() => navigation.navigate('Discover')} />
         <TrackRail title="Mis en avant" tracks={boosted} player={player} onPlay={(track) => playFrom(boosted, track)} onSeeAll={() => navigation.navigate('Discover')} />
@@ -193,7 +204,7 @@ export function HomeV2Screen() {
             <SectionHeader title="Playlists et ambiances" action="Voir" onPress={() => navigation.navigate('Library')} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.playlistRail}>
               {data.playlists.slice(0, 8).map((playlist) => (
-                <PlaylistTile key={playlist.id} playlist={playlist} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.id })} />
+                <PlaylistTile key={playlist.id} playlist={playlist} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.slug || playlist.id })} />
               ))}
             </ScrollView>
           </>
@@ -431,6 +442,29 @@ function PlaylistTile({ playlist, onPress }: { playlist: Playlist; onPress: () =
   );
 }
 
+function CollectionFeatureCard({ playlist, onPress }: { playlist: Playlist; onPress: () => void }) {
+  const collection = playlist.collection;
+  const cardColors = collection?.themeColors?.length ? collection.themeColors : playlist.themeColors?.length ? playlist.themeColors : ['#8B5CF6', '#EC4899', '#22D3EE'];
+  const banner = playlist.bannerUrl || collection?.bannerUrl || playlist.coverUrl || playlist.covers[0];
+
+  return (
+    <Pressable onPress={onPress} style={styles.collectionFeature}>
+      <LinearGradient colors={cardColors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
+      {banner ? <Image source={{ uri: banner }} style={styles.collectionFeatureImage} /> : null}
+      <LinearGradient colors={['rgba(19,16,17,0.20)', 'rgba(19,16,17,0.86)']} style={StyleSheet.absoluteFillObject} />
+      <View style={styles.collectionFeatureBody}>
+        <Text style={styles.collectionFeatureBadge}>{playlist.badge || collection?.badge || 'Collection officielle'}</Text>
+        <Text numberOfLines={2} style={styles.collectionFeatureTitle}>{collection?.title || playlist.title}</Text>
+        <Text numberOfLines={2} style={styles.collectionFeatureText}>{collection?.subtitle || playlist.vibe}</Text>
+        <View style={styles.collectionFeatureAction}>
+          <Ionicons name="play" size={17} color={colors.text} />
+          <Text style={styles.collectionFeatureActionText}>Ouvrir la collection</Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 function PostPreviewCard({
   post,
   activeId,
@@ -612,6 +646,14 @@ const styles = StyleSheet.create({
   playlistBadge: { color: colors.paper, fontSize: 9, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
   playlistTitle: { marginTop: 8, color: colors.text, fontSize: 12, fontWeight: '900' },
   playlistMeta: { marginTop: 2, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
+  collectionFeature: { minHeight: 310, borderRadius: 30, overflow: 'hidden', marginTop: 4, marginBottom: 6, backgroundColor: colors.text, shadowColor: colors.text, shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 5 },
+  collectionFeatureImage: { ...StyleSheet.absoluteFillObject, opacity: 0.48 },
+  collectionFeatureBody: { flex: 1, justifyContent: 'flex-end', padding: 20 },
+  collectionFeatureBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: 999, backgroundColor: 'rgba(255,249,239,0.18)', paddingHorizontal: 12, paddingVertical: 7, color: colors.paper, fontSize: 10, fontWeight: '900', letterSpacing: 1.3, textTransform: 'uppercase' },
+  collectionFeatureTitle: { marginTop: 12, color: colors.paper, fontSize: 34, lineHeight: 34, fontWeight: '900' },
+  collectionFeatureText: { marginTop: 10, color: 'rgba(255,249,239,0.78)', fontSize: 14, lineHeight: 20, fontWeight: '800' },
+  collectionFeatureAction: { alignSelf: 'flex-start', marginTop: 16, height: 48, borderRadius: 24, backgroundColor: colors.paper, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  collectionFeatureActionText: { color: colors.text, fontSize: 13, fontWeight: '900' },
   postList: { gap: 10 },
   postCard: { borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(255,250,242,0.9)', padding: 12 },
   postHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },

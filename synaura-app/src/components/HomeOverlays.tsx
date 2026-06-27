@@ -130,7 +130,7 @@ export function UniversalSearchModal({ visible, onClose }: { visible: boolean; o
             {results.artists.length ? <ResultTitle label="Createurs" icon="people" /> : null}
             {results.artists.map((artist) => <Pressable key={artist.id} onPress={() => openPath(`/profile/${artist.handle.replace(/^@/, '')}`)} style={styles.resultRow}><Avatar text={artist.avatar} color={artist.tint} /><View style={styles.resultCopy}><Text style={styles.resultTitle}>{artist.name}</Text><Text style={styles.resultMeta}>{artist.handle}</Text></View></Pressable>)}
             {results.playlists.length ? <ResultTitle label="Playlists" icon="albums" /> : null}
-            {results.playlists.map((playlist) => <Pressable key={playlist.id} onPress={() => openPath(`/playlists/${playlist.id}`)} style={styles.resultRow}><Image source={{ uri: playlist.covers[0] }} style={styles.resultImage} /><View style={styles.resultCopy}><Text style={styles.resultTitle}>{playlist.title}</Text><Text style={styles.resultMeta}>{playlist.tracks}</Text></View></Pressable>)}
+            {results.playlists.map((playlist) => <Pressable key={playlist.id} onPress={() => openPath(`/playlists/${playlist.slug || playlist.id}`)} style={styles.resultRow}><Image source={{ uri: playlist.covers[0] }} style={styles.resultImage} /><View style={styles.resultCopy}><Text style={styles.resultTitle}>{playlist.title}</Text><Text style={styles.resultMeta}>{playlist.tracks}</Text></View></Pressable>)}
           </ScrollView>
         </View>
       </View>

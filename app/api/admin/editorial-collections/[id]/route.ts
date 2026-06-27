@@ -28,6 +28,12 @@ async function getLegacyPlaylist(id: string, userId?: string | null) {
   return data && normalizeLegacyCollectionFromPlaylist(data) ? data : null;
 }
 
+function boolPatch(body: any, camel: string, snake: string, current: boolean) {
+  if (typeof body?.[camel] === 'boolean') return body[camel];
+  if (typeof body?.[snake] === 'boolean') return body[snake];
+  return current;
+}
+
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
   const guard = await getAdminGuard();
   if (!guard.ok) return NextResponse.json({ error: 'Non autorise' }, { status: 403 });
@@ -79,10 +85,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       coverUrl,
       themeColors: normalizeThemeColors(body?.themeColors ?? body?.theme_colors ?? meta.themeColors),
       badge: String(body?.badge ?? meta.badge ?? 'Synaura Originals').trim() || 'Synaura Originals',
-      isFeatured: Boolean(body?.isFeatured ?? body?.is_featured ?? meta.isFeatured),
-      isPublished: Boolean(body?.isPublished ?? body?.is_published ?? meta.isPublished),
-      downloadEnabled: body?.downloadEnabled !== false && body?.download_enabled !== false,
-      commentsEnabled: body?.commentsEnabled !== false && body?.comments_enabled !== false,
+      isFeatured: boolPatch(body, 'isFeatured', 'is_featured', meta.isFeatured !== false),
+      isPublished: boolPatch(body, 'isPublished', 'is_published', meta.isPublished === true),
+      downloadEnabled: boolPatch(body, 'downloadEnabled', 'download_enabled', meta.downloadEnabled !== false),
+      commentsEnabled: boolPatch(body, 'commentsEnabled', 'comments_enabled', meta.commentsEnabled !== false),
       position: Number(body?.position ?? meta.position ?? 0),
     };
     const { data, error } = await supabaseAdmin
@@ -119,10 +125,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       cover_url: coverUrl,
       theme_colors: normalizeThemeColors(body?.themeColors ?? body?.theme_colors ?? existing.theme_colors),
       badge: String(body?.badge ?? existing.badge ?? 'Synaura Originals').trim() || 'Synaura Originals',
-      is_featured: Boolean(body?.isFeatured ?? body?.is_featured ?? existing.is_featured),
-      is_published: Boolean(body?.isPublished ?? body?.is_published ?? existing.is_published),
-      download_enabled: body?.downloadEnabled !== false && body?.download_enabled !== false,
-      comments_enabled: body?.commentsEnabled !== false && body?.comments_enabled !== false,
+      is_featured: boolPatch(body, 'isFeatured', 'is_featured', existing.is_featured !== false),
+      is_published: boolPatch(body, 'isPublished', 'is_published', existing.is_published === true),
+      download_enabled: boolPatch(body, 'downloadEnabled', 'download_enabled', existing.download_enabled !== false),
+      comments_enabled: boolPatch(body, 'commentsEnabled', 'comments_enabled', existing.comments_enabled !== false),
       position: Number(body?.position ?? existing.position ?? 0),
     })
     .eq('id', params.id)

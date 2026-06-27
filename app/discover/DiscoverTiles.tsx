@@ -18,8 +18,26 @@ export type DiscoverPlaylistLite = {
   bannerUrl?: string | null;
   publicUrl?: string | null;
   isEditorial?: boolean;
-  editorialCollection?: { slug?: string; badge?: string; bannerUrl?: string | null } | null;
-  collection?: { slug?: string; badge?: string; bannerUrl?: string | null } | null;
+  editorialCollection?: {
+    slug?: string;
+    title?: string;
+    subtitle?: string;
+    badge?: string;
+    bannerUrl?: string | null;
+    coverUrl?: string | null;
+    themeColors?: string[];
+    trackCount?: number;
+  } | null;
+  collection?: {
+    slug?: string;
+    title?: string;
+    subtitle?: string;
+    badge?: string;
+    bannerUrl?: string | null;
+    coverUrl?: string | null;
+    themeColors?: string[];
+    trackCount?: number;
+  } | null;
 };
 
 export type DiscoverAlbumLite = {
@@ -394,6 +412,70 @@ export function PlaylistTile({ playlist }: { playlist: DiscoverPlaylistLite }) {
         </p>
       </div>
     </Link>
+  );
+}
+
+export function CollectionSpotlight({ playlists }: { playlists: DiscoverPlaylistLite[] }) {
+  const collections = playlists.filter((playlist) => playlist.isEditorial || playlist.editorialCollection || playlist.collection);
+  const featured = collections[0];
+  if (!featured) return null;
+
+  const collection = featured.editorialCollection || featured.collection || null;
+  const colors = collection?.themeColors?.length ? collection.themeColors : ['#8B5CF6', '#EC4899', '#22D3EE'];
+  const href = featured.publicUrl || (collection?.slug ? `/playlists/${encodeURIComponent(collection.slug)}` : `/playlists/${encodeURIComponent(featured._id)}`);
+  const visual = collection?.bannerUrl || featured.bannerUrl || collection?.coverUrl || featured.coverUrl || '/default-cover.svg';
+  const secondary = collections.slice(1, 4);
+
+  return (
+    <section
+      className="relative overflow-hidden rounded-[2rem] border border-white/10 p-4 text-[#fffaf2] shadow-[0_24px_80px_rgba(0,0,0,0.24)] sm:p-6"
+      style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1] || colors[0]}, ${colors[2] || colors[0]})` }}
+    >
+      <img src={visual} alt="" className="absolute inset-0 h-full w-full object-cover opacity-44 saturate-[1.08]" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(18,14,14,0.88),rgba(18,14,14,0.48),rgba(18,14,14,0.18))]" />
+      <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex min-h-[280px] flex-col justify-end">
+          <p className="mb-3 inline-flex w-fit rounded-full bg-white/16 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white/82 backdrop-blur">
+            {collection?.badge || 'Collection officielle'}
+          </p>
+          <h2 className="max-w-2xl text-4xl font-black leading-[0.92] tracking-[-0.05em] sm:text-6xl">
+            {collection?.title || featured.name}
+          </h2>
+          <p className="mt-4 max-w-xl text-sm font-bold leading-6 text-white/76 sm:text-base">
+            {collection?.subtitle || featured.description || 'Une selection Synaura a ouvrir comme une vraie sortie.'}
+          </p>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <Link href={href} className="inline-flex h-12 items-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]">
+              <Play className="h-4 w-4 fill-current" />
+              Ouvrir la collection
+            </Link>
+            <span className="rounded-full bg-white/12 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-white/76 backdrop-blur">
+              {collection?.trackCount || 'Playlist'} titres
+            </span>
+          </div>
+        </div>
+
+        {secondary.length ? (
+          <div className="grid content-end gap-2">
+            {secondary.map((playlist) => {
+              const itemCollection = playlist.editorialCollection || playlist.collection || null;
+              const itemHref = playlist.publicUrl || (itemCollection?.slug ? `/playlists/${encodeURIComponent(itemCollection.slug)}` : `/playlists/${encodeURIComponent(playlist._id)}`);
+              const itemVisual = itemCollection?.coverUrl || playlist.coverUrl || itemCollection?.bannerUrl || playlist.bannerUrl || '/default-cover.svg';
+              return (
+                <Link key={playlist._id} href={itemHref} className="flex items-center gap-3 rounded-[1.25rem] border border-white/10 bg-white/12 p-2.5 backdrop-blur transition hover:bg-white/18">
+                  <img src={itemVisual} alt="" className="h-14 w-14 rounded-[1rem] object-cover" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black">{itemCollection?.title || playlist.name}</p>
+                    <p className="truncate text-xs font-bold text-white/54">{itemCollection?.badge || 'Collection'}</p>
+                  </div>
+                  <ChevronRight className="ml-auto h-4 w-4 text-white/60" />
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+    </section>
   );
 }
 

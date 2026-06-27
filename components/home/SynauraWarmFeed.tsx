@@ -369,7 +369,7 @@ function uniqueTracks(tracks: Array<Track | null | undefined>) {
   });
 }
 
-function normalizePlaylist(raw: any, fallbackCovers: string[]) {
+function normalizePlaylist(raw: any, fallbackCovers: string[]): Playlist | null {
   const id = String(raw?._id || raw?.id || '');
   if (!id) return null;
 
@@ -2407,6 +2407,59 @@ function PlaylistCard({ item }: { item: Extract<FeedItem, { kind: 'playlist' }> 
   );
 }
 
+function FeaturedCollectionShowcase({ playlists }: { playlists: Playlist[] }) {
+  const collections = playlists.filter((playlist) => playlist.isEditorial || playlist.banner);
+  const featured = collections[0];
+  if (!featured) return null;
+
+  const colors = featured.themeColors?.length ? featured.themeColors : ['#8B5CF6', '#EC4899', '#22D3EE'];
+  const visual = featured.banner || featured.covers[0] || '/default-cover.svg';
+  const next = collections.slice(1, 4);
+
+  return (
+    <Card
+      className="mb-4 p-0 text-[#fffaf2]"
+      style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1] || colors[0]}, ${colors[2] || colors[0]})` }}
+    >
+      <Link href={featured.href} className="group relative block min-h-[280px] overflow-hidden p-5 sm:min-h-[340px] sm:p-7">
+        <img src={visual} alt="" className="absolute inset-0 h-full w-full object-cover opacity-48 transition duration-700 group-hover:scale-[1.03]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(20,15,15,0.88),rgba(20,15,15,0.48),rgba(20,15,15,0.16))]" />
+        <div className="relative flex min-h-[240px] flex-col justify-end sm:min-h-[286px]">
+          <span className="mb-3 inline-flex w-fit rounded-full bg-white/16 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white/84 backdrop-blur">
+            {featured.badge || 'Collection officielle'}
+          </span>
+          <h2 className="max-w-2xl text-4xl font-black leading-[0.92] tracking-[-0.05em] sm:text-6xl">{featured.title}</h2>
+          <p className="mt-4 max-w-xl text-sm font-bold leading-6 text-white/76 sm:text-base">{featured.vibe}</p>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <span className="inline-flex h-12 items-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313]">
+              <Play className="h-4 w-4 fill-current" />
+              Ouvrir
+            </span>
+            <span className="rounded-full bg-white/12 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-white/74 backdrop-blur">
+              {featured.tracks}
+            </span>
+          </div>
+        </div>
+      </Link>
+
+      {next.length ? (
+        <div className="relative grid gap-2 border-t border-white/10 bg-black/16 p-3 sm:grid-cols-3">
+          {next.map((playlist) => (
+            <Link key={playlist.id} href={playlist.href} className="flex items-center gap-3 rounded-[1.15rem] bg-white/10 p-2.5 backdrop-blur transition hover:bg-white/16">
+              <img src={playlist.covers[0] || playlist.banner || '/default-cover.svg'} alt="" className="h-12 w-12 rounded-[0.9rem] object-cover" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black">{playlist.title}</p>
+                <p className="truncate text-xs font-bold text-white/52">{playlist.badge || playlist.tracks}</p>
+              </div>
+              <ChevronRight className="ml-auto h-4 w-4 text-white/60" />
+            </Link>
+          ))}
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
 function CreatorRailCard({ item }: { item: Extract<FeedItem, { kind: 'creator' }> }) {
   return (
     <Card className="p-3 sm:p-5">
@@ -2846,6 +2899,7 @@ export default function SynauraWarmFeed() {
       recentJson,
       boostedJson,
       playlistsJson,
+      featuredCollectionsJson,
       artistsJson,
       libraryPlaylistsJson,
       libraryFavoritesJson,
@@ -2856,6 +2910,7 @@ export default function SynauraWarmFeed() {
       fetchJson('/api/tracks/recent?limit=18'),
       fetchJson('/api/tracks/boosted?limit=8'),
       fetchJson('/api/playlists/popular?limit=8'),
+      fetchJson('/api/editorial-collections/featured'),
       fetchJson('/api/artists?sort=trending&limit=8'),
       userId ? fetchJson(`/api/playlists?user=${encodeURIComponent(userId)}`) : Promise.resolve(null),
       userId ? fetchJson('/api/tracks?liked=true&limit=60') : Promise.resolve(null),
@@ -2871,9 +2926,35 @@ export default function SynauraWarmFeed() {
       .slice(0, 4)
       .map((track) => track.cover);
 
-    const nextPlaylists = (Array.isArray(playlistsJson?.playlists) ? playlistsJson.playlists : [])
-      .map((playlist: any) => normalizePlaylist(playlist, fallbackCovers))
-      .filter((playlist: Playlist | null): playlist is Playlist => Boolean(playlist));
+    const featuredCollectionPlaylists = (Array.isArray(featuredCollectionsJson?.collections) ? featuredCollectionsJson.collections : []).map((collection: any) => ({
+      _id: collection.playlistId,
+      id: collection.playlistId,
+      name: collection.title,
+      title: collection.title,
+      description: collection.subtitle || collection.description,
+      coverUrl: collection.coverUrl || collection.bannerUrl,
+      bannerUrl: collection.bannerUrl,
+      publicUrl: collection.publicUrl || `/playlists/${collection.slug || collection.playlistId}`,
+      isEditorial: true,
+      trackCount: collection.trackCount || 0,
+      editorialCollection: collection,
+      collection,
+      creator: { name: 'Synaura', artistName: 'Synaura', username: 'synaura' },
+    }));
+
+    const playlistSources = [
+      ...featuredCollectionPlaylists,
+      ...(Array.isArray(playlistsJson?.playlists) ? playlistsJson.playlists : []),
+    ];
+    const normalizedPlaylists: Playlist[] = [];
+    playlistSources.forEach((playlistSource: any) => {
+      const playlist = normalizePlaylist(playlistSource, fallbackCovers);
+      if (playlist) normalizedPlaylists.push(playlist);
+    });
+
+    const nextPlaylists: Playlist[] = normalizedPlaylists.filter(
+      (playlist, index, all) => all.findIndex((item) => item.id === playlist.id) === index
+    );
 
     const nextCreators = (Array.isArray(artistsJson?.artists) ? artistsJson.artists : [])
       .map(normalizeCreator)
@@ -3150,6 +3231,8 @@ export default function SynauraWarmFeed() {
 
       <div className="grid min-w-0 gap-5 overflow-hidden xl:grid-cols-[minmax(0,760px)_330px] xl:justify-center">
         <main className="mx-auto w-full max-w-[760px] min-w-0 pb-36 sm:pb-28">
+          <FeaturedCollectionShowcase playlists={playlists} />
+
           <div className="-mx-2 mb-4 border-y border-black/[0.08] bg-[#F4EFE6]/88 px-2 py-3 backdrop-blur-2xl sm:-mx-3 sm:px-3 md:mx-0 md:rounded-[1.3rem] md:border">
             <div className="grid grid-cols-3 gap-2 sm:hidden">
               {FILTERS.map((item) => (
