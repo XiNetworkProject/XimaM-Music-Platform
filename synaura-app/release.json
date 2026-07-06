@@ -1,10 +1,12 @@
 {
-  "title": "Synaura mobile 0.9.9",
+  "title": "Synaura mobile 0.9.10",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Page collection/playlist native refondue, calee sur la version web",
-    "Hero immersif, carte stats, recherche, filtres genre et tri",
-    "Fiches titres avec lecture, like, file d'attente, partage et telechargement"
+    "Pour toi devient l'accueil : Scroll multi-contenus (sons, artistes, collections, defis)",
+    "Utiliser ce son / Creer un clip officiel depuis le Scroll et la fiche morceau",
+    "Droits de creation par morceau : Clips, remix audio et variations IA",
+    "Communaute devient 4 Clubs reels : Feedback Lab, Open Feat, Remix Lab, IA Lab",
+    "Decouvrir refondu : 8 ambiances, Radar des pepites, artistes et collections reels"
   ]
 }
