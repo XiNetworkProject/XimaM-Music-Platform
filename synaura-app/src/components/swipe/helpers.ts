@@ -1,11 +1,12 @@
 import type { Track } from '@/api/types';
 
-export type FeedMode = 'reco' | 'trending' | 'boost';
+export type FeedMode = 'reco' | 'trending' | 'boost' | 'clips';
 
 export const FEED_MODE_META: Record<FeedMode, { label: string; description: string }> = {
   reco: { label: 'Pour toi', description: 'Suggestions personnalisees' },
   trending: { label: 'Tendances', description: 'Les sons qui montent' },
   boost: { label: 'Boost', description: 'Les titres pousses dans Synaura' },
+  clips: { label: 'Clips', description: 'Clips musicaux publies' },
 };
 
 export function fmtCount(value: number) {

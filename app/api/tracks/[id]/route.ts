@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import cloudinary from '@/lib/cloudinary';
+import { remixPermissionsFromRow, remixPermissionsToRow, sanitizeRemixPermissions } from '@/lib/remixPermissions';
+import { getPublishedVariationCounts, getRemixAttributionForChildren, getRemixSourceSummary, normalizeRemixTrackRef } from '@/lib/remixServer';
+import { getPublishedClipCounts } from '@/lib/musicClips';
 
 function readTrackData(value: any): Record<string, any> {
   if (!value) return {};
@@ -21,6 +24,8 @@ export async function GET(
 ) {
   try {
     const { id } = params;
+    const session = await getApiSession(request).catch(() => null);
+    const userId = (session?.user as any)?.id || null;
 
     if (!id) {
       return NextResponse.json(
@@ -32,6 +37,51 @@ export async function GET(
     console.log(`🔍 Récupération de la track: ${id}`);
 
     // Récupérer la track depuis Supabase
+    const ref = normalizeRemixTrackRef(id);
+    if (ref.type === 'ai_track') {
+      const { data: aiTrack, error: aiError } = await supabaseAdmin
+        .from('ai_tracks')
+        .select('*, generation:ai_generations!inner(id, user_id, prompt, metadata, is_public, status)')
+        .eq('id', ref.id)
+        .maybeSingle();
+      if (aiError || !aiTrack) {
+        return NextResponse.json({ error: 'Track non trouvÃ©e' }, { status: 404 });
+      }
+      const source = await getRemixSourceSummary({ sourceTrackId: id, userId });
+      const [attributions, counts] = await Promise.all([
+        getRemixAttributionForChildren([{ id: ref.id, type: ref.type }]),
+        getPublishedVariationCounts([{ id: ref.id, type: ref.type }]),
+      ]);
+      const clipCounts = await getPublishedClipCounts([{ id: ref.id, type: ref.type }]);
+      return NextResponse.json({
+        id: `ai-${aiTrack.id}`,
+        _id: `ai-${aiTrack.id}`,
+        title: aiTrack.title || 'Creation IA',
+        artist: {
+          _id: source?.artistId || (aiTrack as any).generation?.user_id || '',
+          name: source?.artist || 'Artiste Synaura',
+          username: source?.artistUsername || '',
+          artistName: source?.artist || 'Artiste Synaura',
+        },
+        artistUsername: source?.artistUsername || '',
+        coverUrl: aiTrack.image_url || null,
+        audioUrl: aiTrack.audio_url || aiTrack.stream_audio_url,
+        duration: aiTrack.duration || 0,
+        genre: Array.isArray(aiTrack.tags) ? aiTrack.tags : [],
+        plays: aiTrack.play_count || 0,
+        likes: aiTrack.like_count || 0,
+        isPublic: aiTrack.is_public === true,
+        createdAt: aiTrack.created_at,
+        lyrics: aiTrack.lyrics || null,
+        isAI: true,
+        ...remixPermissionsFromRow(aiTrack),
+        canRemixAiVariation: source?.canRemixAiVariation || false,
+        remixAttribution: attributions.get(`${ref.type}:${ref.id}`) || null,
+        variationsCount: counts.get(`${ref.type}:${ref.id}`) || 0,
+        musicClipsCount: clipCounts.get(`${ref.type}:${ref.id}`) || 0,
+      });
+    }
+
     const { data: track, error: trackError } = await supabase
       .from('tracks')
       .select('*')
@@ -49,12 +99,25 @@ export async function GET(
     console.log(`✅ Track trouvée: ${track.title}`);
 
     const trackData = readTrackData(track.data);
+    const source = await getRemixSourceSummary({ sourceTrackId: id, sourceTrackType: 'track', userId });
+    const [attributions, counts] = await Promise.all([
+      getRemixAttributionForChildren([{ id, type: 'track' }]),
+      getPublishedVariationCounts([{ id, type: 'track' }]),
+    ]);
+    const clipCounts = await getPublishedClipCounts([{ id, type: 'track' }]);
 
     // Formater la réponse pour l'interface
     const formattedTrack = {
       id: track.id,
+      _id: track.id,
       title: track.title,
-      artist: track.artist_name || track.creator_name || 'Artiste inconnu',
+      artist: {
+        _id: track.creator_id || '',
+        name: source?.artist || track.artist_name || track.creator_name || 'Artiste inconnu',
+        username: source?.artistUsername || '',
+        artistName: source?.artist || track.artist_name || track.creator_name || 'Artiste inconnu',
+      },
+      artistUsername: source?.artistUsername || '',
       coverUrl: track.cover_url,
       coverVideoUrl: track.cover_video_url || trackData.cover_video_url || trackData.coverVideoUrl || null,
       coverVideoPosterUrl: track.cover_video_poster_url || trackData.cover_video_poster_url || trackData.coverVideoPosterUrl || null,
@@ -68,7 +131,12 @@ export async function GET(
       createdAt: track.created_at,
       updatedAt: track.updated_at,
       lyrics: track.lyrics || null,
-      album: track.album || null
+      album: track.album || null,
+      ...remixPermissionsFromRow(track),
+      canRemixAiVariation: source?.canRemixAiVariation || false,
+      remixAttribution: attributions.get(`track:${id}`) || null,
+      variationsCount: counts.get(`track:${id}`) || 0,
+      musicClipsCount: clipCounts.get(`track:${id}`) || 0,
     };
 
     return NextResponse.json(formattedTrack);
@@ -105,9 +173,11 @@ export async function PUT(
     console.log(`🔄 Mise à jour de la track: ${id}`, body);
 
     // Vérifier que la track existe et que l'utilisateur est le propriétaire
+    // (select * plutôt qu'une liste de colonnes : reste valide même si la migration
+    // des droits de création n'a pas encore été appliquée sur cet environnement)
     const { data: existingTrack, error: trackError } = await supabaseAdmin
       .from('tracks')
-      .select('id, creator_id, cover_public_id')
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -151,6 +221,13 @@ export async function PUT(
     if (typeof body.isPublic === 'boolean') updateData.is_public = body.isPublic;
     if (typeof body.isFeatured === 'boolean') updateData.is_featured = body.isFeatured;
 
+    // Droits de creation : seul le propriétaire (déjà vérifié ci-dessus) peut les modifier.
+    if (body.remixPermissions !== undefined) {
+      const currentPermissions = remixPermissionsFromRow(existingTrack);
+      const nextPermissions = sanitizeRemixPermissions(body.remixPermissions, currentPermissions);
+      Object.assign(updateData, remixPermissionsToRow(nextPermissions));
+    }
+
     if (body.coverUrl) {
       const oldCoverPublicId = existingTrack.cover_public_id;
       updateData.cover_url = body.coverUrl;
@@ -167,12 +244,25 @@ export async function PUT(
     }
 
     // Mettre à jour la track
-    const { data: updatedTrack, error: updateError } = await supabaseAdmin
-      .from('tracks')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+    let updatedTrack: any = null;
+    let updateError: any = null;
+    {
+      const result = await supabaseAdmin.from('tracks').update(updateData).eq('id', id).select().single();
+      updatedTrack = result.data;
+      updateError = result.error;
+    }
+
+    // Si la migration des droits de creation n'a pas encore ete appliquee, on retente sans ces colonnes.
+    if (updateError) {
+      const msg = String(updateError?.message || updateError?.details || '');
+      const isMissingRemixColumn = ['allow_clips', 'allow_audio_remix', 'allow_ai_variation', 'remix_approval_required', 'remix_visibility', 'Could not find', 'schema cache'].some((needle) => msg.includes(needle));
+      if (isMissingRemixColumn) {
+        const { allow_clips, allow_audio_remix, allow_ai_variation, remix_approval_required, remix_visibility, ...rest } = updateData;
+        const retry = await supabaseAdmin.from('tracks').update(rest).eq('id', id).select().single();
+        updatedTrack = retry.data;
+        updateError = retry.error;
+      }
+    }
 
     if (updateError) {
       console.error('❌ Erreur lors de la mise à jour:', updateError);
@@ -199,9 +289,10 @@ export async function PUT(
       plays: updatedTrack.plays || 0,
       likes: updatedTrack.likes || 0,
       created_at: updatedTrack.created_at,
-      updated_at: updatedTrack.updated_at
+      updated_at: updatedTrack.updated_at,
+      ...remixPermissionsFromRow(updatedTrack)
     };
-    
+
     return NextResponse.json(formattedTrack);
 
   } catch (error) {

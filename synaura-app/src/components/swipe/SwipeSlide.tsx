@@ -1,14 +1,15 @@
-import React, { memo, useEffect, useRef } from 'react';
+﻿import React, { memo, useEffect, useRef } from 'react';
 import { Animated, Easing, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { Track } from '@/api/types';
+import { canOpenAiVariation, canUseSoundClientSide, type Track } from '@/api/types';
 import { fmtCount, trackArtistName } from './helpers';
 import { InteractiveSeekBar } from './InteractiveSeekBar';
 import { TrackCover } from '@/components/TrackCover';
 import { usePlayerProgress } from '@/player/PlayerProvider';
+import { useAuth } from '@/auth/AuthProvider';
 
-type ActionLabel = 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save';
+type ActionLabel = 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save' | 'remix' | 'useSound';
 
 type Props = {
   track: Track;
@@ -200,6 +201,13 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
 
   const isAi = !!track.isAI || track._id.startsWith('ai-');
   const genres = (track.genre || []).filter((genre) => Boolean(genre) && genre.length <= 20).slice(0, 1);
+  const auth = useAuth();
+  const isOwnTrack = Boolean(auth.user?.id) && track.artist?._id === auth.user?.id;
+  const canUseSound = canUseSoundClientSide({
+    isOwner: isOwnTrack,
+    allowClips: Boolean(track.allowClips),
+    remixVisibility: track.remixVisibility || 'disabled',
+  });
   const lastTapRef = useRef(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playButtonOpacity = useRef(new Animated.Value(isPlaying ? 0 : 1)).current;
@@ -392,6 +400,18 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
           highlightColor="#7C5CFF"
           onPress={() => onAction('save')}
         />
+        {canOpenAiVariation(track) ? (
+          <ActionButton
+            icon="color-wand-outline"
+            label="Remixer"
+            onPress={() => onAction('remix')}
+          />) : null}
+        {canUseSound ? (
+          <ActionButton
+            icon="film-outline"
+            label={isOwnTrack ? 'Créer un clip officiel' : 'Utiliser ce son'}
+            onPress={() => onAction('useSound')}
+          />) : null}
       </Animated.View>
 
       <Animated.View
@@ -407,7 +427,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
         <View style={styles.metaTopRow}>
           <View style={styles.nowBadge}>
             <View style={[styles.nowDot, isPlaying && styles.nowDotActive]} />
-            <Text style={styles.nowText}>{isAi ? 'CRÉATION IA' : isPlaying ? 'EN LECTURE' : 'EN PAUSE'}</Text>
+            <Text style={styles.nowText}>{isAi ? 'CRÃ‰ATION IA' : isPlaying ? 'EN LECTURE' : 'EN PAUSE'}</Text>
           </View>
         </View>
         <Text numberOfLines={2} style={styles.title}>{displayTitle}</Text>
@@ -430,6 +450,12 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
         </View>
         {track.plays ? (
           <Text style={styles.plays}>{fmtCount(track.plays)} ecoutes</Text>
+        ) : null}
+        {track.remixAttribution ? (
+          <Text numberOfLines={1} style={styles.remixAttribution}>Inspiré de {track.remixAttribution.title}</Text>
+        ) : null}
+        {Number(track.variationsCount || 0) > 0 ? (
+          <Text style={styles.remixAttribution}>{fmtCount(Number(track.variationsCount || 0))} Variations</Text>
         ) : null}
         {track.lyrics ? (
           <Pressable accessibilityLabel="Voir les paroles" onPress={() => onAction('lyrics')} style={styles.lyricsButton}>
@@ -603,6 +629,7 @@ const styles = StyleSheet.create({
   inlineFollowText: { color: '#171313', fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   inlineFollowTextDone: { color: '#FFFAF2' },
   plays: { marginTop: 6, color: 'rgba(255,250,242,0.5)', fontSize: 11, fontWeight: '700' },
+  remixAttribution: { marginTop: 5, color: '#C7B8FF', fontSize: 11, fontWeight: '900' },
   lyricsButton: {
     marginTop: 8,
     alignSelf: 'flex-start',

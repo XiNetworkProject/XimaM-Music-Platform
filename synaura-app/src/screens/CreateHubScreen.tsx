@@ -10,6 +10,7 @@ import { colors } from '@/theme/tokens';
 
 const publishActions = [
   { title: 'Publier un son', text: 'Single, EP ou album', icon: 'cloud-upload-outline', tint: colors.coral, route: 'Upload' },
+  { title: 'Publier un clip', text: 'Video verticale liee a un morceau', icon: 'film-outline', tint: colors.violet, route: 'ClipComposer' },
   { title: 'Créer un post', text: 'Texte, image ou musique', icon: 'create-outline', tint: '#FF4B7A', route: 'CreatePost' },
   { title: 'Partager un son', text: 'Raconte ce qu’il y a derrière', icon: 'musical-notes-outline', tint: colors.cyan, route: 'CreatePost' },
 ] as const;

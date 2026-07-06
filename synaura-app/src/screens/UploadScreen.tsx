@@ -32,6 +32,7 @@ import { TrackCover } from '@/components/TrackCover';
 import { EventChoice, EventTicker } from '@/components/events/SynauraEvents';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { usePlayer } from '@/player/PlayerProvider';
+import { RemixPermissionsSection, DEFAULT_REMIX_PERMISSIONS, type RemixPermissionsValue } from '@/components/upload/RemixPermissionsSection';
 import type { SynauraCityData, Track } from '@/api/types';
 
 type ReleaseType = 'single' | 'ep' | 'album';
@@ -141,6 +142,7 @@ export function UploadScreen() {
   const [copyrightYear, setCopyrightYear] = useState(String(new Date().getFullYear()));
   const [explicit, setExplicit] = useState(false);
   const [visibility, setVisibility] = useState<Visibility>('public');
+  const [remixPermissions, setRemixPermissions] = useState<RemixPermissionsValue>(DEFAULT_REMIX_PERMISSIONS);
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('now');
   const [scheduledAt, setScheduledAt] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -357,6 +359,7 @@ export function UploadScreen() {
         releaseType,
         scheduledAt: scheduleMode === 'scheduled' && scheduledAt ? new Date(scheduledAt).toISOString() : null,
         visibility,
+        remixPermissions,
       };
 
       let firstTrackId = '';
@@ -657,6 +660,10 @@ export function UploadScreen() {
                 <Switch value={explicit} onValueChange={setExplicit} />
               </View>
 
+              <View style={styles.remixPermissionsBox}>
+                <RemixPermissionsSection value={remixPermissions} onChange={setRemixPermissions} />
+              </View>
+
               <Collapsible title="Date de publication" icon="time-outline" defaultOpen>
                 <ChipGrid items={['Maintenant', 'Programmer']} selected={[scheduleMode === 'now' ? 'Maintenant' : 'Programmer']} onToggle={(item) => setScheduleMode(item === 'Maintenant' ? 'now' : 'scheduled')} dark />
                 {scheduleMode === 'scheduled' ? <Field dark label="Date ISO ou locale" value={scheduledAt} onChangeText={setScheduledAt} placeholder="2026-06-08 18:00" /> : null}
@@ -929,6 +936,7 @@ const styles = StyleSheet.create({
   visibilityText: { color: 'rgba(255,250,242,0.48)', fontSize: 13, fontWeight: '900' },
   visibilityTextActive: { color: '#171313' },
   switchRowDark: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.045)', padding: 13 },
+  remixPermissionsBox: { borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.045)', padding: 13 },
   switchTitleDark: { color: 'rgba(255,250,242,0.78)', fontSize: 13, fontWeight: '900' },
   switchSubDark: { marginTop: 2, color: 'rgba(255,250,242,0.34)', fontSize: 10, fontWeight: '700' },
   previewBox: { flexDirection: 'row', gap: 12, borderRadius: 11, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.04)', padding: 12 },

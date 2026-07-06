@@ -58,7 +58,7 @@ export default function BottomNav() {
   }, [router, session]);
 
   const tabs = [
-    { icon: Home, label: 'Accueil', path: '/' },
+    { icon: Home, label: 'Pour toi', path: '/' },
     { icon: Search, label: 'Explorer', path: '/discover' },
     { icon: Sparkles, label: 'Studio', path: '/ai-generator' },
     { icon: BookOpen, label: 'Biblio', path: '/library', auth: true },
@@ -70,7 +70,7 @@ export default function BottomNav() {
     { icon: Music2, label: 'Publier', path: '/publish' },
     { icon: Gift, label: 'Boosters', path: '/boosters', auth: true },
     { icon: TrendingUp, label: 'Stats', path: '/stats', auth: true },
-    { icon: Users, label: 'Communauté', path: '/community' },
+    { icon: Users, label: 'Clubs', path: '/community' },
     { icon: Cloud, label: 'Météo', path: '/meteo' },
     { icon: Settings, label: 'Paramètres', path: '/settings', auth: true },
     { icon: LifeBuoy, label: 'Support', path: '/support' },

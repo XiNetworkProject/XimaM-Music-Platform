@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { computeRankingScore } from '@/lib/ranking';
 import { buildAnonymousRecommendationSignals, buildUserRecommendationSignals, rerankTracks } from '@/lib/recommendation';
 import { getApiSession } from '@/lib/getApiSession';
+import { remixPermissionsFromRow } from '@/lib/remixPermissions';
+import { getPublishedVariationCounts, getRemixAttributionForChildren, normalizeRemixTrackRef } from '@/lib/remixServer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -82,6 +84,43 @@ function aiTrackVideoMeta(track: any) {
     musicVideoUrl: track?.music_video_url || sourceLinks.music_video_url || sourceLinks.musicVideoUrl || track?.cover_video_url || sourceLinks.cover_video_url || sourceLinks.coverVideoUrl || null,
     musicVideoPosterUrl: track?.music_video_poster_url || sourceLinks.music_video_poster_url || sourceLinks.musicVideoPosterUrl || track?.cover_video_poster_url || sourceLinks.cover_video_poster_url || sourceLinks.coverVideoPosterUrl || track?.image_url || null,
   };
+}
+
+async function enrichRemixFeedFields(tracks: any[], userId: string | null) {
+  if (!tracks.length) return tracks;
+  const artistIds = Array.from(new Set(tracks.map((track) => String(track.artist?._id || '')).filter(Boolean)));
+  const following = new Set<string>();
+  if (userId && artistIds.length > 0) {
+    const { data } = await supabaseAdmin
+      .from('user_follows')
+      .select('following_id')
+      .eq('follower_id', userId)
+      .in('following_id', artistIds);
+    (data || []).forEach((row: any) => row.following_id && following.add(String(row.following_id)));
+  }
+
+  const refs = tracks.map((track) => normalizeRemixTrackRef(String(track._id || '')));
+  const [attributions, counts] = await Promise.all([
+    getRemixAttributionForChildren(refs),
+    getPublishedVariationCounts(refs),
+  ]);
+
+  return tracks.map((track) => {
+    const ref = normalizeRemixTrackRef(String(track._id || ''));
+    const creatorId = String(track.artist?._id || '');
+    const visibility = track.remixVisibility || 'disabled';
+    const canRemixAiVariation = Boolean(
+      track.allowAiVariation &&
+      visibility !== 'disabled' &&
+      (visibility === 'everyone' || (userId && creatorId === userId) || following.has(creatorId)),
+    );
+    return {
+      ...track,
+      canRemixAiVariation,
+      remixAttribution: attributions.get(`${ref.type}:${ref.id}`) || null,
+      variationsCount: counts.get(`${ref.type}:${ref.id}`) || 0,
+    };
+  });
 }
 
 async function applyGlobalTrendingScores(tracks: any[], now: number) {
@@ -213,6 +252,7 @@ export async function GET(request: NextRequest) {
               isVerified: t.profiles?.is_verified || false,
               rankingScore: 0,
               isAI: false,
+              ...remixPermissionsFromRow(t),
             }))
           );
         }
@@ -277,6 +317,7 @@ export async function GET(request: NextRequest) {
                 isVerified: t.generation?.profiles?.is_verified || false,
                 rankingScore: 0,
                 isAI: true,
+                ...remixPermissionsFromRow(t),
               }))
             );
           }
@@ -289,7 +330,7 @@ export async function GET(request: NextRequest) {
           final.sort(() => Math.random() - 0.5);
         }
         const nextCursor = cursor + final.length;
-        return NextResponse.json({ tracks: final, nextCursor, hasMore: nextCursor < finalAll.length });
+        return NextResponse.json({ tracks: await enrichRemixFeedFields(final, userId), nextCursor, hasMore: nextCursor < finalAll.length });
       } catch (e) {
         console.error('ranking: fallback trending error (statsErr)', e);
         return NextResponse.json({ tracks: [] });
@@ -414,6 +455,7 @@ export async function GET(request: NextRequest) {
             isVerified: t.profiles?.is_verified || false,
             rankingScore: Number(score.toFixed(6)),
             isAI: false,
+            ...remixPermissionsFromRow(t),
           };
         });
 
@@ -450,6 +492,7 @@ export async function GET(request: NextRequest) {
             isVerified: t.generation?.profiles?.is_verified || false,
             rankingScore: Number(score.toFixed(6)),
             isAI: true,
+            ...remixPermissionsFromRow(t),
           };
         });
 
@@ -490,7 +533,7 @@ export async function GET(request: NextRequest) {
             .eq('is_public', true)
             .order('created_at', { ascending: false })
             .limit(limit);
-          return NextResponse.json({ tracks: (recentTracks || []).map((t: any) => ({
+          const recentFallback = (recentTracks || []).map((t: any) => ({
             _id: t.id,
             title: t.title,
             artist: { _id: t.creator_id, username: '', name: '', avatar: '', isArtist: false, artistName: '' },
@@ -500,11 +543,13 @@ export async function GET(request: NextRequest) {
             audioUrl: t.audio_url,
             genre: t.genre || [],
             likes: [], plays: 0, createdAt: t.created_at, isFeatured: false, isVerified: false, rankingScore: 0, isAI: false,
-          })) });
+            ...remixPermissionsFromRow(t),
+          }));
+          return NextResponse.json({ tracks: await enrichRemixFeedFields(recentFallback, userId) });
         }
 
         const nextCursor = cursor + combined.length;
-        return NextResponse.json({ tracks: combined, nextCursor, hasMore: nextCursor < combinedAll.length });
+        return NextResponse.json({ tracks: await enrichRemixFeedFields(combined, userId), nextCursor, hasMore: nextCursor < combinedAll.length });
       } catch (e) {
         console.error('ranking: fallback track_events error', e);
         // En dernier recours
@@ -660,6 +705,7 @@ export async function GET(request: NextRequest) {
         isVerified: t.profiles?.is_verified || false,
         rankingScore: score,
         isAI: false,
+        ...remixPermissionsFromRow(t),
         isLiked: likedTrackIds.has(t.id),
         isBoosted: capped > 1,
         boostMultiplier: capped > 1 ? capped : undefined,
@@ -899,6 +945,7 @@ export async function GET(request: NextRequest) {
         isVerified: t.generation?.profiles?.is_verified || false,
         rankingScore: score,
         isAI: true,
+        ...remixPermissionsFromRow(t),
       };
     });
 
@@ -949,6 +996,7 @@ export async function GET(request: NextRequest) {
             isVerified: track.profiles?.is_verified || false,
             rankingScore: freshnessScore - index * 0.01,
             isAI: false,
+            ...remixPermissionsFromRow(track),
             isLiked: false,
             isBoosted: false,
             boostMultiplier: undefined,
@@ -989,7 +1037,7 @@ export async function GET(request: NextRequest) {
     const combined = combinedAll.slice(cursor, cursor + limit);
     const nextCursor = cursor + combined.length;
     return NextResponse.json(
-      { tracks: combined, nextCursor, hasMore: nextCursor < combinedAll.length },
+      { tracks: await enrichRemixFeedFields(combined, userId), nextCursor, hasMore: nextCursor < combinedAll.length },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } }
     );
   } catch (error) {
@@ -997,4 +1045,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }
-

@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
-  Easing,
   FlatList,
   Image,
   InteractionManager,
@@ -15,27 +14,46 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   fetchRankingFeedChunk,
-  getSynauraCity,
   getArtistFollowState,
   getCommentsCount,
+  getEditorialCollections,
+  getMusicClips,
+  getPlaylistDetail,
+  getPopularArtists,
+  getSynauraCity,
   getTrackLikeStatus,
+  recordClipFunnelEvent,
   setTrackLike,
   toggleArtistFollow,
 } from '@/api/client';
-import type { SynauraCityData, Track } from '@/api/types';
+import type { MusicClip, Track } from '@/api/types';
+import { useAuth } from '@/auth/AuthProvider';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
+import { openClipComposerForSound } from '@/navigation/clipEntry';
+import { AnnouncementSlide } from '@/components/swipe/AnnouncementSlide';
+import { ArtistSpotlightSlide } from '@/components/swipe/ArtistSpotlightSlide';
+import { ChallengeSlide } from '@/components/swipe/ChallengeSlide';
+import { ClipSlide } from '@/components/swipe/ClipSlide';
+import { CollectionSlide } from '@/components/swipe/CollectionSlide';
 import { CommentsSheet } from '@/components/swipe/CommentsSheet';
+import {
+  buildAnnouncementItem,
+  buildArtistSpotlightItems,
+  buildChallengeItem,
+  buildCollectionItems,
+  composeScrollFeed,
+  type ScrollFeedItem,
+} from '@/components/swipe/feedTypes';
 import { HeartBurst } from '@/components/swipe/HeartBurst';
 import { LyricsSheet } from '@/components/swipe/LyricsSheet';
 import { QueueSheet } from '@/components/swipe/QueueSheet';
 import { ShareSheet } from '@/components/swipe/ShareSheet';
 import { SwipeSlide } from '@/components/swipe/SwipeSlide';
-import { SubscriptionPromoSlide } from '@/components/swipe/SubscriptionPromoSlide';
 import {
   FEED_MODE_META,
   FeedMode,
@@ -45,60 +63,24 @@ import {
 
 const PRELOAD_RANGE = 1;
 const COMMENTS_POLL_DELAY_MS = 900;
-const SUBSCRIPTION_PROMO_ID = 'synaura-subscription-interlude';
-const CITY_PROMO_ID = 'synaura-city-interlude';
 const SWIPE_TRIGGER_DISTANCE = 48;
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
-
-const subscriptionPromo: Track = {
-  _id: SUBSCRIPTION_PROMO_ID,
-  title: 'Synaura+',
-  audioUrl: '',
-  duration: 0,
-  likes: [],
-  comments: [],
-  genre: [],
-};
-
-const cityPromo: Track = {
-  _id: CITY_PROMO_ID,
-  title: 'Synaura Events',
-  audioUrl: '',
-  duration: 0,
-  likes: [],
-  comments: [],
-  genre: [],
-};
 
 function withoutObsoleteRadios(tracks: Track[]) {
   return tracks.filter((track) => !!track.audioUrl && !track._id.startsWith('radio-'));
 }
 
-function injectSubscriptionPromo(tracks: Track[]) {
-  if (tracks.length < 8 || tracks.some((track) => track._id === SUBSCRIPTION_PROMO_ID)) return tracks;
-  const result = [...tracks];
-  const insertAt = Math.min(result.length, 9 + Math.floor(Math.random() * 4));
-  result.splice(insertAt, 0, subscriptionPromo);
-  return result;
-}
-
-function injectCityPromo(tracks: Track[]) {
-  if (tracks.length < 5 || tracks.some((track) => track._id === CITY_PROMO_ID)) return tracks;
-  const result = [...tracks];
-  result.splice(Math.min(result.length, 5), 0, cityPromo);
-  return result;
-}
-
-function isInterludeTrack(id?: string | null) {
-  return id === SUBSCRIPTION_PROMO_ID || id === CITY_PROMO_ID;
-}
-
-function withScrollInterludes(tracks: Track[]) {
-  return injectSubscriptionPromo(injectCityPromo(uniqueTracks(tracks)));
+function trackOfItem(item: ScrollFeedItem | null | undefined): Track | null {
+  if (!item) return null;
+  if (item.kind === 'track') return item.track;
+  if (item.kind === 'clip') return item.track;
+  if (item.kind === 'artist_spotlight') return item.track;
+  return null;
 }
 
 export function SwipeScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -107,20 +89,28 @@ export function SwipeScreen() {
 
   const player = usePlayer();
   const library = useLibrary();
-  const [feedMode, setFeedMode] = useState<FeedMode>('reco');
+  const auth = useAuth();
+  const [feedMode, setFeedMode] = useState<FeedMode>(() => (route.params?.mode === 'clips' ? 'clips' : 'reco'));
+  const sourceTrackFilter = route.params?.sourceTrackId ? String(route.params.sourceTrackId) : '';
   const [seedGenre, setSeedGenre] = useState<string | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [clips, setClips] = useState<MusicClip[]>([]);
+  const [popularUsers, setPopularUsers] = useState<any[]>([]);
+  const [collectionsRaw, setCollectionsRaw] = useState<any[]>([]);
+  const [cityEvents, setCityEvents] = useState<any[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [cursor, setCursor] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [loadingMore, setLoadingMore] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [launchingCollectionId, setLaunchingCollectionId] = useState<string | null>(null);
 
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  const [remixTrack, setRemixTrack] = useState<Track | null>(null);
   const [burstKey, setBurstKey] = useState(0);
   const [burstVisible, setBurstVisible] = useState(false);
 
@@ -139,7 +129,7 @@ export function SwipeScreen() {
   const fetchedCommentIdsRef = useRef<Set<string>>(new Set());
   const fetchedLikeIdsRef = useRef<Set<string>>(new Set());
   const fetchedFollowIdsRef = useRef<Set<string>>(new Set());
-  const listRef = useRef<FlatList<Track>>(null);
+  const listRef = useRef<FlatList<ScrollFeedItem>>(null);
   const headerOpacity = useRef(new Animated.Value(1)).current;
   const lastCommittedIndexRef = useRef(0);
   const activeIndexRef = useRef(0);
@@ -150,10 +140,42 @@ export function SwipeScreen() {
     Haptics.selectionAsync().catch(() => {});
   }, [feedMode]);
 
-  const activeTrack = tracks[activeIndex] || null;
+  useEffect(() => {
+    if (route.params?.mode === 'clips' && feedMode !== 'clips') setFeedMode('clips');
+  }, [feedMode, route.params?.mode]);
+
+  // Feed mixte : la trame reste les morceaux (>=75%), les cartes non musicales
+  // (artiste, collection, dÃ©fi, annonce) sont rÃ©parties avec parcimonie. Aucune
+  // promotion Premium n'est injectÃ©e.
+  const feedItems = useMemo<ScrollFeedItem[]>(() => {
+    if (feedMode === 'clips') {
+      return clips
+        .filter((clip) => clip?.id && clip.videoUrl && clip.sourceTrack?.audioUrl)
+        .map((clip) => ({ id: `clip-${clip.id}`, kind: 'clip' as const, clip, track: clip.sourceTrack }));
+    }
+    const artistItems = buildArtistSpotlightItems(popularUsers, tracks, 3);
+    const collectionItems = buildCollectionItems(collectionsRaw, 2);
+    const challenge = buildChallengeItem(cityEvents);
+    const announcement = buildAnnouncementItem(cityEvents);
+    return composeScrollFeed({
+      tracks,
+      clips,
+      artistSpotlights: artistItems,
+      collections: collectionItems,
+      challenge: challenge?.item || null,
+      announcement: announcement?.item || null,
+    });
+  }, [feedMode, tracks, clips, popularUsers, collectionsRaw, cityEvents]);
+
+  const playableQueue = useMemo(() => {
+    return feedItems
+      .map((item) => trackOfItem(item))
+      .filter((t): t is Track => Boolean(t) && !!t!.audioUrl && !t!._id.startsWith('radio-'));
+  }, [feedItems]);
+
+  const activeItem = feedItems[activeIndex] || null;
+  const activeTrack = trackOfItem(activeItem);
   const activeId = activeTrack?._id || '';
-  const isPromoActive = activeId === SUBSCRIPTION_PROMO_ID;
-  const isCityActive = activeId === CITY_PROMO_ID;
 
   const currentSeedGenre = useMemo(() => seedGenre || topGenre(activeTrack), [activeTrack, seedGenre]);
 
@@ -176,22 +198,45 @@ export function SwipeScreen() {
     setLoadState('loading');
     setLoadingMore(false);
     setTracks([]);
+    setClips([]);
     setActiveIndex(0);
     lastCommittedIndexRef.current = 0;
     setCursor(0);
     setHasMore(true);
     queueBoundRef.current = '';
 
-    const seedForReco = feedMode === 'reco' ? currentSeedGenre : null;
-
-      fetchRankingFeedChunk(feedMode, 0, seedForReco)
+    if (feedMode === 'clips') {
+      getMusicClips({ limit: 40, sourceTrackId: sourceTrackFilter || undefined })
         .then((chunk) => {
           if (cancelled || reqId !== lastRequestRef.current) return;
+          setClips(chunk.clips);
+          setCursor(chunk.nextCursor);
+          setHasMore(chunk.hasMore);
+          setLoadState(chunk.clips.length ? 'ready' : 'error');
+        })
+        .catch(() => {
+          if (cancelled || reqId !== lastRequestRef.current) return;
+          setLoadState('error');
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const seedForReco = feedMode === 'reco' ? currentSeedGenre : null;
+
+      Promise.all([
+        fetchRankingFeedChunk(feedMode, 0, seedForReco),
+        getMusicClips({ limit: 20 }).catch(() => ({ clips: [], nextCursor: 0, hasMore: false })),
+      ])
+        .then(([chunk, clipsChunk]) => {
+          if (cancelled || reqId !== lastRequestRef.current) return;
           const feedTracks = withoutObsoleteRadios(chunk.tracks);
-          const merged = withScrollInterludes(player.current?.audioUrl
+          const merged = uniqueTracks(player.current?.audioUrl
             ? [ ...(player.current._id.startsWith('radio-') ? [] : [player.current]), ...feedTracks ]
             : feedTracks);
           setTracks(merged);
+          setClips(clipsChunk.clips);
           setCursor(chunk.nextCursor);
           setHasMore(chunk.hasMore);
           setLoadState(merged.length ? 'ready' : 'error');
@@ -204,7 +249,19 @@ export function SwipeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [feedMode, reloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [feedMode, reloadKey, sourceTrackFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Artistes populaires + collections Ã©ditoriales + events Synaura Pulse : chargÃ©s une
+  // fois, rÃ©utilisÃ©s pour composer le feed mixte (mÃªmes rÃ¨gles que le web).
+  useEffect(() => {
+    let mounted = true;
+    void getPopularArtists(20).then((users) => { if (mounted) setPopularUsers(users); });
+    void getEditorialCollections().then((collections) => { if (mounted) setCollectionsRaw(collections); });
+    void getSynauraCity().then((city) => { if (mounted && Array.isArray(city?.events)) setCityEvents(city.events); }).catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Un titre lance depuis le mini-player, le Studio ou la bibliotheque reste la
   // premiere slide de Swipe au lieu d'etre remplace par le feed.
@@ -212,27 +269,26 @@ export function SwipeScreen() {
     if (loadState !== 'ready' || !player.current?.audioUrl) return;
     if (tracks.some((track) => track._id === player.current?._id)) return;
     queueBoundRef.current = '';
-    setTracks((current) => withScrollInterludes([player.current!, ...current]));
+    setTracks((current) => uniqueTracks([player.current!, ...current]));
   }, [loadState, player.current?._id, player.current?.audioUrl, tracks]);
 
   // (2) Synchronise la queue du player une fois le feed pret (premier bind, ou changement de mode).
   // On NE re-bind PAS au simple focus de l'ecran : on garde la lecture en cours stable.
   useEffect(() => {
-    if (loadState !== 'ready' || !tracks.length) return;
-    const key = `${feedMode}:${tracks[0]?._id}:${tracks.at(-1)?._id}:${tracks.length}`;
+    if (loadState !== 'ready' || !tracks.length || !playableQueue.length) return;
+    const key = `${feedMode}:${playableQueue[0]?._id}:${playableQueue.at(-1)?._id}:${playableQueue.length}`;
     if (queueBoundRef.current === key) return;
     queueBoundRef.current = key;
 
     // Si le track courant fait deja partie du nouveau feed, on enrichit la queue native
     // autour de lui sans reset audio. Sinon, on lance le feed depuis le debut.
     const currentId = player.current?._id;
-    const idxInFeed = currentId ? tracks.findIndex((t) => t._id === currentId) : -1;
+    const idxInFeed = currentId ? feedItems.findIndex((it) => trackOfItem(it)?._id === currentId) : -1;
     if (idxInFeed >= 0) {
-      const playable = withoutObsoleteRadios(tracks);
-      const queueIndex = playable.findIndex((track) => track._id === currentId);
-      void player.setQueueOnly(playable, Math.max(0, queueIndex));
+      const queueIndex = playableQueue.findIndex((track) => track._id === currentId);
+      void player.setQueueOnly(playableQueue, Math.max(0, queueIndex));
       const pendingIndex = pendingSwipeTrackRef.current
-        ? tracks.findIndex((track) => track._id === pendingSwipeTrackRef.current)
+        ? feedItems.findIndex((it) => trackOfItem(it)?._id === pendingSwipeTrackRef.current)
         : -1;
       const displayIndex = pendingIndex >= 0 ? pendingIndex : idxInFeed;
       activeIndexRef.current = displayIndex;
@@ -243,25 +299,25 @@ export function SwipeScreen() {
         try { listRef.current?.scrollToIndex({ index: displayIndex, animated: false }); } catch { /* ignore */ }
       });
     } else if (!player.current || player.current._id.startsWith('radio-')) {
-      void player.setQueueAndPlay(withoutObsoleteRadios(tracks), 0);
+      void player.setQueueAndPlay(playableQueue, 0);
       activeIndexRef.current = 0;
       lastCommittedIndexRef.current = 0;
       setActiveIndex(0);
     }
-  }, [feedMode, loadState, player, tracks]);
+  }, [feedItems, feedMode, loadState, player, playableQueue, tracks]);
 
   // (3) Synchro INVERSE : quand le player change naturellement de track
   // (auto-advance, lockscreen, mini-player), on scrolle vers la slide correspondante.
   // Pas de boucle car scrollToIndex(animated:false) ne declenche pas onMomentumScrollEnd.
   useEffect(() => {
-    if (loadState !== 'ready' || !tracks.length || !player.current || isPromoActive || isCityActive) return;
+    if (loadState !== 'ready' || !feedItems.length || !player.current) return;
     if (pendingSwipeTrackRef.current) {
-      // TrackPlayer peut émettre brièvement l'ancien index juste après le nouveau.
-      // Pendant cette fenêtre de stabilisation, la slide choisie par le geste reste
-      // la source de vérité afin d'éviter le rebond 62 -> 63 -> 62 -> 63.
+      // TrackPlayer peut Ã©mettre briÃ¨vement l'ancien index juste aprÃ¨s le nouveau.
+      // Pendant cette fenÃªtre de stabilisation, la slide choisie par le geste reste
+      // la source de vÃ©ritÃ© afin d'Ã©viter le rebond 62 -> 63 -> 62 -> 63.
       return;
     }
-    const idx = tracks.findIndex((t) => t._id === player.current?._id);
+    const idx = feedItems.findIndex((it) => trackOfItem(it)?._id === player.current?._id);
     if (idx < 0 || idx === activeIndexRef.current) return;
     activeIndexRef.current = idx;
     lastCommittedIndexRef.current = idx;
@@ -275,15 +331,15 @@ export function SwipeScreen() {
         }, 80);
       }
     });
-  }, [player.current?._id, loadState, tracks, isPromoActive, isCityActive]);
+  }, [player.current?._id, loadState, feedItems]);
 
   // (4) Recuperer batch des compteurs commentaires
   useEffect(() => {
-    if (loadState !== 'ready' || !tracks.length) return;
-    const ids = tracks
-      .slice(Math.max(0, activeIndex - 2), Math.min(tracks.length, activeIndex + 3))
-      .map((t) => t._id)
-      .filter((id) => id && !isInterludeTrack(id) && !id.startsWith('ai-') && !fetchedCommentIdsRef.current.has(id));
+    if (loadState !== 'ready' || !feedItems.length) return;
+    const ids = feedItems
+      .slice(Math.max(0, activeIndex - 2), Math.min(feedItems.length, activeIndex + 3))
+      .map((it) => trackOfItem(it)?._id)
+      .filter((id): id is string => !!id && !id.startsWith('ai-') && !fetchedCommentIdsRef.current.has(id));
     if (!ids.length) return;
     ids.forEach((id) => fetchedCommentIdsRef.current.add(id));
     const timer = setTimeout(async () => {
@@ -293,11 +349,11 @@ export function SwipeScreen() {
       }
     }, COMMENTS_POLL_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [activeIndex, loadState, tracks]);
+  }, [activeIndex, loadState, feedItems]);
 
   // (5) Recuperer le statut like + likesCount du morceau actif
   useEffect(() => {
-    if (!activeId || isPromoActive || isCityActive || activeId.startsWith('ai-')) return;
+    if (!activeId || activeId.startsWith('ai-')) return;
     if (fetchedLikeIdsRef.current.has(activeId)) return;
     fetchedLikeIdsRef.current.add(activeId);
     void getTrackLikeStatus(activeId).then((data) => {
@@ -305,35 +361,45 @@ export function SwipeScreen() {
       setLikedMap((current) => ({ ...current, [activeId]: data.liked }));
       setLikesMap((current) => ({ ...current, [activeId]: data.likesCount || current[activeId] || 0 }));
     });
-  }, [activeId, isPromoActive, isCityActive]);
+  }, [activeId]);
 
   // (6) Statut follow de l'artiste
   useEffect(() => {
     const username = activeTrack?.artist?.username || '';
-    if (!username || isPromoActive || isCityActive) return;
+    if (!username) return;
     if (fetchedFollowIdsRef.current.has(username)) return;
     fetchedFollowIdsRef.current.add(username);
     void getArtistFollowState(username).then((following) => {
       setFollowingMap((current) => ({ ...current, [username]: following }));
     });
-  }, [activeTrack?.artist?.username, isPromoActive, isCityActive]);
+  }, [activeTrack?.artist?.username]);
 
-  // (8) Preloading covers
+  // (8) Preloading covers (morceaux, artistes en vedette, collections)
   useEffect(() => {
-    if (loadState !== 'ready' || !tracks.length) return;
+    if (loadState !== 'ready' || !feedItems.length) return;
     const lo = Math.max(0, activeIndex - PRELOAD_RANGE);
-    const hi = Math.min(tracks.length - 1, activeIndex + PRELOAD_RANGE);
+    const hi = Math.min(feedItems.length - 1, activeIndex + PRELOAD_RANGE);
     for (let i = lo; i <= hi; i++) {
-      const url = tracks[i]?.coverUrl;
+      const it = feedItems[i];
+      const url = it?.kind === 'collection' ? (it.collection.coverUrl || it.collection.bannerUrl) : trackOfItem(it)?.coverUrl;
       if (url) Image.prefetch(url).catch(() => {});
     }
-  }, [activeIndex, loadState, tracks]);
+  }, [activeIndex, loadState, feedItems]);
 
   // (9) Infinite scroll
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
+      if (feedMode === 'clips') {
+        const chunk = await getMusicClips({ limit: 30, cursor, sourceTrackId: sourceTrackFilter || undefined });
+        const seen = new Set(clips.map((clip) => clip.id));
+        const fresh = chunk.clips.filter((clip) => !seen.has(clip.id));
+        setClips([...clips, ...fresh]);
+        setCursor(chunk.nextCursor);
+        setHasMore(chunk.hasMore && fresh.length > 0);
+        return;
+      }
       const seedForReco = feedMode === 'reco' ? currentSeedGenre : null;
       const chunk = await fetchRankingFeedChunk(feedMode, cursor, seedForReco);
       const seen = new Set(tracks.map((t) => t._id));
@@ -341,8 +407,7 @@ export function SwipeScreen() {
       if (!fresh.length) {
         setHasMore(false);
       } else {
-        const merged = withScrollInterludes([...tracks, ...fresh]);
-        setTracks(merged);
+        setTracks(uniqueTracks([...tracks, ...fresh]));
         setCursor(chunk.nextCursor);
         setHasMore(chunk.hasMore);
       }
@@ -351,9 +416,9 @@ export function SwipeScreen() {
     } finally {
       setLoadingMore(false);
     }
-  }, [cursor, currentSeedGenre, feedMode, hasMore, loadingMore, tracks]);
+  }, [clips, cursor, currentSeedGenre, feedMode, hasMore, loadingMore, sourceTrackFilter, tracks]);
 
-  // ─────────── Handlers ─────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const triggerBurst = useCallback(() => {
     setBurstKey((k) => k + 1);
     setBurstVisible(true);
@@ -368,7 +433,7 @@ export function SwipeScreen() {
   }, []);
 
   const handleToggleLike = useCallback(async () => {
-    if (!activeTrack || isPromoActive || isCityActive) return;
+    if (!activeTrack) return;
     const id = activeTrack._id;
     if (id.startsWith('ai-')) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -385,19 +450,35 @@ export function SwipeScreen() {
       setLikedMap((current) => ({ ...current, [id]: result.liked }));
       setLikesMap((current) => ({ ...current, [id]: result.likesCount }));
     }
-  }, [activeTrack, isPromoActive, isCityActive, likedMap, triggerBurst]);
+  }, [activeTrack, likedMap, triggerBurst]);
 
   const handleDoubleTapLike = useCallback(() => {
-    if (!activeTrack || isPromoActive || isCityActive) return;
+    if (!activeTrack) return;
     if (!likedMap[activeTrack._id]) {
       void handleToggleLike();
     } else {
       triggerBurst();
     }
-  }, [activeTrack, handleToggleLike, isPromoActive, isCityActive, likedMap, triggerBurst]);
+  }, [activeTrack, handleToggleLike, likedMap, triggerBurst]);
 
-  const handleSlideAction = useCallback((action: 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save') => {
+  const useThisSound = useCallback((track: Track) => {
+    void recordClipFunnelEvent(track._id, 'clip_use_sound_started');
+    const sourceTrackType = track._id.startsWith('ai-') ? 'ai_track' : 'track';
+    openClipComposerForSound(navigation, Boolean(auth.user), track._id, sourceTrackType);
+  }, [auth.user, navigation]);
+
+  const handleSlideAction = useCallback((action: 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save' | 'remix' | 'useSound') => {
     if (!activeTrack) return;
+    if (action === 'remix') {
+      Haptics.selectionAsync().catch(() => {});
+      setRemixTrack(activeTrack);
+      return;
+    }
+    if (action === 'useSound') {
+      Haptics.selectionAsync().catch(() => {});
+      useThisSound(activeTrack);
+      return;
+    }
     if (action === 'like') {
       void handleToggleLike();
       return;
@@ -430,11 +511,11 @@ export function SwipeScreen() {
       library.toggleFavorite(activeTrack);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
-  }, [activeTrack, handleToggleLike, library, player]);
+  }, [activeTrack, handleToggleLike, library, useThisSound]);
 
   const handleToggleFollow = useCallback(async () => {
     const username = activeTrack?.artist?.username;
-    if (!username || isPromoActive || isCityActive) return;
+    if (!username) return;
     if (followLoading[username]) return;
     const wasFollowing = Boolean(followingMap[username]);
     setFollowLoading((current) => ({ ...current, [username]: true }));
@@ -453,26 +534,38 @@ export function SwipeScreen() {
     } finally {
       setFollowLoading((current) => ({ ...current, [username]: false }));
     }
-  }, [activeTrack?.artist?.username, followLoading, followingMap, isPromoActive, isCityActive]);
+  }, [activeTrack?.artist?.username, followLoading, followingMap]);
 
   const handleSeek = useCallback((seconds: number) => {
     void player.seekTo(seconds);
   }, [player]);
 
-  // Stratégie de swipe : le snap est entierement gere nativement via
+  const handleLaunchCollection = useCallback(async (collectionId: string, slug: string) => {
+    setLaunchingCollectionId(collectionId);
+    try {
+      const detail = await getPlaylistDetail(slug);
+      if (detail.tracksList?.length) void player.setQueueAndPlay(detail.tracksList, 0);
+    } catch {
+      // ignore
+    } finally {
+      setLaunchingCollectionId(null);
+    }
+  }, [player]);
+
+  // StratÃ©gie de swipe : le snap est entierement gere nativement via
   // snapToInterval + disableIntervalMomentum (une page max par geste, flick leger suffisant).
   // On ne commit la lecture qu'a la fin du snap pour eviter le play/pause spam.
   const commitIndex = useCallback((idx: number) => {
-    const nextIndex = Math.max(0, Math.min(tracks.length - 1, idx));
+    const nextIndex = Math.max(0, Math.min(feedItems.length - 1, idx));
     if (nextIndex === lastCommittedIndexRef.current) return;
     lastCommittedIndexRef.current = nextIndex;
     activeIndexRef.current = nextIndex;
     setActiveIndex(nextIndex);
     Haptics.selectionAsync().catch(() => {});
 
-    // Lance la lecture de la slide stable. Idempotent grace au check ci-dessous.
-    const target = tracks[nextIndex];
-    if (!target?.audioUrl || target._id === SUBSCRIPTION_PROMO_ID || target._id === CITY_PROMO_ID) return;
+    // Lance la lecture de la slide stable si elle contient un morceau. Idempotent.
+    const target = trackOfItem(feedItems[nextIndex]);
+    if (!target?.audioUrl) return;
     if (player.current?._id === target._id) return;
     pendingSwipeTrackRef.current = target._id;
     clearTimeout(pendingSwipeReleaseRef.current);
@@ -487,7 +580,7 @@ export function SwipeScreen() {
         else void player.playTrack(target);
       });
     }, 90);
-  }, [player, tracks]);
+  }, [player, feedItems]);
 
   const commitVisibleTrack = useCallback((offsetY: number) => {
     commitIndex(Math.round(offsetY / itemHeight));
@@ -500,18 +593,18 @@ export function SwipeScreen() {
   // Filet de securite : un drag lent mais franc (> SWIPE_TRIGGER_DISTANCE) sans flick
   // doit quand meme avancer d'une page au lieu de revenir en arriere.
   const handleScrollEndDrag = useCallback((event: any) => {
-    if (!tracks.length) return;
+    if (!feedItems.length) return;
     const velocityY = Math.abs(Number(event.nativeEvent.velocity?.y || 0));
     if (velocityY > 0.08) return; // le snap natif s'en occupe
     const endY = event.nativeEvent.contentOffset.y || 0;
     const delta = endY - dragStartOffsetRef.current;
     if (Math.abs(delta) < SWIPE_TRIGGER_DISTANCE) return;
-    const startIndex = Math.max(0, Math.min(tracks.length - 1, Math.round(dragStartOffsetRef.current / itemHeight)));
-    const nextIndex = Math.max(0, Math.min(tracks.length - 1, startIndex + (delta > 0 ? 1 : -1)));
+    const startIndex = Math.max(0, Math.min(feedItems.length - 1, Math.round(dragStartOffsetRef.current / itemHeight)));
+    const nextIndex = Math.max(0, Math.min(feedItems.length - 1, startIndex + (delta > 0 ? 1 : -1)));
     requestAnimationFrame(() => {
       try { listRef.current?.scrollToIndex({ index: nextIndex, animated: true }); } catch { /* ignore */ }
     });
-  }, [itemHeight, tracks.length]);
+  }, [itemHeight, feedItems.length]);
 
   const handleMomentumScrollEnd = useCallback((event: any) => {
     commitVisibleTrack(event.nativeEvent.contentOffset.y);
@@ -521,44 +614,108 @@ export function SwipeScreen() {
     void loadMore();
   }, [loadMore]);
 
-  const renderItem = useCallback(({ item, index }: { item: Track; index: number }) => {
-    const id = item._id;
+  const renderItem = useCallback(({ item, index }: { item: ScrollFeedItem; index: number }) => {
     const isActive = isFocused && index === activeIndex;
-    if (id === SUBSCRIPTION_PROMO_ID) {
+
+    if (item.kind === 'clip') {
+      const isPlayingThis = isActive && player.current?._id === item.track._id && player.isPlaying;
       return (
-        <SubscriptionPromoSlide
+        <ClipSlide
+          clip={item.clip}
           height={itemHeight}
           topPad={insets.top}
           bottomPad={tabBarHeight}
           isActive={isActive}
-          onOpenSubscriptions={() => navigation.navigate('Subscriptions')}
+          isPlaying={isPlayingThis}
+          onPressAudio={() => {
+            if (player.current?._id === item.track._id) void player.togglePlayPause();
+            else void player.playTrack(item.track);
+          }}
+          onOpenTrack={() => navigation.navigate('TrackDetail', { trackId: item.track._id, track: item.track })}
+          onShare={() => {
+            setCommentsOpen(false);
+            setLyricsOpen(false);
+            setShareOpen(true);
+          }}
+          onUseSound={() => useThisSound(item.track)}
         />
       );
     }
-    if (id === CITY_PROMO_ID) {
+
+    if (item.kind === 'artist_spotlight') {
+      const isPlayingThis = isActive && player.current?._id === item.track._id && player.isPlaying;
+      const artistKey = item.artist.username || '';
       return (
-        <CityInterludeSlide
+        <ArtistSpotlightSlide
+          artist={item.artist}
+          track={item.track}
           height={itemHeight}
           topPad={insets.top}
           bottomPad={tabBarHeight}
           isActive={isActive}
-          onOpenCity={() => navigation.navigate('City')}
-          onCreate={() => navigation.navigate('Upload')}
+          isPlaying={isPlayingThis}
+          isFollowing={!!followingMap[artistKey]}
+          followLoading={!!followLoading[artistKey]}
+          onPress={() => void player.togglePlayPause()}
+          onToggleFollow={() => void handleToggleFollow()}
+          onOpenArtist={() => item.artist.username && navigation.navigate('PublicProfile', { username: item.artist.username })}
         />
       );
     }
+
+    if (item.kind === 'collection') {
+      return (
+        <CollectionSlide
+          collection={item.collection}
+          height={itemHeight}
+          topPad={insets.top}
+          bottomPad={tabBarHeight}
+          launching={launchingCollectionId === item.collection.id}
+          onLaunch={() => void handleLaunchCollection(item.collection.id, item.collection.slug)}
+          onViewSelection={() => navigation.navigate('PlaylistDetail', { playlistId: item.collection.slug })}
+        />
+      );
+    }
+
+    if (item.kind === 'challenge') {
+      return (
+        <ChallengeSlide
+          challenge={item.challenge}
+          height={itemHeight}
+          topPad={insets.top}
+          bottomPad={tabBarHeight}
+          isActive={isActive}
+          onOpen={() => navigation.navigate('City')}
+        />
+      );
+    }
+
+    if (item.kind === 'announcement') {
+      return (
+        <AnnouncementSlide
+          announcement={item.announcement}
+          height={itemHeight}
+          topPad={insets.top}
+          bottomPad={tabBarHeight}
+          onOpen={() => navigation.navigate('City')}
+        />
+      );
+    }
+
+    const track = item.track;
+    const id = track._id;
     const isPlayingThis = isActive && player.current?._id === id && player.isPlaying;
     const likedHere = !!likedMap[id];
-    const likesHere = likesMap[id] ?? item.likesCount ?? 0;
-    const commentsHere = commentsCounts[id] ?? item.commentsCount ?? 0;
-    const sharesHere = item.sharesCount ?? item.shares ?? 0;
-    const artistKey = item.artist?.username || '';
+    const likesHere = likesMap[id] ?? track.likesCount ?? 0;
+    const commentsHere = commentsCounts[id] ?? track.commentsCount ?? 0;
+    const sharesHere = track.sharesCount ?? track.shares ?? 0;
+    const artistKey = track.artist?.username || '';
     const isFollowing = !!followingMap[artistKey];
     const isFollowingLoading = !!followLoading[artistKey];
 
     return (
       <SwipeSlide
-        track={item}
+        track={track}
         isActive={isActive}
         isPlaying={isPlayingThis}
         isLoading={isActive && player.isLoading}
@@ -577,7 +734,7 @@ export function SwipeScreen() {
         onAction={handleSlideAction}
         onSeek={handleSeek}
         onToggleFollow={() => void handleToggleFollow()}
-        onOpenArtist={() => item.artist?.username && navigation.navigate('PublicProfile', { username: item.artist.username })}
+        onOpenArtist={() => track.artist?.username && navigation.navigate('PublicProfile', { username: track.artist.username })}
       />
     );
   }, [
@@ -586,18 +743,21 @@ export function SwipeScreen() {
     followLoading,
     followingMap,
     handleDoubleTapLike,
+    handleLaunchCollection,
     handleSeek,
     handleSlideAction,
     handleToggleFollow,
     insets.top,
     itemHeight,
     isFocused,
+    launchingCollectionId,
     library,
     navigation,
     likedMap,
     likesMap,
     player,
     tabBarHeight,
+    useThisSound,
   ]);
 
   const headerStyle = useMemo(() => ({
@@ -626,7 +786,7 @@ export function SwipeScreen() {
             </View>
           </View>
           <View style={styles.modeWrap}>
-            {(['reco', 'trending'] as FeedMode[]).map((mode) => {
+            {(['reco', 'trending', 'clips'] as FeedMode[]).map((mode) => {
               const active = mode === feedMode;
               return (
                 <Pressable
@@ -656,7 +816,7 @@ export function SwipeScreen() {
           <ActivityIndicator color="#FFFAF2" />
           <Text style={styles.loadingText}>Calage du fil sonore Synaura...</Text>
         </View>
-      ) : loadState === 'error' || !tracks.length ? (
+      ) : loadState === 'error' || !feedItems.length ? (
         <View style={styles.loadingScreen}>
           <Ionicons name="cloud-offline-outline" size={28} color="rgba(255,250,242,0.55)" />
           <Text style={styles.loadingText}>Aucun son disponible. Reessaie dans un instant.</Text>
@@ -667,8 +827,8 @@ export function SwipeScreen() {
       ) : (
         <FlatList
           ref={listRef}
-          data={tracks}
-          keyExtractor={(item) => item._id}
+          data={feedItems}
+          keyExtractor={(item) => item.id}
           renderItem={renderItem}
           snapToInterval={itemHeight}
           snapToAlignment="start"
@@ -725,205 +885,44 @@ export function SwipeScreen() {
         visible={queueOpen}
         onClose={() => setQueueOpen(false)}
       />
-    </View>
-  );
-}
-
-function CityInterludeSlide({
-  height,
-  topPad,
-  bottomPad,
-  isActive,
-  onOpenCity,
-  onCreate,
-}: {
-  height: number;
-  topPad: number;
-  bottomPad: number;
-  isActive: boolean;
-  onOpenCity: () => void;
-  onCreate: () => void;
-}) {
-  const [city, setCity] = useState<SynauraCityData | null>(null);
-  const pulse = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (!isActive) {
-      pulse.setValue(0);
-      return;
-    }
-    const animation = Animated.loop(Animated.timing(pulse, {
-      toValue: 1,
-      duration: 2100,
-      easing: Easing.inOut(Easing.ease),
-      useNativeDriver: true,
-    }));
-    animation.start();
-    return () => animation.stop();
-  }, [isActive, pulse]);
-  useEffect(() => {
-    if (!isActive || city) return;
-    let active = true;
-    void getSynauraCity().then((next) => {
-      if (active) setCity(next);
-    }).catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [city, isActive]);
-
-  const liveEvent = city?.events?.find((event) => event.kind === 'battle' && event.isLive)
-    || city?.events?.find((event) => event.isLive)
-    || city?.events?.[0];
-  const topPulse = city?.pulse?.[0];
-
-  return (
-    <View style={[styles.citySlide, { height, paddingTop: topPad + 92, paddingBottom: bottomPad + 24 }]}>
-      <LinearGradient colors={['#fffaf2', '#fff1e6', '#efe9ff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.citySlideOrb,
-          {
-            opacity: pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.16, 0.36, 0.16] }),
-            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1.18] }) }],
-          },
-        ]}
-      />
-      <View style={styles.citySlideCard}>
-        <View style={styles.citySlideIcon}><Ionicons name="pulse" size={25} color="#FFFAF2" /></View>
-        <Text style={styles.citySlideKicker}>{liveEvent?.kind === 'battle' ? 'BATTLE IA EN COURS' : 'SYNAURA PULSE'}</Text>
-        <Text style={styles.citySlideTitle}>{liveEvent?.title || 'Le live passe dans Swipe.'}</Text>
-        <Text style={styles.citySlideText}>
-          {liveEvent?.description || city?.cityMood?.subtitle || 'Radar, battles, challenges et nouveaux talents apparaissent entre deux sons sans casser le flow.'}
-        </Text>
-        <View style={styles.citySlideStats}>
-          <View style={styles.citySlideStat}><Ionicons name="flame" size={16} color="#FF6F61" /><Text style={styles.citySlideStatText}>{topPulse ? `${topPulse.pulse}%` : 'Pulse'}</Text></View>
-          <View style={styles.citySlideStat}><Ionicons name="telescope" size={16} color="#7C5CFF" /><Text style={styles.citySlideStatText}>{liveEvent?.participationCount || 0} parts</Text></View>
-          <View style={styles.citySlideStat}><Ionicons name="flash" size={16} color="#00A7B2" /><Text style={styles.citySlideStatText}>{liveEvent?.totalVotes || 0} votes</Text></View>
+      {remixTrack ? (
+        <View style={styles.remixOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setRemixTrack(null)} />
+          <View style={[styles.remixSheet, { paddingBottom: insets.bottom + 18 }]}>
+            <View style={styles.remixHandle} />
+            <View style={styles.remixHead}>
+              <Image source={{ uri: remixTrack.coverUrl || undefined }} style={styles.remixCover} />
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={styles.remixTitle}>{remixTrack.title}</Text>
+                <Text numberOfLines={1} style={styles.remixArtist}>{remixTrack.artist?.name || remixTrack.artist?.username || 'Artiste Synaura'}</Text>
+              </View>
+            </View>
+            <Text style={styles.remixText}>Créer une variation IA inspirée de ce morceau</Text>
+            <Text style={styles.remixCredit}>Le créateur original sera toujours crédité</Text>
+            <Pressable
+              onPress={() => {
+                const sourceTrackType = remixTrack._id.startsWith('ai-') ? 'ai_track' : 'track';
+                const sourceTrackId = remixTrack._id;
+                setRemixTrack(null);
+                navigation.navigate('AIStudio', { sourceTrackId, sourceTrackType, mode: 'remix' });
+              }}
+              style={styles.remixPrimary}
+            >
+              <Ionicons name="color-wand-outline" size={18} color="#F7F6F3" />
+              <Text style={styles.remixPrimaryText}>Ouvrir dans Studio</Text>
+            </Pressable>
+            <Pressable onPress={() => setRemixTrack(null)} style={styles.remixSecondary}>
+              <Text style={styles.remixSecondaryText}>Annuler</Text>
+            </Pressable>
+          </View>
         </View>
-        <View style={styles.citySlideActions}>
-          <Pressable onPress={onOpenCity} style={styles.citySlidePrimary}><Text style={styles.citySlidePrimaryText}>Voir les Events</Text></Pressable>
-          <Pressable onPress={onCreate} style={styles.citySlideSecondary}><Text style={styles.citySlideSecondaryText}>Participer</Text></Pressable>
-        </View>
-      </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0A0808' },
-  citySlide: {
-    width: '100%',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-    backgroundColor: '#FFFAF2',
-  },
-  citySlideOrb: {
-    position: 'absolute',
-    right: -82,
-    top: 118,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: '#FF6F61',
-  },
-  citySlideCard: {
-    overflow: 'hidden',
-    borderRadius: 34,
-    borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.08)',
-    backgroundColor: 'rgba(255,250,242,0.88)',
-    padding: 22,
-    shadowColor: '#1E1914',
-    shadowOpacity: 0.16,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 18 },
-    elevation: 10,
-  },
-  citySlideIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#171313',
-  },
-  citySlideKicker: {
-    marginTop: 22,
-    color: '#FF6F61',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
-  citySlideTitle: {
-    marginTop: 8,
-    color: '#171313',
-    fontSize: 40,
-    lineHeight: 40,
-    fontWeight: '900',
-    letterSpacing: -1.7,
-  },
-  citySlideText: {
-    marginTop: 14,
-    color: 'rgba(23,19,19,0.58)',
-    fontSize: 14,
-    lineHeight: 21,
-    fontWeight: '700',
-  },
-  citySlideStats: {
-    marginTop: 20,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
-  },
-  citySlideStat: {
-    height: 38,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 19,
-    backgroundColor: 'rgba(23,19,19,0.055)',
-    paddingHorizontal: 12,
-  },
-  citySlideStatText: {
-    color: 'rgba(23,19,19,0.62)',
-    fontSize: 11,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  citySlideActions: {
-    marginTop: 24,
-    flexDirection: 'row',
-    gap: 10,
-  },
-  citySlidePrimary: {
-    height: 46,
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 23,
-    backgroundColor: '#171313',
-  },
-  citySlidePrimaryText: {
-    color: '#FFFAF2',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  citySlideSecondary: {
-    height: 46,
-    minWidth: 84,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 23,
-    backgroundColor: 'rgba(23,19,19,0.065)',
-  },
-  citySlideSecondaryText: {
-    color: '#171313',
-    fontSize: 13,
-    fontWeight: '900',
-  },
   headerGradient: {
     position: 'absolute',
     left: 0,
@@ -1026,4 +1025,17 @@ const styles = StyleSheet.create({
   },
   retryText: { color: '#171313', fontSize: 12, fontWeight: '900', letterSpacing: 0.6 },
   footer: { paddingVertical: 28, alignItems: 'center', justifyContent: 'center' },
+  remixOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 40, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.42)' },
+  remixSheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: '#F7F6F3', padding: 18, gap: 12 },
+  remixHandle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: 'rgba(17,17,17,0.18)', marginBottom: 4 },
+  remixHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  remixCover: { width: 64, height: 64, borderRadius: 16, backgroundColor: 'rgba(17,17,17,0.08)' },
+  remixTitle: { color: '#111111', fontSize: 18, fontWeight: '900' },
+  remixArtist: { marginTop: 2, color: 'rgba(17,17,17,0.52)', fontSize: 13, fontWeight: '800' },
+  remixText: { color: '#111111', fontSize: 14, lineHeight: 20, fontWeight: '900' },
+  remixCredit: { color: 'rgba(17,17,17,0.5)', fontSize: 12, fontWeight: '700' },
+  remixPrimary: { height: 50, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#111111' },
+  remixPrimaryText: { color: '#F7F6F3', fontSize: 14, fontWeight: '900' },
+  remixSecondary: { height: 48, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.08)' },
+  remixSecondaryText: { color: 'rgba(17,17,17,0.62)', fontSize: 13, fontWeight: '900' },
 });

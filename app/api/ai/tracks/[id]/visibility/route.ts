@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
+import { remixPermissionsFromRow, remixPermissionsToRow, sanitizeRemixPermissions } from '@/lib/remixPermissions';
+import { applyRemixPublicationGuard } from '@/lib/remixServer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,14 +23,14 @@ export async function PATCH(
   }
 
   try {
-    const body = (await req.json().catch(() => ({}))) as { isPublic?: boolean };
+    const body = (await req.json().catch(() => ({}))) as { isPublic?: boolean; remixPermissions?: unknown };
     if (typeof body.isPublic !== 'boolean') {
       return NextResponse.json({ error: 'isPublic doit etre un booleen' }, { status: 400 });
     }
 
     const { data: track, error: fetchError } = await supabaseAdmin
       .from('ai_tracks')
-      .select('id, generation_id, generation:ai_generations!inner(user_id)')
+      .select('*, generation:ai_generations!inner(user_id)')
       .eq('id', trackId)
       .single();
 
@@ -41,11 +43,25 @@ export async function PATCH(
       return NextResponse.json({ error: 'Interdit' }, { status: 403 });
     }
 
+    // Le createur choisit explicitement les droits de creation avant publication ;
+    // sans choix (ou si le morceau redevient prive), on reste sur "remix desactive".
+    const currentPermissions = remixPermissionsFromRow(track);
+    const nextPermissions = body.isPublic
+      ? sanitizeRemixPermissions(body.remixPermissions, currentPermissions)
+      : currentPermissions;
+
+    const publicationGuard = await applyRemixPublicationGuard({
+      childTrackIds: [trackId],
+      userId: session.user.id,
+      requestedPublic: body.isPublic,
+    });
+    const effectivePublic = publicationGuard.effectivePublic;
+
     const { data: updated, error: updateError } = await supabaseAdmin
       .from('ai_tracks')
-      .update({ is_public: body.isPublic })
+      .update({ is_public: effectivePublic, ...remixPermissionsToRow(nextPermissions) })
       .eq('id', trackId)
-      .select('id, is_public')
+      .select('*')
       .single();
 
     if (updateError) {
@@ -55,7 +71,9 @@ export async function PATCH(
 
     return NextResponse.json({
       trackId: updated?.id || trackId,
-      isPublic: body.isPublic,
+      isPublic: effectivePublic,
+      remixStatus: publicationGuard.remixStatus,
+      ...remixPermissionsFromRow(updated),
     });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erreur interne' }, { status: 500 });

@@ -26,7 +26,7 @@ import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraRouteNav, Synaur
 import TrackCover from '@/components/TrackCover';
 import { suggestTags } from '@/lib/postCategorization';
 
-type PostCategory = 'feedback' | 'collab' | 'remix' | 'prompts' | 'weekly-top';
+type PostCategory = 'feedback' | 'collab' | 'remix' | 'ai_prompt' | 'prompts' | 'weekly-top';
 
 type UserTrack = {
   id: string;
@@ -38,12 +38,13 @@ type UserTrack = {
   duration?: number | null;
 };
 
-const CATEGORIES: Array<{ id: PostCategory; label: string; prompt: string; icon: any; tint: string }> = [
-  { id: 'feedback', label: 'Avis sur mon son', prompt: 'Je voudrais un avis sur ce son : mix, refrain, structure, cover, potentiel de sortie.', icon: Heart, tint: '#ff6f61' },
-  { id: 'collab', label: 'Recherche feat', prompt: 'Je cherche un feat pour ce morceau : voix, prod, topline, mix ou direction artistique.', icon: Users, tint: '#7c5cff' },
-  { id: 'remix', label: 'Défi remix', prompt: 'Je lance un défi remix depuis cette source. Voici les règles, l’ambiance et ce que j’aimerais entendre.', icon: Zap, tint: '#f59e0b' },
-  { id: 'prompts', label: 'Battle de prompts', prompt: 'Je partage un prompt ou une recette IA à tester, comparer et améliorer ensemble.', icon: Sparkles, tint: '#14b8a6' },
-  { id: 'weekly-top', label: 'Découverte', prompt: 'Je partage une découverte qui mérite d’être écoutée cette semaine.', icon: Trophy, tint: '#38bdf8' },
+const CATEGORIES: Array<{ id: PostCategory; label: string; question: string; prompt: string; icon: any; tint: string }> = [
+  { id: 'feedback', label: 'Feedback Lab', question: 'Quel retour veux-tu sur ce son ?', prompt: 'Je voudrais un avis sur ce son : mix, refrain, structure, cover, potentiel de sortie.', icon: Heart, tint: '#D96D63' },
+  { id: 'collab', label: 'Open Feat', question: 'Quel type de collaboration recherches-tu ?', prompt: 'Je cherche un feat pour ce morceau : voix, prod, topline, mix ou direction artistique.', icon: Users, tint: '#7357C6' },
+  { id: 'remix', label: 'Remix Lab', question: 'Quel morceau ou défi veux-tu proposer ?', prompt: 'Je lance un défi remix depuis cette source. Voici les règles, l’ambiance et ce que j’aimerais entendre.', icon: Zap, tint: '#D9A441' },
+  { id: 'ai_prompt', label: 'IA Lab', question: 'Quelle idée ou variation veux-tu partager ?', prompt: 'Je partage une idée, un prompt ou une variation IA à tester, comparer et améliorer ensemble.', icon: Sparkles, tint: '#4A9EAA' },
+  { id: 'prompts', label: 'Battle de prompts', question: 'Quel prompt veux-tu partager ?', prompt: 'Je partage un prompt ou une recette IA à tester, comparer et améliorer ensemble.', icon: Sparkles, tint: '#14b8a6' },
+  { id: 'weekly-top', label: 'Découverte', question: 'Quelle découverte veux-tu partager ?', prompt: 'Je partage une découverte qui mérite d’être écoutée cette semaine.', icon: Trophy, tint: '#38bdf8' },
 ];
 
 function categoryMeta(category: string | null): typeof CATEGORIES[number] {
@@ -200,9 +201,9 @@ function NewCommunityPostContent() {
           </Link>
           <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-end">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-white/42">Créer une discussion musicale</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-white/42">{meta.label}</p>
               <h1 className="mt-2 max-w-3xl text-[2.5rem] font-black leading-[0.92] tracking-[-0.06em] text-white sm:text-6xl">
-                Transforme un son en retours utiles.
+                {meta.question}
               </h1>
               <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-white/54">
                 Choisis une intention, attache un morceau, puis publie une demande claire pour obtenir avis, feat ou remix.
@@ -225,7 +226,7 @@ function NewCommunityPostContent() {
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <SynauraPanel className="p-4 sm:p-5">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               {CATEGORIES.map((item) => {
                 const Icon = item.icon;
                 const active = category === item.id;

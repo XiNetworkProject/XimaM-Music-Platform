@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlements } from '@/lib/entitlements';
+import { DEFAULT_REMIX_PERMISSIONS, remixPermissionsToRow, sanitizeRemixPermissions } from '@/lib/remixPermissions';
 import cloudinary from '@/lib/cloudinary';
 
 export async function POST(request: NextRequest) {
@@ -60,6 +61,9 @@ export async function POST(request: NextRequest) {
       const extraReleaseType = jsonData.release_type || null;
       const extraVisibility = jsonData.visibility || null;
       const extraScheduledAt = jsonData.scheduled_at || null;
+      // Le createur choisit explicitement les droits de creation avant publication ;
+      // sans choix, on reste sur "remix desactive" (aucune fuite par defaut).
+      const remixPermissions = sanitizeRemixPermissions(jsonData.remixPermissions, DEFAULT_REMIX_PERMISSIONS);
 
       const insertPayload: Record<string, any> = {
           id: `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -83,6 +87,7 @@ export async function POST(request: NextRequest) {
           cover_video_url: coverVideoUrl || null,
           cover_video_public_id: coverVideoPublicId || null,
           cover_video_poster_url: coverVideoPosterUrl || null,
+          ...remixPermissionsToRow(remixPermissions),
       };
 
       // Store extended metadata in a JSONB `data` column if the column exists,
@@ -127,12 +132,38 @@ export async function POST(request: NextRequest) {
         return rest;
       };
 
+      const shouldRetryWithoutRemixColumns = (err: any) => {
+        const msg = String(err?.message || err?.details || '');
+        return Boolean(err) && (
+          msg.includes('allow_clips') ||
+          msg.includes('allow_audio_remix') ||
+          msg.includes('allow_ai_variation') ||
+          msg.includes('remix_approval_required') ||
+          msg.includes('remix_visibility') ||
+          msg.includes('Could not find') ||
+          msg.includes('schema cache')
+        );
+      };
+
+      const stripRemixColumns = (payload: Record<string, any>) => {
+        const { allow_clips, allow_audio_remix, allow_ai_variation, remix_approval_required, remix_visibility, ...rest } = payload;
+        return rest;
+      };
+
       const result = await insertTrack(insertPayload);
       track = result.data;
       error = result.error;
 
       if (error && shouldRetryWithoutVideoColumns(error)) {
         currentPayload = stripVideoColumns(insertPayload);
+        const retry = await insertTrack(currentPayload);
+        track = retry.data;
+        error = retry.error;
+      }
+
+      // Si la migration des droits de creation n'a pas encore ete appliquee, on retente sans ces colonnes.
+      if (error && shouldRetryWithoutRemixColumns(error)) {
+        currentPayload = stripRemixColumns(currentPayload);
         const retry = await insertTrack(currentPayload);
         track = retry.data;
         error = retry.error;

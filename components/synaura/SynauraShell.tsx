@@ -7,9 +7,9 @@ import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import {
-  ArrowUpDown,
   Compass,
   CreditCard,
+  Film,
   HelpCircle,
   Home,
   Library,
@@ -36,19 +36,18 @@ const SYNAURA_SHELL_BRAND = {
 } as const;
 
 const SYNAURA_ROUTE_ITEMS = [
-  { href: '/', label: 'Accueil', icon: Home },
+  { href: '/', label: 'Pour toi', icon: Home },
   { href: '/discover', label: 'Découvrir', icon: Compass },
-  { href: '/swipe', label: 'Swipe', icon: ArrowUpDown },
-  { href: '/community', label: 'Communauté', icon: Users },
+  { href: '/community', label: 'Clubs', icon: Users },
   { href: '/ai-generator', label: 'Studio', icon: Sparkles },
   { href: '/upload', label: 'Publier', icon: Upload },
 ] as const;
 
 const SYNAURA_MOBILE_ROUTE_ITEMS = [
-  { href: '/', label: 'Accueil', icon: Home },
+  { href: '/', label: 'Pour toi', icon: Home },
   { href: '/discover', label: 'Explorer', icon: Compass },
   { href: '/library', label: 'Biblio', icon: Library },
-  { href: '/community', label: 'Commu', icon: Users },
+  { href: '/community', label: 'Clubs', icon: Users },
   { href: '/ai-generator', label: 'Studio', icon: Sparkles },
 ] as const;
 
@@ -62,6 +61,7 @@ function SynauraAccountMenu({ compact = false }: { compact?: boolean }) {
   const profileHref = username ? `/profile/${username}` : '/profile';
   const links = [
     { href: profileHref, label: 'Mon profil', icon: User },
+    { href: '/clips/new', label: 'Publier un clip', icon: Film },
     { href: '/ai-generator', label: 'Studio', icon: Sparkles },
     { href: '/library', label: 'Bibliothèque', icon: Library },
     { href: '/settings', label: 'Paramètres', icon: Settings },

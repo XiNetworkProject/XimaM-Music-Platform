@@ -1,7 +1,7 @@
 'use client';
 
-import SynauraWarmFeed from '@/components/home/SynauraWarmFeed';
+import SynauraScrollFeed from '@/components/home/SynauraScrollFeed';
 
 export default function HomePage() {
-  return <SynauraWarmFeed />;
+  return <SynauraScrollFeed />;
 }

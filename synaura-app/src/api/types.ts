@@ -35,7 +35,93 @@ export type Track = {
   createdAt?: string;
   tint?: string;
   style?: string;
+  allowClips?: boolean;
+  allowAudioRemix?: boolean;
+  allowAiVariation?: boolean;
+  remixApprovalRequired?: boolean;
+  remixVisibility?: 'everyone' | 'followers' | 'disabled';
+  canRemixAiVariation?: boolean;
+  remixAttribution?: {
+    sourceTrackId: string;
+    sourceTrackType: 'track' | 'ai_track';
+    title: string;
+    artist: string;
+    artistUsername?: string;
+    coverUrl?: string | null;
+    trackUrl?: string;
+    label?: string;
+    credit?: string;
+  } | null;
+  variationsCount?: number;
+  musicClipsCount?: number;
 };
+
+export type MusicClipSource = Track & {
+  sourceTrackId: string;
+  sourceTrackType: 'track' | 'ai_track';
+  trackUrl?: string;
+  canCreateClip?: boolean;
+};
+
+export type MusicClip = {
+  id: string;
+  creatorId: string;
+  creator: { id: string; username: string; name: string; avatar?: string | null };
+  videoUrl: string | null;
+  videoPublicId?: string | null;
+  posterUrl: string | null;
+  caption: string | null;
+  tags: string[];
+  sourceTrackId: string;
+  sourceTrackType: 'track' | 'ai_track';
+  sourceTrackOffsetSeconds: number;
+  sourceTrackDurationSeconds: number;
+  visibility: 'draft' | 'published' | 'hidden';
+  likesCount: number;
+  commentsCount: number;
+  createdAt: string;
+  updatedAt: string;
+  sourceTrack: MusicClipSource;
+};
+
+export type RemixPermissions = {
+  allowClips: boolean;
+  allowAudioRemix: boolean;
+  allowAiVariation: boolean;
+  remixApprovalRequired: boolean;
+  remixVisibility: 'everyone' | 'followers' | 'disabled';
+};
+
+export const DEFAULT_REMIX_PERMISSIONS: RemixPermissions = {
+  allowClips: false,
+  allowAudioRemix: false,
+  allowAiVariation: false,
+  remixApprovalRequired: false,
+  remixVisibility: 'disabled',
+};
+
+/** Un remix (clip, variation IA ou remix audio) est possible dès qu'un canal est ouvert. */
+export function isRemixAvailable(track: Pick<Track, 'allowClips' | 'allowAudioRemix' | 'allowAiVariation' | 'remixVisibility'>): boolean {
+  const visibility = track.remixVisibility || 'disabled';
+  return visibility !== 'disabled' && Boolean(track.allowClips || track.allowAudioRemix || track.allowAiVariation);
+}
+
+export function canOpenAiVariation(track: Pick<Track, 'allowAiVariation' | 'remixVisibility' | 'canRemixAiVariation'>): boolean {
+  if (typeof track.canRemixAiVariation === 'boolean') return track.canRemixAiVariation;
+  return (track.remixVisibility || 'disabled') !== 'disabled' && Boolean(track.allowAiVariation);
+}
+
+/**
+ * Pré-vérification côté client pour l'affichage des boutons "Utiliser ce son" /
+ * "Créer un clip officiel" (Scroll, détail morceau, détail clip). Optimiste sur
+ * remixVisibility='followers' (le suivi réel n'est pas connu côté client) : le
+ * serveur (canCreateClip) reste la source de vérité à la création/publication.
+ */
+export function canUseSoundClientSide(input: { isOwner: boolean; allowClips: boolean; remixVisibility: 'everyone' | 'followers' | 'disabled' }): boolean {
+  if (input.isOwner) return true;
+  if (!input.allowClips) return false;
+  return input.remixVisibility !== 'disabled';
+}
 
 export type FeedStrategy = 'reco' | 'trending' | 'boost';
 
@@ -230,6 +316,12 @@ export type CommunityReply = {
   content: string;
   createdAt: string;
   author: CommunityAuthor;
+};
+
+export type CommunityClubAggregate = {
+  slug: string;
+  postsCount: number;
+  latestPost: CommunityPost | null;
 };
 
 export type CityPulseTrack = Track & {

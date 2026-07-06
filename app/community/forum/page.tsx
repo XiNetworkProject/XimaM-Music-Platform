@@ -26,7 +26,7 @@ import { notify } from '@/components/NotificationCenter';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import { categorizePost, suggestTags } from '@/lib/postCategorization';
 
-type CommunityCategory = 'all' | 'feedback' | 'collab' | 'remix' | 'prompts' | 'weekly-top';
+type CommunityCategory = 'all' | 'feedback' | 'collab' | 'remix' | 'ai_prompt' | 'prompts' | 'weekly-top';
 type PostCategory = Exclude<CommunityCategory, 'all'>;
 
 type Post = {
@@ -55,6 +55,7 @@ const CATEGORIES: Array<{
   { id: 'feedback', label: 'Avis sur mon son', desc: 'Mix, hook, cover, potentiel de sortie', icon: Heart, tint: '#ff6f61', prompt: 'Je cherche un retour précis sur mon son : mix, structure, refrain, cover ou potentiel de sortie.' },
   { id: 'collab', label: 'Recherche feat', desc: 'Voix, beatmakers, topliners, producteurs', icon: Users, tint: '#7c5cff', prompt: 'Je cherche un feat ou une collaboration pour terminer une idée.' },
   { id: 'remix', label: 'Défi remix', desc: 'Lance une source ou réponds à un challenge', icon: Zap, tint: '#f59e0b', prompt: 'Je lance un défi remix : voici l’intention, les contraintes et le son de départ.' },
+  { id: 'ai_prompt', label: 'IA Lab', desc: 'Idées, prompts et variations IA à comparer', icon: Sparkles, tint: '#4A9EAA', prompt: 'Je partage une idée, un prompt ou une variation IA à tester et améliorer ensemble.' },
   { id: 'prompts', label: 'Battle de prompts', desc: 'Compare des recettes IA et directions créatives', icon: Sparkles, tint: '#14b8a6', prompt: 'Je propose un prompt ou une recette IA à tester et améliorer ensemble.' },
   { id: 'weekly-top', label: 'Top sons', desc: 'Découvertes qui méritent d’entrer dans les mixes', icon: Trophy, tint: '#38bdf8', prompt: 'Je partage une découverte qui mérite d’être écoutée cette semaine.' },
 ];

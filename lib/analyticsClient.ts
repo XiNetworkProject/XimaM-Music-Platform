@@ -43,4 +43,17 @@ export async function sendTrackEvents(trackId: string, events: EventPayload | Ev
   } catch {}
 }
 
+export type ClipFunnelStep = 'clip_use_sound_started' | 'clip_composer_opened' | 'clip_draft_created' | 'clip_published';
+
+/**
+ * Mesure produit du funnel "Utiliser ce son" -> Clip publié. Réutilise l'event_type
+ * 'remix' déjà accepté par /api/tracks/[id]/events (track_event_type est un enum
+ * Postgres : ajouter de vraies valeurs demanderait une migration) et encode l'étape
+ * dans extra.kind. Pas de compteur public, best-effort (échec silencieux).
+ */
+export async function recordClipFunnelEvent(trackId: string, kind: ClipFunnelStep, extra?: Record<string, unknown>) {
+  if (!trackId) return;
+  await sendTrackEvents(trackId, { event_type: 'remix', source: 'clip', extra: { kind, ...extra } });
+}
+
 

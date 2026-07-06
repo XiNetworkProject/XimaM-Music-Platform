@@ -36,11 +36,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import StarAcademyBanner from '@/components/StarAcademyBanner';
 
 const NAV_ITEMS = [
-  { href: '/', label: 'Accueil', icon: Home },
+  { href: '/', label: 'Pour toi', icon: Home },
   { href: '/discover', label: 'Découvrir', icon: Compass },
   { href: '/library', label: 'Bibliothèque', icon: BookOpen },
   { href: '/publish', label: 'Publier', icon: Music2 },
-  { href: '/community', label: 'Communauté', icon: Users },
+  { href: '/community', label: 'Clubs', icon: Users },
   { href: '/stats', label: 'Stats', icon: TrendingUp },
   { href: '/boosters', label: 'Boosters', icon: Gift },
   { href: '/meteo', label: 'Météo', icon: Cloud },

@@ -3,8 +3,10 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { getCommentsCount, getPopularTracks, getTrackById, getTrackLikeStatus, setTrackLike } from '@/api/client';
-import type { Track } from '@/api/types';
+import { getCommentsCount, getPopularTracks, getTrackById, getTrackLikeStatus, recordClipFunnelEvent, setTrackLike } from '@/api/client';
+import { canOpenAiVariation, canUseSoundClientSide, type Track } from '@/api/types';
+import { useAuth } from '@/auth/AuthProvider';
+import { openClipComposerForSound } from '@/navigation/clipEntry';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
 import { CommentsSheet } from '@/components/swipe/CommentsSheet';
@@ -24,6 +26,7 @@ export function TrackDetailScreen() {
   const navigation = useNavigation<any>();
   const player = usePlayer();
   const library = useLibrary();
+  const auth = useAuth();
   const initial = route.params?.track as Track | undefined;
   const trackId = String(route.params?.trackId || initial?._id || '');
   const [track, setTrack] = React.useState<Track | null>(initial || null);
@@ -36,6 +39,7 @@ export function TrackDetailScreen() {
   const [commentsOpen, setCommentsOpen] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
   const [actionsOpen, setActionsOpen] = React.useState(false);
+  const [remixOpen, setRemixOpen] = React.useState(false);
 
   const load = React.useCallback(async () => {
     if (!trackId) return;
@@ -87,6 +91,16 @@ export function TrackDetailScreen() {
 
   const active = player.current?._id === track._id && player.isPlaying;
   const artist = track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste Synaura';
+  const isOwnTrack = Boolean(auth.user?.id) && track.artist?._id === auth.user?.id;
+  const canUseSound = canUseSoundClientSide({
+    isOwner: isOwnTrack,
+    allowClips: Boolean(track.allowClips),
+    remixVisibility: track.remixVisibility || 'disabled',
+  });
+  const useThisSound = () => {
+    void recordClipFunnelEvent(track._id, 'clip_use_sound_started');
+    openClipComposerForSound(navigation, Boolean(auth.user), track._id, track._id.startsWith('ai-') ? 'ai_track' : 'track');
+  };
 
   return (
     <SynauraBackground>
@@ -112,6 +126,8 @@ export function TrackDetailScreen() {
           <Action icon="chatbubble-outline" label={`${comments}`} onPress={() => setCommentsOpen(true)} />
           <Action icon="share-social-outline" label="Partager" onPress={() => setShareOpen(true)} />
           <Action icon={library.isFavorite(track._id) ? 'bookmark' : 'bookmark-outline'} label="Sauver" active={library.isFavorite(track._id)} onPress={() => library.toggleFavorite(track)} />
+          {canOpenAiVariation(track) ? <Action icon="color-wand-outline" label="Remixer" onPress={() => setRemixOpen(true)} /> : null}
+          {canUseSound ? <Action icon="film-outline" label={isOwnTrack ? 'Clip officiel' : 'Ce son'} onPress={useThisSound} /> : null}
         </View>
 
         <SoftCard style={styles.stats}>
@@ -121,6 +137,24 @@ export function TrackDetailScreen() {
         </SoftCard>
 
         {track.lyrics ? <SoftCard><Text style={styles.sectionTitle}>Paroles</Text><Text numberOfLines={8} style={styles.description}>{track.lyrics}</Text></SoftCard> : null}
+        {track.remixAttribution ? (
+          <SoftCard>
+            <Text style={styles.sectionTitle}>Inspiré de {track.remixAttribution.title}</Text>
+            <Text style={styles.description}>Création originale par @{track.remixAttribution.artistUsername || track.remixAttribution.artist}</Text>
+          </SoftCard>
+        ) : null}
+        {Number(track.variationsCount || 0) > 0 ? <Text style={styles.sectionTitle}>{track.variationsCount} Variations</Text> : null}
+        {Number(track.musicClipsCount || 0) > 0 ? (
+          <SoftCard style={styles.clipsCard}>
+            <View>
+              <Text style={styles.sectionTitleInline}>Clips utilisant ce son</Text>
+              <Text style={styles.description}>{track.musicClipsCount} clip{Number(track.musicClipsCount || 0) > 1 ? 's' : ''} publie{Number(track.musicClipsCount || 0) > 1 ? 's' : ''}</Text>
+            </View>
+            <Pressable onPress={() => navigation.navigate('Swipe', { mode: 'clips', sourceTrackId: track._id })} style={styles.clipsButton}>
+              <Text style={styles.clipsButtonText}>Ouvrir</Text>
+            </Pressable>
+          </SoftCard>
+        ) : null}
         {track.genre?.length ? <View><Text style={styles.sectionTitle}>Ambiance</Text><View style={styles.chips}>{track.genre.slice(0, 5).map((genre) => <Text key={genre} style={styles.chip}>{genre}</Text>)}</View></View> : null}
 
         <View>
@@ -134,6 +168,33 @@ export function TrackDetailScreen() {
       <CommentsSheet visible={commentsOpen} track={track} commentCount={comments} onClose={() => setCommentsOpen(false)} onCountChange={(_id, next) => setComments(next)} />
       <ShareSheet visible={shareOpen} track={track} onClose={() => setShareOpen(false)} />
       <TrackActionsSheet track={actionsOpen ? track : null} onClose={() => setActionsOpen(false)} />
+      {remixOpen ? (
+        <View style={styles.remixOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setRemixOpen(false)} />
+          <View style={styles.remixSheet}>
+            <View style={styles.remixHead}>
+              {track.coverUrl ? <Image source={{ uri: track.coverUrl }} style={styles.remixCover} /> : <View style={styles.remixCover} />}
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={styles.remixTitle}>{track.title}</Text>
+                <Text numberOfLines={1} style={styles.remixArtist}>{artist}</Text>
+              </View>
+            </View>
+            <Text style={styles.remixText}>Créer une variation IA inspirée de ce morceau</Text>
+            <Text style={styles.remixCredit}>Le créateur original sera toujours crédité</Text>
+            <Pressable
+              onPress={() => {
+                setRemixOpen(false);
+                navigation.navigate('AIStudio', { sourceTrackId: track._id, sourceTrackType: track._id.startsWith('ai-') ? 'ai_track' : 'track', mode: 'remix' });
+              }}
+              style={styles.remixPrimary}
+            >
+              <Ionicons name="color-wand-outline" size={18} color={colors.paper} />
+              <Text style={styles.remixPrimaryText}>Ouvrir dans Studio</Text>
+            </Pressable>
+            <Pressable onPress={() => setRemixOpen(false)} style={styles.remixSecondary}><Text style={styles.remixSecondaryText}>Annuler</Text></Pressable>
+          </View>
+        </View>
+      ) : null}
     </SynauraBackground>
   );
 }
@@ -179,9 +240,25 @@ const styles = StyleSheet.create({
   statValue: { color: colors.text, fontSize: 17, fontWeight: '900' },
   statLabel: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
   sectionTitle: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, color: colors.text, fontSize: 17, fontWeight: '900' },
+  sectionTitleInline: { color: colors.text, fontSize: 17, fontWeight: '900' },
   description: { color: colors.textSecondary, fontSize: 13, lineHeight: 21, fontWeight: '600' },
+  clipsCard: { marginHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  clipsButton: { height: 40, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.md, backgroundColor: colors.black },
+  clipsButtonText: { color: colors.paper, fontSize: 12, fontWeight: '900' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: spacing.lg },
   chip: { overflow: 'hidden', borderRadius: radius.pill, backgroundColor: colors.surface, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, color: colors.textSecondary, fontSize: 10, fontWeight: '800' },
   similar: { gap: spacing.sm, paddingHorizontal: spacing.lg },
   error: { color: colors.danger, textAlign: 'center', fontSize: 11, fontWeight: '700' },
+  remixOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.42)' },
+  remixSheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: '#F7F6F3', padding: 18, gap: 12 },
+  remixHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  remixCover: { width: 64, height: 64, borderRadius: 16, backgroundColor: 'rgba(17,17,17,0.08)' },
+  remixTitle: { color: '#111111', fontSize: 18, fontWeight: '900' },
+  remixArtist: { color: 'rgba(17,17,17,0.52)', fontSize: 13, fontWeight: '800' },
+  remixText: { color: '#111111', fontSize: 14, lineHeight: 20, fontWeight: '900' },
+  remixCredit: { color: 'rgba(17,17,17,0.5)', fontSize: 12, fontWeight: '700' },
+  remixPrimary: { height: 50, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#111111' },
+  remixPrimaryText: { color: colors.paper, fontSize: 14, fontWeight: '900' },
+  remixSecondary: { height: 48, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.08)' },
+  remixSecondaryText: { color: 'rgba(17,17,17,0.62)', fontSize: 13, fontWeight: '900' },
 });

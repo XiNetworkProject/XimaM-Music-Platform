@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import type {
   Creator,
   CityEventDetail,
+  CommunityClubAggregate,
   CommunityFaq,
   CommunityPost,
   CommunityReply,
@@ -13,14 +14,18 @@ import type {
   HomeData,
   HomePost,
   LibraryStats,
+  MusicClip,
+  MusicClipSource,
   NotificationCenterData,
   Playlist,
   RankingFeedChunk,
+  RemixPermissions,
   SearchResults,
   SynauraNotification,
   Track,
   DiscoverPage,
 } from './types';
+import { DEFAULT_REMIX_PERMISSIONS } from './types';
 
 const fallbackBaseUrl = 'https://xima-m-music-platform.vercel.app';
 const fallbackCover = 'https://xima-m-music-platform.vercel.app/default-cover.svg';
@@ -197,6 +202,66 @@ function normalizeTrack(raw: any): Track | null {
     createdAt: raw?.createdAt || raw?.created_at,
     tint: pickTint(String(id)),
     style: genre[0] || raw?.style || raw?.prompt || 'Track Synaura',
+    allowClips: Boolean(raw?.allowClips ?? raw?.allow_clips),
+    allowAudioRemix: Boolean(raw?.allowAudioRemix ?? raw?.allow_audio_remix),
+    allowAiVariation: Boolean(raw?.allowAiVariation ?? raw?.allow_ai_variation),
+    remixApprovalRequired: Boolean(raw?.remixApprovalRequired ?? raw?.remix_approval_required),
+    remixVisibility: ['everyone', 'followers', 'disabled'].includes(raw?.remixVisibility ?? raw?.remix_visibility)
+      ? (raw?.remixVisibility ?? raw?.remix_visibility)
+      : 'disabled',
+    canRemixAiVariation: Boolean(raw?.canRemixAiVariation ?? raw?.can_remix_ai_variation),
+    remixAttribution: raw?.remixAttribution || raw?.remix_attribution || null,
+    variationsCount: Number(raw?.variationsCount ?? raw?.variations_count ?? 0),
+    musicClipsCount: Number(raw?.musicClipsCount ?? raw?.music_clips_count ?? 0),
+  };
+}
+
+function normalizeClipSource(raw: any): MusicClipSource | null {
+  const track = normalizeTrack({
+    ...raw,
+    _id: raw?._id || raw?.id || raw?.sourceTrackId,
+    id: raw?._id || raw?.id || raw?.sourceTrackId,
+    audioUrl: raw?.audioUrl || raw?.audio_url,
+    coverUrl: raw?.coverUrl || raw?.cover_url,
+  });
+  if (!track) return null;
+  return {
+    ...track,
+    sourceTrackId: String(raw?.sourceTrackId || raw?.source_track_id || track._id.replace(/^ai-/, '')),
+    sourceTrackType: raw?.sourceTrackType === 'ai_track' || raw?.source_track_type === 'ai_track' || track._id.startsWith('ai-') ? 'ai_track' : 'track',
+    trackUrl: raw?.trackUrl || raw?.track_url,
+    canCreateClip: Boolean(raw?.canCreateClip ?? raw?.can_create_clip),
+  };
+}
+
+function normalizeMusicClip(raw: any): MusicClip | null {
+  const id = raw?.id;
+  const source = normalizeClipSource(raw?.sourceTrack || raw?.source_track);
+  if (!id || !source) return null;
+  return {
+    id: String(id),
+    creatorId: String(raw?.creatorId || raw?.creator_id || ''),
+    creator: {
+      id: String(raw?.creator?.id || raw?.creatorId || raw?.creator_id || ''),
+      username: safeString(raw?.creator?.username, ''),
+      name: safeString(raw?.creator?.name || raw?.creator?.username, 'Createur Synaura'),
+      avatar: raw?.creator?.avatar || null,
+    },
+    videoUrl: absoluteAsset(raw?.videoUrl || raw?.video_url),
+    videoPublicId: raw?.videoPublicId || raw?.video_public_id || null,
+    posterUrl: absoluteAsset(raw?.posterUrl || raw?.poster_url || raw?.thumbnailUrl || raw?.thumbnail_url),
+    caption: typeof raw?.caption === 'string' && raw.caption.trim() ? raw.caption.trim() : null,
+    tags: Array.isArray(raw?.tags) ? raw.tags.map((tag: unknown) => String(tag)).filter(Boolean) : [],
+    sourceTrackId: String(raw?.sourceTrackId || raw?.source_track_id || source.sourceTrackId),
+    sourceTrackType: raw?.sourceTrackType === 'ai_track' || raw?.source_track_type === 'ai_track' ? 'ai_track' : 'track',
+    sourceTrackOffsetSeconds: Number(raw?.sourceTrackOffsetSeconds ?? raw?.source_track_offset_seconds ?? 0),
+    sourceTrackDurationSeconds: Number(raw?.sourceTrackDurationSeconds ?? raw?.source_track_duration_seconds ?? 30),
+    visibility: ['draft', 'published', 'hidden'].includes(raw?.visibility) ? raw.visibility : 'draft',
+    likesCount: Number(raw?.likesCount ?? raw?.likes_count ?? 0),
+    commentsCount: Number(raw?.commentsCount ?? raw?.comments_count ?? 0),
+    createdAt: raw?.createdAt || raw?.created_at || new Date().toISOString(),
+    updatedAt: raw?.updatedAt || raw?.updated_at || raw?.createdAt || raw?.created_at || new Date().toISOString(),
+    sourceTrack: source,
   };
 }
 
@@ -558,6 +623,50 @@ export async function getTrackById(trackId: string): Promise<Track | null> {
   return json ? normalizeTrack(json?.track || json) : null;
 }
 
+export async function getMusicClips(input: { limit?: number; cursor?: number; sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track' } = {}): Promise<{ clips: MusicClip[]; nextCursor: number; hasMore: boolean }> {
+  const params = new URLSearchParams();
+  params.set('limit', String(input.limit || 20));
+  if (input.cursor) params.set('cursor', String(input.cursor));
+  if (input.sourceTrackId) params.set('sourceTrackId', input.sourceTrackId);
+  if (input.sourceTrackType) params.set('sourceTrackType', input.sourceTrackType);
+  const json = await request<any>(`/api/music-clips?${params.toString()}`);
+  return {
+    clips: (Array.isArray(json?.clips) ? json.clips : []).map(normalizeMusicClip).filter((clip: MusicClip | null): clip is MusicClip => Boolean(clip)),
+    nextCursor: Number(json?.nextCursor || 0),
+    hasMore: Boolean(json?.hasMore),
+  };
+}
+
+export async function getMusicClipSources(input: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track' } = {}): Promise<MusicClipSource[]> {
+  const params = new URLSearchParams({ limit: '80' });
+  if (input.sourceTrackId) params.set('sourceTrackId', input.sourceTrackId);
+  if (input.sourceTrackType) params.set('sourceTrackType', input.sourceTrackType);
+  const json = await request<any>(`/api/music-clips/sources?${params.toString()}`);
+  return (Array.isArray(json?.sources) ? json.sources : [])
+    .map(normalizeClipSource)
+    .filter((source: MusicClipSource | null): source is MusicClipSource => Boolean(source));
+}
+
+export async function createMusicClipDraft(input: { sourceTrackId: string; sourceTrackType: 'track' | 'ai_track' }): Promise<MusicClip> {
+  const json = await request<any>('/api/music-clips', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  const clip = normalizeMusicClip(json?.clip);
+  if (!clip) throw new Error('Brouillon clip invalide');
+  return clip;
+}
+
+export async function updateMusicClip(clipId: string, input: Record<string, unknown>): Promise<MusicClip> {
+  const json = await request<any>(`/api/music-clips/${encodeURIComponent(clipId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+  const clip = normalizeMusicClip(json?.clip);
+  if (!clip) throw new Error('Clip invalide');
+  return clip;
+}
+
 export async function getPostDetail(postId: string): Promise<HomePost> {
   const json = await request<any>(`/api/posts/${encodeURIComponent(postId)}`);
   const post = normalizePost(json?.post || json);
@@ -694,6 +803,30 @@ export async function getCommunityPosts(category = 'all', page = 1, limit = 12):
     .map(normalizeCommunityPost)
     .filter((post: CommunityPost | null): post is CommunityPost => Boolean(post));
   return { posts, hasMore: page < Number(json?.pagination?.totalPages || 1) };
+}
+
+export async function getDiscoverMoodTracks(moodId: string, limit = 40): Promise<{ tracks: Track[]; hasEnough: boolean }> {
+  const json = await request<any>(`/api/discover/moods?mood=${encodeURIComponent(moodId)}&limit=${limit}`);
+  const tracks = (Array.isArray(json?.tracks) ? json.tracks : [])
+    .map(normalizeTrack)
+    .filter((track: Track | null): track is Track => Boolean(track));
+  return { tracks, hasEnough: Boolean(json?.hasEnough) };
+}
+
+export async function getDiscoverRadar(limit = 16): Promise<Track[]> {
+  const json = await request<any>(`/api/discover/radar?limit=${limit}`);
+  return (Array.isArray(json?.tracks) ? json.tracks : [])
+    .map(normalizeTrack)
+    .filter((track: Track | null): track is Track => Boolean(track));
+}
+
+export async function getCommunityClubs(): Promise<CommunityClubAggregate[]> {
+  const json = await request<any>('/api/community/clubs');
+  return (Array.isArray(json?.clubs) ? json.clubs : []).map((club: any) => ({
+    slug: String(club?.slug || ''),
+    postsCount: Number(club?.postsCount || 0),
+    latestPost: club?.latestPost ? normalizeCommunityPost(club.latestPost) : null,
+  }));
 }
 
 export async function getCommunityStats(): Promise<CommunityStats> {
@@ -850,6 +983,18 @@ export async function recordTrackEvent(trackId: string, eventType: string, extra
   });
 }
 
+export type ClipFunnelStep = 'clip_use_sound_started' | 'clip_composer_opened' | 'clip_draft_created' | 'clip_published';
+
+/**
+ * Mesure produit du funnel "Utiliser ce son" -> Clip publié. Réutilise l'event_type
+ * 'remix' déjà accepté par /api/tracks/[id]/events (track_event_type est un enum
+ * Postgres : ajouter de vraies valeurs demanderait une migration) et encode l'étape
+ * dans extra.kind. Pas de compteur public, best-effort.
+ */
+export async function recordClipFunnelEvent(trackId: string, kind: ClipFunnelStep) {
+  await recordTrackEvent(trackId, 'remix', { kind });
+}
+
 function normalizeComment(raw: any): HomeComment | null {
   const id = String(raw?.id || raw?._id || '');
   if (!id) return null;
@@ -998,6 +1143,7 @@ export type CreateUploadedTrackInput = {
   releaseType?: 'single' | 'ep' | 'album';
   scheduledAt?: string | null;
   visibility?: 'public' | 'private' | 'unlisted';
+  remixPermissions?: RemixPermissions;
 };
 
 function cloudinaryPosterUrl(videoUrl?: string | null) {
@@ -1093,6 +1239,7 @@ export async function createUploadedTrack(input: CreateUploadedTrackInput): Prom
       release_type: input.releaseType || 'single',
       scheduled_at: input.scheduledAt || null,
       visibility: input.visibility || 'public',
+      remixPermissions: input.remixPermissions || DEFAULT_REMIX_PERMISSIONS,
     }),
   });
   return {
@@ -1543,6 +1690,7 @@ export async function updateTrackMetadata(trackId: string, input: {
   isPublic?: boolean;
   coverUrl?: string;
   coverPublicId?: string;
+  remixPermissions?: RemixPermissions;
 }): Promise<MobileProfileTrack | null> {
   const json = await request<any>(`/api/tracks/${encodeURIComponent(trackId)}`, {
     method: 'PUT',
@@ -1581,6 +1729,18 @@ export async function getBoostedTracks(limit = 10): Promise<Track[]> {
     .map(normalizeTrack)
     .filter((t: Track | null): t is Track => Boolean(t));
   return list.map((track: Track) => ({ ...track, isBoosted: true }));
+}
+
+/** Artistes populaires réels (utilisés pour les cartes "mise en avant" du Scroll). */
+export async function getPopularArtists(limit = 20): Promise<any[]> {
+  const json = await optionalRequest<any>(`/api/users/popular?limit=${limit}`);
+  return Array.isArray(json?.users) ? json.users : [];
+}
+
+/** Collections éditoriales réellement publiées (utilisées pour les cartes "collection" du Scroll). */
+export async function getEditorialCollections(): Promise<any[]> {
+  const json = await optionalRequest<any>('/api/editorial-collections/featured');
+  return Array.isArray(json?.collections) ? json.collections : [];
 }
 
 export async function fetchRankingFeedChunk(
@@ -1725,6 +1885,11 @@ export type AIStudioTrack = {
   is_liked?: boolean;
   generation_id?: string;
   generation?: Partial<AIStudioGeneration>;
+  allow_clips?: boolean;
+  allow_audio_remix?: boolean;
+  allow_ai_variation?: boolean;
+  remix_approval_required?: boolean;
+  remix_visibility?: 'everyone' | 'followers' | 'disabled';
 };
 
 export type AIStudioGeneration = {
@@ -1766,6 +1931,32 @@ export type StartAIGenerationInput = {
   weirdnessConstraint?: number;
   audioWeight?: number;
   durationHint?: string;
+  remixSource?: {
+    sourceTrackId: string;
+    sourceTrackType: 'track' | 'ai_track';
+  };
+};
+
+export type RemixSourceResponse = {
+  source: {
+    sourceTrackId: string;
+    sourceTrackType: 'track' | 'ai_track';
+    title: string;
+    artist: string;
+    artistUsername: string;
+    coverUrl: string | null;
+    trackUrl: string;
+    remixApprovalRequired: boolean;
+    canRemixAiVariation: boolean;
+    prefill?: {
+      genre?: string[];
+      mood?: string | null;
+      bpm?: number | null;
+      tags?: string[];
+      description?: string | null;
+      prompt?: string | null;
+    };
+  };
 };
 
 export type AIStatusTrack = {
@@ -1949,6 +2140,13 @@ export async function startAIGeneration(input: StartAIGenerationInput): Promise<
   return request('/api/suno/generate', { method: 'POST', body: JSON.stringify(input) });
 }
 
+export async function getRemixSource(sourceTrackId: string, sourceTrackType?: 'track' | 'ai_track'): Promise<RemixSourceResponse['source']> {
+  const params = new URLSearchParams({ sourceTrackId });
+  if (sourceTrackType) params.set('sourceTrackType', sourceTrackType);
+  const json = await request<RemixSourceResponse>(`/api/remixes/source?${params.toString()}`);
+  return json.source;
+}
+
 export async function startAIRemix(input: StartAIGenerationInput & { uploadUrl: string; sourceDurationSec?: number }): Promise<{ taskId: string; model: string; requestedModel?: string; modelAdjusted?: boolean; credits?: { balance?: number } }> {
   return request('/api/suno/upload-cover', { method: 'POST', body: JSON.stringify(input) });
 }
@@ -2001,10 +2199,10 @@ export async function setAITrackFavorite(trackId: string, isFavorite: boolean): 
   return Boolean(json?.is_favorite);
 }
 
-export async function setAITrackPublic(trackId: string, isPublic: boolean): Promise<boolean> {
+export async function setAITrackPublic(trackId: string, isPublic: boolean, remixPermissions?: RemixPermissions): Promise<boolean> {
   const json = await request<any>(`/api/ai/tracks/${encodeURIComponent(trackId)}/visibility`, {
     method: 'PATCH',
-    body: JSON.stringify({ isPublic }),
+    body: JSON.stringify({ isPublic, remixPermissions: remixPermissions || DEFAULT_REMIX_PERMISSIONS }),
   });
   return Boolean(json?.isPublic);
 }

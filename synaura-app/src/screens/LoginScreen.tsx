@@ -32,6 +32,11 @@ export function LoginScreen() {
   }, [route.params?.message]);
 
   const returnToApp = () => {
+    const returnTo = route.params?.returnTo;
+    if (returnTo?.screen) {
+      navigation.navigate('Tabs', { screen: returnTo.screen, params: returnTo.params });
+      return;
+    }
     if (navigation.canGoBack()) navigation.goBack();
     else navigation.navigate('Tabs');
   };

@@ -1,12 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import { CreateMenuSheet } from '@/components/create/CreateMenuSheet';
 import { HomeV2Screen } from '@/screens/HomeV2Screen';
 import { DiscoverV2Screen } from '@/screens/DiscoverV2Screen';
+import { DiscoverMoodScreen } from '@/screens/DiscoverMoodScreen';
 import { LibraryScreen } from '@/screens/LibraryScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
 import { SwipeScreen } from '@/screens/SwipeScreen';
@@ -17,7 +19,9 @@ import { NotificationsScreen } from '@/screens/NotificationsScreen';
 import { PostDetailScreen } from '@/screens/PostDetailScreen';
 import { PlaylistDetailScreen } from '@/screens/PlaylistDetailScreen';
 import { CommunityScreen } from '@/screens/CommunityScreen';
+import { ClubDetailScreen } from '@/screens/ClubDetailScreen';
 import { CreateHubScreen } from '@/screens/CreateHubScreen';
+import { ClipComposerScreen } from '@/screens/ClipComposerScreen';
 import { AIStudioScreen } from '@/screens/AIStudioScreen';
 import { CreatePostScreen } from '@/screens/CreatePostScreen';
 import { SubscriptionsScreen } from '@/screens/SubscriptionsScreen';
@@ -30,13 +34,17 @@ import type { Track } from '@/api/types';
 export type RootTabsParamList = {
   Home: undefined;
   Discover: undefined;
-  Swipe: undefined;
+  DiscoverMood: { moodId: string };
+  Swipe: { mode?: 'clips'; sourceTrackId?: string } | undefined;
   Community: { compose?: boolean; category?: string; track?: Track } | undefined;
+  ClubDetail: { slug: string; compose?: boolean; track?: Track } | undefined;
   Profile: undefined;
+  Create: undefined;
   Upload: undefined;
   Library: undefined;
   CreateHub: undefined;
-  AIStudio: undefined;
+  ClipComposer: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track' } | undefined;
+  AIStudio: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; mode?: 'remix' } | undefined;
   CreatePost: { track?: Track } | undefined;
   Settings: undefined;
   Subscriptions: undefined;
@@ -51,10 +59,14 @@ export type RootTabsParamList = {
 
 const Tab = createBottomTabNavigator<RootTabsParamList>();
 const HIDDEN_ROUTES = new Set<keyof RootTabsParamList>([
-  'Profile',
+  'Home',
+  'AIStudio',
   'Upload',
   'Library',
   'CreateHub',
+  'ClipComposer',
+  'ClubDetail',
+  'DiscoverMood',
   'CreatePost',
   'Settings',
   'Subscriptions',
@@ -106,19 +118,19 @@ function SynauraScrollIcon({ focused }: { focused: boolean }) {
   );
 }
 
-const PRIMARY_ROUTES = ['Home', 'Discover', 'Swipe', 'Community', 'AIStudio'] as const;
+const PRIMARY_ROUTES = ['Swipe', 'Discover', 'Create', 'Community', 'Profile'] as const;
 const PRIMARY_LABELS: Record<(typeof PRIMARY_ROUTES)[number], string> = {
-  Home: 'Accueil',
+  Swipe: 'Pour toi',
   Discover: 'Découvrir',
-  Swipe: 'Scroll',
-  Community: 'Communauté',
-  AIStudio: 'Studio',
+  Create: 'Créer',
+  Community: 'Clubs',
+  Profile: 'Moi',
 };
 const PRIMARY_ICONS: Record<Exclude<(typeof PRIMARY_ROUTES)[number], 'Swipe'>, keyof typeof Ionicons.glyphMap> = {
-  Home: 'home-outline',
   Discover: 'compass-outline',
+  Create: 'add-circle-outline',
   Community: 'people-outline',
-  AIStudio: 'sparkles-outline',
+  Profile: 'person-outline',
 };
 
 function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
@@ -170,35 +182,71 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 export function Tabs() {
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
+  const tabNavigationRef = useRef<any>(null);
+
   return (
-    <Tab.Navigator
-      backBehavior="history"
-      tabBar={(props) => <SynauraTabBar {...props} />}
-      screenOptions={() => ({
-        headerShown: false,
-        tabBarHideOnKeyboard: true,
-      })}
-    >
-      <Tab.Screen name="Home" component={HomeV2Screen} />
-      <Tab.Screen name="Discover" component={DiscoverV2Screen} />
-      <Tab.Screen name="Swipe" component={SwipeScreen} />
-      <Tab.Screen name="Community" component={CommunityScreen} />
-      <Tab.Screen name="AIStudio" component={AIStudioScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="Upload" component={UploadScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="Library" component={LibraryScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="CreateHub" component={CreateHubScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="CreatePost" component={CreatePostScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="Subscriptions" component={SubscriptionsScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="City" component={CityScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="PublicProfile" component={PublicProfileScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="PostDetail" component={PostDetailScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="PlaylistDetail" component={PlaylistDetailScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="TrackDetail" component={TrackDetailScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="Search" component={SearchScreen} options={{ tabBarButton: () => null }} />
-    </Tab.Navigator>
+    <>
+      <Tab.Navigator
+        backBehavior="history"
+        tabBar={(props) => <SynauraTabBar {...props} />}
+        screenOptions={() => ({
+          headerShown: false,
+          tabBarHideOnKeyboard: true,
+        })}
+      >
+        <Tab.Screen name="Swipe" component={SwipeScreen} />
+        <Tab.Screen name="Discover" component={DiscoverV2Screen} />
+        <Tab.Screen name="DiscoverMood" component={DiscoverMoodScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen
+          name="Create"
+          component={CreateHubScreen}
+          listeners={({ navigation }) => ({
+            tabPress: (event) => {
+              event.preventDefault();
+              tabNavigationRef.current = navigation;
+              void Haptics.selectionAsync().catch(() => {});
+              setCreateMenuOpen(true);
+            },
+          })}
+        />
+        <Tab.Screen name="Community" component={CommunityScreen} />
+        <Tab.Screen name="ClubDetail" component={ClubDetailScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Profile" component={ProfileScreen} />
+        <Tab.Screen name="Home" component={HomeV2Screen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="AIStudio" component={AIStudioScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Upload" component={UploadScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Library" component={LibraryScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="CreateHub" component={CreateHubScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="ClipComposer" component={ClipComposerScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="CreatePost" component={CreatePostScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Subscriptions" component={SubscriptionsScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="City" component={CityScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="PublicProfile" component={PublicProfileScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="PostDetail" component={PostDetailScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="PlaylistDetail" component={PlaylistDetailScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="TrackDetail" component={TrackDetailScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Search" component={SearchScreen} options={{ tabBarButton: () => null }} />
+      </Tab.Navigator>
+      <CreateMenuSheet
+        visible={createMenuOpen}
+        onClose={() => setCreateMenuOpen(false)}
+        onCreateWithAI={() => {
+          setCreateMenuOpen(false);
+          tabNavigationRef.current?.navigate('AIStudio');
+        }}
+        onImportSound={() => {
+          setCreateMenuOpen(false);
+          tabNavigationRef.current?.navigate('Upload');
+        }}
+        onPublishClip={() => {
+          setCreateMenuOpen(false);
+          tabNavigationRef.current?.navigate('ClipComposer');
+        }}
+      />
+    </>
   );
 }
 

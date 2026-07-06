@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -20,13 +20,14 @@ import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getAIGenerationStatus,
   getAIStudioCredits,
   getAIStudioLibrary,
   getAIStudioQuota,
+  getRemixSource,
   getSynauraCity,
   getUserPreferences,
   createCreditsCheckout,
@@ -56,6 +57,7 @@ import { MobileAnimatedLogo } from '@/components/mobile/MobileAnimatedLogo';
 import { MobileWaveform } from '@/components/mobile/MobileWaveform';
 import { EventChoice, EventTicker } from '@/components/events/SynauraEvents';
 import { TrackCover } from '@/components/TrackCover';
+import { RemixPermissionsSection, DEFAULT_REMIX_PERMISSIONS, type RemixPermissionsValue } from '@/components/upload/RemixPermissionsSection';
 import { aiStudioPresets, type MobileAIStudioPreset } from '@/constants/aiStudioPresets';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors } from '@/theme/tokens';
@@ -71,13 +73,13 @@ const ACTIVE_TASK_KEY = 'synaura.ai-studio.active-task';
 const MEDIA_REPAIR_KEY = 'synaura.ai-studio.media-repair.v2';
 const MEDIA_REPAIR_INTERVAL = 12 * 60 * 60 * 1000;
 const GENERATION_COST = 12;
-const STUDIO_TAGS = ['Pop', 'Rap FR', 'Electronic', 'Club', 'Cinématique', 'Mélancolique', 'Épique', 'Viral', 'Acoustique', 'Nocturne', 'Énergique', 'Synaura'];
-const STUDIO_FOLDERS = ['Favoris', 'À finir', 'À publier', 'Remix'];
+const STUDIO_TAGS = ['Pop', 'Rap FR', 'Electronic', 'Club', 'CinÃ©matique', 'MÃ©lancolique', 'Ã‰pique', 'Viral', 'Acoustique', 'Nocturne', 'Ã‰nergique', 'Synaura'];
+const STUDIO_FOLDERS = ['Favoris', 'Ã€ finir', 'Ã€ publier', 'Remix'];
 const CREDIT_PACKS: Array<{ id: CreditPackId; label: string; credits: number; price: string; badge?: string }> = [
-  { id: 'petit', label: 'Petit', credits: 120, price: '1,99 €' },
-  { id: 'moyen', label: 'Moyen', credits: 500, price: '6,99 €' },
-  { id: 'populaire', label: 'Populaire', credits: 1200, price: '14,99 €', badge: 'POPULAIRE' },
-  { id: 'best_value', label: 'Best Value', credits: 3000, price: '29,99 €', badge: 'MEILLEURE VALEUR' },
+  { id: 'petit', label: 'Petit', credits: 120, price: '1,99 â‚¬' },
+  { id: 'moyen', label: 'Moyen', credits: 500, price: '6,99 â‚¬' },
+  { id: 'populaire', label: 'Populaire', credits: 1200, price: '14,99 â‚¬', badge: 'POPULAIRE' },
+  { id: 'best_value', label: 'Best Value', credits: 3000, price: '29,99 â‚¬', badge: 'MEILLEURE VALEUR' },
 ];
 
 function aiTrackToPlayer(track: AIStatusTrack | NonNullable<AIStudioGeneration['tracks']>[number]): Track | null {
@@ -88,7 +90,7 @@ function aiTrackToPlayer(track: AIStatusTrack | NonNullable<AIStudioGeneration['
   const image = raw.image_url || raw.image;
   return {
     _id: `ai-${id}`,
-    title: track.title || 'Création Synaura',
+    title: track.title || 'CrÃ©ation Synaura',
     audioUrl,
     coverUrl: image || undefined,
     duration: Number(track.duration || 0),
@@ -100,6 +102,7 @@ function aiTrackToPlayer(track: AIStatusTrack | NonNullable<AIStudioGeneration['
 
 export function AIStudioScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const insets = useSafeAreaInsets();
   const auth = useAuth();
   const player = usePlayer();
@@ -117,6 +120,7 @@ export function AIStudioScreen() {
   const [audioWeight, setAudioWeight] = useState(50);
   const [remixAsset, setRemixAsset] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [remixSource, setRemixSource] = useState<AIStudioTrack | null>(null);
+  const [synauraRemixSource, setSynauraRemixSource] = useState<any | null>(null);
   const [credits, setCredits] = useState(0);
   const [creditsKnown, setCreditsKnown] = useState(false);
   const [quota, setQuota] = useState<AIStudioQuota | null>(null);
@@ -153,6 +157,37 @@ export function AIStudioScreen() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    const sourceTrackId = route.params?.sourceTrackId;
+    if (!sourceTrackId) return;
+    let active = true;
+    const sourceTrackType = route.params?.sourceTrackType === 'ai_track' ? 'ai_track' : 'track';
+    setMode('remix');
+    setTab('create');
+    setRemixAsset(null);
+    setRemixSource(null);
+    getRemixSource(String(sourceTrackId), sourceTrackType)
+      .then((source) => {
+        if (!active) return;
+        const prefill = source.prefill || {};
+        const tags = Array.isArray(prefill.tags) ? prefill.tags.filter(Boolean).map(String) : [];
+        const genres = Array.isArray(prefill.genre) ? prefill.genre.filter(Boolean).map(String) : [];
+        const styleLabel = [...genres, prefill.mood, ...tags].filter(Boolean).map(String).join(', ') || 'variation IA Synaura';
+        setSynauraRemixSource(source);
+        setTitle((current) => current.trim() ? current : `Variation de ${source.title}`.slice(0, 80));
+        setDescription((current) => current.trim() ? current : (prefill.prompt || prefill.description || `CrÃ©er une variation IA originale inspirÃ©e par "${source.title}".`));
+        setStyle((current) => current.trim() ? current : styleLabel);
+        setSelectedTags((current) => current.length ? current : tags.slice(0, 8));
+        setInstrumental(true);
+      })
+      .catch((sourceError) => {
+        if (active) setError(getSunoErrorMessage(sourceError));
+      });
+    return () => {
+      active = false;
+    };
+  }, [route.params?.sourceTrackId, route.params?.sourceTrackType]);
+
   const selectEvent = useCallback((eventId: string | null) => {
     setSelectedEventId(eventId);
     if (!eventId) return;
@@ -160,7 +195,7 @@ export function AIStudioScreen() {
     if (!event) return;
     const direction = [event.theme, event.challengeTag, event.description].filter(Boolean).join(', ');
     if (direction) setStyle((current) => current.trim() ? `${current}, ${direction}` : direction);
-    setDescription((current) => current.trim() ? current : `Créer pour ${event.title}: ${event.description}`);
+    setDescription((current) => current.trim() ? current : `CrÃ©er pour ${event.title}: ${event.description}`);
     setTab('create');
   }, [city?.events]);
 
@@ -270,7 +305,7 @@ export function AIStudioScreen() {
       await AsyncStorage.setItem(MEDIA_REPAIR_KEY, String(Date.now()));
       const nextLibrary = await getAIStudioLibrary();
       setLibrary(nextLibrary);
-      if (!silent) setRepairMessage(result.updatedTracks ? `${result.updatedTracks} média(s) réparé(s).` : 'Toutes les pochettes sont à jour.');
+      if (!silent) setRepairMessage(result.updatedTracks ? `${result.updatedTracks} mÃ©dia(s) rÃ©parÃ©(s).` : 'Toutes les pochettes sont Ã  jour.');
     } catch (repairError) {
       if (!silent) setRepairMessage(getSunoErrorMessage(repairError));
     } finally {
@@ -313,7 +348,7 @@ export function AIStudioScreen() {
   const createLyrics = async () => {
     const prompt = [title, description, style].filter(Boolean).join('. ').trim();
     if (!prompt) {
-      setError('Ajoute une idée ou un style avant de générer les paroles.');
+      setError('Ajoute une idÃ©e ou un style avant de gÃ©nÃ©rer les paroles.');
       return;
     }
     setLyricsLoading(true);
@@ -321,7 +356,7 @@ export function AIStudioScreen() {
     try {
       const result = await generateAILyrics(prompt);
       if (result.best) setLyrics(result.best);
-      else setError('Les paroles sont encore en préparation. Réessaie dans un instant.');
+      else setError('Les paroles sont encore en prÃ©paration. RÃ©essaie dans un instant.');
     } catch (lyricsError) {
       setError(getSunoErrorMessage(lyricsError));
     } finally {
@@ -331,19 +366,19 @@ export function AIStudioScreen() {
 
   const generate = async () => {
     if (!auth.requireAuth()) {
-      navigation.getParent()?.navigate('Login', { message: 'Connecte-toi pour créer avec le Studio IA.' });
+      navigation.getParent()?.navigate('Login', { message: 'Connecte-toi pour crÃ©er avec le Studio IA.' });
       return;
     }
     if (!description.trim() && mode === 'simple') {
-      setError('Décris le morceau que tu veux créer.');
+      setError('DÃ©cris le morceau que tu veux crÃ©er.');
       return;
     }
     if (mode !== 'simple' && !style.trim()) {
       setError('Ajoute un style musical ou choisis un preset.');
       return;
     }
-    if (mode === 'remix' && !remixAsset && !remixSource?.audio_url && !remixSource?.stream_audio_url) {
-      setError('Choisis un fichier audio à remixer.');
+    if (mode === 'remix' && !synauraRemixSource && !remixAsset && !remixSource?.audio_url && !remixSource?.stream_audio_url) {
+      setError('Choisis un fichier audio à remixer ou une source Synaura autorisée.');
       return;
     }
     if (creditsKnown && credits < GENERATION_COST) {
@@ -356,7 +391,7 @@ export function AIStudioScreen() {
     setLiveTracks([]);
     try {
       const tagPrompt = selectedTags.join(', ');
-      const prompt = mode === 'simple' ? `${description.trim()}. ${tagPrompt}. Durée cible ${duration} secondes.` : lyrics.trim() || description.trim();
+      const prompt = mode === 'simple' ? `${description.trim()}. ${tagPrompt}. DurÃ©e cible ${duration} secondes.` : lyrics.trim() || description.trim();
       const payload = {
         customMode: mode !== 'simple',
         instrumental,
@@ -372,7 +407,15 @@ export function AIStudioScreen() {
         durationHint: `${duration} seconds`,
       };
       let result;
-      if (mode === 'remix' && remixSource && !remixAsset) {
+      if (mode === 'remix' && synauraRemixSource) {
+        result = await startAIGeneration({
+          ...payload,
+          remixSource: {
+            sourceTrackId: synauraRemixSource.sourceTrackId,
+            sourceTrackType: synauraRemixSource.sourceTrackType,
+          },
+        });
+      } else if (mode === 'remix' && remixSource && !remixAsset) {
         result = await startAIRemix({
           ...payload,
           uploadUrl: remixSource.audio_url || remixSource.stream_audio_url || '',
@@ -393,10 +436,10 @@ export function AIStudioScreen() {
       setLiveStatus('pending');
       setLiveModel(result.model);
       if (result.modelAdjusted) {
-        setModelNotice(`${String(result.requestedModel || model).replace('_', '.')} n'est pas inclus dans ton plan. La génération utilise réellement ${result.model.replace('_', '.')}.`);
+        setModelNotice(`${String(result.requestedModel || model).replace('_', '.')} n'est pas inclus dans ton plan. La gÃ©nÃ©ration utilise rÃ©ellement ${result.model.replace('_', '.')}.`);
         setModel(result.model);
       } else {
-        setModelNotice(`Génération lancée avec ${result.model.replace('_', '.')}.`);
+        setModelNotice(`GÃ©nÃ©ration lancÃ©e avec ${result.model.replace('_', '.')}.`);
       }
       await AsyncStorage.setItem(ACTIVE_TASK_KEY, JSON.stringify({ taskId: result.taskId, status: 'pending', title: title || description, model: result.model, startedAt: Date.now() }));
       if (result.credits?.balance != null) setCredits(Number(result.credits.balance));
@@ -415,7 +458,7 @@ export function AIStudioScreen() {
     if (playable) void player.playTrack(playable);
   };
 
-  const currentTitle = mode === 'remix' ? 'Remixe un son existant.' : mode === 'custom' ? 'Dirige chaque détail.' : 'Décris. Synaura compose.';
+  const currentTitle = mode === 'remix' ? 'Remixe un son existant.' : mode === 'custom' ? 'Dirige chaque dÃ©tail.' : 'DÃ©cris. Synaura compose.';
   const libraryTracks = useMemo(() => {
     const rows = library.flatMap((generation) => (generation.tracks || []).map((track) => ({ generation, track })));
     if (liveTaskId && liveTracks.length) {
@@ -426,7 +469,7 @@ export function AIStudioScreen() {
         model: liveModel || model,
         status: 'pending',
         created_at: new Date().toISOString(),
-        metadata: { title: title || description || 'Création en cours', style, instrumental },
+        metadata: { title: title || description || 'CrÃ©ation en cours', style, instrumental },
         tracks: [],
       };
       liveTracks.forEach((raw) => {
@@ -500,7 +543,7 @@ export function AIStudioScreen() {
     setMode('remix');
     setRemixAsset(null);
     setRemixSource(track);
-    setTitle(`${track.title || String(generation.metadata?.title || 'Création')} remix`);
+    setTitle(`${track.title || String(generation.metadata?.title || 'CrÃ©ation')} remix`);
     setDescription(track.prompt || generation.prompt || '');
     setStyle(track.style || String(generation.metadata?.style || ''));
     setTab('create');
@@ -516,23 +559,23 @@ export function AIStudioScreen() {
           <View style={styles.authTop}>
             <View>
               <Text style={styles.authKicker}>STUDIO SYNAURA</Text>
-              <Text style={styles.authPageTitle}>Crée sans casser ton élan.</Text>
+              <Text style={styles.authPageTitle}>CrÃ©e sans casser ton Ã©lan.</Text>
             </View>
             <View style={styles.authIcon}><Ionicons name="sparkles" size={24} color={colors.paper} /></View>
           </View>
           <View style={styles.authPreview}>
             <View style={styles.authPreviewOrb}><Ionicons name="musical-notes" size={28} color={colors.paper} /></View>
-            <Text style={styles.authPreviewTitle}>Une idée devient un morceau.</Text>
-            <Text style={styles.authPreviewText}>Prompt, vibe, voix et durée dans un parcours simple pensé pour mobile.</Text>
+            <Text style={styles.authPreviewTitle}>Une idÃ©e devient un morceau.</Text>
+            <Text style={styles.authPreviewText}>Prompt, vibe, voix et durÃ©e dans un parcours simple pensÃ© pour mobile.</Text>
             <View style={styles.authFeatures}>
-              <AuthFeature icon="flash-outline" text="Générations et presets" />
-              <AuthFeature icon="library-outline" text="Bibliothèque synchronisée" />
+              <AuthFeature icon="flash-outline" text="GÃ©nÃ©rations et presets" />
+              <AuthFeature icon="library-outline" text="BibliothÃ¨que synchronisÃ©e" />
               <AuthFeature icon="cloud-upload-outline" text="Publication directe" />
             </View>
           </View>
           <View>
             <Text style={styles.authTitle}>Retrouve ton Studio</Text>
-            <Text style={styles.authText}>Connecte-toi pour accéder à tes crédits, tes créations et ton historique.</Text>
+            <Text style={styles.authText}>Connecte-toi pour accÃ©der Ã  tes crÃ©dits, tes crÃ©ations et ton historique.</Text>
             <Pressable onPress={() => navigation.getParent()?.navigate('Login')} style={styles.authButton}><Text style={styles.authButtonText}>Se connecter</Text></Pressable>
           </View>
         </ScrollView>
@@ -555,26 +598,26 @@ export function AIStudioScreen() {
       >
         <View style={styles.top}>
           <Pressable onPress={() => navigation.goBack()} style={styles.iconButton}><Ionicons name="chevron-back" size={22} color={colors.text} /></Pressable>
-          <Pressable onPress={() => setShowCredits(true)} style={styles.creditPill}><Ionicons name="sparkles" size={14} color={colors.coral} /><Text style={styles.creditText}>{credits} crédits</Text><Ionicons name="add-circle" size={16} color={colors.text} /></Pressable>
+          <Pressable onPress={() => setShowCredits(true)} style={styles.creditPill}><Ionicons name="sparkles" size={14} color={colors.coral} /><Text style={styles.creditText}>{credits} crÃ©dits</Text><Ionicons name="add-circle" size={16} color={colors.text} /></Pressable>
           <MobileAccountButton compact />
         </View>
-        <Text style={styles.kicker}>{tab === 'create' ? 'SYNAURA AI STUDIO' : 'BIBLIOTHÈQUE IA'}</Text>
-        <Text style={[styles.title, tab === 'library' && styles.titleCompact]}>{tab === 'create' ? currentTitle : 'Tes créations'}</Text>
-        <Text style={styles.subtitle}>{quota ? `${quota.plan_type.toUpperCase()} · ${quota.used_this_month}/${quota.monthly_limit} générations ce mois` : 'Génération et bibliothèque synchronisées avec le web.'}</Text>
+        <Text style={styles.kicker}>{tab === 'create' ? 'SYNAURA AI STUDIO' : 'BIBLIOTHÃˆQUE IA'}</Text>
+        <Text style={[styles.title, tab === 'library' && styles.titleCompact]}>{tab === 'create' ? currentTitle : 'Tes crÃ©ations'}</Text>
+        <Text style={styles.subtitle}>{quota ? `${quota.plan_type.toUpperCase()} Â· ${quota.used_this_month}/${quota.monthly_limit} gÃ©nÃ©rations ce mois` : 'GÃ©nÃ©ration et bibliothÃ¨que synchronisÃ©es avec le web.'}</Text>
 
         <View style={styles.tabs}>
-          <Segment active={tab === 'create'} label="Créer" icon="sparkles-outline" onPress={() => switchTab('create')} />
-          <Segment active={tab === 'library'} label={`Bibliothèque ${libraryTracks.length}`} icon="library-outline" onPress={() => switchTab('library')} />
+          <Segment active={tab === 'create'} label="CrÃ©er" icon="sparkles-outline" onPress={() => switchTab('create')} />
+          <Segment active={tab === 'library'} label={`BibliothÃ¨que ${libraryTracks.length}`} icon="library-outline" onPress={() => switchTab('library')} />
         </View>
 
-        <EventTicker city={city} onPress={() => navigation.navigate('City')} tone="violet" text="Crée pour le challenge actuel · transforme une idée Studio en moment Synaura Live" />
+        <EventTicker city={city} onPress={() => navigation.navigate('City')} tone="violet" text="CrÃ©e pour le challenge actuel Â· transforme une idÃ©e Studio en moment Synaura Live" />
 
         <View style={styles.studioConsole}>
-          <View style={styles.consoleBrand}><View style={styles.consoleDot} /><Text style={styles.consoleBrandText}>STUDIO CONNECTÉ</Text></View>
+          <View style={styles.consoleBrand}><View style={styles.consoleDot} /><Text style={styles.consoleBrandText}>STUDIO CONNECTÃ‰</Text></View>
           <View style={styles.consoleMetrics}>
-            <View><Text style={styles.consoleValue}>{model.replace('_', '.')}</Text><Text style={styles.consoleLabel}>MODÈLE</Text></View>
+            <View><Text style={styles.consoleValue}>{model.replace('_', '.')}</Text><Text style={styles.consoleLabel}>MODÃˆLE</Text></View>
             <View><Text style={styles.consoleValue}>{mode.toUpperCase()}</Text><Text style={styles.consoleLabel}>MODE</Text></View>
-            <View><Text style={styles.consoleValue}>{credits}</Text><Text style={styles.consoleLabel}>CRÉDITS</Text></View>
+            <View><Text style={styles.consoleValue}>{credits}</Text><Text style={styles.consoleLabel}>CRÃ‰DITS</Text></View>
           </View>
         </View>
 
@@ -584,7 +627,7 @@ export function AIStudioScreen() {
             <View style={styles.summaryDivider} />
             <View style={styles.summaryStat}><Text style={styles.summaryValue}>{pendingGenerations.length}</Text><Text style={styles.summaryLabel}>EN COURS</Text></View>
             <View style={styles.summaryDivider} />
-            <View style={styles.summaryStat}><Text style={styles.summaryValue}>{credits}</Text><Text style={styles.summaryLabel}>CRÉDITS</Text></View>
+            <View style={styles.summaryStat}><Text style={styles.summaryValue}>{credits}</Text><Text style={styles.summaryLabel}>CRÃ‰DITS</Text></View>
             <Pressable onPress={() => switchTab('create')} style={styles.summaryCreate}><Ionicons name="add" size={20} color={colors.paper} /></Pressable>
           </View>
         ) : null}
@@ -607,7 +650,7 @@ export function AIStudioScreen() {
 
             <View style={styles.panel}>
               <View style={styles.panelHead}>
-                <Text style={styles.panelKicker}>INTENTIONS PRÊTES</Text>
+                <Text style={styles.panelKicker}>INTENTIONS PRÃŠTES</Text>
                 <Text style={styles.panelCount}>{aiStudioPresets.length}</Text>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetRow}>
@@ -622,20 +665,35 @@ export function AIStudioScreen() {
             </View>
 
             <View style={styles.panel}>
+              {synauraRemixSource ? (
+                <View style={styles.lockedSource}>
+                  <View style={styles.lockedSourceTop}>
+                    {synauraRemixSource.coverUrl ? <TrackCover track={{ _id: synauraRemixSource.sourceTrackId, title: synauraRemixSource.title, audioUrl: '', coverUrl: synauraRemixSource.coverUrl }} style={styles.lockedSourceCover} /> : <View style={styles.lockedSourceCover} />}
+                    <View style={{ flex: 1 }}>
+                      <Text numberOfLines={2} style={styles.lockedSourceTitle}>Inspiré de {synauraRemixSource.title} — par @{synauraRemixSource.artistUsername || synauraRemixSource.artist}</Text>
+                      <Text style={styles.lockedSourceText}>Le créateur original sera toujours crédité</Text>
+                    </View>
+                  </View>
+                  <Pressable onPress={() => navigation.navigate('TrackDetail', { trackId: synauraRemixSource.sourceTrackType === 'ai_track' ? `ai-${synauraRemixSource.sourceTrackId}` : synauraRemixSource.sourceTrackId })} style={styles.lockedSourceButton}>
+                    <Ionicons name="open-outline" size={15} color={colors.violet} />
+                    <Text style={styles.lockedSourceButtonText}>Voir le morceau original</Text>
+                  </Pressable>
+                </View>
+              ) : null}
               {mode === 'remix' ? (
                 <Pressable onPress={pickRemix} style={styles.remixPicker}>
                   <Ionicons name={remixAsset || remixSource ? 'checkmark-circle' : 'musical-notes-outline'} size={25} color={remixAsset || remixSource ? '#6EE7B7' : '#C7B8FF'} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.fieldLabel}>SOURCE AUDIO</Text>
-                    <Text numberOfLines={1} style={styles.remixName}>{remixAsset?.name || remixSource?.title || 'Choisir un fichier à transformer'}</Text>
+                    <Text numberOfLines={1} style={styles.remixName}>{remixAsset?.name || remixSource?.title || 'Choisir un fichier Ã  transformer'}</Text>
                   </View>
                 </Pressable>
               ) : null}
-              {mode !== 'simple' ? <Field label="Titre" value={title} onChangeText={setTitle} placeholder="Nom de la création" /> : null}
-              <Field label={mode === 'simple' ? 'Décris ton morceau' : 'Direction créative'} value={description} onChangeText={setDescription} placeholder="Ambiance, histoire, énergie, structure..." multiline />
+              {mode !== 'simple' ? <Field label="Titre" value={title} onChangeText={setTitle} placeholder="Nom de la crÃ©ation" /> : null}
+              <Field label={mode === 'simple' ? 'DÃ©cris ton morceau' : 'Direction crÃ©ative'} value={description} onChangeText={setDescription} placeholder="Ambiance, histoire, Ã©nergie, structure..." multiline />
               {mode !== 'simple' ? <Field label="Style musical" value={style} onChangeText={setStyle} placeholder="Genres, voix, production, instruments..." multiline /> : null}
               <View style={styles.field}>
-                <View style={styles.fieldHead}><Text style={styles.fieldLabel}>COULEURS MUSICALES</Text><Text style={styles.tagCount}>{selectedTags.length} sélection</Text></View>
+                <View style={styles.fieldHead}><Text style={styles.fieldLabel}>COULEURS MUSICALES</Text><Text style={styles.tagCount}>{selectedTags.length} sÃ©lection</Text></View>
                 <View style={styles.tagWrap}>
                   {STUDIO_TAGS.map((tag) => {
                     const active = selectedTags.includes(tag);
@@ -649,21 +707,21 @@ export function AIStudioScreen() {
                     <Text style={styles.fieldLabel}>PAROLES</Text>
                     <Pressable disabled={lyricsLoading} onPress={createLyrics} style={styles.magicButton}>
                       {lyricsLoading ? <ActivityIndicator color={colors.paper} size="small" /> : <Ionicons name="sparkles" size={14} color={colors.paper} />}
-                      <Text style={styles.magicButtonText}>Écrire avec l’IA</Text>
+                      <Text style={styles.magicButtonText}>Ã‰crire avec lâ€™IA</Text>
                     </Pressable>
                   </View>
-                  <TextInput value={lyrics} onChangeText={setLyrics} placeholder="Écris ou colle les paroles..." placeholderTextColor={colors.textTertiary} multiline textAlignVertical="top" style={[styles.input, styles.inputMulti, styles.inputTall]} />
+                  <TextInput value={lyrics} onChangeText={setLyrics} placeholder="Ã‰cris ou colle les paroles..." placeholderTextColor={colors.textTertiary} multiline textAlignVertical="top" style={[styles.input, styles.inputMulti, styles.inputTall]} />
                 </>
               ) : null}
               <View style={styles.switchRow}>
-                <View><Text style={styles.switchTitle}>Instrumental</Text><Text style={styles.switchText}>Génère sans voix ni paroles</Text></View>
+                <View><Text style={styles.switchTitle}>Instrumental</Text><Text style={styles.switchText}>GÃ©nÃ¨re sans voix ni paroles</Text></View>
                 <Switch value={instrumental} onValueChange={setInstrumental} trackColor={{ false: '#3A3335', true: '#7C5CFF' }} thumbColor={colors.paper} />
               </View>
             </View>
 
             <Pressable onPress={() => setAdvancedOpen((current) => !current)} style={styles.advancedSummary}>
               <View style={styles.advancedIcon}><Ionicons name="options-outline" size={18} color={colors.paper} /></View>
-              <View style={{ flex: 1 }}><Text style={styles.advancedTitle}>Réglages de génération</Text><Text style={styles.advancedText}>{model.replace('_', '.')} · {duration} sec · {instrumental ? 'instrumental' : 'avec voix possible'}</Text></View>
+              <View style={{ flex: 1 }}><Text style={styles.advancedTitle}>RÃ©glages de gÃ©nÃ©ration</Text><Text style={styles.advancedText}>{model.replace('_', '.')} Â· {duration} sec Â· {instrumental ? 'instrumental' : 'avec voix possible'}</Text></View>
               <Ionicons name={advancedOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textTertiary} />
             </Pressable>
             {advancedOpen ? (
@@ -677,13 +735,13 @@ export function AIStudioScreen() {
                   }}
                   onUpgrade={() => navigation.navigate('Subscriptions')}
                 />
-                <ChoiceRow label="Durée cible" values={DURATIONS.map(String)} value={String(duration)} suffix=" sec" onChange={(value) => setDuration(Number(value))} />
+                <ChoiceRow label="DurÃ©e cible" values={DURATIONS.map(String)} value={String(duration)} suffix=" sec" onChange={(value) => setDuration(Number(value))} />
                 {mode !== 'simple' ? (
                   <>
                     <ChoiceRow label="Voix" values={['', 'f', 'm']} value={vocalGender} onChange={(value) => setVocalGender(value as '' | 'f' | 'm')} />
-                    <Field label="À éviter" value={negativeTags} onChangeText={setNegativeTags} placeholder="Ex: autotune, guitare, voix grave..." />
+                    <Field label="Ã€ Ã©viter" value={negativeTags} onChangeText={setNegativeTags} placeholder="Ex: autotune, guitare, voix grave..." />
                     <Meter label="Influence du style" value={styleInfluence} onChange={setStyleInfluence} />
-                    <Meter label="Créativité" value={weirdness} onChange={setWeirdness} />
+                    <Meter label="CrÃ©ativitÃ©" value={weirdness} onChange={setWeirdness} />
                     <Meter label="Poids audio" value={audioWeight} onChange={setAudioWeight} />
                   </>
                 ) : null}
@@ -692,10 +750,10 @@ export function AIStudioScreen() {
 
             <Pressable disabled={generating} onPress={generate} style={[styles.generateButton, generating && { opacity: 0.55 }]}>
               {generating ? <ActivityIndicator color={colors.paper} /> : <Ionicons name={mode === 'remix' ? 'repeat' : 'sparkles'} size={20} color={colors.paper} />}
-              <Text style={styles.generateText}>{generating ? 'Lancement...' : mode === 'remix' ? 'Lancer le remix' : 'Générer 2 versions'}</Text>
-              <Text style={styles.generateCost}>{GENERATION_COST} crédits</Text>
+              <Text style={styles.generateText}>{generating ? 'Lancement...' : mode === 'remix' ? 'Lancer le remix' : 'GÃ©nÃ©rer 2 versions'}</Text>
+              <Text style={styles.generateCost}>{GENERATION_COST} crÃ©dits</Text>
             </Pressable>
-            <Pressable onPress={() => setShowCredits(true)} style={styles.buyButton}><Ionicons name="sparkles-outline" size={16} color={colors.violet} /><Text style={styles.buyText}>Acheter des crédits</Text><Ionicons name="arrow-forward" size={16} color={colors.violet} /></Pressable>
+            <Pressable onPress={() => setShowCredits(true)} style={styles.buyButton}><Ionicons name="sparkles-outline" size={16} color={colors.violet} /><Text style={styles.buyText}>Acheter des crÃ©dits</Text><Ionicons name="arrow-forward" size={16} color={colors.violet} /></Pressable>
             {modelNotice ? (
               <View style={styles.modelNotice}>
                 <Ionicons name="information-circle-outline" size={17} color={colors.violet} />
@@ -706,7 +764,7 @@ export function AIStudioScreen() {
 
             {liveTaskId ? (
               <View style={styles.livePanel}>
-                <View style={styles.liveTop}><View style={styles.liveDot} /><Text style={styles.liveKicker}>GÉNÉRATION LIVE</Text><Text style={styles.liveStatus}>{liveStatus || 'pending'}</Text></View>
+                <View style={styles.liveTop}><View style={styles.liveDot} /><Text style={styles.liveKicker}>GÃ‰NÃ‰RATION LIVE</Text><Text style={styles.liveStatus}>{liveStatus || 'pending'}</Text></View>
                 <View style={styles.liveVisual}>
                   <MobileAnimatedLogo loading size={52} />
                   <View style={styles.liveVisualCopy}>
@@ -714,8 +772,8 @@ export function AIStudioScreen() {
                     <MobileWaveform active style={styles.liveWaveform} />
                   </View>
                 </View>
-                <Text style={styles.liveTitle}>{title || description || 'Création en cours'}</Text>
-                <Text style={styles.liveTask}>{(liveModel || model).replace('_', '.')} · #{liveTaskId.slice(-8)}</Text>
+                <Text style={styles.liveTitle}>{title || description || 'CrÃ©ation en cours'}</Text>
+                <Text style={styles.liveTask}>{(liveModel || model).replace('_', '.')} Â· #{liveTaskId.slice(-8)}</Text>
                 <GenerationTimeline status={liveStatus} hasTracks={liveTracks.length > 0} />
                 {liveTracks.map((track) => <StudioTrackRow key={track.id} title={track.title} image={track.image} playing={player.current?._id === `ai-${track.id}`} onPlay={() => play(track)} />)}
               </View>
@@ -724,22 +782,22 @@ export function AIStudioScreen() {
         ) : (
           <View style={styles.libraryList}>
             <TextInput value={librarySearch} onChangeText={setLibrarySearch} placeholder="Rechercher titre, style ou prompt..." placeholderTextColor={colors.textTertiary} style={styles.searchInput} />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>{(['all', 'instrumental', 'lyrics', 'liked', 'trashed'] as const).map((filter) => <Pressable key={filter} onPress={() => setLibraryFilter(filter)} style={[styles.filter, libraryFilter === filter && styles.filterActive]}><Text style={[styles.filterText, libraryFilter === filter && styles.filterTextActive]}>{filter === 'all' ? 'Tout' : filter === 'instrumental' ? 'Instrumental' : filter === 'lyrics' ? 'Avec paroles' : filter === 'liked' ? 'Aimés' : 'Corbeille'}</Text></Pressable>)}</ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>{(['all', 'instrumental', 'lyrics', 'liked', 'trashed'] as const).map((filter) => <Pressable key={filter} onPress={() => setLibraryFilter(filter)} style={[styles.filter, libraryFilter === filter && styles.filterActive]}><Text style={[styles.filterText, libraryFilter === filter && styles.filterTextActive]}>{filter === 'all' ? 'Tout' : filter === 'instrumental' ? 'Instrumental' : filter === 'lyrics' ? 'Avec paroles' : filter === 'liked' ? 'AimÃ©s' : 'Corbeille'}</Text></Pressable>)}</ScrollView>
             {libraryFolders.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.folderRow}><Pressable onPress={() => setLibraryFolder('')} style={[styles.folderFilter, !libraryFolder && styles.folderFilterActive]}><Ionicons name="folder-open-outline" size={14} color={!libraryFolder ? colors.paper : colors.textTertiary} /><Text style={[styles.folderFilterText, !libraryFolder && styles.folderFilterTextActive]}>Tous les dossiers</Text></Pressable>{libraryFolders.map((folder) => <Pressable key={folder} onPress={() => setLibraryFolder(folder)} style={[styles.folderFilter, libraryFolder === folder && styles.folderFilterActive]}><Ionicons name="folder-outline" size={14} color={libraryFolder === folder ? colors.paper : colors.textTertiary} /><Text style={[styles.folderFilterText, libraryFolder === folder && styles.folderFilterTextActive]}>{folder}</Text></Pressable>)}</ScrollView> : null}
-            <View style={styles.libraryToolbar}><Text style={styles.libraryCount}>{visibleLibraryTracks.length} piste{visibleLibraryTracks.length > 1 ? 's' : ''}</Text><View style={styles.toolbarActions}><Pressable disabled={repairingMedia} onPress={() => void repairMedia()} style={styles.sortButton}>{repairingMedia ? <ActivityIndicator size="small" color={colors.violet} /> : <Ionicons name="images-outline" size={15} color={colors.violet} />}<Text style={[styles.sortText, { color: colors.violet }]}>Réparer</Text></Pressable><Pressable onPress={() => setLibrarySort((current) => current === 'newest' ? 'oldest' : current === 'oldest' ? 'title' : 'newest')} style={styles.sortButton}><Ionicons name="swap-vertical" size={15} color={colors.text} /><Text style={styles.sortText}>{librarySort === 'newest' ? 'Récentes' : librarySort === 'oldest' ? 'Anciennes' : 'Titre'}</Text></Pressable></View></View>
+            <View style={styles.libraryToolbar}><Text style={styles.libraryCount}>{visibleLibraryTracks.length} piste{visibleLibraryTracks.length > 1 ? 's' : ''}</Text><View style={styles.toolbarActions}><Pressable disabled={repairingMedia} onPress={() => void repairMedia()} style={styles.sortButton}>{repairingMedia ? <ActivityIndicator size="small" color={colors.violet} /> : <Ionicons name="images-outline" size={15} color={colors.violet} />}<Text style={[styles.sortText, { color: colors.violet }]}>RÃ©parer</Text></Pressable><Pressable onPress={() => setLibrarySort((current) => current === 'newest' ? 'oldest' : current === 'oldest' ? 'title' : 'newest')} style={styles.sortButton}><Ionicons name="swap-vertical" size={15} color={colors.text} /><Text style={styles.sortText}>{librarySort === 'newest' ? 'RÃ©centes' : librarySort === 'oldest' ? 'Anciennes' : 'Titre'}</Text></Pressable></View></View>
             {repairMessage ? <Text style={styles.repairMessage}>{repairMessage}</Text> : null}
             {pendingGenerations.map((generation) => <GenerationStatusRow key={generation.id} generation={generation} active={generation.task_id === liveTaskId} />)}
             {visibleLibraryTracks.length ? visibleLibraryTracks.map(({ generation, track }) => (
               <StudioTrackRow
                 key={`${generation.id}-${track.id}`}
-                title={track.title || generation.metadata?.title || 'Création Synaura'}
-                subtitle={`${generation.model} · ${generation.metadata?.style || generation.prompt || 'Studio IA'}`}
+                title={track.title || generation.metadata?.title || 'CrÃ©ation Synaura'}
+                subtitle={`${generation.model} Â· ${generation.metadata?.style || generation.prompt || 'Studio IA'}`}
                 image={track.image_url}
                 playing={player.current?._id === `ai-${track.id}`}
                 onPlay={() => playLibraryTrack(track)}
                 onOpen={() => setInspector({ generation, track })}
               />
-            )) : <View style={styles.empty}><Ionicons name="sparkles-outline" size={28} color="#C7B8FF" /><Text style={styles.emptyTitle}>Ta bibliothèque est prête.</Text><Text style={styles.emptyText}>Lance une génération pour voir apparaître tes créations ici.</Text></View>}
+            )) : <View style={styles.empty}><Ionicons name="sparkles-outline" size={28} color="#C7B8FF" /><Text style={styles.emptyTitle}>Ta bibliothÃ¨que est prÃªte.</Text><Text style={styles.emptyText}>Lance une gÃ©nÃ©ration pour voir apparaÃ®tre tes crÃ©ations ici.</Text></View>}
           </View>
         )}
       </ScrollView>
@@ -776,7 +834,7 @@ function ChoiceRow({ label, values, value, suffix = '', onChange }: { label: str
 function ModelChoiceRow({ available, value, onChange, onUpgrade }: { available: string[]; value: string; onChange: (value: string) => void; onUpgrade: () => void }) {
   return (
     <View style={styles.field}>
-      <View style={styles.fieldHead}><Text style={styles.fieldLabel}>MODÈLE</Text><Text style={styles.tagCount}>modèle réellement utilisé</Text></View>
+      <View style={styles.fieldHead}><Text style={styles.fieldLabel}>MODÃˆLE</Text><Text style={styles.tagCount}>modÃ¨le rÃ©ellement utilisÃ©</Text></View>
       <View style={styles.choices}>
         {MODELS.map((item) => {
           const unlocked = available.includes(item);
@@ -798,31 +856,31 @@ function Meter({ label, value, onChange }: { label: string; value: number; onCha
 
 function StudioTrackRow({ title, subtitle, image, playing, onPlay, onOpen }: { title: string; subtitle?: string; image?: string; playing: boolean; onPlay: () => void; onOpen?: () => void }) {
   const preview: Track = { _id: `preview-${title}`, title, audioUrl: '', coverUrl: image, artist: { name: 'Synaura Studio' } };
-  return <View style={styles.trackRow}><View style={styles.trackCover}><TrackCover track={preview} /></View><Pressable disabled={!onOpen} onPress={onOpen} style={{ flex: 1 }}><Text numberOfLines={1} style={styles.trackTitle}>{title}</Text><Text numberOfLines={1} style={styles.trackText}>{subtitle || 'Prête à écouter'}</Text></Pressable>{onOpen ? <Pressable onPress={onOpen} style={styles.trackMore}><Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} /></Pressable> : null}<Pressable onPress={onPlay} style={[styles.trackPlay, playing && styles.trackPlayActive]}><Ionicons name={playing ? 'pause' : 'play'} size={17} color={playing ? colors.text : colors.paper} /></Pressable></View>;
+  return <View style={styles.trackRow}><View style={styles.trackCover}><TrackCover track={preview} /></View><Pressable disabled={!onOpen} onPress={onOpen} style={{ flex: 1 }}><Text numberOfLines={1} style={styles.trackTitle}>{title}</Text><Text numberOfLines={1} style={styles.trackText}>{subtitle || 'PrÃªte Ã  Ã©couter'}</Text></Pressable>{onOpen ? <Pressable onPress={onOpen} style={styles.trackMore}><Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} /></Pressable> : null}<Pressable onPress={onPlay} style={[styles.trackPlay, playing && styles.trackPlayActive]}><Ionicons name={playing ? 'pause' : 'play'} size={17} color={playing ? colors.text : colors.paper} /></Pressable></View>;
 }
 
 function StatusOrb({ status }: { status: string }) {
   const normalized = String(status || 'idle').toUpperCase();
   const pending = !['IDLE', 'SUCCESS', 'ERROR'].includes(normalized);
-  const label = normalized === 'SUCCESS' ? 'Ton son est prêt' : normalized === 'ERROR' ? 'Erreur de génération' : pending ? 'Génération en cours' : 'Studio prêt';
-  return <View style={styles.orbRow}><View style={[styles.orb, pending && styles.orbPending, normalized === 'SUCCESS' && styles.orbSuccess]}><Ionicons name={normalized === 'SUCCESS' ? 'checkmark' : pending ? 'pulse' : 'sparkles'} size={18} color={colors.paper} /></View><View><Text style={styles.orbKicker}>ÉTAT DU STUDIO</Text><Text style={styles.orbText}>{label}</Text></View></View>;
+  const label = normalized === 'SUCCESS' ? 'Ton son est prÃªt' : normalized === 'ERROR' ? 'Erreur de gÃ©nÃ©ration' : pending ? 'GÃ©nÃ©ration en cours' : 'Studio prÃªt';
+  return <View style={styles.orbRow}><View style={[styles.orb, pending && styles.orbPending, normalized === 'SUCCESS' && styles.orbSuccess]}><Ionicons name={normalized === 'SUCCESS' ? 'checkmark' : pending ? 'pulse' : 'sparkles'} size={18} color={colors.paper} /></View><View><Text style={styles.orbKicker}>Ã‰TAT DU STUDIO</Text><Text style={styles.orbText}>{label}</Text></View></View>;
 }
 
 function GenerationTimeline({ status, hasTracks }: { status: string; hasTracks: boolean }) {
   const success = String(status).toUpperCase() === 'SUCCESS';
   const first = hasTracks || String(status).toUpperCase() === 'FIRST_SUCCESS';
-  const steps = [{ label: 'Prompt envoyé', done: true }, { label: 'Génération lancée', done: true }, { label: 'Premier résultat', done: first }, { label: 'Audio sauvegardé', done: success }, { label: 'Prêt à écouter', done: success }];
+  const steps = [{ label: 'Prompt envoyÃ©', done: true }, { label: 'GÃ©nÃ©ration lancÃ©e', done: true }, { label: 'Premier rÃ©sultat', done: first }, { label: 'Audio sauvegardÃ©', done: success }, { label: 'PrÃªt Ã  Ã©couter', done: success }];
   return <View style={styles.timeline}>{steps.map((step, index) => <View key={step.label} style={styles.timelineStep}><View style={[styles.timelineDot, step.done && styles.timelineDotDone]}>{step.done ? <Ionicons name="checkmark" size={10} color={colors.text} /> : null}</View><Text style={[styles.timelineText, step.done && styles.timelineTextDone]}>{step.label}</Text>{index < steps.length - 1 ? <View style={[styles.timelineLine, step.done && styles.timelineLineDone]} /> : null}</View>)}</View>;
 }
 
 function GenerationStatusRow({ generation, active }: { generation: AIStudioGeneration; active: boolean }) {
-  const title = String(generation.metadata?.title || generation.prompt || 'Création en cours');
+  const title = String(generation.metadata?.title || generation.prompt || 'CrÃ©ation en cours');
   return (
     <View style={[styles.generationRow, active && styles.generationRowActive]}>
       <View style={styles.generationPulse}><ActivityIndicator color={colors.paper} size="small" /></View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text numberOfLines={1} style={styles.generationTitle}>{title}</Text>
-        <Text style={styles.generationMeta}>{generation.model} · génération en cours</Text>
+        <Text style={styles.generationMeta}>{generation.model} Â· gÃ©nÃ©ration en cours</Text>
       </View>
       <Text style={styles.generationStatus}>{String(generation.status || 'pending').toUpperCase()}</Text>
     </View>
@@ -833,11 +891,20 @@ function TrackInspector({ visible, item, onClose, onPlay, onCreatePost, onReuse,
   const [busy, setBusy] = useState('');
   const [feedback, setFeedback] = useState('');
   const [timedWords, setTimedWords] = useState<Array<{ word?: string }>>([]);
+  const [remixPermissions, setRemixPermissions] = useState<RemixPermissionsValue>(DEFAULT_REMIX_PERMISSIONS);
 
   useEffect(() => {
     setBusy('');
     setFeedback('');
     setTimedWords([]);
+    const t = item?.track;
+    setRemixPermissions({
+      allowClips: Boolean(t?.allow_clips),
+      allowAudioRemix: Boolean(t?.allow_audio_remix),
+      allowAiVariation: Boolean(t?.allow_ai_variation),
+      remixApprovalRequired: Boolean(t?.remix_approval_required),
+      remixVisibility: t?.remix_visibility || 'disabled',
+    });
   }, [item?.track.id, visible]);
 
   if (!item) return null;
@@ -858,18 +925,18 @@ function TrackInspector({ visible, item, onClose, onPlay, onCreatePost, onReuse,
       setBusy('');
     }
   };
-  const toggleFavorite = () => run('favorite', async () => { await setAITrackFavorite(item.track.id, !item.track.is_favorite); onRefresh(); }, item.track.is_favorite ? 'Retiré des favoris.' : 'Ajouté aux favoris.');
-  const togglePublic = () => run('public', async () => { await setAITrackPublic(item.track.id, !item.track.is_public); onRefresh(); }, item.track.is_public ? 'Création repassée en privé.' : 'Création rendue publique.');
-  const toggleTrash = () => run('trash', async () => { await setAIGenerationTrashed(item.generation.id, !item.generation.is_trashed); onClose(); onRefresh(); }, 'Bibliothèque mise à jour.');
-  const chooseFolder = (folder: string) => run('folder', async () => { await setAITrackFolder(item.track.id, item.track.library_folder === folder ? '' : folder); onRefresh(); }, item.track.library_folder === folder ? 'Dossier retiré.' : `Ajouté à « ${folder} ».`);
+  const toggleFavorite = () => run('favorite', async () => { await setAITrackFavorite(item.track.id, !item.track.is_favorite); onRefresh(); }, item.track.is_favorite ? 'RetirÃ© des favoris.' : 'AjoutÃ© aux favoris.');
+  const togglePublic = () => run('public', async () => { await setAITrackPublic(item.track.id, !item.track.is_public, remixPermissions); onRefresh(); }, item.track.is_public ? 'CrÃ©ation repassÃ©e en privÃ©.' : 'CrÃ©ation rendue publique.');
+  const toggleTrash = () => run('trash', async () => { await setAIGenerationTrashed(item.generation.id, !item.generation.is_trashed); onClose(); onRefresh(); }, 'BibliothÃ¨que mise Ã  jour.');
+  const chooseFolder = (folder: string) => run('folder', async () => { await setAITrackFolder(item.track.id, item.track.library_folder === folder ? '' : folder); onRefresh(); }, item.track.library_folder === folder ? 'Dossier retirÃ©.' : `AjoutÃ© Ã  Â« ${folder} Â».`);
   const loadTimedLyrics = () => run('lyrics', async () => {
     const result = await getTimestampedAILyrics(taskId, audioId);
     setTimedWords(result.alignedWords || []);
-  }, 'Paroles synchronisées récupérées.');
+  }, 'Paroles synchronisÃ©es rÃ©cupÃ©rÃ©es.');
   const createVideo = () => run('video', async () => {
     await generateAIMusicVideo(item.track.id, taskId, audioId);
     onRefresh();
-  }, 'Clip lancé. Il apparaîtra dans ta bibliothèque dès qu’il sera prêt.');
+  }, 'Clip lancÃ©. Il apparaÃ®tra dans ta bibliothÃ¨que dÃ¨s quâ€™il sera prÃªt.');
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -882,20 +949,23 @@ function TrackInspector({ visible, item, onClose, onPlay, onCreatePost, onReuse,
             <View style={{ flex: 1 }}>
               <Text style={styles.inspectorKicker}>INSPECTEUR STUDIO</Text>
               <Text numberOfLines={2} style={styles.inspectorTitle}>{item.track.title}</Text>
-              <Text style={styles.inspectorMeta}>{item.generation.model} · {Math.round(item.track.duration || 0)} sec</Text>
+              <Text style={styles.inspectorMeta}>{item.generation.model} Â· {Math.round(item.track.duration || 0)} sec</Text>
             </View>
             <Pressable onPress={onClose} style={styles.inspectorClose}><Ionicons name="close" size={21} color={colors.text} /></Pressable>
           </View>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.inspectorActions}>
-            <Text style={styles.inspectorPrompt}>{item.track.style || item.generation.metadata?.style || item.generation.prompt || 'Création Synaura Studio'}</Text>
-            <Pressable onPress={() => onPlay(item.track)} style={styles.inspectorPrimary}><Ionicons name="play" size={17} color={colors.paper} /><Text style={styles.inspectorPrimaryText}>Écouter dans le player</Text></Pressable>
+            <Text style={styles.inspectorPrompt}>{item.track.style || item.generation.metadata?.style || item.generation.prompt || 'CrÃ©ation Synaura Studio'}</Text>
+            <Pressable onPress={() => onPlay(item.track)} style={styles.inspectorPrimary}><Ionicons name="play" size={17} color={colors.paper} /><Text style={styles.inspectorPrimaryText}>Ã‰couter dans le player</Text></Pressable>
             <View style={styles.inspectorGrid}>
-              <Pressable onPress={() => onReuse(item.generation, item.track)} style={[styles.inspectorAction, styles.inspectorHalf]}><Ionicons name="copy-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>Réutiliser</Text></Pressable>
+              <Pressable onPress={() => onReuse(item.generation, item.track)} style={[styles.inspectorAction, styles.inspectorHalf]}><Ionicons name="copy-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>RÃ©utiliser</Text></Pressable>
               <Pressable onPress={() => onRemix(item.generation, item.track)} style={[styles.inspectorAction, styles.inspectorHalf]}><Ionicons name="repeat" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>Remixer</Text></Pressable>
             </View>
             <View style={styles.inspectorGrid}>
-              <Pressable disabled={Boolean(busy)} onPress={toggleFavorite} style={[styles.inspectorAction, styles.inspectorHalf]}><Ionicons name={item.track.is_favorite ? 'heart' : 'heart-outline'} size={17} color={item.track.is_favorite ? '#FF4B7A' : colors.text} /><Text style={styles.inspectorActionText}>{item.track.is_favorite ? 'Aimé' : 'Aimer'}</Text></Pressable>
-              <Pressable disabled={Boolean(busy)} onPress={togglePublic} style={[styles.inspectorAction, styles.inspectorHalf]}><Ionicons name={item.track.is_public ? 'earth' : 'lock-closed-outline'} size={17} color={colors.text} /><Text style={styles.inspectorActionText}>{item.track.is_public ? 'Public' : 'Privé'}</Text></Pressable>
+              <Pressable disabled={Boolean(busy)} onPress={toggleFavorite} style={[styles.inspectorAction, styles.inspectorHalf]}><Ionicons name={item.track.is_favorite ? 'heart' : 'heart-outline'} size={17} color={item.track.is_favorite ? '#FF4B7A' : colors.text} /><Text style={styles.inspectorActionText}>{item.track.is_favorite ? 'AimÃ©' : 'Aimer'}</Text></Pressable>
+              <Pressable disabled={Boolean(busy)} onPress={togglePublic} style={[styles.inspectorAction, styles.inspectorHalf]}><Ionicons name={item.track.is_public ? 'earth' : 'lock-closed-outline'} size={17} color={colors.text} /><Text style={styles.inspectorActionText}>{item.track.is_public ? 'Public' : 'PrivÃ©'}</Text></Pressable>
+            </View>
+            <View style={styles.inspectorSection}>
+              <RemixPermissionsSection value={remixPermissions} onChange={setRemixPermissions} />
             </View>
             <View style={styles.inspectorSection}>
               <Text style={styles.inspectorSectionTitle}>DOSSIER</Text>
@@ -904,16 +974,16 @@ function TrackInspector({ visible, item, onClose, onPlay, onCreatePost, onReuse,
               </ScrollView>
             </View>
             {item.track.lyrics || item.track.prompt ? <Pressable onPress={() => onCopyLyrics(item.track)} style={styles.inspectorAction}><Ionicons name="copy-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>Copier les paroles</Text></Pressable> : null}
-            <Pressable disabled={Boolean(busy) || !taskId || !audioId} onPress={loadTimedLyrics} style={styles.inspectorAction}>{busy === 'lyrics' ? <ActivityIndicator color={colors.violet} /> : <Ionicons name="mic-outline" size={17} color={colors.violet} />}<Text style={styles.inspectorActionText}>Paroles synchronisées</Text></Pressable>
-            {timedWords.length ? <View style={styles.timedLyrics}><Text style={styles.timedLyricsTitle}>APERÇU SYNCHRONISÉ</Text><Text style={styles.timedLyricsText}>{timedWords.slice(0, 80).map((entry) => entry.word || '').join(' ')}</Text></View> : null}
-            {clipUrl ? <Pressable onPress={() => Linking.openURL(clipUrl)} style={styles.inspectorAction}><Ionicons name="videocam" size={17} color={colors.coral} /><Text style={styles.inspectorActionText}>Ouvrir le clip</Text></Pressable> : <Pressable disabled={Boolean(busy) || !taskId || !audioId} onPress={createVideo} style={styles.inspectorAction}>{busy === 'video' ? <ActivityIndicator color={colors.coral} /> : <Ionicons name="videocam-outline" size={17} color={colors.coral} />}<Text style={styles.inspectorActionText}>Créer un clip · 100 crédits</Text></Pressable>}
-            <Pressable onPress={() => onCreatePost(item.track)} style={styles.inspectorAction}><Ionicons name="create-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>Créer un post</Text></Pressable>
+            <Pressable disabled={Boolean(busy) || !taskId || !audioId} onPress={loadTimedLyrics} style={styles.inspectorAction}>{busy === 'lyrics' ? <ActivityIndicator color={colors.violet} /> : <Ionicons name="mic-outline" size={17} color={colors.violet} />}<Text style={styles.inspectorActionText}>Paroles synchronisÃ©es</Text></Pressable>
+            {timedWords.length ? <View style={styles.timedLyrics}><Text style={styles.timedLyricsTitle}>APERÃ‡U SYNCHRONISÃ‰</Text><Text style={styles.timedLyricsText}>{timedWords.slice(0, 80).map((entry) => entry.word || '').join(' ')}</Text></View> : null}
+            {clipUrl ? <Pressable onPress={() => Linking.openURL(clipUrl)} style={styles.inspectorAction}><Ionicons name="videocam" size={17} color={colors.coral} /><Text style={styles.inspectorActionText}>Ouvrir le clip</Text></Pressable> : <Pressable disabled={Boolean(busy) || !taskId || !audioId} onPress={createVideo} style={styles.inspectorAction}>{busy === 'video' ? <ActivityIndicator color={colors.coral} /> : <Ionicons name="videocam-outline" size={17} color={colors.coral} />}<Text style={styles.inspectorActionText}>CrÃ©er un clip Â· 100 crÃ©dits</Text></Pressable>}
+            <Pressable onPress={() => onCreatePost(item.track)} style={styles.inspectorAction}><Ionicons name="create-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>CrÃ©er un post</Text></Pressable>
             <View style={styles.inspectorGrid}>
-              <Pressable onPress={() => Share.share({ message: `${item.track.title} · Synaura\n${audioUrl}` })} style={[styles.inspectorAction, styles.inspectorHalf]}><Ionicons name="share-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>Partager</Text></Pressable>
-              <Pressable onPress={() => audioUrl && Linking.openURL(audioUrl)} style={[styles.inspectorAction, styles.inspectorHalf]}><Ionicons name="download-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>Télécharger</Text></Pressable>
+              <Pressable onPress={() => Share.share({ message: `${item.track.title} Â· Synaura\n${audioUrl}` })} style={[styles.inspectorAction, styles.inspectorHalf]}><Ionicons name="share-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>Partager</Text></Pressable>
+              <Pressable onPress={() => audioUrl && Linking.openURL(audioUrl)} style={[styles.inspectorAction, styles.inspectorHalf]}><Ionicons name="download-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>TÃ©lÃ©charger</Text></Pressable>
             </View>
             {feedback ? <Text style={styles.inspectorFeedback}>{feedback}</Text> : null}
-            <Pressable disabled={Boolean(busy)} onPress={toggleTrash} style={styles.inspectorDanger}><Ionicons name={item.generation.is_trashed ? 'refresh' : 'trash-outline'} size={17} color={colors.danger} /><Text style={styles.inspectorDangerText}>{item.generation.is_trashed ? 'Restaurer la création' : 'Mettre à la corbeille'}</Text></Pressable>
+            <Pressable disabled={Boolean(busy)} onPress={toggleTrash} style={styles.inspectorDanger}><Ionicons name={item.generation.is_trashed ? 'refresh' : 'trash-outline'} size={17} color={colors.danger} /><Text style={styles.inspectorDangerText}>{item.generation.is_trashed ? 'Restaurer la crÃ©ation' : 'Mettre Ã  la corbeille'}</Text></Pressable>
           </ScrollView>
         </View>
       </View>
@@ -945,12 +1015,12 @@ function CreditShopModal({ visible, balance, onClose, onComplete }: { visible: b
         <View style={styles.creditShop}>
           <View style={styles.shopHead}>
             <View>
-              <Text style={styles.shopKicker}>CRÉDITS STUDIO</Text>
-              <Text style={styles.shopTitle}>{balance} crédits disponibles</Text>
+              <Text style={styles.shopKicker}>CRÃ‰DITS STUDIO</Text>
+              <Text style={styles.shopTitle}>{balance} crÃ©dits disponibles</Text>
             </View>
             <Pressable onPress={onClose} style={styles.inspectorClose}><Ionicons name="close" size={21} color={colors.text} /></Pressable>
           </View>
-          <Text style={styles.shopText}>Chaque lancement coûte 12 crédits et crée deux variations.</Text>
+          <Text style={styles.shopText}>Chaque lancement coÃ»te 12 crÃ©dits et crÃ©e deux variations.</Text>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.packList}>
             {CREDIT_PACKS.map((pack) => {
               const active = pack.id === selected;
@@ -959,7 +1029,7 @@ function CreditShopModal({ visible, balance, onClose, onComplete }: { visible: b
                   <View style={[styles.packCheck, active && styles.packCheckActive]}><Ionicons name={active ? 'checkmark' : 'sparkles-outline'} size={17} color={active ? colors.paper : colors.textTertiary} /></View>
                   <View style={{ flex: 1 }}>
                     <View style={styles.packNameRow}><Text style={styles.packName}>{pack.label}</Text>{pack.badge ? <Text style={styles.packBadge}>{pack.badge}</Text> : null}</View>
-                    <Text style={styles.packMeta}>{pack.credits.toLocaleString('fr-FR')} crédits · environ {Math.floor(pack.credits / 12) * 2} variations</Text>
+                    <Text style={styles.packMeta}>{pack.credits.toLocaleString('fr-FR')} crÃ©dits Â· environ {Math.floor(pack.credits / 12) * 2} variations</Text>
                   </View>
                   <Text style={styles.packPrice}>{pack.price}</Text>
                 </Pressable>
@@ -971,7 +1041,7 @@ function CreditShopModal({ visible, balance, onClose, onComplete }: { visible: b
             {loadingPack ? <ActivityIndicator color={colors.paper} /> : <Ionicons name="card-outline" size={18} color={colors.paper} />}
             <Text style={styles.shopCheckoutText}>{loadingPack ? 'Ouverture du paiement...' : 'Continuer vers le paiement'}</Text>
           </Pressable>
-          <Pressable onPress={() => { onComplete(); onClose(); }} style={styles.shopRefresh}><Ionicons name="refresh" size={15} color={colors.text} /><Text style={styles.shopRefreshText}>J’ai terminé, actualiser mon solde</Text></Pressable>
+          <Pressable onPress={() => { onComplete(); onClose(); }} style={styles.shopRefresh}><Ionicons name="refresh" size={15} color={colors.text} /><Text style={styles.shopRefreshText}>Jâ€™ai terminÃ©, actualiser mon solde</Text></Pressable>
         </View>
       </View>
     </Modal>
@@ -1063,6 +1133,13 @@ const styles = StyleSheet.create({
   generateButton: { minHeight: 50, borderRadius: 13, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 15, backgroundColor: colors.black },
   generateText: { flex: 1, color: colors.paper, fontSize: 14, fontWeight: '900' },
   generateCost: { color: 'rgba(255,250,242,0.56)', fontSize: 10, fontWeight: '900' },
+  lockedSource: { borderRadius: 18, backgroundColor: '#FFFDF8', borderWidth: 1, borderColor: 'rgba(115,87,198,0.18)', padding: 12, gap: 12 },
+  lockedSourceTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  lockedSourceCover: { width: 58, height: 58, borderRadius: 14, backgroundColor: 'rgba(17,17,17,0.08)' },
+  lockedSourceTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '900' },
+  lockedSourceText: { marginTop: 3, color: colors.textTertiary, fontSize: 11, fontWeight: '700' },
+  lockedSourceButton: { height: 40, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(115,87,198,0.10)' },
+  lockedSourceButtonText: { color: colors.violet, fontSize: 12, fontWeight: '900' },
   buyButton: { height: 45, borderRadius: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,250,242,0.82)', borderWidth: 1, borderColor: colors.border },
   buyText: { color: colors.violet, fontSize: 11, fontWeight: '900' },
   modelNotice: { minHeight: 46, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, backgroundColor: 'rgba(124,92,255,0.09)', borderWidth: 1, borderColor: 'rgba(124,92,255,0.2)' },

@@ -1,8 +1,9 @@
 import React from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { MobileProfileTrack } from '@/api/client';
 import { TrackCover } from '@/components/TrackCover';
+import { RemixPermissionsSection, type RemixPermissionsValue } from '@/components/upload/RemixPermissionsSection';
 
 export type TrackEditForm = {
   title: string;
@@ -10,6 +11,7 @@ export type TrackEditForm = {
   genreText: string;
   tagsText: string;
   isPublic: boolean;
+  remixPermissions: RemixPermissionsValue;
 };
 
 export function TrackEditBottomSheet({
@@ -53,6 +55,12 @@ export function TrackEditBottomSheet({
                 <Text style={styles.visibilityText}>{form.isPublic ? 'Public' : 'Prive'}</Text>
                 <Ionicons name={form.isPublic ? 'eye-outline' : 'eye-off-outline'} size={18} color="#171313" />
               </Pressable>
+              <ScrollView style={styles.remixScroll} showsVerticalScrollIndicator={false}>
+                <RemixPermissionsSection
+                  value={form.remixPermissions}
+                  onChange={(remixPermissions) => onChange({ remixPermissions })}
+                />
+              </ScrollView>
               <View style={styles.actions}>
                 <Pressable onPress={onDelete} style={styles.delete}><Text style={styles.deleteText}>Supprimer</Text></Pressable>
                 <Pressable disabled={saving} onPress={onSave} style={[styles.save, saving && { opacity: 0.55 }]}>{saving ? <ActivityIndicator color="#FFF7ED" /> : <Text style={styles.saveText}>Sauver</Text>}</Pressable>
@@ -78,6 +86,7 @@ const styles = StyleSheet.create({
   inputMulti: { minHeight: 86, paddingTop: 12 },
   visibilityToggle: { height: 46, borderRadius: 23, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(23,19,19,0.055)' },
   visibilityText: { color: '#171313', fontSize: 13, fontWeight: '900' },
+  remixScroll: { maxHeight: 340 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 4 },
   delete: { flex: 1, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(185,28,28,0.10)' },
   deleteText: { color: '#B91C1C', fontSize: 13, fontWeight: '900' },

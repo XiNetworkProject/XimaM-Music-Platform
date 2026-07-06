@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import Link from 'next/link';
-import { Play, Pause, Heart, Clock, Music, Headphones, Share2, Code, UserPlus, Sparkles, ArrowLeft, MessageSquare, Repeat2 } from 'lucide-react';
+import { Play, Pause, Heart, Clock, Music, Headphones, Share2, Code, UserPlus, Sparkles, ArrowLeft, MessageSquare, Repeat2, Film } from 'lucide-react';
 import ShareButtons from '@/components/ShareButtons';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import TrackCover from '@/components/TrackCover';
 import { getCdnUrl } from '@/lib/cdn';
+import { canUseSoundClientSide } from '@/lib/clipPermissions';
+import { recordClipFunnelEvent } from '@/lib/analyticsClient';
 
 interface TrackData {
   id: string;
@@ -17,6 +19,7 @@ interface TrackData {
   artist: string;
   artistUsername: string;
   artistAvatar: string | null;
+  creatorId?: string | null;
   coverUrl: string | null;
   coverVideoUrl?: string | null;
   coverVideoPosterUrl?: string | null;
@@ -27,6 +30,19 @@ interface TrackData {
   likes: number;
   createdAt: string;
   isAI: boolean;
+  canRemixAiVariation?: boolean;
+  allowClips?: boolean;
+  allowAiVariation?: boolean;
+  remixVisibility?: 'everyone' | 'followers' | 'disabled';
+  remixAttribution?: {
+    sourceTrackId: string;
+    title: string;
+    artist: string;
+    artistUsername?: string;
+    trackUrl?: string;
+  } | null;
+  variationsCount?: number;
+  musicClipsCount?: number;
 }
 
 const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec) % 60).padStart(2, '0')}`;
@@ -53,6 +69,7 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
   const { playTrack, audioState, play, pause, setShowPlayer, setIsMinimized } = useAudioPlayer();
   const [showShare, setShowShare] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
+  const [remixOpen, setRemixOpen] = useState(false);
 
   const currentTrack = audioState.tracks?.[audioState.currentTrackIndex];
   const isCurrentTrack = currentTrack?._id === track?.id;
@@ -112,6 +129,23 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
 
   const trackUrl = typeof window !== 'undefined' ? `${window.location.origin}/track/${track.id}` : `https://www.synaura.fr/track/${track.id}`;
   const coverSrc = track.coverUrl || null;
+  const canRemixAiVariation = Boolean(track.canRemixAiVariation && track.allowAiVariation && track.remixVisibility !== 'disabled');
+  const currentUserId = (session?.user as any)?.id;
+  const isOwnTrack = Boolean(currentUserId) && Boolean(track.creatorId) && String(track.creatorId) === String(currentUserId);
+  const canUseSound = canUseSoundClientSide({
+    isOwner: isOwnTrack,
+    allowClips: Boolean(track.allowClips),
+    remixVisibility: track.remixVisibility || 'disabled',
+  });
+  const useThisSoundHref = `/clips/new?trackId=${encodeURIComponent(track.id)}&trackType=${track.id.startsWith('ai-') ? 'ai_track' : 'track'}`;
+  const openStudioWithRemix = () => {
+    const params = new URLSearchParams({
+      mode: 'remix',
+      sourceTrackId: track.id,
+      sourceTrackType: track.id.startsWith('ai-') ? 'ai_track' : 'track',
+    });
+    router.push(`/ai-generator?${params.toString()}`);
+  };
 
   return (
     <SynauraAppShell contentClassName="max-w-[1180px]">
@@ -213,6 +247,27 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
                 {embedCopied ? 'Code copie' : 'Embed'}
               </button>
 
+              {canRemixAiVariation ? (
+                <button
+                  onClick={() => setRemixOpen(true)}
+                  className="inline-flex h-12 items-center gap-2 rounded-full bg-[#7357C6] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
+                >
+                  <Repeat2 className="h-4 w-4" />
+                  Remixer
+                </button>
+              ) : null}
+
+              {canUseSound ? (
+                <Link
+                  href={useThisSoundHref}
+                  onClick={() => void recordClipFunnelEvent(track.id, 'clip_use_sound_started')}
+                  className="inline-flex h-12 items-center gap-2 rounded-full bg-[#4A9EAA] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
+                >
+                  <Film className="h-4 w-4" />
+                  {isOwnTrack ? 'Créer un clip officiel' : 'Utiliser ce son'}
+                </Link>
+              ) : null}
+
               <Link
                 href={`/community/forum/new?category=feedback&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=track`}
                 className="inline-flex h-12 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
@@ -233,6 +288,16 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
             {showShare ? (
               <div className="mt-4 rounded-[1.35rem] border border-black/[0.08] bg-black/[0.03] p-4">
                 <ShareButtons url={trackUrl} title={`${track.title} — ${track.artist}`} />
+              </div>
+            ) : null}
+
+            {track.remixAttribution ? (
+              <div className="mt-4 rounded-[1.35rem] border border-[#7357C6]/18 bg-[#7357C6]/[0.06] p-4">
+                <p className="text-sm font-black text-[#171313]">Inspiré de {track.remixAttribution.title}</p>
+                <p className="mt-1 text-xs font-semibold text-black/52">Création originale par @{track.remixAttribution.artistUsername || track.remixAttribution.artist}</p>
+                <Link href={track.remixAttribution.trackUrl || `/track/${track.remixAttribution.sourceTrackId}`} className="mt-3 inline-flex text-xs font-black text-[#7357C6]">
+                  Voir le morceau original
+                </Link>
               </div>
             ) : null}
 
@@ -265,6 +330,18 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
                   <span>Genre</span>
                   <span className="font-black text-[#171313]">{track.genre?.[0] || 'Libre'}</span>
                 </div>
+                {Number(track.variationsCount || 0) > 0 ? (
+                  <div className="flex items-center justify-between rounded-[1rem] bg-black/[0.03] px-4 py-3">
+                    <span>Variations</span>
+                    <span className="font-black text-[#171313]">{fmt.format(track.variationsCount || 0)}</span>
+                  </div>
+                ) : null}
+                {Number(track.musicClipsCount || 0) > 0 ? (
+                  <Link href={`/?filter=clips&sourceTrackId=${encodeURIComponent(track.id)}`} className="flex items-center justify-between rounded-[1rem] bg-[#4A9EAA]/10 px-4 py-3 text-[#171313] transition hover:bg-[#4A9EAA]/16">
+                    <span>Clips utilisant ce son</span>
+                    <span className="font-black">{fmt.format(track.musicClipsCount || 0)}</span>
+                  </Link>
+                ) : null}
               </div>
             </SynauraPanel>
 
@@ -295,6 +372,30 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
           </div>
         </div>
       </div>
+      {remixOpen ? (
+        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/45 px-4 pb-4 backdrop-blur-sm" onClick={() => setRemixOpen(false)}>
+          <div className="w-full max-w-lg rounded-[1.6rem] border border-black/[0.08] bg-[#F7F6F3] p-4 text-[#111111] shadow-[0_30px_100px_rgba(17,17,17,0.28)]" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              {coverSrc ? <img src={coverSrc} alt="" className="h-16 w-16 rounded-2xl object-cover" /> : <div className="grid h-16 w-16 place-items-center rounded-2xl bg-black/[0.06]"><Music className="h-6 w-6 text-black/35" /></div>}
+              <div className="min-w-0">
+                <h3 className="truncate text-lg font-black">{track.title}</h3>
+                <p className="truncate text-sm font-bold text-black/50">{track.artist}</p>
+              </div>
+            </div>
+            <p className="mt-4 text-sm font-black text-black/72">Créer une variation IA inspirée de ce morceau</p>
+            <p className="mt-2 text-xs font-semibold text-black/48">Le créateur original sera toujours crédité</p>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <button type="button" onClick={openStudioWithRemix} className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-[#111111] px-5 text-sm font-black text-white">
+                <Repeat2 className="h-4 w-4" />
+                Ouvrir dans Studio
+              </button>
+              <button type="button" onClick={() => setRemixOpen(false)} className="h-12 rounded-full border border-black/[0.08] bg-white px-5 text-sm font-black text-black/56">
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </SynauraAppShell>
   );
 }

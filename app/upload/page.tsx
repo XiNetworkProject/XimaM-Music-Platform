@@ -31,6 +31,7 @@ import FeaturingSearch, { type FeaturingArtist } from '@/components/upload/Featu
 import ScheduleSelector from '@/components/upload/ScheduleSelector';
 import TrackListEditor, { type TrackMeta } from '@/components/upload/TrackListEditor';
 import UploadPreview from '@/components/upload/UploadPreview';
+import RemixPermissionsSection, { DEFAULT_REMIX_PERMISSIONS, type RemixPermissionsValue } from '@/components/upload/RemixPermissionsSection';
 import SynauraEventsRail from '@/components/synaura/SynauraEventsRail';
 import SynauraEventEntryPanel from '@/components/synaura/SynauraEventEntryPanel';
 
@@ -210,6 +211,7 @@ export default function UploadPage() {
   const [scheduleMode, setScheduleMode] = useState<'now' | 'scheduled'>('now');
   const [scheduledAt, setScheduledAt] = useState('');
   const [copyrightYear, setCopyrightYear] = useState(new Date().getFullYear());
+  const [remixPermissions, setRemixPermissions] = useState<RemixPermissionsValue>(DEFAULT_REMIX_PERMISSIONS);
 
   // Upload state
   const [currentStep, setCurrentStep] = useState(1);
@@ -439,7 +441,7 @@ export default function UploadPage() {
 
       const isPublic = visibility === 'public';
       const featuringData = featuring.map((f) => ({ id: f.id, name: f.name, isExternal: f.isExternal || false }));
-      const extraFields = { mood, language, tags, featuring: featuringData, credits, release_type: releaseType, visibility, scheduled_at: scheduleMode === 'scheduled' && scheduledAt ? new Date(scheduledAt).toISOString() : null };
+      const extraFields = { mood, language, tags, featuring: featuringData, credits, release_type: releaseType, visibility, scheduled_at: scheduleMode === 'scheduled' && scheduledAt ? new Date(scheduledAt).toISOString() : null, remixPermissions };
       const publishedTrackIds: string[] = [];
 
       if (releaseType === 'single') {
@@ -1020,6 +1022,10 @@ export default function UploadPage() {
                     />
                     Contenu explicite
                   </label>
+
+                  <div className="rounded-[1.2rem] border border-white/[0.08] bg-white/[0.03] p-4">
+                    <RemixPermissionsSection value={remixPermissions} onChange={setRemixPermissions} />
+                  </div>
 
                   <Section title="Date de publication" icon={Clock3} defaultOpen>
                     <ScheduleSelector mode={scheduleMode} scheduledAt={scheduledAt} onModeChange={setScheduleMode} onDateChange={setScheduledAt} />

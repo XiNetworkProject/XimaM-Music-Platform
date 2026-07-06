@@ -1,40 +1,53 @@
 import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import TrackPageClient from './TrackPageClient';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
+import { getPublishedVariationCounts, getRemixAttributionForChildren, getRemixSourceSummary } from '@/lib/remixServer';
+import { remixPermissionsFromRow } from '@/lib/remixPermissions';
+import { getPublishedClipCounts } from '@/lib/musicClips';
 
 const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || 'https://www.synaura.fr').replace(/\/$/, '');
 
 async function getTrack(id: string) {
   const isAI = id.startsWith('ai-');
   const cleanId = isAI ? id.slice(3) : id;
+  const session = await getServerSession(authOptions).catch(() => null);
+  const userId = (session?.user as any)?.id || null;
 
   if (isAI) {
     const { data } = await supabase
-      .from('ai_generated_tracks')
-      .select('id, title, audio_url, cover_url, duration, genre, style, prompt, created_at, generation_id')
+      .from('ai_tracks')
+      .select('*, generation:ai_generations!inner(id, user_id, prompt, metadata, is_public, status)')
       .eq('id', cleanId)
       .single();
     if (!data) return null;
-    const { data: gen } = await supabase
-      .from('ai_generations')
-      .select('profiles!ai_generations_user_id_fkey(username, name, avatar)')
-      .eq('id', data.generation_id)
-      .single();
-    const p = (gen as any)?.profiles;
+    const source = await getRemixSourceSummary({ sourceTrackId: id, userId });
+    const [attributions, counts] = await Promise.all([
+      getRemixAttributionForChildren([{ id: cleanId, type: 'ai_track' }]),
+      getPublishedVariationCounts([{ id: cleanId, type: 'ai_track' }]),
+    ]);
+    const clipCounts = await getPublishedClipCounts([{ id: cleanId, type: 'ai_track' }]);
     return {
       id: `ai-${data.id}`,
-      title: data.title || 'Création IA',
-      artist: p?.name || p?.username || 'Artiste IA',
-      artistUsername: p?.username || '',
-      artistAvatar: p?.avatar || null,
-      coverUrl: data.cover_url || null,
+      title: data.title || 'Creation IA',
+      artist: source?.artist || 'Artiste IA',
+      artistUsername: source?.artistUsername || '',
+      artistAvatar: null,
+      creatorId: (data as any).generation?.user_id || null,
+      coverUrl: data.image_url || null,
       audioUrl: data.audio_url,
       duration: data.duration || 0,
-      genre: data.genre ? [data.genre] : (data.style ? [data.style] : []),
+      genre: Array.isArray(data.tags) ? data.tags : (data.style ? [data.style] : []),
       plays: 0,
       likes: 0,
       createdAt: data.created_at,
       isAI: true,
+      ...remixPermissionsFromRow(data),
+      canRemixAiVariation: source?.canRemixAiVariation || false,
+      remixAttribution: attributions.get(`ai_track:${cleanId}`) || null,
+      variationsCount: counts.get(`ai_track:${cleanId}`) || 0,
+      musicClipsCount: clipCounts.get(`ai_track:${cleanId}`) || 0,
     };
   }
 
@@ -45,6 +58,12 @@ async function getTrack(id: string) {
     .single();
 
   if (!track) return null;
+  const source = await getRemixSourceSummary({ sourceTrackId: id, sourceTrackType: 'track', userId });
+  const [attributions, counts] = await Promise.all([
+    getRemixAttributionForChildren([{ id, type: 'track' }]),
+    getPublishedVariationCounts([{ id, type: 'track' }]),
+  ]);
+  const clipCounts = await getPublishedClipCounts([{ id, type: 'track' }]);
 
   let artistProfile: any = null;
   if (track.creator_id) {
@@ -62,9 +81,10 @@ async function getTrack(id: string) {
     artist: artistProfile?.name || track.artist_name || track.creator_name || 'Artiste inconnu',
     artistUsername: artistProfile?.username || '',
     artistAvatar: artistProfile?.avatar || null,
+    creatorId: track.creator_id || null,
     coverUrl: track.cover_url,
-      coverVideoUrl: track.cover_video_url || track.data?.cover_video_url || null,
-      coverVideoPosterUrl: track.cover_video_poster_url || track.data?.cover_video_poster_url || null,
+    coverVideoUrl: track.cover_video_url || track.data?.cover_video_url || null,
+    coverVideoPosterUrl: track.cover_video_poster_url || track.data?.cover_video_poster_url || null,
     audioUrl: track.audio_url,
     duration: track.duration || 0,
     genre: track.genre || [],
@@ -72,9 +92,13 @@ async function getTrack(id: string) {
     likes: track.likes || 0,
     createdAt: track.created_at,
     isAI: false,
+    ...remixPermissionsFromRow(track),
+    canRemixAiVariation: source?.canRemixAiVariation || false,
+    remixAttribution: attributions.get(`track:${id}`) || null,
+    variationsCount: counts.get(`track:${id}`) || 0,
+    musicClipsCount: clipCounts.get(`track:${id}`) || 0,
   };
 }
-
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const track = await getTrack(params.id);
   if (!track) {

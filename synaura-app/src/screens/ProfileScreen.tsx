@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { deleteTrack, getMyProfile, getSubscriptionUsage, getUserPosts, pinPost, unpinPost, updateTrackMetadata, type MobileProfile, type MobileProfileTrack, type SubscriptionUsage } from '@/api/client';
 import type { HomePost } from '@/api/types';
+import { DEFAULT_REMIX_PERMISSIONS } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { TrackCover } from '@/components/TrackCover';
 import { CreatorLevelCard } from '@/components/events/SynauraEvents';
@@ -45,7 +46,7 @@ export function ProfileScreen() {
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
   const [loading, setLoading] = useState(false);
   const [editingTrack, setEditingTrack] = useState<MobileProfileTrack | null>(null);
-  const [trackForm, setTrackForm] = useState<TrackEditForm>({ title: '', description: '', genreText: '', tagsText: '', isPublic: true });
+  const [trackForm, setTrackForm] = useState<TrackEditForm>({ title: '', description: '', genreText: '', tagsText: '', isPublic: true, remixPermissions: DEFAULT_REMIX_PERMISSIONS });
   const [trackSaving, setTrackSaving] = useState(false);
   const [posts, setPosts] = useState<HomePost[]>([]);
   const [profileTab, setProfileTab] = useState<ProfileTab>('posts');
@@ -94,6 +95,13 @@ export function ProfileScreen() {
       genreText: (track.genre || []).join(', '),
       tagsText: (track.tags || []).join(', '),
       isPublic: track.isPublic !== false,
+      remixPermissions: {
+        allowClips: Boolean(track.allowClips),
+        allowAudioRemix: Boolean(track.allowAudioRemix),
+        allowAiVariation: Boolean(track.allowAiVariation),
+        remixApprovalRequired: Boolean(track.remixApprovalRequired),
+        remixVisibility: track.remixVisibility || 'disabled',
+      },
     });
   };
 
@@ -107,6 +115,7 @@ export function ProfileScreen() {
         genre: trackForm.genreText.split(',').map((item) => item.trim()).filter(Boolean),
         tags: trackForm.tagsText.split(',').map((item) => item.trim()).filter(Boolean),
         isPublic: trackForm.isPublic,
+        remixPermissions: trackForm.remixPermissions,
       });
       if (updated) {
         setProfile((current) => current ? { ...current, tracks: current.tracks.map((track) => track._id === editingTrack._id ? { ...track, ...updated } : track) } : current);

@@ -22,7 +22,7 @@ import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 
 export type RootStackParamList = {
   Tabs: { screen?: string; params?: Record<string, unknown> } | undefined;
-  Login: { message?: string } | undefined;
+  Login: { message?: string; returnTo?: { screen: string; params?: Record<string, unknown> } } | undefined;
   Register: undefined;
   ForgotPassword: undefined;
 };

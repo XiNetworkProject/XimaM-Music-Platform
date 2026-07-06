@@ -60,6 +60,19 @@ interface AudioServiceActions {
   requestNotificationPermission: () => Promise<boolean>;
 }
 
+function getTrackId(track: any): string {
+  return String(track?._id || track?.id || '');
+}
+
+function sameTrackQueue(left: Track[], right: Track[]) {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    if (getTrackId(left[i]) !== getTrackId(right[i])) return false;
+  }
+  return true;
+}
+
 export const useAudioService = () => {
   const { data: session } = useSession();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -1448,27 +1461,50 @@ export const useAudioService = () => {
   // Gestion de la file d'attente optimisée
   // Variante "queue only" : ne recharge pas la piste (utile pour ouvrir un UI type TikTok sans interrompre la lecture)
   const setQueueOnly = useCallback((tracks: Track[], startIndex: number = 0) => {
-    setQueue(tracks);
-    setCurrentIndex(startIndex);
+    const safeTracks = Array.isArray(tracks) ? tracks : [];
+    const safeIndex = Math.max(0, Math.min(startIndex, Math.max(0, safeTracks.length - 1)));
+    const queueChanged = !sameTrackQueue(queue, safeTracks);
+    setQueue((prev) => {
+      if (sameTrackQueue(prev, safeTracks)) return prev;
+      return safeTracks;
+    });
+    setCurrentIndex((prev) => (prev === safeIndex ? prev : safeIndex));
     if (shuffle) {
-      const shuffled = [...tracks].sort(() => Math.random() - 0.5);
-      setShuffledQueue(shuffled);
+      setShuffledQueue((prev) => {
+        if (!queueChanged && sameTrackQueue(prev, safeTracks)) return prev;
+        return [...safeTracks].sort(() => Math.random() - 0.5);
+      });
     }
-  }, [shuffle]);
+  }, [queue, shuffle]);
 
   const setQueueAndPlay = useCallback((tracks: Track[], startIndex: number = 0) => {
-    setQueue(tracks);
-    setCurrentIndex(startIndex);
+    const safeTracks = Array.isArray(tracks) ? tracks : [];
+    const safeIndex = Math.max(0, Math.min(startIndex, Math.max(0, safeTracks.length - 1)));
+    setQueue((prev) => (sameTrackQueue(prev, safeTracks) ? prev : safeTracks));
+    setCurrentIndex((prev) => (prev === safeIndex ? prev : safeIndex));
 
     if (shuffle) {
-      const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+      const shuffled = [...safeTracks].sort(() => Math.random() - 0.5);
       setShuffledQueue(shuffled);
     }
 
-    if (tracks.length > 0 && tracks[startIndex]) {
-      playImmediate(tracks[startIndex]);
+    if (safeTracks.length > 0 && safeTracks[safeIndex]) {
+      playImmediate(safeTracks[safeIndex]);
     }
   }, [shuffle, playImmediate]);
+
+  const setAllTracksIfChanged = useCallback((tracks: Track[] | ((prev: Track[]) => Track[])) => {
+    if (typeof tracks === 'function') {
+      setAllTracks((prev) => {
+        const next = tracks(prev);
+        return sameTrackQueue(prev, next) ? prev : next;
+      });
+      return;
+    }
+
+    const safeTracks = Array.isArray(tracks) ? tracks : [];
+    setAllTracks((prev) => (sameTrackQueue(prev, safeTracks) ? prev : safeTracks));
+  }, []);
 
   const toggleShuffle = useCallback(() => {
     const newShuffle = !shuffle;
@@ -1618,7 +1654,7 @@ export const useAudioService = () => {
       toggleShuffle,
       cycleRepeat,
       autoPlayNext,
-      setAllTracks: setAllTracks,
+      setAllTracks: setAllTracksIfChanged,
       setAutoPlayEnabled,
       getSimilarTracks,
       getRecommendedTracks,
@@ -1655,10 +1691,11 @@ export const useAudioService = () => {
     forceUpdateNotification,
     requestNotificationPermission,
     setQueueAndPlay,
+    setQueueOnly,
     toggleShuffle,
     cycleRepeat,
     autoPlayNext,
-    setAllTracks,
+    setAllTracksIfChanged,
     setAutoPlayEnabled,
     getSimilarTracks,
     getRecommendedTracks,

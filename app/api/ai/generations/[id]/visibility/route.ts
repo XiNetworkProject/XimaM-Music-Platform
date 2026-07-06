@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
+import { DEFAULT_REMIX_PERMISSIONS, remixPermissionsToRow, sanitizeRemixPermissions } from '@/lib/remixPermissions';
+import { applyRemixPublicationGuard } from '@/lib/remixServer';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -21,7 +23,7 @@ export async function PATCH(
   }
 
   try {
-    const body = (await req.json().catch(() => ({}))) as { isPublic?: boolean };
+    const body = (await req.json().catch(() => ({}))) as { isPublic?: boolean; remixPermissions?: unknown };
     if (typeof body.isPublic !== 'boolean') {
       return NextResponse.json({ error: 'isPublic doit etre un booleen' }, { status: 400 });
     }
@@ -40,9 +42,20 @@ export async function PATCH(
       return NextResponse.json({ error: 'Interdit' }, { status: 403 });
     }
 
+    const { data: generationTracks } = await supabaseAdmin
+      .from('ai_tracks')
+      .select('id')
+      .eq('generation_id', generationId);
+    const publicationGuard = await applyRemixPublicationGuard({
+      childTrackIds: (generationTracks || []).map((track: any) => track.id),
+      userId: session.user.id,
+      requestedPublic: body.isPublic,
+    });
+    const effectivePublic = publicationGuard.effectivePublic;
+
     const { data: updated, error: updateError } = await supabaseAdmin
       .from('ai_generations')
-      .update({ is_public: body.isPublic })
+      .update({ is_public: effectivePublic })
       .eq('id', generationId)
       .eq('user_id', session.user.id)
       .select('id, is_public')
@@ -52,15 +65,23 @@ export async function PATCH(
       return NextResponse.json({ error: updateError?.message || 'Erreur update visibilite' }, { status: 500 });
     }
 
+    // Le createur choisit explicitement les droits de creation avant publication ;
+    // par defaut (ou si le morceau redevient prive), le remix reste desactive.
+    const remixPermissions = effectivePublic
+      ? sanitizeRemixPermissions(body.remixPermissions, DEFAULT_REMIX_PERMISSIONS)
+      : DEFAULT_REMIX_PERMISSIONS;
+
     await supabaseAdmin
       .from('ai_tracks')
-      .update({ is_public: body.isPublic })
+      .update({ is_public: effectivePublic, ...remixPermissionsToRow(remixPermissions) })
       .eq('generation_id', generationId)
       .then(() => {});
 
     return NextResponse.json({
       generationId: updated.id,
       isPublic: Boolean(updated.is_public),
+      remixStatus: publicationGuard.remixStatus,
+      ...remixPermissions,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erreur interne' }, { status: 500 });

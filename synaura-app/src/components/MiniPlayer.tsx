@@ -14,7 +14,7 @@ type Props = {
   onOpen?: () => void;
 };
 
-const VISIBLE_ROUTES = new Set(['Home', 'Discover', 'Community']);
+const VISIBLE_ROUTES = new Set(['Home', 'Discover', 'Community', 'Profile']);
 
 export function MiniPlayer({ activeRoute, onOpen }: Props) {
   const insets = useSafeAreaInsets();

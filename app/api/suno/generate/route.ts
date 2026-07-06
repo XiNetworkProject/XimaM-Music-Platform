@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { CREDITS_PER_GENERATION } from '@/lib/credits';
 import { getEntitlements } from '@/lib/entitlements';
 import { validateSunoGenerationInput, validateSunoTuningInput } from '@/lib/sunoValidation';
+import { assertCanCreateAiVariation } from '@/lib/remixServer';
 
 const BASE = "https://api.sunoapi.org";
 
@@ -28,6 +29,10 @@ type Body = {
   bpm?: number;
   key?: string;
   durationHint?: string;
+  remixSource?: {
+    sourceTrackId?: string;
+    sourceTrackType?: 'track' | 'ai_track';
+  };
 };
 
 export async function POST(req: NextRequest) {
@@ -56,6 +61,16 @@ export async function POST(req: NextRequest) {
     };
 
     const body = (await req.json()) as Body;
+    const remixSource = body.remixSource?.sourceTrackId
+      ? await assertCanCreateAiVariation({
+          sourceTrackId: body.remixSource.sourceTrackId,
+          sourceTrackType: body.remixSource.sourceTrackType,
+          userId: session.user.id,
+        })
+      : null;
+    if (remixSource && !remixSource.ok) {
+      return NextResponse.json({ error: remixSource.error }, { status: remixSource.status });
+    }
     console.log("🎵 Requête génération Suno:", { 
       title: body.title, 
       style: body.style, 
@@ -239,7 +254,8 @@ export async function POST(req: NextRequest) {
           title: body.title || 'Génération en cours',
           style: body.style || '', // Style musical
           instrumental: body.instrumental,
-          customMode: true
+          customMode: true,
+          ...(remixSource?.ok ? { remixSource: remixSource.source } : {})
         };
       } else {
         // Mode Simple : description générale dans prompt
@@ -248,7 +264,8 @@ export async function POST(req: NextRequest) {
           title: 'Génération automatique',
           description: body.prompt,
           instrumental: body.instrumental,
-          customMode: false
+          customMode: false,
+          ...(remixSource?.ok ? { remixSource: remixSource.source } : {})
         };
       }
 

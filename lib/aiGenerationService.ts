@@ -2,6 +2,7 @@
 import { supabase, supabaseAdmin } from './supabase';
 import { Track } from '@/lib/suno-normalize';
 import { cacheSunoTrackMedia } from '@/lib/suno-media-cache';
+import { upsertDraftRemixesForGeneration } from '@/lib/remixServer';
 
 export interface AIGeneration {
   id: string;
@@ -177,7 +178,7 @@ class AIGenerationService {
     // Récupérer le titre, le style et le modèle de la génération pour les utiliser dans les tracks
     const { data: generation, error: genError } = await supabaseAdmin
       .from('ai_generations')
-      .select('metadata, prompt, model, task_id')
+      .select('metadata, prompt, model, task_id, user_id')
       .eq('id', generationId)
       .single();
     
@@ -310,6 +311,7 @@ class AIGenerationService {
       inserted: toInsert.length,
       updated: toUpdate.length,
     });
+    await upsertDraftRemixesForGeneration(generationId, String((generation as any).user_id || ''));
   }
 
   // 📊 Obtenir le quota d'un utilisateur

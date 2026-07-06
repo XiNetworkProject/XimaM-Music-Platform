@@ -1,168 +1,139 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { headers } from 'next/headers';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import DiscoverGuestClient from './DiscoverGuestClient';
-import DiscoverAuthedClient from './DiscoverAuthedClient';
-import type { DiscoverArtistLite, DiscoverAlbumLite, DiscoverPlaylistLite } from './DiscoverTiles';
-import type { DiscoverTrackLite } from './DiscoverPlayButton';
+import { supabaseAdmin } from '@/lib/supabase';
+import { attachLikedFlag, getPublicTrackPool, getRadarTracks } from '@/lib/discoverData';
+import { DISCOVER_MOODS, matchesMoodKeywords, type MoodId } from '@/lib/discoverMoods';
+import DiscoverClient from './DiscoverClient';
+import type { DiscoverPlaylistLite } from './DiscoverTiles';
+import type { DiscoverArtistCardLite } from './DiscoverMoodTiles';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Découvrir — Synaura',
-  description:
-    'Explore des milliers de titres par genre, tendance et nouveauté. Écoute en un clic, découvre des artistes et playlists.',
+  description: 'Choisis une ambiance et entre dans un univers. Ambiances, Radar, collections et artistes réels à explorer.',
   alternates: { canonical: '/discover' },
   openGraph: {
     title: 'Découvrir — Synaura',
-    description: 'Explore des milliers de titres par genre, tendance et nouveauté.',
+    description: 'Choisis une ambiance et entre dans un univers.',
     type: 'website',
     url: '/discover',
   },
 };
 
 async function getBaseUrl() {
-    const h = await headers();
-    const proto = h.get('x-forwarded-proto') || 'https';
-    const host = h.get('x-forwarded-host') || h.get('host') || 'localhost:3000';
+  const h = await headers();
+  const proto = h.get('x-forwarded-proto') || 'https';
+  const host = h.get('x-forwarded-host') || h.get('host') || 'localhost:3000';
   return `${proto}://${host}`;
 }
 
-async function fetchFromFeed(baseUrl: string, params: string): Promise<DiscoverTrackLite[]> {
+async function fetchCollections(baseUrl: string): Promise<DiscoverPlaylistLite[]> {
   try {
-    const res = await fetch(`${baseUrl}/api/ranking/feed?${params}`, { cache: 'no-store' });
+    const res = await fetch(`${baseUrl}/api/editorial-collections/featured`, { cache: 'no-store' });
     const json = await res.json().catch(() => ({}));
-    return Array.isArray(json?.tracks) ? json.tracks : [];
-  } catch {
-    return [];
-  }
-}
-
-async function fetchFromApi(baseUrl: string, path: string): Promise<DiscoverTrackLite[]> {
-  try {
-    const res = await fetch(`${baseUrl}${path}`, { cache: 'no-store' });
-    const json = await res.json().catch(() => ({}));
-    return Array.isArray(json?.tracks) ? json.tracks : [];
-  } catch {
-    return [];
-  }
-}
-
-async function fetchPlaylists(baseUrl: string): Promise<DiscoverPlaylistLite[]> {
-  try {
-    const [popularRes, featuredRes] = await Promise.all([
-      fetch(`${baseUrl}/api/playlists/popular?limit=12`, { cache: 'no-store' }),
-      fetch(`${baseUrl}/api/editorial-collections/featured`, { cache: 'no-store' }),
-    ]);
-    const popularJson = await popularRes.json().catch(() => ({}));
-    const featuredJson = await featuredRes.json().catch(() => ({}));
-    const featuredPlaylists = (Array.isArray(featuredJson?.collections) ? featuredJson.collections : []).map((collection: any) => ({
-      _id: collection.playlistId,
-      id: collection.playlistId,
-      name: collection.title,
-      title: collection.title,
-      description: collection.subtitle || collection.description,
-      coverUrl: collection.coverUrl || collection.bannerUrl,
-      bannerUrl: collection.bannerUrl,
+    return (Array.isArray(json?.collections) ? json.collections : []).map((collection: any) => ({
+      _id: String(collection.playlistId || collection.id || ''),
+      name: String(collection.title || 'Collection Synaura'),
+      description: collection.subtitle || collection.description || '',
+      coverUrl: collection.coverUrl || collection.bannerUrl || null,
+      bannerUrl: collection.bannerUrl || null,
       publicUrl: collection.publicUrl || `/playlists/${collection.slug || collection.playlistId}`,
       isEditorial: true,
       editorialCollection: collection,
       collection,
-    }));
-    return [...featuredPlaylists, ...(Array.isArray(popularJson?.playlists) ? popularJson.playlists : [])].map((p: any) => ({
-      _id: String(p?._id || p?.id || ''),
-      name: String(p?.name || p?.title || 'Playlist'),
-      description: typeof p?.description === 'string' ? p.description : '',
-      coverUrl: p?.coverUrl ?? null,
-      bannerUrl: p?.bannerUrl ?? p?.editorialCollection?.bannerUrl ?? p?.collection?.bannerUrl ?? null,
-      publicUrl: p?.publicUrl ?? null,
-      isEditorial: Boolean(p?.isEditorial || p?.editorialCollection || p?.collection),
-      editorialCollection: p?.editorialCollection ?? null,
-      collection: p?.collection ?? p?.editorialCollection ?? null,
-    }))
-      .filter((p: any) => p._id)
-      .filter((p: any, index: number, all: any[]) => all.findIndex((item) => item._id === p._id) === index);
+    })).filter((c: DiscoverPlaylistLite) => c._id);
   } catch {
     return [];
   }
 }
 
-async function fetchArtists(baseUrl: string): Promise<DiscoverArtistLite[]> {
+async function fetchPopularArtists(baseUrl: string): Promise<any[]> {
   try {
-    const res = await fetch(`${baseUrl}/api/artists?sort=trending&limit=16`, { cache: 'no-store' });
+    const res = await fetch(`${baseUrl}/api/users/popular?limit=14`, { cache: 'no-store' });
     const json = await res.json().catch(() => ({}));
-    return (Array.isArray(json?.artists) ? json.artists : []).map((a: any) => ({
-          _id: String(a?._id || a?.id || ''),
-          username: String(a?.username || ''),
-          name: String(a?.name || a?.username || 'Artiste'),
-          avatar: typeof a?.avatar === 'string' ? a.avatar : '',
-          totalPlays: typeof a?.totalPlays === 'number' ? a.totalPlays : undefined,
-          totalLikes: typeof a?.totalLikes === 'number' ? a.totalLikes : undefined,
-          trackCount: typeof a?.trackCount === 'number' ? a.trackCount : undefined,
-          isTrending: Boolean(a?.isTrending),
-    })).filter((a: any) => a._id && a.username);
+    return Array.isArray(json?.users) ? json.users : [];
   } catch {
     return [];
   }
 }
 
-async function fetchAlbums(baseUrl: string): Promise<DiscoverAlbumLite[]> {
+async function fetchAiPreviewCovers(): Promise<string[]> {
   try {
-    const res = await fetch(`${baseUrl}/api/playlists/albums?limit=20`, { cache: 'no-store' });
-    const json = await res.json().catch(() => ({}));
-    return Array.isArray(json?.albums) ? json.albums : [];
+    const { data } = await supabaseAdmin
+      .from('ai_tracks')
+      .select('image_url, generation:ai_generations!inner(is_public, status)')
+      .eq('is_public', true)
+      .eq('generation.status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(4);
+    return (data || []).map((row: any) => row.image_url).filter(Boolean);
   } catch {
     return [];
   }
 }
 
-export default async function DiscoverPage({ searchParams }: { searchParams: Promise<{ genre?: string }> }) {
+export default async function DiscoverPage({ searchParams }: { searchParams: Promise<{ mood?: string }> }) {
   const sp = await searchParams;
-  const genreFilter = sp?.genre || null;
-  const genreParam = genreFilter ? `&genre=${encodeURIComponent(genreFilter)}` : '';
+  const moodParam = (sp?.mood || null) as MoodId | null;
+  const initialMood = DISCOVER_MOODS.some((mood) => mood.id === moodParam) ? moodParam : null;
+
   const session = await getServerSession(authOptions).catch(() => null);
   const userId = (session?.user as any)?.id as string | undefined;
   const baseUrl = await getBaseUrl();
 
-  const [trendingData, forYouData, recentData, playlistsData, artistsData, albumsData] = await Promise.all([
-    fetchFromApi(baseUrl, `/api/tracks/trending?limit=30`),
-    fetchFromFeed(baseUrl, `limit=30&ai=1&strategy=reco${genreParam}`),
-    fetchFromApi(baseUrl, `/api/tracks/recent?limit=30`),
-    fetchPlaylists(baseUrl),
-    fetchArtists(baseUrl),
-    fetchAlbums(baseUrl),
+  const [pool, radarRaw, collections, popularArtists, aiCovers] = await Promise.all([
+    getPublicTrackPool({ limit: 300 }),
+    getRadarTracks(16),
+    fetchCollections(baseUrl),
+    fetchPopularArtists(baseUrl),
+    fetchAiPreviewCovers(),
   ]);
 
-  if (userId) {
-    const displayName =
-      (session?.user as any)?.name ||
-      (session?.user as any)?.username ||
-      (session?.user as any)?.email?.split?.('@')?.[0] ||
-      'toi';
+  const radarTracks = await attachLikedFlag(radarRaw, userId);
 
-    return (
-      <DiscoverAuthedClient
-        displayName={String(displayName)}
-        genreFilter={genreFilter}
-        initialForYou={forYouData}
-        initialTrending={trendingData}
-        initialNew={recentData}
-        initialPlaylists={playlistsData}
-        initialArtists={artistsData}
-      />
-    );
+  const moodPreviews: Record<string, string[]> = {};
+  for (const mood of DISCOVER_MOODS) {
+    if (mood.isAiOnly) {
+      moodPreviews[mood.id] = aiCovers;
+      continue;
+    }
+    moodPreviews[mood.id] = pool
+      .filter((track) => matchesMoodKeywords(track, mood))
+      .slice(0, 4)
+      .map((track) => track.coverUrl)
+      .filter((cover): cover is string => Boolean(cover));
   }
 
+  // Jumelage artiste <-> morceau jouable réel (même principe que le Scroll : croiser
+  // des créateurs réels avec un morceau qu'ils ont réellement publié).
+  const artists: DiscoverArtistCardLite[] = popularArtists
+    .map((user: any): DiscoverArtistCardLite | null => {
+      const userId2 = String(user?._id || user?.id || '');
+      if (!userId2) return null;
+      const track = pool.find((item) => item.artist._id === userId2);
+      if (!track) return null;
+      return {
+        _id: userId2,
+        username: String(user?.username || ''),
+        name: String(user?.name || user?.username || 'Artiste Synaura'),
+        avatar: user?.avatar || null,
+        style: track.genre?.[0] || null,
+        track: { ...track, coverUrl: track.coverUrl || undefined },
+      };
+    })
+    .filter((artist): artist is DiscoverArtistCardLite => artist !== null)
+    .slice(0, 10);
+
   return (
-    <DiscoverGuestClient
-      genreFilter={genreFilter}
-      trending={trendingData}
-      newest={recentData}
-      playlists={playlistsData}
-      artists={artistsData}
-      albums={albumsData}
+    <DiscoverClient
+      initialMood={initialMood}
+      radarTracks={radarTracks as any}
+      moodPreviews={moodPreviews}
+      collections={collections}
+      artists={artists}
     />
   );
 }
