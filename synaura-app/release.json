@@ -1,12 +1,12 @@
 {
-  "title": "Synaura mobile 0.9.10",
+  "title": "Synaura mobile 0.9.11",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Pour toi devient l'accueil : Scroll multi-contenus (sons, artistes, collections, defis)",
-    "Utiliser ce son / Creer un clip officiel depuis le Scroll et la fiche morceau",
-    "Droits de creation par morceau : Clips, remix audio et variations IA",
-    "Communaute devient 4 Clubs reels : Feedback Lab, Open Feat, Remix Lab, IA Lab",
-    "Decouvrir refondu : 8 ambiances, Radar des pepites, artistes et collections reels"
+    "Nouvelle direction artistique premium et chaleureuse sur tout le Scroll",
+    "Fiche morceau plus lisible : tags de genre reels, progression discrete, remix mis en avant",
+    "Clips clairement identifies comme contenu Synaura, carte morceau plus premium",
+    "Mise en avant d'artiste : avatar plus grand, style reel, sans chiffres inventes",
+    "Confidentialite renforcee : un morceau prive ou non publie ne peut plus fuiter"
   ]
 }

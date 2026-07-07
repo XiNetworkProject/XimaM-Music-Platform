@@ -3,7 +3,7 @@
     "name": "Synaura",
     "slug": "synaura",
     "scheme": "synaura",
-    "version": "0.9.10",
+    "version": "0.9.11",
     "icon": "./src/assets/synaura-symbol-2026.png",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -21,7 +21,7 @@
     },
     "android": {
       "package": "com.synaura.music",
-      "versionCode": 25,
+      "versionCode": 26,
       "newArchEnabled": false,
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/synaura-symbol-2026.png",
@@ -49,7 +49,7 @@
         "expo-notifications",
         {
           "icon": "./src/assets/synaura-symbol-2026.png",
-          "color": "#8B5CF6",
+          "color": "#7357C6",
           "defaultChannel": "synaura-activity"
         }
       ]
