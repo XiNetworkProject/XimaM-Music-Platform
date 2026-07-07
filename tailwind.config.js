@@ -9,6 +9,25 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Tokens sémantiques Synaura (DA premium chaleureuse, cible unifiée
+        // web/mobile) — voir app/globals.css pour les valeurs et la doc.
+        syn: {
+          background: 'var(--syn-background)',
+          surface: 'var(--syn-surface)',
+          surfaceMuted: 'var(--syn-surface-muted)',
+          elevatedSurface: 'var(--syn-elevated-surface)',
+          textPrimary: 'var(--syn-text-primary)',
+          textSecondary: 'var(--syn-text-secondary)',
+          border: 'var(--syn-border)',
+          accent: 'var(--syn-accent)',
+          accentBlue: 'var(--syn-accent-blue)',
+          accentCoral: 'var(--syn-accent-coral)',
+          accentGold: 'var(--syn-accent-gold)',
+          selected: 'var(--syn-selected)',
+          success: 'var(--syn-success)',
+          destructive: 'var(--syn-destructive)',
+        },
+
         // Suno-like design tokens (used by the `example` snippet classes)
         'foreground-primary': 'var(--foreground-primary)',
         'foreground-secondary': 'var(--foreground-secondary)',

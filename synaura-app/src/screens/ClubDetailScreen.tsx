@@ -272,7 +272,7 @@ function PostCard({ post, accent, playing, onPlay, onLike, onOpen, onProfile }: 
           <Text style={styles.postActionText}>{post.likesCount}</Text>
         </Pressable>
         <Pressable onPress={onOpen} style={styles.postAction}>
-          <Ionicons name="chatbubble-ellipses-outline" size={16} color="#7357C6" />
+          <Ionicons name="chatbubble-ellipses-outline" size={16} color={colors.accent} />
           <Text style={styles.postActionText}>{post.repliesCount} réponses</Text>
         </Pressable>
       </View>
@@ -484,11 +484,11 @@ const styles = StyleSheet.create({
   modalRoot: { flex: 1, backgroundColor: '#F4EFE6' },
   modalContent: { paddingHorizontal: 16, gap: 13 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  modalKicker: { color: '#7357C6', fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
+  modalKicker: { color: colors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
   modalTitle: { color: '#171313', fontSize: 24, lineHeight: 28, fontWeight: '900', marginTop: 3 },
   modalSubtitle: { color: 'rgba(23,19,19,0.48)', fontSize: 11, fontWeight: '700', marginTop: 3 },
   circleButton: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  fieldLabel: { color: '#7357C6', fontSize: 10, fontWeight: '900', letterSpacing: 1.4, marginTop: 5 },
+  fieldLabel: { color: colors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1.4, marginTop: 5 },
   input: { minHeight: 52, borderRadius: 18, paddingHorizontal: 15, paddingVertical: 12, backgroundColor: '#FFFAF2', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)', color: '#171313', fontSize: 14, fontWeight: '700' },
   textarea: { minHeight: 150, textAlignVertical: 'top' },
   trackPickerRow: { gap: 8, paddingRight: 20 },

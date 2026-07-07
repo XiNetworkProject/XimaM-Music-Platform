@@ -134,7 +134,7 @@ export function SynauraAppShell({
   contentClassName?: string;
 }) {
   return (
-    <div className={cx('relative z-20 min-h-screen overflow-x-hidden bg-[#F4EFE6] text-[#171313]', className)}>
+    <div className={cx('relative z-20 min-h-screen overflow-x-hidden bg-syn-background text-[#171313]', className)}>
       <style>{`
         .synaura-no-scrollbar::-webkit-scrollbar { display: none; }
         .synaura-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

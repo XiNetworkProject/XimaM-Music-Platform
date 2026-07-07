@@ -154,24 +154,24 @@ export default function TopSearchBar() {
   const isHighlighted = (kind: string, id: string) => activeIdx >= 0 && flat[activeIdx]?.kind === kind && flat[activeIdx]?.id === id;
 
   return (
-    <div className="sticky top-0 z-40 bg-[#0a0a0e] border-b border-white/[0.06]">
+    <div className="sticky top-0 z-40 bg-syn-surface border-b border-syn-border">
       <div className="px-3 md:px-4 py-3">
         <div className="flex items-start gap-2">
         <div className="relative search-root flex-1">
           {/* Input */}
-          <div className="relative h-12 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center focus-within:border-neutral-600 transition-colors">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-neutral-500 pointer-events-none" />
+          <div className="relative h-12 rounded-xl bg-syn-surfaceMuted border border-syn-border flex items-center focus-within:border-black/[0.2] transition-colors">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-syn-textSecondary pointer-events-none" />
             <input
               value={query}
               onChange={(e) => { setQuery(e.target.value); if (e.target.value.trim().length >= 2) setShowResults(true); }}
               onFocus={() => { if (query.trim().length >= 2) setShowResults(true); }}
               onKeyDown={onKey}
               placeholder="Rechercher un titre, artiste, playlist..."
-              className="w-full h-full pl-10 pr-10 bg-transparent text-sm text-white placeholder:text-neutral-500 outline-none"
+              className="w-full h-full pl-10 pr-10 bg-transparent text-sm text-syn-textPrimary placeholder:text-syn-textSecondary outline-none"
             />
             {query.trim().length > 0 && (
-              <button type="button" onClick={clear} className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-neutral-800 hover:bg-neutral-700 flex items-center justify-center transition-colors" aria-label="Effacer">
-                <X className="h-3.5 w-3.5 text-neutral-400" />
+              <button type="button" onClick={clear} className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-black/[0.06] hover:bg-black/[0.1] flex items-center justify-center transition-colors" aria-label="Effacer">
+                <X className="h-3.5 w-3.5 text-syn-textSecondary" />
               </button>
             )}
           </div>
@@ -187,49 +187,49 @@ export default function TopSearchBar() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 4 }}
                   transition={{ duration: 0.12 }}
-                  className="fixed md:absolute top-16 md:top-full left-0 right-0 md:mt-2 bg-neutral-900 md:border border-neutral-800 md:rounded-xl shadow-2xl overflow-hidden z-[70] h-[calc(100vh-80px)] md:h-auto md:max-h-[520px]"
+                  className="fixed md:absolute top-16 md:top-full left-0 right-0 md:mt-2 bg-syn-surface md:border border-syn-border md:rounded-xl shadow-[0_20px_60px_rgba(17,17,17,0.16)] overflow-hidden z-[70] h-[calc(100vh-80px)] md:h-auto md:max-h-[520px]"
                 >
                   {/* Mobile header */}
-                  <div className="sticky top-0 bg-neutral-900 border-b border-neutral-800 p-3 flex items-center justify-between md:hidden z-10">
-                    <span className="text-sm font-semibold text-white">{loading ? 'Recherche...' : `${results.total} résultat(s)`}</span>
-                    <button onClick={() => setShowResults(false)} className="w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center" aria-label="Fermer">
-                      <X className="w-4 h-4 text-neutral-400" />
+                  <div className="sticky top-0 bg-syn-surface border-b border-syn-border p-3 flex items-center justify-between md:hidden z-10">
+                    <span className="text-sm font-semibold text-syn-textPrimary">{loading ? 'Recherche...' : `${results.total} résultat(s)`}</span>
+                    <button onClick={() => setShowResults(false)} className="w-8 h-8 rounded-lg bg-black/[0.06] flex items-center justify-center" aria-label="Fermer">
+                      <X className="w-4 h-4 text-syn-textSecondary" />
                       </button>
                     </div>
 
                   <div className="overflow-y-auto h-[calc(100%-52px)] md:h-auto md:max-h-[520px] p-1.5">
-                    {error && <div className="p-4 text-sm text-neutral-400">{error}</div>}
+                    {error && <div className="p-4 text-sm text-syn-textSecondary">{error}</div>}
 
                     {loading && (
                       <div className="p-2 space-y-1.5">
-                        {[1,2,3].map(i => <div key={i} className="h-14 rounded-lg bg-neutral-800/50 animate-pulse" />)}
+                        {[1,2,3].map(i => <div key={i} className="h-14 rounded-lg bg-black/[0.04] animate-pulse" />)}
                           </div>
                         )}
 
                         {/* Tracks */}
                     {results.tracks.length > 0 && (
                       <div>
-                        <div className="px-2.5 py-2 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Titres</div>
+                        <div className="px-2.5 py-2 text-[11px] font-semibold text-syn-textSecondary uppercase tracking-wider">Titres</div>
                         {results.tracks.slice(0, 6).map((track) => (
                               <motion.div
                                 key={track._id}
                                 whileTap={{ scale: 0.98 }}
                             className={`group flex items-center gap-3 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${
-                              isHighlighted('track', track._id) ? 'bg-neutral-800' : 'hover:bg-neutral-800/60'
+                              isHighlighted('track', track._id) ? 'bg-black/[0.06]' : 'hover:bg-black/[0.04]'
                             }`}
                             onClick={() => { playTrack(track as any); setShowResults(false); setActiveIdx(-1); }}
                           >
-                            <div className="relative w-11 h-11 rounded-lg overflow-hidden bg-neutral-800 shrink-0">
+                            <div className="relative w-11 h-11 rounded-lg overflow-hidden bg-black/[0.06] shrink-0">
                               <img src={safeImg(track.coverUrl, '/default-cover.svg')} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/default-cover.svg'; }} />
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <Play className="w-4 h-4 text-white fill-white" />
                                   </div>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-white truncate">{track.title}</p>
-                              <p className="text-[12px] text-neutral-500 truncate">{track.artist?.name || track.artist?.username}</p>
+                              <p className="text-sm font-medium text-syn-textPrimary truncate">{track.title}</p>
+                              <p className="text-[12px] text-syn-textSecondary truncate">{track.artist?.name || track.artist?.username}</p>
                                 </div>
-                            <span className="hidden md:inline text-[11px] text-neutral-600 tabular-nums">{formatDuration(track.duration)}</span>
+                            <span className="hidden md:inline text-[11px] text-syn-textSecondary tabular-nums">{formatDuration(track.duration)}</span>
                               </motion.div>
                             ))}
                           </div>
@@ -238,19 +238,19 @@ export default function TopSearchBar() {
                         {/* Artists */}
                     {results.artists.length > 0 && (
                       <div className="mt-1">
-                        <div className="px-2.5 py-2 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Artistes</div>
+                        <div className="px-2.5 py-2 text-[11px] font-semibold text-syn-textSecondary uppercase tracking-wider">Artistes</div>
                         {results.artists.slice(0, 6).map((artist) => (
                           <Link href={`/profile/${artist.username}`} key={artist._id} onClick={() => setShowResults(false)}>
                                 <motion.div
                                   whileTap={{ scale: 0.98 }}
                               className={`flex items-center gap-3 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${
-                                isHighlighted('artist', artist._id) ? 'bg-neutral-800' : 'hover:bg-neutral-800/60'
+                                isHighlighted('artist', artist._id) ? 'bg-black/[0.06]' : 'hover:bg-black/[0.04]'
                               }`}
                             >
                               <Avatar src={safeImg(artist.avatar, '/default-avatar.png')} name={artist.name} username={artist.username} size="md" />
                                   <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white truncate">{artist.name}</p>
-                                <p className="text-[12px] text-neutral-500 truncate">Artiste</p>
+                                <p className="text-sm font-medium text-syn-textPrimary truncate">{artist.name}</p>
+                                <p className="text-[12px] text-syn-textSecondary truncate">Artiste</p>
                                   </div>
                                 </motion.div>
                               </Link>
@@ -261,21 +261,21 @@ export default function TopSearchBar() {
                         {/* Playlists */}
                     {results.playlists.length > 0 && (
                       <div className="mt-1">
-                        <div className="px-2.5 py-2 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">Playlists</div>
+                        <div className="px-2.5 py-2 text-[11px] font-semibold text-syn-textSecondary uppercase tracking-wider">Playlists</div>
                         {results.playlists.slice(0, 6).map((pl) => (
                           <Link href={`/playlists/${pl._id}`} key={pl._id} onClick={() => setShowResults(false)}>
                                 <motion.div
                                   whileTap={{ scale: 0.98 }}
                               className={`flex items-center gap-3 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${
-                                isHighlighted('playlist', pl._id) ? 'bg-neutral-800' : 'hover:bg-neutral-800/60'
+                                isHighlighted('playlist', pl._id) ? 'bg-black/[0.06]' : 'hover:bg-black/[0.04]'
                               }`}
                             >
-                              <div className="w-11 h-11 rounded-lg overflow-hidden bg-neutral-800 shrink-0">
+                              <div className="w-11 h-11 rounded-lg overflow-hidden bg-black/[0.06] shrink-0">
                                 <img src={safeImg(pl.coverUrl, '/default-cover.svg')} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/default-cover.svg'; }} />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white truncate">{pl.name}</p>
-                                <p className="text-[12px] text-neutral-500 truncate">Playlist · {pl.creator?.username || 'Utilisateur'}</p>
+                                <p className="text-sm font-medium text-syn-textPrimary truncate">{pl.name}</p>
+                                <p className="text-[12px] text-syn-textSecondary truncate">Playlist · {pl.creator?.username || 'Utilisateur'}</p>
                                   </div>
                                 </motion.div>
                               </Link>
@@ -285,9 +285,9 @@ export default function TopSearchBar() {
 
                     {!loading && results.total === 0 && query.trim() && (
                           <div className="text-center py-12">
-                        <Search className="w-10 h-10 mx-auto mb-3 text-neutral-700" />
-                        <p className="text-sm font-medium text-white">Aucun résultat pour &quot;{query}&quot;</p>
-                        <p className="text-[12px] text-neutral-500 mt-1">Essayez d&apos;autres mots-clés</p>
+                        <Search className="w-10 h-10 mx-auto mb-3 text-black/20" />
+                        <p className="text-sm font-medium text-syn-textPrimary">Aucun résultat pour &quot;{query}&quot;</p>
+                        <p className="text-[12px] text-syn-textSecondary mt-1">Essayez d&apos;autres mots-clés</p>
                           </div>
                         )}
                     {!loading && results.total > 0 && query.trim() && (
@@ -297,7 +297,7 @@ export default function TopSearchBar() {
                           setShowResults(false);
                           router.push(`/search?q=${encodeURIComponent(query.trim())}`);
                         }}
-                        className="mt-1 w-full rounded-lg bg-neutral-800 px-3 py-2 text-sm font-semibold text-white transition hover:bg-neutral-700"
+                        className="mt-1 w-full rounded-lg bg-black/[0.05] px-3 py-2 text-sm font-semibold text-syn-textPrimary transition hover:bg-black/[0.08]"
                       >
                         Voir tous les résultats
                       </button>
@@ -308,7 +308,7 @@ export default function TopSearchBar() {
               )}
             </AnimatePresence>
         </div>
-        <NotificationCenter className="mt-0 bg-neutral-900 text-white/70 hover:bg-neutral-800 hover:text-white" />
+        <NotificationCenter className="mt-0 bg-syn-surfaceMuted text-syn-textSecondary hover:bg-black/[0.08] hover:text-syn-textPrimary" />
         </div>
       </div>
     </div>

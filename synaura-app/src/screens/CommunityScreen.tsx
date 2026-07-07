@@ -92,7 +92,7 @@ export function CommunityScreen() {
 
         {loading ? (
           <View style={styles.loadingState}>
-            <ActivityIndicator color="#7357C6" />
+            <ActivityIndicator color={colors.accent} />
             <Text style={styles.loadingText}>Chargement des Clubs...</Text>
           </View>
         ) : (

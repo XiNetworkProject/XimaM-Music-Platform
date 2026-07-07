@@ -86,13 +86,12 @@ export default function StarAcademyBanner({ variant = 'full' }: { variant?: 'ful
     return (
       <Link
         href="/star-academy-tiktok"
-        className="group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-all active:scale-[0.97] overflow-hidden bg-gradient-to-r from-violet-600/20 to-blue-600/20 hover:from-violet-600/30 hover:to-blue-600/30 text-violet-300 ring-1 ring-violet-500/30"
+        className="group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-all active:scale-[0.97] overflow-hidden bg-syn-accentCoral/10 hover:bg-syn-accentCoral/15 text-syn-accentCoral ring-1 ring-syn-accentCoral/25"
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-violet-600/10 to-blue-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-        <Star className="w-[18px] h-[18px] shrink-0 relative z-[1] fill-current" />
-        <span className="truncate relative z-[1]">Star Academy</span>
-        <span className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full relative z-[1] shrink-0 ${
-          isOpen ? 'bg-emerald-500/30 text-emerald-200' : isPreSelection ? 'bg-amber-500/30 text-amber-200' : 'bg-violet-500/30 text-violet-200'
+        <Star className="w-[18px] h-[18px] shrink-0 fill-current" />
+        <span className="truncate">Star Academy</span>
+        <span className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
+          isOpen ? 'bg-syn-success/15 text-syn-success' : isPreSelection ? 'bg-syn-accentGold/15 text-syn-accentGold' : 'bg-syn-accentCoral/15 text-syn-accentCoral'
         }`}>
           {statusLabel}
         </span>

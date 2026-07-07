@@ -2,12 +2,12 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
 import { trackArtistName } from '@/components/swipe/helpers';
 import { TrackCover } from '@/components/TrackCover';
 import { MotionPressable } from '@/components/motion/Motion';
+import { colors } from '@/theme/tokens';
 
 type Props = {
   activeRoute?: string;
@@ -78,12 +78,7 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
     >
       <Pressable accessibilityLabel="Ouvrir le lecteur" onPress={onOpen} style={styles.card}>
         <View style={styles.progressTrack}>
-          <LinearGradient
-            colors={['#22D3EE', '#8B5CF6', '#EC4899', '#FF6B6B']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.progressFill, { width: `${progress * 100}%` }]}
-          />
+          <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: colors.accent }]} />
         </View>
 
         <View style={styles.content}>

@@ -112,7 +112,7 @@ export default function AppSidebar() {
 
   return (
     <aside
-      className="group/sidebar fixed inset-y-0 left-0 hidden lg:flex lg:flex-col bg-[#0a0a0e] text-white border-r border-white/[0.06] overflow-hidden z-40 transition-all duration-200"
+      className="group/sidebar fixed inset-y-0 left-0 hidden lg:flex lg:flex-col bg-syn-surface text-syn-textPrimary border-r border-syn-border overflow-hidden z-40 transition-all duration-200"
       data-collapsed={collapsed}
       data-show-content={isSidebarOpen}
       style={{ width: isSidebarOpen ? 220 : 72 } as CSSProperties}
@@ -121,7 +121,7 @@ export default function AppSidebar() {
       <button
         type="button"
         onClick={toggleSidebar}
-        className="absolute top-7 right-3 z-10 w-6 h-6 rounded-md flex items-center justify-center text-white/25 hover:text-white/70 hover:bg-white/[0.06] transition-all group-data-[collapsed=true]/sidebar:left-1/2 group-data-[collapsed=true]/sidebar:-translate-x-1/2 group-data-[collapsed=true]/sidebar:right-auto"
+        className="absolute top-7 right-3 z-10 w-6 h-6 rounded-md flex items-center justify-center text-black/25 hover:text-black/70 hover:bg-black/[0.05] transition-all group-data-[collapsed=true]/sidebar:left-1/2 group-data-[collapsed=true]/sidebar:-translate-x-1/2 group-data-[collapsed=true]/sidebar:right-auto"
         aria-label="Toggle sidebar"
       >
         <ChevronLeft className={`w-4 h-4 transition-transform ${!isSidebarOpen ? 'rotate-180' : ''}`} />
@@ -139,9 +139,8 @@ export default function AppSidebar() {
               className="h-[42px] w-[42px] object-contain transition-transform duration-200 group-hover/logo:scale-110"
               unoptimized
             />
-            <div className="absolute -inset-1.5 rounded-xl bg-indigo-500/20 blur-lg opacity-0 group-hover/logo:opacity-100 transition-opacity -z-10" />
           </div>
-          <span className="text-[20px] font-black tracking-tight text-white group-data-[collapsed=true]/sidebar:hidden">
+          <span className="text-[20px] font-black tracking-tight text-syn-textPrimary group-data-[collapsed=true]/sidebar:hidden">
             Synaura
           </span>
         </Link>
@@ -156,21 +155,21 @@ export default function AppSidebar() {
             if (collapsed) { if (username) router.push(`/profile/${username}`, { scroll: false }); return; }
             setProfileMenuOpen(v => !v);
           }}
-          className={`w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors ${profileMenuOpen ? 'bg-white/[0.08]' : 'hover:bg-white/[0.05]'}`}
+          className={`w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors ${profileMenuOpen ? 'bg-syn-surfaceMuted' : 'hover:bg-black/[0.035]'}`}
         >
           <img
             alt="profil"
-            className="rounded-full h-8 w-8 shrink-0 object-cover ring-1 ring-white/10"
+            className="rounded-full h-8 w-8 shrink-0 object-cover ring-1 ring-black/[0.08]"
                       src={getSafeAvatar()}
             onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
           />
           <div className="min-w-0 flex-1 text-left group-data-[collapsed=true]/sidebar:hidden">
-            <p className="text-[13px] font-semibold text-white/90 truncate">
+            <p className="text-[13px] font-semibold text-syn-textPrimary truncate">
               {username || (session?.user as any)?.name || 'Invité'}
             </p>
-            <p className="text-[11px] text-white/30 truncate">{creditsBalance} crédits</p>
+            <p className="text-[11px] text-syn-textSecondary truncate">{creditsBalance} crédits</p>
                 </div>
-          <ChevronDown className={`w-3.5 h-3.5 text-white/30 shrink-0 transition-transform group-data-[collapsed=true]/sidebar:hidden ${profileMenuOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-syn-textSecondary shrink-0 transition-transform group-data-[collapsed=true]/sidebar:hidden ${profileMenuOpen ? 'rotate-180' : ''}`} />
         </button>
 
         <AnimatePresence>
@@ -180,7 +179,7 @@ export default function AppSidebar() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -4, scale: 0.97 }}
               transition={{ duration: 0.12 }}
-              className="absolute left-3 right-3 top-full mt-1 z-50 rounded-xl bg-neutral-900 border border-white/[0.08] shadow-xl overflow-hidden"
+              className="absolute left-3 right-3 top-full mt-1 z-50 rounded-xl bg-syn-elevatedSurface border border-syn-border shadow-[0_16px_40px_rgba(17,17,17,0.14)] overflow-hidden"
             >
               {profileActions.map((item) => {
                 const Icon = item.icon;
@@ -189,18 +188,18 @@ export default function AppSidebar() {
                     key={item.label}
                     type="button"
                     onClick={() => { item.action(); setProfileMenuOpen(false); }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] text-white/70 hover:text-white hover:bg-white/[0.06] transition-colors"
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] text-syn-textPrimary/80 hover:text-syn-textPrimary hover:bg-black/[0.04] transition-colors"
                   >
                     <Icon className="w-4 h-4 shrink-0" strokeWidth={1.6} />
                     {item.label}
                   </button>
                 );
               })}
-              <div className="h-px bg-white/[0.06]" />
+              <div className="h-px bg-syn-border" />
               <button
                 type="button"
                 onClick={() => { setProfileMenuOpen(false); signOut({ callbackUrl: '/' }); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] text-red-400/80 hover:text-red-400 hover:bg-red-500/[0.06] transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] text-syn-destructive/85 hover:text-syn-destructive hover:bg-syn-destructive/[0.06] transition-colors"
               >
                 <LogOut className="w-4 h-4 shrink-0" strokeWidth={1.6} />
                 Déconnexion
@@ -214,36 +213,34 @@ export default function AppSidebar() {
       <div className="px-3 mb-3 space-y-1.5">
         <Link
           href="/ai-generator"
-          className={`group/cta relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-all active:scale-[0.97] overflow-hidden ${
+          className={`group/cta relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-all active:scale-[0.97] ${
             studioActive
-              ? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/30'
-              : 'bg-white/[0.04] text-white/80 hover:bg-indigo-500/10 hover:text-indigo-300'
+              ? 'bg-syn-accent/10 text-syn-accent ring-1 ring-syn-accent/25'
+              : 'bg-black/[0.03] text-syn-textPrimary/75 hover:bg-syn-accent/[0.06] hover:text-syn-accent'
           } group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:px-0`}
           title={collapsed ? 'Studio' : undefined}
         >
-          <div className={`absolute inset-0 bg-gradient-to-r from-indigo-600/10 to-violet-600/10 opacity-0 transition-opacity ${studioActive ? 'opacity-100' : 'group-hover/cta:opacity-100'}`} />
-          <Sparkles className="w-[18px] h-[18px] shrink-0 relative z-[1]" />
-          <span className="group-data-[collapsed=true]/sidebar:hidden truncate relative z-[1]">Studio</span>
+          <Sparkles className="w-[18px] h-[18px] shrink-0" />
+          <span className="group-data-[collapsed=true]/sidebar:hidden truncate">Studio</span>
         </Link>
 
         <Link
           href="/upload"
-          className={`group/cta relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-all active:scale-[0.97] overflow-hidden ${
+          className={`group/cta relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-all active:scale-[0.97] ${
             uploadActive
-              ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/30'
-              : 'bg-white/[0.04] text-white/80 hover:bg-emerald-500/10 hover:text-emerald-300'
+              ? 'bg-syn-accentGold/15 text-syn-accentGold ring-1 ring-syn-accentGold/30'
+              : 'bg-black/[0.03] text-syn-textPrimary/75 hover:bg-syn-accentGold/10 hover:text-syn-accentGold'
           } group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:px-0`}
           title={collapsed ? 'Uploader' : undefined}
         >
-          <div className={`absolute inset-0 bg-gradient-to-r from-emerald-600/10 to-cyan-600/10 opacity-0 transition-opacity ${uploadActive ? 'opacity-100' : 'group-hover/cta:opacity-100'}`} />
-          <Upload className="w-[18px] h-[18px] shrink-0 relative z-[1]" />
-          <span className="group-data-[collapsed=true]/sidebar:hidden truncate relative z-[1]">Uploader</span>
+          <Upload className="w-[18px] h-[18px] shrink-0" />
+          <span className="group-data-[collapsed=true]/sidebar:hidden truncate">Uploader</span>
         </Link>
 
         {SYNAURA_SHUTDOWN_NOTICES_ENABLED ? (
           <Link
             href="/fermeture"
-            className={`group/ferm relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-all active:scale-[0.97] overflow-hidden bg-gradient-to-r from-red-950/50 to-rose-950/30 text-red-200 ring-1 ring-red-500/25 hover:ring-red-400/40 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:px-0`}
+            className="group/ferm relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-all active:scale-[0.97] bg-syn-destructive/10 text-syn-destructive ring-1 ring-syn-destructive/25 hover:ring-syn-destructive/40 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:px-0"
             title={collapsed ? 'Fermeture' : undefined}
           >
             <AlertTriangle className="w-[18px] h-[18px] shrink-0" />
@@ -255,7 +252,7 @@ export default function AppSidebar() {
       </div>
 
       {/* Separator */}
-      <div className="h-px bg-white/[0.06] mx-3" />
+      <div className="h-px bg-syn-border mx-3" />
 
       {/* Nav */}
       <div className="flex-1 min-h-0 overflow-y-auto px-3 pt-2 space-y-0.5">
@@ -268,8 +265,8 @@ export default function AppSidebar() {
               href={item.href}
               className={`flex items-center gap-2.5 rounded-xl px-2.5 py-[7px] text-[13px] font-medium transition-all active:scale-[0.98] ${
                 active
-                  ? 'bg-white/[0.08] text-white'
-                  : 'text-white/45 hover:text-white/80 hover:bg-white/[0.04]'
+                  ? 'bg-syn-accent/10 text-syn-accent font-semibold'
+                  : 'text-syn-textPrimary/55 hover:text-syn-textPrimary hover:bg-black/[0.035]'
               } group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:px-0`}
               title={collapsed ? item.label : undefined}
             >
@@ -281,7 +278,7 @@ export default function AppSidebar() {
       </div>
 
       {/* Bottom */}
-      <div className="shrink-0 border-t border-white/[0.06] px-3 py-2.5 space-y-0.5">
+      <div className="shrink-0 border-t border-syn-border px-3 py-2.5 space-y-0.5">
         {BOTTOM_ITEMS.map((item) => {
           const active = isActive(item.href);
           const Icon = item.icon;
@@ -290,7 +287,7 @@ export default function AppSidebar() {
               key={item.href}
               href={item.href}
               className={`flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
-                active ? 'text-white/70' : 'text-white/25 hover:text-white/50'
+                active ? 'text-syn-textPrimary/70' : 'text-syn-textPrimary/35 hover:text-syn-textPrimary/60'
               } group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:px-0`}
               title={collapsed ? item.label : undefined}
             >

@@ -53,9 +53,9 @@ const VARIANTS: Record<Variant, {
     base: '#0D0A0E',
     paper: '#171313',
     paperDark: '#0A070C',
-    coral: '#FF6F61',
-    violet: '#7C5CFF',
-    cyan: '#00C2CB',
+    coral: '#D96D63',
+    violet: '#7357C6',
+    cyan: '#4A9EAA',
     gridLine: '#1F1A1C',
     coralAlpha: 0.16,
     violetAlpha: 0.18,
@@ -78,7 +78,7 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
   const drift = useRef(new Animated.Value(0)).current;
   const w = Math.max(360, Math.round(width));
   const h = Math.max(640, Math.round(height));
-  const activeTones = ['#8B5CF6', '#22D3EE', '#FF6B6B', '#EC4899', '#F5B84B'];
+  const activeTones = ['#7357C6', '#4A9EAA', '#D96D63', '#C99B48', '#C85D82'];
   const activeKey = player.current?._id || player.current?.title || '';
   const activeTone = activeTones[Array.from(activeKey).reduce((sum, char) => sum + char.charCodeAt(0), 0) % activeTones.length];
 

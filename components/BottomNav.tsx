@@ -83,7 +83,7 @@ export default function BottomNav() {
         className="fixed left-0 right-0 bottom-0 z-40 lg:hidden"
       >
         <div
-          className="bg-[#0a0a0e] border-t border-white/[0.06]"
+          className="bg-syn-surface border-t border-syn-border"
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
           <div className="flex items-center justify-around h-14">
@@ -99,10 +99,10 @@ export default function BottomNav() {
                   aria-label={tab.label}
                 >
                   <Icon
-                    className={`w-6 h-6 ${active ? 'text-white' : 'text-neutral-500'}`}
+                    className={`w-6 h-6 ${active ? 'text-syn-accent' : 'text-syn-textSecondary'}`}
                     strokeWidth={active ? 2.2 : 1.6}
                   />
-                  <span className={`text-[10px] ${active ? 'text-white font-semibold' : 'text-neutral-500 font-medium'}`}>
+                  <span className={`text-[10px] ${active ? 'text-syn-accent font-semibold' : 'text-syn-textSecondary font-medium'}`}>
                     {tab.label}
                   </span>
                 </button>
@@ -119,13 +119,13 @@ export default function BottomNav() {
                 <img
                   src={avatarUrl}
                   alt=""
-                  className={`w-6 h-6 rounded-full object-cover ${showMore ? 'ring-2 ring-white' : ''}`}
+                  className={`w-6 h-6 rounded-full object-cover ${showMore ? 'ring-2 ring-syn-accent' : ''}`}
                   onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }}
                 />
               ) : (
-                <User className={`w-6 h-6 ${showMore ? 'text-white' : 'text-neutral-500'}`} strokeWidth={1.6} />
+                <User className={`w-6 h-6 ${showMore ? 'text-syn-accent' : 'text-syn-textSecondary'}`} strokeWidth={1.6} />
               )}
-              <span className={`text-[10px] ${showMore ? 'text-white font-semibold' : 'text-neutral-500 font-medium'}`}>
+              <span className={`text-[10px] ${showMore ? 'text-syn-accent font-semibold' : 'text-syn-textSecondary font-medium'}`}>
                 {session ? 'Profil' : 'Connexion'}
               </span>
             </button>
@@ -153,11 +153,11 @@ export default function BottomNav() {
                 className="fixed inset-x-0 bottom-0 z-[9999] lg:hidden"
               >
                 <div
-                  className="rounded-t-2xl bg-[#0c0c14] border-t border-white/[0.06]"
+                  className="rounded-t-2xl bg-syn-surface border-t border-syn-border"
                   style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
                 >
                   <div className="flex justify-center pt-3 pb-1">
-                    <div className="w-9 h-1 rounded-full bg-white/[0.1]" />
+                    <div className="w-9 h-1 rounded-full bg-black/[0.12]" />
                   </div>
 
                   <div className="flex items-center justify-between px-5 py-3">
@@ -173,36 +173,36 @@ export default function BottomNav() {
                         onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }}
                       />
                       <div className="text-left min-w-0">
-                        <div className="text-[15px] font-bold text-white truncate">
+                        <div className="text-[15px] font-bold text-syn-textPrimary truncate">
                           {(session?.user as any)?.username || (session?.user as any)?.name || 'Profil'}
                         </div>
-                        <div className="text-[12px] text-white/40">Voir le profil</div>
+                        <div className="text-[12px] text-syn-textSecondary">Voir le profil</div>
                       </div>
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowMore(false)}
-                      className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:bg-white/[0.1] hover:text-white/70 transition"
+                      className="w-8 h-8 rounded-full bg-black/[0.05] flex items-center justify-center text-syn-textSecondary hover:bg-black/[0.09] hover:text-syn-textPrimary transition"
                       aria-label="Fermer"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <div className="h-px bg-white/[0.06] mx-4 my-1" />
+                  <div className="h-px bg-syn-border mx-4 my-1" />
 
                   {/* Star Academy promo banner */}
                   <Link
                     href="/star-academy-tiktok"
                     onClick={() => setShowMore(false)}
-                    className="mx-4 mt-3 flex items-center gap-3 rounded-xl p-3 bg-gradient-to-r from-violet-600/20 to-blue-600/20 border border-violet-500/20 active:scale-[0.98] transition-all"
+                    className="mx-4 mt-3 flex items-center gap-3 rounded-xl p-3 bg-syn-accentCoral/10 border border-syn-accentCoral/20 active:scale-[0.98] transition-all"
                   >
                     <img src="/images/star-academy/logo.png" alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-bold text-white truncate">Star Academy TikTok</p>
-                      <p className="text-[11px] text-violet-300/70">Inscriptions le 17 mars 2026</p>
+                      <p className="text-[13px] font-bold text-syn-textPrimary truncate">Star Academy TikTok</p>
+                      <p className="text-[11px] text-syn-accentCoral">Inscriptions le 17 mars 2026</p>
                     </div>
-                    <span className="text-[10px] font-bold bg-violet-500/80 text-white px-2 py-0.5 rounded-full shrink-0 animate-pulse">
+                    <span className="text-[10px] font-bold bg-syn-accentCoral text-white px-2 py-0.5 rounded-full shrink-0 animate-pulse">
                       NEW
                     </span>
                   </Link>
@@ -222,12 +222,12 @@ export default function BottomNav() {
                             onClick={() => go(item.path, (item as any).auth)}
                             className={`flex flex-col items-center gap-1.5 rounded-xl py-3 transition-all active:scale-95 ${
                               highlight
-                                ? 'bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/30'
+                                ? 'bg-syn-accentCoral/12 text-syn-accentCoral ring-1 ring-syn-accentCoral/30'
                                 : active
-                                  ? 'bg-white/[0.08] text-white'
+                                  ? 'bg-syn-accent/10 text-syn-accent'
                                   : disabled
-                                    ? 'opacity-25 text-white/30'
-                                    : 'text-white/40 hover:bg-white/[0.06] hover:text-white/70'
+                                    ? 'opacity-25 text-syn-textSecondary'
+                                    : 'text-syn-textSecondary hover:bg-black/[0.04] hover:text-syn-textPrimary'
                             }`}
                           >
                             <Icon className={`w-5 h-5 ${highlight ? 'fill-current' : ''}`} />

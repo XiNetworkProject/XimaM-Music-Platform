@@ -298,7 +298,7 @@ export default function SynauraMiniPlayer() {
                   aria-valuenow={currentTime || 0}
                 >
                   <div
-                    className="absolute left-0 top-0 h-full bg-gradient-to-r from-[#ff6f61] via-[#7c5cff] to-[#14b8a6] transition-[width] duration-150"
+                    className="absolute left-0 top-0 h-full bg-[#7357C6] transition-[width] duration-150"
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>
@@ -314,7 +314,7 @@ export default function SynauraMiniPlayer() {
                         </span>
                       ) : null}
                       {isAI ? (
-                        <span className="absolute -top-1 -right-1 inline-flex items-center gap-1 rounded-full bg-violet-500 px-1.5 py-0.5 text-[8px] font-black text-white">
+                        <span className="absolute -top-1 -right-1 inline-flex items-center gap-1 rounded-full bg-[#7357C6] px-1.5 py-0.5 text-[8px] font-black text-white">
                           <Sparkles className="h-2.5 w-2.5" />
                           IA
                         </span>

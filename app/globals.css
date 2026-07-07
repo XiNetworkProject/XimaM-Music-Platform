@@ -152,6 +152,32 @@ a {
   text-decoration: none;
 }
 
+/*
+ * Tokens sémantiques Synaura — DA premium chaleureuse (palette cible unifiée
+ * web/mobile). Noms de rôle, pas de couleurs brutes. Cohérent avec
+ * synaura-app/src/theme/tokens.ts. Nouveaux composants : préférer ces
+ * variables (ou les classes Tailwind `syn-*` qu'elles alimentent) aux hex
+ * bruts. Les surfaces déjà chaleureuses (SynauraShell, Clubs, Découvrir)
+ * gardent leurs teintes crème historiques (#fffaf2/#171313), très proches de
+ * cette palette, pour limiter le risque de régression visuelle.
+ */
+:root {
+  --syn-background: #F7F6F3;
+  --syn-surface: #FFFFFF;
+  --syn-surface-muted: #EEECE7;
+  --syn-elevated-surface: #FFFFFF;
+  --syn-text-primary: #111111;
+  --syn-text-secondary: #6E6964;
+  --syn-border: #DEDAD3;
+  --syn-accent: #7357C6;
+  --syn-accent-blue: #4A9EAA;
+  --syn-accent-coral: #D96D63;
+  --syn-accent-gold: #C99B48;
+  --syn-selected: #7357C6;
+  --syn-success: #2E9D68;
+  --syn-destructive: #C94F4F;
+}
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
@@ -169,12 +195,12 @@ a {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: rgba(17, 17, 17, 0.16);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  background: rgba(17, 17, 17, 0.28);
 }
 
 /* Animations CSS optimisées pour remplacer framer-motion */

@@ -3,6 +3,12 @@ export const colors = {
   backgroundAlt: '#FFFFFF',
   surface: '#FFFFFF',
   surfaceStrong: '#FFFFFF',
+  // Rôles sémantiques ajoutés pour la cohérence web/mobile (voir app/globals.css
+  // côté web). `text`/`surface`/`border` restent les alias historiques déjà
+  // utilisés partout dans l'app — on ajoute les rôles manquants plutôt que de
+  // renommer l'existant, pour ne pas casser les écrans déjà alignés.
+  surfaceMuted: '#EEECE7',
+  elevatedSurface: '#FFFFFF',
   border: 'rgba(17,17,17,0.075)',
   borderStrong: 'rgba(17,17,17,0.14)',
   text: '#111111',
@@ -11,7 +17,10 @@ export const colors = {
   accent: '#7357C6',
   accent2: '#4A9EAA',
   accentPink: '#C85D82',
+  selected: '#7357C6',
   danger: '#D92D20',
+  destructive: '#C94F4F',
+  success: '#2E9D68',
   black: '#111111',
   white: '#FFFFFF',
   paper: '#FFFFFF',

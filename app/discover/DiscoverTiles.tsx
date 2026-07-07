@@ -116,14 +116,14 @@ export function SectionHeader({
   onAction?: () => void;
 }) {
   const actionClassName =
-    'inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 text-[11px] font-black uppercase tracking-[0.12em] text-white/72 transition hover:bg-white hover:text-[#171313] sm:w-auto sm:text-xs sm:tracking-[0.16em]';
+    'inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-black/[0.08] bg-black/[0.04] px-4 text-[11px] font-black uppercase tracking-[0.12em] text-black/62 transition hover:bg-[#171313] hover:text-white sm:w-auto sm:text-xs sm:tracking-[0.16em]';
 
   return (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/38">Sélection Synaura</p>
-        <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[#fffaf2] sm:text-[1.4rem]">{title}</h2>
-        {subtitle ? <p className="mt-1 text-sm leading-6 text-white/45">{subtitle}</p> : null}
+        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-black/38">Sélection Synaura</p>
+        <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[#171313] sm:text-[1.4rem]">{title}</h2>
+        {subtitle ? <p className="mt-1 text-sm leading-6 text-black/48">{subtitle}</p> : null}
       </div>
       {actionHref && actionLabel ? (
         <Link href={actionHref} className={actionClassName}>

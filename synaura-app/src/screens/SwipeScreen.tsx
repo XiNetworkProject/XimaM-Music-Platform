@@ -769,12 +769,12 @@ export function SwipeScreen() {
     <View style={styles.root}>
       <LinearGradient
         pointerEvents="none"
-        colors={['#120D11', '#0D0A0E', '#080607']}
+        colors={['#1C1620', '#171313', '#130F11']}
         locations={[0, 0.52, 1]}
         style={StyleSheet.absoluteFill}
       />
 
-      <LinearGradient colors={['rgba(10,8,8,0.88)', 'rgba(10,8,8,0.0)']} style={[styles.headerGradient, { height: insets.top + 96 }]} pointerEvents="none" />
+      <LinearGradient colors={['rgba(23,19,19,0.88)', 'rgba(23,19,19,0.0)']} style={[styles.headerGradient, { height: insets.top + 96 }]} pointerEvents="none" />
 
       <Animated.View style={[styles.header, headerStyle]} pointerEvents="box-none">
         <View style={styles.headerInner}>
@@ -922,7 +922,7 @@ export function SwipeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0A0808' },
+  root: { flex: 1, backgroundColor: '#171313' },
   headerGradient: {
     position: 'absolute',
     left: 0,
@@ -1003,7 +1003,7 @@ const styles = StyleSheet.create({
     height: 16,
     paddingHorizontal: 4,
     borderRadius: 8,
-    backgroundColor: '#FF4B7A',
+    backgroundColor: '#D96D63',
     alignItems: 'center',
     justifyContent: 'center',
   },

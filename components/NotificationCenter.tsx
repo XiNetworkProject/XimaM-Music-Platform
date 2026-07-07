@@ -131,7 +131,7 @@ const NOTIF_COLORS: Record<string, string> = {
   error: 'text-red-700 bg-red-50 border-red-200',
   info: 'text-blue-700 bg-blue-50 border-blue-200',
   warning: 'text-amber-700 bg-amber-50 border-amber-200',
-  music: 'text-[#7c5cff] bg-[#7c5cff]/8 border-[#7c5cff]/18',
+  music: 'text-[#7357C6] bg-[#7357C6]/8 border-[#7357C6]/18',
   like: 'text-pink-700 bg-pink-50 border-pink-200',
   message: 'text-blue-700 bg-blue-50 border-blue-200',
   follow: 'text-emerald-700 bg-emerald-50 border-emerald-200',
@@ -140,12 +140,12 @@ const NOTIF_COLORS: Record<string, string> = {
   like_milestone: 'text-amber-700 bg-amber-50 border-amber-200',
   new_comment: 'text-blue-700 bg-blue-50 border-blue-200',
   new_message: 'text-indigo-700 bg-indigo-50 border-indigo-200',
-  new_track_followed: 'text-[#7c5cff] bg-[#7c5cff]/8 border-[#7c5cff]/18',
+  new_track_followed: 'text-[#7357C6] bg-[#7357C6]/8 border-[#7357C6]/18',
   view_milestone: 'text-cyan-700 bg-cyan-50 border-cyan-200',
   post_like: 'text-pink-700 bg-pink-50 border-pink-200',
   post_comment: 'text-blue-700 bg-blue-50 border-blue-200',
   boost_reminder: 'text-orange-700 bg-orange-50 border-orange-200',
-  admin_broadcast: 'text-[#7c5cff] bg-[#7c5cff]/8 border-[#7c5cff]/18',
+  admin_broadcast: 'text-[#7357C6] bg-[#7357C6]/8 border-[#7357C6]/18',
   general: 'text-[#5f5650] bg-[#fff8ee] border-[#dccfbb]',
 };
 

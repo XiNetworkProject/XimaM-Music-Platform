@@ -508,7 +508,7 @@ export default function SynauraScrollFeed() {
               preload={index === activeIndex ? 'auto' : 'metadata'}
             />
           ) : null}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/42 via-transparent to-black/78" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent via-45% to-black/85" />
 
           <aside className="absolute right-4 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-2.5">
             <button className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl">
@@ -527,6 +527,10 @@ export default function SynauraScrollFeed() {
           <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[max(env(safe-area-inset-bottom),1rem)]">
             <div className="mx-auto max-w-5xl space-y-3">
               <div className="max-w-xl text-white drop-shadow">
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-[#4A9EAA]/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#8fd3dc]">
+                  <Film className="h-3 w-3" />
+                  Clip Synaura
+                </div>
                 <div className="flex items-center gap-2">
                   {clip.creator.avatar ? <img src={clip.creator.avatar} alt="" className="h-9 w-9 rounded-full object-cover" /> : <span className="grid h-9 w-9 place-items-center rounded-full bg-white/18 text-xs font-black">{(clip.creator.name || 'S').slice(0, 1).toUpperCase()}</span>}
                   <span className="text-sm font-black">@{clip.creator.username || clip.creator.name || 'synaura'}</span>
@@ -608,8 +612,8 @@ export default function SynauraScrollFeed() {
                 event.currentTarget.src = FALLBACK_COVER;
               }}
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#171313]/90 via-[#171313]/35 to-[#171313]/92" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(255,111,97,0.22),transparent_30%),radial-gradient(circle_at_88%_30%,rgba(124,92,255,0.18),transparent_32%),radial-gradient(circle_at_50%_100%,rgba(0,194,203,0.14),transparent_34%)]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#171313]/90 via-[#171313]/32 to-[#171313]/94" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(115,87,198,0.16),transparent_46%)]" />
           </div>
 
           <div className="absolute inset-0 z-10 grid place-items-center px-5">
@@ -641,7 +645,7 @@ export default function SynauraScrollFeed() {
 
           <aside className="absolute right-4 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-2.5">
             <button onClick={() => handleLike(track._id)} className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
-              <Heart className={`h-5 w-5 ${track.isLiked ? 'fill-[#ff6f61] text-[#ff6f61]' : ''}`} />
+              <Heart className={`h-5 w-5 ${track.isLiked ? 'fill-[#D96D63] text-[#D96D63]' : ''}`} />
               <span className="text-[10px] font-black">{fmtCount(likesCount)}</span>
             </button>
             <button onClick={() => router.push(`/track/${track._id}`, { scroll: false })} className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
@@ -688,10 +692,14 @@ export default function SynauraScrollFeed() {
             <div className="mx-auto max-w-5xl rounded-[1.8rem] border border-white/12 bg-[#fffaf2]/95 p-4 text-[#171313] shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/34">
-                    {track.genre?.[0] || 'Synaura'}
-                  </p>
-                  <h2 className="mt-1 truncate text-2xl font-black tracking-tight">{track.title}</h2>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {(track.genre?.length ? track.genre.slice(0, 3) : ['Synaura']).map((tag) => (
+                      <span key={tag} className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-black/40">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  <h2 className="mt-1.5 truncate text-2xl font-black tracking-tight">{track.title}</h2>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <p className="text-sm font-bold text-black/56">{track.artist?.name || track.artist?.username || 'Artiste'}</p>
                     {track.artist?._id ? (
@@ -739,7 +747,7 @@ export default function SynauraScrollFeed() {
                       void playTrack(track as any).then(() => setTimeout(() => seek(value), 120));
                     }
                   }}
-                  className="h-2 w-full accent-[#171313]"
+                  className="h-1.5 w-full accent-[#7357C6]"
                 />
               </div>
             </div>
@@ -799,12 +807,12 @@ export default function SynauraScrollFeed() {
                 else if (audioState.isPlaying) pause();
                 else void play();
               }}
-              className="group relative h-40 w-40 overflow-hidden rounded-full border border-white/14 bg-white/8 shadow-[0_28px_90px_rgba(0,0,0,0.4)]"
+              className="group relative h-48 w-48 overflow-hidden rounded-full border border-white/14 bg-white/8 shadow-[0_28px_90px_rgba(0,0,0,0.4)]"
             >
               {artist.avatar ? (
                 <img src={artist.avatar} alt={artist.name} className="h-full w-full object-cover" />
               ) : (
-                <div className="grid h-full w-full place-items-center bg-[#7357C6]/40 text-4xl font-black text-white">
+                <div className="grid h-full w-full place-items-center bg-[#7357C6]/40 text-5xl font-black text-white">
                   {artist.name.slice(0, 1).toUpperCase()}
                 </div>
               )}
@@ -819,6 +827,9 @@ export default function SynauraScrollFeed() {
                 <h2 className="text-2xl font-black tracking-tight text-white">{artist.name}</h2>
                 {artist.isVerified ? <BadgeCheck className="h-5 w-5 text-[#4A9EAA]" /> : null}
               </div>
+              {track.genre?.[0] ? (
+                <p className="mt-1.5 text-xs font-black uppercase tracking-[0.14em] text-[#4A9EAA]">{track.genre[0]}</p>
+              ) : null}
               {artist.bio ? (
                 <p className="mx-auto mt-2 max-w-xs text-sm font-semibold leading-6 text-white/60">{artist.bio}</p>
               ) : null}
@@ -865,7 +876,7 @@ export default function SynauraScrollFeed() {
           <div className="absolute inset-0 bg-[#171313]/38" />
 
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 px-6 text-center">
-            <div className="h-48 w-48 overflow-hidden rounded-[2rem] border border-white/16 bg-white/10 shadow-[0_28px_90px_rgba(0,0,0,0.4)]">
+            <div className="h-48 w-48 overflow-hidden rounded-[1.4rem] border-[3px] border-white/20 bg-white/10 shadow-[0_28px_90px_rgba(0,0,0,0.45)] ring-1 ring-black/20">
               <img
                 src={collection.coverUrl || collection.bannerUrl || FALLBACK_COVER}
                 alt={collection.title}
@@ -876,9 +887,7 @@ export default function SynauraScrollFeed() {
               />
             </div>
             <div>
-              {collection.badge ? (
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/70">{collection.badge}</p>
-              ) : null}
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/70">{collection.badge || 'Collection'}</p>
               <h2 className="mt-1.5 max-w-sm text-2xl font-black tracking-tight text-white">{collection.title}</h2>
               {collection.subtitle ? (
                 <p className="mx-auto mt-2 max-w-xs text-sm font-semibold leading-6 text-white/65">{collection.subtitle}</p>

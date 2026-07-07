@@ -31,7 +31,7 @@ export function CollectionSlide({ collection, height, topPad, bottomPad, launchi
             style={styles.cover}
           />
         </View>
-        {collection.badge ? <Text style={styles.badge}>{collection.badge}</Text> : null}
+        <Text style={styles.badge}>{collection.badge || 'Collection'}</Text>
         <Text style={styles.title}>{collection.title}</Text>
         {collection.subtitle ? <Text numberOfLines={3} style={styles.subtitle}>{collection.subtitle}</Text> : null}
         <Text style={styles.count}>
@@ -58,9 +58,9 @@ const styles = StyleSheet.create({
   scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(13,10,14,0.38)' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   coverShell: {
-    width: 190, height: 190, borderRadius: 32, overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
-    shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 10,
+    width: 190, height: 190, borderRadius: 22, overflow: 'hidden',
+    borderWidth: 3, borderColor: 'rgba(255,255,255,0.22)',
+    shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 10,
   },
   cover: { width: '100%', height: '100%', backgroundColor: 'rgba(255,255,255,0.08)' },
   badge: { marginTop: 22, color: 'rgba(255,250,242,0.75)', fontSize: 10, fontWeight: '900', letterSpacing: 1.6, textTransform: 'uppercase' },

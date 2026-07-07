@@ -77,7 +77,7 @@ function ActionButton({
         <Ionicons
           name={(active && iconActive ? iconActive : icon) as any}
           size={22}
-          color={active ? highlightColor || '#FF4B7A' : '#FFFAF2'}
+          color={active ? highlightColor || '#D96D63' : '#FFFAF2'}
         />
       </Animated.View>
       {(typeof count === 'number' && count > 0) || (typeof count === 'string' && count) ? (
@@ -376,7 +376,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
           active={isLiked}
           count={likesCount}
           label="Like"
-          highlightColor="#FF4B7A"
+          highlightColor="#D96D63"
           onPress={() => onAction('like')}
         />
         <ActionButton
@@ -397,7 +397,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
           iconActive="bookmark"
           active={isFavorite}
           label={isFavorite ? 'Retirer des favoris' : 'Sauver dans la bibliotheque'}
-          highlightColor="#7C5CFF"
+          highlightColor="#7357C6"
           onPress={() => onAction('save')}
         />
         {canOpenAiVariation(track) ? (
@@ -565,13 +565,13 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#FF4B7A',
+    backgroundColor: '#D96D63',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#0E0A0D',
   },
-  followBubbleDone: { backgroundColor: '#7C5CFF' },
+  followBubbleDone: { backgroundColor: '#7357C6' },
   actionButton: { width: 48, alignItems: 'center', gap: 3 },
   actionButtonDisabled: { opacity: 0.38 },
   actionCircle: {

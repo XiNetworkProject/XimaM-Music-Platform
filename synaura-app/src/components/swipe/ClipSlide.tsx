@@ -56,6 +56,10 @@ export function ClipSlide({ clip, isActive, isPlaying, height, topPad, bottomPad
       </View>
 
       <View style={styles.copy}>
+        <View style={styles.clipBadge}>
+          <Ionicons name="film-outline" size={11} color="#8fd3dc" />
+          <Text style={styles.clipBadgeText}>Clip Synaura</Text>
+        </View>
         <View style={styles.creatorRow}>
           {clip.creator.avatar ? <Image source={{ uri: clip.creator.avatar }} style={styles.avatar} /> : <View style={styles.avatarFallback}><Text style={styles.avatarInitial}>{(clip.creator.name || 'S').slice(0, 1).toUpperCase()}</Text></View>}
           <Text numberOfLines={1} style={styles.creator}>@{clip.creator.username || clip.creator.name || 'synaura'}</Text>
@@ -108,6 +112,8 @@ const styles = StyleSheet.create({
   actionButton: { minWidth: 48, minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: 'rgba(255,250,242,0.12)', borderWidth: 1, borderColor: 'rgba(255,250,242,0.12)' },
   actionText: { marginTop: 2, color: colors.paper, fontSize: 9, fontWeight: '900' },
   copy: { marginHorizontal: 16, marginBottom: 12, paddingRight: 72 },
+  clipBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4, backgroundColor: 'rgba(74,158,170,0.2)' },
+  clipBadgeText: { color: '#8fd3dc', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
   creatorRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   avatar: { width: 34, height: 34, borderRadius: 17 },
   avatarFallback: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.18)' },
