@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getApiSession } from '@/lib/getApiSession';
+import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,13 +22,13 @@ export async function GET(request: NextRequest) {
     const session = await getApiSession(request).catch(() => null);
     const userId = String((session?.user as any)?.id || '');
 
-    let tracksQuery = supabaseAdmin
+    let tracksQuery = applyPublicTrackFilter(supabaseAdmin
       .from('tracks')
       .select(`
         id, title, creator_id, cover_url, audio_url, duration, plays, likes,
         is_featured, genre, created_at,
         profiles!tracks_creator_id_fkey (id, username, name, avatar, is_artist, artist_name)
-      `, { count: 'exact' });
+      `, { count: 'exact' }));
 
     if (category !== 'all') tracksQuery = tracksQuery.contains('genre', [category]);
     if (sort === 'newest') tracksQuery = tracksQuery.order('created_at', { ascending: false });

@@ -254,7 +254,9 @@ export async function getRemixAttributionForChildren(children: Array<{ id: strin
 
   for (const row of rows) {
     const source = await getRemixSourceSummary({ sourceTrackId: row.source_track_id, sourceTrackType: row.source_track_type });
-    if (!source) continue;
+    // Le morceau source a pu devenir privé depuis la création du remix : l'attribution
+    // publique ne doit alors plus exposer son titre, sa cover ou son lien.
+    if (!source || !source.isPublic) continue;
     result.set(`${row.child_track_type}:${row.child_track_id}`, {
       sourceTrackId: source.sourceTrackType === 'ai_track' ? `ai-${source.sourceTrackId}` : source.sourceTrackId,
       sourceTrackType: source.sourceTrackType,

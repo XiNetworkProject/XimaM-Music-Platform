@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export async function GET(request: NextRequest) {
   try {
     console.log('🧪 API Tracks Simple - Début');
-    
+
     // Récupérer les tracks avec toutes les infos
-    const { data: tracks, error: tracksError } = await supabase
+    const { data: tracks, error: tracksError } = await applyPublicTrackFilter(supabase
       .from('tracks')
       .select(`
         id,
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
         genre,
         lyrics,
         created_at
-      `)
+      `))
       .limit(20);
     
     if (tracksError) {

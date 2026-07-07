@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import TrackPageClient from './TrackPageClient';
 import { getServerSession } from 'next-auth';
@@ -6,6 +7,7 @@ import { authOptions } from '@/lib/authOptions';
 import { getPublishedVariationCounts, getRemixAttributionForChildren, getRemixSourceSummary } from '@/lib/remixServer';
 import { remixPermissionsFromRow } from '@/lib/remixPermissions';
 import { getPublishedClipCounts } from '@/lib/musicClips';
+import { canViewAiTrack, canViewTrack } from '@/lib/publicTracks';
 
 const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || 'https://www.synaura.fr').replace(/\/$/, '');
 
@@ -21,7 +23,7 @@ async function getTrack(id: string) {
       .select('*, generation:ai_generations!inner(id, user_id, prompt, metadata, is_public, status)')
       .eq('id', cleanId)
       .single();
-    if (!data) return null;
+    if (!data || !canViewAiTrack(data, userId)) return null;
     const source = await getRemixSourceSummary({ sourceTrackId: id, userId });
     const [attributions, counts] = await Promise.all([
       getRemixAttributionForChildren([{ id: cleanId, type: 'ai_track' }]),
@@ -57,7 +59,7 @@ async function getTrack(id: string) {
     .eq('id', id)
     .single();
 
-  if (!track) return null;
+  if (!track || !canViewTrack(track, userId)) return null;
   const source = await getRemixSourceSummary({ sourceTrackId: id, sourceTrackType: 'track', userId });
   const [attributions, counts] = await Promise.all([
     getRemixAttributionForChildren([{ id, type: 'track' }]),
@@ -132,6 +134,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 export default async function TrackPage({ params }: { params: { id: string } }) {
   const track = await getTrack(params.id);
+  if (!track) notFound();
 
   const jsonLd = track ? {
     '@context': 'https://schema.org',

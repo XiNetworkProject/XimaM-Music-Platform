@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { computeRankingScore } from '@/lib/ranking';
 import { supabaseAdmin } from '@/lib/supabase';
+import { applyPublicTrackFilter } from '@/lib/publicTracks';
 import {
   buildAnonymousRecommendationSignals,
   buildUserRecommendationSignals,
@@ -156,10 +157,10 @@ async function loadPostCandidates(limit: number, userId: string | null) {
   const trackIds = (posts || []).map((post: any) => post.track_id).filter(Boolean);
   const trackMap = new Map<string, any>();
   if (trackIds.length) {
-    const { data: tracks } = await supabaseAdmin
+    const { data: tracks } = await applyPublicTrackFilter(supabaseAdmin
       .from('tracks')
       .select('*, profiles:profiles!tracks_creator_id_fkey ( username, name )')
-      .in('id', Array.from(new Set(trackIds)));
+      .in('id', Array.from(new Set(trackIds))));
     for (const track of tracks || []) {
       const profile = profileOf(track);
       const data = readTrackData(track.data);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     // Recherche dans les pistes (si nécessaire)
     if (filter === 'all' || filter === 'tracks') {
       searchPromises.push(
-        supabase
+        applyPublicTrackFilter(supabase
           .from('tracks')
           .select(`
             id,
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
             cover_url,
             audio_url,
             duration
-          `)
+          `))
           .or(`title.ilike.${searchQuery},genre.cs.{${query}}`)
           .order('likes', { ascending: false })
           .limit(limit)
@@ -86,6 +87,7 @@ export async function GET(request: NextRequest) {
             creator_id,
             tracks_count
           `)
+          .eq('is_public', true)
           .or(`name.ilike.${searchQuery},description.ilike.${searchQuery}`)
           .order('created_at', { ascending: false })
           .limit(limit)

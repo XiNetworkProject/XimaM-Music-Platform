@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
+import { canViewAiTrack, canViewTrack } from '@/lib/publicTracks';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -116,12 +117,14 @@ export async function GET(request: NextRequest) {
         const { data, error } = await supabaseAdmin
           .from('tracks')
           .select(`
-            *, 
+            *,
             profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name )
           `)
           .in('id', normalIds);
         if (!error && Array.isArray(data)) {
-          tracks.push(...data.map(toNormalTrack));
+          // Un morceau liké peut appartenir à quelqu'un d'autre et être devenu privé
+          // depuis : on ne le renvoie plus, sauf si l'utilisateur en est propriétaire.
+          tracks.push(...data.filter((t: any) => canViewTrack(t, userId)).map(toNormalTrack));
         }
       }
 
@@ -129,9 +132,9 @@ export async function GET(request: NextRequest) {
         const { data, error } = await supabaseAdmin
           .from('ai_tracks')
           .select(`
-            id, title, created_at, image_url, audio_url, duration, tags,
+            id, title, created_at, image_url, audio_url, duration, tags, is_public,
             generation:ai_generations!inner (
-              user_id
+              user_id, is_public, status
             )
           `)
           .in('id', aiIds);
@@ -145,9 +148,9 @@ export async function GET(request: NextRequest) {
                 .from('profiles')
                 .select('id, username, name, avatar')
                 .in('id', userIds);
-              
+
               const profilesMap = new Map((profiles || []).map(p => [p.id, p]));
-              
+
               // Associer les profils aux tracks
               aiTracksWithProfiles = data.map(t => ({
                 ...t,
@@ -158,8 +161,8 @@ export async function GET(request: NextRequest) {
               }));
             }
           }
-          
-          tracks.push(...aiTracksWithProfiles.map(toAiTrack));
+
+          tracks.push(...aiTracksWithProfiles.filter((t: any) => canViewAiTrack(t, userId)).map(toAiTrack));
         }
       }
 
@@ -204,12 +207,14 @@ export async function GET(request: NextRequest) {
         const { data, error } = await supabaseAdmin
           .from('tracks')
           .select(`
-            *, 
+            *,
             profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name )
           `)
           .in('id', normalIds);
         if (!error && Array.isArray(data)) {
-          tracks.push(...data.map(toNormalTrack));
+          // Un morceau écouté peut appartenir à quelqu'un d'autre et être devenu privé
+          // depuis : on ne le renvoie plus, sauf si l'utilisateur en est propriétaire.
+          tracks.push(...data.filter((t: any) => canViewTrack(t, userId)).map(toNormalTrack));
         }
       }
 
@@ -217,9 +222,9 @@ export async function GET(request: NextRequest) {
         const { data, error } = await supabaseAdmin
           .from('ai_tracks')
           .select(`
-            id, title, created_at, image_url, audio_url, duration, tags,
+            id, title, created_at, image_url, audio_url, duration, tags, is_public,
             generation:ai_generations!inner (
-              user_id
+              user_id, is_public, status
             )
           `)
           .in('id', aiIds);
@@ -233,9 +238,9 @@ export async function GET(request: NextRequest) {
                 .from('profiles')
                 .select('id, username, name, avatar')
                 .in('id', userIds);
-              
+
               const profilesMap = new Map((profiles || []).map(p => [p.id, p]));
-              
+
               // Associer les profils aux tracks
               aiTracksWithProfiles = data.map(t => ({
                 ...t,
@@ -246,8 +251,8 @@ export async function GET(request: NextRequest) {
               }));
             }
           }
-          
-          tracks.push(...aiTracksWithProfiles.map(toAiTrack));
+
+          tracks.push(...aiTracksWithProfiles.filter((t: any) => canViewAiTrack(t, userId)).map(toAiTrack));
         }
       }
 

@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { supabaseAdmin as supabase } from '@/lib/supabase';
 import { getApiSession } from '@/lib/getApiSession';
 import { getEntitlements } from '@/lib/entitlements';
+import { canViewTrack } from '@/lib/publicTracks';
 
 // utilisation du client admin centralisé
 
@@ -11,13 +12,15 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const session = await getApiSession(request).catch(() => null);
-    const userId = searchParams.get('user') || session?.user?.id || null;
-    
+    const viewerId = session?.user?.id || null;
+    const userId = searchParams.get('user') || viewerId || null;
+    const isOwnLibrary = Boolean(viewerId && userId && String(viewerId) === String(userId));
+
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
-    const { data: playlists, error } = await supabase
+    let playlistsQuery = supabase
       .from('playlists')
       .select(`
         *,
@@ -32,6 +35,10 @@ export async function GET(request: NextRequest) {
       `)
       .eq('creator_id', userId)
       .order('created_at', { ascending: false });
+    if (!isOwnLibrary) {
+      playlistsQuery = playlistsQuery.eq('is_public', true);
+    }
+    const { data: playlists, error } = await playlistsQuery;
 
     if (error) {
       console.error('Erreur Supabase:', error);
@@ -62,7 +69,8 @@ export async function GET(request: NextRequest) {
     });
 
     const formattedPlaylists = playlists?.map((playlist: any) => {
-      const rows = Array.isArray(playlist.tracks) ? playlist.tracks.slice() : [];
+      const rows = (Array.isArray(playlist.tracks) ? playlist.tracks.slice() : [])
+        .filter((pt: any) => isOwnLibrary || canViewTrack(pt?.tracks, viewerId));
       rows.sort((a: any, b: any) => (a?.position ?? 0) - (b?.position ?? 0));
       const trackList = rows.map((pt: any) => pt?.tracks).filter(Boolean).map(toTrack);
       const totalDuration = rows.reduce((total: number, pt: any) => total + ((pt?.tracks?.duration) || 0), 0);

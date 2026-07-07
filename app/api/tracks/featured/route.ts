@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { getApiSession } from '@/lib/getApiSession';
+import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '5');
-    
+
     // Récupérer l'utilisateur connecté
     const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || null;
 
     // Récupérer les pistes en vedette depuis Supabase
-    const { data: tracks, error } = await supabase
+    const { data: tracks, error } = await applyPublicTrackFilter(supabase
       .from('tracks')
       .select(`
         *,
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
           artist_name
         )
       `)
-      .eq('is_featured', true)
+      .eq('is_featured', true))
       .order('created_at', { ascending: false })
       .limit(limit);
 

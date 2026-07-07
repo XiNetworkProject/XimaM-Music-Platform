@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,7 +8,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
 
     // Récupérer les pistes populaires depuis Supabase (basé sur les likes)
-    const { data: tracks, error } = await supabase
+    const { data: tracks, error } = await applyPublicTrackFilter(supabase
       .from('tracks')
       .select(`
         *,
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
           is_artist,
           artist_name
         )
-      `)
+      `))
       .order('likes', { ascending: false })
       .order('plays', { ascending: false })
       .limit(limit);

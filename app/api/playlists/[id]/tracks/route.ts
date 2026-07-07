@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/lib/supabase';
 import { getApiSession } from '@/lib/getApiSession';
+import { canAddTrackToPlaylist } from '@/lib/publicTracks';
 
 async function requirePlaylistOwner(request: NextRequest, playlistId: string) {
   const session = await getApiSession(request);
@@ -9,7 +10,7 @@ async function requirePlaylistOwner(request: NextRequest, playlistId: string) {
   }
   const { data: playlist } = await supabase
     .from('playlists')
-    .select('id, creator_id')
+    .select('id, creator_id, is_public')
     .eq('id', playlistId)
     .maybeSingle();
   if (!playlist) {
@@ -36,26 +37,39 @@ export async function POST(
       return NextResponse.json({ error: 'Track ID requis' }, { status: 400 });
     }
 
-    // Vérifier que la playlist existe
-    const { data: playlist, error: playlistError } = await supabase
-      .from('playlists')
-      .select('id')
-      .eq('id', id)
-      .single();
-
-    if (playlistError || !playlist) {
-      return NextResponse.json({ error: 'Playlist non trouvée' }, { status: 404 });
-    }
+    const playlist = ownership.playlist!;
 
     // Vérifier que la track existe
     const { data: track, error: trackError } = await supabase
       .from('tracks')
-      .select('id')
+      .select('id, creator_id, is_public, audio_url')
       .eq('id', trackId)
       .single();
 
     if (trackError || !track) {
       return NextResponse.json({ error: 'Track non trouvée' }, { status: 404 });
+    }
+
+    // Règle de visibilité (voir lib/publicTracks.ts) : une playlist publique ne peut
+    // contenir que des morceaux publiquement visibles ; une playlist privée peut en
+    // plus contenir les propres brouillons de son propriétaire, jamais ceux d'un
+    // autre utilisateur.
+    const playlistIsPublic = playlist.is_public !== false;
+    const canAddTrack = canAddTrackToPlaylist({
+      playlistIsPublic,
+      playlistOwnerId: playlist.creator_id,
+      track,
+    });
+
+    if (!canAddTrack) {
+      return NextResponse.json(
+        {
+          error: playlistIsPublic
+            ? 'Ce morceau doit être public pour être ajouté à une playlist publique.'
+            : 'Tu ne peux ajouter que tes propres morceaux ou des morceaux publics.',
+        },
+        { status: 403 },
+      );
     }
 
     // Vérifier que la track n'est pas déjà dans la playlist

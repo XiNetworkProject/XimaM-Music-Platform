@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 60;
@@ -35,10 +36,10 @@ export async function GET(request: Request) {
 
     const trackIds = Array.from(new Set(boosts.map(b => b.track_id)));
 
-    const { data: tracks, error: tracksErr } = await supabaseAdmin
+    const { data: tracks, error: tracksErr } = await applyPublicTrackFilter(supabaseAdmin
       .from('tracks')
       .select('*')
-      .in('id', trackIds);
+      .in('id', trackIds));
 
     if (tracksErr || !tracks?.length) {
       return NextResponse.json({ tracks: [] });

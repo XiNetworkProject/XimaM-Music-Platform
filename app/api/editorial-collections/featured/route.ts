@@ -5,21 +5,9 @@ import {
   normalizeEditorialCollection,
   normalizeLegacyCollectionFromPlaylist,
 } from '@/lib/editorialCollections';
+import { getPublicPlaylistTrackCounts } from '@/lib/publicTracks';
 
 export const dynamic = 'force-dynamic';
-
-async function getTrackCounts(playlistIds: string[]) {
-  if (!playlistIds.length) return new Map<string, number>();
-  const { data } = await supabaseAdmin
-    .from('playlist_tracks')
-    .select('playlist_id')
-    .in('playlist_id', playlistIds);
-  const counts = new Map<string, number>();
-  for (const row of data || []) {
-    counts.set(row.playlist_id, (counts.get(row.playlist_id) || 0) + 1);
-  }
-  return counts;
-}
 
 async function getLegacyFeaturedCollections() {
   const { data } = await supabaseAdmin
@@ -32,7 +20,7 @@ async function getLegacyFeaturedCollections() {
   const collections = (data || [])
     .map((playlist) => normalizeLegacyCollectionFromPlaylist(playlist))
     .filter((collection) => collection?.isPublished && collection?.isFeatured) as any[];
-  const counts = await getTrackCounts(collections.map((collection) => collection.playlistId));
+  const counts = await getPublicPlaylistTrackCounts(collections.map((collection) => collection.playlistId));
 
   return collections
     .sort((a, b) => (a.position || 0) - (b.position || 0))
@@ -66,7 +54,7 @@ export async function GET() {
   const collections = (data || [])
     .map((row) => normalizeEditorialCollection(row as any))
     .filter(Boolean) as any[];
-  const counts = await getTrackCounts(collections.map((collection) => collection.playlistId));
+  const counts = await getPublicPlaylistTrackCounts(collections.map((collection) => collection.playlistId));
 
   return NextResponse.json({
     collections: collections.map((collection) => ({

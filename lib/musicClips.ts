@@ -22,6 +22,8 @@ export type MusicClipSource = {
   allowClips: boolean;
   remixVisibility: RemixVisibility;
   canCreateClip: boolean;
+  /** Le morceau source est-il actuellement public ? (peut devenir false après coup) */
+  isPublic: boolean;
 };
 
 export type MusicClip = {
@@ -98,7 +100,9 @@ export async function getClipSourceSummary(input: {
       ? await supabaseAdmin.from('profiles').select('id, username, name, avatar').eq('id', creatorId).maybeSingle()
       : { data: null as any };
     const permissions = remixPermissionsFromRow(data);
-    const isPublic = data.is_public === true && (data as any).generation?.status === 'completed';
+    const isPublic = data.is_public === true
+      && (data as any).generation?.status === 'completed'
+      && (data as any).generation?.is_public === true;
     const isOwner = Boolean(input.userId && creatorId && String(input.userId) === creatorId);
     const follows = !isOwner && permissions.remixVisibility === 'followers' ? await isFollower(input.userId, creatorId) : false;
     const canCreateClipValue = canCreateClip({
@@ -127,6 +131,7 @@ export async function getClipSourceSummary(input: {
       allowClips: permissions.allowClips,
       remixVisibility: permissions.remixVisibility,
       canCreateClip: canCreateClipValue,
+      isPublic,
     };
   }
 
@@ -168,6 +173,7 @@ export async function getClipSourceSummary(input: {
     allowClips: permissions.allowClips,
     remixVisibility: permissions.remixVisibility,
     canCreateClip: canCreateClipValue,
+    isPublic,
   };
 }
 
@@ -200,13 +206,18 @@ export function sanitizeClipOffset(value: unknown) {
   return Math.max(0, seconds);
 }
 
-export async function formatMusicClip(row: any): Promise<MusicClip | null> {
+export async function formatMusicClip(row: any, options: { viewerId?: string | null } = {}): Promise<MusicClip | null> {
   if (!row) return null;
   const source = await getClipSourceSummary({
     sourceTrackId: row.source_track_id,
     sourceTrackType: row.source_track_type,
   });
   if (!source) return null;
+  // Le morceau source a pu devenir privé depuis la publication du Clip : dans ce cas
+  // le Clip ne doit plus apparaître nulle part (sauf pour son propre créateur), et ne
+  // doit jamais exposer ce morceau.
+  const isOwnClip = Boolean(options.viewerId && String(options.viewerId) === String(row.creator_id));
+  if (!source.isPublic && !isOwnClip) return null;
   return {
     id: String(row.id),
     creatorId: String(row.creator_id || ''),
@@ -234,8 +245,8 @@ export async function formatMusicClip(row: any): Promise<MusicClip | null> {
   };
 }
 
-export async function formatMusicClips(rows: any[]) {
-  const clips = await Promise.all((rows || []).map((row) => formatMusicClip(row)));
+export async function formatMusicClips(rows: any[], options: { viewerId?: string | null } = {}) {
+  const clips = await Promise.all((rows || []).map((row) => formatMusicClip(row, options)));
   return clips.filter((clip): clip is MusicClip => Boolean(clip));
 }
 

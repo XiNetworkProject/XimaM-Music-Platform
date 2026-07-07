@@ -8,6 +8,7 @@ import {
   normalizeLegacyCollectionFromPlaylist,
   unpackLegacyCollectionDescription,
 } from '@/lib/editorialCollections';
+import { canViewTrack, findNonPublicTracks } from '@/lib/publicTracks';
 
 // GET - Récupérer une playlist spécifique
 export async function GET(
@@ -90,7 +91,11 @@ export async function GET(
       isLiked: false,
     });
 
-    const rows = Array.isArray(playlist.tracks) ? playlist.tracks.slice() : [];
+    // Un morceau devenu privé entretemps doit disparaître de la playlist pour tout
+    // le monde sauf son propriétaire (le propriétaire de la playlist conserve l'accès
+    // à ses propres morceaux privés depuis sa Bibliothèque/Studio, pas ici).
+    const rows = (Array.isArray(playlist.tracks) ? playlist.tracks.slice() : [])
+      .filter((pt: any) => canViewTrack(pt?.tracks, userId));
     rows.sort((a: any, b: any) => (a?.position ?? 0) - (b?.position ?? 0));
     const trackList = rows.map((pt: any) => pt?.tracks).filter(Boolean).map(toTrack);
     const totalDuration = rows.reduce((total: number, pt: any) => total + ((pt?.tracks?.duration) || 0), 0);
@@ -137,6 +142,26 @@ export async function PUT(
     const { data: existing } = await supabase.from('playlists').select('creator_id').eq('id', id).maybeSingle();
     if (!existing) return NextResponse.json({ error: 'Playlist non trouvée' }, { status: 404 });
     if (existing.creator_id !== session.user.id) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+
+    // Passage (ou réaffirmation) en public : une playlist publique ne peut contenir
+    // que des morceaux publiquement visibles (lib/publicTracks.ts). On refuse
+    // clairement le changement plutôt que de retirer des morceaux sans confirmation.
+    if (isPublic === true) {
+      const { data: rows } = await supabase
+        .from('playlist_tracks')
+        .select('tracks(id, title, is_public, audio_url)')
+        .eq('playlist_id', id);
+      const blockingTracks = findNonPublicTracks((rows || []).map((row: any) => row.tracks).filter(Boolean));
+      if (blockingTracks.length) {
+        return NextResponse.json(
+          {
+            error: 'Cette playlist contient des morceaux non publics. Rends-les publics ou retire-les avant de publier la playlist.',
+            blockingTracks: blockingTracks.map((track: any) => ({ id: track.id, title: track.title })),
+          },
+          { status: 409 },
+        );
+      }
+    }
 
     const { data: playlist, error } = await supabase
       .from('playlists')

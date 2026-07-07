@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getApiSession } from '@/lib/getApiSession';
+import { applyPublicAiTrackFilter } from '@/lib/publicTracks';
 
 export async function GET(
   request: NextRequest,
@@ -66,16 +67,15 @@ export async function GET(
       console.error('❌ Erreur récupération tracks manuelles:', tracksError);
     }
 
-    // Récupérer uniquement les tracks IA publiées (is_public=true) pour le profil
-    let aiTracksQuery = supabaseAdmin
+    // Récupérer uniquement les tracks IA publiées (is_public=true côté track ET
+    // côté génération parente) pour le profil
+    let aiTracksQuery = applyPublicAiTrackFilter(supabaseAdmin
       .from('ai_tracks')
       .select(`
         id, title, audio_url, image_url, duration, prompt, tags, play_count, like_count, created_at, is_public,
         generation:ai_generations!inner(id, user_id, is_public, status, task_id, model)
       `)
-      .eq('generation.user_id', profile.id)
-      .eq('generation.status', 'completed')
-      .eq('is_public', true)
+      .eq('generation.user_id', profile.id))
       .order('created_at', { ascending: false });
 
     const { data: aiTracks, error: aiTracksError } = await aiTracksQuery;
@@ -135,12 +135,16 @@ export async function GET(
       return bd - ad;
     });
 
-    // Récupérer les playlists de l'utilisateur
-    const { data: playlists, error: playlistsError } = await supabaseAdmin
+    // Récupérer les playlists de l'utilisateur (uniquement publiques pour un visiteur)
+    let playlistsQuery = supabaseAdmin
       .from('playlists')
       .select('*')
       .eq('creator_id', profile.id)
       .order('created_at', { ascending: false });
+    if (!isOwnProfile) {
+      playlistsQuery = playlistsQuery.eq('is_public', true);
+    }
+    const { data: playlists, error: playlistsError } = await playlistsQuery;
 
     // Calculer les statistiques
     const totalPlays = tracks_final?.reduce((sum, track) => sum + (track.plays || 0), 0) || 0;

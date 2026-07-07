@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -41,11 +42,12 @@ export async function GET(request: NextRequest) {
       
       const artistsWithStats = await Promise.all(
         artists.map(async (artist) => {
-          // Récupérer les tracks de l'artiste
-          const { data: tracks, error: tracksError } = await supabase
+          // Récupérer les tracks publiques de l'artiste (les stats affichées ne
+          // doivent jamais inclure ses morceaux privés)
+          const { data: tracks, error: tracksError } = await applyPublicTrackFilter(supabase
             .from('tracks')
             .select('plays, likes, is_featured')
-            .eq('creator_id', artist.id);
+            .eq('creator_id', artist.id));
 
           // Calculer les vraies statistiques
           const totalPlays = tracks?.reduce((sum, track) => sum + (track.plays || 0), 0) || 0;

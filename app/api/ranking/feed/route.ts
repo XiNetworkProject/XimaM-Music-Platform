@@ -5,6 +5,7 @@ import { buildAnonymousRecommendationSignals, buildUserRecommendationSignals, re
 import { getApiSession } from '@/lib/getApiSession';
 import { remixPermissionsFromRow } from '@/lib/remixPermissions';
 import { getPublishedVariationCounts, getRemixAttributionForChildren, normalizeRemixTrackRef } from '@/lib/remixServer';
+import { applyPublicAiTrackFilter, applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -258,16 +259,14 @@ export async function GET(request: NextRequest) {
         }
 
         if (includeAi) {
-          const { data: recentAI, error: recentAIErr } = await supabaseAdmin
+          const { data: recentAI, error: recentAIErr } = await applyPublicAiTrackFilter(supabaseAdmin
             .from('ai_tracks')
             .select(`
               *,
               generation:ai_generations!inner (
                 user_id, is_public, status
               )
-            `)
-            .eq('is_public', true)
-            .eq('generation.status', 'completed')
+            `))
             .order('created_at', { ascending: false })
             .limit(limitFallback);
 
@@ -386,7 +385,7 @@ export async function GET(request: NextRequest) {
 
         let aiTracks: any[] = [];
         if (includeAi && aiIds.length) {
-          const { data } = await supabaseAdmin
+          const { data } = await applyPublicAiTrackFilter(supabaseAdmin
             .from('ai_tracks')
             .select(`
               *,
@@ -394,9 +393,7 @@ export async function GET(request: NextRequest) {
                 user_id, is_public, status
               )
             `)
-            .eq('is_public', true)
-            .eq('generation.status', 'completed')
-            .in('id', aiIds as any);
+            .in('id', aiIds as any));
           aiTracks = (data || []).map((t: any) => ({ ...t, _aiPrefixedId: `ai-${t.id}` }));
           
           if (aiTracks.length > 0) {
@@ -564,13 +561,13 @@ export async function GET(request: NextRequest) {
     // Récupérer métadonnées pour pistes normales
     let normalTracks: any[] = [];
     if (normalIds.length) {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await applyPublicTrackFilter(supabaseAdmin
         .from('tracks')
         .select(`
           *,
           profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
         `)
-        .in('id', normalIds);
+        .in('id', normalIds));
       if (error) {
         console.error('ranking: erreur tracks meta', error);
       } else {
@@ -583,7 +580,7 @@ export async function GET(request: NextRequest) {
     if (aiIds.length) {
       // Les track_id IA peuvent être préfixés 'ai-<id>'. On retire le préfixe pour la jointure.
       const rawAiIds = aiIds.map((id: any) => (String(id).startsWith('ai-') ? String(id).slice(3) : id));
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await applyPublicAiTrackFilter(supabaseAdmin
           .from('ai_tracks')
           .select(`
             *,
@@ -591,9 +588,7 @@ export async function GET(request: NextRequest) {
               user_id, is_public, status
             )
           `)
-          .eq('is_public', true)
-          .eq('generation.status', 'completed')
-          .in('id', rawAiIds);
+          .in('id', rawAiIds));
       if (error) {
         console.error('ranking: erreur ai_tracks meta', error);
       } else {

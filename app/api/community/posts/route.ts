@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
     const { count } = await countQuery;
 
     const postsWithAuthors = await attachAuthors(posts || []);
-    let hydratedPosts = await attachTracks(postsWithAuthors || []);
+    let hydratedPosts = await attachTracks(postsWithAuthors || [], session?.user?.id || null);
 
     if (session?.user?.id && hydratedPosts.length) {
       const postIds = hydratedPosts.map((post: any) => post.id).filter(Boolean);
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
     }
 
     const [postWithAuthor] = await attachAuthors([post]);
-    const [hydratedPost] = await attachTracks([postWithAuthor]);
+    const [hydratedPost] = await attachTracks([postWithAuthor], session.user.id);
     return NextResponse.json(hydratedPost || post, { status: 201 });
 
   } catch (error) {

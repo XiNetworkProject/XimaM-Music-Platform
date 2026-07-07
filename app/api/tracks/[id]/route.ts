@@ -5,6 +5,7 @@ import cloudinary from '@/lib/cloudinary';
 import { remixPermissionsFromRow, remixPermissionsToRow, sanitizeRemixPermissions } from '@/lib/remixPermissions';
 import { getPublishedVariationCounts, getRemixAttributionForChildren, getRemixSourceSummary, normalizeRemixTrackRef } from '@/lib/remixServer';
 import { getPublishedClipCounts } from '@/lib/musicClips';
+import { canViewAiTrack, canViewTrack } from '@/lib/publicTracks';
 
 function readTrackData(value: any): Record<string, any> {
   if (!value) return {};
@@ -44,7 +45,7 @@ export async function GET(
         .select('*, generation:ai_generations!inner(id, user_id, prompt, metadata, is_public, status)')
         .eq('id', ref.id)
         .maybeSingle();
-      if (aiError || !aiTrack) {
+      if (aiError || !aiTrack || !canViewAiTrack(aiTrack, userId)) {
         return NextResponse.json({ error: 'Track non trouvÃ©e' }, { status: 404 });
       }
       const source = await getRemixSourceSummary({ sourceTrackId: id, userId });
@@ -88,8 +89,8 @@ export async function GET(
       .eq('id', id)
       .single();
 
-    if (trackError || !track) {
-      console.log(`❌ Track non trouvée: ${id}`);
+    if (trackError || !track || !canViewTrack(track, userId)) {
+      console.log(`❌ Track non trouvée ou non visible: ${id}`);
       return NextResponse.json(
         { error: 'Track non trouvée' },
         { status: 404 }

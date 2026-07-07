@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { getApiSession } from '@/lib/getApiSession';
 import { getMoodById, matchesMoodKeywords } from '@/lib/discoverMoods';
 import { getPublicTrackPool, attachLikedFlag } from '@/lib/discoverData';
+import { applyPublicAiTrackFilter } from '@/lib/publicTracks';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,14 +22,12 @@ export async function GET(request: NextRequest) {
     const userId = (session?.user as any)?.id || null;
 
     if (mood.isAiOnly) {
-      const { data: aiRows, error } = await supabaseAdmin
+      const { data: aiRows, error } = await applyPublicAiTrackFilter(supabaseAdmin
         .from('ai_tracks')
         .select(`
           id, title, audio_url, image_url, duration, tags, play_count, created_at,
-          generation:ai_generations!inner (id, user_id, status)
-        `)
-        .eq('is_public', true)
-        .eq('generation.status', 'completed')
+          generation:ai_generations!inner (id, user_id, is_public, status)
+        `))
         .order('created_at', { ascending: false })
         .limit(limit);
       if (error) throw error;

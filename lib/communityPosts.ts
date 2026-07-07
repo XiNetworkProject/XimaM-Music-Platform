@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { canViewTrack } from '@/lib/publicTracks';
 
 const TRACK_REF_RE = /<!--\s*synaura-track:([^>\s]+)\s*-->/i;
 
@@ -54,7 +55,7 @@ function normalizeAttachedTrack(track: any) {
   };
 }
 
-export async function attachTracks(posts: any[]) {
+export async function attachTracks(posts: any[], viewerId?: string | null) {
   const normalizedPosts = (posts || []).map((post) => ({ ...post, content: stripTrackRef(post.content), _attached_track_id: getPostTrackId(post) }));
   const trackIds = Array.from(new Set(normalizedPosts.map((post) => post._attached_track_id).filter(Boolean)));
   if (!trackIds.length) return normalizedPosts;
@@ -90,21 +91,28 @@ export async function attachTracks(posts: any[]) {
     }
   }
 
+  const rawTracksById = new Map((tracks || []).map((track: any) => [track.id, track]));
   const tracksById = new Map((tracks || []).map((track: any) => [track.id, normalizeAttachedTrack(track)]));
-  return normalizedPosts.map((post) => ({
-    ...post,
-    author: post.author || post.profiles
-      ? {
-          id: (post.author || post.profiles).id,
-          name: (post.author || post.profiles).name,
-          username: (post.author || post.profiles).username,
-          avatar: (post.author || post.profiles).avatar,
-        }
-      : undefined,
-    track_id: post.track_id || post._attached_track_id || null,
-    track: post._attached_track_id ? tracksById.get(post._attached_track_id) || null : null,
-    _attached_track_id: undefined,
-  }));
+  return normalizedPosts.map((post) => {
+    // Un morceau attaché à un post peut être devenu privé depuis la publication du
+    // post : dans ce cas il ne doit plus jamais être exposé (sauf à son propriétaire).
+    const rawTrack = post._attached_track_id ? rawTracksById.get(post._attached_track_id) : null;
+    const trackVisible = Boolean(rawTrack && canViewTrack(rawTrack, viewerId));
+    return {
+      ...post,
+      author: post.author || post.profiles
+        ? {
+            id: (post.author || post.profiles).id,
+            name: (post.author || post.profiles).name,
+            username: (post.author || post.profiles).username,
+            avatar: (post.author || post.profiles).avatar,
+          }
+        : undefined,
+      track_id: trackVisible ? (post.track_id || post._attached_track_id || null) : null,
+      track: trackVisible ? tracksById.get(post._attached_track_id) || null : null,
+      _attached_track_id: undefined,
+    };
+  });
 }
 
 export function shouldFallbackSelect(error: any) {

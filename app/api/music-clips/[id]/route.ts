@@ -117,7 +117,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       .select('*, creator:profiles!music_clips_creator_id_fkey(id, username, name, avatar)')
       .single();
     if (error) throw error;
-    const [clip] = await formatMusicClips([data]);
+    const [clip] = await formatMusicClips([data], { viewerId: userId });
     return NextResponse.json({ clip });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Impossible de modifier le clip' }, { status: 500 });

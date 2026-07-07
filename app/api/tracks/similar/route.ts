@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getApiSession } from '@/lib/getApiSession';
+import { applyPublicTrackFilter, canViewTrack } from '@/lib/publicTracks';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,11 +21,11 @@ export async function GET(request: NextRequest) {
     // Get the source track's genres
     const { data: source } = await supabaseAdmin
       .from('tracks')
-      .select('id, genre, creator_id, title')
+      .select('id, genre, creator_id, title, is_public, audio_url')
       .eq('id', trackId)
       .single();
 
-    if (!source) {
+    if (!source || !canViewTrack(source, userId)) {
       return NextResponse.json({ tracks: [], sourceTitle: '' });
     }
 
@@ -34,14 +35,14 @@ export async function GET(request: NextRequest) {
 
     if (genres.length > 0) {
       // Find tracks sharing at least one genre, ordered by plays
-      const { data } = await supabaseAdmin
+      const { data } = await applyPublicTrackFilter(supabaseAdmin
         .from('tracks')
         .select(`
           id, title, creator_id, created_at, cover_url, audio_url, duration, genre, plays,
           profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
         `)
         .neq('id', trackId)
-        .overlaps('genre', genres)
+        .overlaps('genre', genres))
         .order('plays', { ascending: false })
         .limit(limit + 10);
 
@@ -52,14 +53,14 @@ export async function GET(request: NextRequest) {
     if (similarTracks.length < limit) {
       const existingIds = new Set(similarTracks.map(t => t.id));
       existingIds.add(trackId);
-      const { data: artistTracks } = await supabaseAdmin
+      const { data: artistTracks } = await applyPublicTrackFilter(supabaseAdmin
         .from('tracks')
         .select(`
           id, title, creator_id, created_at, cover_url, audio_url, duration, genre, plays,
           profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
         `)
         .eq('creator_id', source.creator_id)
-        .not('id', 'in', `(${Array.from(existingIds).join(',')})`)
+        .not('id', 'in', `(${Array.from(existingIds).join(',')})`))
         .order('plays', { ascending: false })
         .limit(limit - similarTracks.length);
 

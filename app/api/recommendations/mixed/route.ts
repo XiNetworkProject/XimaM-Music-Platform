@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { buildAnonymousRecommendationSignals, buildUserRecommendationSignals, rerankPosts } from '@/lib/recommendation';
+import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,10 +32,10 @@ const POST_SELECT = `
 async function loadTracks(trackIds: string[]) {
   const ids = Array.from(new Set(trackIds.filter(Boolean)));
   if (!ids.length) return new Map<string, any>();
-  const { data } = await supabaseAdmin
+  const { data } = await applyPublicTrackFilter(supabaseAdmin
     .from('tracks')
     .select('id, title, creator_id, cover_url, audio_url, duration, genre, profiles:profiles!tracks_creator_id_fkey ( username, name )')
-    .in('id', ids);
+    .in('id', ids));
 
   const map = new Map<string, any>();
   for (const track of data || []) {

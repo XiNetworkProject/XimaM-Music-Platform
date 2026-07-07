@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { isMissingEditorialCollectionsTable, normalizeEditorialCollection, normalizeLegacyCollectionFromPlaylist, unpackLegacyCollectionDescription } from '@/lib/editorialCollections';
+import { getPublicPlaylistTrackCounts } from '@/lib/publicTracks';
 
 export async function GET(request: NextRequest) {
   try {
@@ -49,14 +50,7 @@ export async function GET(request: NextRequest) {
         .map((row) => normalizeEditorialCollection(row as any))
         .filter(Boolean) as any[];
       const playlistIds = collections.map((collection) => collection.playlistId);
-      const counts = new Map<string, number>();
-      if (playlistIds.length) {
-        const { data: rows } = await supabaseAdmin
-          .from('playlist_tracks')
-          .select('playlist_id')
-          .in('playlist_id', playlistIds);
-        for (const row of rows || []) counts.set(row.playlist_id, (counts.get(row.playlist_id) || 0) + 1);
-      }
+      const counts = await getPublicPlaylistTrackCounts(playlistIds);
 
       editorialPlaylists = collections.map((collection) => ({
         _id: collection.playlistId,

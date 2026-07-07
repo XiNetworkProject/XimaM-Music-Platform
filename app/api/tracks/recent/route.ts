@@ -1,37 +1,36 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { getApiSession } from '@/lib/getApiSession';
+import { applyPublicAiTrackFilter, applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
-    
+
     const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || null;
 
     const [normalRes, aiRes] = await Promise.all([
-      supabase
+      applyPublicTrackFilter(supabase
         .from('tracks')
         .select(`
           *,
           profiles!tracks_creator_id_fkey (
             id, username, name, avatar, is_artist, artist_name
           )
-        `)
+        `))
         .order('created_at', { ascending: false })
         .limit(limit),
 
-      supabaseAdmin
+      applyPublicAiTrackFilter(supabaseAdmin
         .from('ai_tracks')
         .select(`
           id, title, audio_url, image_url, duration, tags, play_count, created_at, is_public,
           generation:ai_generations!inner (
             id, user_id, is_public, status, metadata, prompt
           )
-        `)
-        .eq('is_public', true)
-        .eq('generation.status', 'completed')
+        `))
         .order('created_at', { ascending: false })
         .limit(Math.floor(limit / 3)),
     ]);

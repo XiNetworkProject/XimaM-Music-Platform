@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { getApiSession } from '@/lib/getApiSession';
+import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
-    
+
     // Récupérer l'utilisateur connecté
     const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || null;
 
     // Récupérer les pistes tendance depuis Supabase (basé sur les plays récents)
-    const { data: tracks, error } = await supabaseAdmin
+    const { data: tracks, error } = await applyPublicTrackFilter(supabaseAdmin
       .from('tracks')
       .select(`
         *,
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
           is_artist,
           artist_name
         )
-      `)
+      `))
       .order('plays', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -77,10 +78,10 @@ export async function GET(request: NextRequest) {
         .limit(150);
       const likedIds = (userLikes || []).map((l: any) => l.track_id).filter(Boolean);
       if (likedIds.length > 0) {
-        const { data: likedTracks } = await supabaseAdmin
+        const { data: likedTracks } = await applyPublicTrackFilter(supabaseAdmin
           .from('tracks')
           .select('genre')
-          .in('id', likedIds)
+          .in('id', likedIds))
           .limit(150);
         for (const lt of likedTracks || []) {
           const g = (lt as any)?.genre;

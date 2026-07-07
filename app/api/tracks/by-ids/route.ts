@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
+import { canViewTrack } from '@/lib/publicTracks';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,8 @@ export async function GET(request: NextRequest) {
         creator_id,
         cover_url,
         duration,
+        audio_url,
+        is_public,
         profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar )
       `,
       )
@@ -43,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     if (error) return NextResponse.json({ error: 'Erreur récupération tracks' }, { status: 500 });
 
-    const tracks = (data || []).map((t: any) => ({
+    const tracks = (data || []).filter((t: any) => canViewTrack(t, userId)).map((t: any) => ({
       id: t.id,
       title: t.title,
       coverUrl: t.cover_url || null,

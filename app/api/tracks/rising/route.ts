@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getApiSession } from '@/lib/getApiSession';
+import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,13 +55,13 @@ export async function GET(request: NextRequest) {
 
     const velocityMap = new Map(velocities.map(v => [v.trackId, v]));
 
-    const { data: tracks, error } = await supabaseAdmin
+    const { data: tracks, error } = await applyPublicTrackFilter(supabaseAdmin
       .from('tracks')
       .select(`
         id, title, creator_id, created_at, cover_url, audio_url, duration, genre, plays,
         profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
       `)
-      .in('id', topIds);
+      .in('id', topIds));
 
     if (error || !tracks?.length) {
       return NextResponse.json({ tracks: [] });

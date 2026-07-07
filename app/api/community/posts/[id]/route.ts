@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabase } from '@/lib/supabase';
+import { canViewTrack } from '@/lib/publicTracks';
 
 const TRACK_REF_RE = /<!--\s*synaura-track:([^>\s]+)\s*-->/i;
 
@@ -81,6 +82,8 @@ export async function GET(
 ) {
   try {
     const { id } = params;
+    const session = await getApiSession(request).catch(() => null);
+    const viewerId = session?.user?.id || null;
 
     if (!id) {
       return NextResponse.json({ error: 'ID du post requis' }, { status: 400 });
@@ -150,7 +153,9 @@ export async function GET(
           track = { ...track, profiles: profile || null };
         }
       }
-      attachedTrack = normalizeAttachedTrack(track);
+      // Un morceau attaché peut être devenu privé depuis la publication du post :
+      // il ne doit alors plus être exposé (sauf à son propriétaire).
+      attachedTrack = track && canViewTrack(track, viewerId) ? normalizeAttachedTrack(track) : null;
     }
 
     // Incrémenter le compteur de vues
@@ -183,7 +188,7 @@ export async function GET(
       post: {
         ...post,
         content: stripTrackRef(post.content),
-        track_id: post.track_id || attachedTrackId,
+        track_id: attachedTrack ? (post.track_id || attachedTrackId) : null,
         track: attachedTrack,
         views_count: nextViewsCount
       },
