@@ -3,11 +3,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, ArrowRight, Clock, Music2, Pause, Play, Reply, ThumbsUp } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Clock, Music2, Pause, Play, Reply, ThumbsUp, Trophy } from 'lucide-react';
 import Avatar from '@/components/Avatar';
 import { useAudioPlayer } from '@/app/providers';
 import { SynauraAppShell, SynauraPanel, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import { composeHref, getClubBySlug } from '@/lib/communityClubs';
+
+// Un club "remix" (Remix Lab) affiche les défis Clip en cours ; "ai" (IA Lab) affiche les défis Variation IA.
+const CLUB_CHALLENGE_CONTENT_TYPE: Record<string, string> = { remix: 'clip', ai: 'variation' };
+
+type ClubChallenge = { id: string; title: string; prompt: string; accentColor: string | null };
 
 type ClubPost = {
   id?: string;
@@ -106,6 +111,29 @@ export default function ClubDetailPage() {
   const { audioState, setQueueAndPlay, play, pause } = useAudioPlayer();
   const [posts, setPosts] = useState<ClubPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [clubChallenge, setClubChallenge] = useState<ClubChallenge | null>(null);
+
+  useEffect(() => {
+    const contentType = club ? CLUB_CHALLENGE_CONTENT_TYPE[club.slug] : null;
+    if (!contentType) {
+      setClubChallenge(null);
+      return;
+    }
+    let mounted = true;
+    fetch('/api/challenges?status=active', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((json) => {
+        if (!mounted) return;
+        const match = Array.isArray(json?.challenges)
+          ? json.challenges.find((c: any) => c.contentType === contentType)
+          : null;
+        setClubChallenge(match || null);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [club]);
 
   useEffect(() => {
     if (!club) {
@@ -217,6 +245,23 @@ export default function ClubDetailPage() {
             </div>
           </div>
         </div>
+
+        {clubChallenge ? (
+          <Link
+            href={`/challenges/${clubChallenge.id}`}
+            className="flex items-center gap-3 rounded-[1.4rem] border border-black/[0.08] bg-[#fffaf2]/92 p-4 shadow-[0_16px_42px_rgba(30,25,20,0.08)] transition hover:-translate-y-0.5"
+            style={{ backgroundImage: `linear-gradient(145deg, ${clubChallenge.accentColor || club.accent}22, rgba(255,250,242,.94) 62%)` }}
+          >
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[1rem] bg-[#171313] text-white">
+              <Trophy className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-black/42">Défi en cours</span>
+              <span className="mt-0.5 block truncate text-sm font-black text-[#111111]">{clubChallenge.title}</span>
+            </span>
+            <ArrowRight className="h-4 w-4 shrink-0 text-black/40" />
+          </Link>
+        ) : null}
 
         <section id="club-posts" className="space-y-3">
           <h2 className="text-xl font-black tracking-[-0.04em] text-[#171313]">Discussions du Club</h2>

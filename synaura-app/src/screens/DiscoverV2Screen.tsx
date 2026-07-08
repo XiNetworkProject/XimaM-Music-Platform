@@ -12,16 +12,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getDiscoverRadar, getEditorialCollections, getHomeData, getPopularArtists } from '@/api/client';
+import { getDiscoverRadar, getEditorialCollections, getHomeData, getPopularArtists, getUserPreferences } from '@/api/client';
 import type { Creator, HomeData, Playlist, Track } from '@/api/types';
 import { UniversalSearchModal } from '@/components/HomeOverlays';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
 import { usePlayer } from '@/player/PlayerProvider';
+import { useAuth } from '@/auth/AuthProvider';
 import { DISCOVER_MOODS } from '@/discover/moods';
 import { COMMUNITY_CLUBS } from '@/community/clubs';
 import { colors } from '@/theme/tokens';
+
+// Intentions creatives (onboarding "Personnaliser mes gouts") qui mettent un Club
+// en avant. Ne masque jamais les autres Clubs, se contente de les prioriser.
+const INTENTION_TO_CLUB_SLUG: Record<string, string> = {
+  remix: 'remix',
+  collab: 'collab',
+  create_ai: 'ai',
+};
 
 const emptyHome: HomeData = {
   forYou: [],
@@ -43,11 +52,53 @@ export function DiscoverV2Screen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const player = usePlayer();
+  const auth = useAuth();
   const [home, setHome] = useState<HomeData>(emptyHome);
   const [radar, setRadar] = useState<Track[]>([]);
   const [collections, setCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [favoriteMoodIds, setFavoriteMoodIds] = useState<string[]>([]);
+  const [highlightedClubSlugs, setHighlightedClubSlugs] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!auth.requireAuth()) return;
+    let mounted = true;
+    getUserPreferences()
+      .then((preferences) => {
+        if (!mounted) return;
+        const onboarding = (preferences as any)?.onboarding;
+        const moods = Array.isArray(onboarding?.favoriteMoods) ? onboarding.favoriteMoods.map(String) : [];
+        const intentions: string[] = Array.isArray(onboarding?.creatorIntentions) ? onboarding.creatorIntentions : [];
+        setFavoriteMoodIds(moods);
+        setHighlightedClubSlugs(intentions.map((id) => INTENTION_TO_CLUB_SLUG[id]).filter((slug): slug is string => Boolean(slug)));
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Priorite visuelle aux ambiances/Clubs choisis a l'onboarding, sans jamais
+  // masquer les autres options : simple reordonnancement stable.
+  const orderedMoods = useMemo(() => {
+    if (!favoriteMoodIds.length) return DISCOVER_MOODS;
+    return [...DISCOVER_MOODS].sort((a, b) => {
+      const aFav = favoriteMoodIds.includes(a.id) ? 0 : 1;
+      const bFav = favoriteMoodIds.includes(b.id) ? 0 : 1;
+      return aFav - bFav;
+    });
+  }, [favoriteMoodIds]);
+
+  const orderedClubs = useMemo(() => {
+    if (!highlightedClubSlugs.length) return COMMUNITY_CLUBS;
+    return [...COMMUNITY_CLUBS].sort((a, b) => {
+      const aFav = highlightedClubSlugs.includes(a.slug) ? 0 : 1;
+      const bFav = highlightedClubSlugs.includes(b.slug) ? 0 : 1;
+      return aFav - bFav;
+    });
+  }, [highlightedClubSlugs]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -119,24 +170,37 @@ export function DiscoverV2Screen() {
 
         <SectionTitle title="Explorer par ambiance" />
         <View style={styles.moodGrid}>
-          {DISCOVER_MOODS.map((mood) => (
-            <Pressable
-              key={mood.id}
-              onPress={() => navigation.navigate('DiscoverMood', { moodId: mood.id })}
-              style={styles.moodPressable}
-            >
-              <LinearGradient colors={mood.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.moodTile}>
-                <View>
-                  <Text style={styles.moodLabel}>{mood.label}</Text>
-                  <Text numberOfLines={2} style={styles.moodPromise}>{mood.promise}</Text>
-                </View>
-                <View style={styles.moodEnter}>
-                  <Text style={styles.moodEnterText}>Entrer</Text>
-                  <Ionicons name="arrow-forward" size={13} color="#FFFAF2" />
-                </View>
-              </LinearGradient>
-            </Pressable>
-          ))}
+          {orderedMoods.map((mood) => {
+            const highlighted = favoriteMoodIds.includes(mood.id);
+            return (
+              <Pressable
+                key={mood.id}
+                onPress={() => navigation.navigate('DiscoverMood', { moodId: mood.id })}
+                style={styles.moodPressable}
+              >
+                <LinearGradient
+                  colors={mood.gradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[styles.moodTile, highlighted && styles.moodTileHighlighted]}
+                >
+                  {highlighted ? (
+                    <View style={styles.moodBadge}>
+                      <Text style={styles.moodBadgeText}>Pour toi</Text>
+                    </View>
+                  ) : null}
+                  <View>
+                    <Text style={styles.moodLabel}>{mood.label}</Text>
+                    <Text numberOfLines={2} style={styles.moodPromise}>{mood.promise}</Text>
+                  </View>
+                  <View style={styles.moodEnter}>
+                    <Text style={styles.moodEnterText}>Entrer</Text>
+                    <Ionicons name="arrow-forward" size={13} color="#FFFAF2" />
+                  </View>
+                </LinearGradient>
+              </Pressable>
+            );
+          })}
         </View>
 
         <View style={styles.radarHeader}>
@@ -211,12 +275,19 @@ export function DiscoverV2Screen() {
             </Pressable>
           </View>
           <View style={styles.clubsGrid}>
-            {COMMUNITY_CLUBS.map((club) => (
-              <Pressable key={club.slug} onPress={() => navigation.navigate('ClubDetail', { slug: club.slug })} style={styles.clubChip}>
-                <View style={[styles.clubDot, { backgroundColor: club.accent }]} />
-                <Text numberOfLines={1} style={styles.clubChipText}>{club.name}</Text>
-              </Pressable>
-            ))}
+            {orderedClubs.map((club) => {
+              const highlighted = highlightedClubSlugs.includes(club.slug);
+              return (
+                <Pressable
+                  key={club.slug}
+                  onPress={() => navigation.navigate('ClubDetail', { slug: club.slug })}
+                  style={[styles.clubChip, highlighted && styles.clubChipHighlighted]}
+                >
+                  <View style={[styles.clubDot, { backgroundColor: club.accent }]} />
+                  <Text numberOfLines={1} style={styles.clubChipText}>{club.name}</Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
       </ScrollView>
@@ -321,6 +392,9 @@ const styles = StyleSheet.create({
   moodGrid: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between' },
   moodPressable: { width: '48.5%', borderRadius: 18, overflow: 'hidden' },
   moodTile: { minHeight: 138, borderRadius: 18, padding: 13, justifyContent: 'space-between' },
+  moodTileHighlighted: { borderWidth: 2, borderColor: colors.violet },
+  moodBadge: { position: 'absolute', left: 12, top: 12, zIndex: 1, borderRadius: 999, backgroundColor: colors.violet, paddingHorizontal: 9, paddingVertical: 4 },
+  moodBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
   moodLabel: { color: colors.paper, fontSize: 15, lineHeight: 18, fontWeight: '900' },
   moodPromise: { marginTop: 5, color: 'rgba(255,250,242,0.72)', fontSize: 10, lineHeight: 14, fontWeight: '700' },
   moodEnter: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' },
@@ -367,6 +441,7 @@ const styles = StyleSheet.create({
   clubsLink: { color: colors.textTertiary, fontSize: 10, fontWeight: '900' },
   clubsGrid: { marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   clubChip: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '48%', borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 10, paddingVertical: 9 },
+  clubChipHighlighted: { borderColor: colors.violet, borderWidth: 1.5 },
   clubDot: { width: 7, height: 7, borderRadius: 4 },
   clubChipText: { flex: 1, minWidth: 0, color: colors.text, fontSize: 10, fontWeight: '900' },
 });

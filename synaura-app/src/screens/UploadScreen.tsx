@@ -13,7 +13,7 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   addTrackToPlaylistMobile,
@@ -21,9 +21,11 @@ import {
   createAlbumPlaylistMobile,
   createUploadedTrack,
   getCoverVideoPosterUrl,
+  getMusicChallenge,
   getSynauraCity,
   isUploadCoverVideo,
   participateCityEvent,
+  participateInChallenge,
   uploadToCloudinaryMobile,
   type UploadAsset,
 } from '@/api/client';
@@ -31,6 +33,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { TrackCover } from '@/components/TrackCover';
 import { EventChoice, EventTicker } from '@/components/events/SynauraEvents';
 import { SynauraBackground } from '@/components/SynauraBackground';
+import { CreateArrivalBanner } from '@/components/create/CreateArrivalBanner';
 import { usePlayer } from '@/player/PlayerProvider';
 import { RemixPermissionsSection, DEFAULT_REMIX_PERMISSIONS, type RemixPermissionsValue } from '@/components/upload/RemixPermissionsSection';
 import type { SynauraCityData, Track } from '@/api/types';
@@ -120,6 +123,8 @@ function assetFromImage(asset: ImagePicker.ImagePickerAsset): UploadAsset {
 export function UploadScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const challengeId: string = route.params?.challengeId || '';
   const auth = useAuth();
   const player = usePlayer();
 
@@ -152,12 +157,20 @@ export function UploadScreen() {
   const [success, setSuccess] = useState<string | null>(null);
   const [city, setCity] = useState<SynauraCityData | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [challengeTitle, setChallengeTitle] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     void getSynauraCity().then((next) => active && setCity(next)).catch(() => {});
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!challengeId) return;
+    let active = true;
+    void getMusicChallenge(challengeId).then((next) => active && setChallengeTitle(next.title)).catch(() => {});
+    return () => { active = false; };
+  }, [challengeId]);
 
   const selectedCount = releaseType === 'single' ? (audio ? 1 : 0) : tracks.length;
   const releaseLabel = releaseType === 'single' ? 'Single' : releaseType === 'ep' ? 'EP' : 'Album';
@@ -169,6 +182,12 @@ export function UploadScreen() {
   const step1Valid = trackCountValid;
   const step2Valid = !!title.trim() && !!cover;
   const canPublish = step1Valid && step2Valid && !uploading;
+  const stepHint =
+    step === 1 && !step1Valid
+      ? (releaseType === 'single' ? 'Ajoute un fichier audio pour continuer.' : releaseType === 'ep' ? 'Ajoute entre 2 et 6 pistes pour continuer.' : 'Ajoute au moins 7 pistes pour continuer.')
+      : step === 2 && !step2Valid
+        ? (!title.trim() && !cover ? 'Ajoute un titre et une cover pour continuer.' : !title.trim() ? 'Ajoute un titre pour continuer.' : 'Ajoute une cover pour continuer.')
+        : null;
   const progressPercent = Math.round((step / 3) * 100);
   const coverIsVideo = isUploadCoverVideo(cover);
 
@@ -428,6 +447,9 @@ export function UploadScreen() {
           eventMessage = ' Le son est publié, mais son inscription à l’event devra être relancée.';
         }
       }
+      if (challengeId && visibility === 'public' && firstTrackId) {
+        participateInChallenge(challengeId, { contentType: 'track', contentId: firstTrackId }).catch(() => {});
+      }
       setSuccess(`${releaseType === 'single' ? 'Ton single est publie.' : `${uploadedTracks.length} pistes publiees dans ${releaseLabel}.`}${eventMessage}`);
       setTempPublicIds({ audio: [] });
 
@@ -476,6 +498,8 @@ export function UploadScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <CreateArrivalBanner context={challengeId ? 'challenge' : 'upload'} title={challengeId ? challengeTitle : null} />
+
         <View style={styles.hero}>
           <View style={styles.heroPills}>
             <Pill label="Upload Synaura" active />
@@ -517,7 +541,7 @@ export function UploadScreen() {
             return (
               <Pressable key={item} disabled={!enabled} onPress={() => setStep(item as Step)} style={[styles.stepButton, step === item && styles.stepButtonActive, !enabled && styles.stepButtonDisabled]}>
                 <Text style={[styles.stepNumber, step === item && styles.stepNumberActive]}>{done ? 'OK' : item}</Text>
-                <Text style={[styles.stepLabel, step === item && styles.stepLabelActive]}>{item === 1 ? 'Fichiers' : item === 2 ? 'Details' : 'Publier'}</Text>
+                <Text style={[styles.stepLabel, step === item && styles.stepLabelActive]}>{item === 1 ? 'Fichier audio' : item === 2 ? 'Cover & infos' : 'Diffusion & droits'}</Text>
               </Pressable>
             );
           })}
@@ -532,8 +556,8 @@ export function UploadScreen() {
         <View style={styles.studioPanel}>
           <View style={styles.panelHeader}>
             <View>
-              <Text style={styles.panelKicker}>Workflow live</Text>
-              <Text style={styles.panelTitle}>{step === 1 ? 'Importer' : step === 2 ? 'Presenter' : 'Diffuser'}</Text>
+              <Text style={styles.panelKicker}>Etape {step}/3</Text>
+              <Text style={styles.panelTitle}>{step === 1 ? 'Fichier audio' : step === 2 ? 'Cover & informations' : 'Diffusion & droits de creation'}</Text>
             </View>
             <View style={styles.segment}>
               {RELEASES.map((item) => (
@@ -613,17 +637,17 @@ export function UploadScreen() {
               <Collapsible title="Genres" icon="musical-notes" defaultOpen>
                 <ChipGrid items={GENRES} selected={genres} onToggle={toggleGenre} dark />
               </Collapsible>
-              <Collapsible title="Mood / Ambiance" icon="sparkles-outline">
+              <Collapsible title="Ambiance & tags" icon="sparkles-outline">
+                <Text style={styles.darkLabel}>Mood</Text>
                 <ChipGrid items={MOODS} selected={mood ? [mood] : []} onToggle={(item) => setMood(mood === item ? null : item)} dark />
-              </Collapsible>
-              <Collapsible title="Langue" icon="document-text-outline">
+                <Text style={[styles.darkLabel, { marginTop: 12 }]}>Langue</Text>
                 <ChipGrid items={LANGUAGES.map(([, label]) => label)} selected={language ? [LANGUAGES.find(([key]) => key === language)?.[1] || language] : []} onToggle={(label) => {
                   const next = LANGUAGES.find(([, itemLabel]) => itemLabel === label)?.[0] || null;
                   setLanguage(language === next ? null : next);
                 }} dark />
-              </Collapsible>
-              <Collapsible title="Tags" icon="pricetags-outline">
-                <Field dark label="Tags separes par virgules" value={tagsText} onChangeText={setTagsText} placeholder="club, cloud, freestyle" />
+                <View style={{ marginTop: 12 }}>
+                  <Field dark label="Tags separes par virgules" value={tagsText} onChangeText={setTagsText} placeholder="club, cloud, freestyle" />
+                </View>
               </Collapsible>
               {releaseType === 'single' ? (
                 <Collapsible title="Paroles" icon="document-text-outline">
@@ -661,6 +685,13 @@ export function UploadScreen() {
               </View>
 
               <View style={styles.remixPermissionsBox}>
+                <View style={styles.remixPermissionsHead}>
+                  <View style={styles.remixPermissionsIcon}><Ionicons name="repeat" size={15} color="#8fd3da" /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.remixPermissionsTitle}>Droits de creation</Text>
+                    <Text style={styles.remixPermissionsSub}>Ce que les autres membres peuvent faire avec ce morceau.</Text>
+                  </View>
+                </View>
                 <RemixPermissionsSection value={remixPermissions} onChange={setRemixPermissions} />
               </View>
 
@@ -695,6 +726,7 @@ export function UploadScreen() {
             </View>
           ) : null}
 
+          {stepHint ? <Text style={styles.stepHint}>{stepHint}</Text> : null}
           <View style={styles.footerBar}>
             <View style={styles.footerLeft}>
               {step > 1 ? <Pressable onPress={() => setStep((current) => Math.max(1, current - 1) as Step)} style={styles.backButton}><Text style={styles.backText}>Retour</Text></Pressable> : null}
@@ -706,7 +738,7 @@ export function UploadScreen() {
               </Pressable>
             ) : (
               <Pressable disabled={!canPublish} onPress={() => void publish()} style={[styles.nextButton, !canPublish && styles.nextButtonDisabled]}>
-                {uploading ? <ActivityIndicator color="#171313" /> : <Text style={styles.nextText}>Publier</Text>}
+                {uploading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.nextText}>Publier {releaseType === 'single' ? 'le morceau' : releaseType === 'ep' ? "l'EP" : "l'album"}</Text>}
               </Pressable>
             )}
           </View>
@@ -895,7 +927,7 @@ const styles = StyleSheet.create({
   trackList: { gap: 9 },
   trackListHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionLabel: { color: 'rgba(255,250,242,0.48)', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
-  warnText: { color: '#FDE68A', fontSize: 11, fontWeight: '900' },
+  warnText: { color: '#D96D63', fontSize: 11, fontWeight: '900' },
   trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.045)', padding: 9 },
   trackIndex: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.08)' },
   trackIndexText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900' },
@@ -936,7 +968,11 @@ const styles = StyleSheet.create({
   visibilityText: { color: 'rgba(255,250,242,0.48)', fontSize: 13, fontWeight: '900' },
   visibilityTextActive: { color: '#171313' },
   switchRowDark: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.045)', padding: 13 },
-  remixPermissionsBox: { borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.045)', padding: 13 },
+  remixPermissionsBox: { borderRadius: 14, backgroundColor: 'rgba(74,158,170,0.08)', borderWidth: 1, borderColor: 'rgba(74,158,170,0.22)', padding: 13 },
+  remixPermissionsHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  remixPermissionsIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(74,158,170,0.16)' },
+  remixPermissionsTitle: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
+  remixPermissionsSub: { marginTop: 1, color: 'rgba(255,250,242,0.4)', fontSize: 10, fontWeight: '700' },
   switchTitleDark: { color: 'rgba(255,250,242,0.78)', fontSize: 13, fontWeight: '900' },
   switchSubDark: { marginTop: 2, color: 'rgba(255,250,242,0.34)', fontSize: 10, fontWeight: '700' },
   previewBox: { flexDirection: 'row', gap: 12, borderRadius: 11, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.04)', padding: 12 },
@@ -956,9 +992,10 @@ const styles = StyleSheet.create({
   backText: { color: 'rgba(255,250,242,0.62)', fontSize: 12, fontWeight: '900' },
   cancelButton: { height: 40, borderRadius: 10, justifyContent: 'center', paddingHorizontal: 14, backgroundColor: 'rgba(239,68,68,0.12)' },
   cancelText: { color: '#FECACA', fontSize: 12, fontWeight: '900' },
-  nextButton: { minWidth: 118, height: 44, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, backgroundColor: '#FFFFFF' },
+  nextButton: { minWidth: 118, height: 44, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, backgroundColor: '#7357C6' },
   nextButtonDisabled: { opacity: 0.34 },
-  nextText: { color: '#171313', fontSize: 13, fontWeight: '900' },
+  nextText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
+  stepHint: { color: '#D96D63', fontSize: 11, fontWeight: '700', marginBottom: 8 },
   checkPanel: { borderRadius: 14, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)', padding: 14, gap: 9 },
   checkKicker: { color: 'rgba(23,19,19,0.38)', fontSize: 10, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 9, backgroundColor: 'rgba(17,17,17,0.04)', padding: 10 },

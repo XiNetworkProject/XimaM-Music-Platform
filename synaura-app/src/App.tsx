@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AuthProvider } from '@/auth/AuthProvider';
+import { AuthProvider, useAuth } from '@/auth/AuthProvider';
 import { PlayerProvider } from '@/player/PlayerProvider';
 import { LibraryProvider } from '@/library/LibraryProvider';
 import { MiniPlayer } from '@/components/MiniPlayer';
@@ -12,6 +13,8 @@ import { Tabs } from '@/navigation/Tabs';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { RegisterScreen } from '@/screens/RegisterScreen';
 import { ForgotPasswordScreen } from '@/screens/ForgotPasswordScreen';
+import { OnboardingScreen } from '@/screens/OnboardingScreen';
+import { isOnboardingCompleted } from '@/onboarding/checkOnboarding';
 import { colors } from '@/theme/tokens';
 import { AnimatedBootSplash } from '@/components/AnimatedBootSplash';
 import { UpdateProvider } from '@/updates/UpdateProvider';
@@ -25,6 +28,7 @@ export type RootStackParamList = {
   Login: { message?: string; returnTo?: { screen: string; params?: Record<string, unknown> } } | undefined;
   Register: undefined;
   ForgotPassword: undefined;
+  Onboarding: { edit?: boolean; returnTo?: { screen: string; params?: Record<string, unknown> } } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -48,6 +52,55 @@ function getActiveRouteName(state: any): string {
   return route.name || 'Home';
 }
 
+/**
+ * Decide l'ecran initial une fois la session restauree (AuthProvider.loading
+ * passe a false) : si un utilisateur deja connecte n'a pas termine l'onboarding
+ * V1, Tabs n'est jamais monte en premier (donc jamais de flash "Pour toi") -
+ * Onboarding devient l'ecran initial du stack racine. Ne s'execute qu'une seule
+ * fois par montage de l'app (checkedRef) pour eviter toute boucle.
+ */
+function RootStackNavigator() {
+  const auth = useAuth();
+  const [gate, setGate] = useState<{ ready: boolean; initialRoute: 'Tabs' | 'Onboarding' }>({
+    ready: false,
+    initialRoute: 'Tabs',
+  });
+  const checkedRef = useRef(false);
+
+  useEffect(() => {
+    if (auth.loading || checkedRef.current) return;
+    checkedRef.current = true;
+
+    if (!auth.user || !auth.token) {
+      setGate({ ready: true, initialRoute: 'Tabs' });
+      return;
+    }
+
+    let mounted = true;
+    isOnboardingCompleted().then((completed) => {
+      if (!mounted) return;
+      setGate({ ready: true, initialRoute: completed ? 'Tabs' : 'Onboarding' });
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [auth.loading, auth.user, auth.token]);
+
+  if (!gate.ready) {
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+  }
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={gate.initialRoute}>
+      <Stack.Screen name="Tabs" component={Tabs} />
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+    </Stack.Navigator>
+  );
+}
+
 export default function App() {
   const [playerOpen, setPlayerOpen] = React.useState(false);
   const [activeRoute, setActiveRoute] = React.useState('Home');
@@ -69,12 +122,7 @@ export default function App() {
                 }}
               >
                 <StatusBar style={activeRoute === 'Swipe' ? 'light' : 'dark'} />
-                <Stack.Navigator screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="Tabs" component={Tabs} />
-                  <Stack.Screen name="Login" component={LoginScreen} />
-                  <Stack.Screen name="Register" component={RegisterScreen} />
-                  <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-                </Stack.Navigator>
+                <RootStackNavigator />
                 <MiniPlayer activeRoute={activeRoute} onOpen={() => setPlayerOpen(true)} />
                 <FullPlayerModal visible={playerOpen} onClose={() => setPlayerOpen(false)} />
               </NavigationContainer>

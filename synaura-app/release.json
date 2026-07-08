@@ -1,12 +1,10 @@
 {
-  "title": "Synaura mobile 0.9.11",
+  "title": "Synaura mobile 0.9.12",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Nouvelle direction artistique premium et chaleureuse sur tout le Scroll",
-    "Fiche morceau plus lisible : tags de genre reels, progression discrete, remix mis en avant",
-    "Clips clairement identifies comme contenu Synaura, carte morceau plus premium",
-    "Mise en avant d'artiste : avatar plus grand, style reel, sans chiffres inventes",
-    "Confidentialite renforcee : un morceau prive ou non publie ne peut plus fuiter"
+    "Defis musicaux : participe a des defis reels (Clip, Variation IA ou morceau) depuis le Scroll, les Clubs et Creer",
+    "Clips : lecture video corrigee (demarrage fiable au scroll, le son ne coupe plus la video)",
+    "Menu profil : correction d'un bug d'affichage qui rendait certains boutons inaccessibles"
   ]
 }

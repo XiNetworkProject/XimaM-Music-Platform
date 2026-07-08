@@ -109,16 +109,29 @@ export default function DiscoverClient({
   moodPreviews,
   collections,
   artists,
+  favoriteMoodIds = [],
 }: {
   initialMood: MoodId | null;
   radarTracks: DiscoverTrackLite[];
   moodPreviews: Record<string, string[]>;
   collections: DiscoverPlaylistLite[];
   artists: DiscoverArtistCardLite[];
+  favoriteMoodIds?: string[];
 }) {
   const router = useRouter();
   const { setQueueAndPlay } = useAudioPlayer();
   const [activeMood, setActiveMood] = useState<MoodId | null>(initialMood);
+
+  // Priorite visuelle aux ambiances choisies a l'onboarding (Personnaliser mes gouts),
+  // sans jamais masquer les autres : simple reordonnancement stable.
+  const orderedMoods = useMemo(() => {
+    if (!favoriteMoodIds.length) return DISCOVER_MOODS;
+    return [...DISCOVER_MOODS].sort((a, b) => {
+      const aFav = favoriteMoodIds.includes(a.id) ? 0 : 1;
+      const bFav = favoriteMoodIds.includes(b.id) ? 0 : 1;
+      return aFav - bFav;
+    });
+  }, [favoriteMoodIds]);
 
   const openMood = useCallback((moodId: MoodId) => {
     setActiveMood(moodId);
@@ -162,8 +175,14 @@ export default function DiscoverClient({
                 <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[#171313] sm:text-2xl">Explorer par ambiance</h2>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {DISCOVER_MOODS.map((mood) => (
-                  <MoodCard key={mood.id} mood={mood} covers={moodPreviews[mood.id] || []} onOpen={() => openMood(mood.id)} />
+                {orderedMoods.map((mood) => (
+                  <MoodCard
+                    key={mood.id}
+                    mood={mood}
+                    covers={moodPreviews[mood.id] || []}
+                    onOpen={() => openMood(mood.id)}
+                    highlighted={favoriteMoodIds.includes(mood.id)}
+                  />
                 ))}
               </div>
             </section>

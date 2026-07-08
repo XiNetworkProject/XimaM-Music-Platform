@@ -32,7 +32,11 @@ export type NotifType =
   | 'weekly_recap'
   | 'general'
   | 'post_like'
-  | 'post_comment';
+  | 'post_comment'
+  | 'clip_used_source'
+  | 'remix_pending_approval'
+  | 'remix_approved'
+  | 'remix_rejected';
 
 const TYPE_TO_CATEGORY: Record<NotifType, NotifCategory> = {
   new_follower: 'social',
@@ -48,6 +52,10 @@ const TYPE_TO_CATEGORY: Record<NotifType, NotifCategory> = {
   general: 'general',
   post_like: 'social',
   post_comment: 'social',
+  clip_used_source: 'music',
+  remix_pending_approval: 'music',
+  remix_approved: 'music',
+  remix_rejected: 'music',
 };
 
 const TYPE_TO_PREF_KEY: Record<NotifType, string> = {
@@ -64,6 +72,13 @@ const TYPE_TO_PREF_KEY: Record<NotifType, string> = {
   general: 'admin_broadcast',
   post_like: 'new_like',
   post_comment: 'new_comment',
+  // Pas de colonne preference dediee pour ces types V1 : cle non presente dans
+  // notification_preferences => jamais bloque (comportement permissif par defaut,
+  // voir createNotification qui ignore une prefKey sans colonne correspondante).
+  clip_used_source: 'clip_used_source',
+  remix_pending_approval: 'remix_pending_approval',
+  remix_approved: 'remix_approved',
+  remix_rejected: 'remix_rejected',
 };
 
 interface CreateNotificationOpts {
@@ -77,6 +92,13 @@ interface CreateNotificationOpts {
   relatedId?: string;
   data?: Record<string, any>;
   skipPrefCheck?: boolean;
+  /**
+   * Idempotence : si vrai, ne cree pas de nouvelle ligne si une notification du
+   * meme type + meme related_id existe deja pour ce destinataire (retry reseau,
+   * double appel). N'affecte que les appelants qui l'activent explicitement -
+   * ne change rien au comportement des triggers existants (follow/like/comment).
+   */
+  dedupeOnRelatedId?: boolean;
 }
 
 async function getUserPrefs(userId: string) {
@@ -97,8 +119,22 @@ export async function createNotification(opts: CreateNotificationOpts) {
   const {
     userId, type, title, message,
     actionUrl, iconUrl, senderId, relatedId, data,
-    skipPrefCheck,
+    skipPrefCheck, dedupeOnRelatedId,
   } = opts;
+
+  if (dedupeOnRelatedId && relatedId) {
+    try {
+      const { data: existing } = await supabaseAdmin
+        .from('notifications')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('type', type)
+        .eq('related_id', relatedId)
+        .limit(1)
+        .maybeSingle();
+      if (existing) return existing;
+    } catch {}
+  }
 
   const prefs = !skipPrefCheck ? await getUserPrefs(userId) : null;
   if (prefs) {
@@ -489,6 +525,65 @@ export async function notifyForumPostReply(replierId: string, postOwnerId: strin
     senderId: replierId,
     relatedId: postId,
     data: { surface: 'community_forum' },
+  });
+}
+
+export async function notifyClipUsedSource(
+  clipCreatorId: string,
+  sourceOwnerId: string,
+  clipCreatorName: string,
+  clipId: string,
+  sourceTrackUrl: string,
+) {
+  if (!sourceOwnerId || sourceOwnerId === clipCreatorId) return null;
+  return createNotification({
+    userId: sourceOwnerId,
+    type: 'clip_used_source',
+    title: 'Ton son a été utilisé',
+    message: `${clipCreatorName} a utilisé ton son dans un Clip`,
+    actionUrl: sourceTrackUrl,
+    senderId: clipCreatorId,
+    relatedId: clipId,
+    dedupeOnRelatedId: true,
+  });
+}
+
+export async function notifyRemixPendingApproval(sourceOwnerId: string, remixId: string, actionUrl: string) {
+  if (!sourceOwnerId) return null;
+  return createNotification({
+    userId: sourceOwnerId,
+    type: 'remix_pending_approval',
+    title: 'Validation demandée',
+    message: 'Une variation attend ta validation',
+    actionUrl,
+    relatedId: remixId,
+    dedupeOnRelatedId: true,
+  });
+}
+
+export async function notifyRemixApproved(remixCreatorId: string, remixId: string, actionUrl: string) {
+  if (!remixCreatorId) return null;
+  return createNotification({
+    userId: remixCreatorId,
+    type: 'remix_approved',
+    title: 'Variation acceptée',
+    message: 'Ta variation a été acceptée',
+    actionUrl,
+    relatedId: remixId,
+    dedupeOnRelatedId: true,
+  });
+}
+
+export async function notifyRemixRejected(remixCreatorId: string, remixId: string, actionUrl: string) {
+  if (!remixCreatorId) return null;
+  return createNotification({
+    userId: remixCreatorId,
+    type: 'remix_rejected',
+    title: 'Variation refusée',
+    message: "Ta variation n'a pas été acceptée",
+    actionUrl,
+    relatedId: remixId,
+    dedupeOnRelatedId: true,
   });
 }
 

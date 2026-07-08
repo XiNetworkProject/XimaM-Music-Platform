@@ -81,7 +81,7 @@ export default function CreatorModerationActions({
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            className="absolute right-0 top-full mt-2 w-72 bg-background-tertiary rounded-2xl shadow-2xl border border-border-secondary z-[240]"
+            className="absolute right-0 top-full mt-2 w-72 max-w-none bg-background-tertiary rounded-2xl shadow-2xl border border-border-secondary z-[240]"
           >
             <div className="p-2 space-y-1">
               {/* Adorer le commentaire */}

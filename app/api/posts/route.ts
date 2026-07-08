@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
+import { isTrackPublic } from '@/lib/publicTracks';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,6 +66,9 @@ async function loadTrack(trackId?: string | null) {
   }
 
   if (!t) return null;
+  // Le morceau attache a pu devenir prive depuis la publication du post : dans ce
+  // cas le post ne doit plus exposer ce morceau (regle identique a publicTracks.ts).
+  if (!isTrackPublic(t)) return null;
   const data = readTrackData((t as any).data);
 
   const artistName = (t as any).artist_name
@@ -212,7 +216,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 
-    const enriched = await Promise.all((posts || []).map((post: any) => enrichPost(post, userId)));
+    const enrichedAll = await Promise.all((posts || []).map((post: any) => enrichPost(post, userId)));
+    // Un post "track_share" dont le morceau attache n'est plus public ne doit
+    // plus apparaitre nulle part (loadTrack renvoie alors track: null).
+    const enriched = enrichedAll.filter((post) => post.type !== 'track_share' || Boolean(post.track));
 
     const nextCursor = enriched.length === limit
       ? enriched[enriched.length - 1]?.created_at

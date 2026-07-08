@@ -745,7 +745,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
                   <MoreHorizontal className="h-5 w-5" />
                 </button>
                 {showMenu ? (
-                  <div className="absolute right-0 top-[calc(100%+0.45rem)] z-20 w-52 rounded-[1rem] border border-black/[0.08] bg-[#fffaf2] p-1.5 shadow-[0_16px_48px_rgba(30,25,20,0.18)]">
+                  <div className="absolute right-0 top-[calc(100%+0.45rem)] z-20 w-52 max-w-none rounded-[1rem] border border-black/[0.08] bg-[#fffaf2] p-1.5 shadow-[0_16px_48px_rgba(30,25,20,0.18)]">
                     <button
                       type="button"
                       onClick={() => {

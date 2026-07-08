@@ -23,6 +23,17 @@ function toPath(input?: string | null) {
   return pathname.startsWith('/') ? pathname : `/${pathname}`;
 }
 
+/** Extrait les query params d'un lien interne (`/profile/x?tab=variations`), sans
+ * dependre d'un hote absolu (URL exige une base pour les chemins relatifs). */
+function toQuery(input?: string | null): URLSearchParams {
+  if (!input) return new URLSearchParams();
+  const qIndex = input.indexOf('?');
+  if (qIndex === -1) return new URLSearchParams();
+  const hashIndex = input.indexOf('#');
+  const query = hashIndex === -1 ? input.slice(qIndex + 1) : input.slice(qIndex + 1, hashIndex);
+  return new URLSearchParams(query);
+}
+
 export async function openInternalLink(
   navigation: NavigationLike,
   urlOrPath?: string | null,
@@ -34,6 +45,20 @@ export async function openInternalLink(
   const [root, id] = parts;
 
   if (root === 'profile' && id) {
+    // Ces deux parametres ne sont jamais generes que pour designer le profil du
+    // destinataire lui-meme (notifications "Variations a valider" / "Mes
+    // variations") : on ouvre alors l'ecran Profil (proprietaire), jamais
+    // PublicProfile (vue visiteur, qui ne montre ni statut ni inbox pending).
+    const query = toQuery(urlOrPath);
+    const tab = query.get('tab');
+    const openPendingVariations = query.get('openPendingVariations') === '1';
+    if (tab || openPendingVariations) {
+      navigation.navigate('Profile', {
+        tab: (['sons', 'clips', 'variations', 'playlists', 'posts'].includes(tab || '') ? tab : undefined) as any,
+        openPendingVariations: openPendingVariations || undefined,
+      });
+      return true;
+    }
     navigation.navigate('PublicProfile', { username: decodeURIComponent(id) });
     return true;
   }
@@ -66,6 +91,10 @@ export async function openInternalLink(
   }
   if (root === 'city') {
     navigation.navigate('City');
+    return true;
+  }
+  if (root === 'challenges' && id) {
+    navigation.navigate('ChallengeDetail', { challengeId: decodeURIComponent(id) });
     return true;
   }
   if (root === 'upload') {

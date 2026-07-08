@@ -16,6 +16,7 @@ import { PlaysProvider } from '@/contexts/PlaysContext';
 import { usePlaysSync } from '@/hooks/usePlaysSync';
 import { PreloadProvider } from '@/contexts/PreloadContext';
 import { isPastShutdownEnd, isShutdownAnnounced } from '@/lib/synauraShutdown';
+import OnboardingGate from '@/components/onboarding/OnboardingGate';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -1523,6 +1524,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                     <NativeFeaturesWrapper>
                   {children}
                     </NativeFeaturesWrapper>
+                    <OnboardingGate />
                     <ShutdownModal
                       isOpen={showShutdown}
                       onClose={() => setShowShutdown(false)}

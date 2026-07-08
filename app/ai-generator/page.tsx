@@ -37,6 +37,7 @@ import {
   SynauraTopBar,
 } from '@/components/synaura/SynauraShell';
 import SynauraStudioEventBar from '@/components/synaura/SynauraStudioEventBar';
+import CreateArrivalBanner from '@/components/create/CreateArrivalBanner';
 
 const DEBUG_AI_STUDIO = process.env.NODE_ENV !== 'production';
 
@@ -406,6 +407,8 @@ function AIGeneratorContent() {
   const [remixSourceLabel, setRemixSourceLabel] = useState<string | null>(null);
   const [remixSourceTrackId, setRemixSourceTrackId] = useState<string | null>(null);
   const [sourceContext, setSourceContext] = useState<SourceContext | null>(null);
+  const [challengeId, setChallengeId] = useState<string>('');
+  const [challengeTitle, setChallengeTitle] = useState<string | null>(null);
   const [pendingRemixFile, setPendingRemixFile] = useState<File | null>(null);
   const [remixUploadModalOpen, setRemixUploadModalOpen] = useState(false);
   const [uploadingRemixTitle, setUploadingRemixTitle] = useState<string | null>(null);
@@ -1627,6 +1630,7 @@ function AIGeneratorContent() {
   const [weirdness, setWeirdness] = useState<number>(50);
   const [styleInfluence, setStyleInfluence] = useState<number>(50);
   const [audioWeight, setAudioWeight] = useState<number>(50);
+  const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
   const refreshSunoCredits = useCallback(async () => {
     try {
       const res = await fetch('/api/suno/credits', { cache: 'no-store' });
@@ -1672,6 +1676,20 @@ function AIGeneratorContent() {
   }, [refreshSunoCredits]);
   const [vocalGender, setVocalGender] = useState<string>(''); // 'm' | 'f' | ''
   const [negativeTags, setNegativeTags] = useState<string>('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(sourceParamKey);
+    const challengeIdParam = params.get('challengeId') || '';
+    if (challengeIdParam) {
+      setChallengeId(challengeIdParam);
+      fetch(`/api/challenges/${encodeURIComponent(challengeIdParam)}`, { cache: 'no-store' })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((json) => {
+          if (json?.challenge?.title) setChallengeTitle(json.challenge.title);
+        })
+        .catch(() => {});
+    }
+  }, [sourceParamKey]);
 
   useEffect(() => {
     const params = new URLSearchParams(sourceParamKey);
@@ -2620,6 +2638,14 @@ function AIGeneratorContent() {
         if (!res.ok) throw new Error(json?.error || 'Impossible de changer la visibilitÃ©');
         const effectivePublic = Boolean(json?.isPublic);
 
+        if (challengeId && effectivePublic && json?.remixStatus === 'published') {
+          fetch(`/api/challenges/${encodeURIComponent(challengeId)}/participate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contentType: 'variation', contentId: `ai-${track.id}` }),
+          }).catch(() => {});
+        }
+
         setAllTracks((prev) =>
           prev.map((t) => (String(t.id) === String(track.id) ? { ...t, is_public: effectivePublic } : t))
         );
@@ -3359,6 +3385,9 @@ function AIGeneratorContent() {
         compact
       />
       <div className="flex min-h-0 flex-1 flex-col space-y-1.5 overflow-hidden pb-0 lg:space-y-2">
+        <div className="shrink-0">
+          <CreateArrivalBanner context={sourceContext ? 'variation' : 'ai'} title={sourceContext?.title} />
+        </div>
         <section className="flex shrink-0 items-center justify-between gap-2 rounded-[1rem] border border-black/[0.08] bg-[radial-gradient(circle_at_12%_0%,rgba(255,111,97,0.24),transparent_34%),radial-gradient(circle_at_88%_12%,rgba(0,194,203,0.18),transparent_32%),linear-gradient(135deg,#211918_0%,#171313_48%,#0d1117_100%)] px-2.5 py-1.5 text-white shadow-[0_14px_38px_rgba(20,15,10,0.16)] lg:gap-3 lg:px-3 lg:py-2">
           <div className="min-w-0 flex items-center gap-2">
             <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#171313]">Studio</span>
@@ -3499,7 +3528,7 @@ function AIGeneratorContent() {
             <div className="border-b border-black/[0.07] bg-[#f5eadb] p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7868]">Composer</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#7357C6]">1 &middot; Idee musicale</p>
                   <h2 className="truncate text-xl font-black tracking-[-0.05em] text-[#171313]">Nouvelle session</h2>
                 </div>
                 <button
@@ -3509,15 +3538,6 @@ function AIGeneratorContent() {
                   aria-label="Fermer le composer"
                 >
                   <X className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={generateMusic}
-                  disabled={isGenerationDisabled || isGenerating || rateLimitActive}
-                  className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white shadow-[0_14px_34px_rgba(20,15,10,0.20)] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  {isGenerating ? <span className="h-4 w-4 rounded-full border-2 border-white/60 border-t-transparent animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  {isGenerating ? 'Creation...' : rateLimitActive ? `${cooldownSecondsLeft}s` : 'Creer'}
                 </button>
               </div>
 
@@ -3781,90 +3801,11 @@ function AIGeneratorContent() {
                 </div>
               </div>
 
-              <div className="rounded-[1.25rem] border border-black/[0.07] bg-white p-3">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Reglages</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-black text-[#171313]">{studioModelLabel}</span>
-                    <button
-                      type="button"
-                      onClick={clearAdvancedSection}
-                      aria-label="Supprimer les reglages"
-                      title="Reinitialiser les reglages"
-                      className="rounded-full p-1.5 text-[#8b7868] transition hover:bg-red-50 hover:text-red-600"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {(['V4_5', 'V4_5PLUS', 'V5', 'V5_5'] as const).map((model) => (
-                    <button
-                      key={model}
-                      type="button"
-                      onClick={() => setModelVersion(model)}
-                      className={`rounded-full px-3 py-2 text-[11px] font-black transition ${
-                        modelVersion === model ? 'bg-[#171313] text-white' : 'bg-[#f5eadb] text-[#6e5f54] hover:bg-[#efe0ce]'
-                      }`}
-                    >
-                      {model === 'V5_5' ? 'v5.5' : model === 'V5' ? 'v5' : model === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  {([60, 120, 180] as const).map((duration) => (
-                    <button
-                      key={duration}
-                      type="button"
-                      onClick={() => setGenerationDuration(duration)}
-                      className={`rounded-full px-3 py-2 text-[11px] font-black transition ${
-                        generationDuration === duration ? 'bg-[#ff6f61] text-white' : 'bg-[#f5eadb] text-[#6e5f54] hover:bg-[#efe0ce]'
-                      }`}
-                    >
-                      {duration}s
-                    </button>
-                  ))}
-                </div>
-                {customMode && (
-                  <div className="mt-4 space-y-3">
-                    {([
-                      ['Creativite', weirdness, setWeirdness],
-                      ['Style', styleInfluence, setStyleInfluence],
-                      ['Audio', audioWeight, setAudioWeight],
-                    ] as const).map(([label, value, setter]) => (
-                      <label key={label} className="block">
-                        <span className="mb-1 flex items-center justify-between text-[11px] font-black text-[#6e5f54]">
-                          {label}
-                          <span>{value}%</span>
-                        </span>
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          value={value}
-                          onChange={(e) => setter(Number(e.target.value))}
-                          className="w-full accent-[#171313]"
-                        />
-                      </label>
-                    ))}
-                    <label className="block">
-                      <span className="mb-1 block text-[11px] font-black text-[#6e5f54]">Tags a eviter</span>
-                      <input
-                        value={negativeTags}
-                        onChange={(e) => setNegativeTags(e.target.value)}
-                        placeholder="ex: noisy, distorted..."
-                        className="h-10 w-full rounded-full border border-black/[0.08] bg-[#fffaf2] px-4 text-xs font-semibold text-[#171313] outline-none"
-                      />
-                    </label>
-                  </div>
-                )}
-              </div>
-
               <div className="rounded-[1.25rem] border border-black/[0.07] bg-[radial-gradient(circle_at_18%_0%,rgba(255,111,97,0.22),transparent_34%),radial-gradient(circle_at_92%_18%,rgba(124,92,255,0.22),transparent_36%),linear-gradient(135deg,#211918_0%,#171313_50%,#101116_100%)] p-3 text-white shadow-[0_18px_46px_rgba(20,15,10,0.16)]">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/45">DÃ©marrer vite</p>
-                    <p className="mt-0.5 text-[11px] font-semibold text-white/35">{aiStudioPresets.length} intentions prÃªtes pour Suno</p>
+                    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/45">Demarrer vite</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-white/35">{aiStudioPresets.length} intentions pretes pour Suno</p>
                   </div>
                   <Sparkles className="h-4 w-4 text-[#ffd166]" />
                 </div>
@@ -3916,6 +3857,133 @@ function AIGeneratorContent() {
                     );
                   })}
                 </div>
+              </div>
+
+              <div className="pt-2">
+                <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#4A9EAA]">2 &middot; Reglages</p>
+              </div>
+
+              <div className="rounded-[1.25rem] border border-black/[0.07] bg-white p-3">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Modele &amp; duree</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-black text-[#171313]">{studioModelLabel}</span>
+                    <button
+                      type="button"
+                      onClick={clearAdvancedSection}
+                      aria-label="Supprimer les reglages"
+                      title="Reinitialiser les reglages"
+                      className="rounded-full p-1.5 text-[#8b7868] transition hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {(['V4_5', 'V4_5PLUS', 'V5', 'V5_5'] as const).map((model) => (
+                    <button
+                      key={model}
+                      type="button"
+                      onClick={() => setModelVersion(model)}
+                      className={`rounded-full px-3 py-2 text-[11px] font-black transition ${
+                        modelVersion === model ? 'bg-[#171313] text-white' : 'bg-[#f5eadb] text-[#6e5f54] hover:bg-[#efe0ce]'
+                      }`}
+                    >
+                      {model === 'V5_5' ? 'v5.5' : model === 'V5' ? 'v5' : model === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {([60, 120, 180] as const).map((duration) => (
+                    <button
+                      key={duration}
+                      type="button"
+                      onClick={() => setGenerationDuration(duration)}
+                      className={`rounded-full px-3 py-2 text-[11px] font-black transition ${
+                        generationDuration === duration ? 'bg-[#ff6f61] text-white' : 'bg-[#f5eadb] text-[#6e5f54] hover:bg-[#efe0ce]'
+                      }`}
+                    >
+                      {duration}s
+                    </button>
+                  ))}
+                </div>
+                {customMode && (
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={() => setAdvancedSettingsOpen((v) => !v)}
+                      className="flex w-full items-center justify-between rounded-full bg-[#f5eadb] px-3 py-2 text-[11px] font-black text-[#6e5f54] transition hover:bg-[#efe0ce]"
+                    >
+                      Reglages avances
+                      <ChevronRight className={`h-3.5 w-3.5 transition-transform ${advancedSettingsOpen ? 'rotate-90' : ''}`} />
+                    </button>
+                    {advancedSettingsOpen && (
+                      <div className="mt-3 space-y-3">
+                        {([
+                          ['Creativite', weirdness, setWeirdness],
+                          ['Style', styleInfluence, setStyleInfluence],
+                          ['Audio', audioWeight, setAudioWeight],
+                        ] as const).map(([label, value, setter]) => (
+                          <label key={label} className="block">
+                            <span className="mb-1 flex items-center justify-between text-[11px] font-black text-[#6e5f54]">
+                              {label}
+                              <span>{value}%</span>
+                            </span>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              value={value}
+                              onChange={(e) => setter(Number(e.target.value))}
+                              className="w-full accent-[#171313]"
+                            />
+                          </label>
+                        ))}
+                        <label className="block">
+                          <span className="mb-1 block text-[11px] font-black text-[#6e5f54]">Tags a eviter</span>
+                          <input
+                            value={negativeTags}
+                            onChange={(e) => setNegativeTags(e.target.value)}
+                            placeholder="ex: noisy, distorted..."
+                            className="h-10 w-full rounded-full border border-black/[0.08] bg-[#fffaf2] px-4 text-xs font-semibold text-[#171313] outline-none"
+                          />
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2">
+                <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#7357C6]">3 &middot; Publication</p>
+              </div>
+
+              <div className="rounded-[1.25rem] border border-[#7357C6]/20 bg-[#7357C6]/[0.06] p-3">
+                <p className="text-xs font-semibold leading-5 text-[#5b4a80]">
+                  {isRemixMode
+                    ? 'Une variation IA va etre creee a partir de la source ci-dessus.'
+                    : '2 versions vont etre generees a partir de ton idee.'}
+                </p>
+                <div className="mt-3 flex items-center justify-between gap-2 rounded-full bg-white/70 px-3 py-2">
+                  <span className="text-[11px] font-black text-[#5b4a80]">Cout de cette creation</span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-black text-[#171313]">
+                    <Coins className="h-3.5 w-3.5 text-[#4A9EAA]" />
+                    {ACTION_COSTS.generation.credits} cr.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={generateMusic}
+                  disabled={isGenerationDisabled || isGenerating || rateLimitActive}
+                  className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#7357C6] px-5 text-sm font-black text-white shadow-[0_14px_34px_rgba(115,87,198,0.28)] transition hover:scale-[1.01] hover:bg-[#6547b3] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {isGenerating ? <span className="h-4 w-4 rounded-full border-2 border-white/60 border-t-transparent animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  {isGenerating
+                    ? (isRemixMode ? 'Creation de la variation...' : 'Generation en cours...')
+                    : rateLimitActive
+                      ? `Reessayer dans ${cooldownSecondsLeft}s`
+                      : (isRemixMode ? 'Creer une variation' : 'Generer 2 versions')}
+                </button>
               </div>
             </div>
           </aside>

@@ -7,7 +7,7 @@ import {
   Share2, Upload, UserPlus, Sparkles, Calendar, X, MessageCircle,
   Send, Search, Users, Disc3, ExternalLink, Crown,
   ArrowUpRight, Library, Mic2, Shield, ListPlus, ListEnd, Trash2,
-  Settings,
+  Settings, Film, Repeat, FileEdit, SlidersHorizontal, ListChecks,
 } from "lucide-react";
 import { FaInstagram, FaSoundcloud, FaSpotify, FaTiktok, FaXTwitter, FaYoutube } from 'react-icons/fa6';
 import { useParams, useRouter } from 'next/navigation';
@@ -23,6 +23,7 @@ import { UModal, UModalBody, UModalTitle, UModalFooter, UDrawer, UButton, UInput
 import CreatorFeed from '@/components/CreatorFeed';
 import { SynauraAppShell, SynauraTopBar, SynauraInkPanel, SynauraPanel, SynauraRouteNav } from '@/components/synaura/SynauraShell';
 import TrackCreateRemixActions from '@/components/TrackCreateRemixActions';
+import PendingApprovalsModal, { type PendingVariation } from '@/components/variations/PendingApprovalsModal';
 import SynauraPulseBar from '@/components/synaura/SynauraPulseBar';
 import { getArtistLevel } from '@/lib/synauraCity';
 
@@ -61,7 +62,17 @@ export default function SynauraProfile() {
   const [sendingRequest, setSendingRequest] = useState(false);
   const [messageRequestStatus, setMessageRequestStatus] = useState<'none' | 'pending' | 'accepted'>('none');
   const [existingConvId, setExistingConvId] = useState<string | null>(null);
-  
+  const [activeSection, setActiveSection] = useState<'sons' | 'clips' | 'variations' | 'playlists' | 'posts'>('sons');
+  const [onlyDrafts, setOnlyDrafts] = useState(false);
+  const [clips, setClips] = useState<any[]>([]);
+  const [clipsLoading, setClipsLoading] = useState(false);
+  const [clipsLoaded, setClipsLoaded] = useState(false);
+  const [variations, setVariations] = useState<any[]>([]);
+  const [variationsLoading, setVariationsLoading] = useState(false);
+  const [variationsLoaded, setVariationsLoaded] = useState(false);
+  const [pendingVariations, setPendingVariations] = useState<PendingVariation[]>([]);
+  const [showPendingModal, setShowPendingModal] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const usernameStr = Array.isArray(username) ? username[0] : username;
@@ -89,17 +100,79 @@ export default function SynauraProfile() {
     if (usernameStr) fetchProfile();
   }, [usernameStr, session?.user?.id]);
 
+  // Chargement paresseux : Clips et Variations ne sont recuperes que lorsque
+  // l'onglet correspondant est ouvert, pour eviter des appels systematiques.
+  useEffect(() => {
+    if (!profile?.id) return;
+    if (activeSection === 'clips' && !clipsLoaded && !clipsLoading) {
+      setClipsLoading(true);
+      fetch(`/api/music-clips?creatorId=${encodeURIComponent(profile.id)}&limit=40`)
+        .then((r) => r.json())
+        .then((d) => setClips(Array.isArray(d?.clips) ? d.clips : []))
+        .catch(() => setClips([]))
+        .finally(() => { setClipsLoading(false); setClipsLoaded(true); });
+    }
+    if (activeSection === 'variations' && !variationsLoaded && !variationsLoading) {
+      setVariationsLoading(true);
+      fetch(`/api/users/${encodeURIComponent(usernameStr || '')}/variations`)
+        .then((r) => r.json())
+        .then((d) => setVariations(Array.isArray(d?.variations) ? d.variations : []))
+        .catch(() => setVariations([]))
+        .finally(() => { setVariationsLoading(false); setVariationsLoaded(true); });
+    }
+  }, [activeSection, profile?.id, usernameStr, clipsLoaded, clipsLoading, variationsLoaded, variationsLoading]);
+
+  // Inbox "Variations a valider" : uniquement pour le proprietaire du profil,
+  // jamais pour un visiteur. Vide si aucune variation n'est reellement en attente.
+  useEffect(() => {
+    if (!isOwnProfile || !profile?.id) return;
+    let mounted = true;
+    fetch('/api/remixes/pending', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (mounted) setPendingVariations(Array.isArray(d?.variations) ? d.variations : []);
+      })
+      .catch(() => {
+        if (mounted) setPendingVariations([]);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [isOwnProfile, profile?.id]);
+
+  const handleVariationDecided = (remixId: string) => {
+    setPendingVariations((current) => current.filter((item) => item.remixId !== remixId));
+    setVariationsLoaded(false);
+  };
+
+  // Destinations de notifications ("Mes variations" / "Variations a valider") :
+  // lues depuis l'URL au chargement, jamais via useSearchParams pour eviter une
+  // frontiere Suspense supplementaire sur une page deja entierement cote client.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !profile?.id) return;
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab && ['sons', 'clips', 'variations', 'playlists', 'posts'].includes(tab)) {
+      setActiveSection(tab as 'sons' | 'clips' | 'variations' | 'playlists' | 'posts');
+    }
+    if (isOwnProfile && params.get('openPendingVariations') === '1') {
+      setShowPendingModal(true);
+    }
+  }, [profile?.id, isOwnProfile]);
+
   const playlists = useMemo(() => (Array.isArray(profile?.playlists) ? profile.playlists : []), [profile]);
 
   const sortedTracks = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = (userTracks || []).filter((t) => String(t?.title || '').toLowerCase().includes(q));
+    const list = (userTracks || [])
+      .filter((t) => String(t?.title || '').toLowerCase().includes(q))
+      .filter((t) => !onlyDrafts || t.is_public === false);
     return [...list].sort((a, b) => {
       if (sortBy === 'plays') return (b.plays || 0) - (a.plays || 0);
       if (sortBy === 'likes') return (b.likes || 0) - (a.likes || 0);
       return new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime();
     });
-  }, [query, sortBy, userTracks]);
+  }, [query, sortBy, userTracks, onlyDrafts]);
 
   const topProfileTracks = useMemo(
     () => [...(userTracks || [])].sort((a, b) => (b.plays || 0) - (a.plays || 0)).slice(0, 3),
@@ -107,6 +180,31 @@ export default function SynauraProfile() {
   );
   const latestPost = useMemo(() => (Array.isArray(profile?.posts) ? profile.posts[0] : null), [profile?.posts]);
   const displayTracks = showAllTracks ? sortedTracks : sortedTracks.slice(0, 5);
+
+  // Mise en avant musicale : morceau epingle (is_featured) si deja marque comme
+  // tel par le createur, sinon le plus ecoute, sinon le plus recent. Aucune
+  // nouvelle logique de pinning n'est introduite ici.
+  const spotlightTrack = useMemo(() => {
+    const pool = (userTracks || []).filter((t) => isOwnProfile || t.is_public !== false);
+    if (!pool.length) return null;
+    const pinned = pool.find((t) => t.is_featured);
+    if (pinned) return pinned;
+    const mostPlayed = [...pool].sort((a, b) => (b.plays || 0) - (a.plays || 0))[0];
+    if (mostPlayed && (mostPlayed.plays || 0) > 0) return mostPlayed;
+    return [...pool].sort((a, b) => new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime())[0] || null;
+  }, [userTracks, isOwnProfile]);
+
+  // Signaux d'identite createur : uniquement deduits des permissions reelles deja
+  // presentes sur les morceaux (aucun nouveau champ "disponible pour feat").
+  const acceptsVariations = useMemo(
+    () => (userTracks || []).some((t) => t.allow_ai_variation && t.remix_visibility && t.remix_visibility !== 'disabled'),
+    [userTracks],
+  );
+  const clipsAllowed = useMemo(
+    () => (userTracks || []).some((t) => t.allow_clips && t.remix_visibility && t.remix_visibility !== 'disabled'),
+    [userTracks],
+  );
+  const draftTracks = useMemo(() => (userTracks || []).filter((t) => t.is_public === false), [userTracks]);
 
   const closeCtx = useCallback(() => setCtxTrack(null), []);
   useEffect(() => { const h = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawerId(null); }; document.addEventListener('keydown', h); return () => document.removeEventListener('keydown', h); }, []);
@@ -356,6 +454,7 @@ export default function SynauraProfile() {
                         </span>
                       )}
                     </div>
+                    <p className="mt-1 text-sm font-bold text-white/50">@{profile.username}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {profile.isVerified ? <ProfileBadge label="Artiste vérifié" /> : null}
                       {userTracks.some((t) => t?.is_ai || String(t?.id || '').startsWith('ai-')) ? <ProfileBadge label="Créateur IA" /> : null}
@@ -363,6 +462,20 @@ export default function SynauraProfile() {
                       {topProfileTracks.length ? <ProfileBadge label="Remix actif" /> : null}
                       {selectedBadges.map((badge: string) => <ProfileBadge key={badge} label={badge} />)}
                     </div>
+                    {(acceptsVariations || clipsAllowed) && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {acceptsVariations ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#00c2cb]/25 bg-[#00c2cb]/10 px-3 py-1 text-[11px] font-black text-[#00c2cb]">
+                            <Repeat size={11} /> Accepte les variations
+                          </span>
+                        ) : null}
+                        {clipsAllowed ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#ff6f61]/25 bg-[#ff6f61]/10 px-3 py-1 text-[11px] font-black text-[#ff9d8f]">
+                            <Film size={11} /> Clips autorisés
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
                     {profile.artistName && <p className="mt-1 text-sm font-medium text-white/56">{profile.artistName}</p>}
                     <div className="mt-3 flex flex-wrap gap-2">
                       <StatPill value={fmtK(totalPlays)} label="ecoutes" />
@@ -428,9 +541,20 @@ export default function SynauraProfile() {
                       <HeroActionPrimary onClick={handleEdit}>
                         <Edit size={15} /> Modifier le profil
                       </HeroActionPrimary>
+                      <HeroActionSecondary onClick={() => router.push('/create')}>
+                        <Sparkles size={15} /> Créer
+                      </HeroActionSecondary>
                       <HeroActionSecondary onClick={() => router.push('/stats')}>
                         <BarChart3 size={15} /> Statistiques
                       </HeroActionSecondary>
+                      <HeroActionSecondary onClick={() => router.push(`/onboarding?edit=1&callbackUrl=${encodeURIComponent(`/profile/${usernameStr}`)}`)}>
+                        <SlidersHorizontal size={15} /> Personnaliser mes goûts
+                      </HeroActionSecondary>
+                      {pendingVariations.length > 0 ? (
+                        <HeroActionSecondary onClick={() => setShowPendingModal(true)}>
+                          <ListChecks size={15} /> Variations à valider
+                        </HeroActionSecondary>
+                      ) : null}
                       <HeroActionSecondary onClick={() => router.push('/settings')}>
                         <Settings size={15} /> Paramètres
                       </HeroActionSecondary>
@@ -473,6 +597,45 @@ export default function SynauraProfile() {
             </div>
           </div>
         </SynauraInkPanel>
+
+        {spotlightTrack ? (
+          <SynauraPanel className="overflow-hidden p-0">
+            <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
+              <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[1.4rem] bg-black/[0.06] shadow-[0_16px_40px_rgba(20,15,10,0.14)] sm:h-28 sm:w-28">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={spotlightTrack.cover_url || spotlightTrack.coverUrl || '/default-cover.svg'} alt="" className="h-full w-full object-cover" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#7357C6]">À écouter maintenant</p>
+                <p className="mt-1 truncate text-xl font-black tracking-tight text-[#171313]">{spotlightTrack.title}</p>
+                <p className="mt-1 text-xs font-bold text-black/42">{profile.artistName || profile.name} · {fmtN.format(spotlightTrack.plays || 0)} écoutes</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  onClick={() => handlePlayTrack(spotlightTrack)}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#7357C6] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
+                >
+                  <Play size={14} fill="white" /> Écouter
+                </button>
+                <button
+                  onClick={() => {
+                    addToUpNext({ _id: spotlightTrack.id, title: spotlightTrack.title, artist: spotlightTrack.artist || spotlightTrack.artist_name || profile.artistName || profile.name, audioUrl: spotlightTrack.audioUrl || spotlightTrack.audio_url, coverUrl: spotlightTrack.coverUrl || spotlightTrack.cover_url, duration: spotlightTrack.duration, album: null, likes: spotlightTrack.likes || 0, comments: [], plays: spotlightTrack.plays || 0, genre: spotlightTrack.genre || [], isLiked: spotlightTrack.isLiked || false } as any, 'end');
+                    notify.success('Bibliothèque', `${spotlightTrack.title} ajouté à ta file.`);
+                  }}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-black/[0.08] bg-black/[0.045] px-4 text-sm font-black text-black/62 transition hover:bg-[#171313] hover:text-white"
+                >
+                  <ListPlus size={14} /> Ajouter
+                </button>
+                <button
+                  onClick={() => router.push(`/track/${spotlightTrack.id}`)}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-black/[0.08] bg-black/[0.045] px-4 text-sm font-black text-black/62 transition hover:bg-[#171313] hover:text-white"
+                >
+                  <ArrowUpRight size={14} />
+                </button>
+              </div>
+            </div>
+          </SynauraPanel>
+        ) : null}
 
         <SynauraPanel className="p-4 sm:p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -545,33 +708,62 @@ export default function SynauraProfile() {
 
             {isOwnProfile && (
               <SynauraPanel className="p-4 sm:p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Raccourcis</p>
-                    <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">Piloter ton espace</h2>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Accès rapides</p>
+                    <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">Ton espace</h2>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 sm:flex">
-                    <button onClick={() => router.push('/upload')} className="inline-flex items-center justify-center gap-2 rounded-full bg-black/[0.055] px-4 py-2.5 text-xs font-black text-black/62 transition hover:bg-black hover:text-white sm:text-sm">
-                      <Upload size={15} /> <span className="hidden sm:inline">Uploader</span>
-                    </button>
-                    <button onClick={() => router.push('/ai-generator')} className="inline-flex items-center justify-center gap-2 rounded-full bg-black/[0.055] px-4 py-2.5 text-xs font-black text-black/62 transition hover:bg-black hover:text-white sm:text-sm">
-                      <Sparkles size={15} /> <span className="hidden sm:inline">Studio</span>
-                    </button>
-                    <button onClick={() => router.push('/library')} className="inline-flex items-center justify-center gap-2 rounded-full bg-black/[0.055] px-4 py-2.5 text-xs font-black text-black/62 transition hover:bg-black hover:text-white sm:text-sm">
-                      <Library size={15} /> <span className="hidden sm:inline">Bibliothèque</span>
-                    </button>
-                  </div>
+                  <button onClick={() => router.push('/create')} className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#7357C6] px-4 text-xs font-black text-white transition hover:scale-[1.02] sm:text-sm">
+                    <Sparkles size={14} /> Créer
+                  </button>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <QuickAccessRow icon={Music2} label="Mes créations" text={`${userTracks.length} son${userTracks.length !== 1 ? 's' : ''}`} onClick={() => setActiveSection('sons')} />
+                  <QuickAccessRow icon={Film} label="Mes Clips" text="Vidéos publiées" onClick={() => setActiveSection('clips')} />
+                  <QuickAccessRow icon={Repeat} label="Mes variations" text="Créations IA inspirées" onClick={() => setActiveSection('variations')} />
+                  <QuickAccessRow icon={Library} label="Ma bibliothèque" text="Favoris, playlists, écoutes" onClick={() => router.push('/library')} />
+                  {draftTracks.length > 0 ? (
+                    <QuickAccessRow icon={FileEdit} label="Mes brouillons" text={`${draftTracks.length} non publié${draftTracks.length !== 1 ? 's' : ''}`} onClick={() => { setOnlyDrafts(true); setActiveSection('sons'); }} />
+                  ) : null}
                 </div>
               </SynauraPanel>
             )}
 
+            <SynauraPanel className="p-2 sm:p-2.5">
+              <div className="synaura-no-scrollbar flex gap-1.5 overflow-x-auto">
+                {([
+                  ['sons', 'Sons'],
+                  ['clips', 'Clips'],
+                  ['variations', 'Variations'],
+                  ['playlists', 'Playlists'],
+                  ['posts', 'Posts'],
+                ] as const).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setActiveSection(key)}
+                    className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-black transition ${
+                      activeSection === key ? 'bg-[#171313] text-white' : 'bg-black/[0.045] text-black/56 hover:bg-black/[0.08] hover:text-[#171313]'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </SynauraPanel>
+
+            {activeSection === 'sons' && (
             <SynauraPanel className="p-4 sm:p-5">
               <div className="flex flex-col gap-4 border-b border-black/[0.08] pb-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Musique</p>
-                  <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">Titres populaires</h2>
+                  <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">{onlyDrafts ? 'Brouillons' : 'Sons'}</h2>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  {onlyDrafts && (
+                    <button onClick={() => setOnlyDrafts(false)} className="rounded-full bg-black/[0.06] px-3 py-1.5 text-[11px] font-black text-black/52 hover:bg-black hover:text-white">
+                      Voir tous les sons
+                    </button>
+                  )}
                   <div className="flex items-center gap-1 rounded-full bg-black/[0.05] p-1">
                     {([['plays', 'Top'], ['recent', 'Recent'], ['likes', 'Likes']] as const).map(([key, label]) => (
                       <button
@@ -687,13 +879,112 @@ export default function SynauraProfile() {
                 </div>
               )}
             </SynauraPanel>
+            )}
 
-            {playlists.length > 0 && (
+            {activeSection === 'clips' && (
+              <SynauraPanel className="p-4 sm:p-5">
+                <div className="mb-4">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Vidéos</p>
+                  <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">Clips</h2>
+                </div>
+                {clipsLoading ? (
+                  <div className="py-16 text-center text-sm text-black/40">Chargement des clips…</div>
+                ) : clips.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-[1.35rem] bg-black/[0.05] text-black/22">
+                      <Film size={28} />
+                    </div>
+                    <p className="text-sm text-black/48">{isOwnProfile ? "Tu n'as pas encore publié de clip." : "Aucun clip publié."}</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                    {clips.map((clip: any) => (
+                      <button
+                        key={clip.id}
+                        onClick={() => router.push(clip.sourceTrack?.sourceTrackId ? `/?sourceTrackId=${encodeURIComponent(clip.sourceTrack.sourceTrackId)}` : '/')}
+                        className="group overflow-hidden rounded-[1.25rem] border border-black/[0.06] bg-black/[0.03] text-left transition hover:-translate-y-0.5 hover:border-black/[0.1]"
+                      >
+                        <div className="relative aspect-[9/16] overflow-hidden bg-black/[0.08]">
+                          {clip.posterUrl ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={clip.posterUrl} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" loading="lazy" />
+                          ) : null}
+                          <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_55%,rgba(23,19,19,0.72)_100%)]" />
+                          <div className="absolute bottom-2 left-2 right-2">
+                            <p className="truncate text-xs font-black text-white">{clip.sourceTrack?.title || 'Clip'}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </SynauraPanel>
+            )}
+
+            {activeSection === 'variations' && (
+              <SynauraPanel className="p-4 sm:p-5">
+                <div className="mb-4">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Créations IA</p>
+                  <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">Variations</h2>
+                </div>
+                {variationsLoading ? (
+                  <div className="py-16 text-center text-sm text-black/40">Chargement des variations…</div>
+                ) : variations.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-[1.35rem] bg-black/[0.05] text-black/22">
+                      <Repeat size={28} />
+                    </div>
+                    <p className="text-sm text-black/48">{isOwnProfile ? "Tu n'as pas encore publié de variation." : 'Aucune variation publiée.'}</p>
+                  </div>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    {variations.map((v: any) => (
+                      <div
+                        key={v.id}
+                        className="group flex cursor-pointer items-center gap-3 rounded-[1.35rem] border border-black/[0.06] bg-black/[0.025] px-3 py-3 transition hover:border-black/[0.10] hover:bg-black/[0.045]"
+                        onClick={() => router.push(`/track/${v.id}`)}
+                      >
+                        <div className="h-12 w-12 overflow-hidden rounded-[1rem] bg-black/[0.06]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={v.coverUrl || '/default-cover.svg'} alt="" className="h-full w-full object-cover" loading="lazy" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-black text-[#171313]">{v.title}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-black/42">
+                            <span className="inline-flex rounded-full bg-[#7c5cff]/12 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#7c5cff]">IA</span>
+                            {isOwnProfile && v.status === 'pending_approval' ? (
+                              <span className="inline-flex rounded-full bg-[#C99B48]/14 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#8a6a2f]">En attente de validation</span>
+                            ) : null}
+                            {isOwnProfile && v.status === 'rejected' ? (
+                              <span className="inline-flex rounded-full bg-[#D96D63]/14 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#9b352e]">Refusée</span>
+                            ) : null}
+                            {isOwnProfile && v.status === 'published' ? (
+                              <span className="inline-flex rounded-full bg-[#2E9D68]/14 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-[#1f6e48]">Publiée</span>
+                            ) : null}
+                            <span>{fmtN.format(v.plays || 0)} ecoutes</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </SynauraPanel>
+            )}
+
+            {activeSection === 'playlists' && (
               <SynauraPanel className="p-4 sm:p-5">
                 <div className="mb-4">
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Collections</p>
                   <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">Playlists</h2>
                 </div>
+                {playlists.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-[1.35rem] bg-black/[0.05] text-black/22">
+                      <Disc3 size={28} />
+                    </div>
+                    <p className="text-sm text-black/48">{isOwnProfile ? "Tu n'as pas encore de playlist publique." : 'Aucune playlist publique.'}</p>
+                  </div>
+                ) : (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {playlists.filter((p: any) => p?.id || p?._id).map((p: any) => {
                     const pid = String(p.id || p._id);
@@ -721,9 +1012,11 @@ export default function SynauraProfile() {
                     );
                   })}
                 </div>
+                )}
               </SynauraPanel>
             )}
 
+            {activeSection === 'posts' && (
             <SynauraPanel className="overflow-hidden p-0">
               <div className="border-b border-black/[0.08] bg-[linear-gradient(135deg,#fffaf2_0%,#f4ecff_52%,#ebfbff_100%)] px-4 py-5 sm:px-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -752,6 +1045,7 @@ export default function SynauraProfile() {
                 showComposer={isOwnProfile}
               />
             </SynauraPanel>
+            )}
 
             {!session && (
               <SynauraPanel className="border-[#ff6f61]/18 bg-[#fff7ec] p-6 text-center shadow-[0_22px_70px_rgba(44,33,19,0.12)] sm:p-7">
@@ -926,6 +1220,13 @@ export default function SynauraProfile() {
         </UModalBody>
       </UModal>
 
+      <PendingApprovalsModal
+        open={showPendingModal}
+        onClose={() => setShowPendingModal(false)}
+        items={pendingVariations}
+        onDecided={handleVariationDecided}
+      />
+
       <UModal open={showShareModal} onClose={() => setShowShareModal(false)}>
         <UModalBody>
           <div className="mb-4 flex items-center gap-3">
@@ -1043,6 +1344,24 @@ function StatPill({ value, label }: { value: string; label: string }) {
       <div className="text-sm font-black leading-none">{value}</div>
       <div className="mt-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/45">{label}</div>
     </div>
+  );
+}
+
+function QuickAccessRow({ icon: Icon, label, text, onClick }: { icon: any; label: string; text: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-3 rounded-[1.25rem] border border-black/[0.06] bg-black/[0.025] px-4 py-3 text-left transition hover:border-black/[0.1] hover:bg-black/[0.045]"
+    >
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[1rem] bg-black/[0.06] text-black/56">
+        <Icon size={17} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-black text-[#171313]">{label}</p>
+        <p className="truncate text-xs font-semibold text-black/42">{text}</p>
+      </div>
+      <ArrowUpRight size={14} className="shrink-0 text-black/30" />
+    </button>
   );
 }
 

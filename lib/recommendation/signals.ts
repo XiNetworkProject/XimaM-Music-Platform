@@ -1,4 +1,5 @@
 import type { UserRecommendationSignals } from './types';
+import { DISCOVER_MOODS } from '../discoverMoods';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -52,7 +53,7 @@ export async function buildUserRecommendationSignals({
   const since14 = new Date(now - 14 * DAY).toISOString();
   const since72 = new Date(now - 3 * DAY).toISOString();
 
-  const [followsRes, recentEventsRes, likesRes, postLikesRes, postCommentsRes] = await Promise.all([
+  const [followsRes, recentEventsRes, likesRes, postLikesRes, postCommentsRes, profileRes] = await Promise.all([
     supabase.from('user_follows').select('following_id').eq('follower_id', userId).limit(1000),
     supabase
       .from('track_events')
@@ -65,6 +66,7 @@ export async function buildUserRecommendationSignals({
     supabase.from('track_likes').select('track_id').eq('user_id', userId).limit(500),
     supabase.from('post_likes').select('post_id').eq('user_id', userId).limit(500),
     supabase.from('post_comments').select('post_id').eq('user_id', userId).limit(500),
+    supabase.from('profiles').select('preferences').eq('id', userId).single(),
   ]);
 
   try {
@@ -209,6 +211,23 @@ export async function buildUserRecommendationSignals({
       const { data: posts } = await supabase.from('creator_posts').select('id, creator_id').in('id', postIds);
       for (const post of posts || []) {
         if (post.creator_id) signals.followedPostCreatorIds.add(String(post.creator_id));
+      }
+    }
+  } catch {}
+
+  // Amorce "a froid" issue de l'onboarding : un poids modeste, ecrase naturellement
+  // par le comportement reel (chaque ecoute/like pese 1.5 a 5) des qu'il y en a.
+  try {
+    const onboarding = (profileRes as any)?.data?.preferences?.onboarding;
+    if (onboarding && typeof onboarding === 'object') {
+      for (const genre of normalizeGenres(onboarding.favoriteGenres)) {
+        inc(signals.preferredGenres, genre, 1);
+      }
+      const favoriteMoods: unknown[] = Array.isArray(onboarding.favoriteMoods) ? onboarding.favoriteMoods : [];
+      for (const moodId of favoriteMoods) {
+        const mood = DISCOVER_MOODS.find((item) => item.id === moodId);
+        if (!mood || mood.isAiOnly) continue;
+        for (const keyword of mood.keywords) inc(signals.preferredGenres, keyword, 1);
       }
     }
   } catch {}

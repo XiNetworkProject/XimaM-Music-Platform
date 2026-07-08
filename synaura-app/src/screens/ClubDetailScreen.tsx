@@ -22,6 +22,7 @@ import {
   createCommunityReply,
   getCommunityPosts,
   getCommunityReplies,
+  getMusicChallenges,
   likeCommunityPost,
 } from '@/api/client';
 import type { CommunityPost, CommunityReply, Track } from '@/api/types';
@@ -41,6 +42,9 @@ function relativeDate(value: string) {
   if (hours < 24) return `${hours} h`;
   return `${Math.floor(hours / 24)} j`;
 }
+
+// Un club "remix" (Remix Lab) affiche les défis Clip en cours ; "ai" (IA Lab) affiche les défis Variation IA.
+const CLUB_CHALLENGE_CONTENT_TYPE: Record<string, string> = { remix: 'clip', ai: 'variation' };
 
 function Avatar({ name, uri, size = 40 }: { name: string; uri?: string | null; size?: number }) {
   return (
@@ -64,8 +68,28 @@ export function ClubDetailScreen() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerTrack, setComposerTrack] = useState<Track | null>(null);
   const [activePost, setActivePost] = useState<CommunityPost | null>(null);
+  const [clubChallenge, setClubChallenge] = useState<{ id: string; title: string } | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const postsAnchorY = useRef(0);
+
+  useEffect(() => {
+    const contentType = club ? CLUB_CHALLENGE_CONTENT_TYPE[club.slug] : null;
+    if (!contentType) {
+      setClubChallenge(null);
+      return;
+    }
+    let mounted = true;
+    getMusicChallenges('active')
+      .then((challenges) => {
+        if (!mounted) return;
+        const match = challenges.find((challenge) => challenge.contentType === contentType);
+        setClubChallenge(match ? { id: match.id, title: match.title } : null);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [club]);
 
   // Entrées venues d'ailleurs (ShareSheet, CreateHub) : ouvre directement le composer,
   // avec un son préselectionné si fourni.
@@ -178,6 +202,22 @@ export function ClubDetailScreen() {
             ))}
           </View>
         </View>
+
+        {clubChallenge ? (
+          <Pressable
+            onPress={() => navigation.navigate('ChallengeDetail', { challengeId: clubChallenge.id })}
+            style={[styles.challengeBanner, { borderColor: `${club.accent}33` }]}
+          >
+            <View style={[styles.challengeIcon, { backgroundColor: club.accent }]}>
+              <Ionicons name="trophy" size={18} color="#FFFAF2" />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.challengeKicker}>DÉFI EN COURS</Text>
+              <Text numberOfLines={1} style={styles.challengeTitle}>{clubChallenge.title}</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={16} color={colors.textTertiary} />
+          </Pressable>
+        ) : null}
 
         <View onLayout={(event) => { postsAnchorY.current = event.nativeEvent.layout.y; }}>
           <Text style={styles.sectionTitle}>Discussions du Club</Text>
@@ -455,6 +495,10 @@ const styles = StyleSheet.create({
   bannerActionPrimaryText: { color: '#171313', fontSize: 12, fontWeight: '900' },
   bannerActionSecondary: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 11, backgroundColor: 'rgba(255,250,242,0.16)' },
   bannerActionSecondaryText: { color: '#FFFAF2', fontSize: 12, fontWeight: '900' },
+  challengeBanner: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, padding: 12, backgroundColor: colors.surface, borderWidth: 1 },
+  challengeIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  challengeKicker: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  challengeTitle: { marginTop: 2, color: colors.text, fontSize: 13, fontWeight: '900' },
   sectionTitle: { marginTop: 18, marginBottom: 4, color: '#171313', fontSize: 19, fontWeight: '900' },
   loadingState: { minHeight: 160, alignItems: 'center', justifyContent: 'center' },
   postCard: { position: 'relative', backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 13, marginBottom: 9, gap: 10 },

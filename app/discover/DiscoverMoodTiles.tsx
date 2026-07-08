@@ -20,18 +20,28 @@ export function MoodCard({
   mood,
   covers,
   onOpen,
+  highlighted = false,
 }: {
   mood: MoodConfig;
   covers: string[];
   onOpen: () => void;
+  highlighted?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onOpen}
       className="group relative flex min-h-[220px] w-full flex-col justify-end overflow-hidden rounded-[1.8rem] p-5 text-left shadow-[0_20px_60px_rgba(23,19,19,0.16)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_80px_rgba(23,19,19,0.24)] sm:min-h-[260px] sm:p-6"
-      style={{ background: `linear-gradient(150deg, ${mood.gradient[0]}, ${mood.gradient[1]})` }}
+      style={{
+        background: `linear-gradient(150deg, ${mood.gradient[0]}, ${mood.gradient[1]})`,
+        boxShadow: highlighted ? '0 0 0 2px #7357C6, 0 20px 60px rgba(23,19,19,0.16)' : undefined,
+      }}
     >
+      {highlighted ? (
+        <span className="absolute left-5 top-5 z-10 inline-flex items-center rounded-full bg-[#7357C6] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white">
+          Pour toi
+        </span>
+      ) : null}
       {covers.length ? (
         <div className="absolute inset-0 grid grid-cols-2 opacity-40 saturate-[1.05]">
           {covers.slice(0, 4).map((cover, index) => (

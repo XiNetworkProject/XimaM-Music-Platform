@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { remixPermissionsFromRow, type RemixVisibility } from '@/lib/remixPermissions';
+import { notifyRemixPendingApproval } from '@/lib/notifications';
 
 export type RemixTrackType = 'track' | 'ai_track';
 export type RemixStatus = 'draft' | 'pending_approval' | 'published' | 'rejected';
@@ -227,11 +228,23 @@ export async function applyRemixPublicationGuard(input: {
   });
   if (!permission.ok) throw new Error(permission.error);
 
+  const wasAlreadyPending = remixes.some((r: any) => r.status === 'pending_approval');
   const nextStatus: RemixStatus = permission.source.remixApprovalRequired ? 'pending_approval' : 'published';
   await supabaseAdmin
     .from('track_remixes')
     .update({ status: nextStatus, updated_at: new Date().toISOString() })
     .in('id', remixes.map((r: any) => r.id));
+
+  // Notifie le proprietaire du morceau source une seule fois par transition
+  // reelle vers "en attente" (pas a chaque republish identique, cf. dedupe sur
+  // related_id egalement cote createNotification).
+  if (nextStatus === 'pending_approval' && !wasAlreadyPending && permission.source.artistId) {
+    notifyRemixPendingApproval(
+      permission.source.artistId,
+      first.id,
+      `/profile/${encodeURIComponent(permission.source.artistUsername || permission.source.artistId)}?openPendingVariations=1`,
+    ).catch((error) => console.error('[notifications] remix_pending_approval failed', error));
+  }
 
   return { effectivePublic: nextStatus === 'published', remixStatus: nextStatus };
 }

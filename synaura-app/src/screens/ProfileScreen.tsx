@@ -12,23 +12,33 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { deleteTrack, getMyProfile, getSubscriptionUsage, getUserPosts, pinPost, unpinPost, updateTrackMetadata, type MobileProfile, type MobileProfileTrack, type SubscriptionUsage } from '@/api/client';
-import type { HomePost } from '@/api/types';
+import { deleteTrack, getMusicClips, getMyProfile, getNotifications, getPendingApprovals, getSubscriptionUsage, getUserPosts, getUserVariations, pinPost, unpinPost, updateTrackMetadata, type MobileProfile, type MobileProfileTrack, type SubscriptionUsage } from '@/api/client';
+import type { HomePost, MusicClip, PendingVariation, UserVariation } from '@/api/types';
 import { DEFAULT_REMIX_PERMISSIONS } from '@/api/types';
+import { PendingApprovalsModal } from '@/components/variations/PendingApprovalsModal';
 import { useAuth } from '@/auth/AuthProvider';
 import { TrackCover } from '@/components/TrackCover';
 import { CreatorLevelCard } from '@/components/events/SynauraEvents';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackEditBottomSheet, type TrackEditForm } from '@/components/profile/TrackEditBottomSheet';
 import { usePlayer } from '@/player/PlayerProvider';
+import { useLibrary } from '@/library/LibraryProvider';
 import { colors } from '@/theme/tokens';
 import { MobileBadge } from '@/components/mobile/MobileBadge';
 import { MobileSocialLinks } from '@/components/mobile/MobileSocialLinks';
 import { AppHeader } from '@/components/ui/AppHeader';
 
-type ProfileTab = 'posts' | 'sons' | 'albums' | 'about';
+type ProfileTab = 'sons' | 'clips' | 'variations' | 'playlists' | 'posts';
+
+const PROFILE_TAB_LABELS: Record<ProfileTab, string> = {
+  sons: 'Sons',
+  clips: 'Clips',
+  variations: 'Variations',
+  playlists: 'Playlists',
+  posts: 'Posts',
+};
 
 function compact(value: number) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
@@ -39,6 +49,7 @@ function compact(value: number) {
 export function ProfileScreen() {
   const auth = useAuth();
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const insets = useSafeAreaInsets();
   const player = usePlayer();
   const [error, setError] = useState<string | null>(null);
@@ -49,11 +60,43 @@ export function ProfileScreen() {
   const [trackForm, setTrackForm] = useState<TrackEditForm>({ title: '', description: '', genreText: '', tagsText: '', isPublic: true, remixPermissions: DEFAULT_REMIX_PERMISSIONS });
   const [trackSaving, setTrackSaving] = useState(false);
   const [posts, setPosts] = useState<HomePost[]>([]);
-  const [profileTab, setProfileTab] = useState<ProfileTab>('posts');
+  const [profileTab, setProfileTab] = useState<ProfileTab>('sons');
+  const [clips, setClips] = useState<MusicClip[]>([]);
+  const [clipsLoading, setClipsLoading] = useState(false);
+  const [clipsLoaded, setClipsLoaded] = useState(false);
+  const [variations, setVariations] = useState<UserVariation[]>([]);
+  const [variationsLoading, setVariationsLoading] = useState(false);
+  const [variationsLoaded, setVariationsLoaded] = useState(false);
+  const [pendingVariations, setPendingVariations] = useState<PendingVariation[]>([]);
+  const [showPendingModal, setShowPendingModal] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const library = useLibrary();
 
   const topTracks = useMemo(() => [...(profile?.tracks || [])].sort((a, b) => (b.plays || 0) - (a.plays || 0)).slice(0, 4), [profile?.tracks]);
   const recentTracks = useMemo(() => (profile?.tracks || []).slice(0, 6), [profile?.tracks]);
-  const featuredTrack = useMemo(() => profile?.tracks.find((track) => track._id === profile.featuredTrackId || track.rawId === profile.featuredTrackId || track.isFeatured) || profile?.tracks[0] || null, [profile]);
+  const draftTracks = useMemo(() => (profile?.tracks || []).filter((t) => t.isPublic === false), [profile?.tracks]);
+  // Mise en avant musicale : morceau epingle si deja marque comme tel, sinon le
+  // plus ecoute, sinon le plus recent. Aucune nouvelle logique de pinning.
+  const spotlightTrack = useMemo(() => {
+    const pool = profile?.tracks || [];
+    if (!pool.length) return null;
+    const pinned = pool.find((track) => track._id === profile?.featuredTrackId || track.rawId === profile?.featuredTrackId || track.isFeatured);
+    if (pinned) return pinned;
+    const mostPlayed = [...pool].sort((a, b) => (b.plays || 0) - (a.plays || 0))[0];
+    if (mostPlayed && (mostPlayed.plays || 0) > 0) return mostPlayed;
+    return pool[0] || null;
+  }, [profile]);
+  // Signaux d'identite createur : uniquement deduits des permissions reelles
+  // deja presentes sur les morceaux (pas de nouveau champ "disponible pour feat").
+  const acceptsVariations = useMemo(
+    () => (profile?.tracks || []).some((t: any) => t.allowAiVariation && t.remixVisibility && t.remixVisibility !== 'disabled'),
+    [profile],
+  );
+  const clipsAllowed = useMemo(
+    () => (profile?.tracks || []).some((t: any) => t.allowClips && t.remixVisibility && t.remixVisibility !== 'disabled'),
+    [profile],
+  );
+  const lastPlayed = library.recent[0] || null;
 
   const loadProfile = useCallback(async () => {
     if (!auth.user?.username) return;
@@ -78,6 +121,63 @@ export function ProfileScreen() {
   useEffect(() => {
     void loadProfile();
   }, [loadProfile]);
+
+  // Destination d'une notification ("Mes variations" / "Variations a valider") :
+  // params transmis par openInternalLink, appliques une seule fois a l'arrivee.
+  useEffect(() => {
+    if (route.params?.tab) setProfileTab(route.params.tab);
+    if (route.params?.openPendingVariations) setShowPendingModal(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    let mounted = true;
+    getNotifications()
+      .then((data) => { if (mounted) setUnreadNotifications(data.unread); })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [profile?.id]);
+
+  // Chargement paresseux : Clips et Variations ne sont recuperes que lorsque
+  // l'onglet correspondant est ouvert, pour eviter des appels systematiques.
+  useEffect(() => {
+    if (!profile?.id) return;
+    if (profileTab === 'clips' && !clipsLoaded && !clipsLoading) {
+      setClipsLoading(true);
+      getMusicClips({ creatorId: profile.id, limit: 40 })
+        .then((result) => setClips(result.clips))
+        .catch(() => setClips([]))
+        .finally(() => { setClipsLoading(false); setClipsLoaded(true); });
+    }
+    if (profileTab === 'variations' && !variationsLoaded && !variationsLoading && profile.username) {
+      setVariationsLoading(true);
+      getUserVariations(profile.username)
+        .then((next) => setVariations(next))
+        .catch(() => setVariations([]))
+        .finally(() => { setVariationsLoading(false); setVariationsLoaded(true); });
+    }
+  }, [profileTab, profile?.id, profile?.username, clipsLoaded, clipsLoading, variationsLoaded, variationsLoading]);
+
+  // Inbox "Variations a valider" : ecran du proprietaire uniquement (ProfileScreen
+  // n'affiche jamais un autre profil), vide si rien n'est reellement en attente.
+  useEffect(() => {
+    if (!profile?.id) return;
+    let mounted = true;
+    getPendingApprovals()
+      .then((next) => { if (mounted) setPendingVariations(next); })
+      .catch(() => { if (mounted) setPendingVariations([]); });
+    return () => {
+      mounted = false;
+    };
+  }, [profile?.id]);
+
+  const handleVariationDecided = (remixId: string) => {
+    setPendingVariations((current) => current.filter((item) => item.remixId !== remixId));
+    setVariationsLoaded(false);
+  };
 
   const shareProfile = async () => {
     if (!profile) return;
@@ -250,32 +350,76 @@ export function ProfileScreen() {
           </View>
         ) : null}
 
-        {featuredTrack ? (
-          <Pressable onPress={() => player.playTrack(featuredTrack)} style={styles.featured}>
-            <TrackCover track={featuredTrack} style={styles.featuredCover} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.featuredKicker}>SON VEDETTE</Text>
-              <Text numberOfLines={1} style={styles.featuredTitle}>{featuredTrack.title}</Text>
-              <Text style={styles.featuredMeta}>{compact(featuredTrack.plays || 0)} écoutes · {compact(featuredTrack.likesCount || 0)} likes</Text>
-            </View>
+        {spotlightTrack ? (
+          <View style={styles.featured}>
+            <Pressable onPress={() => player.playTrack(spotlightTrack)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+              <TrackCover track={spotlightTrack} style={styles.featuredCover} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.featuredKicker}>À ÉCOUTER MAINTENANT</Text>
+                <Text numberOfLines={1} style={styles.featuredTitle}>{spotlightTrack.title}</Text>
+                <Text style={styles.featuredMeta}>{compact(spotlightTrack.plays || 0)} écoutes · {compact(spotlightTrack.likesCount || 0)} likes</Text>
+              </View>
+            </Pressable>
             <View style={styles.featuredPlay}><Ionicons name="play" size={17} color="#FFFAF2" /></View>
+          </View>
+        ) : null}
+
+        {(acceptsVariations || clipsAllowed) ? (
+          <View style={styles.identityRow}>
+            {acceptsVariations ? (
+              <View style={[styles.identityPill, styles.identityPillCyan]}>
+                <Ionicons name="repeat" size={12} color="#00838a" />
+                <Text style={[styles.identityPillText, { color: '#00838a' }]}>Accepte les variations</Text>
+              </View>
+            ) : null}
+            {clipsAllowed ? (
+              <View style={[styles.identityPill, styles.identityPillCoral]}>
+                <Ionicons name="film" size={12} color="#b8463c" />
+                <Text style={[styles.identityPillText, { color: '#b8463c' }]}>Clips autorisés</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {lastPlayed ? (
+          <Pressable onPress={() => player.playTrack(lastPlayed)} style={styles.resumeCard}>
+            <TrackCover track={lastPlayed} style={styles.featuredCover} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.resumeKicker}>CONTINUER À ÉCOUTER</Text>
+              <Text numberOfLines={1} style={styles.resumeTitle}>{lastPlayed.title}</Text>
+            </View>
+            <Ionicons name="play" size={16} color="#171313" />
           </Pressable>
         ) : null}
 
-        <View style={styles.profileTabs}>
-          {(['posts', 'sons', 'albums', 'about'] as ProfileTab[]).map((item) => (
-            <Pressable key={item} onPress={() => setProfileTab(item)} style={[styles.profileTab, profileTab === item && styles.profileTabActive]}>
-              <Text style={[styles.profileTabText, profileTab === item && styles.profileTabTextActive]}>{item}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {profileTab === 'about' ? <>
         <View style={styles.quickGrid}>
-          <QuickAction icon="settings-outline" title="Paramètres" text="Profil, compte, sécurité" onPress={() => navigation.navigate('Settings')} />
-          <QuickAction icon="add-circle-outline" title="Créer" text="Studio IA, upload et posts" onPress={() => navigation.navigate('CreateHub')} />
-          <QuickAction icon="library-outline" title="Bibliothèque" text="Favoris et playlists" onPress={() => navigation.navigate('Library')} />
-          <QuickAction icon="person-add-outline" title="Profil public" text="Voir comme visiteur" onPress={() => profile && navigation.navigate('PublicProfile', { username: profile.username })} />
+          <QuickAction icon="musical-notes-outline" title="Mes créations" text={`${profile?.tracksCount || 0} son${(profile?.tracksCount || 0) !== 1 ? 's' : ''}`} onPress={() => setProfileTab('sons')} />
+          <QuickAction icon="film-outline" title="Mes Clips" text="Vidéos publiées" onPress={() => setProfileTab('clips')} />
+          <QuickAction icon="repeat-outline" title="Mes variations" text="Créations IA inspirées" onPress={() => setProfileTab('variations')} />
+          {pendingVariations.length > 0 ? (
+            <QuickAction
+              icon="checkmark-done-outline"
+              title="Variations à valider"
+              text={`${pendingVariations.length} en attente`}
+              onPress={() => setShowPendingModal(true)}
+            />
+          ) : null}
+          <QuickAction
+            icon="notifications-outline"
+            title="Notifications"
+            text={unreadNotifications > 0 ? `${unreadNotifications} non lue${unreadNotifications > 1 ? 's' : ''}` : 'À jour'}
+            onPress={() => navigation.navigate('Notifications')}
+          />
+          <QuickAction icon="library-outline" title="Ma bibliothèque" text="Favoris, playlists, écoutes" onPress={() => navigation.navigate('Library')} />
+          <QuickAction
+            icon="options-outline"
+            title="Mes goûts"
+            text="Univers & intentions"
+            onPress={() => navigation.getParent()?.navigate('Onboarding', { edit: true })}
+          />
+          {draftTracks.length > 0 ? (
+            <QuickAction icon="document-text-outline" title="Mes brouillons" text={`${draftTracks.length} non publié${draftTracks.length !== 1 ? 's' : ''}`} onPress={() => setProfileTab('sons')} />
+          ) : null}
         </View>
 
         {usage ? (
@@ -286,12 +430,54 @@ export function ProfileScreen() {
             <View style={styles.planLink}><Text style={styles.planLinkText}>Comparer et gérer les plans</Text><Ionicons name="arrow-forward" size={16} color="#7C5CFF" /></View>
           </Pressable>
         ) : null}
-        </> : null}
+
+        <View style={styles.profileTabs}>
+          {(['sons', 'clips', 'variations', 'playlists', 'posts'] as ProfileTab[]).map((item) => (
+            <Pressable key={item} onPress={() => setProfileTab(item)} style={[styles.profileTab, profileTab === item && styles.profileTabActive]}>
+              <Text style={[styles.profileTabText, profileTab === item && styles.profileTabTextActive]}>{PROFILE_TAB_LABELS[item]}</Text>
+            </Pressable>
+          ))}
+        </View>
 
         {profileTab === 'sons' ? <>
         <TrackSection title="Top tracks" tracks={topTracks} onPlay={(track) => player.playTrack(track)} onEdit={openTrackEdit} onDelete={confirmDeleteTrack} />
         <TrackSection title="Derniers sons" tracks={recentTracks} onPlay={(track) => player.playTrack(track)} onEdit={openTrackEdit} onDelete={confirmDeleteTrack} />
         </> : null}
+
+        {profileTab === 'clips' ? (
+        <View style={styles.card}>
+          <SectionTitle title="Clips" action={clips.length ? `${clips.length}` : undefined} />
+          {clipsLoading ? <Empty text="Chargement…" /> : clips.length ? (
+            <View style={styles.clipsGrid}>
+              {clips.map((clip) => (
+                <Pressable key={clip.id} onPress={() => navigation.navigate('Swipe', { mode: 'clips', sourceTrackId: clip.sourceTrackId })} style={styles.clipTile}>
+                  {clip.posterUrl ? <Image source={{ uri: clip.posterUrl }} style={StyleSheet.absoluteFillObject} /> : null}
+                  <View style={styles.clipTileOverlay}><Text numberOfLines={1} style={styles.clipTileTitle}>{clip.sourceTrack?.title || 'Clip'}</Text></View>
+                </Pressable>
+              ))}
+            </View>
+          ) : <Empty text="Tu n'as pas encore publié de clip." />}
+        </View>
+        ) : null}
+
+        {profileTab === 'variations' ? (
+        <View style={styles.card}>
+          <SectionTitle title="Variations" action={variations.length ? `${variations.length}` : undefined} />
+          {variationsLoading ? <Empty text="Chargement…" /> : variations.length ? variations.map((v) => (
+            <Pressable key={v.id} onPress={() => navigation.navigate('TrackDetail', { trackId: v.id })} style={styles.trackRow}>
+              {v.coverUrl ? <Image source={{ uri: v.coverUrl }} style={styles.trackCover} /> : <View style={styles.trackCover} />}
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text numberOfLines={1} style={styles.trackTitle}>{v.title}</Text>
+                <Text style={styles.trackMeta}>IA · {compact(v.plays || 0)} écoutes</Text>
+                {v.status === 'pending_approval' ? <Text style={[styles.variationStatus, { color: '#8a6a2f' }]}>En attente de validation</Text> : null}
+                {v.status === 'rejected' ? <Text style={[styles.variationStatus, { color: '#9b352e' }]}>Refusée</Text> : null}
+                {v.status === 'published' ? <Text style={[styles.variationStatus, { color: '#1f6e48' }]}>Publiée</Text> : null}
+              </View>
+              <Ionicons name="play" size={16} color="#171313" />
+            </Pressable>
+          )) : <Empty text="Tu n'as pas encore publié de variation." />}
+        </View>
+        ) : null}
 
         {profileTab === 'posts' ? (
         <View style={styles.card}>
@@ -312,9 +498,9 @@ export function ProfileScreen() {
         </View>
         ) : null}
 
-        {profileTab === 'albums' ? (
+        {profileTab === 'playlists' ? (
         <View style={styles.card}>
-          <SectionTitle title="Albums & playlists" action={`${profile?.playlists.length || 0}`} />
+          <SectionTitle title="Playlists" action={`${profile?.playlists.length || 0}`} />
           {profile?.playlists.length ? profile.playlists.slice(0, 4).map((playlist) => (
             <View key={playlist.id} style={styles.playlistRow}>
               <View style={styles.playlistCover}>{playlist.coverUrl ? <Image source={{ uri: playlist.coverUrl }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={20} color="rgba(23,19,19,0.42)" />}</View>
@@ -323,7 +509,7 @@ export function ProfileScreen() {
                 <Text style={styles.playlistMeta}>{playlist.tracksCount} sons {playlist.isAlbum ? '· Album' : ''}</Text>
               </View>
             </View>
-          )) : <Empty text="Aucun album ou playlist pour le moment." />}
+          )) : <Empty text="Aucune playlist pour le moment." />}
         </View>
         ) : null}
 
@@ -336,6 +522,12 @@ export function ProfileScreen() {
         onClose={() => setEditingTrack(null)}
         onSave={saveTrackEdit}
         onDelete={() => editingTrack && confirmDeleteTrack(editingTrack)}
+      />
+      <PendingApprovalsModal
+        visible={showPendingModal}
+        onClose={() => setShowPendingModal(false)}
+        items={pendingVariations}
+        onDecided={handleVariationDecided}
       />
     </SynauraBackground>
   );
@@ -490,6 +682,7 @@ const styles = StyleSheet.create({
   trackCover: { width: 50, height: 50, borderRadius: 15 },
   trackTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
   trackMeta: { marginTop: 3, color: 'rgba(23,19,19,0.45)', fontSize: 10, fontWeight: '800' },
+  variationStatus: { marginTop: 2, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
   miniIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.055)' },
   visibilityToggle: { height: 46, borderRadius: 23, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(23,19,19,0.055)' },
   visibilityText: { color: '#171313', fontSize: 13, fontWeight: '900' },
@@ -510,4 +703,16 @@ const styles = StyleSheet.create({
   emptyActionText: { color: '#5B3FD6', fontSize: 11, fontWeight: '900' },
   empty: { borderRadius: 18, padding: 14, backgroundColor: 'rgba(23,19,19,0.045)', color: 'rgba(23,19,19,0.48)', fontSize: 12, fontWeight: '800', textAlign: 'center' },
   error: { overflow: 'hidden', borderRadius: 16, padding: 12, backgroundColor: 'rgba(239,68,68,0.1)', color: colors.danger, fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  identityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  identityPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1 },
+  identityPillCyan: { backgroundColor: 'rgba(0,194,203,0.10)', borderColor: 'rgba(0,194,203,0.25)' },
+  identityPillCoral: { backgroundColor: 'rgba(255,111,97,0.10)', borderColor: 'rgba(255,111,97,0.25)' },
+  identityPillText: { fontSize: 10, fontWeight: '900' },
+  resumeCard: { minHeight: 66, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 9, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  resumeKicker: { color: '#7357C6', fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
+  resumeTitle: { marginTop: 3, color: '#171313', fontSize: 13, fontWeight: '900' },
+  clipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  clipTile: { width: '31%', aspectRatio: 9 / 16, borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.08)' },
+  clipTileOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 6, backgroundColor: 'rgba(23,19,19,0.55)' },
+  clipTileTitle: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
 });

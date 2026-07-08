@@ -13,6 +13,7 @@ import {
   sanitizeClipOffset,
   sanitizeClipTags,
 } from '@/lib/musicClips';
+import { notifyClipUsedSource } from '@/lib/notifications';
 
 function cleanText(value: unknown, max = 280) {
   if (typeof value !== 'string') return undefined;
@@ -85,6 +86,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: 'Un clip doit durer entre 15 et 60 secondes' }, { status: 422 });
     }
 
+    let notifySourceOwnerId: string | null = null;
+    let notifySourceTrackUrl = '';
+
     if (body.visibility !== undefined) {
       const nextVisibility = String(body.visibility);
       if (!['draft', 'published', 'hidden'].includes(nextVisibility)) {
@@ -106,6 +110,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
           return NextResponse.json({ error: 'Miniature video introuvable' }, { status: 422 });
         }
         update.poster_url = nextPosterUrl;
+
+        // Notifie le proprietaire du morceau source uniquement lors de la vraie
+        // transition vers "publie" (pas a chaque edition ulterieure), et jamais
+        // s'il s'agit de son propre morceau.
+        if (existing.visibility !== 'published' && permission.source.artist._id && permission.source.artist._id !== userId) {
+          notifySourceOwnerId = permission.source.artist._id;
+          notifySourceTrackUrl = permission.source.trackUrl;
+        }
       }
       update.visibility = nextVisibility;
     }
@@ -118,6 +130,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       .single();
     if (error) throw error;
     const [clip] = await formatMusicClips([data], { viewerId: userId });
+
+    if (notifySourceOwnerId) {
+      const creatorName = (data as any)?.creator?.name || (data as any)?.creator?.username || 'Quelqu\'un';
+      notifyClipUsedSource(userId, notifySourceOwnerId, creatorName, params.id, notifySourceTrackUrl).catch((err) =>
+        console.error('[notifications] clip_used_source failed', err),
+      );
+    }
+
     return NextResponse.json({ clip });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Impossible de modifier le clip' }, { status: 500 });

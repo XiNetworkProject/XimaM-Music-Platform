@@ -21,6 +21,7 @@ import {
   getArtistFollowState,
   getCommentsCount,
   getEditorialCollections,
+  getMusicChallenges,
   getMusicClips,
   getPlaylistDetail,
   getPopularArtists,
@@ -46,6 +47,7 @@ import {
   buildArtistSpotlightItems,
   buildChallengeItem,
   buildCollectionItems,
+  buildMusicChallengeItem,
   composeScrollFeed,
   type ScrollFeedItem,
 } from '@/components/swipe/feedTypes';
@@ -98,6 +100,7 @@ export function SwipeScreen() {
   const [popularUsers, setPopularUsers] = useState<any[]>([]);
   const [collectionsRaw, setCollectionsRaw] = useState<any[]>([]);
   const [cityEvents, setCityEvents] = useState<any[]>([]);
+  const [musicChallenges, setMusicChallenges] = useState<any[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [cursor, setCursor] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -133,6 +136,7 @@ export function SwipeScreen() {
   const headerOpacity = useRef(new Animated.Value(1)).current;
   const lastCommittedIndexRef = useRef(0);
   const activeIndexRef = useRef(0);
+  const clipOffsetSeekedRef = useRef<string | null>(null);
   const dragStartOffsetRef = useRef(0);
   const switchFeedMode = useCallback((nextMode: FeedMode) => {
     if (nextMode === feedMode) return;
@@ -155,7 +159,7 @@ export function SwipeScreen() {
     }
     const artistItems = buildArtistSpotlightItems(popularUsers, tracks, 3);
     const collectionItems = buildCollectionItems(collectionsRaw, 2);
-    const challenge = buildChallengeItem(cityEvents);
+    const challenge = buildMusicChallengeItem(musicChallenges) || buildChallengeItem(cityEvents);
     const announcement = buildAnnouncementItem(cityEvents);
     return composeScrollFeed({
       tracks,
@@ -165,7 +169,7 @@ export function SwipeScreen() {
       challenge: challenge?.item || null,
       announcement: announcement?.item || null,
     });
-  }, [feedMode, tracks, clips, popularUsers, collectionsRaw, cityEvents]);
+  }, [feedMode, tracks, clips, popularUsers, collectionsRaw, cityEvents, musicChallenges]);
 
   const playableQueue = useMemo(() => {
     return feedItems
@@ -258,6 +262,7 @@ export function SwipeScreen() {
     void getPopularArtists(20).then((users) => { if (mounted) setPopularUsers(users); });
     void getEditorialCollections().then((collections) => { if (mounted) setCollectionsRaw(collections); });
     void getSynauraCity().then((city) => { if (mounted && Array.isArray(city?.events)) setCityEvents(city.events); }).catch(() => {});
+    void getMusicChallenges('active').then((challenges) => { if (mounted) setMusicChallenges(challenges); }).catch(() => {});
     return () => {
       mounted = false;
     };
@@ -332,6 +337,21 @@ export function SwipeScreen() {
       }
     });
   }, [player.current?._id, loadState, feedItems]);
+
+  // Un Clip a un point de depart choisi par son createur a la publication
+  // (sourceTrackOffsetSeconds) : des que le son du morceau original devient la
+  // piste active, on le positionne a cet instant pour rester synchro avec la
+  // video (ref unique par clip pour ne recaler qu'une seule fois).
+  useEffect(() => {
+    const item = feedItems[activeIndex];
+    if (!item || item.kind !== 'clip') return;
+    const offset = item.clip.sourceTrackOffsetSeconds || 0;
+    if (offset <= 0) return;
+    if (player.current?._id !== item.track._id) return;
+    if (clipOffsetSeekedRef.current === item.clip.id) return;
+    clipOffsetSeekedRef.current = item.clip.id;
+    void player.seekTo(offset);
+  }, [activeIndex, feedItems, player]);
 
   // (4) Recuperer batch des compteurs commentaires
   useEffect(() => {
@@ -678,6 +698,7 @@ export function SwipeScreen() {
     }
 
     if (item.kind === 'challenge') {
+      const isMusicChallenge = item.id.startsWith('music-challenge-');
       return (
         <ChallengeSlide
           challenge={item.challenge}
@@ -685,7 +706,9 @@ export function SwipeScreen() {
           topPad={insets.top}
           bottomPad={tabBarHeight}
           isActive={isActive}
-          onOpen={() => navigation.navigate('City')}
+          onOpen={() => (isMusicChallenge
+            ? navigation.navigate('ChallengeDetail', { challengeId: item.challenge.id })
+            : navigation.navigate('City'))}
         />
       );
     }

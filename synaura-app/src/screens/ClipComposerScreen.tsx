@@ -7,7 +7,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   createMusicClipDraft,
   getCoverVideoPosterUrl,
+  getMusicChallenge,
   getMusicClipSources,
+  participateInChallenge,
   recordClipFunnelEvent,
   updateMusicClip,
   uploadToCloudinaryMobile,
@@ -15,6 +17,7 @@ import {
 } from '@/api/client';
 import type { MusicClipSource } from '@/api/types';
 import { SynauraBackground } from '@/components/SynauraBackground';
+import { CreateArrivalBanner } from '@/components/create/CreateArrivalBanner';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { useAuth } from '@/auth/AuthProvider';
 import { colors, radius, spacing } from '@/theme/tokens';
@@ -39,6 +42,8 @@ export function ClipComposerScreen() {
   const auth = useAuth();
   const presetSourceTrackId = route.params?.sourceTrackId ? String(route.params.sourceTrackId) : '';
   const presetSourceTrackType = route.params?.sourceTrackType === 'ai_track' ? 'ai_track' : 'track';
+  const challengeId: string = route.params?.challengeId || '';
+  const [challengeTitle, setChallengeTitle] = React.useState<string | null>(null);
   const [step, setStep] = React.useState(1);
   const [asset, setAsset] = React.useState<UploadAsset | null>(null);
   const [duration, setDuration] = React.useState(0);
@@ -72,6 +77,15 @@ export function ClipComposerScreen() {
       mounted = false;
     };
   }, [presetSourceTrackId, presetSourceTrackType]);
+
+  React.useEffect(() => {
+    if (!challengeId) return;
+    let mounted = true;
+    getMusicChallenge(challengeId).then((next) => mounted && setChallengeTitle(next.title)).catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [challengeId]);
 
   const selectedSource = sources.find((source) => source._id === selectedId) || null;
   const maxOffset = Math.max(0, Math.round((selectedSource?.duration || 0) - MIN_SECONDS));
@@ -133,6 +147,9 @@ export function ClipComposerScreen() {
         visibility: 'published',
       });
       void recordClipFunnelEvent(selectedSource._id, 'clip_published');
+      if (challengeId) {
+        participateInChallenge(challengeId, { contentType: 'clip', contentId: draft.id }).catch(() => {});
+      }
       navigation.navigate('Swipe');
     } catch (e) {
       Alert.alert('Publication impossible', e instanceof Error ? e.message : 'Impossible de publier le clip.');
@@ -145,6 +162,10 @@ export function ClipComposerScreen() {
     <SynauraBackground>
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 120 }]} showsVerticalScrollIndicator={false}>
         <AppHeader title="Publier un clip" subtitle="Video verticale liee a un morceau" onBack={() => navigation.goBack()} />
+        <CreateArrivalBanner
+          context={challengeId ? 'challenge' : 'clip'}
+          title={challengeId ? challengeTitle : (isPreset ? selectedSource?.title : null)}
+        />
         <View style={styles.steps}>
           {['Importer la video', 'Choisir un morceau Synaura', 'Legende, tags et publier'].map((label, index) => (
             <View key={label} style={[styles.step, step >= index + 1 && styles.stepActive]}>

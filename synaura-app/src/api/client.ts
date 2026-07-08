@@ -14,13 +14,19 @@ import type {
   HomeData,
   HomePost,
   LibraryStats,
+  MusicChallenge,
+  MusicChallengeDetail,
+  MusicChallengeStatus,
   MusicClip,
   MusicClipSource,
   NotificationCenterData,
   Playlist,
+  PendingVariation,
   RankingFeedChunk,
   RemixPermissions,
+  RemixSource,
   SearchResults,
+  UserVariation,
   SynauraNotification,
   Track,
   DiscoverPage,
@@ -623,18 +629,62 @@ export async function getTrackById(trackId: string): Promise<Track | null> {
   return json ? normalizeTrack(json?.track || json) : null;
 }
 
-export async function getMusicClips(input: { limit?: number; cursor?: number; sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track' } = {}): Promise<{ clips: MusicClip[]; nextCursor: number; hasMore: boolean }> {
+export async function getMusicClips(input: { limit?: number; cursor?: number; sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; creatorId?: string } = {}): Promise<{ clips: MusicClip[]; nextCursor: number; hasMore: boolean }> {
   const params = new URLSearchParams();
   params.set('limit', String(input.limit || 20));
   if (input.cursor) params.set('cursor', String(input.cursor));
   if (input.sourceTrackId) params.set('sourceTrackId', input.sourceTrackId);
   if (input.sourceTrackType) params.set('sourceTrackType', input.sourceTrackType);
+  if (input.creatorId) params.set('creatorId', input.creatorId);
   const json = await request<any>(`/api/music-clips?${params.toString()}`);
   return {
     clips: (Array.isArray(json?.clips) ? json.clips : []).map(normalizeMusicClip).filter((clip: MusicClip | null): clip is MusicClip => Boolean(clip)),
     nextCursor: Number(json?.nextCursor || 0),
     hasMore: Boolean(json?.hasMore),
   };
+}
+
+function normalizeRemixSource(raw: any): RemixSource | null {
+  const sourceTrackId = String(raw?.sourceTrackId || raw?.source_track_id || '');
+  if (!sourceTrackId) return null;
+  return {
+    sourceTrackId,
+    sourceTrackType: raw?.sourceTrackType === 'ai_track' || raw?.source_track_type === 'ai_track' ? 'ai_track' : 'track',
+    title: safeString(raw?.title, 'Creation Synaura'),
+    artist: safeString(raw?.artist, 'Artiste Synaura'),
+    artistUsername: safeString(raw?.artistUsername, ''),
+    coverUrl: absoluteAsset(raw?.coverUrl) || null,
+  };
+}
+
+/** Morceaux Synaura publics autorisant la variation IA, pour le selecteur "Creer une variation". */
+export async function getRemixSources(): Promise<RemixSource[]> {
+  const json = await request<any>('/api/remixes/sources?limit=80');
+  return (Array.isArray(json?.sources) ? json.sources : [])
+    .map(normalizeRemixSource)
+    .filter((source: RemixSource | null): source is RemixSource => Boolean(source));
+}
+
+/** Variations IA d'un createur, pour l'onglet "Variations" de son profil. */
+export async function getUserVariations(username: string): Promise<UserVariation[]> {
+  const json = await request<any>(`/api/users/${encodeURIComponent(username)}/variations`);
+  return Array.isArray(json?.variations) ? json.variations : [];
+}
+
+/** Variations IA en attente d'approbation pour les morceaux source possedes par
+ * l'utilisateur connecte ("Variations a valider"). */
+export async function getPendingApprovals(): Promise<PendingVariation[]> {
+  const json = await request<any>('/api/remixes/pending');
+  return Array.isArray(json?.variations) ? json.variations : [];
+}
+
+/** Decision (approve/reject) du proprietaire du morceau source sur une variation
+ * en attente. */
+export async function decideRemix(remixId: string, decision: 'approve' | 'reject'): Promise<void> {
+  await request<any>(`/api/remixes/${encodeURIComponent(remixId)}/decision`, {
+    method: 'PATCH',
+    body: JSON.stringify({ decision }),
+  });
 }
 
 export async function getMusicClipSources(input: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track' } = {}): Promise<MusicClipSource[]> {
@@ -2199,12 +2249,16 @@ export async function setAITrackFavorite(trackId: string, isFavorite: boolean): 
   return Boolean(json?.is_favorite);
 }
 
-export async function setAITrackPublic(trackId: string, isPublic: boolean, remixPermissions?: RemixPermissions): Promise<boolean> {
+export async function setAITrackPublic(
+  trackId: string,
+  isPublic: boolean,
+  remixPermissions?: RemixPermissions,
+): Promise<{ isPublic: boolean; remixStatus: 'draft' | 'pending_approval' | 'published' | null }> {
   const json = await request<any>(`/api/ai/tracks/${encodeURIComponent(trackId)}/visibility`, {
     method: 'PATCH',
     body: JSON.stringify({ isPublic, remixPermissions: remixPermissions || DEFAULT_REMIX_PERMISSIONS }),
   });
-  return Boolean(json?.isPublic);
+  return { isPublic: Boolean(json?.isPublic), remixStatus: json?.remixStatus || null };
 }
 
 export async function setAITrackFolder(trackId: string, libraryFolder: string): Promise<string | null> {
@@ -2354,6 +2408,27 @@ export async function claimCityEventReward(eventId: string): Promise<void> {
   await request(`/api/city/events/${encodeURIComponent(eventId)}/claim`, {
     method: 'POST',
     body: JSON.stringify({}),
+  });
+}
+
+export async function getMusicChallenges(status?: MusicChallengeStatus): Promise<MusicChallenge[]> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  const payload = await request<{ challenges?: MusicChallenge[] }>(`/api/challenges${query}`);
+  return Array.isArray(payload?.challenges) ? payload.challenges : [];
+}
+
+export async function getMusicChallenge(challengeId: string): Promise<MusicChallengeDetail> {
+  const payload = await request<{ challenge: MusicChallengeDetail }>(`/api/challenges/${encodeURIComponent(challengeId)}`);
+  return payload.challenge;
+}
+
+export async function participateInChallenge(
+  challengeId: string,
+  input: { contentType: 'clip' | 'variation' | 'track'; contentId: string },
+): Promise<void> {
+  await request(`/api/challenges/${encodeURIComponent(challengeId)}/participate`, {
+    method: 'POST',
+    body: JSON.stringify(input),
   });
 }
 

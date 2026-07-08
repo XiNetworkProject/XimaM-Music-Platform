@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     const cursor = parseCursor(params.get('cursor'));
     const sourceTrackId = params.get('sourceTrackId');
     const sourceTrackType = params.get('sourceTrackType');
+    const creatorId = params.get('creatorId');
 
     let query = supabaseAdmin
       .from('music_clips')
@@ -34,6 +35,12 @@ export async function GET(request: NextRequest) {
     if (sourceTrackId) {
       const ref = normalizeRemixTrackRef(sourceTrackId, sourceTrackType);
       query = query.eq('source_track_id', ref.id).eq('source_track_type', ref.type);
+    }
+
+    // Clips publiés par un créateur donné (ex: onglet Clips d'un profil) : la
+    // source doit rester publique, deja garanti par formatMusicClips ci-dessous.
+    if (creatorId) {
+      query = query.eq('creator_id', creatorId);
     }
 
     const { data, error } = await query;

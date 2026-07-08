@@ -4,9 +4,9 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
-import { 
+import {
   Upload, Music, Image, X, Play, Pause, Video,
-  ArrowLeft, Check, FileText, ChevronDown, ChevronRight, Sparkles, Clock3, Disc3, Library, ShieldCheck, Wand2, CheckCircle2,
+  ArrowLeft, Check, FileText, ChevronDown, ChevronRight, Sparkles, Clock3, Disc3, Library, ShieldCheck, Wand2, CheckCircle2, Repeat2,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { notify } from '@/components/NotificationCenter';
@@ -34,6 +34,7 @@ import UploadPreview from '@/components/upload/UploadPreview';
 import RemixPermissionsSection, { DEFAULT_REMIX_PERMISSIONS, type RemixPermissionsValue } from '@/components/upload/RemixPermissionsSection';
 import SynauraEventsRail from '@/components/synaura/SynauraEventsRail';
 import SynauraEventEntryPanel from '@/components/synaura/SynauraEventEntryPanel';
+import CreateArrivalBanner from '@/components/create/CreateArrivalBanner';
 
 // ─── Compression image ────────────────────────────────────
 const MAX_COVER_VIDEO_SECONDS = 7;
@@ -219,6 +220,21 @@ export default function UploadPage() {
   const [uploadProgress, setUploadProgress] = useState({ audio: 0, cover: 0 });
   const [tempPublicIds, setTempPublicIds] = useState<{ audio?: string; cover?: string; coverVideo?: string }>({});
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [challengeId, setChallengeId] = useState<string>('');
+  const [challengeTitle, setChallengeTitle] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const id = new URLSearchParams(window.location.search).get('challengeId') || '';
+    if (!id) return;
+    setChallengeId(id);
+    fetch(`/api/challenges/${encodeURIComponent(id)}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (json?.challenge?.title) setChallengeTitle(json.challenge.title);
+      })
+      .catch(() => {});
+  }, []);
 
   // Plan
   const [planKey, setPlanKey] = useState<'free' | 'starter' | 'pro' | 'enterprise'>('free');
@@ -513,6 +529,14 @@ export default function UploadPage() {
         else notify.error('Event non rejoint', eventPayload?.error || 'Le son est publie, mais son inscription a l event a echoue.');
       }
 
+      if (challengeId && isPublic && publishedTrackIds[0]) {
+        fetch(`/api/challenges/${encodeURIComponent(challengeId)}/participate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contentType: 'track', contentId: publishedTrackIds[0] }),
+        }).catch(() => {});
+      }
+
         sessionStorage.setItem('fromUpload', 'true');
       router.push('/');
     } catch (err) {
@@ -545,12 +569,18 @@ export default function UploadPage() {
   // Step validation
   const step1Valid = releaseType === 'single' ? !!audioFile : trackMetas.length >= (releaseType === 'ep' ? 2 : 7);
   const step2Valid = !!title.trim() && !!coverFile;
+  const currentStepHint =
+    currentStep === 1 && !step1Valid
+      ? (releaseType === 'single' ? 'Ajoute un fichier audio pour continuer.' : releaseType === 'ep' ? 'Ajoute entre 2 et 6 pistes pour continuer.' : 'Ajoute au moins 7 pistes pour continuer.')
+      : currentStep === 2 && !step2Valid
+        ? (!title.trim() && !coverFile ? 'Ajoute un titre et une cover pour continuer.' : !title.trim() ? 'Ajoute un titre pour continuer.' : 'Ajoute une cover pour continuer.')
+        : null;
 
   // ─── Steps label ─────────────────────────────────────
   const STEPS = [
-    { k: 1, label: 'Fichiers' },
-    { k: 2, label: 'Details' },
-    { k: 3, label: 'Publier' },
+    { k: 1, label: 'Fichier audio' },
+    { k: 2, label: 'Cover & infos' },
+    { k: 3, label: 'Diffusion & droits' },
   ];
 
   const coverPreviewUrl = useMemo(() => coverFile ? URL.createObjectURL(coverFile) : null, [coverFile]);
@@ -583,6 +613,7 @@ export default function UploadPage() {
       />
       <SynauraRouteNav />
       <SynauraAnnouncementStrip />
+      <CreateArrivalBanner context={challengeId ? 'challenge' : 'upload'} title={challengeId ? challengeTitle : null} className="mb-4" />
       <SynauraEventsRail variant="compact" className="mb-4" />
 
       <section className="mb-4 overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-[#171313] text-white shadow-[0_28px_80px_rgba(20,15,10,0.22)]">
@@ -747,9 +778,11 @@ export default function UploadPage() {
           <div className="border-b border-white/[0.08] bg-[#1d1717] px-3 py-3 sm:px-5 sm:py-4">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">Workflow live</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">
+                  Etape {currentStep}/{totalSteps}
+                </p>
                 <h2 className="mt-1 truncate text-2xl font-black tracking-[-0.04em] text-white">
-                  {currentStep === 1 ? 'Importer' : currentStep === 2 ? 'Presenter' : 'Diffuser'}
+                  {currentStep === 1 ? 'Fichier audio' : currentStep === 2 ? 'Cover & informations' : 'Diffusion & droits de creation'}
                 </h2>
               </div>
               <div className="grid grid-cols-3 gap-1 rounded-full bg-white/[0.06] p-1">
@@ -775,12 +808,12 @@ export default function UploadPage() {
           </div>
 
           {blockedMsg && (
-            <div className="mx-3 mt-3 flex flex-col gap-3 rounded-[1.1rem] border border-amber-300/20 bg-amber-300/10 p-3 sm:mx-5 sm:flex-row sm:items-center sm:justify-between">
-              <span className="text-xs font-semibold text-amber-100">{blockedMsg}. Passe a un plan superieur.</span>
+            <div className="mx-3 mt-3 flex flex-col gap-3 rounded-[1.1rem] border border-[#D96D63]/25 bg-[#D96D63]/10 p-3 sm:mx-5 sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-xs font-semibold text-[#ffcfc9]">{blockedMsg}. Passe a un plan superieur.</span>
               <button
                 type="button"
                 onClick={() => router.push('/subscriptions')}
-                className="inline-flex h-9 items-center justify-center rounded-full bg-amber-200 px-3 text-xs font-black text-[#171313]"
+                className="inline-flex h-9 items-center justify-center rounded-full bg-[#D96D63] px-3 text-xs font-black text-white"
               >
                 Voir les plans
               </button>
@@ -874,7 +907,7 @@ export default function UploadPage() {
                         <div>
                           <div className="mb-2 flex items-center justify-between gap-2 text-xs">
                             <span className="font-black text-white/46">{trackMetas.length} piste(s)</span>
-                            {!trackCountValid && <span className="text-[11px] font-black text-amber-200">{releaseType === 'ep' ? 'EP: 2-6 pistes' : 'Album: 7+ pistes'}</span>}
+                            {!trackCountValid && <span className="text-[11px] font-black text-[#ffb3a8]">{releaseType === 'ep' ? 'EP: 2-6 pistes' : 'Album: 7+ pistes'}</span>}
                           </div>
                           <TrackListEditor tracks={trackMetas} onChange={setTrackMetas} />
                         </div>
@@ -954,29 +987,36 @@ export default function UploadPage() {
                   <Section title="Genres" icon={Music} defaultOpen>
                     <GenrePicker selected={genres} onChange={setGenres} max={5} />
                   </Section>
-                  <Section title="Mood" icon={Sparkles} defaultOpen={false}>
-                    <MoodSelector value={mood} onChange={setMood} />
-                  </Section>
-                  <Section title="Langue" icon={FileText} defaultOpen={false}>
-                    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-                      {(['fr', 'en', 'es', 'ar', 'pt', 'de', 'it', 'ja', 'ko', 'instrumental', 'other'] as const).map((key) => {
-                        const labels: Record<string, string> = { fr: 'Francais', en: 'Anglais', es: 'Espagnol', ar: 'Arabe', pt: 'Portugais', de: 'Allemand', it: 'Italien', ja: 'Japonais', ko: 'Coreen', instrumental: 'Instrumental', other: 'Autre' };
-                        const active = language === key;
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => setLanguage(active ? '' : key)}
-                            className={['rounded-full px-3 py-2 text-xs font-black transition', active ? 'bg-white text-[#171313]' : 'bg-white/[0.06] text-white/48 hover:bg-white/[0.10]'].join(' ')}
-                          >
-                            {labels[key]}
-                          </button>
-                        );
-                      })}
+                  <Section title="Ambiance & tags" icon={Sparkles} defaultOpen={false}>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-white/36">Mood</p>
+                        <MoodSelector value={mood} onChange={setMood} />
+                      </div>
+                      <div>
+                        <p className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-white/36">Langue</p>
+                        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                          {(['fr', 'en', 'es', 'ar', 'pt', 'de', 'it', 'ja', 'ko', 'instrumental', 'other'] as const).map((key) => {
+                            const labels: Record<string, string> = { fr: 'Francais', en: 'Anglais', es: 'Espagnol', ar: 'Arabe', pt: 'Portugais', de: 'Allemand', it: 'Italien', ja: 'Japonais', ko: 'Coreen', instrumental: 'Instrumental', other: 'Autre' };
+                            const active = language === key;
+                            return (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() => setLanguage(active ? '' : key)}
+                                className={['rounded-full px-3 py-2 text-xs font-black transition', active ? 'bg-white text-[#171313]' : 'bg-white/[0.06] text-white/48 hover:bg-white/[0.10]'].join(' ')}
+                              >
+                                {labels[key]}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-white/36">Tags</p>
+                        <TagsInput tags={tags} onChange={setTags} max={10} />
+                      </div>
                     </div>
-                  </Section>
-                  <Section title="Tags" icon={FileText} defaultOpen={false}>
-                    <TagsInput tags={tags} onChange={setTags} max={10} />
                   </Section>
                   {releaseType === 'single' && (
                     <Section title="Paroles" icon={FileText} defaultOpen={false}>
@@ -1023,7 +1063,16 @@ export default function UploadPage() {
                     Contenu explicite
                   </label>
 
-                  <div className="rounded-[1.2rem] border border-white/[0.08] bg-white/[0.03] p-4">
+                  <div className="rounded-[1.2rem] border border-[#4A9EAA]/25 bg-[#4A9EAA]/[0.06] p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#4A9EAA]/15 text-[#8fd3da]">
+                        <Repeat2 className="h-3.5 w-3.5" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-black text-white">Droits de creation</p>
+                        <p className="text-[11px] font-semibold text-white/40">Ce que les autres membres peuvent faire avec ce morceau.</p>
+                      </div>
+                    </div>
                     <RemixPermissionsSection value={remixPermissions} onChange={setRemixPermissions} />
                   </div>
 
@@ -1093,6 +1142,9 @@ export default function UploadPage() {
           )}
 
           <div className="sticky bottom-0 z-10 border-t border-white/[0.08] bg-[#171313]/94 px-3 py-3 backdrop-blur-xl sm:px-5">
+            {currentStepHint ? (
+              <p className="mb-2 text-xs font-semibold text-[#ffb3a8]">{currentStepHint}</p>
+            ) : null}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex gap-2">
                 {currentStep > 1 && (
@@ -1109,7 +1161,7 @@ export default function UploadPage() {
                   type="button"
                   onClick={() => setCurrentStep(currentStep + 1)}
                   disabled={(currentStep === 1 && !step1Valid) || (currentStep === 2 && !step2Valid) || !canUpload}
-                  className="h-11 rounded-full bg-white px-6 text-sm font-black text-[#171313] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-30"
+                  className="h-11 rounded-full bg-[#7357C6] px-6 text-sm font-black text-white transition hover:scale-[1.01] hover:bg-[#6547b3] disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   Suivant
                 </button>
@@ -1118,10 +1170,10 @@ export default function UploadPage() {
                   type="button"
                   onClick={handleSubmit}
                   disabled={isUploading || !canUpload}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-black text-[#171313] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-30"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#7357C6] px-6 text-sm font-black text-white transition hover:scale-[1.01] hover:bg-[#6547b3] disabled:cursor-not-allowed disabled:opacity-30"
                 >
-                  {isUploading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#171313]/25 border-t-[#171313]" /> : <Sparkles className="h-4 w-4" />}
-                  {isUploading ? 'Upload...' : 'Publier'}
+                  {isUploading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Sparkles className="h-4 w-4" />}
+                  {isUploading ? 'Publication...' : `Publier ${releaseType === 'single' ? 'le morceau' : releaseType === 'ep' ? "l'EP" : "l'album"}`}
                 </button>
               )}
             </div>

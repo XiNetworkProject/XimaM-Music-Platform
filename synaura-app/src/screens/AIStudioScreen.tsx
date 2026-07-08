@@ -27,6 +27,7 @@ import {
   getAIStudioCredits,
   getAIStudioLibrary,
   getAIStudioQuota,
+  getMusicChallenge,
   getRemixSource,
   getSynauraCity,
   getUserPreferences,
@@ -34,6 +35,7 @@ import {
   generateAILyrics,
   generateAIMusicVideo,
   getTimestampedAILyrics,
+  participateInChallenge,
   repairAIStudioMedia,
   saveAIGenerationTracks,
   setAIGenerationTrashed,
@@ -55,6 +57,7 @@ import { SynauraBackground } from '@/components/SynauraBackground';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { MobileAnimatedLogo } from '@/components/mobile/MobileAnimatedLogo';
 import { MobileWaveform } from '@/components/mobile/MobileWaveform';
+import { CreateArrivalBanner } from '@/components/create/CreateArrivalBanner';
 import { EventChoice, EventTicker } from '@/components/events/SynauraEvents';
 import { TrackCover } from '@/components/TrackCover';
 import { RemixPermissionsSection, DEFAULT_REMIX_PERMISSIONS, type RemixPermissionsValue } from '@/components/upload/RemixPermissionsSection';
@@ -149,7 +152,25 @@ export function AIStudioScreen() {
   const [repairMessage, setRepairMessage] = useState('');
   const [city, setCity] = useState<SynauraCityData | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const challengeId: string = route.params?.challengeId || '';
+  const [challengeTitle, setChallengeTitle] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (!challengeId) return;
+    let active = true;
+    void getMusicChallenge(challengeId).then((next) => active && setChallengeTitle(next.title)).catch(() => {});
+    return () => { active = false; };
+  }, [challengeId]);
+
+  // Contexte Remix a restaurer apres Login -> Onboarding si l'utilisateur doit
+  // s'authentifier (ou terminer l'onboarding) avant de generer.
+  const remixReturnTo = useMemo(() => {
+    const sourceTrackId = synauraRemixSource?.sourceTrackId || route.params?.sourceTrackId;
+    const sourceTrackType = synauraRemixSource?.sourceTrackType || route.params?.sourceTrackType;
+    if (!sourceTrackId) return undefined;
+    return { screen: 'AIStudio', params: { sourceTrackId, sourceTrackType, mode: 'remix' } };
+  }, [synauraRemixSource, route.params?.sourceTrackId, route.params?.sourceTrackType]);
 
   useEffect(() => {
     let active = true;
@@ -175,7 +196,7 @@ export function AIStudioScreen() {
         const styleLabel = [...genres, prefill.mood, ...tags].filter(Boolean).map(String).join(', ') || 'variation IA Synaura';
         setSynauraRemixSource(source);
         setTitle((current) => current.trim() ? current : `Variation de ${source.title}`.slice(0, 80));
-        setDescription((current) => current.trim() ? current : (prefill.prompt || prefill.description || `CrÃ©er une variation IA originale inspirÃ©e par "${source.title}".`));
+        setDescription((current) => current.trim() ? current : (prefill.prompt || prefill.description || `Creer une variation IA originale inspiree par "${source.title}".`));
         setStyle((current) => current.trim() ? current : styleLabel);
         setSelectedTags((current) => current.length ? current : tags.slice(0, 8));
         setInstrumental(true);
@@ -366,7 +387,10 @@ export function AIStudioScreen() {
 
   const generate = async () => {
     if (!auth.requireAuth()) {
-      navigation.getParent()?.navigate('Login', { message: 'Connecte-toi pour crÃ©er avec le Studio IA.' });
+      navigation.getParent()?.navigate('Login', {
+        message: 'Connecte-toi pour crÃ©er avec le Studio IA.',
+        ...(remixReturnTo ? { returnTo: remixReturnTo } : null),
+      });
       return;
     }
     if (!description.trim() && mode === 'simple') {
@@ -576,7 +600,12 @@ export function AIStudioScreen() {
           <View>
             <Text style={styles.authTitle}>Retrouve ton Studio</Text>
             <Text style={styles.authText}>Connecte-toi pour accÃ©der Ã  tes crÃ©dits, tes crÃ©ations et ton historique.</Text>
-            <Pressable onPress={() => navigation.getParent()?.navigate('Login')} style={styles.authButton}><Text style={styles.authButtonText}>Se connecter</Text></Pressable>
+            <Pressable
+              onPress={() => navigation.getParent()?.navigate('Login', remixReturnTo ? { returnTo: remixReturnTo } : undefined)}
+              style={styles.authButton}
+            >
+              <Text style={styles.authButtonText}>Se connecter</Text>
+            </Pressable>
           </View>
         </ScrollView>
         </SynauraBackground>
@@ -604,6 +633,13 @@ export function AIStudioScreen() {
         <Text style={styles.kicker}>{tab === 'create' ? 'SYNAURA AI STUDIO' : 'BIBLIOTHÃˆQUE IA'}</Text>
         <Text style={[styles.title, tab === 'library' && styles.titleCompact]}>{tab === 'create' ? currentTitle : 'Tes crÃ©ations'}</Text>
         <Text style={styles.subtitle}>{quota ? `${quota.plan_type.toUpperCase()} Â· ${quota.used_this_month}/${quota.monthly_limit} gÃ©nÃ©rations ce mois` : 'GÃ©nÃ©ration et bibliothÃ¨que synchronisÃ©es avec le web.'}</Text>
+
+        {tab === 'create' ? (
+          <CreateArrivalBanner
+            context={challengeId ? 'challenge' : (synauraRemixSource ? 'variation' : 'ai')}
+            title={challengeId ? challengeTitle : synauraRemixSource?.title}
+          />
+        ) : null}
 
         <View style={styles.tabs}>
           <Segment active={tab === 'create'} label="CrÃ©er" icon="sparkles-outline" onPress={() => switchTab('create')} />
@@ -640,6 +676,7 @@ export function AIStudioScreen() {
         {tab === 'create' ? (
           <>
             <EventChoice events={city?.events || []} selectedId={selectedEventId} onSelect={selectEvent} />
+            <Text style={styles.blockEyebrow}>1 · Idee musicale</Text>
             <View style={styles.modeRow}>
               {(['simple', 'custom', 'remix'] as StudioMode[]).map((item) => (
                 <Pressable key={item} onPress={() => setMode(item)} style={[styles.mode, mode === item && styles.modeActive]}>
@@ -719,6 +756,7 @@ export function AIStudioScreen() {
               </View>
             </View>
 
+            <Text style={styles.blockEyebrowInfo}>2 · Reglages</Text>
             <Pressable onPress={() => setAdvancedOpen((current) => !current)} style={styles.advancedSummary}>
               <View style={styles.advancedIcon}><Ionicons name="options-outline" size={18} color={colors.paper} /></View>
               <View style={{ flex: 1 }}><Text style={styles.advancedTitle}>RÃ©glages de gÃ©nÃ©ration</Text><Text style={styles.advancedText}>{model.replace('_', '.')} Â· {duration} sec Â· {instrumental ? 'instrumental' : 'avec voix possible'}</Text></View>
@@ -748,9 +786,10 @@ export function AIStudioScreen() {
               </View>
             ) : null}
 
+            <Text style={styles.blockEyebrow}>3 · Publication</Text>
             <Pressable disabled={generating} onPress={generate} style={[styles.generateButton, generating && { opacity: 0.55 }]}>
               {generating ? <ActivityIndicator color={colors.paper} /> : <Ionicons name={mode === 'remix' ? 'repeat' : 'sparkles'} size={20} color={colors.paper} />}
-              <Text style={styles.generateText}>{generating ? 'Lancement...' : mode === 'remix' ? 'Lancer le remix' : 'GÃ©nÃ©rer 2 versions'}</Text>
+              <Text style={styles.generateText}>{generating ? 'Lancement...' : mode === 'remix' ? 'Creer une variation' : 'Generer 2 versions'}</Text>
               <Text style={styles.generateCost}>{GENERATION_COST} crÃ©dits</Text>
             </Pressable>
             <Pressable onPress={() => setShowCredits(true)} style={styles.buyButton}><Ionicons name="sparkles-outline" size={16} color={colors.violet} /><Text style={styles.buyText}>Acheter des crÃ©dits</Text><Ionicons name="arrow-forward" size={16} color={colors.violet} /></Pressable>
@@ -801,7 +840,7 @@ export function AIStudioScreen() {
           </View>
         )}
       </ScrollView>
-      <TrackInspector visible={Boolean(inspector)} item={inspector} onClose={() => setInspector(null)} onPlay={playLibraryTrack} onRefresh={() => loadStudio(true)} onCreatePost={(track) => {
+      <TrackInspector visible={Boolean(inspector)} item={inspector} onClose={() => setInspector(null)} onPlay={playLibraryTrack} onRefresh={() => loadStudio(true)} challengeId={challengeId} onCreatePost={(track) => {
         const playable = aiTrackToPlayer(track);
         setInspector(null);
         if (playable) navigation.navigate('CreatePost', { track: playable });
@@ -887,7 +926,7 @@ function GenerationStatusRow({ generation, active }: { generation: AIStudioGener
   );
 }
 
-function TrackInspector({ visible, item, onClose, onPlay, onCreatePost, onReuse, onRemix, onCopyLyrics, onRefresh }: { visible: boolean; item: { generation: AIStudioGeneration; track: AIStudioTrack } | null; onClose: () => void; onPlay: (track: AIStudioTrack) => void; onCreatePost: (track: AIStudioTrack) => void; onReuse: (generation: AIStudioGeneration, track: AIStudioTrack) => void; onRemix: (generation: AIStudioGeneration, track: AIStudioTrack) => void; onCopyLyrics: (track: AIStudioTrack) => Promise<void>; onRefresh: () => void }) {
+function TrackInspector({ visible, item, onClose, onPlay, onCreatePost, onReuse, onRemix, onCopyLyrics, onRefresh, challengeId }: { visible: boolean; item: { generation: AIStudioGeneration; track: AIStudioTrack } | null; onClose: () => void; onPlay: (track: AIStudioTrack) => void; onCreatePost: (track: AIStudioTrack) => void; onReuse: (generation: AIStudioGeneration, track: AIStudioTrack) => void; onRemix: (generation: AIStudioGeneration, track: AIStudioTrack) => void; onCopyLyrics: (track: AIStudioTrack) => Promise<void>; onRefresh: () => void; challengeId?: string }) {
   const [busy, setBusy] = useState('');
   const [feedback, setFeedback] = useState('');
   const [timedWords, setTimedWords] = useState<Array<{ word?: string }>>([]);
@@ -926,7 +965,14 @@ function TrackInspector({ visible, item, onClose, onPlay, onCreatePost, onReuse,
     }
   };
   const toggleFavorite = () => run('favorite', async () => { await setAITrackFavorite(item.track.id, !item.track.is_favorite); onRefresh(); }, item.track.is_favorite ? 'RetirÃ© des favoris.' : 'AjoutÃ© aux favoris.');
-  const togglePublic = () => run('public', async () => { await setAITrackPublic(item.track.id, !item.track.is_public, remixPermissions); onRefresh(); }, item.track.is_public ? 'CrÃ©ation repassÃ©e en privÃ©.' : 'CrÃ©ation rendue publique.');
+  const togglePublic = () => run('public', async () => {
+    const nextPublic = !item.track.is_public;
+    const result = await setAITrackPublic(item.track.id, nextPublic, remixPermissions);
+    if (challengeId && nextPublic && result.isPublic && result.remixStatus === 'published') {
+      participateInChallenge(challengeId, { contentType: 'variation', contentId: `ai-${item.track.id}` }).catch(() => {});
+    }
+    onRefresh();
+  }, item.track.is_public ? 'CrÃ©ation repassÃ©e en privÃ©.' : 'CrÃ©ation rendue publique.');
   const toggleTrash = () => run('trash', async () => { await setAIGenerationTrashed(item.generation.id, !item.generation.is_trashed); onClose(); onRefresh(); }, 'BibliothÃ¨que mise Ã  jour.');
   const chooseFolder = (folder: string) => run('folder', async () => { await setAITrackFolder(item.track.id, item.track.library_folder === folder ? '' : folder); onRefresh(); }, item.track.library_folder === folder ? 'Dossier retirÃ©.' : `AjoutÃ© Ã  Â« ${folder} Â».`);
   const loadTimedLyrics = () => run('lyrics', async () => {
@@ -1090,6 +1136,8 @@ const styles = StyleSheet.create({
   modeTextActive: { color: colors.paper },
   panel: { borderRadius: 14, padding: 12, gap: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   panelHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  blockEyebrow: { marginTop: 4, marginBottom: -4, color: colors.violet, fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
+  blockEyebrowInfo: { marginTop: 4, marginBottom: -4, color: colors.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
   panelKicker: { color: colors.textTertiary, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   panelCount: { color: colors.violet, fontSize: 11, fontWeight: '900' },
   presetRow: { gap: 9, paddingRight: 14 },
@@ -1130,7 +1178,7 @@ const styles = StyleSheet.create({
   advancedIcon: { width: 40, height: 40, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
   advancedTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   advancedText: { marginTop: 3, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
-  generateButton: { minHeight: 50, borderRadius: 13, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 15, backgroundColor: colors.black },
+  generateButton: { minHeight: 50, borderRadius: 13, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 15, backgroundColor: colors.violet },
   generateText: { flex: 1, color: colors.paper, fontSize: 14, fontWeight: '900' },
   generateCost: { color: 'rgba(255,250,242,0.56)', fontSize: 10, fontWeight: '900' },
   lockedSource: { borderRadius: 18, backgroundColor: '#FFFDF8', borderWidth: 1, borderColor: 'rgba(115,87,198,0.18)', padding: 12, gap: 12 },

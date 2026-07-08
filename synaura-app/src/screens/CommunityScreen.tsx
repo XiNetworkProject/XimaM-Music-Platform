@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -11,13 +11,22 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getCommunityClubs, getCommunityFaq } from '@/api/client';
+import { getCommunityClubs, getCommunityFaq, getUserPreferences } from '@/api/client';
 import type { CommunityClubAggregate, CommunityFaq } from '@/api/types';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
+import { useAuth } from '@/auth/AuthProvider';
 import { COMMUNITY_CLUBS, getClubByCategory, type ClubConfig } from '@/community/clubs';
 import { colors } from '@/theme/tokens';
+
+// Intentions creatives (onboarding "Personnaliser mes gouts") qui mettent un Club
+// en avant. Ne masque jamais les autres Clubs, se contente de les prioriser.
+const INTENTION_TO_CLUB_SLUG: Record<string, string> = {
+  remix: 'remix',
+  collab: 'collab',
+  create_ai: 'ai',
+};
 
 function relativeDate(value: string) {
   const diff = Math.max(0, Date.now() - new Date(value).getTime());
@@ -31,10 +40,39 @@ export function CommunityScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
+  const auth = useAuth();
   const [aggregates, setAggregates] = useState<Record<string, CommunityClubAggregate>>({});
   const [loading, setLoading] = useState(true);
   const [faqOpen, setFaqOpen] = useState(false);
   const [faqs, setFaqs] = useState<CommunityFaq[]>([]);
+  const [highlightedSlugs, setHighlightedSlugs] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!auth.requireAuth()) return;
+    let mounted = true;
+    getUserPreferences()
+      .then((preferences) => {
+        if (!mounted) return;
+        const intentions: string[] = Array.isArray((preferences as any)?.onboarding?.creatorIntentions)
+          ? (preferences as any).onboarding.creatorIntentions
+          : [];
+        setHighlightedSlugs(intentions.map((id) => INTENTION_TO_CLUB_SLUG[id]).filter((slug): slug is string => Boolean(slug)));
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const orderedClubs = useMemo(() => {
+    if (!highlightedSlugs.length) return COMMUNITY_CLUBS;
+    return [...COMMUNITY_CLUBS].sort((a, b) => {
+      const aFav = highlightedSlugs.includes(a.slug) ? 0 : 1;
+      const bFav = highlightedSlugs.includes(b.slug) ? 0 : 1;
+      return aFav - bFav;
+    });
+  }, [highlightedSlugs]);
 
   // Anciennes entrées (ShareSheet, CreateHub, HomeV2) ouvraient directement le
   // composer sur "Community" avec {compose, category, track} : on les redirige vers
@@ -97,9 +135,14 @@ export function CommunityScreen() {
           </View>
         ) : (
           <View style={styles.clubGrid}>
-            {COMMUNITY_CLUBS.map((club, index) => (
+            {orderedClubs.map((club, index) => (
               <Reveal key={club.slug} delay={index * 55} distance={10}>
-                <ClubCard club={club} aggregate={aggregates[club.slug]} onPress={() => openClub(club)} />
+                <ClubCard
+                  club={club}
+                  aggregate={aggregates[club.slug]}
+                  onPress={() => openClub(club)}
+                  highlighted={highlightedSlugs.includes(club.slug)}
+                />
               </Reveal>
             ))}
           </View>
@@ -111,12 +154,27 @@ export function CommunityScreen() {
   );
 }
 
-function ClubCard({ club, aggregate, onPress }: { club: ClubConfig; aggregate?: CommunityClubAggregate; onPress: () => void }) {
+function ClubCard({
+  club,
+  aggregate,
+  onPress,
+  highlighted,
+}: {
+  club: ClubConfig;
+  aggregate?: CommunityClubAggregate;
+  onPress: () => void;
+  highlighted?: boolean;
+}) {
   const postsCount = aggregate?.postsCount || 0;
   const latestPost = aggregate?.latestPost;
 
   return (
-    <MotionPressable onPress={onPress} style={styles.clubCard} scaleTo={0.97}>
+    <MotionPressable onPress={onPress} style={[styles.clubCard, highlighted && styles.clubCardHighlighted]} scaleTo={0.97}>
+      {highlighted ? (
+        <View style={styles.clubBadge}>
+          <Text style={styles.clubBadgeText}>Pour toi</Text>
+        </View>
+      ) : null}
       <View style={[styles.clubGlow, { backgroundColor: `${club.accent}22` }]} />
       <View style={[styles.clubIcon, { backgroundColor: club.accent }]}>
         <Ionicons name={club.icon as any} size={20} color="#FFFAF2" />
@@ -188,6 +246,9 @@ const styles = StyleSheet.create({
   loadingText: { color: 'rgba(23,19,19,0.5)', fontSize: 12, fontWeight: '700' },
   clubGrid: { gap: 12 },
   clubCard: { position: 'relative', overflow: 'hidden', minHeight: 190, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 16 },
+  clubCardHighlighted: { borderColor: colors.violet, borderWidth: 1.5 },
+  clubBadge: { position: 'absolute', right: 14, top: 14, zIndex: 1, borderRadius: 999, backgroundColor: colors.violet, paddingHorizontal: 9, paddingVertical: 4 },
+  clubBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
   clubGlow: { position: 'absolute', right: -50, top: -50, width: 160, height: 160, borderRadius: 80 },
   clubIcon: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   clubName: { marginTop: 12, color: '#171313', fontSize: 20, fontWeight: '900' },

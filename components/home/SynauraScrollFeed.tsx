@@ -21,6 +21,7 @@ import {
   buildChallengesFilterFeed,
   buildCollectionItems,
   buildCreatorsFilterFeed,
+  buildMusicChallengeItem,
   composeScrollFeed,
   type ScrollClip,
   type ScrollFeedItem,
@@ -95,6 +96,37 @@ function countOf(value: unknown) {
   return 0;
 }
 
+/** Vidéo d'un Clip : lecture pilotée par ref (play/pause impératifs) plutôt que par
+ * l'attribut HTML autoPlay, qui ne se redéclenche pas quand le scroll change l'item
+ * actif. Reprend le pattern éprouvé de MusicVideoLayer dans components/TikTokPlayer.tsx. */
+function ClipVideoLayer({ src, poster, active }: { src: string; poster?: string | null; active: boolean }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (active) {
+      if (video.currentTime > 0) video.currentTime = 0;
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [active]);
+
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      poster={poster || undefined}
+      className="absolute inset-0 h-full w-full object-cover"
+      muted
+      loop
+      playsInline
+      preload={active ? 'auto' : 'metadata'}
+    />
+  );
+}
+
 export default function SynauraScrollFeed() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -120,6 +152,7 @@ export default function SynauraScrollFeed() {
   const [popularUsersRaw, setPopularUsersRaw] = useState<any[]>([]);
   const [collectionsRaw, setCollectionsRaw] = useState<any[]>([]);
   const [cityEventsRaw, setCityEventsRaw] = useState<any[]>([]);
+  const [musicChallengesRaw, setMusicChallengesRaw] = useState<any[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -132,6 +165,7 @@ export default function SynauraScrollFeed() {
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
   const wheelLockRef = useRef(false);
   const accountRef = useRef<HTMLDivElement | null>(null);
+  const clipOffsetSeekedRef = useRef<string | null>(null);
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const currentId = currentTrack?._id;
   const username = (session?.user as any)?.username;
@@ -290,6 +324,21 @@ export default function SynauraScrollFeed() {
     };
   }, []);
 
+  // Défis musicaux V1 (réels, éditoriaux) : prennent le pas sur le challenge algorithmique
+  // de Synaura Pulse dans le Scroll quand un défi est actif.
+  useEffect(() => {
+    let mounted = true;
+    fetch('/api/challenges?status=active', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((json) => {
+        if (mounted && Array.isArray(json?.challenges)) setMusicChallengesRaw(json.challenges);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // Composition du feed mixte : la trame reste les morceaux (>=75%), les cartes non
   // musicales (artiste, collection, défi, annonce) sont réparties avec parcimonie.
   const feedItems = useMemo<ScrollFeedItem[]>(() => {
@@ -303,7 +352,7 @@ export default function SynauraScrollFeed() {
 
     const artistItems = buildArtistSpotlightItems(popularUsersRaw, baseTracks, 3);
     const collectionItems = buildCollectionItems(collectionsRaw, 2);
-    const challenge = buildChallengeItem(cityEventsRaw);
+    const challenge = buildMusicChallengeItem(musicChallengesRaw) || buildChallengeItem(cityEventsRaw);
     const announcement = buildAnnouncementItem(cityEventsRaw);
     return composeScrollFeed({
       tracks: baseTracks,
@@ -313,7 +362,7 @@ export default function SynauraScrollFeed() {
       challenge: challenge?.item || null,
       announcement: announcement?.item || null,
     });
-  }, [filter, baseTracks, baseClips, popularUsersRaw, collectionsRaw, cityEventsRaw]);
+  }, [filter, baseTracks, baseClips, popularUsersRaw, collectionsRaw, cityEventsRaw, musicChallengesRaw]);
 
   // File de lecture : uniquement les entrées réellement jouables (morceau ou artiste en vedette),
   // dans le même ordre que le feed affiché, pour que suivant/précédent restent cohérents.
@@ -385,6 +434,22 @@ export default function SynauraScrollFeed() {
     }, 110);
     return () => window.clearTimeout(timer);
   }, [activeIndex, currentId, lyricsOpen, playIndex, queueByPosition]);
+
+  // Un Clip a un point de départ choisi par son créateur à la publication
+  // (sourceTrackOffsetSeconds) : une fois le son du morceau original chargé, on
+  // le positionne à cet instant pour rester synchro avec la vidéo (ref unique par
+  // clip pour ne recaler qu'une seule fois, jamais si l'auditeur navigue lui-même).
+  useEffect(() => {
+    const item = feedItems[activeIndex];
+    if (!item || item.type !== 'clip') return;
+    const offset = item.clip.sourceTrackOffsetSeconds || 0;
+    if (offset <= 0) return;
+    if (currentId !== item.track._id) return;
+    if (!audioState.duration) return;
+    if (clipOffsetSeekedRef.current === item.clip.id) return;
+    clipOffsetSeekedRef.current = item.clip.id;
+    seek(Math.min(offset, Math.max(0, audioState.duration - 0.5)));
+  }, [activeIndex, feedItems, currentId, audioState.duration, seek]);
 
   const onWheel = useCallback(
     (event: React.WheelEvent) => {
@@ -496,22 +561,12 @@ export default function SynauraScrollFeed() {
         <>
           <div className="absolute inset-0 bg-[#171313]" />
           {clip.videoUrl ? (
-            <video
-              key={clip.id}
-              src={clip.videoUrl}
-              poster={clip.posterUrl || undefined}
-              className="absolute inset-0 h-full w-full object-cover"
-              muted
-              loop
-              playsInline
-              autoPlay={index === activeIndex}
-              preload={index === activeIndex ? 'auto' : 'metadata'}
-            />
+            <ClipVideoLayer key={clip.id} src={clip.videoUrl} poster={clip.posterUrl} active={index === activeIndex} />
           ) : null}
           <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent via-45% to-black/85" />
 
           <aside className="absolute right-4 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-2.5">
-            <button className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl">
+            <button type="button" className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
               <Heart className="h-5 w-5" />
               <span className="text-[10px] font-black">{fmtCount(clip.likesCount)}</span>
             </button>
@@ -1044,7 +1099,7 @@ export default function SynauraScrollFeed() {
               </button>
 
               {accountOpen ? (
-                <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-56 overflow-hidden rounded-[1.2rem] border border-black/[0.08] bg-[#fffaf2] p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
+                <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-56 max-w-none overflow-hidden rounded-[1.2rem] border border-black/[0.08] bg-[#fffaf2] p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
                   {accountLinks.map((item) => {
                     const Icon = item.icon;
                     return (

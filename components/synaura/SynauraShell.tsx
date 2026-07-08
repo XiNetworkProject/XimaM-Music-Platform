@@ -17,7 +17,6 @@ import {
   LogOut,
   Settings,
   Sparkles,
-  Upload,
   User,
   UserPlus,
   Users,
@@ -39,8 +38,7 @@ const SYNAURA_ROUTE_ITEMS = [
   { href: '/', label: 'Pour toi', icon: Home },
   { href: '/discover', label: 'Découvrir', icon: Compass },
   { href: '/community', label: 'Clubs', icon: Users },
-  { href: '/ai-generator', label: 'Studio', icon: Sparkles },
-  { href: '/upload', label: 'Publier', icon: Upload },
+  { href: '/create', label: 'Créer', icon: Sparkles },
 ] as const;
 
 const SYNAURA_MOBILE_ROUTE_ITEMS = [
@@ -48,7 +46,7 @@ const SYNAURA_MOBILE_ROUTE_ITEMS = [
   { href: '/discover', label: 'Explorer', icon: Compass },
   { href: '/library', label: 'Biblio', icon: Library },
   { href: '/community', label: 'Clubs', icon: Users },
-  { href: '/ai-generator', label: 'Studio', icon: Sparkles },
+  { href: '/create', label: 'Créer', icon: Sparkles },
 ] as const;
 
 function SynauraAccountMenu({ compact = false }: { compact?: boolean }) {
@@ -91,7 +89,7 @@ function SynauraAccountMenu({ compact = false }: { compact?: boolean }) {
         </span>
       </summary>
 
-      <div className="absolute right-0 top-[calc(100%+0.55rem)] z-[80] w-64 overflow-hidden rounded-[1.4rem] border border-black/[0.09] bg-[#fffaf2]/98 p-2 shadow-[0_24px_70px_rgba(30,25,20,0.22)] backdrop-blur-2xl">
+      <div className="absolute right-0 top-[calc(100%+0.55rem)] z-[80] w-64 max-w-none overflow-hidden rounded-[1.4rem] border border-black/[0.09] bg-[#fffaf2]/98 p-2 shadow-[0_24px_70px_rgba(30,25,20,0.22)] backdrop-blur-2xl">
         <div className="mb-1 rounded-[1rem] bg-black/[0.045] px-3 py-2.5">
           <p className="truncate text-sm font-black text-[#171313]">{user.name || username || 'Compte Synaura'}</p>
           {username ? <p className="truncate text-xs font-bold text-black/42">@{username}</p> : null}

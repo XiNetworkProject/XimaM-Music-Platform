@@ -21,6 +21,7 @@ import { PlaylistDetailScreen } from '@/screens/PlaylistDetailScreen';
 import { CommunityScreen } from '@/screens/CommunityScreen';
 import { ClubDetailScreen } from '@/screens/ClubDetailScreen';
 import { CreateHubScreen } from '@/screens/CreateHubScreen';
+import { CreateVariationScreen } from '@/screens/CreateVariationScreen';
 import { ClipComposerScreen } from '@/screens/ClipComposerScreen';
 import { AIStudioScreen } from '@/screens/AIStudioScreen';
 import { CreatePostScreen } from '@/screens/CreatePostScreen';
@@ -28,8 +29,9 @@ import { SubscriptionsScreen } from '@/screens/SubscriptionsScreen';
 import { CityScreen } from '@/screens/CityScreen';
 import { TrackDetailScreen } from '@/screens/TrackDetailScreen';
 import { SearchScreen } from '@/screens/SearchScreen';
+import { ChallengeDetailScreen } from '@/screens/ChallengeDetailScreen';
 import { colors } from '@/theme/tokens';
-import type { Track } from '@/api/types';
+import type { MusicChallenge, Track } from '@/api/types';
 
 export type RootTabsParamList = {
   Home: undefined;
@@ -38,13 +40,14 @@ export type RootTabsParamList = {
   Swipe: { mode?: 'clips'; sourceTrackId?: string } | undefined;
   Community: { compose?: boolean; category?: string; track?: Track } | undefined;
   ClubDetail: { slug: string; compose?: boolean; track?: Track } | undefined;
-  Profile: undefined;
+  Profile: { tab?: 'sons' | 'clips' | 'variations' | 'playlists' | 'posts'; openPendingVariations?: boolean } | undefined;
   Create: undefined;
-  Upload: undefined;
+  Upload: { challengeId?: string } | undefined;
   Library: undefined;
-  CreateHub: undefined;
-  ClipComposer: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track' } | undefined;
-  AIStudio: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; mode?: 'remix' } | undefined;
+  CreateHub: { challengeId?: string } | undefined;
+  CreateVariation: { challengeId?: string } | undefined;
+  ClipComposer: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; challengeId?: string } | undefined;
+  AIStudio: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; mode?: 'remix'; challengeId?: string } | undefined;
   CreatePost: { track?: Track } | undefined;
   Settings: undefined;
   Subscriptions: undefined;
@@ -55,6 +58,7 @@ export type RootTabsParamList = {
   PlaylistDetail: { playlistId: string };
   TrackDetail: { trackId: string; track?: Track };
   Search: { query?: string } | undefined;
+  ChallengeDetail: { challengeId: string; challenge?: MusicChallenge } | undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabsParamList>();
@@ -64,6 +68,7 @@ const HIDDEN_ROUTES = new Set<keyof RootTabsParamList>([
   'Upload',
   'Library',
   'CreateHub',
+  'CreateVariation',
   'ClipComposer',
   'ClubDetail',
   'DiscoverMood',
@@ -77,6 +82,7 @@ const HIDDEN_ROUTES = new Set<keyof RootTabsParamList>([
   'PlaylistDetail',
   'TrackDetail',
   'Search',
+  'ChallengeDetail',
 ]);
 
 function AnimatedTabButton({ children, accessibilityState, onPress, style, ...props }: any) {
@@ -218,6 +224,7 @@ export function Tabs() {
         <Tab.Screen name="Upload" component={UploadScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Library" component={LibraryScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="CreateHub" component={CreateHubScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="CreateVariation" component={CreateVariationScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="ClipComposer" component={ClipComposerScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="CreatePost" component={CreatePostScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
@@ -229,6 +236,7 @@ export function Tabs() {
         <Tab.Screen name="PlaylistDetail" component={PlaylistDetailScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="TrackDetail" component={TrackDetailScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Search" component={SearchScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="ChallengeDetail" component={ChallengeDetailScreen} options={{ tabBarButton: () => null }} />
       </Tab.Navigator>
       <CreateMenuSheet
         visible={createMenuOpen}
@@ -237,13 +245,17 @@ export function Tabs() {
           setCreateMenuOpen(false);
           tabNavigationRef.current?.navigate('AIStudio');
         }}
-        onImportSound={() => {
+        onPublishTrack={() => {
           setCreateMenuOpen(false);
           tabNavigationRef.current?.navigate('Upload');
         }}
         onPublishClip={() => {
           setCreateMenuOpen(false);
           tabNavigationRef.current?.navigate('ClipComposer');
+        }}
+        onCreateVariation={() => {
+          setCreateMenuOpen(false);
+          tabNavigationRef.current?.navigate('CreateVariation');
         }}
       />
     </>

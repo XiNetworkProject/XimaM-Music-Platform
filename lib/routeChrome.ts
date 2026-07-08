@@ -25,6 +25,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
 
   const isHome = pathname === '/';
   const isAuth = pathname.startsWith('/auth');
+  const isOnboarding = pathname.startsWith('/onboarding');
   const isMeteoFullscreen = pathname.includes('/meteo/login') || pathname.includes('/meteo/dashboard');
   const isSynauraSurface = startsWithAny(pathname, [
     '/discover',
@@ -32,6 +33,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     '/upload',
     '/ai-generator',
     '/studio',
+    '/create',
     '/posts',
     '/profile',
     '/track',
@@ -49,7 +51,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     '/download',
   ]);
   const isImmersivePlayer = pathname.startsWith('/swipe');
-  const useFullScreenLayout = isHome || isAuth || isMeteoFullscreen || isSynauraSurface;
+  const useFullScreenLayout = isHome || isAuth || isOnboarding || isMeteoFullscreen || isSynauraSurface;
   const hideTopSearch = startsWithAny(pathname, [
     '/discover',
     '/ai-generator',
@@ -65,7 +67,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     showTopSearch: !useFullScreenLayout && !hideTopSearch,
     showBottomNav: !useFullScreenLayout,
     useFullScreenLayout,
-    suppressGlobalPlayerPadding: isAuth || pathname.startsWith('/ai-generator') || pathname.startsWith('/studio') || pathname.startsWith('/city') || isImmersivePlayer,
+    suppressGlobalPlayerPadding: isAuth || isOnboarding || pathname.startsWith('/ai-generator') || pathname.startsWith('/studio') || pathname.startsWith('/city') || isImmersivePlayer,
     showGlobalShutdownNotice: !useFullScreenLayout,
   };
 }

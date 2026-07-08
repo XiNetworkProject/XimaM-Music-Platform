@@ -203,6 +203,31 @@ export function buildChallengeItem(cityEvents: any[] | null | undefined): { item
   };
 }
 
+/** Un vrai défi musical (V1, éditorial) prend priorité sur le challenge algorithmique de Synaura
+ * Pulse quand il existe : un seul candidat au total (jamais plus d'un défi dans le feed). */
+export function buildMusicChallengeItem(musicChallenges: any[] | null | undefined): { item: ScrollFeedItem; tracks: ScrollTrack[] } | null {
+  const active = (musicChallenges || [])
+    .filter((c: any) => c?.status === 'active')
+    .sort((a: any, b: any) => new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime());
+  const challenge = active[0];
+  if (!challenge) return null;
+  return {
+    item: {
+      id: `music-challenge-${challenge.id}`,
+      type: 'challenge',
+      challenge: {
+        id: String(challenge.id),
+        title: challenge.title || 'Défi Synaura',
+        description: challenge.prompt,
+        tracksCount: Number(challenge.entryCount || 0),
+        participationCount: Number(challenge.entryCount || 0),
+        href: `/challenges/${challenge.id}`,
+      },
+    },
+    tracks: [],
+  };
+}
+
 /** Une annonce éditoriale = une sortie réelle (Friday Drop / temps fort saisonnier) qui mène vers de vrais morceaux. */
 export function buildAnnouncementItem(cityEvents: any[] | null | undefined): { item: ScrollFeedItem; tracks: ScrollTrack[] } | null {
   const event = (cityEvents || []).find(

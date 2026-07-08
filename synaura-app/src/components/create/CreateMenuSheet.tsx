@@ -9,11 +9,36 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onCreateWithAI: () => void;
-  onImportSound: () => void;
+  onPublishTrack: () => void;
   onPublishClip: () => void;
+  onCreateVariation: () => void;
 };
 
-export function CreateMenuSheet({ visible, onClose, onCreateWithAI, onImportSound, onPublishClip }: Props) {
+const SECONDARY_ITEMS = [
+  {
+    key: 'track',
+    label: 'Publier un morceau',
+    text: 'Partage un titre que tu as déjà créé.',
+    icon: 'cloud-upload-outline' as const,
+    tint: colors.gold,
+  },
+  {
+    key: 'clip',
+    label: 'Publier un Clip',
+    text: 'Fais vivre un son avec une vidéo verticale.',
+    icon: 'film-outline' as const,
+    tint: colors.coral,
+  },
+  {
+    key: 'variation',
+    label: 'Créer une variation',
+    text: 'Transforme un morceau Synaura autorisé.',
+    icon: 'color-wand-outline' as const,
+    tint: colors.cyan,
+  },
+] as const;
+
+export function CreateMenuSheet({ visible, onClose, onCreateWithAI, onPublishTrack, onPublishClip, onCreateVariation }: Props) {
   const insets = useSafeAreaInsets();
   const slide = useRef(new Animated.Value(0)).current;
 
@@ -26,6 +51,12 @@ export function CreateMenuSheet({ visible, onClose, onCreateWithAI, onImportSoun
   const press = (action: () => void) => {
     void Haptics.selectionAsync().catch(() => {});
     action();
+  };
+
+  const secondaryActions: Record<(typeof SECONDARY_ITEMS)[number]['key'], () => void> = {
+    track: onPublishTrack,
+    clip: onPublishClip,
+    variation: onCreateVariation,
   };
 
   return (
@@ -57,59 +88,36 @@ export function CreateMenuSheet({ visible, onClose, onCreateWithAI, onImportSoun
           <Pressable
             accessibilityLabel="Créer avec l'IA"
             onPress={() => press(onCreateWithAI)}
-            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+            style={({ pressed }) => [styles.primaryRow, pressed && styles.rowPressed]}
           >
-            <View style={[styles.icon, { backgroundColor: `${colors.violet}18` }]}>
-              <Ionicons name="sparkles" size={20} color={colors.violet} />
+            <View style={[styles.primaryIcon, { backgroundColor: `${colors.violet}22` }]}>
+              <Ionicons name="sparkles" size={24} color={colors.violet} />
             </View>
             <View style={styles.rowCopy}>
-              <Text style={styles.rowTitle}>Créer avec l'IA</Text>
-              <Text style={styles.rowText}>Génère un son, des paroles ou un remix</Text>
+              <Text style={styles.primaryTitle}>Créer avec l'IA</Text>
+              <Text style={styles.rowText}>Imagine un morceau à partir d'une idée.</Text>
             </View>
-            <Ionicons name="arrow-forward" size={17} color={colors.text} />
+            <Ionicons name="arrow-forward" size={18} color={colors.violet} />
           </Pressable>
 
-          <Pressable
-            accessibilityLabel="Importer un son"
-            onPress={() => press(onImportSound)}
-            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-          >
-            <View style={[styles.icon, { backgroundColor: `${colors.cyan}18` }]}>
-              <Ionicons name="cloud-upload-outline" size={20} color={colors.cyan} />
-            </View>
-            <View style={styles.rowCopy}>
-              <Text style={styles.rowTitle}>Importer un son</Text>
-              <Text style={styles.rowText}>Publie un titre depuis ton appareil</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={17} color={colors.text} />
-          </Pressable>
-
-          <Pressable
-            accessibilityLabel="Publier un clip"
-            onPress={() => press(onPublishClip)}
-            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-          >
-            <View style={[styles.icon, { backgroundColor: `${colors.coral}18` }]}>
-              <Ionicons name="film-outline" size={20} color={colors.coral} />
-            </View>
-            <View style={styles.rowCopy}>
-              <Text style={styles.rowTitle}>Publier un clip</Text>
-              <Text style={styles.rowText}>Video verticale liee a un morceau</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={17} color={colors.text} />
-          </Pressable>
-
-          <View style={[styles.row, styles.rowDisabled]}>
-            <View style={[styles.icon, { backgroundColor: `${colors.coral}18` }]}>
-              <Ionicons name="create-outline" size={20} color={colors.coral} />
-            </View>
-            <View style={styles.rowCopy}>
-              <Text style={styles.rowTitle}>Publier un post</Text>
-              <Text style={styles.rowText}>Bientôt disponible</Text>
-            </View>
-            <View style={styles.soonBadge}>
-              <Text style={styles.soonBadgeText}>Bientôt</Text>
-            </View>
+          <View style={styles.secondaryGrid}>
+            {SECONDARY_ITEMS.map((item) => (
+              <Pressable
+                key={item.key}
+                accessibilityLabel={item.label}
+                onPress={() => press(secondaryActions[item.key])}
+                style={({ pressed }) => [styles.secondaryRow, pressed && styles.rowPressed]}
+              >
+                <View style={[styles.icon, { backgroundColor: `${item.tint}18` }]}>
+                  <Ionicons name={item.icon} size={19} color={item.tint} />
+                </View>
+                <View style={styles.rowCopy}>
+                  <Text style={styles.rowTitle}>{item.label}</Text>
+                  <Text style={styles.rowText}>{item.text}</Text>
+                </View>
+                <Ionicons name="arrow-forward" size={16} color={colors.textTertiary} />
+              </Pressable>
+            ))}
           </View>
         </View>
       </Animated.View>
@@ -157,7 +165,20 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   list: { paddingHorizontal: 16, paddingTop: 4, gap: 10 },
-  row: {
+  primaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: `${colors.violet}0F`,
+    borderWidth: 1,
+    borderColor: `${colors.violet}30`,
+  },
+  primaryIcon: { width: 52, height: 52, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  primaryTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  secondaryGrid: { gap: 8 },
+  secondaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -168,13 +189,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   rowPressed: { opacity: 0.7, transform: [{ scale: 0.985 }] },
-  rowDisabled: { opacity: 0.55 },
   icon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   rowCopy: { flex: 1, minWidth: 0 },
   rowTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
   rowText: { marginTop: 2, color: colors.textTertiary, fontSize: 11, fontWeight: '700' },
-  soonBadge: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(23,19,19,0.08)' },
-  soonBadgeText: { color: colors.textSecondary, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
 });
 
 export default CreateMenuSheet;

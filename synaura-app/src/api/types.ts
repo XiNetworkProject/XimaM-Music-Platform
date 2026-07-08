@@ -63,6 +63,58 @@ export type MusicClipSource = Track & {
   canCreateClip?: boolean;
 };
 
+/** Morceau eligible au selecteur "Creer une variation" (hub Creer, Studio sans source). */
+export type RemixSource = {
+  sourceTrackId: string;
+  sourceTrackType: 'track' | 'ai_track';
+  title: string;
+  artist: string;
+  artistUsername: string;
+  coverUrl: string | null;
+};
+
+export type RemixApprovalStatus = 'pending_approval' | 'published' | 'rejected';
+
+/** Variation IA d'un createur (onglet "Variations" de son profil). Le vrai
+ * statut (`status`) n'est present que pour le proprietaire connecte. */
+export type UserVariation = {
+  id: string;
+  title: string;
+  coverUrl: string | null;
+  audioUrl: string;
+  duration: number;
+  plays: number;
+  likes: number;
+  createdAt?: string;
+  isAi: true;
+  sourceTrackId: string;
+  sourceTrackType: 'track' | 'ai_track';
+  status?: RemixApprovalStatus;
+};
+
+/** Variation IA en attente d'approbation par le proprietaire du morceau source
+ * ("Variations a valider"). */
+export type PendingVariation = {
+  remixId: string;
+  childTrackId: string;
+  title: string;
+  coverUrl: string | null;
+  audioUrl: string;
+  duration: number;
+  createdAt: string;
+  trackUrl: string;
+  creator: { id: string; username: string; name: string; avatar: string | null };
+  source: {
+    sourceTrackId: string;
+    sourceTrackType: 'track' | 'ai_track';
+    title: string;
+    coverUrl: string | null;
+    trackUrl: string;
+    artist: string;
+    artistUsername: string;
+  };
+};
+
 export type MusicClip = {
   id: string;
   creatorId: string;
@@ -488,6 +540,46 @@ export type CityEventDetail = {
   winners: Array<Record<string, unknown>>;
   claimStatus: 'none' | 'available' | 'claimed' | 'expired';
   reward?: Record<string, unknown> | null;
+};
+
+export type MusicChallengeContentType = 'clip' | 'variation' | 'track' | 'open';
+export type MusicChallengeStatus = 'upcoming' | 'active' | 'ended';
+
+export type MusicChallenge = {
+  id: string;
+  title: string;
+  prompt: string;
+  contentType: MusicChallengeContentType;
+  startsAt: string;
+  endsAt: string;
+  status: MusicChallengeStatus;
+  accentColor?: string | null;
+  coverUrl?: string | null;
+  sourceTrackId?: string | null;
+  sourceTrackType?: 'track' | 'ai_track' | null;
+  clubSlug?: 'feedback' | 'collab' | 'remix' | 'ai' | null;
+  entryCount: number;
+};
+
+export type MusicChallengeEntry = {
+  id: string;
+  userId: string;
+  username: string;
+  name: string;
+  avatar?: string | null;
+  contentType: 'clip' | 'variation' | 'track';
+  contentId: string;
+  title: string;
+  coverUrl?: string | null;
+  audioUrl?: string | null;
+  videoUrl?: string | null;
+  href: string;
+  createdAt: string;
+};
+
+export type MusicChallengeDetail = MusicChallenge & {
+  entries: MusicChallengeEntry[];
+  userHasEntry: boolean;
 };
 
 export type SynauraCityData = {

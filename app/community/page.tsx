@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { ArrowRight, Music2 } from 'lucide-react';
 import Avatar from '@/components/Avatar';
 import { notify } from '@/components/NotificationCenter';
@@ -12,6 +13,14 @@ import {
   SynauraTopBar,
 } from '@/components/synaura/SynauraShell';
 import { COMMUNITY_CLUBS, type ClubConfig } from '@/lib/communityClubs';
+
+// Intentions creatives (onboarding "Personnaliser mes gouts") qui mettent un Club
+// en avant. Ne masque jamais les autres Clubs, se contente de les prioriser.
+const INTENTION_TO_CLUB_SLUG: Record<string, string> = {
+  remix: 'remix',
+  collab: 'collab',
+  create_ai: 'ai',
+};
 
 type ClubAggregate = {
   slug: string;
@@ -36,12 +45,20 @@ function formatDate(value?: string) {
   return new Date(value).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 }
 
-function ClubCard({ club, aggregate }: { club: ClubConfig; aggregate?: ClubAggregate }) {
+function ClubCard({ club, aggregate, highlighted }: { club: ClubConfig; aggregate?: ClubAggregate; highlighted?: boolean }) {
   const postsCount = aggregate?.postsCount || 0;
   const latestPost = aggregate?.latestPost;
 
   return (
-    <div className="relative flex min-h-[300px] flex-col overflow-hidden rounded-[1.8rem] border border-black/[0.08] bg-[#fffaf2]/90 p-5 shadow-[0_20px_60px_rgba(30,25,20,0.09)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_80px_rgba(30,25,20,0.14)]">
+    <div
+      className="relative flex min-h-[300px] flex-col overflow-hidden rounded-[1.8rem] border bg-[#fffaf2]/90 p-5 shadow-[0_20px_60px_rgba(30,25,20,0.09)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_80px_rgba(30,25,20,0.14)]"
+      style={{ borderColor: highlighted ? '#7357C6' : 'rgba(0,0,0,0.08)' }}
+    >
+      {highlighted ? (
+        <span className="absolute right-4 top-4 z-10 inline-flex items-center rounded-full bg-[#7357C6] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white">
+          Pour toi
+        </span>
+      ) : null}
       <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-16 blur-3xl" style={{ background: club.accent }} />
       <div className="relative flex flex-1 flex-col">
         <div className="grid h-11 w-11 place-items-center rounded-[1rem] text-white shadow-[0_14px_32px_rgba(30,25,20,0.16)]" style={{ background: club.accent }}>
@@ -90,8 +107,38 @@ function ClubCard({ club, aggregate }: { club: ClubConfig; aggregate?: ClubAggre
 }
 
 export default function CommunityClubsLandingPage() {
+  const { status } = useSession();
   const [loading, setLoading] = useState(true);
   const [aggregates, setAggregates] = useState<Record<string, ClubAggregate>>({});
+  const [highlightedSlugs, setHighlightedSlugs] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    let mounted = true;
+    fetch('/api/user/preferences', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (!mounted) return;
+        const intentions: string[] = Array.isArray(json?.preferences?.onboarding?.creatorIntentions)
+          ? json.preferences.onboarding.creatorIntentions
+          : [];
+        const slugs = intentions.map((id) => INTENTION_TO_CLUB_SLUG[id]).filter((slug): slug is string => Boolean(slug));
+        setHighlightedSlugs(slugs);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [status]);
+
+  const orderedClubs = useMemo(() => {
+    if (!highlightedSlugs.length) return COMMUNITY_CLUBS;
+    return [...COMMUNITY_CLUBS].sort((a, b) => {
+      const aFav = highlightedSlugs.includes(a.slug) ? 0 : 1;
+      const bFav = highlightedSlugs.includes(b.slug) ? 0 : 1;
+      return aFav - bFav;
+    });
+  }, [highlightedSlugs]);
 
   useEffect(() => {
     let mounted = true;
@@ -144,8 +191,8 @@ export default function CommunityClubsLandingPage() {
           </SynauraPanel>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {COMMUNITY_CLUBS.map((club) => (
-              <ClubCard key={club.slug} club={club} aggregate={aggregates[club.slug]} />
+            {orderedClubs.map((club) => (
+              <ClubCard key={club.slug} club={club} aggregate={aggregates[club.slug]} highlighted={highlightedSlugs.includes(club.slug)} />
             ))}
           </div>
         )}

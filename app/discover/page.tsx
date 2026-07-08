@@ -60,6 +60,17 @@ async function fetchPopularArtists(baseUrl: string): Promise<any[]> {
   }
 }
 
+async function fetchFavoriteMoodIds(userId: string | undefined): Promise<string[]> {
+  if (!userId) return [];
+  try {
+    const { data } = await supabaseAdmin.from('profiles').select('preferences').eq('id', userId).single();
+    const favoriteMoods = (data as any)?.preferences?.onboarding?.favoriteMoods;
+    return Array.isArray(favoriteMoods) ? favoriteMoods.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
 async function fetchAiPreviewCovers(): Promise<string[]> {
   try {
     const { data } = await supabaseAdmin
@@ -84,12 +95,13 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
   const userId = (session?.user as any)?.id as string | undefined;
   const baseUrl = await getBaseUrl();
 
-  const [pool, radarRaw, collections, popularArtists, aiCovers] = await Promise.all([
+  const [pool, radarRaw, collections, popularArtists, aiCovers, favoriteMoodIds] = await Promise.all([
     getPublicTrackPool({ limit: 300 }),
     getRadarTracks(16),
     fetchCollections(baseUrl),
     fetchPopularArtists(baseUrl),
     fetchAiPreviewCovers(),
+    fetchFavoriteMoodIds(userId),
   ]);
 
   const radarTracks = await attachLikedFlag(radarRaw, userId);
@@ -134,6 +146,7 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
       moodPreviews={moodPreviews}
       collections={collections}
       artists={artists}
+      favoriteMoodIds={favoriteMoodIds}
     />
   );
 }

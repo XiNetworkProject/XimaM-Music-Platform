@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { ArrowLeft, Check, Film, Loader2, Music2, Play, UploadCloud, X } from 'lucide-react';
 import { SynauraAppShell, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import CreateArrivalBanner from '@/components/create/CreateArrivalBanner';
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
 
 type ClipSource = {
@@ -111,7 +112,9 @@ function NewMusicClipPageContent() {
   const currentUserId = (session?.user as any)?.id;
   const presetTrackId = searchParams.get('trackId') || '';
   const presetTrackType = searchParams.get('trackType') || '';
+  const challengeId = searchParams.get('challengeId') || '';
   const [step, setStep] = useState(1);
+  const [challengeTitle, setChallengeTitle] = useState<string | null>(null);
   const [sources, setSources] = useState<ClipSource[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState('');
   const [isPreset, setIsPreset] = useState(false);
@@ -163,6 +166,20 @@ function NewMusicClipPageContent() {
       mounted = false;
     };
   }, [status, presetTrackId, presetTrackType]);
+
+  useEffect(() => {
+    if (!challengeId) return;
+    let mounted = true;
+    fetch(`/api/challenges/${encodeURIComponent(challengeId)}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (mounted && json?.challenge?.title) setChallengeTitle(json.challenge.title);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [challengeId]);
 
   async function onPickFile(nextFile: File | null) {
     setError(null);
@@ -228,6 +245,13 @@ function NewMusicClipPageContent() {
       const publishJson = await publishRes.json();
       if (!publishRes.ok) throw new Error(publishJson?.error || 'Publication impossible');
       void recordClipFunnelEvent(selectedSource._id, 'clip_published');
+      if (challengeId && clipId) {
+        fetch(`/api/challenges/${encodeURIComponent(challengeId)}/participate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contentType: 'clip', contentId: clipId }),
+        }).catch(() => {});
+      }
       router.push('/?filter=clips');
     } catch (e: any) {
       setError(e?.message || 'Impossible de publier le clip');
@@ -240,10 +264,16 @@ function NewMusicClipPageContent() {
     <SynauraAppShell contentClassName="max-w-[1120px]">
       <SynauraTopBar primaryHref="/upload" primaryLabel="Publier" secondaryHref="/ai-generator" secondaryLabel="Studio" />
       <div className="space-y-4 pb-24">
-        <Link href="/" className="inline-flex h-11 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-sm font-black text-black/58 transition hover:bg-[#111111] hover:text-white">
-          <ArrowLeft className="h-4 w-4" />
-          Retour au Scroll
-        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link href="/" className="inline-flex h-11 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-sm font-black text-black/58 transition hover:bg-[#111111] hover:text-white">
+            <ArrowLeft className="h-4 w-4" />
+            Retour au Scroll
+          </Link>
+          <CreateArrivalBanner
+            context={challengeId ? 'challenge' : 'clip'}
+            title={challengeId ? challengeTitle : (isPreset ? selectedSource?.title : null)}
+          />
+        </div>
 
         <SynauraPanel className="p-5 sm:p-7">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
