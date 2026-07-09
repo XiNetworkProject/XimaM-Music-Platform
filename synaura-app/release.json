@@ -1,12 +1,11 @@
 {
-  "title": "Synaura mobile 0.9.15",
+  "title": "Synaura mobile 0.9.16",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
+    "Waveform : les marqueurs commentaires/reactions sont enfin visibles et cliquables (avant : quasi invisibles, non tactiles)",
+    "Waveform : tape un marqueur pour voir qui a reagi ou commente, avec seek direct vers ce moment",
     "Lecture en cours : refonte du lecteur plein ecran avec la vraie waveform du morceau",
-    "Waveform : reagis et commente exactement au moment qui te marque (drop, emotion, punchline...)",
-    "Scroll : la waveform reelle remplace la barre de progression classique sur les morceaux et les Clips",
-    "Partage : genere une carte visuelle premium (Story, Carre, Banniere) pour chaque morceau",
-    "Mises a jour : une version deja installee n'est plus reproposee"
+    "Partage : genere une carte visuelle premium (Story, Carre, Banniere) pour chaque morceau"
   ]
 }
