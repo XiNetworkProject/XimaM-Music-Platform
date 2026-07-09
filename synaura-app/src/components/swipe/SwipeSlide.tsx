@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { canOpenAiVariation, canUseSoundClientSide, type Track } from '@/api/types';
 import { fmtCount, trackArtistName } from './helpers';
-import { InteractiveSeekBar } from './InteractiveSeekBar';
+import { WaveformSeekBar } from './WaveformSeekBar';
 import { TrackCover } from '@/components/TrackCover';
 import { usePlayerProgress } from '@/player/PlayerProvider';
 import { useAuth } from '@/auth/AuthProvider';
@@ -464,7 +464,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
           </Pressable>
         ) : null}
         <View style={styles.seekWrap}>
-          {isActive ? <ActiveSeekBar fallbackDuration={track.duration || 0} onSeek={onSeek} /> : <View style={styles.seekPlaceholder} />}
+          {isActive ? <ActiveSeekBar track={track} onSeek={onSeek} /> : <View style={styles.seekPlaceholder} />}
         </View>
       </Animated.View>
 
@@ -472,13 +472,21 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
   );
 });
 
-function ActiveSeekBar({ fallbackDuration, onSeek }: { fallbackDuration: number; onSeek: (seconds: number) => void }) {
+// Waveform réelle (cache serveur) avec marqueurs de moments quand elle existe ;
+// barre de progression classique sinon. Montée uniquement sur la slide active
+// pour ne pas multiplier les requêtes pendant le scroll.
+function ActiveSeekBar({ track, onSeek }: { track: Track; onSeek: (seconds: number) => void }) {
   const progress = usePlayerProgress(500);
+  const isAi = !!track.isAI || track._id.startsWith('ai-');
   return (
-    <InteractiveSeekBar
+    <WaveformSeekBar
+      trackId={track._id}
       position={progress.positionSec}
-      duration={progress.durationSec || fallbackDuration}
+      duration={progress.durationSec || track.duration || 0}
       onSeek={onSeek}
+      showMoments={!isAi}
+      height={34}
+      barCount={48}
     />
   );
 }
@@ -643,7 +651,9 @@ const styles = StyleSheet.create({
   },
   lyricsText: { color: 'rgba(255,250,242,0.82)', fontSize: 10, fontWeight: '800' },
   seekWrap: { marginTop: 12 },
-  seekPlaceholder: { height: 28 },
+  // Même hauteur que la WaveformSeekBar active (34 + ligne des temps) pour
+  // éviter tout saut de layout quand la slide devient active.
+  seekPlaceholder: { height: 53 },
 });
 
 export default SwipeSlide;

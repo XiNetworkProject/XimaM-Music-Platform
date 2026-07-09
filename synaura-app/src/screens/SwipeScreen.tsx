@@ -383,16 +383,20 @@ export function SwipeScreen() {
     });
   }, [activeId]);
 
-  // (6) Statut follow de l'artiste
+  // (6) Statut follow de l'artiste (et du créateur du clip actif, qui peut
+  // être une personne différente de l'artiste du morceau source)
   useEffect(() => {
-    const username = activeTrack?.artist?.username || '';
-    if (!username) return;
-    if (fetchedFollowIdsRef.current.has(username)) return;
-    fetchedFollowIdsRef.current.add(username);
-    void getArtistFollowState(username).then((following) => {
-      setFollowingMap((current) => ({ ...current, [username]: following }));
+    const usernames = [
+      activeTrack?.artist?.username || '',
+      activeItem?.kind === 'clip' ? activeItem.clip.creator?.username || '' : '',
+    ].filter((username) => username && !fetchedFollowIdsRef.current.has(username));
+    usernames.forEach((username) => {
+      fetchedFollowIdsRef.current.add(username);
+      void getArtistFollowState(username).then((following) => {
+        setFollowingMap((current) => ({ ...current, [username]: following }));
+      });
     });
-  }, [activeTrack?.artist?.username]);
+  }, [activeItem, activeTrack?.artist?.username]);
 
   // (8) Preloading covers (morceaux, artistes en vedette, collections)
   useEffect(() => {
@@ -537,8 +541,8 @@ export function SwipeScreen() {
     }
   }, [activeTrack, handleToggleLike, library, useThisSound]);
 
-  const handleToggleFollow = useCallback(async () => {
-    const username = activeTrack?.artist?.username;
+  const handleToggleFollow = useCallback(async (usernameParam?: string) => {
+    const username = usernameParam || activeTrack?.artist?.username;
     if (!username) return;
     if (followLoading[username]) return;
     const wasFollowing = Boolean(followingMap[username]);
@@ -643,6 +647,8 @@ export function SwipeScreen() {
 
     if (item.kind === 'clip') {
       const isPlayingThis = isActive && player.current?._id === item.track._id && player.isPlaying;
+      const clipTrackId = item.track._id;
+      const creatorKey = item.clip.creator?.username || '';
       return (
         <ClipSlide
           clip={item.clip}
@@ -651,11 +657,26 @@ export function SwipeScreen() {
           bottomPad={tabBarHeight}
           isActive={isActive}
           isPlaying={isPlayingThis}
+          isLiked={!!likedMap[clipTrackId]}
+          likesCount={likesMap[clipTrackId] ?? item.track.likesCount ?? 0}
+          commentsCount={commentsCounts[clipTrackId] ?? item.track.commentsCount ?? 0}
+          isFollowingCreator={!!followingMap[creatorKey]}
+          followLoading={!!followLoading[creatorKey]}
           onPressAudio={() => {
-            if (player.current?._id === item.track._id) void player.togglePlayPause();
+            if (player.current?._id === clipTrackId) void player.togglePlayPause();
             else void player.playTrack(item.track);
           }}
-          onOpenTrack={() => navigation.navigate('TrackDetail', { trackId: item.track._id, track: item.track })}
+          onDoubleTapLike={handleDoubleTapLike}
+          onToggleLike={() => void handleToggleLike()}
+          onOpenComments={() => {
+            Haptics.selectionAsync().catch(() => {});
+            setShareOpen(false);
+            setLyricsOpen(false);
+            setCommentsOpen(true);
+          }}
+          onOpenTrack={() => navigation.navigate('TrackDetail', { trackId: clipTrackId, track: item.track })}
+          onOpenCreator={() => creatorKey && navigation.navigate('PublicProfile', { username: creatorKey })}
+          onToggleFollowCreator={() => void handleToggleFollow(creatorKey)}
           onShare={() => {
             setCommentsOpen(false);
             setLyricsOpen(false);
@@ -775,6 +796,7 @@ export function SwipeScreen() {
     handleSeek,
     handleSlideAction,
     handleToggleFollow,
+    handleToggleLike,
     insets.top,
     itemHeight,
     isFocused,

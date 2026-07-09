@@ -42,7 +42,7 @@ type Props = {
   onCommentCreated?: (comment: HomeComment) => void;
 };
 
-type ReactionMeta = {
+export type ReactionMeta = {
   type: MomentReactionType;
   label: string;
   shortLabel: string;
@@ -50,7 +50,9 @@ type ReactionMeta = {
   color: string;
 };
 
-const REACTIONS: ReactionMeta[] = [
+// Source unique des 6 réactions rapides côté mobile (waveform du player,
+// MomentSheet du lecteur plein écran) — mêmes types que l'API web.
+export const MOMENT_REACTIONS: ReactionMeta[] = [
   { type: 'drop', label: 'Drop incroyable', shortLabel: 'Drop', icon: 'flame', color: '#D96D63' },
   { type: 'emotional', label: 'Passage emotionnel', shortLabel: 'Emotion', icon: 'water', color: '#4A9EAA' },
   { type: 'mindblown', label: 'Moment fou', shortLabel: 'Fou', icon: 'sparkles', color: '#7357C6' },
@@ -62,7 +64,7 @@ const REACTIONS: ReactionMeta[] = [
 const CLUSTER_WINDOW_SECONDS = 4;
 
 function reactionMeta(type: MomentReactionType) {
-  return REACTIONS.find((reaction) => reaction.type === type) || REACTIONS[0];
+  return MOMENT_REACTIONS.find((reaction) => reaction.type === type) || MOMENT_REACTIONS[0];
 }
 
 function samplePeaks(peaks: number[], targetCount: number) {
@@ -388,7 +390,7 @@ export function MomentWaveform({
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.reactionRail}>
-            {REACTIONS.map((reaction) => (
+            {MOMENT_REACTIONS.map((reaction) => (
               <Pressable
                 key={reaction.type}
                 disabled={Boolean(reactionBusy)}

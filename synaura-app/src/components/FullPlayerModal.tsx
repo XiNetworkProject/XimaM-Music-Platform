@@ -7,13 +7,13 @@ import {
   Modal,
   PanResponder,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -33,8 +33,9 @@ import { ShareSheet } from '@/components/swipe/ShareSheet';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
 import { AuraVisual } from '@/components/mobile/AuraVisual';
-import { MomentWaveform } from '@/components/mobile/MomentWaveform';
-import { fmtCount, trackArtistName } from '@/components/swipe/helpers';
+import { MomentSheet } from '@/components/mobile/MomentSheet';
+import { WaveformSeekBar } from '@/components/swipe/WaveformSeekBar';
+import { fmtCount, fmtTime, trackArtistName } from '@/components/swipe/helpers';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
 type Props = {
@@ -42,8 +43,13 @@ type Props = {
   onClose: () => void;
 };
 
-const { height: SCREEN_H } = Dimensions.get('window');
+const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 
+// Refonte "lecture en cours" : tout tient sur un seul écran (plus de scroll).
+// La waveform réelle vit DANS la cover (bandeau bas sur scrim sombre) au lieu
+// d'une grosse carte séparée ; réactions/commentaires de moment passent dans
+// une feuille dédiée ("Réagir à ce moment") ; les actions secondaires
+// (paroles, remix, téléchargement, timer, aura) dans une feuille "Plus".
 export function FullPlayerModal({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
@@ -57,12 +63,16 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const [shareOpen, setShareOpen] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [momentOpen, setMomentOpen] = useState(false);
+  const [momentTs, setMomentTs] = useState(0);
 
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState<number>(0);
   const [commentsCount, setCommentsCount] = useState<number>(0);
   const [following, setFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
+  const [coverZoneHeight, setCoverZoneHeight] = useState(0);
 
   const dragY = useRef(new Animated.Value(0)).current;
   const coverPulse = useRef(new Animated.Value(0)).current;
@@ -100,7 +110,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
     void getArtistFollowState(track.artist.username).then(setFollowing);
   }, [isRadio, track?.artist?.username, visible]);
 
-  // Subtle cover pulse only when playing (less aggressive than before).
+  // Subtle cover pulse only when playing.
   useEffect(() => {
     if (!visible || !player.isPlaying) {
       coverPulse.stopAnimation();
@@ -129,11 +139,10 @@ export function FullPlayerModal({ visible, onClose }: Props) {
     });
   }, [dragY, onClose]);
 
-  // Swipe-down gesture on the header / top zone to close the modal naturally.
+  // Swipe-down gesture on the header to close the modal naturally.
   const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => false,
     onMoveShouldSetPanResponder: (_, gesture) => {
-      // Only react to clearly vertical downward gestures
       return Math.abs(gesture.dy) > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx);
     },
     onPanResponderGrant: () => {
@@ -196,6 +205,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const openRemixStudio = useCallback(() => {
     if (!track || !canRemixCurrent) return;
     Haptics.selectionAsync().catch(() => {});
+    setMoreOpen(false);
     onClose();
     navigation.navigate('Tabs', {
       screen: 'AIStudio',
@@ -207,19 +217,30 @@ export function FullPlayerModal({ visible, onClose }: Props) {
     });
   }, [canRemixCurrent, navigation, onClose, track]);
 
+  const openMomentSheet = useCallback(() => {
+    if (!canInteract) return;
+    setMomentTs(Math.max(0, Math.round(progress.positionSec || 0)));
+    setMomentOpen(true);
+    Haptics.selectionAsync().catch(() => {});
+  }, [canInteract, progress.positionSec]);
+
   if (!track) return null;
 
   const coverScale = coverPulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, player.isPlaying ? 1.018 : 1],
+    outputRange: [1, player.isPlaying ? 1.015 : 1],
   });
 
-  // Map the drag distance to a fade for a polished sheet-like dismissal.
   const overlayOpacity = dragY.interpolate({
     inputRange: [0, SCREEN_H * 0.6],
     outputRange: [1, 0.4],
     extrapolate: 'clamp',
   });
+
+  // La cover prend toute la place disponible entre le header et le bloc
+  // méta/contrôles, sans jamais déborder ni forcer de scroll : sa taille est
+  // le min entre la hauteur mesurée de la zone flexible et la largeur écran.
+  const coverSize = Math.max(180, Math.min(coverZoneHeight, SCREEN_W - 48, 360));
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={closeWithAnim}>
@@ -235,7 +256,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
         <SynauraBackground variant="warm" />
         <AuraVisual track={track} active={visible} playing={player.isPlaying} />
 
-        <View {...panResponder.panHandlers} style={[styles.header, { paddingTop: insets.top + 8 }]}> 
+        <View {...panResponder.panHandlers} style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <Pressable
             accessibilityLabel="Reduire le lecteur"
             onPress={closeWithAnim}
@@ -246,7 +267,9 @@ export function FullPlayerModal({ visible, onClose }: Props) {
           <View style={styles.headerCenter}>
             <View style={styles.dragHandle} />
             <Text style={styles.headerKicker}>{isRadio ? 'EN DIRECT' : isAi ? 'CRÉATION IA' : 'LECTURE EN COURS'}</Text>
-            <Text numberOfLines={1} style={styles.headerSubtitle}>{trackArtistName(track)}</Text>
+            <Text numberOfLines={1} style={styles.headerSubtitle}>
+              {player.queue.length > 1 ? `${player.currentIndex + 1} sur ${player.queue.length}` : trackArtistName(track)}
+            </Text>
           </View>
           <Pressable
             accessibilityLabel="Voir la file d'attente"
@@ -262,40 +285,18 @@ export function FullPlayerModal({ visible, onClose }: Props) {
           </Pressable>
         </View>
 
-        <ScrollView
-          contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 28 }]}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.contextCard}>
-            <View style={styles.contextLeft}>
-              <Text style={styles.contextKicker}>{player.queue.length > 1 ? 'Queue Synaura' : 'Lecture directe'}</Text>
-              <Text style={styles.contextTitle} numberOfLines={1}>
-                {player.queue.length > 1 ? `${player.currentIndex + 1} sur ${player.queue.length}` : 'Un son en cours'}
-              </Text>
-            </View>
-            <View style={styles.contextActions}>
-              <Pressable accessibilityLabel="Minuteur de sommeil" onPress={cycleSleepTimer} style={[styles.contextBtn, player.sleepTimerEnd ? styles.contextBtnActive : null]}>
-                <Ionicons name="moon-outline" size={16} color={player.sleepTimerEnd ? '#FFFAF2' : '#171313'} />
-                <Text style={[styles.contextBtnText, player.sleepTimerEnd ? styles.contextBtnTextActive : null]}>{player.sleepTimerEnd ? `${sleepMinutes} min` : 'Timer'}</Text>
-              </Pressable>
-              <Pressable accessibilityLabel="Voir la queue" onPress={() => setQueueOpen(true)} style={styles.contextBtn}>
-                <Ionicons name="list" size={17} color="#171313" />
-                <Text style={styles.contextBtnText}>File</Text>
-              </Pressable>
-              <Pressable accessibilityLabel={settings.dynamicBackground ? 'Desactiver Aura Visuals' : 'Activer Aura Visuals'} onPress={toggleAuraVisuals} style={[styles.contextBtn, settings.dynamicBackground ? styles.contextBtnActive : null]}>
-                <Ionicons name="sparkles-outline" size={16} color={settings.dynamicBackground ? '#FFFAF2' : '#171313'} />
-                <Text style={[styles.contextBtnText, settings.dynamicBackground ? styles.contextBtnTextActive : null]}>Aura</Text>
-              </Pressable>
-            </View>
-          </View>
-
-          <View style={styles.coverWrap}>
+        <View style={[styles.body, { paddingBottom: insets.bottom + 14 }]}>
+          {/* Zone cover flexible : absorbe l'espace restant */}
+          <View
+            style={styles.coverZone}
+            onLayout={(event) => setCoverZoneHeight(Math.max(0, event.nativeEvent.layout.height))}
+          >
             {track.coverUrl ? (
-              <Animated.View style={[styles.coverHalo, { transform: [{ scale: coverScale }] }]}>
+              <Animated.View style={[styles.coverHalo, { width: coverSize + 22, height: coverSize + 22, transform: [{ scale: coverScale }] }]}>
                 <Image source={{ uri: track.coverUrl }} blurRadius={28} style={StyleSheet.absoluteFillObject} />
               </Animated.View>
             ) : null}
-            <Animated.View style={[styles.coverFrame, { transform: [{ scale: coverScale }] }]}>
+            <Animated.View style={[styles.coverFrame, { width: coverSize, height: coverSize, transform: [{ scale: coverScale }] }]}>
               {track.coverUrl || track.coverVideoUrl || track.coverVideoPosterUrl ? (
                 <TrackCover track={track} active={visible && player.isPlaying} autoPlayVideo={visible && player.isPlaying} style={StyleSheet.absoluteFill} />
               ) : (
@@ -303,90 +304,107 @@ export function FullPlayerModal({ visible, onClose }: Props) {
                   <Ionicons name="musical-notes" size={68} color="rgba(23,19,19,0.32)" />
                 </View>
               )}
-            </Animated.View>
 
-            <View style={styles.statusBadges}>
-              {isRadio ? (
-                <View style={[styles.statusBadge, { backgroundColor: '#EF4444' }]}>
-                  <View style={styles.statusDot} />
-                  <Text style={styles.statusText}>LIVE</Text>
+              <View style={styles.statusBadges}>
+                {isRadio ? (
+                  <View style={[styles.statusBadge, { backgroundColor: '#EF4444' }]}>
+                    <View style={styles.statusDot} />
+                    <Text style={styles.statusText}>LIVE</Text>
+                  </View>
+                ) : null}
+                {track.isBoosted ? (
+                  <View style={[styles.statusBadge, { backgroundColor: '#171313' }]}>
+                    <Ionicons name="flash" size={10} color="#FFFAF2" />
+                    <Text style={styles.statusText}>BOOST</Text>
+                  </View>
+                ) : null}
+                {isAi ? (
+                  <View style={[styles.statusBadge, { backgroundColor: '#7C5CFF' }]}>
+                    <Ionicons name="sparkles" size={10} color="#FFFAF2" />
+                    <Text style={styles.statusText}>IA</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Waveform réelle intégrée dans la cover, sur scrim sombre */}
+              {!isRadio ? (
+                <View style={styles.waveOverlay}>
+                  <LinearGradient
+                    colors={['rgba(10,8,8,0)', 'rgba(10,8,8,0.58)', 'rgba(10,8,8,0.82)']}
+                    locations={[0, 0.4, 1]}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <WaveformSeekBar
+                    trackId={trackId}
+                    position={progress.positionSec}
+                    duration={progress.durationSec || track.duration || 0}
+                    onSeek={(seconds) => void player.seekTo(seconds)}
+                    showMoments={canInteract}
+                    height={40}
+                    barCount={52}
+                    style={styles.waveInner}
+                  />
                 </View>
-              ) : null}
-              {track.isBoosted ? (
-                <View style={[styles.statusBadge, { backgroundColor: '#171313' }]}>
-                  <Ionicons name="flash" size={10} color="#FFFAF2" />
-                  <Text style={styles.statusText}>BOOST</Text>
+              ) : (
+                <View style={styles.liveOverlay}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveText}>EN DIRECT</Text>
                 </View>
-              ) : null}
-              {isAi ? (
-                <View style={[styles.statusBadge, { backgroundColor: '#7C5CFF' }]}>
-                  <Ionicons name="sparkles" size={10} color="#FFFAF2" />
-                  <Text style={styles.statusText}>IA</Text>
+              )}
+            </Animated.View>
+          </View>
+
+          {/* Bloc méta compact */}
+          <View style={styles.meta}>
+            <Text style={styles.title} numberOfLines={1}>{track.title}</Text>
+            <View style={styles.metaRow}>
+              <Pressable
+                onPress={() => track.artist?.username && navigation.navigate('Tabs', {
+                  screen: 'PublicProfile',
+                  params: { username: track.artist.username },
+                })}
+                disabled={!track.artist?.username || isRadio}
+                style={styles.artistRow}
+              >
+                <View style={styles.artistAvatar}>
+                  {track.artist?.avatar ? (
+                    <Image source={{ uri: track.artist.avatar }} style={StyleSheet.absoluteFill} />
+                  ) : (
+                    <Text style={styles.artistInitial}>
+                      {(track.artist?.name || track.artist?.username || 'S').slice(0, 1).toUpperCase()}
+                    </Text>
+                  )}
                 </View>
-              ) : null}
+                <View style={{ flexShrink: 1, minWidth: 0 }}>
+                  <Text style={styles.artist} numberOfLines={1}>{trackArtistName(track)}</Text>
+                  {track.plays ? <Text style={styles.plays}>{fmtCount(track.plays)} écoutes</Text> : null}
+                </View>
+              </Pressable>
+              <View style={styles.metaRight}>
+                {!isRadio && artistId ? (
+                  <Pressable
+                    accessibilityLabel={following ? 'Deja suivi' : "Suivre l'artiste"}
+                    disabled={followBusy}
+                    onPress={() => void toggleFollow()}
+                    style={[styles.followBtn, following && styles.followBtnDone]}
+                  >
+                    <Ionicons name={following ? 'checkmark' : 'add'} size={13} color={following ? '#FFFAF2' : '#171313'} />
+                    <Text style={[styles.followText, following && styles.followTextDone]}>
+                      {following ? 'Suivi' : 'Suivre'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {canInteract ? (
+                  <Pressable accessibilityLabel="Réagir à ce moment" onPress={openMomentSheet} style={styles.momentBtn}>
+                    <Ionicons name="pulse" size={13} color="#FFFAF2" />
+                    <Text style={styles.momentBtnText}>{fmtTime(progress.positionSec)}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
           </View>
 
-          <View style={styles.meta}>
-            <Text style={styles.title} numberOfLines={2}>{track.title}</Text>
-            <Pressable
-              onPress={() => track.artist?.username && navigation.navigate('Tabs', {
-                screen: 'PublicProfile',
-                params: { username: track.artist.username },
-              })}
-              disabled={!track.artist?.username || isRadio}
-              style={styles.artistRow}
-            >
-              <View style={styles.artistAvatar}>
-                {track.artist?.avatar ? (
-                  <Image source={{ uri: track.artist.avatar }} style={StyleSheet.absoluteFill} />
-                ) : (
-                  <Text style={styles.artistInitial}>
-                    {(track.artist?.name || track.artist?.username || 'S').slice(0, 1).toUpperCase()}
-                  </Text>
-                )}
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.artist} numberOfLines={1}>{trackArtistName(track)}</Text>
-                {track.plays ? (
-                  <Text style={styles.plays}>{fmtCount(track.plays)} ecoutes</Text>
-                ) : null}
-              </View>
-              {!isRadio && artistId ? (
-                <Pressable
-                  accessibilityLabel={following ? 'Deja suivi' : "Suivre l'artiste"}
-                  disabled={followBusy}
-                  onPress={() => void toggleFollow()}
-                  style={[styles.followBtn, following && styles.followBtnDone]}
-                >
-                  <Ionicons name={following ? 'checkmark' : 'add'} size={13} color={following ? '#FFFAF2' : '#171313'} />
-                  <Text style={[styles.followText, following && styles.followTextDone]}>
-                    {following ? 'Suivi' : 'Suivre'}
-                  </Text>
-                </Pressable>
-              ) : null}
-            </Pressable>
-          </View>
-
-          <View style={styles.progressWrap}>
-            {!isRadio ? (
-              <MomentWaveform
-                track={track}
-                position={progress.positionSec}
-                duration={progress.durationSec || track.duration || 0}
-                isPlaying={player.isPlaying}
-                momentsEnabled={canInteract}
-                onSeek={(seconds) => void player.seekTo(seconds)}
-                onCommentCreated={() => setCommentsCount((value) => value + 1)}
-              />
-            ) : (
-              <View style={styles.liveLine}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveText}>EN DIRECT</Text>
-              </View>
-            )}
-          </View>
-
+          {/* Transport */}
           <View style={styles.controls}>
             <Pressable
               accessibilityLabel="Activer ou desactiver le shuffle"
@@ -427,11 +445,12 @@ export function FullPlayerModal({ visible, onClose }: Props) {
             </Pressable>
           </View>
 
+          {/* Une seule rangée d'actions : le reste vit dans "Plus" */}
           <View style={styles.actionRow}>
             <PlayerAction
               icon={liked ? 'heart' : 'heart-outline'}
               label={fmtCount(likesCount) || "J'aime"}
-              activeColor="#FF4B7A"
+              activeColor="#D96D63"
               active={liked}
               disabled={!canInteract}
               onPress={() => void toggleLike()}
@@ -448,49 +467,19 @@ export function FullPlayerModal({ visible, onClose }: Props) {
               onPress={() => setShareOpen(true)}
             />
             <PlayerAction
-              icon="document-text-outline"
-              label="Paroles"
-              disabled={!track.lyrics}
-              onPress={() => setLyricsOpen(true)}
-            />
-            <PlayerAction
               icon={isFavorite ? 'bookmark' : 'bookmark-outline'}
               label="Sauver"
-              activeColor="#7C5CFF"
+              activeColor="#7357C6"
               active={isFavorite}
               onPress={() => library.toggleFavorite(track)}
             />
-            {canRemixCurrent ? (
-              <PlayerAction
-                icon="color-wand-outline"
-                label="Remixer"
-                activeColor="#7357C6"
-                onPress={openRemixStudio}
-              />
-            ) : null}
             <PlayerAction
-              icon={library.isDownloaded(track._id) ? 'checkmark-circle' : 'download-outline'}
-              label={library.isDownloaded(track._id) ? 'Hors ligne' : 'Télécharger'}
-              activeColor="#16A34A"
-              active={library.isDownloaded(track._id)}
-              disabled={!/^https?:\/\//i.test(track.audioUrl || '') && !library.isDownloaded(track._id)}
-              onPress={() => {
-                if (library.isDownloaded(track._id)) void library.removeDownload(track._id);
-                else void library.downloadTrack(track);
-              }}
+              icon="ellipsis-horizontal"
+              label="Plus"
+              onPress={() => setMoreOpen(true)}
             />
           </View>
-
-          {track.genre?.length ? (
-            <View style={styles.genres}>
-              {track.genre.slice(0, 4).map((g) => (
-                <View key={g} style={styles.genreChip}>
-                  <Text style={styles.genreText}>{g}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-        </ScrollView>
+        </View>
 
         <CommentsSheet
           visible={commentsOpen}
@@ -502,6 +491,65 @@ export function FullPlayerModal({ visible, onClose }: Props) {
         <ShareSheet visible={shareOpen} track={track} onClose={() => setShareOpen(false)} />
         <LyricsSheet visible={lyricsOpen} track={track} onClose={() => setLyricsOpen(false)} />
         <QueueSheet visible={queueOpen} onClose={() => setQueueOpen(false)} />
+        <MomentSheet
+          visible={momentOpen}
+          track={track}
+          timestampSeconds={momentTs}
+          onClose={() => setMomentOpen(false)}
+          onCommentCreated={() => setCommentsCount((value) => value + 1)}
+        />
+
+        {/* Feuille "Plus" : actions secondaires sorties de l'écran principal */}
+        <Modal visible={moreOpen} transparent animationType="fade" onRequestClose={() => setMoreOpen(false)}>
+          <View style={styles.moreOverlay}>
+            <Pressable accessibilityLabel="Fermer" style={StyleSheet.absoluteFill} onPress={() => setMoreOpen(false)} />
+            <View style={[styles.moreSheet, { paddingBottom: insets.bottom + 16 }]}>
+              <View style={styles.moreHandle} />
+              <MoreRow
+                icon="document-text-outline"
+                label="Paroles"
+                disabled={!track.lyrics}
+                onPress={() => {
+                  setMoreOpen(false);
+                  setLyricsOpen(true);
+                }}
+              />
+              {canRemixCurrent ? (
+                <MoreRow icon="color-wand-outline" label="Remixer dans le Studio" onPress={openRemixStudio} />
+              ) : null}
+              <MoreRow
+                icon={library.isDownloaded(track._id) ? 'checkmark-circle' : 'download-outline'}
+                label={library.isDownloaded(track._id) ? 'Retirer du hors ligne' : 'Télécharger hors ligne'}
+                disabled={!/^https?:\/\//i.test(track.audioUrl || '') && !library.isDownloaded(track._id)}
+                onPress={() => {
+                  if (library.isDownloaded(track._id)) void library.removeDownload(track._id);
+                  else void library.downloadTrack(track);
+                }}
+              />
+              <MoreRow
+                icon="moon-outline"
+                label={player.sleepTimerEnd ? `Timer sommeil · ${sleepMinutes} min` : 'Timer sommeil'}
+                active={Boolean(player.sleepTimerEnd)}
+                onPress={cycleSleepTimer}
+              />
+              <MoreRow
+                icon="sparkles-outline"
+                label={settings.dynamicBackground ? 'Aura visuals · activés' : 'Aura visuals'}
+                active={settings.dynamicBackground}
+                onPress={toggleAuraVisuals}
+              />
+              {track.genre?.length ? (
+                <View style={styles.genres}>
+                  {track.genre.slice(0, 4).map((g) => (
+                    <View key={g} style={styles.genreChip}>
+                      <Text style={styles.genreText}>{g}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          </View>
+        </Modal>
       </Animated.View>
     </Modal>
   );
@@ -546,11 +594,40 @@ function PlayerAction({
   );
 }
 
+function MoreRow({
+  icon,
+  label,
+  active,
+  disabled,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      disabled={disabled}
+      onPress={onPress}
+      style={[styles.moreRow, disabled && { opacity: 0.35 }]}
+    >
+      <View style={[styles.moreIcon, active && styles.moreIconActive]}>
+        <Ionicons name={icon} size={18} color={active ? '#FFFAF2' : '#171313'} />
+      </View>
+      <Text style={styles.moreLabel}>{label}</Text>
+      <Ionicons name="chevron-forward" size={15} color="rgba(23,19,19,0.3)" />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F4EFE6' },
   header: {
     paddingHorizontal: 16,
-    paddingBottom: 14,
+    paddingBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -596,56 +673,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerBadgeText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
-  body: { paddingHorizontal: 20, paddingTop: 4 },
-  contextCard: {
-    marginTop: 4,
-    flexDirection: 'row',
+  body: { flex: 1, paddingHorizontal: 20 },
+  coverZone: {
+    flex: 1,
+    minHeight: 180,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,250,242,0.82)',
-    borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.08)',
+    justifyContent: 'center',
   },
-  contextLeft: { flex: 1, minWidth: 0 },
-  contextKicker: {
-    color: 'rgba(23,19,19,0.48)',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-  },
-  contextTitle: { marginTop: 3, color: '#171313', fontSize: 13, fontWeight: '900' },
-  contextBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(23,19,19,0.06)',
-  },
-  contextActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 7 },
-  contextBtnActive: { backgroundColor: '#171313' },
-  contextBtnText: { color: '#171313', fontSize: 11, fontWeight: '900' },
-  contextBtnTextActive: { color: '#FFFAF2' },
-  coverWrap: { alignItems: 'center', marginTop: 10 },
   coverHalo: {
     position: 'absolute',
-    width: '92%',
-    aspectRatio: 1,
-    maxWidth: 350,
     borderRadius: 34,
     overflow: 'hidden',
     opacity: 0.34,
   },
   coverFrame: {
-    width: '100%',
-    aspectRatio: 1,
-    maxWidth: 330,
     borderRadius: 26,
     overflow: 'hidden',
     backgroundColor: '#171313',
@@ -679,24 +720,54 @@ const styles = StyleSheet.create({
   },
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFAF2' },
   statusText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
-  meta: { marginTop: 16 },
+  waveOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: 26,
+  },
+  waveInner: { paddingHorizontal: 14, paddingBottom: 10 },
+  liveOverlay: {
+    position: 'absolute',
+    left: 14,
+    bottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(10,8,8,0.55)',
+  },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
+  liveText: { color: 'rgba(255,250,242,0.85)', fontSize: 11, fontWeight: '900', letterSpacing: 1.4 },
+  meta: { marginTop: 14 },
   title: {
     color: '#171313',
-    fontSize: 22,
-    lineHeight: 26,
+    fontSize: 21,
+    lineHeight: 25,
     fontWeight: '900',
     letterSpacing: -0.4,
   },
-  artistRow: {
-    marginTop: 10,
+  metaRow: {
+    marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  artistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 1,
+    minWidth: 0,
   },
   artistAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     overflow: 'hidden',
     backgroundColor: 'rgba(23,19,19,0.06)',
     borderWidth: 1,
@@ -704,14 +775,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  artistInitial: { color: '#171313', fontSize: 14, fontWeight: '900' },
-  artist: { color: '#171313', fontSize: 14, fontWeight: '900' },
-  plays: { color: 'rgba(23,19,19,0.5)', fontSize: 11, fontWeight: '700', marginTop: 3 },
+  artistInitial: { color: '#171313', fontSize: 13, fontWeight: '900' },
+  artist: { color: '#171313', fontSize: 13, fontWeight: '900' },
+  plays: { color: 'rgba(23,19,19,0.5)', fontSize: 10, fontWeight: '700', marginTop: 2 },
+  metaRight: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   followBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
+    gap: 5,
+    paddingHorizontal: 11,
     paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: '#FFFAF2',
@@ -721,12 +793,18 @@ const styles = StyleSheet.create({
   followBtnDone: { backgroundColor: '#171313', borderColor: 'transparent' },
   followText: { color: '#171313', fontSize: 11, fontWeight: '900', letterSpacing: 0.6 },
   followTextDone: { color: '#FFFAF2' },
-  progressWrap: { marginTop: 16 },
-  liveLine: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
-  liveText: { color: 'rgba(23,19,19,0.7)', fontSize: 11, fontWeight: '900', letterSpacing: 1.4 },
+  momentBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#7357C6',
+  },
+  momentBtnText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900', fontVariant: ['tabular-nums'] },
   controls: {
-    marginTop: 14,
+    marginTop: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -776,15 +854,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   actionRow: {
-    marginTop: 18,
+    marginTop: 14,
     flexDirection: 'row',
-    flexWrap: 'wrap',
     alignItems: 'flex-start',
-    justifyContent: 'center',
-    rowGap: 14,
-    columnGap: 4,
+    justifyContent: 'space-between',
   },
-  actionBtn: { width: '31%', alignItems: 'center', gap: 6 },
+  actionBtn: { flex: 1, alignItems: 'center', gap: 6 },
   actionCircle: {
     width: 44,
     height: 44,
@@ -802,8 +877,36 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.4,
   },
+  moreOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.42)' },
+  moreSheet: {
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    backgroundColor: '#F7F6F3',
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    gap: 4,
+  },
+  moreHandle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: 'rgba(17,17,17,0.18)', marginBottom: 8 },
+  moreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+  },
+  moreIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(23,19,19,0.08)',
+  },
+  moreIconActive: { backgroundColor: '#171313', borderColor: 'transparent' },
+  moreLabel: { flex: 1, color: '#171313', fontSize: 14, fontWeight: '900' },
   genres: {
-    marginTop: 14,
+    marginTop: 10,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
@@ -812,7 +915,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: '#FFFAF2',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: 'rgba(23,19,19,0.08)',
   },
