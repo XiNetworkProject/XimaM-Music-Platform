@@ -1,10 +1,12 @@
 {
-  "title": "Synaura mobile 0.9.12",
+  "title": "Synaura mobile 0.9.13",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Defis musicaux : participe a des defis reels (Clip, Variation IA ou morceau) depuis le Scroll, les Clubs et Creer",
-    "Clips : lecture video corrigee (demarrage fiable au scroll, le son ne coupe plus la video)",
-    "Menu profil : correction d'un bug d'affichage qui rendait certains boutons inaccessibles"
+    "Confidentialite : un morceau rendu prive n'est plus jamais expose via un post deja partage",
+    "Defis musicaux : le filtre Defis du Scroll affiche desormais les vrais defis en cours",
+    "Defis musicaux : les participations Clip s'ouvrent enfin correctement depuis le detail d'un defi",
+    "Studio IA : une variation en attente de validation compte bien comme participation au defi une fois approuvee",
+    "Scroll : correction d'un bug qui pouvait relancer la lecture en boucle lors d'un changement de filtre"
   ]
 }
