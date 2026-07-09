@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GestureResponderEvent, PanResponder, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { GestureResponderEvent, Image, PanResponder, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getMomentReactions, getTimestampedComments, getTrackWaveform } from '@/api/client';
-import type { HomeComment, MomentReaction } from '@/api/types';
+import type { HomeComment, MomentReaction, MomentReactionCluster, MomentReactionType } from '@/api/types';
+import { MOMENT_REACTIONS } from '@/components/mobile/MomentWaveform';
 import { fmtTime } from './helpers';
 import { InteractiveSeekBar } from './InteractiveSeekBar';
 
@@ -71,12 +73,44 @@ function samplePeaks(peaks: number[], targetCount: number) {
   });
 }
 
+const CLUSTER_WINDOW_SECONDS = 4;
+
+function clusterReactions(reactions: MomentReaction[]): MomentReactionCluster[] {
+  const sorted = [...reactions].sort((a, b) => a.timestampSeconds - b.timestampSeconds);
+  const clusters: MomentReactionCluster[] = [];
+  sorted.forEach((reaction) => {
+    const last = clusters[clusters.length - 1];
+    if (last && reaction.timestampSeconds - last.timestampSeconds <= CLUSTER_WINDOW_SECONDS) {
+      last.total += 1;
+      last.byType[reaction.reactionType] = (last.byType[reaction.reactionType] || 0) + 1;
+      const top = Object.entries(last.byType).sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))[0]?.[0] as MomentReactionType | undefined;
+      if (top) last.topType = top;
+      return;
+    }
+    clusters.push({ id: `cluster-${reaction.id}`, timestampSeconds: reaction.timestampSeconds, total: 1, topType: reaction.reactionType, byType: { [reaction.reactionType]: 1 } });
+  });
+  return clusters;
+}
+
+function reactionMeta(type: MomentReactionType) {
+  return MOMENT_REACTIONS.find((reaction) => reaction.type === type) || MOMENT_REACTIONS[0];
+}
+
+type Marker =
+  | { kind: 'comment'; id: string; timestampSeconds: number; comment: HomeComment }
+  | { kind: 'cluster'; id: string; timestampSeconds: number; cluster: MomentReactionCluster };
+
+// Rayon de détection tactile autour d'un marqueur (bien plus large que le
+// point visuel lui-même, pour rester utilisable au doigt).
+const MARKER_HIT_RADIUS = 18;
+const DRAG_THRESHOLD = 6;
+
 type Props = {
   trackId: string;
   position: number;
   duration: number;
   onSeek: (seconds: number) => void;
-  /** Affiche les marqueurs commentaires/réactions horodatés (points discrets). */
+  /** Affiche les marqueurs commentaires/réactions horodatés, cliquables. */
   showMoments?: boolean;
   /** Hauteur de la zone waveform (hors ligne des temps). */
   height?: number;
@@ -99,7 +133,10 @@ export function WaveformSeekBar({
   const [width, setWidth] = useState(0);
   const [moments, setMoments] = useState<TrackMoments | null>(() => momentsCache.get(trackId) || null);
   const [draggingValue, setDraggingValue] = useState<number | null>(null);
+  const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
   const draggingRef = useRef<number | null>(null);
+  const pressedMarkerRef = useRef<Marker | null>(null);
+  const pressStartXRef = useRef(0);
 
   useEffect(() => {
     let mounted = true;
@@ -117,42 +154,89 @@ export function WaveformSeekBar({
     };
   }, [showMoments, trackId]);
 
+  useEffect(() => {
+    setActiveMarkerId(null);
+  }, [trackId]);
+
   const safeDuration = Math.max(1, duration || moments?.duration || 0);
   const visiblePos = draggingValue ?? position;
   const progress = Math.max(0, Math.min(1, visiblePos / safeDuration));
 
   const bars = useMemo(() => (moments?.peaks ? samplePeaks(moments.peaks, barCount) : []), [barCount, moments?.peaks]);
+  const comments = showMoments ? (moments?.comments || []).slice(0, 40) : [];
+  const clusters = useMemo(() => (showMoments ? clusterReactions(moments?.reactions || []).slice(0, 40) : []), [showMoments, moments?.reactions]);
 
-  const secondFromEvent = useCallback((event: GestureResponderEvent) => {
-    if (width <= 0) return 0;
-    const x = Math.max(0, Math.min(width, event.nativeEvent.locationX));
-    return (x / width) * safeDuration;
-  }, [safeDuration, width]);
+  const markers = useMemo<Marker[]>(() => [
+    ...comments.map((comment): Marker => ({ kind: 'comment', id: `c-${comment.id}`, timestampSeconds: Number(comment.timestampSeconds || 0), comment })),
+    ...clusters.map((cluster): Marker => ({ kind: 'cluster', id: cluster.id, timestampSeconds: cluster.timestampSeconds, cluster })),
+  ], [comments, clusters]);
+
+  const activeMarker = activeMarkerId ? markers.find((m) => m.id === activeMarkerId) || null : null;
+
+  const findNearbyMarker = useCallback((x: number): Marker | null => {
+    if (width <= 0 || !markers.length) return null;
+    let best: Marker | null = null;
+    let bestDist = MARKER_HIT_RADIUS;
+    for (const marker of markers) {
+      const markerX = Math.max(0, Math.min(width, (marker.timestampSeconds / safeDuration) * width));
+      const dist = Math.abs(markerX - x);
+      if (dist <= bestDist) {
+        best = marker;
+        bestDist = dist;
+      }
+    }
+    return best;
+  }, [markers, safeDuration, width]);
+
+  const secondFromX = useCallback((x: number) => (width > 0 ? (Math.max(0, Math.min(width, x)) / width) * safeDuration : 0), [safeDuration, width]);
 
   const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: (event) => {
-      const next = secondFromEvent(event);
+    onPanResponderGrant: (event: GestureResponderEvent) => {
+      const x = event.nativeEvent.locationX;
+      pressStartXRef.current = x;
+      const marker = findNearbyMarker(x);
+      if (marker) {
+        // Attente : ne démarre le drag que si le doigt bouge vraiment (sinon
+        // c'est un tap sur le marqueur, pas un seek).
+        pressedMarkerRef.current = marker;
+        return;
+      }
+      pressedMarkerRef.current = null;
+      const next = secondFromX(x);
       draggingRef.current = next;
       setDraggingValue(next);
     },
-    onPanResponderMove: (event) => {
-      const next = secondFromEvent(event);
+    onPanResponderMove: (event: GestureResponderEvent) => {
+      const x = event.nativeEvent.locationX;
+      if (pressedMarkerRef.current) {
+        if (Math.abs(x - pressStartXRef.current) < DRAG_THRESHOLD) return;
+        pressedMarkerRef.current = null;
+      }
+      const next = secondFromX(x);
       draggingRef.current = next;
       setDraggingValue(next);
     },
     onPanResponderRelease: () => {
+      if (pressedMarkerRef.current) {
+        const marker = pressedMarkerRef.current;
+        pressedMarkerRef.current = null;
+        setActiveMarkerId((current) => (current === marker.id ? null : marker.id));
+        onSeek(marker.timestampSeconds);
+        return;
+      }
       if (draggingRef.current != null) onSeek(draggingRef.current);
       draggingRef.current = null;
       setDraggingValue(null);
     },
     onPanResponderTerminate: () => {
+      pressedMarkerRef.current = null;
       draggingRef.current = null;
       setDraggingValue(null);
     },
-  }), [onSeek, secondFromEvent]);
+  }), [findNearbyMarker, onSeek, secondFromX]);
 
   // Pas encore de vraie waveform en cache pour ce morceau : barre classique,
   // mêmes gestes, zéro donnée inventée.
@@ -164,17 +248,18 @@ export function WaveformSeekBar({
     );
   }
 
-  const comments = showMoments ? (moments?.comments || []).slice(0, 40) : [];
-  const reactions = showMoments ? (moments?.reactions || []).slice(0, 60) : [];
-
   return (
     <View style={style}>
+      {activeMarker ? (
+        <MarkerBubble marker={activeMarker} width={width} onClose={() => setActiveMarkerId(null)} />
+      ) : null}
+
       <View
         {...panResponder.panHandlers}
         onLayout={(event) => setWidth(Math.max(1, event.nativeEvent.layout.width))}
         style={[styles.waveZone, { height }]}
       >
-        <View style={styles.bars}>
+        <View style={styles.bars} pointerEvents="none">
           {bars.map((peak, index) => {
             const filled = index / Math.max(1, bars.length - 1) <= progress;
             return (
@@ -197,14 +282,28 @@ export function WaveformSeekBar({
         {comments.map((comment) => {
           const ts = Number(comment.timestampSeconds || 0);
           const left = Math.max(0, Math.min(100, (ts / safeDuration) * 100));
-          return <View key={`c-${comment.id}`} pointerEvents="none" style={[styles.commentDot, { left: `${left}%` }]} />;
+          const id = `c-${comment.id}`;
+          return (
+            <View key={id} pointerEvents="none" style={[styles.commentMarker, { left: `${left}%` }, activeMarkerId === id && styles.markerActive]}>
+              <Ionicons name="chatbubble" size={8} color="#FFFAF2" />
+            </View>
+          );
         })}
-        {reactions.map((reaction) => {
-          const left = Math.max(0, Math.min(100, (reaction.timestampSeconds / safeDuration) * 100));
-          return <View key={`r-${reaction.id}`} pointerEvents="none" style={[styles.reactionDot, { left: `${left}%` }]} />;
+        {clusters.map((cluster) => {
+          const left = Math.max(0, Math.min(100, (cluster.timestampSeconds / safeDuration) * 100));
+          const meta = reactionMeta(cluster.topType);
+          return (
+            <View
+              key={cluster.id}
+              pointerEvents="none"
+              style={[styles.reactionMarker, { left: `${left}%`, backgroundColor: meta.color }, activeMarkerId === cluster.id && styles.markerActive]}
+            >
+              <Ionicons name={meta.icon} size={8} color="#FFFAF2" />
+            </View>
+          );
         })}
 
-        {draggingValue != null ? (
+        {draggingValue != null && !pressedMarkerRef.current ? (
           <View
             pointerEvents="none"
             style={[styles.bubble, { left: Math.max(0, Math.min(width - 56, progress * width - 28)) }]}
@@ -224,6 +323,52 @@ export function WaveformSeekBar({
   );
 }
 
+function MarkerBubble({ marker, width, onClose }: { marker: Marker; width: number; onClose: () => void }) {
+  if (marker.kind === 'comment') {
+    const { comment } = marker;
+    return (
+      <View style={[styles.bubbleCard, { maxWidth: Math.max(200, width - 16) }]}>
+        <View style={styles.bubbleAvatar}>
+          {comment.user.avatar ? (
+            <Image source={{ uri: comment.user.avatar }} style={StyleSheet.absoluteFillObject} />
+          ) : (
+            <Text style={styles.bubbleAvatarText}>{(comment.user.name || comment.user.username || '?').slice(0, 1).toUpperCase()}</Text>
+          )}
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.bubbleMeta} numberOfLines={1}>
+            {comment.user.name} · {fmtTime(Number(comment.timestampSeconds || 0))}
+          </Text>
+          <Text style={styles.bubbleText2} numberOfLines={2}>{comment.content}</Text>
+        </View>
+        <Text onPress={onClose} style={styles.bubbleClose}>✕</Text>
+      </View>
+    );
+  }
+
+  const { cluster } = marker;
+  const meta = reactionMeta(cluster.topType);
+  const breakdown = Object.entries(cluster.byType)
+    .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
+    .map(([type, count]) => `${reactionMeta(type as MomentReactionType).shortLabel} ×${count}`)
+    .join(' · ');
+
+  return (
+    <View style={[styles.bubbleCard, { maxWidth: Math.max(200, width - 16) }]}>
+      <View style={[styles.bubbleAvatar, { backgroundColor: meta.color }]}>
+        <Ionicons name={meta.icon} size={16} color="#FFFAF2" />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.bubbleMeta} numberOfLines={1}>
+          {fmtTime(cluster.timestampSeconds)} · {cluster.total} réaction{cluster.total > 1 ? 's' : ''}
+        </Text>
+        <Text style={styles.bubbleText2} numberOfLines={1}>{breakdown}</Text>
+      </View>
+      <Text onPress={onClose} style={styles.bubbleClose}>✕</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   waveZone: { justifyContent: 'center' },
   bars: {
@@ -235,23 +380,33 @@ const styles = StyleSheet.create({
   barSlot: { flex: 1, height: '100%', justifyContent: 'center' },
   bar: { width: '100%', borderRadius: 999 },
   barDim: { backgroundColor: 'rgba(255,250,242,0.24)' },
-  commentDot: {
+  commentMarker: {
     position: 'absolute',
-    top: 0,
-    width: 5,
-    height: 5,
-    marginLeft: -2.5,
-    borderRadius: 3,
+    top: 2,
+    width: 15,
+    height: 15,
+    marginLeft: -7.5,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#4A9EAA',
+    borderWidth: 1.5,
+    borderColor: '#FFFAF2',
   },
-  reactionDot: {
+  reactionMarker: {
     position: 'absolute',
-    bottom: 0,
-    width: 5,
-    height: 5,
-    marginLeft: -2.5,
-    borderRadius: 3,
-    backgroundColor: '#D96D63',
+    bottom: 2,
+    width: 15,
+    height: 15,
+    marginLeft: -7.5,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFAF2',
+  },
+  markerActive: {
+    transform: [{ scale: 1.35 }],
   },
   bubble: {
     position: 'absolute',
@@ -265,6 +420,32 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.78)',
   },
   bubbleText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  bubbleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    marginBottom: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: 'rgba(10,8,8,0.88)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  bubbleAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  bubbleAvatarText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900' },
+  bubbleMeta: { color: 'rgba(255,250,242,0.55)', fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
+  bubbleText2: { marginTop: 2, color: '#FFFAF2', fontSize: 12, fontWeight: '700', lineHeight: 16 },
+  bubbleClose: { color: 'rgba(255,250,242,0.5)', fontSize: 12, fontWeight: '900', paddingHorizontal: 2 },
   timeRow: { marginTop: 3, flexDirection: 'row', justifyContent: 'space-between' },
   timeText: { color: 'rgba(255,250,242,0.55)', fontSize: 10, fontWeight: '800', fontVariant: ['tabular-nums'] },
 });
