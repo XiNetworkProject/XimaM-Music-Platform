@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Repeat2, Sparkles } from 'lucide-react';
+import { isAiVariationAvailable } from '@/lib/remixPermissions';
 
 type TrackLike = {
   _id?: string;
@@ -13,6 +14,12 @@ type TrackLike = {
   style?: string;
   isAI?: boolean;
   is_ai?: boolean;
+  allowAiVariation?: boolean;
+  allow_ai_variation?: boolean;
+  canRemixAiVariation?: boolean;
+  can_remix_ai_variation?: boolean;
+  remixVisibility?: 'everyone' | 'followers' | 'disabled';
+  remix_visibility?: 'everyone' | 'followers' | 'disabled';
 };
 
 type Props = {
@@ -41,7 +48,17 @@ export default function TrackCreateRemixActions({ track, compact, dark, classNam
   const source = encodeURIComponent(id);
   const style = encodeURIComponent(styleHint(track));
   const title = encodeURIComponent(String(track?.title || ''));
-  const canRemix = Boolean(track?.audioUrl || track?.audio_url || track?.isAI || track?.is_ai || id.startsWith('ai-'));
+  const sourceTrackType = id.startsWith('ai-') ? 'ai_track' : 'track';
+  const remixVisibility = track?.remixVisibility || track?.remix_visibility || 'disabled';
+  const canRemix =
+    typeof track?.canRemixAiVariation === 'boolean'
+      ? track.canRemixAiVariation
+      : typeof track?.can_remix_ai_variation === 'boolean'
+        ? track.can_remix_ai_variation
+        : isAiVariationAvailable({
+            allowAiVariation: Boolean(track?.allowAiVariation ?? track?.allow_ai_variation),
+            remixVisibility,
+          });
 
   const base = dark
     ? 'border border-white/12 bg-white/8 text-white/74 hover:bg-white/14 hover:text-white'
@@ -71,12 +88,12 @@ export default function TrackCreateRemixActions({ track, compact, dark, classNam
       </Link>
       {canRemix ? (
         <Link
-          href={`/ai-generator?mode=remix&sourceTrack=${source}&title=${title}&style=${style}`}
+          href={`/ai-generator?mode=remix&sourceTrackId=${source}&sourceTrackType=${sourceTrackType}&title=${title}&style=${style}`}
           onClick={() => logAction('remix')}
           className={`inline-flex items-center gap-1.5 rounded-full font-black transition ${size} ${base}`}
         >
           <Repeat2 className={compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
-          Remix
+          Remixer
         </Link>
       ) : null}
     </div>

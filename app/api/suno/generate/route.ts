@@ -6,6 +6,7 @@ import { CREDITS_PER_GENERATION } from '@/lib/credits';
 import { getEntitlements } from '@/lib/entitlements';
 import { validateSunoGenerationInput, validateSunoTuningInput } from '@/lib/sunoValidation';
 import { assertCanCreateAiVariation } from '@/lib/remixServer';
+import { sanitizeRemixPrompt, sanitizeRemixPromptVisibility, sanitizeRemixType } from '@/lib/remixOptions';
 
 const BASE = "https://api.sunoapi.org";
 
@@ -33,6 +34,9 @@ type Body = {
     sourceTrackId?: string;
     sourceTrackType?: 'track' | 'ai_track';
   };
+  remixType?: string;
+  remixPrompt?: string;
+  remixPromptVisibility?: 'private' | 'public';
   // Défi musical dans le cadre duquel cette variation est générée (optionnel).
   // Propagé jusqu'à track_remixes.challenge_id (voir upsertDraftRemixesForGeneration)
   // pour pouvoir enregistrer la participation même si la variation part en attente
@@ -142,6 +146,14 @@ export async function POST(req: NextRequest) {
     const isCustomMode = body.customMode !== false; // Par défaut Custom (true)
 
     // Validation alignée docs Suno (limites prompt/style/title selon modèle+mode)
+    const remixMetadata = remixSource?.ok
+      ? {
+          remixType: sanitizeRemixType(body.remixType),
+          remixPrompt: sanitizeRemixPrompt(body.remixPrompt || (isCustomMode ? body.style : body.prompt)),
+          remixPromptVisibility: sanitizeRemixPromptVisibility(body.remixPromptVisibility),
+        }
+      : null;
+
     const validated = validateSunoGenerationInput({
       customMode: isCustomMode,
       instrumental: body.instrumental,
@@ -262,6 +274,7 @@ export async function POST(req: NextRequest) {
           instrumental: body.instrumental,
           customMode: true,
           ...(remixSource?.ok ? { remixSource: remixSource.source } : {}),
+          ...(remixMetadata ? remixMetadata : {}),
           ...(challengeId ? { challengeId } : {}),
         };
       } else {
@@ -273,6 +286,7 @@ export async function POST(req: NextRequest) {
           instrumental: body.instrumental,
           customMode: false,
           ...(remixSource?.ok ? { remixSource: remixSource.source } : {}),
+          ...(remixMetadata ? remixMetadata : {}),
           ...(challengeId ? { challengeId } : {}),
         };
       }

@@ -7,6 +7,7 @@ import { useAudioPlayer, useAudioTime } from '@/app/providers';
 import TikTokPlayer from './TikTokPlayer';
 import TrackCover from './TrackCover';
 import TrackCreateRemixActions from './TrackCreateRemixActions';
+import TrackShareCardModal from './share/TrackShareCardModal';
 
 function toTime(seconds: number) {
   const safe = Math.max(0, Math.floor(seconds || 0));
@@ -181,6 +182,7 @@ export default function SynauraMiniPlayer() {
   const progressRef = useRef<HTMLDivElement>(null);
   const [showTikTok, setShowTikTok] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
+  const [showShareCard, setShowShareCard] = useState(false);
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex] || null;
   const track = useMemo(
@@ -259,6 +261,12 @@ export default function SynauraMiniPlayer() {
     return () => document.removeEventListener('keydown', onKey);
   }, [showTikTok, audioState.isPlaying]);
 
+  useEffect(() => {
+    const open = () => setShowTikTok(true);
+    window.addEventListener('synaura:open-full-player', open);
+    return () => window.removeEventListener('synaura:open-full-player', open);
+  }, []);
+
   if (!currentTrack || !audioState.showPlayer) return null;
 
   return (
@@ -272,6 +280,7 @@ export default function SynauraMiniPlayer() {
       ) : null}
 
       {!showTikTok ? (
+        <>
           <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+4.55rem)] z-[60] pointer-events-none sm:bottom-0">
             <div className="pointer-events-auto px-2 pb-1 sm:px-4 sm:pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
               {showQueue ? (
@@ -377,7 +386,10 @@ export default function SynauraMiniPlayer() {
                       + File
                     </button>
                     <button
-                      onClick={handleShare}
+                      onClick={() => {
+                        if (albumContext || isLive || String(currentTrack?._id || '').startsWith('radio-')) void handleShare();
+                        else setShowShareCard(true);
+                      }}
                       className="inline-flex h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313]"
                       aria-label="Partager"
                     >
@@ -461,6 +473,19 @@ export default function SynauraMiniPlayer() {
               </div>
             </div>
           </div>
+          <TrackShareCardModal
+            visible={showShareCard}
+            track={{
+              id: String(currentTrack._id),
+              title: track.title,
+              artist: track.artist,
+              coverUrl: track.cover,
+              duration,
+            }}
+            trackUrl={typeof window !== 'undefined' ? `${window.location.origin}/track/${currentTrack._id}` : `/track/${currentTrack._id}`}
+            onClose={() => setShowShareCard(false)}
+          />
+        </>
       ) : null}
     </>
   );

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Animated,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -13,9 +14,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { buildShareUrls, shareTrackToFeed } from '@/api/client';
+import { buildShareCardImageUrl, buildShareUrls, SHARE_CARD_FORMATS, shareTrackToFeed, type ShareCardFormatId } from '@/api/client';
 import type { Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
@@ -35,7 +37,10 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
   const keyboardHeight = useKeyboardHeight();
   const { user } = useAuth();
   const [caption, setCaption] = useState('');
+  const [cardText, setCardText] = useState('');
+  const [cardFormat, setCardFormat] = useState<ShareCardFormatId>('square');
   const [publishing, setPublishing] = useState(false);
+  const [imageDownloading, setImageDownloading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const slide = useRef(new Animated.Value(0)).current;
 
@@ -45,6 +50,12 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
   const canInternal = !!trackId && !isRadio && !isAi;
 
   const { trackUrl, shareText } = useMemo(() => buildShareUrls(track), [track]);
+  const selectedCardFormat = useMemo(
+    () => SHARE_CARD_FORMATS.find((item) => item.id === cardFormat) || SHARE_CARD_FORMATS[1],
+    [cardFormat],
+  );
+  const cardImageUrl = useMemo(() => buildShareCardImageUrl(track, cardFormat, cardText), [cardFormat, cardText, track]);
+  const cardShareText = useMemo(() => [cardText.trim(), shareText].filter(Boolean).join('\n\n'), [cardText, shareText]);
 
   useEffect(() => {
     Animated.timing(slide, { toValue: visible ? 1 : 0, duration: 220, useNativeDriver: true }).start();
@@ -69,7 +80,7 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
   const nativeShare = useCallback(async () => {
     if (!shareText) return;
     try {
-      const result = await Share.share({ message: shareText, url: trackUrl, title: track?.title || 'Synaura' });
+      const result = await Share.share({ message: cardShareText || shareText, url: trackUrl, title: track?.title || 'Synaura' });
       if (result.action === Share.sharedAction) {
         onShared?.(trackId, 'mobile-share-native');
         onClose();
@@ -77,7 +88,26 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
     } catch {
       // ignore
     }
-  }, [onClose, onShared, shareText, track?.title, trackId, trackUrl]);
+  }, [cardShareText, onClose, onShared, shareText, track?.title, trackId, trackUrl]);
+
+  const downloadShareCard = useCallback(async () => {
+    if (!cardImageUrl || !trackId) return;
+    setImageDownloading(true);
+    try {
+      const safeId = trackId.replace(/[^a-z0-9_-]/gi, '-');
+      const localUri = `${FileSystem.cacheDirectory}synaura-share-${safeId}-${cardFormat}.png`;
+      await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => undefined);
+      const result = await FileSystem.downloadAsync(cardImageUrl, localUri);
+      if (!result?.uri) throw new Error('Image introuvable');
+      showToast('Carte prete a partager');
+      onShared?.(trackId, 'mobile-share-card-image');
+      await Share.share({ url: result.uri, message: cardShareText || shareText, title: track?.title || 'Synaura' });
+    } catch {
+      showToast('Image impossible a telecharger');
+    } finally {
+      setImageDownloading(false);
+    }
+  }, [cardFormat, cardImageUrl, cardShareText, onShared, shareText, showToast, track?.title, trackId]);
 
   const publishInternal = useCallback(async () => {
     if (!canInternal || !user) return;
@@ -141,6 +171,57 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.darkSection}>
+            <View style={styles.darkSectionHeader}>
+              <Ionicons name="image-outline" size={16} color="rgba(255,250,242,0.62)" />
+              <Text style={styles.darkSectionTitle}>Carte de partage</Text>
+            </View>
+            <View
+              style={[
+                styles.cardPreview,
+                {
+                  aspectRatio: selectedCardFormat.width / selectedCardFormat.height,
+                  width: cardFormat === 'story' ? '62%' : '100%',
+                },
+              ]}
+            >
+              {cardImageUrl ? (
+                <Image source={{ uri: cardImageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+              ) : (
+                <View style={styles.cardPreviewFallback}><Ionicons name="musical-notes" size={28} color="rgba(255,250,242,0.44)" /></View>
+              )}
+            </View>
+            <View style={styles.formatRow}>
+              {SHARE_CARD_FORMATS.map((item) => {
+                const active = item.id === cardFormat;
+                return (
+                  <Pressable key={item.id} accessibilityLabel={`Format ${item.label}`} onPress={() => setCardFormat(item.id)} style={[styles.formatChip, active && styles.formatChipActive]}>
+                    <Text style={[styles.formatChipText, active && styles.formatChipTextActive]}>{item.label}</Text>
+                    <Text style={[styles.formatChipSub, active && styles.formatChipSubActive]}>{item.ratioLabel}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <TextInput
+              value={cardText}
+              onChangeText={(value) => setCardText(value.slice(0, 112))}
+              placeholder="Ajoute une phrase courte..."
+              placeholderTextColor="rgba(255,250,242,0.38)"
+              multiline
+              style={styles.cardTextInput}
+            />
+            <View style={styles.cardActionRow}>
+              <Pressable accessibilityLabel="Telecharger l'image de partage" disabled={imageDownloading || !cardImageUrl} onPress={() => void downloadShareCard()} style={[styles.cardAction, (imageDownloading || !cardImageUrl) && styles.cardActionDisabled]}>
+                {imageDownloading ? <ActivityIndicator color="#171313" /> : <Ionicons name="download-outline" size={16} color="#171313" />}
+                <Text style={styles.cardActionText}>Telecharger l'image</Text>
+              </Pressable>
+              <Pressable accessibilityLabel="Copier le lien de la carte" onPress={() => void copyValue(cardImageUrl, 'Image')} style={styles.cardGhostAction}>
+                <Ionicons name="copy-outline" size={15} color="#FFFAF2" />
+                <Text style={styles.cardGhostActionText}>Copier l'image</Text>
+              </Pressable>
+            </View>
+          </View>
+
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="share-social" size={16} color="rgba(23,19,19,0.5)" />
@@ -155,7 +236,7 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
                 <Ionicons name="link" size={15} color="#171313" />
                 <Text style={styles.copyButtonText}>Copier le lien</Text>
               </Pressable>
-              <Pressable accessibilityLabel="Copier le texte" onPress={() => void copyValue(shareText, 'Texte')} style={styles.copyButton}>
+              <Pressable accessibilityLabel="Copier le texte" onPress={() => void copyValue(cardShareText || shareText, 'Texte')} style={styles.copyButton}>
                 <Ionicons name="document-text-outline" size={15} color="#171313" />
                 <Text style={styles.copyButtonText}>Copier le texte</Text>
               </Pressable>
@@ -282,6 +363,87 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(23,19,19,0.06)',
   },
   scroll: { paddingHorizontal: 18, paddingVertical: 16, gap: 14 },
+  darkSection: {
+    padding: 14,
+    borderRadius: 20,
+    backgroundColor: '#111111',
+    borderWidth: 1,
+    borderColor: 'rgba(255,250,242,0.1)',
+    gap: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.16,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
+  },
+  darkSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  darkSectionTitle: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
+  cardPreview: {
+    alignSelf: 'center',
+    maxHeight: 420,
+    overflow: 'hidden',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,250,242,0.14)',
+    backgroundColor: 'rgba(255,250,242,0.06)',
+  },
+  cardPreviewFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  formatRow: { flexDirection: 'row', gap: 8 },
+  formatChip: {
+    flex: 1,
+    minHeight: 54,
+    borderRadius: 15,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(255,250,242,0.12)',
+    backgroundColor: 'rgba(255,250,242,0.07)',
+  },
+  formatChipActive: { backgroundColor: '#FFFAF2', borderColor: '#FFFAF2' },
+  formatChipText: { color: '#FFFAF2', fontSize: 12, fontWeight: '900' },
+  formatChipTextActive: { color: '#171313' },
+  formatChipSub: { marginTop: 2, color: 'rgba(255,250,242,0.42)', fontSize: 9, fontWeight: '800' },
+  formatChipSubActive: { color: 'rgba(23,19,19,0.48)' },
+  cardTextInput: {
+    minHeight: 72,
+    maxHeight: 120,
+    borderRadius: 16,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    color: '#FFFAF2',
+    fontSize: 13,
+    fontWeight: '700',
+    backgroundColor: 'rgba(255,250,242,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,250,242,0.11)',
+  },
+  cardActionRow: { flexDirection: 'row', gap: 8 },
+  cardAction: {
+    flex: 1.18,
+    minHeight: 44,
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: '#FFFAF2',
+  },
+  cardActionDisabled: { opacity: 0.5 },
+  cardActionText: { color: '#171313', fontSize: 12, fontWeight: '900' },
+  cardGhostAction: {
+    flex: 0.9,
+    minHeight: 44,
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,250,242,0.15)',
+    backgroundColor: 'rgba(255,250,242,0.06)',
+  },
+  cardGhostActionText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900' },
   section: {
     padding: 14,
     borderRadius: 18,

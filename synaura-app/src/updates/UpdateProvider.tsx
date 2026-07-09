@@ -56,7 +56,7 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
   const [visible, setVisible] = useState(false);
 
   const isMandatory = Boolean(
-    release && (release.mandatory || currentVersionCode < release.minimumVersionCode),
+    release && release.versionCode > currentVersionCode && (release.mandatory || currentVersionCode < release.minimumVersionCode),
   );
 
   const checkForUpdate = useCallback(async (force = false) => {
@@ -65,8 +65,10 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       const result = await getLatestAppRelease(currentVersionCode);
-      setRelease(result.release);
-      if (!result.available || !result.release) {
+      const releaseVersionCode = Number(result.release?.versionCode || 0);
+      const hasInstallableRelease = Boolean(result.available && result.release && releaseVersionCode > currentVersionCode);
+      setRelease(hasInstallableRelease ? result.release : null);
+      if (!hasInstallableRelease || !result.release) {
         setStatus('current');
         if (force) setVisible(true);
         return;
@@ -90,6 +92,10 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
 
   const downloadAndInstall = useCallback(async () => {
     if (!release) return;
+    if (release.versionCode <= currentVersionCode) {
+      setStatus('current');
+      return;
+    }
     if (Platform.OS !== 'android') {
       await Linking.openURL(release.apkUrl);
       return;
@@ -131,7 +137,7 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
       setStatus('error');
       setError(errorMessage(nextError));
     }
-  }, [release]);
+  }, [currentVersionCode, release]);
 
   const openInstallSettings = useCallback(async () => {
     if (Platform.OS !== 'android') return;

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
-import { isTrackPublic } from '@/lib/publicTracks';
+import { isAiTrackPublic, isTrackPublic } from '@/lib/publicTracks';
+import { normalizeRemixTrackRef } from '@/lib/remixServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,13 +52,41 @@ function readTrackData(value: any): Record<string, any> {
   }
 }
 
-async function loadTrack(trackId?: string | null) {
-  if (!trackId) return null;
+async function loadAiTrack(id: string) {
+  const { data: t, error } = await supabaseAdmin
+    .from('ai_tracks')
+    .select('*, generation:ai_generations!inner(user_id, is_public, status)')
+    .eq('id', id)
+    .maybeSingle();
 
+  if (error) {
+    console.error('[posts] ai track fetch error:', error);
+    return null;
+  }
+  if (!t || !isAiTrackPublic(t)) return null;
+
+  const creatorId = String((t as any).generation?.user_id || '');
+  const { data: profile } = creatorId
+    ? await supabaseAdmin.from('profiles').select('name, username').eq('id', creatorId).maybeSingle()
+    : { data: null as any };
+
+  return {
+    id: `ai-${(t as any).id}`,
+    title: (t as any).title || 'Creation IA',
+    artist_name: profile?.name || profile?.username || 'Artiste Synaura',
+    cover_url: (t as any).image_url || null,
+    cover_video_url: null,
+    cover_video_poster_url: null,
+    audio_url: (t as any).audio_url || (t as any).stream_audio_url,
+    duration: (t as any).duration,
+  };
+}
+
+async function loadClassicTrack(id: string) {
   const { data: t, error: trackErr } = await supabaseAdmin
     .from('tracks')
     .select('*')
-    .eq('id', trackId)
+    .eq('id', id)
     .maybeSingle();
 
   if (trackErr) {
@@ -85,6 +114,12 @@ async function loadTrack(trackId?: string | null) {
     audio_url: (t as any).audio_url,
     duration: (t as any).duration,
   };
+}
+
+async function loadTrack(trackId?: string | null) {
+  if (!trackId) return null;
+  const ref = normalizeRemixTrackRef(trackId);
+  return ref.type === 'ai_track' ? loadAiTrack(ref.id) : loadClassicTrack(ref.id);
 }
 
 async function isPostLiked(postId: string, userId: string | null) {
@@ -149,6 +184,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const creatorId = searchParams.get('creator_id');
+    const trackId = searchParams.get('track_id');
     const cursor = searchParams.get('cursor');
     const q = (searchParams.get('query') || searchParams.get('q') || '').trim();
     const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 30);
@@ -192,6 +228,12 @@ export async function GET(request: NextRequest) {
 
     if (creatorId) {
       query = query.eq('creator_id', creatorId);
+    }
+
+    if (trackId) {
+      const ref = normalizeRemixTrackRef(trackId);
+      const normalizedTrackId = ref.type === 'ai_track' ? `ai-${ref.id}` : ref.id;
+      query = query.eq('track_id', normalizedTrackId);
     }
 
     if (q) {
@@ -267,6 +309,13 @@ export async function POST(request: NextRequest) {
 
       if (originalPostError || !originalPost?.id || originalPost.is_public !== true) {
         return NextResponse.json({ error: 'Post original introuvable' }, { status: 404 });
+      }
+    }
+
+    if (type === 'track_share') {
+      const publicTrack = await loadTrack(track_id);
+      if (!publicTrack?.id) {
+        return NextResponse.json({ error: 'Morceau introuvable ou prive' }, { status: 404 });
       }
     }
 

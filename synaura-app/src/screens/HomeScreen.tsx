@@ -991,7 +991,7 @@ function FeedCard({
 }) {
   if (item.kind === 'city') return <CityFeedPulse onOpen={() => onOpenWeb('/city')} onCreate={() => onOpenWeb('/upload')} />;
   if (item.kind === 'composer') return <ComposerCard onPublish={() => onNavigate('Profile')} onUpload={() => onOpenWeb('/upload')} onText={onCommunity} onStudio={() => onOpenWeb('/ai-generator')} onPostCreated={onPostCreated} />;
-  if (item.kind === 'post') return <PostCard post={item.post} activeId={activeId} isPlaying={isPlaying} onOpen={() => onOpenWeb(`/posts/${item.post.id}`)} onOpenProfile={() => onOpenWeb(`/profile/${encodeURIComponent(item.post.handle.replace(/^@/, ''))}`)} onPlay={(track) => onPlay(allTracks, track)} onComments={() => onComments({ kind: 'post', id: item.post.id, title: item.post.author })} onRemix={(track) => onOpenWeb(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(track._id)}`)} />;
+  if (item.kind === 'post') return <PostCard post={item.post} activeId={activeId} isPlaying={isPlaying} onOpen={() => onOpenWeb(`/posts/${item.post.id}`)} onOpenProfile={() => onOpenWeb(`/profile/${encodeURIComponent(item.post.handle.replace(/^@/, ''))}`)} onPlay={(track) => onPlay(allTracks, track)} onComments={() => onComments({ kind: 'post', id: item.post.id, title: item.post.author })} onRemix={(track) => onOpenWeb(`/ai-generator?mode=remix&sourceTrackId=${encodeURIComponent(track._id)}&sourceTrackType=${track._id.startsWith('ai-') ? 'ai_track' : 'track'}`)} />;
   if (item.kind === 'rail') {
     return <RailCard item={item} activeId={activeId} isPlaying={isPlaying} onPlay={onPlay} />;
   }

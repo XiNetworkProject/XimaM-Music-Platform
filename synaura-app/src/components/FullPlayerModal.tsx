@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -24,17 +23,19 @@ import {
   setTrackLike,
   toggleArtistFollow,
 } from '@/api/client';
+import { canOpenAiVariation } from '@/api/types';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
 import { CommentsSheet } from '@/components/swipe/CommentsSheet';
-import { InteractiveSeekBar } from '@/components/swipe/InteractiveSeekBar';
 import { LyricsSheet } from '@/components/swipe/LyricsSheet';
 import { QueueSheet } from '@/components/swipe/QueueSheet';
 import { ShareSheet } from '@/components/swipe/ShareSheet';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
-import { MobileWaveform } from '@/components/mobile/MobileWaveform';
+import { AuraVisual } from '@/components/mobile/AuraVisual';
+import { MomentWaveform } from '@/components/mobile/MomentWaveform';
 import { fmtCount, trackArtistName } from '@/components/swipe/helpers';
+import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
 type Props = {
   visible: boolean;
@@ -49,6 +50,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const player = usePlayer();
   const progress = usePlayerProgress(250);
   const library = useLibrary();
+  const { settings, updateSettings } = useMobileSettings();
   const track = player.current;
 
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -70,6 +72,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const isRadio = trackId.startsWith('radio-');
   const isAi = trackId.startsWith('ai-');
   const canInteract = !!trackId && !isRadio && !isAi;
+  const canRemixCurrent = track ? canOpenAiVariation(track) : false;
   const artistId = track?.artist?._id || '';
   const isFavorite = trackId ? library.isFavorite(trackId) : false;
   const sleepMinutes = player.sleepTimerEnd ? Math.max(1, Math.ceil((player.sleepTimerEnd - Date.now()) / 60_000)) : 0;
@@ -185,6 +188,25 @@ export function FullPlayerModal({ visible, onClose }: Props) {
     Haptics.selectionAsync().catch(() => {});
   }, [player, sleepMinutes]);
 
+  const toggleAuraVisuals = useCallback(() => {
+    updateSettings({ dynamicBackground: !settings.dynamicBackground }).catch(() => {});
+    Haptics.selectionAsync().catch(() => {});
+  }, [settings.dynamicBackground, updateSettings]);
+
+  const openRemixStudio = useCallback(() => {
+    if (!track || !canRemixCurrent) return;
+    Haptics.selectionAsync().catch(() => {});
+    onClose();
+    navigation.navigate('Tabs', {
+      screen: 'AIStudio',
+      params: {
+        sourceTrackId: track._id,
+        sourceTrackType: track._id.startsWith('ai-') ? 'ai_track' : 'track',
+        mode: 'remix',
+      },
+    });
+  }, [canRemixCurrent, navigation, onClose, track]);
+
   if (!track) return null;
 
   const coverScale = coverPulse.interpolate({
@@ -211,16 +233,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
         ]}
       >
         <SynauraBackground variant="warm" />
-        {track.coverUrl ? (
-          <View pointerEvents="none" style={styles.coverBackdrop}>
-            <Image source={{ uri: track.coverUrl }} blurRadius={42} style={StyleSheet.absoluteFillObject} />
-            <LinearGradient
-              colors={['rgba(244,239,230,0.46)', 'rgba(244,239,230,0.84)', '#F4EFE6']}
-              locations={[0, 0.48, 1]}
-              style={StyleSheet.absoluteFillObject}
-            />
-          </View>
-        ) : null}
+        <AuraVisual track={track} active={visible} playing={player.isPlaying} />
 
         <View {...panResponder.panHandlers} style={[styles.header, { paddingTop: insets.top + 8 }]}> 
           <Pressable
@@ -269,10 +282,19 @@ export function FullPlayerModal({ visible, onClose }: Props) {
                 <Ionicons name="list" size={17} color="#171313" />
                 <Text style={styles.contextBtnText}>File</Text>
               </Pressable>
+              <Pressable accessibilityLabel={settings.dynamicBackground ? 'Desactiver Aura Visuals' : 'Activer Aura Visuals'} onPress={toggleAuraVisuals} style={[styles.contextBtn, settings.dynamicBackground ? styles.contextBtnActive : null]}>
+                <Ionicons name="sparkles-outline" size={16} color={settings.dynamicBackground ? '#FFFAF2' : '#171313'} />
+                <Text style={[styles.contextBtnText, settings.dynamicBackground ? styles.contextBtnTextActive : null]}>Aura</Text>
+              </Pressable>
             </View>
           </View>
 
           <View style={styles.coverWrap}>
+            {track.coverUrl ? (
+              <Animated.View style={[styles.coverHalo, { transform: [{ scale: coverScale }] }]}>
+                <Image source={{ uri: track.coverUrl }} blurRadius={28} style={StyleSheet.absoluteFillObject} />
+              </Animated.View>
+            ) : null}
             <Animated.View style={[styles.coverFrame, { transform: [{ scale: coverScale }] }]}>
               {track.coverUrl || track.coverVideoUrl || track.coverVideoPosterUrl ? (
                 <TrackCover track={track} active={visible && player.isPlaying} autoPlayVideo={visible && player.isPlaying} style={StyleSheet.absoluteFill} />
@@ -347,13 +369,15 @@ export function FullPlayerModal({ visible, onClose }: Props) {
           </View>
 
           <View style={styles.progressWrap}>
-            <MobileWaveform active={player.isPlaying} style={styles.playerWaveform} />
             {!isRadio ? (
-              <InteractiveSeekBar
-                variant="warm"
+              <MomentWaveform
+                track={track}
                 position={progress.positionSec}
                 duration={progress.durationSec || track.duration || 0}
+                isPlaying={player.isPlaying}
+                momentsEnabled={canInteract}
                 onSeek={(seconds) => void player.seekTo(seconds)}
+                onCommentCreated={() => setCommentsCount((value) => value + 1)}
               />
             ) : (
               <View style={styles.liveLine}>
@@ -436,6 +460,14 @@ export function FullPlayerModal({ visible, onClose }: Props) {
               active={isFavorite}
               onPress={() => library.toggleFavorite(track)}
             />
+            {canRemixCurrent ? (
+              <PlayerAction
+                icon="color-wand-outline"
+                label="Remixer"
+                activeColor="#7357C6"
+                onPress={openRemixStudio}
+              />
+            ) : null}
             <PlayerAction
               icon={library.isDownloaded(track._id) ? 'checkmark-circle' : 'download-outline'}
               label={library.isDownloaded(track._id) ? 'Hors ligne' : 'Télécharger'}
@@ -516,10 +548,6 @@ function PlayerAction({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F4EFE6' },
-  coverBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.55,
-  },
   header: {
     paddingHorizontal: 16,
     paddingBottom: 14,
@@ -600,11 +628,20 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: 'rgba(23,19,19,0.06)',
   },
-  contextActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  contextActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 7 },
   contextBtnActive: { backgroundColor: '#171313' },
   contextBtnText: { color: '#171313', fontSize: 11, fontWeight: '900' },
   contextBtnTextActive: { color: '#FFFAF2' },
   coverWrap: { alignItems: 'center', marginTop: 10 },
+  coverHalo: {
+    position: 'absolute',
+    width: '92%',
+    aspectRatio: 1,
+    maxWidth: 350,
+    borderRadius: 34,
+    overflow: 'hidden',
+    opacity: 0.34,
+  },
   coverFrame: {
     width: '100%',
     aspectRatio: 1,
@@ -685,7 +722,6 @@ const styles = StyleSheet.create({
   followText: { color: '#171313', fontSize: 11, fontWeight: '900', letterSpacing: 0.6 },
   followTextDone: { color: '#FFFAF2' },
   progressWrap: { marginTop: 16 },
-  playerWaveform: { height: 26, marginBottom: 7, opacity: 0.8 },
   liveLine: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
   liveText: { color: 'rgba(23,19,19,0.7)', fontSize: 11, fontWeight: '900', letterSpacing: 1.4 },

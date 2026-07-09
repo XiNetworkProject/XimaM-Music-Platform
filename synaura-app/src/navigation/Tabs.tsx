@@ -8,6 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { CreateMenuSheet } from '@/components/create/CreateMenuSheet';
 import { HomeV2Screen } from '@/screens/HomeV2Screen';
 import { DiscoverV2Screen } from '@/screens/DiscoverV2Screen';
+import { RadarScreen } from '@/screens/RadarScreen';
 import { DiscoverMoodScreen } from '@/screens/DiscoverMoodScreen';
 import { LibraryScreen } from '@/screens/LibraryScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
@@ -36,6 +37,7 @@ import type { MusicChallenge, Track } from '@/api/types';
 export type RootTabsParamList = {
   Home: undefined;
   Discover: undefined;
+  Radar: undefined;
   DiscoverMood: { moodId: string };
   Swipe: { mode?: 'clips'; sourceTrackId?: string } | undefined;
   Community: { compose?: boolean; category?: string; track?: Track } | undefined;
@@ -64,6 +66,7 @@ export type RootTabsParamList = {
 const Tab = createBottomTabNavigator<RootTabsParamList>();
 const HIDDEN_ROUTES = new Set<keyof RootTabsParamList>([
   'Home',
+  'Radar',
   'AIStudio',
   'Upload',
   'Library',
@@ -203,6 +206,7 @@ export function Tabs() {
       >
         <Tab.Screen name="Swipe" component={SwipeScreen} />
         <Tab.Screen name="Discover" component={DiscoverV2Screen} />
+        <Tab.Screen name="Radar" component={RadarScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="DiscoverMood" component={DiscoverMoodScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen
           name="Create"

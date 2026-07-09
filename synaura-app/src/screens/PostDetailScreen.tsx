@@ -7,7 +7,7 @@ import { getPostDetail, togglePostLike } from '@/api/client';
 import type { HomePost } from '@/api/types';
 import { CommentsSheet } from '@/components/social/CommentsSheet';
 import { SynauraBackground } from '@/components/SynauraBackground';
-import { TrackCover } from '@/components/TrackCover';
+import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard';
 import { usePlayer } from '@/player/PlayerProvider';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -56,14 +56,12 @@ export function PostDetailScreen() {
             <Text style={styles.text}>{post.text}</Text>
             {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={styles.image} /> : null}
             {post.track ? (
-              <Pressable onPress={() => player.playTrack(post.track!)} style={styles.track}>
-                <TrackCover track={post.track} style={styles.cover} active={player.current?._id === post.track._id && player.isPlaying} autoPlayVideo={player.current?._id === post.track._id && player.isPlaying} />
-                <View style={{ flex: 1 }}>
-                  <Text numberOfLines={1} style={styles.trackTitle}>{post.track.title}</Text>
-                  <Text numberOfLines={1} style={styles.trackMeta}>{post.track.artist?.name || post.track.artist?.username || 'Synaura'}</Text>
-                </View>
-                <Ionicons name="play" size={18} color="#171313" />
-              </Pressable>
+              <PostAttachedTrackCard
+                track={post.track}
+                playing={player.current?._id === post.track._id && player.isPlaying}
+                onPlay={() => player.playTrack(post.track!)}
+                onOpen={() => navigation.navigate('TrackDetail', { trackId: post.track!._id, track: post.track })}
+              />
             ) : null}
             <View style={styles.actions}>
               <Pressable onPress={like} style={styles.action}><Ionicons name={post.isLiked ? 'heart' : 'heart-outline'} size={19} color={post.isLiked ? '#EF4444' : '#171313'} /><Text style={styles.actionText}>{post.likesCount}</Text></Pressable>

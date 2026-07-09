@@ -29,6 +29,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
   const isMeteoFullscreen = pathname.includes('/meteo/login') || pathname.includes('/meteo/dashboard');
   const isSynauraSurface = startsWithAny(pathname, [
     '/discover',
+    '/radar',
     '/library',
     '/upload',
     '/ai-generator',
@@ -54,6 +55,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
   const useFullScreenLayout = isHome || isAuth || isOnboarding || isMeteoFullscreen || isSynauraSurface;
   const hideTopSearch = startsWithAny(pathname, [
     '/discover',
+    '/radar',
     '/ai-generator',
     '/studio',
     '/library',

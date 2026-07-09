@@ -19,10 +19,49 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10) || 50, 100);
   const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10) || 0, 0);
 
+  // Vue légère pour les marqueurs de la waveform : uniquement les commentaires
+  // ancrés à un instant précis du morceau (jamais les réponses, jamais les
+  // commentaires classiques sans timestamp).
+  if (searchParams.get('timestampedOnly') === '1') {
+    const { data: momentRows, error: momentErr } = await supabaseAdmin
+      .from('comments')
+      .select('id, content, created_at, user_id, timestamp_seconds')
+      .eq('track_id', trackId)
+      .is('parent_id', null)
+      .not('timestamp_seconds', 'is', null)
+      .order('timestamp_seconds', { ascending: true })
+      .limit(200);
+
+    if (momentErr) return NextResponse.json({ comments: [] });
+
+    const rows = momentRows || [];
+    const userIds = Array.from(new Set(rows.map((c: any) => c.user_id).filter(Boolean)));
+    const { data: users } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').in('id', userIds);
+    const usersMap = new Map((users || []).map((u: any) => [u.id, u]));
+
+    return NextResponse.json({
+      comments: rows.map((c: any) => {
+        const u = usersMap.get(c.user_id);
+        return {
+          id: c.id,
+          content: c.content,
+          createdAt: c.created_at,
+          timestampSeconds: Number(c.timestamp_seconds),
+          user: {
+            id: c.user_id,
+            username: u?.username || 'Utilisateur',
+            name: u?.name || u?.username || 'Utilisateur',
+            avatar: u?.avatar || '',
+          },
+        };
+      }),
+    });
+  }
+
   // Top-level only (pagination), puis replies pour ces parents
   const { data: topRows, error: topErr } = await supabaseAdmin
     .from('comments')
-    .select('id, content, created_at, updated_at, user_id, track_id, parent_id')
+    .select('id, content, created_at, updated_at, user_id, track_id, parent_id, timestamp_seconds')
     .eq('track_id', trackId)
     .is('parent_id', null)
     .order('created_at', { ascending: false })
@@ -99,6 +138,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       content: c.content,
       createdAt: c.created_at,
       updatedAt: c.updated_at,
+      timestampSeconds: c.timestamp_seconds != null ? Number(c.timestamp_seconds) : null,
       likes: [],
       likesCount: likesCountMap.get(c.id) || 0,
       isLiked: likedByUser.has(c.id),
@@ -135,6 +175,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const content = String(body?.content || '').trim();
     if (!content) return NextResponse.json({ error: 'Commentaire vide' }, { status: 400 });
 
+    // Commentaire ancré à un instant précis du morceau (waveform) : optionnel,
+    // null pour un commentaire classique. Jamais de confiance dans une valeur
+    // négative ou non finie envoyée par le client.
+    const timestampRaw = body?.timestampSeconds;
+    const timestampSeconds =
+      timestampRaw != null && Number.isFinite(Number(timestampRaw)) && Number(timestampRaw) >= 0
+        ? Number(timestampRaw)
+        : null;
+
     const mod = contentModerator.analyzeContent(content);
     if (!mod.isClean) {
       return NextResponse.json({ error: 'Contenu refusé', details: mod }, { status: 400 });
@@ -147,7 +196,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const attempt1 = await supabaseAdmin
       .from('comments')
-      .insert({ track_id: trackId, user_id: userId, content })
+      .insert({ track_id: trackId, user_id: userId, content, timestamp_seconds: timestampSeconds })
       .select('*')
       .single();
 
@@ -161,7 +210,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (needsTextRetry) {
       const attempt2 = await supabaseAdmin
         .from('comments')
-        .insert({ track_id: trackId, user_id: userId, content, text: content } as any)
+        .insert({ track_id: trackId, user_id: userId, content, text: content, timestamp_seconds: timestampSeconds } as any)
         .select('*')
         .single();
       inserted = attempt2.data;
@@ -222,6 +271,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         content: inserted.content ?? inserted.text ?? content,
         createdAt: inserted.created_at,
         updatedAt: inserted.updated_at,
+        timestampSeconds: inserted.timestamp_seconds != null ? Number(inserted.timestamp_seconds) : null,
         likes: [],
         likesCount: 0,
         isLiked: false,

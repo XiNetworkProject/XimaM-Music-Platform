@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getHomeData, getNotifications, togglePostLike } from '@/api/client';
 import type { Creator, HomeData, HomePost, Playlist, Track } from '@/api/types';
 import { TrackCover } from '@/components/TrackCover';
+import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard';
 import { UniversalSearchModal, NotificationModal } from '@/components/HomeOverlays';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { SynauraBackground } from '@/components/SynauraBackground';
@@ -223,7 +224,7 @@ export function HomeV2Screen() {
                   onOpen={() => navigation.navigate('PostDetail', { postId: post.id })}
                   onOpenProfile={() => navigation.navigate('PublicProfile', { username: post.handle.replace(/^@/, '') })}
                   onPlay={(track) => playFrom([track, ...recommendations], track)}
-                  onRemix={(track) => navigation.navigate('AIStudio', { sourceTrack: track })}
+                  onRemix={(track) => navigation.navigate('AIStudio', { sourceTrackId: track._id, sourceTrackType: track._id.startsWith('ai-') ? 'ai_track' : 'track', mode: 'remix' })}
                 />
               ))}
             </View>
@@ -482,6 +483,7 @@ function PostPreviewCard({
   onPlay: (track: Track) => void;
   onRemix: (track: Track) => void;
 }) {
+  const navigation = useNavigation<any>();
   const [liked, setLiked] = useState(post.isLiked);
   const [likes, setLikes] = useState(post.likesCount);
   const playingThis = post.track ? activeId === post.track._id && isPlaying : false;
@@ -519,15 +521,12 @@ function PostPreviewCard({
       </Pressable>
       {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={styles.postImage} /> : null}
       {post.track ? (
-        <View style={styles.postTrack}>
-          <TrackCover track={post.track} active={playingThis} style={styles.postTrackCover} />
-          <View style={styles.postTrackCopy}>
-            <Text numberOfLines={1} style={styles.postTrackTitle}>{post.track.title}</Text>
-            <Text numberOfLines={1} style={styles.postTrackArtist}>{artistName(post.track)} · {post.track.genre?.[0] || 'Synaura'}</Text>
-            <View style={styles.wave}>{[8, 14, 10, 17, 12, 15].map((height, index) => <View key={index} style={[styles.waveBar, { height: playingThis ? height : 5 }]} />)}</View>
-          </View>
-          <Pressable onPress={() => onPlay(post.track!)} style={styles.postPlay}><Ionicons name={playingThis ? 'pause' : 'play'} size={17} color={colors.paper} /></Pressable>
-        </View>
+        <PostAttachedTrackCard
+          track={post.track}
+          playing={playingThis}
+          onPlay={() => onPlay(post.track!)}
+          onOpen={() => navigation.navigate('TrackDetail', { trackId: post.track!._id, track: post.track })}
+        />
       ) : null}
       <View style={styles.postActions}>
         <Pressable onPress={like} style={[styles.postAction, liked && styles.postActionActive]}><Ionicons name={liked ? 'heart' : 'heart-outline'} size={15} color={liked ? colors.paper : colors.textSecondary} /><Text style={[styles.postActionText, liked && styles.postActionTextActive]}>{likes || 'Like'}</Text></Pressable>

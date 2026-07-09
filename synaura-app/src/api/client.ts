@@ -29,6 +29,9 @@ import type {
   UserVariation,
   SynauraNotification,
   Track,
+  TrackWaveformData,
+  MomentReaction,
+  MomentReactionType,
   DiscoverPage,
 } from './types';
 import { DEFAULT_REMIX_PERMISSIONS } from './types';
@@ -87,6 +90,27 @@ function countArrayOrNumber(value: unknown) {
   if (Array.isArray(value)) return value.length;
   const n = Number(value || 0);
   return Number.isFinite(n) ? n : 0;
+}
+
+function readObject(value: unknown): Record<string, any> {
+  if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return value as Record<string, any>;
+  if (typeof value !== 'string') return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizeDominantColors(...values: unknown[]) {
+  const raw = values.find((value) => Array.isArray(value)) as unknown[] | undefined;
+  if (!raw) return [];
+  return raw
+    .map((entry) => String(entry || '').trim())
+    .filter((entry) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(entry) || /^rgba?\(/i.test(entry))
+    .slice(0, 4);
 }
 
 function relativeTime(dateLike?: string) {
@@ -164,6 +188,8 @@ function normalizeTrack(raw: any): Track | null {
   const audioUrl = raw?.audioUrl || raw?.audio_url || raw?.stream_audio_url;
   if (!id || !audioUrl) return null;
 
+  const trackData = readObject(raw?.data);
+  const sourceLinks = readObject(raw?.source_links);
   const label = artistName(raw);
   const genre = Array.isArray(raw?.genre)
     ? raw.genre.filter(Boolean).map((entry: unknown) => String(entry))
@@ -190,12 +216,32 @@ function normalizeTrack(raw: any): Track | null {
     coverVideoPosterUrl: absoluteAsset(raw?.coverVideoPosterUrl || raw?.cover_video_poster_url) || null,
     musicVideoUrl: absoluteAsset(raw?.musicVideoUrl || raw?.music_video_url) || null,
     musicVideoPosterUrl: absoluteAsset(raw?.musicVideoPosterUrl || raw?.music_video_poster_url) || null,
+    visualUrl: absoluteAsset(raw?.visualUrl || raw?.visual_url || trackData.visualUrl || trackData.visual_url || sourceLinks.visualUrl || sourceLinks.visual_url) || null,
+    visualType: ['image', 'video', 'generated', 'none'].includes(raw?.visualType || raw?.visual_type || trackData.visualType || trackData.visual_type || sourceLinks.visualType || sourceLinks.visual_type)
+      ? (raw?.visualType || raw?.visual_type || trackData.visualType || trackData.visual_type || sourceLinks.visualType || sourceLinks.visual_type)
+      : undefined,
+    dominantColors: normalizeDominantColors(raw?.dominantColors, raw?.dominant_colors, trackData.dominantColors, trackData.dominant_colors, sourceLinks.dominantColors, sourceLinks.dominant_colors),
+    auraVisualEnabled: (raw?.auraVisualEnabled ?? raw?.aura_visual_enabled ?? trackData.auraVisualEnabled ?? trackData.aura_visual_enabled ?? sourceLinks.auraVisualEnabled ?? sourceLinks.aura_visual_enabled) !== false,
     lyrics: typeof raw?.lyrics === 'string' && raw.lyrics.trim() ? String(raw.lyrics) : null,
     duration: Number(raw?.duration || 0),
     likes: Array.isArray(raw?.likes) ? raw.likes : [],
     comments: Array.isArray(raw?.comments) ? raw.comments : [],
     likesCount: Number(raw?.likes_count ?? raw?.likesCount ?? countArrayOrNumber(raw?.likes)),
     commentsCount: Number(raw?.comments_count ?? raw?.commentsCount ?? countArrayOrNumber(raw?.comments)),
+    savesCount: Number(raw?.saves_count ?? raw?.savesCount ?? 0),
+    reactionsCount: Number(raw?.reactions_count ?? raw?.reactionsCount ?? 0),
+    completionRate: Number(raw?.completion_rate ?? raw?.completionRate ?? 0),
+    radarScore: Number(raw?.radar_score ?? raw?.radarScore ?? 0),
+    radarReasons: Array.isArray(raw?.radarReasons)
+      ? raw.radarReasons.filter(Boolean).map((entry: unknown) => String(entry))
+      : Array.isArray(raw?.radar_reasons)
+        ? raw.radar_reasons.filter(Boolean).map((entry: unknown) => String(entry))
+        : [],
+    radarSignalLabel: typeof (raw?.radar_signal_label ?? raw?.radarSignalLabel) === 'string'
+      ? String(raw?.radar_signal_label ?? raw?.radarSignalLabel)
+      : undefined,
+    isRadar: Boolean(raw?.is_radar ?? raw?.isRadar),
+    isNewThisWeek: Boolean(raw?.is_new_this_week ?? raw?.isNewThisWeek),
     shares: Number(raw?.shares ?? 0),
     sharesCount: Number(raw?.shares_count ?? raw?.sharesCount ?? raw?.shares ?? 0),
     isLiked: Boolean(raw?.isLiked || raw?.is_liked),
@@ -317,9 +363,10 @@ export async function getLatestAppRelease(versionCode: number): Promise<MobileAp
     const response = await fetch(MOBILE_RELEASE_MANIFEST_URL, { headers: { Accept: 'application/json' } });
     if (!response.ok) throw apiError;
     const release = await response.json() as MobileAppRelease;
+    const available = Number(release?.versionCode || 0) > Math.max(0, versionCode);
     return {
-      available: Number(release?.versionCode || 0) > Math.max(0, versionCode),
-      release,
+      available,
+      release: available ? release : null,
     };
   }
 }
@@ -420,6 +467,8 @@ function normalizePost(raw: any): HomePost | null {
         },
         audioUrl: raw.track.audio_url || raw.track.audioUrl,
         coverUrl: raw.track.cover_url || raw.track.coverUrl,
+        coverVideoUrl: raw.track.cover_video_url || raw.track.coverVideoUrl,
+        coverVideoPosterUrl: raw.track.cover_video_poster_url || raw.track.coverVideoPosterUrl,
         duration: raw.track.duration,
         plays: raw.track.plays,
         genre: raw.track.genre,
@@ -1054,6 +1103,11 @@ function normalizeComment(raw: any): HomeComment | null {
     id,
     content: safeString(raw?.content || raw?.text, ''),
     createdAt: raw?.createdAt || raw?.created_at || new Date().toISOString(),
+    timestampSeconds: raw?.timestampSeconds != null || raw?.timestamp_seconds != null
+      ? Number(raw?.timestampSeconds ?? raw?.timestamp_seconds)
+      : null,
+    likesCount: Number(raw?.likesCount ?? raw?.likes_count ?? 0),
+    isLiked: Boolean(raw?.isLiked ?? raw?.is_liked),
     user: {
       id: String(user?.id || user?._id || raw?.user_id || ''),
       username: safeString(user?.username, 'synaura'),
@@ -1093,17 +1147,80 @@ export async function getComments(kind: 'track' | 'post', id: string): Promise<H
   return (await getCommentsPage(kind, id)).comments;
 }
 
-export async function createComment(kind: 'track' | 'post', id: string, content: string): Promise<HomeComment> {
+export async function getTimestampedComments(trackId: string): Promise<HomeComment[]> {
+  if (!trackId) return [];
+  const json = await optionalRequest<any>(`/api/tracks/${encodeURIComponent(trackId)}/comments?timestampedOnly=1`);
+  const raw = Array.isArray(json?.comments) ? json.comments : [];
+  return raw
+    .map(normalizeComment)
+    .filter((comment: HomeComment | null): comment is HomeComment => comment !== null && comment.timestampSeconds != null);
+}
+
+export async function createComment(
+  kind: 'track' | 'post',
+  id: string,
+  content: string,
+  options?: { timestampSeconds?: number | null },
+): Promise<HomeComment> {
   const path = kind === 'track'
     ? `/api/tracks/${encodeURIComponent(id)}/comments`
     : `/api/posts/${encodeURIComponent(id)}/comments`;
+  const timestampSeconds = kind === 'track' && options?.timestampSeconds != null && Number.isFinite(Number(options.timestampSeconds))
+    ? Math.max(0, Number(options.timestampSeconds))
+    : undefined;
   const json = await request<any>(path, {
     method: 'POST',
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, ...(timestampSeconds !== undefined ? { timestampSeconds } : {}) }),
   });
   const comment = normalizeComment(json?.comment || json);
   if (!comment) throw new Error('Commentaire invalide');
   return comment;
+}
+
+function sanitizePeaks(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      const n = Number(entry);
+      return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0;
+    })
+    .filter((entry) => Number.isFinite(entry));
+}
+
+export async function getTrackWaveform(trackId: string): Promise<TrackWaveformData | null> {
+  if (!trackId) return null;
+  const json = await optionalRequest<any>(`/api/tracks/${encodeURIComponent(trackId)}/waveform`);
+  const peaks = sanitizePeaks(json?.peaks);
+  const duration = Number(json?.duration || 0);
+  if (!peaks.length || !Number.isFinite(duration) || duration <= 0) return null;
+  return { duration, peaks };
+}
+
+const MOMENT_REACTION_TYPES: MomentReactionType[] = ['drop', 'emotional', 'mindblown', 'favorite', 'vocals', 'production'];
+
+function normalizeMomentReaction(raw: any): MomentReaction | null {
+  const id = String(raw?.id || raw?._id || '');
+  const reactionType = raw?.reactionType || raw?.reaction_type;
+  const timestampSeconds = Number(raw?.timestampSeconds ?? raw?.timestamp_seconds);
+  if (!id || !MOMENT_REACTION_TYPES.includes(reactionType) || !Number.isFinite(timestampSeconds) || timestampSeconds < 0) return null;
+  return { id, reactionType, timestampSeconds };
+}
+
+export async function getMomentReactions(trackId: string): Promise<MomentReaction[]> {
+  if (!trackId) return [];
+  const json = await optionalRequest<any>(`/api/tracks/${encodeURIComponent(trackId)}/reactions`);
+  const raw = Array.isArray(json?.reactions) ? json.reactions : [];
+  return raw.map(normalizeMomentReaction).filter((reaction: MomentReaction | null): reaction is MomentReaction => Boolean(reaction));
+}
+
+export async function addMomentReaction(trackId: string, reactionType: MomentReactionType, timestampSeconds: number): Promise<MomentReaction> {
+  const json = await request<any>(`/api/tracks/${encodeURIComponent(trackId)}/reactions`, {
+    method: 'POST',
+    body: JSON.stringify({ reactionType, timestampSeconds: Math.max(0, Math.round(timestampSeconds || 0)) }),
+  });
+  const reaction = normalizeMomentReaction(json?.reaction || json);
+  if (!reaction) throw new Error('Reaction invalide');
+  return reaction;
 }
 
 export async function deleteComment(kind: 'track' | 'post', targetId: string, commentId: string) {
@@ -1555,6 +1672,14 @@ export async function getUserPosts(creatorId: string, limit = 30): Promise<HomeP
     .filter((post: HomePost | null): post is HomePost => Boolean(post));
 }
 
+export async function getTrackPosts(trackId: string, limit = 12): Promise<HomePost[]> {
+  if (!trackId) return [];
+  const json = await request<any>(`/api/posts?track_id=${encodeURIComponent(trackId)}&limit=${Math.min(30, Math.max(1, limit))}`);
+  return (Array.isArray(json?.posts) ? json.posts : [])
+    .map(normalizePost)
+    .filter((post: HomePost | null): post is HomePost => Boolean(post));
+}
+
 export async function getMyProfile(username?: string | null): Promise<MobileProfile> {
   if (!username) {
     const me = await request<any>('/api/auth/mobile/me');
@@ -1909,6 +2034,26 @@ export function buildShareUrls(track: Track | null): { trackUrl: string; shareTe
   };
 }
 
+export type ShareCardFormatId = 'story' | 'square' | 'banner';
+
+export const SHARE_CARD_FORMATS: Array<{ id: ShareCardFormatId; label: string; ratioLabel: string; width: number; height: number }> = [
+  { id: 'story', label: 'Story', ratioLabel: '9:16', width: 1080, height: 1920 },
+  { id: 'square', label: 'Carre', ratioLabel: '1:1', width: 1080, height: 1080 },
+  { id: 'banner', label: 'Banniere', ratioLabel: '16:9', width: 1600, height: 900 },
+];
+
+function sanitizeShareCardText(value: string) {
+  return value.replace(/\s+/g, ' ').trim().slice(0, 112);
+}
+
+export function buildShareCardImageUrl(track: Track | null, format: ShareCardFormatId = 'square', text = ''): string {
+  if (!track?._id) return '';
+  const params = new URLSearchParams({ format });
+  const cleanText = sanitizeShareCardText(text);
+  if (cleanText) params.set('text', cleanText);
+  return `${API_BASE_URL}/api/share-card/${encodeURIComponent(track._id)}?${params.toString()}`;
+}
+
 export type AIStudioTrack = {
   id: string;
   suno_id?: string;
@@ -1985,6 +2130,9 @@ export type StartAIGenerationInput = {
     sourceTrackId: string;
     sourceTrackType: 'track' | 'ai_track';
   };
+  remixType?: string;
+  remixPrompt?: string;
+  remixPromptVisibility?: 'private' | 'public';
   challengeId?: string;
 };
 

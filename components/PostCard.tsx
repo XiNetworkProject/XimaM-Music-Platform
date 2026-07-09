@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import { notify } from '@/components/NotificationCenter';
-import TrackCover from '@/components/TrackCover';
+import PostAudioCard, { type PostAudioTrack } from '@/components/posts/PostAudioCard';
 import { getCdnUrl } from '@/lib/cdn';
 
 export interface PostCreator {
@@ -597,22 +597,21 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
     } as any);
   }, [post.track, playTrack]);
 
-  const handlePlayOriginalTrack = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!post.original_post?.track?.audio_url) return;
+  const playAttachedTrack = useCallback((track?: PostAudioTrack | null) => {
+    if (!track?.audio_url) return;
     playTrack({
-      _id: post.original_post.track.id,
-      title: post.original_post.track.title,
-      artist: { _id: '', name: post.original_post.track.artist_name || 'Artiste', username: '' },
-      audioUrl: post.original_post.track.audio_url,
-      coverUrl: post.original_post.track.cover_url,
-      coverVideoUrl: post.original_post.track.cover_video_url || post.original_post.track.coverVideoUrl,
-      coverVideoPosterUrl: post.original_post.track.cover_video_poster_url || post.original_post.track.coverVideoPosterUrl,
-      duration: post.original_post.track.duration || 0,
+      _id: track.id,
+      title: track.title,
+      artist: { _id: '', name: track.artist_name || 'Artiste', username: '' },
+      audioUrl: track.audio_url,
+      coverUrl: track.cover_url,
+      coverVideoUrl: track.cover_video_url || track.coverVideoUrl,
+      coverVideoPosterUrl: track.cover_video_poster_url || track.coverVideoPosterUrl,
+      duration: track.duration || 0,
       likes: 0,
       plays: 0,
     } as any);
-  }, [playTrack, post.original_post]);
+  }, [playTrack]);
 
   /* ── COMPACT (inline entre sections) ── */
   if (compact) {
@@ -772,28 +771,8 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
             </div>
 
             {post.track ? (
-              <div className="mt-4 overflow-hidden rounded-[1.35rem] bg-[#171313] text-white">
-                <div className="relative">
-                  {post.track.cover_url ? (
-                    <div className="absolute inset-0 overflow-hidden">
-                      <img src={post.track.cover_url} alt="" className="h-full w-full scale-150 object-cover opacity-20 blur-2xl" />
-                      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-[#171313]" />
-                    </div>
-                  ) : null}
-                  <div className="relative flex items-center gap-4 p-4">
-                    <TrackCover src={post.track.cover_url || null} videoSrc={(post.track as any).cover_video_url || (post.track as any).coverVideoUrl || null} posterSrc={(post.track as any).cover_video_poster_url || (post.track as any).coverVideoPosterUrl || post.track.cover_url || null} title={post.track.title} className="h-16 w-16 shrink-0 shadow-2xl" rounded="rounded-xl" objectFit="cover" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[15px] font-bold text-white">{post.track.title}</p>
-                      <p className="truncate text-[12px] text-white/55">{post.track.artist_name || 'Artiste inconnu'}</p>
-                    </div>
-                    <button
-                      onClick={handlePlayTrack}
-                      className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-black shadow-xl shadow-white/10 transition-all hover:scale-105 active:scale-95"
-                    >
-                      {isPlayingThis ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
+              <div className="mt-4">
+                <PostAudioCard track={post.track} playing={Boolean(isPlayingThis)} onPlay={() => playAttachedTrack(post.track)} />
               </div>
             ) : null}
 
@@ -822,27 +801,12 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
 
                   {post.original_post.track ? (
                     <div className="bg-[#171313] p-4 text-white">
-                      <div className="relative overflow-hidden rounded-[1rem]">
-                        {post.original_post.track.cover_url ? (
-                          <div className="absolute inset-0 overflow-hidden">
-                            <img src={post.original_post.track.cover_url} alt="" className="h-full w-full scale-150 object-cover opacity-20 blur-2xl" />
-                            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-[#171313]" />
-                          </div>
-                        ) : null}
-                        <div className="relative flex items-center gap-4 p-4">
-                          <TrackCover src={post.original_post.track.cover_url || null} videoSrc={(post.original_post.track as any).cover_video_url || (post.original_post.track as any).coverVideoUrl || null} posterSrc={(post.original_post.track as any).cover_video_poster_url || (post.original_post.track as any).coverVideoPosterUrl || post.original_post.track.cover_url || null} title={post.original_post.track.title} className="h-14 w-14 shrink-0 shadow-2xl" rounded="rounded-xl" objectFit="cover" />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[15px] font-bold text-white">{post.original_post.track.title}</p>
-                            <p className="truncate text-[12px] text-white/55">{post.original_post.track.artist_name || 'Artiste inconnu'}</p>
-                          </div>
-                          <button
-                            onClick={handlePlayOriginalTrack}
-                            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-black shadow-xl shadow-white/10 transition-all hover:scale-105 active:scale-95"
-                          >
-                            {isPlayingOriginal ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
-                          </button>
-                        </div>
-                      </div>
+                      <PostAudioCard
+                        track={post.original_post.track}
+                        playing={Boolean(isPlayingOriginal)}
+                        onPlay={() => playAttachedTrack(post.original_post?.track)}
+                        compact
+                      />
                     </div>
                   ) : null}
 

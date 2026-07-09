@@ -66,7 +66,7 @@ export async function GET(request: Request) {
       .map(t => {
         const boost = boostMap.get(t.id);
         const artist = profileMap.get(t.artist_id);
-        const data = readTrackData(t);
+        const data = readTrackData((t as any).data);
         return {
           id: t.id,
           _id: t.id,
@@ -77,6 +77,10 @@ export async function GET(request: Request) {
           coverUrl: t.cover_url,
           coverVideoUrl: t.cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
           coverVideoPosterUrl: t.cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || t.cover_url || null,
+          visualUrl: data.visual_url || data.visualUrl || null,
+          visualType: data.visual_type || data.visualType || null,
+          dominantColors: Array.isArray(data.dominant_colors) ? data.dominant_colors : Array.isArray(data.dominantColors) ? data.dominantColors : [],
+          auraVisualEnabled: data.aura_visual_enabled !== false && data.auraVisualEnabled !== false,
           audioUrl: t.audio_url,
           createdAt: t.created_at,
           artist: artist ? {

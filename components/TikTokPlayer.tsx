@@ -16,7 +16,7 @@ import React, {
 import {
   X, Heart, MessageCircle, Share2, Download, Play, Pause,
   FileText, Lock, Loader2, ListPlus, ChevronDown, Music2,
-  User, Bookmark, Zap, Sparkles, Disc3,
+  User, Bookmark, Zap, Sparkles, Disc3, SmilePlus,
 } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
@@ -25,9 +25,15 @@ import { notify } from '@/components/NotificationCenter';
 import { useAudioPlayer } from '@/app/providers';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { useDownloadPermission, downloadAudioFile } from '@/hooks/useDownloadPermission';
+import { useTrackWaveform } from '@/hooks/useTrackWaveform';
+import { useMomentComments, type MomentComment } from '@/hooks/useMomentComments';
+import { useMomentReactions, type MomentReactionCluster } from '@/hooks/useMomentReactions';
+import { type MomentReactionType } from '@/lib/momentReactions';
 import { sendTrackEvents } from '@/lib/analyticsClient';
 import { getCdnUrl } from '@/lib/cdn';
 import { applyCdnToTracks } from '@/lib/cdnHelpers';
+import Waveform from '@/components/player/Waveform';
+import ReactionPicker from '@/components/player/ReactionPicker';
 
 import FollowButton from '@/components/FollowButton';
 import DownloadDialog from '@/components/DownloadDialog';
@@ -57,6 +63,10 @@ interface Track {
   coverVideoPosterUrl?: string | null;
   musicVideoUrl?: string | null;
   musicVideoPosterUrl?: string | null;
+  visualUrl?: string | null;
+  visualType?: 'image' | 'video' | 'generated' | 'none' | null;
+  dominantColors?: string[];
+  auraVisualEnabled?: boolean;
   duration: number;
   likes: number | string[];
   comments: number | string[];
@@ -221,6 +231,43 @@ function musicVideoPosterUrl(track: Track | null): string | null {
   return getCdnUrl(raw) || raw;
 }
 
+function isVideoVisual(url?: string | null) {
+  return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(String(url || '').trim());
+}
+
+function visualUrl(track: Track | null): string | null {
+  const raw = track?.visualUrl || (track as any)?.visual_url || null;
+  if (!raw) return null;
+  return getCdnUrl(raw) || raw;
+}
+
+function dominantColors(track: Track | null) {
+  const values = Array.isArray(track?.dominantColors)
+    ? track?.dominantColors
+    : Array.isArray((track as any)?.dominant_colors)
+      ? (track as any).dominant_colors
+      : [];
+  return (values || [])
+    .map((value: unknown) => String(value || '').trim())
+    .filter((value: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value) || /^rgba?\(/i.test(value))
+    .slice(0, 4);
+}
+
+function auraPalette(track: Track | null) {
+  const existing = dominantColors(track);
+  if (existing.length >= 2) return existing;
+  const palettes = [
+    ['#7357C6', '#4A9EAA', '#D96D63'],
+    ['#4A9EAA', '#D96D63', '#F7F6F3'],
+    ['#D96D63', '#7357C6', '#4A9EAA'],
+    ['#111111', '#7357C6', '#D96D63'],
+  ];
+  const seed = String(track?._id || track?.title || 'synaura');
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  return palettes[hash % palettes.length];
+}
+
 function topGenre(track: Track | null): string | null {
   const genre = (track?.genre || [])
     .map((value) => String(value || '').trim())
@@ -282,6 +329,63 @@ function MusicVideoLayer({
       preload={active ? 'auto' : 'metadata'}
       aria-label={title}
     />
+  );
+}
+
+function AuraVisualLayer({
+  track,
+  active,
+  playing,
+  enabled,
+  className = '',
+}: {
+  track: Track;
+  active: boolean;
+  playing: boolean;
+  enabled: boolean;
+  className?: string;
+}) {
+  const reduceMotion = useReducedMotion();
+  const cover = useMemo(() => coverUrl(track), [track]);
+  const poster = useMemo(() => musicVideoPosterUrl(track) || coverVideoPosterUrl(track) || cover, [cover, track]);
+  const coverVideo = useMemo(() => coverVideoUrl(track), [track]);
+  const explicitVisual = useMemo(() => visualUrl(track), [track]);
+  const colors = useMemo(() => auraPalette(track), [track]);
+  const visualType = track.visualType || (track as any).visual_type || null;
+  const visualEnabled = enabled && track.auraVisualEnabled !== false && (track as any).aura_visual_enabled !== false;
+  const visual = explicitVisual || musicVideoUrl(track) || coverVideo || cover;
+  const shouldRenderVideo = visualEnabled && visual && (visualType === 'video' || isVideoVisual(visual));
+  const animated = visualEnabled && playing && active && !reduceMotion;
+
+  return (
+    <div className={`pointer-events-none absolute inset-0 overflow-hidden bg-[#100d0d] ${className}`} aria-hidden="true">
+      {visualEnabled && shouldRenderVideo && visual ? (
+        <MusicVideoLayer
+          src={visual}
+          poster={poster || cover}
+          title={`${track.title} aura visual`}
+          active={active}
+          playing={playing}
+          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-34 blur-2xl saturate-[1.08]"
+        />
+      ) : visualEnabled && (cover || poster) ? (
+        <img
+          src={poster || cover || ''}
+          alt=""
+          className={`absolute inset-0 h-full w-full scale-125 object-cover opacity-44 blur-3xl saturate-[1.12] ${animated ? 'synaura-aura-drift' : ''}`}
+        />
+      ) : null}
+
+      <div
+        className={`absolute inset-[-10%] opacity-28 mix-blend-screen ${animated ? 'synaura-aura-float-a' : ''}`}
+        style={{ background: `linear-gradient(120deg, ${colors[0]} 0%, transparent 46%, ${colors[1] || '#4A9EAA'} 100%)` }}
+      />
+      <div
+        className={`absolute inset-[-8%] opacity-20 mix-blend-screen ${animated ? 'synaura-aura-float-b' : ''}`}
+        style={{ background: `linear-gradient(240deg, transparent 0%, ${colors[2] || '#D96D63'} 52%, transparent 100%)` }}
+      />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,10,10,0.60),rgba(12,10,10,0.18)_38%,rgba(12,10,10,0.84))]" />
+    </div>
   );
 }
 
@@ -1033,11 +1137,21 @@ interface TrackSlideProps {
   radioMeta: RadioMeta | null;
   albumContext: { id: string; name: string } | null;
   canDownload: boolean;
+  // waveform réelle (calculée uniquement pour le morceau actif, voir TikTokPlayer)
+  waveformPeaks?: number[] | null;
+  waveformLoading?: boolean;
+  waveformMarkers?: MomentComment[];
+  reactionClusters?: MomentReactionCluster[];
+  auraVisualsEnabled: boolean;
   // handlers
   onCoverTap: (t: Track) => void;
   onDoubleTapLike: () => void;
   onToggleLike: () => void;
-  onComments: () => void;
+  /** timestamp optionnel = ouvre les commentaires pré-ancré à cet instant ("Commenter ce moment") */
+  onComments: (prefillTimestamp?: number) => void;
+  /** capture l'instant de lecture courant au moment du choix dans le picker */
+  onReact?: (reactionType: MomentReactionType, timestampSeconds: number) => void;
+  onToggleAuraVisuals: () => void;
   onShare: (t: Track) => void;
   onDownload: () => void;
   onAddToQueue: (t: Track) => void;
@@ -1054,9 +1168,9 @@ const TrackSlide = memo(function TrackSlide(props: TrackSlideProps) {
   const {
     track: t, index, isActive, isPlaying, previousTrack, nextTrack, duration, isRadio,
     displayTitle, displayArtist, likesCount, rawComments, shareCount,
-    isLiked, lyricsOpen, radioMeta, albumContext, canDownload,
+    isLiked, lyricsOpen, radioMeta, albumContext, canDownload, auraVisualsEnabled,
     onCoverTap, onDoubleTapLike, onToggleLike, onComments,
-    onShare, onDownload, onAddToQueue, onToggleLyrics,
+    onShare, onDownload, onAddToQueue, onToggleLyrics, onToggleAuraVisuals,
     onJump, onPlayPause, onClose, onSeek, getAudioElement, itemRef,
   } = props;
 
@@ -1074,6 +1188,7 @@ const TrackSlide = memo(function TrackSlide(props: TrackSlideProps) {
       className="relative h-[100dvh] w-full px-4 pb-[max(env(safe-area-inset-bottom,18px),18px)] pt-[146px] md:px-6 md:pt-[164px] lg:px-8"
       style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
     >
+      <AuraVisualLayer track={t} active={isActive} playing={isPlaying} enabled={auraVisualsEnabled} className="opacity-80" />
       <div className="mx-auto flex h-full max-w-6xl flex-col justify-center">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_340px] lg:items-stretch">
           <section className="overflow-hidden rounded-[2rem] border border-white/[0.1] bg-[#171313]/62 shadow-[0_26px_70px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
@@ -1091,6 +1206,20 @@ const TrackSlide = memo(function TrackSlide(props: TrackSlideProps) {
                 <span>{nextTrack ? nextTrack.title : 'Aucun suivant'}</span>
                 <ChevronDown className="h-3.5 w-3.5" />
               </div>
+              <button
+                type="button"
+                onClick={(event) => { event.stopPropagation(); onToggleAuraVisuals(); }}
+                className={`inline-flex h-9 items-center gap-2 rounded-full border px-3 text-[11px] font-black transition ${
+                  auraVisualsEnabled
+                    ? 'border-white/[0.12] bg-white/[0.08] text-white'
+                    : 'border-white/[0.08] bg-black/20 text-white/44'
+                }`}
+                aria-pressed={auraVisualsEnabled}
+                aria-label={auraVisualsEnabled ? 'Désactiver Aura Visuals' : 'Activer Aura Visuals'}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Aura
+              </button>
             </div>
 
             <div className="grid gap-6 p-4 md:p-5 lg:grid-cols-[minmax(280px,380px)_minmax(0,1fr)] lg:p-6">
@@ -1425,10 +1554,13 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
     track: t, index, isActive, isPlaying, duration, isRadio,
     displayTitle, displayArtist, likesCount, rawComments, shareCount,
     isLiked, lyricsOpen, radioMeta, albumContext, canDownload,
-    onCoverTap, onDoubleTapLike, onToggleLike, onComments,
-    onShare, onDownload, onAddToQueue, onToggleLyrics,
+    waveformPeaks, waveformLoading, waveformMarkers, reactionClusters,
+    auraVisualsEnabled,
+    onCoverTap, onDoubleTapLike, onToggleLike, onComments, onReact,
+    onShare, onDownload, onAddToQueue, onToggleLyrics, onToggleAuraVisuals,
     onPlayPause, onClose, onSeek, getAudioElement, itemRef,
   } = props;
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
 
   const cover = useMemo(() => coverUrl(t), [t]);
   const videoCover = useMemo(() => coverVideoUrl(t), [t]);
@@ -1450,31 +1582,7 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
         contentVisibility: 'auto',
       }}
     >
-      <div className="absolute inset-0">
-        {musicVideo ? (
-          <MusicVideoLayer
-            src={musicVideo}
-            poster={musicPoster || cover}
-            title={t.title}
-            active={isActive}
-            playing={isPlaying}
-            className="h-full w-full scale-125 object-cover opacity-45 blur-3xl saturate-150"
-          />
-        ) : cover || videoPoster ? (
-          <TrackCover
-            trackId={t._id}
-            src={cover}
-            videoSrc={videoCover}
-            posterSrc={videoPoster || cover}
-            title={t.title}
-            autoPlayVideo={isActive && isPlaying}
-            className="h-full w-full scale-125 object-cover opacity-55 blur-3xl saturate-150"
-            rounded="rounded-none"
-          />
-        ) : null}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#120d11]/86 via-[#120d11]/26 to-[#120d11]/92" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(255,111,97,0.16),transparent_28%),radial-gradient(circle_at_88%_30%,rgba(124,92,255,0.13),transparent_32%)]" />
-      </div>
+      <AuraVisualLayer track={t} active={isActive} playing={isPlaying} enabled={auraVisualsEnabled} />
 
       <div className="relative z-10 mx-auto flex h-full max-w-6xl items-center justify-center">
         <div className="grid w-full items-end gap-5 md:grid-cols-[minmax(0,1fr)_82px]">
@@ -1554,6 +1662,18 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
                         {genre}
                       </span>
                     ))}
+                    <button
+                      type="button"
+                      onClick={(event) => { event.stopPropagation(); onToggleAuraVisuals(); }}
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] transition ${
+                        auraVisualsEnabled ? 'bg-[#fffaf2] text-[#171313]' : 'bg-white/10 text-white/48'
+                      }`}
+                      aria-pressed={auraVisualsEnabled}
+                      aria-label={auraVisualsEnabled ? 'Désactiver Aura Visuals' : 'Activer Aura Visuals'}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Aura
+                    </button>
                     {albumContext ? (
                       <a href={`/album/${albumContext.id}`} onClick={e => { e.stopPropagation(); onClose(); }} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-white/58 hover:text-white">
                         Album
@@ -1579,7 +1699,47 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
 
               <div className="mt-4">
                 {isActive && !isRadio ? (
-                  <SeekBar onSeek={onSeek} getAudioElement={getAudioElement} />
+                  <>
+                    <Waveform
+                      peaks={waveformPeaks ?? null}
+                      duration={duration}
+                      loading={waveformLoading}
+                      getAudioElement={getAudioElement}
+                      onSeek={onSeek}
+                      markers={waveformMarkers}
+                      reactionClusters={reactionClusters}
+                    />
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); onComments(getAudioElement()?.currentTime); }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.05] px-3 py-1.5 text-[11px] font-black text-white/62 transition hover:bg-white/[0.1] hover:text-white"
+                      >
+                        <MessageCircle className="h-3 w-3" />
+                        Commenter ce moment
+                      </button>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); setReactionPickerOpen(v => !v); }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-white/[0.05] px-3 py-1.5 text-[11px] font-black text-white/62 transition hover:bg-white/[0.1] hover:text-white"
+                        >
+                          <SmilePlus className="h-3 w-3" />
+                          Réagir
+                        </button>
+                        <ReactionPicker
+                          open={reactionPickerOpen}
+                          onClose={() => setReactionPickerOpen(false)}
+                          onPick={type => {
+                            onReact?.(type, getAudioElement()?.currentTime || 0);
+                            setReactionPickerOpen(false);
+                          }}
+                          variant="dark"
+                          className="bottom-full mb-2 right-0"
+                        />
+                      </div>
+                    </div>
+                  </>
                 ) : (
                   <div className="flex items-center justify-between text-[11px] font-medium tabular-nums text-white/42">
                     <span>{fmtTime(0)}</span>
@@ -1701,14 +1861,20 @@ function PlayerCommentsDrawer({
   isOpen,
   track,
   commentCount,
+  prefillTimestamp,
+  onClearPrefillTimestamp,
   onClose,
   onCountChange,
+  onMomentPosted,
 }: {
   isOpen: boolean;
   track: Track | null;
   commentCount: number;
+  prefillTimestamp?: number | null;
+  onClearPrefillTimestamp?: () => void;
   onClose: () => void;
   onCountChange: (trackIdValue: string, nextCount: number) => void;
+  onMomentPosted?: (comment: { id: string; content: string; createdAt: string; timestampSeconds: number; user: PlayerCommentUser }) => void;
 }) {
   const { data: session } = useSession();
   const [comments, setComments] = useState<PlayerComment[]>([]);
@@ -1767,7 +1933,10 @@ function PlayerCommentsDrawer({
       const response = await fetch(`/api/tracks/${encodeURIComponent(trackIdValue)}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: text.trim() }),
+        body: JSON.stringify({
+          content: text.trim(),
+          timestampSeconds: typeof prefillTimestamp === 'number' ? prefillTimestamp : undefined,
+        }),
       });
       const payload = await response.json().catch(() => null);
 
@@ -1778,13 +1947,23 @@ function PlayerCommentsDrawer({
       const nextComment = normalizePlayerComment(payload?.comment);
       setComments((current) => [nextComment, ...current]);
       onCountChange(trackIdValue, commentCount + 1);
+      if (typeof prefillTimestamp === 'number') {
+        onMomentPosted?.({
+          id: nextComment.id,
+          content: nextComment.content,
+          createdAt: nextComment.createdAt,
+          timestampSeconds: prefillTimestamp,
+          user: nextComment.user,
+        });
+        onClearPrefillTimestamp?.();
+      }
       setText('');
     } catch (error: any) {
       notify.error('Erreur', error?.message || 'Impossible d’envoyer le commentaire');
     } finally {
       setSubmitting(false);
     }
-  }, [commentCount, disabled, onCountChange, session?.user, text, trackIdValue]);
+  }, [commentCount, disabled, onClearPrefillTimestamp, onCountChange, onMomentPosted, prefillTimestamp, session?.user, text, trackIdValue]);
 
   const renderComment = (comment: PlayerComment, nested = false) => (
     <div key={`${nested ? 'reply' : 'comment'}-${comment.id}`} className={nested ? 'ml-11 mt-2' : ''}>
@@ -1876,11 +2055,25 @@ function PlayerCommentsDrawer({
 
             {!disabled ? (
               <div className="border-t border-white/10 px-5 py-4">
+                {typeof prefillTimestamp === 'number' ? (
+                  <div className="mb-2.5 flex items-center justify-between gap-2 rounded-full border border-violet-400/25 bg-violet-500/15 px-3 py-1.5">
+                    <span className="text-xs font-black text-violet-200">
+                      Commentaire ancré à {fmtTime(prefillTimestamp)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={onClearPrefillTimestamp}
+                      className="text-[11px] font-bold text-violet-200/70 transition hover:text-white"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                ) : null}
                 <textarea
                   value={text}
                   onChange={(event) => setText(event.target.value)}
                   className="min-h-[88px] w-full rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-white/26 focus:border-white/22"
-                  placeholder="Ecris une reponse sans sortir du player..."
+                  placeholder={typeof prefillTimestamp === 'number' ? `Que se passe-t-il à ${fmtTime(prefillTimestamp)} ?` : 'Ecris une reponse sans sortir du player...'}
                 />
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <p className="text-xs text-white/34">Tout reste dans cette couche du player.</p>
@@ -2357,6 +2550,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const [feedMode, setFeedMode] = useState<FeedMode>('reco');
   const [seedGenre, setSeedGenre] = useState<string | null>(null);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentsPrefillTimestamp, setCommentsPrefillTimestamp] = useState<number | undefined>(undefined);
   const [shareOpen, setShareOpen] = useState(false);
   const [showDownloadDialog, setShowDownloadDialog] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -2366,6 +2560,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [commentCountOverrides, setCommentCountOverrides] = useState<Record<string, number>>({});
   const [shareCountOverrides, setShareCountOverrides] = useState<Record<string, number>>({});
+  const [auraVisualsEnabled, setAuraVisualsEnabled] = useState(true);
 
   /* ── Refs ── */
   const didBootRef = useRef(false);
@@ -2380,6 +2575,23 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const lastViewedRef = useRef<string | null>(null);
   const burstTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const loadRequestRef = useRef(0);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem('synaura.auraVisuals.enabled');
+      if (stored === '0') setAuraVisualsEnabled(false);
+    } catch {}
+  }, []);
+
+  const toggleAuraVisuals = useCallback(() => {
+    setAuraVisualsEnabled((current) => {
+      const next = !current;
+      try {
+        window.localStorage.setItem('synaura.auraVisuals.enabled', next ? '1' : '0');
+      } catch {}
+      return next;
+    });
+  }, []);
 
   /* ── Derived ── */
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
@@ -2399,6 +2611,39 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const commentCounts = useCommentCounts(tracks, isOpen);
   const activeCommentCount = resolveCommentCount(activeTrackId, activeTrack?.comments);
   usePreloader(tracks, activeIndex, isOpen);
+
+  // Waveform réelle + commentaires horodatés : uniquement pour le morceau actif
+  // (jamais la radio, ni les commentaires sur une création IA — même limite que
+  // le reste du système de commentaires).
+  const commentsUnavailableForActive = !activeTrackId || activeIsRadio || activeTrackId.startsWith('ai-');
+  const trackWaveform = useTrackWaveform(
+    activeIsRadio ? null : activeTrackId,
+    activeIsRadio ? null : activeTrack?.audioUrl,
+    activeTrack?.duration,
+  );
+  const momentComments = useMomentComments(commentsUnavailableForActive ? null : activeTrackId);
+  const momentReactions = useMomentReactions(commentsUnavailableForActive ? null : activeTrackId);
+
+  const submitMomentReaction = useCallback(async (reactionType: MomentReactionType, rawTimestamp: number) => {
+    if (!activeTrackId || commentsUnavailableForActive) return;
+    const timestampSeconds = Math.max(0, Math.round(rawTimestamp));
+    try {
+      const response = await fetch(`/api/tracks/${encodeURIComponent(activeTrackId)}/reactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reactionType, timestampSeconds }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || 'Impossible d’enregistrer la réaction');
+      momentReactions.addOptimistic({
+        id: String(payload?.reaction?.id || `local-${Date.now()}`),
+        reactionType,
+        timestampSeconds,
+      });
+    } catch (error: any) {
+      notify.error('Erreur', error?.message || 'Impossible d’enregistrer la réaction');
+    }
+  }, [activeTrackId, commentsUnavailableForActive, momentReactions]);
 
   const { isLiked, likesCount, toggleLike, checkLikeStatus } = useLikeSystem({
     trackId: activeTrackId,
@@ -2849,6 +3094,26 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
           {/* Scroll container — virtualized */}
           <style>{`
             .synaura-tiktok-scroll::-webkit-scrollbar { display: none; }
+            @keyframes synauraAuraDrift {
+              0%, 100% { transform: scale(1.18) translate3d(0,0,0); opacity: .42; }
+              50% { transform: scale(1.26) translate3d(-1.5%,1.2%,0); opacity: .52; }
+            }
+            @keyframes synauraAuraFloatA {
+              0%, 100% { transform: translate3d(0,0,0) scale(1); }
+              50% { transform: translate3d(5%,4%,0) scale(1.08); }
+            }
+            @keyframes synauraAuraFloatB {
+              0%, 100% { transform: translate3d(0,0,0) scale(1); }
+              50% { transform: translate3d(-4%,5%,0) scale(1.06); }
+            }
+            @keyframes synauraAuraFloatC {
+              0%, 100% { transform: translate3d(0,0,0) scale(1); }
+              50% { transform: translate3d(2%,-5%,0) scale(1.07); }
+            }
+            .synaura-aura-drift { animation: synauraAuraDrift 14s ease-in-out infinite; will-change: transform, opacity; }
+            .synaura-aura-float-a { animation: synauraAuraFloatA 16s ease-in-out infinite; will-change: transform; }
+            .synaura-aura-float-b { animation: synauraAuraFloatB 19s ease-in-out infinite; will-change: transform; }
+            .synaura-aura-float-c { animation: synauraAuraFloatC 22s ease-in-out infinite; will-change: transform; }
           `}</style>
           <div
             ref={scrollSnap.containerRef}
@@ -2907,6 +3172,13 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                   radioMeta={radioMeta}
                   albumContext={albumContext as any}
                   canDownload={canDownload}
+                  waveformPeaks={isThis ? trackWaveform.peaks : null}
+                  waveformLoading={isThis ? trackWaveform.loading : false}
+                  waveformMarkers={isThis ? momentComments.markers : undefined}
+                  reactionClusters={isThis ? momentReactions.clusters : undefined}
+                  auraVisualsEnabled={auraVisualsEnabled}
+                  onReact={submitMomentReaction}
+                  onToggleAuraVisuals={toggleAuraVisuals}
                   onCoverTap={handleCoverTap}
                   onDoubleTapLike={() => {
                     const willLike = !isLiked;
@@ -2914,8 +3186,13 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                     if (willLike) triggerBurst();
                   }}
                   onToggleLike={toggleLike}
-                  onComments={() => {
+                  onComments={(prefillTimestamp) => {
                     setShareOpen(false);
+                    setCommentsPrefillTimestamp(
+                      typeof prefillTimestamp === 'number' && Number.isFinite(prefillTimestamp)
+                        ? Math.max(0, prefillTimestamp)
+                        : undefined,
+                    );
                     setCommentsOpen(true);
                   }}
                   onShare={onShare}
@@ -2950,8 +3227,14 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
         isOpen={commentsOpen}
         track={activeTrack}
         commentCount={activeCommentCount}
-        onClose={() => setCommentsOpen(false)}
+        prefillTimestamp={commentsPrefillTimestamp}
+        onClearPrefillTimestamp={() => setCommentsPrefillTimestamp(undefined)}
+        onClose={() => {
+          setCommentsOpen(false);
+          setCommentsPrefillTimestamp(undefined);
+        }}
         onCountChange={handleCommentCountChange}
+        onMomentPosted={(comment) => momentComments.addOptimistic(comment)}
       />
       <PlayerShareDrawer
         isOpen={shareOpen}

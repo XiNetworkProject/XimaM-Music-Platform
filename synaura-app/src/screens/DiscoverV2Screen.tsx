@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -12,10 +11,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getDiscoverRadar, getEditorialCollections, getHomeData, getPopularArtists, getUserPreferences } from '@/api/client';
+import { getDiscoverRadar, getEditorialCollections, getHomeData, getUserPreferences } from '@/api/client';
 import type { Creator, HomeData, Playlist, Track } from '@/api/types';
 import { UniversalSearchModal } from '@/components/HomeOverlays';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
+import { RadarMobileSection } from '@/components/radar/RadarMobileSection';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
 import { usePlayer } from '@/player/PlayerProvider';
@@ -41,10 +41,6 @@ const emptyHome: HomeData = {
   creators: [],
   posts: [],
 };
-
-function artistName(track: Track) {
-  return track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste Synaura';
-}
 
 type ArtistPairing = { creator: Creator; track: Track };
 
@@ -203,24 +199,12 @@ export function DiscoverV2Screen() {
           })}
         </View>
 
-        <View style={styles.radarHeader}>
-          <View style={styles.radarIcon}><Ionicons name="radio-outline" size={19} color={colors.violet} /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionEyebrow}>RADAR SYNAURA</Text>
-            <Text style={styles.sectionHeading}>Des sons encore peu écoutés qui méritent une chance.</Text>
-          </View>
-        </View>
-        {loading && !radar.length ? (
-          <ActivityIndicator color={colors.text} style={styles.loader} />
-        ) : radar.length ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trackRail}>
-            {radar.map((track) => (
-              <TrackCard key={track._id} track={track} playing={player.current?._id === track._id && player.isPlaying} onPress={() => void playFrom(radar, track)} />
-            ))}
-          </ScrollView>
-        ) : (
-          <Text style={styles.emptyText}>Pas encore de sons disponibles pour le Radar.</Text>
-        )}
+        <RadarMobileSection
+          tracks={radar}
+          loading={loading}
+          compact
+          onViewAll={() => navigation.navigate('Radar')}
+        />
 
         {featuredCollection ? (
           <CollectionFeatureCard
@@ -304,19 +288,6 @@ function SectionTitle({ title }: { title: string }) {
   );
 }
 
-function TrackCard({ track, playing, onPress }: { track: Track; playing: boolean; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={styles.trackCard}>
-      <View style={styles.trackCoverWrap}>
-        <TrackCover track={track} active={playing} autoPlayVideo={playing} style={styles.trackCover} />
-        <View style={styles.trackPlay}><Ionicons name={playing ? 'pause' : 'play'} size={15} color={colors.text} /></View>
-      </View>
-      <Text numberOfLines={1} style={styles.trackTitle}>{track.title}</Text>
-      <Text numberOfLines={1} style={styles.trackArtist}>{artistName(track)}</Text>
-    </Pressable>
-  );
-}
-
 function CollectionFeatureCard({ playlist, onPress }: { playlist: Playlist; onPress: () => void }) {
   const collection = playlist.collection;
   const cardColors = collection?.themeColors?.length ? collection.themeColors : playlist.themeColors?.length ? playlist.themeColors : ['#7357C6', '#4A9EAA'];
@@ -388,7 +359,6 @@ const styles = StyleSheet.create({
   sectionTitleRow: { marginTop: 20, marginBottom: 9 },
   sectionHeading: { color: colors.text, fontSize: 15, lineHeight: 20, fontWeight: '900' },
   sectionHeadingSmall: { color: colors.text, fontSize: 18, fontWeight: '900' },
-  sectionEyebrow: { color: colors.violet, fontSize: 9, fontWeight: '900', letterSpacing: 1.4 },
   moodGrid: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between' },
   moodPressable: { width: '48.5%', borderRadius: 18, overflow: 'hidden' },
   moodTile: { minHeight: 138, borderRadius: 18, padding: 13, justifyContent: 'space-between' },
@@ -399,17 +369,6 @@ const styles = StyleSheet.create({
   moodPromise: { marginTop: 5, color: 'rgba(255,250,242,0.72)', fontSize: 10, lineHeight: 14, fontWeight: '700' },
   moodEnter: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' },
   moodEnterText: { color: 'rgba(255,250,242,0.9)', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
-  radarHeader: { marginTop: 22, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  radarIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(115,87,198,0.12)' },
-  loader: { marginVertical: 30 },
-  emptyText: { color: colors.textTertiary, fontSize: 11, fontWeight: '700', paddingVertical: 12 },
-  trackRail: { gap: 11, paddingRight: 18 },
-  trackCard: { width: 121 },
-  trackCoverWrap: { width: 121, height: 130, overflow: 'hidden', borderRadius: 14, backgroundColor: 'rgba(17,17,17,0.06)' },
-  trackCover: { width: '100%', height: '100%' },
-  trackPlay: { position: 'absolute', right: 7, bottom: 7, width: 31, height: 31, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.94)' },
-  trackTitle: { marginTop: 8, color: colors.text, fontSize: 11, fontWeight: '900' },
-  trackArtist: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
   collectionFeature: { minHeight: 260, borderRadius: 26, overflow: 'hidden', marginTop: 18, backgroundColor: colors.text, shadowColor: colors.text, shadowOpacity: 0.16, shadowRadius: 22, shadowOffset: { width: 0, height: 12 }, elevation: 5 },
   collectionFeatureImage: { ...StyleSheet.absoluteFillObject, opacity: 0.48 },
   collectionFeatureBody: { flex: 1, justifyContent: 'flex-end', padding: 17 },

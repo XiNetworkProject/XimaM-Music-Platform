@@ -16,6 +16,7 @@ import { MotionPressable } from '@/components/motion/Motion';
 import { MobileBadge } from '@/components/mobile/MobileBadge';
 import { MobileSocialLinks } from '@/components/mobile/MobileSocialLinks';
 import { AppHeader } from '@/components/ui/AppHeader';
+import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard';
 
 type Tab = 'sons' | 'clips' | 'variations' | 'playlists' | 'posts';
 
@@ -340,7 +341,15 @@ export function PublicProfileScreen() {
                 </View>
                 <Text style={styles.postText}>{post.text}</Text>
                 {post.isPinned ? <Text style={styles.pinned}>ÉPINGLÉ</Text> : null}
-                {post.track ? <View style={styles.postTrack}><TrackCover track={post.track} style={styles.postTrackCover} /><Text numberOfLines={1} style={styles.trackTitle}>{post.track.title}</Text><Ionicons name="play" size={15} color="#171313" /></View> : null}
+                {post.track ? (
+                  <PostAttachedTrackCard
+                    track={post.track}
+                    compact
+                    playing={player.current?._id === post.track._id && player.isPlaying}
+                    onPlay={() => player.playTrack(post.track!)}
+                    onOpen={() => navigation.navigate('TrackDetail', { trackId: post.track!._id, track: post.track })}
+                  />
+                ) : null}
                 <Text style={styles.postMeta}>{post.likesCount} j’aime · {post.commentsCount} commentaires</Text>
               </Pressable>
             )) : <Text style={styles.empty}>Cet artiste n'a encore rien publié.</Text>}

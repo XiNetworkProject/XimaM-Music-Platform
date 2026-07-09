@@ -4,8 +4,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  ArrowLeft, Heart, MessageCircle, Play, Pause, Share2,
-  Music2, Camera, Loader2, Send, Trash2, Repeat2, UserPlus,
+  ArrowLeft, Heart, MessageCircle, Share2,
+  Camera, Loader2, Send, Trash2, Repeat2, UserPlus,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
@@ -14,8 +14,8 @@ import { fr } from 'date-fns/locale';
 import { useAudioPlayer } from '@/app/providers';
 import { notify } from '@/components/NotificationCenter';
 import { getCdnUrl } from '@/lib/cdn';
-import TrackCover from '@/components/TrackCover';
 import type { Post } from '@/components/PostCard';
+import PostAudioCard from '@/components/posts/PostAudioCard';
 import { SynauraAppShell, SynauraPanel, SynauraInkPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 
 interface Comment {
@@ -341,30 +341,7 @@ export default function PostPage() {
               ) : null}
 
               {post.type === 'track_share' && post.track ? (
-                <div className="overflow-hidden rounded-[1.5rem] bg-[#171313] text-white">
-                  <div className="relative">
-                    {post.track.cover_url ? (
-                      <div className="absolute inset-0 overflow-hidden">
-                        <img src={post.track.cover_url} alt="" className="h-full w-full scale-150 object-cover opacity-20 blur-2xl" />
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-[#171313]" />
-                      </div>
-                    ) : null}
-                    <div className="relative flex items-center gap-4 p-5">
-                      <TrackCover src={post.track.cover_url || null} videoSrc={(post.track as any).cover_video_url || (post.track as any).coverVideoUrl || null} posterSrc={(post.track as any).cover_video_poster_url || (post.track as any).coverVideoPosterUrl || post.track.cover_url || null} title={post.track.title} className="h-20 w-20 shrink-0 shadow-2xl" rounded="rounded-2xl" objectFit="cover" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/42">Son partage</p>
-                        <p className="mt-2 truncate text-xl font-black text-white">{post.track.title}</p>
-                        <p className="truncate text-sm font-semibold text-white/55">{post.track.artist_name || 'Artiste inconnu'}</p>
-                      </div>
-                      <button
-                        onClick={handlePlayTrack}
-                        className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-black shadow-xl shadow-white/10 transition hover:scale-105 active:scale-95"
-                      >
-                        {isPlayingThis ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <PostAudioCard track={post.track} playing={Boolean(isPlayingThis)} onPlay={handlePlayTrack} />
               ) : null}
 
               {post.type === 'repost' ? (
@@ -389,21 +366,25 @@ export default function PostPage() {
 
                     {post.original_post.track ? (
                       <div className="bg-[#171313] p-4 text-white">
-                        <div className="relative overflow-hidden rounded-[1.1rem]">
-                          {post.original_post.track.cover_url ? (
-                            <div className="absolute inset-0 overflow-hidden">
-                              <img src={post.original_post.track.cover_url} alt="" className="h-full w-full scale-150 object-cover opacity-20 blur-2xl" />
-                              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-[#171313]" />
-                            </div>
-                          ) : null}
-                          <div className="relative flex items-center gap-4 p-4">
-                            <TrackCover src={post.original_post.track.cover_url || null} videoSrc={(post.original_post.track as any).cover_video_url || (post.original_post.track as any).coverVideoUrl || null} posterSrc={(post.original_post.track as any).cover_video_poster_url || (post.original_post.track as any).coverVideoPosterUrl || post.original_post.track.cover_url || null} title={post.original_post.track.title} className="h-16 w-16 shrink-0 shadow-2xl" rounded="rounded-xl" objectFit="cover" />
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-[15px] font-bold text-white">{post.original_post.track.title}</p>
-                              <p className="truncate text-[12px] text-white/55">{post.original_post.track.artist_name || 'Artiste inconnu'}</p>
-                            </div>
-                          </div>
-                        </div>
+                        <PostAudioCard
+                          track={post.original_post.track}
+                          playing={currentTrackId === post.original_post.track.id && audioState.isPlaying}
+                          onPlay={() => {
+                            playTrack({
+                              _id: post.original_post!.track!.id,
+                              title: post.original_post!.track!.title,
+                              artist: { _id: '', name: post.original_post!.track!.artist_name || 'Artiste', username: '' },
+                              audioUrl: post.original_post!.track!.audio_url,
+                              coverUrl: post.original_post!.track!.cover_url,
+                              coverVideoUrl: (post.original_post!.track as any).cover_video_url || (post.original_post!.track as any).coverVideoUrl,
+                              coverVideoPosterUrl: (post.original_post!.track as any).cover_video_poster_url || (post.original_post!.track as any).coverVideoPosterUrl,
+                              duration: post.original_post!.track!.duration || 0,
+                              likes: 0,
+                              plays: 0,
+                            } as any);
+                          }}
+                          compact
+                        />
                       </div>
                     ) : post.original_post.track_hidden ? (
                       <div className="border-t border-black/[0.08] px-4 py-3 text-sm font-semibold text-black/46">

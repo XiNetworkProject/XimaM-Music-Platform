@@ -29,6 +29,7 @@ import { colors } from '@/theme/tokens';
 import { MobileBadge } from '@/components/mobile/MobileBadge';
 import { MobileSocialLinks } from '@/components/mobile/MobileSocialLinks';
 import { AppHeader } from '@/components/ui/AppHeader';
+import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard';
 
 type ProfileTab = 'sons' | 'clips' | 'variations' | 'playlists' | 'posts';
 
@@ -488,6 +489,15 @@ export function ProfileScreen() {
                 {post.isPinned ? <Text style={styles.postPinned}>ÉPINGLÉ</Text> : null}
                 <Text numberOfLines={2} style={styles.postText}>{post.text}</Text>
                 <Text style={styles.postMeta}>{post.time} · {post.likesCount} j’aime · {post.commentsCount} commentaires</Text>
+                {post.track ? (
+                  <PostAttachedTrackCard
+                    track={post.track}
+                    compact
+                    playing={player.current?._id === post.track._id && player.isPlaying}
+                    onPlay={() => player.playTrack(post.track!)}
+                    onOpen={() => navigation.navigate('TrackDetail', { trackId: post.track!._id, track: post.track })}
+                  />
+                ) : null}
               </View>
               <Pressable accessibilityLabel={post.isPinned ? 'Désépingler' : 'Épingler'} onPress={(event) => { event.stopPropagation(); void togglePinnedPost(post.id); }} style={styles.miniIcon}>
                 <Ionicons name={post.isPinned ? 'pin' : 'pin-outline'} size={15} color={post.isPinned ? '#7C5CFF' : '#171313'} />

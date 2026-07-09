@@ -74,6 +74,10 @@ function normalTrackVideoMeta(track: any) {
   return {
     coverVideoUrl: track?.cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
     coverVideoPosterUrl: track?.cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || track?.cover_url || null,
+    visualUrl: data.visual_url || data.visualUrl || null,
+    visualType: data.visual_type || data.visualType || null,
+    dominantColors: Array.isArray(data.dominant_colors) ? data.dominant_colors : Array.isArray(data.dominantColors) ? data.dominantColors : [],
+    auraVisualEnabled: data.aura_visual_enabled !== false && data.auraVisualEnabled !== false,
   };
 }
 
@@ -84,6 +88,10 @@ function aiTrackVideoMeta(track: any) {
     coverVideoPosterUrl: track?.cover_video_poster_url || sourceLinks.cover_video_poster_url || sourceLinks.coverVideoPosterUrl || track?.image_url || null,
     musicVideoUrl: track?.music_video_url || sourceLinks.music_video_url || sourceLinks.musicVideoUrl || track?.cover_video_url || sourceLinks.cover_video_url || sourceLinks.coverVideoUrl || null,
     musicVideoPosterUrl: track?.music_video_poster_url || sourceLinks.music_video_poster_url || sourceLinks.musicVideoPosterUrl || track?.cover_video_poster_url || sourceLinks.cover_video_poster_url || sourceLinks.coverVideoPosterUrl || track?.image_url || null,
+    visualUrl: sourceLinks.visual_url || sourceLinks.visualUrl || null,
+    visualType: sourceLinks.visual_type || sourceLinks.visualType || null,
+    dominantColors: Array.isArray(sourceLinks.dominant_colors) ? sourceLinks.dominant_colors : Array.isArray(sourceLinks.dominantColors) ? sourceLinks.dominantColors : [],
+    auraVisualEnabled: sourceLinks.aura_visual_enabled !== false && sourceLinks.auraVisualEnabled !== false,
   };
 }
 

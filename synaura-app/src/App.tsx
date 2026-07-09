@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { DeviceEventEmitter, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -104,6 +104,13 @@ function RootStackNavigator() {
 export default function App() {
   const [playerOpen, setPlayerOpen] = React.useState(false);
   const [activeRoute, setActiveRoute] = React.useState('Home');
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('synaura:open-full-player', () => {
+      setPlayerOpen(true);
+    });
+    return () => subscription.remove();
+  }, []);
 
   return (
     <SafeAreaProvider>

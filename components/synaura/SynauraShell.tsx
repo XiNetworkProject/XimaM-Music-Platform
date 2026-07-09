@@ -15,6 +15,7 @@ import {
   Library,
   LogIn,
   LogOut,
+  Radar,
   Settings,
   Sparkles,
   User,
@@ -37,6 +38,7 @@ const SYNAURA_SHELL_BRAND = {
 const SYNAURA_ROUTE_ITEMS = [
   { href: '/', label: 'Pour toi', icon: Home },
   { href: '/discover', label: 'Découvrir', icon: Compass },
+  { href: '/radar', label: 'Radar', icon: Radar },
   { href: '/community', label: 'Clubs', icon: Users },
   { href: '/create', label: 'Créer', icon: Sparkles },
 ] as const;

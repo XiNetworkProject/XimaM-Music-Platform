@@ -491,7 +491,11 @@ export function SwipeScreen() {
     if (!activeTrack) return;
     if (action === 'remix') {
       Haptics.selectionAsync().catch(() => {});
-      setRemixTrack(activeTrack);
+      navigation.navigate('AIStudio', {
+        sourceTrackId: activeTrack._id,
+        sourceTrackType: activeTrack._id.startsWith('ai-') ? 'ai_track' : 'track',
+        mode: 'remix',
+      });
       return;
     }
     if (action === 'useSound') {

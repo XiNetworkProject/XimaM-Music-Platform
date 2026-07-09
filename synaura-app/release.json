@@ -1,12 +1,12 @@
 {
-  "title": "Synaura mobile 0.9.13",
+  "title": "Synaura mobile 0.9.14",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Confidentialite : un morceau rendu prive n'est plus jamais expose via un post deja partage",
-    "Defis musicaux : le filtre Defis du Scroll affiche desormais les vrais defis en cours",
-    "Defis musicaux : les participations Clip s'ouvrent enfin correctement depuis le detail d'un defi",
-    "Studio IA : une variation en attente de validation compte bien comme participation au defi une fois approuvee",
-    "Scroll : correction d'un bug qui pouvait relancer la lecture en boucle lors d'un changement de filtre"
+    "Partage : genere une carte visuelle premium pour chaque morceau",
+    "Partage : formats Story, Carre et Banniere avec texte personnel",
+    "Partage mobile : telechargement de la carte avant partage natif",
+    "Mises a jour : une version deja installee n'est plus reproposee",
+    "Player : le bouton Partager ouvre la nouvelle carte quand le son est partageable"
   ]
 }

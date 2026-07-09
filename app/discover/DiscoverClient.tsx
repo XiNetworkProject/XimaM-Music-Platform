@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowRight, Compass, Radar as RadarIcon } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Compass } from 'lucide-react';
 import {
   SynauraAppShell,
   SynauraPanel,
@@ -11,6 +11,7 @@ import {
   SynauraTopBar,
 } from '@/components/synaura/SynauraShell';
 import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
+import RadarSection from '@/components/radar/RadarSection';
 import { useAudioPlayer } from '@/app/providers';
 import { DISCOVER_MOODS, getMoodById, type MoodId } from '@/lib/discoverMoods';
 import { COMMUNITY_CLUBS } from '@/lib/communityClubs';
@@ -119,11 +120,8 @@ export default function DiscoverClient({
   favoriteMoodIds?: string[];
 }) {
   const router = useRouter();
-  const { setQueueAndPlay } = useAudioPlayer();
   const [activeMood, setActiveMood] = useState<MoodId | null>(initialMood);
 
-  // Priorite visuelle aux ambiances choisies a l'onboarding (Personnaliser mes gouts),
-  // sans jamais masquer les autres : simple reordonnancement stable.
   const orderedMoods = useMemo(() => {
     if (!favoriteMoodIds.length) return DISCOVER_MOODS;
     return [...DISCOVER_MOODS].sort((a, b) => {
@@ -187,41 +185,7 @@ export default function DiscoverClient({
               </div>
             </section>
 
-            <section>
-              <SynauraPanel className="p-4 sm:p-5">
-                <div className="mb-4 flex items-center gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[0.9rem] bg-[#7357C6]/12 text-[#7357C6]">
-                    <RadarIcon className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Radar Synaura</p>
-                    <h2 className="text-xl font-black tracking-[-0.04em] text-[#171313] sm:text-2xl">Des sons encore peu écoutés qui méritent une chance.</h2>
-                  </div>
-                </div>
-                {radarTracks.length ? (
-                  <>
-                    <div className="mb-3 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setQueueAndPlay(radarTracks as any, 0)}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-full bg-black/[0.055] px-4 text-xs font-black text-black/56 transition hover:bg-[#171313] hover:text-white"
-                      >
-                        Tout lire
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                      {radarTracks.map((track) => (
-                        <TrackTile key={track._id} track={track} grid />
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <p className="rounded-[1.1rem] border border-dashed border-black/[0.12] p-6 text-center text-sm font-semibold text-black/42">
-                    Pas encore de sons disponibles pour le Radar.
-                  </p>
-                )}
-              </SynauraPanel>
-            </section>
+            <RadarSection tracks={radarTracks as any} compact showViewAll />
 
             {collections.length ? (
               <section>

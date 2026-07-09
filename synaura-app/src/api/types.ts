@@ -17,12 +17,24 @@ export type Track = {
   coverVideoPosterUrl?: string | null;
   musicVideoUrl?: string | null;
   musicVideoPosterUrl?: string | null;
+  visualUrl?: string | null;
+  visualType?: 'image' | 'video' | 'generated' | 'none';
+  dominantColors?: string[];
+  auraVisualEnabled?: boolean;
   lyrics?: string | null;
   duration?: number;
   likes?: string[];
   comments?: string[];
   likesCount?: number;
   commentsCount?: number;
+  savesCount?: number;
+  reactionsCount?: number;
+  completionRate?: number;
+  radarScore?: number;
+  radarReasons?: string[];
+  radarSignalLabel?: string;
+  isRadar?: boolean;
+  isNewThisWeek?: boolean;
   shares?: number;
   sharesCount?: number;
   isLiked?: boolean;
@@ -251,6 +263,9 @@ export type HomeComment = {
   id: string;
   content: string;
   createdAt: string;
+  timestampSeconds?: number | null;
+  likesCount?: number;
+  isLiked?: boolean;
   user: {
     id: string;
     username: string;
@@ -258,6 +273,27 @@ export type HomeComment = {
     avatar?: string | null;
   };
   replies: HomeComment[];
+};
+
+export type TrackWaveformData = {
+  duration: number;
+  peaks: number[];
+};
+
+export type MomentReactionType = 'drop' | 'emotional' | 'mindblown' | 'favorite' | 'vocals' | 'production';
+
+export type MomentReaction = {
+  id: string;
+  reactionType: MomentReactionType;
+  timestampSeconds: number;
+};
+
+export type MomentReactionCluster = {
+  id: string;
+  timestampSeconds: number;
+  total: number;
+  topType: MomentReactionType;
+  byType: Partial<Record<MomentReactionType, number>>;
 };
 
 export type LibraryStats = {

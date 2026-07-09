@@ -153,6 +153,10 @@ export async function GET(
       coverUrl: data.image_url || data.cover_url || null,
       musicVideoUrl: data.music_video_url || sourceLinks.music_video_url || sourceLinks.musicVideoUrl || data.cover_video_url || sourceLinks.cover_video_url || null,
       musicVideoPosterUrl: data.music_video_poster_url || sourceLinks.music_video_poster_url || sourceLinks.musicVideoPosterUrl || data.cover_video_poster_url || sourceLinks.cover_video_poster_url || data.image_url || data.cover_url || null,
+      visualUrl: sourceLinks.visual_url || sourceLinks.visualUrl || null,
+      visualType: sourceLinks.visual_type || sourceLinks.visualType || null,
+      dominantColors: Array.isArray(sourceLinks.dominant_colors) ? sourceLinks.dominant_colors : Array.isArray(sourceLinks.dominantColors) ? sourceLinks.dominantColors : [],
+      auraVisualEnabled: sourceLinks.aura_visual_enabled !== false && sourceLinks.auraVisualEnabled !== false,
       duration: data.duration || 0,
       likes: [],
       comments: [],
@@ -166,4 +170,3 @@ export async function GET(
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }
-

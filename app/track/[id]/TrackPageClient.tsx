@@ -12,6 +12,8 @@ import TrackCover from '@/components/TrackCover';
 import { getCdnUrl } from '@/lib/cdn';
 import { canUseSoundClientSide } from '@/lib/clipPermissions';
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
+import TrackPostsSection from '@/components/posts/TrackPostsSection';
+import TrackShareCardModal from '@/components/share/TrackShareCardModal';
 
 interface TrackData {
   id: string;
@@ -233,7 +235,7 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
               </button>
 
               <button
-                onClick={() => setShowShare(!showShare)}
+                onClick={() => setShowShare(true)}
                 className="inline-flex h-12 items-center gap-2 rounded-full bg-black/[0.055] px-5 text-sm font-black text-black/60 transition hover:bg-black/[0.1] hover:text-black"
               >
                 <Share2 className="h-4 w-4" />
@@ -250,7 +252,7 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
 
               {canRemixAiVariation ? (
                 <button
-                  onClick={() => setRemixOpen(true)}
+                  onClick={openStudioWithRemix}
                   className="inline-flex h-12 items-center gap-2 rounded-full bg-[#7357C6] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
                 >
                   <Repeat2 className="h-4 w-4" />
@@ -388,6 +390,10 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
               </SynauraPanel>
             ) : null}
           </div>
+
+          <div className="lg:col-span-2">
+            <TrackPostsSection track={track} />
+          </div>
         </div>
       </div>
       {remixOpen ? (
@@ -414,6 +420,18 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
           </div>
         </div>
       ) : null}
+      <TrackShareCardModal
+        visible={showShare}
+        track={{
+          id: track.id,
+          title: track.title,
+          artist: track.artist,
+          coverUrl: coverSrc,
+          duration: track.duration,
+        }}
+        trackUrl={trackUrl}
+        onClose={() => setShowShare(false)}
+      />
     </SynauraAppShell>
   );
 }

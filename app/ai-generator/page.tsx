@@ -31,6 +31,7 @@ import { SunoAccordionSection } from '@/components/ui/SunoAccordionSection';
 import { SunoSlider } from '@/components/ui/SunoSlider';
 import { SynauraWaveform } from '@/components/audio/SynauraWaveform';
 import RemixPermissionsSection, { DEFAULT_REMIX_PERMISSIONS, type RemixPermissionsValue } from '@/components/upload/RemixPermissionsSection';
+import { buildRemixPrompt, DEFAULT_REMIX_TYPE, REMIX_TYPE_OPTIONS, type RemixType } from '@/lib/remixOptions';
 import {
   SynauraAppShell,
   SynauraInkPanel,
@@ -339,6 +340,73 @@ function ModelDropdownPortal({
   );
 }
 
+function RemixDirectionField({
+  value,
+  onChange,
+  promptVisibility,
+  onPromptVisibilityChange,
+  dark = false,
+}: {
+  value: RemixType;
+  onChange: (value: RemixType) => void;
+  promptVisibility?: 'private' | 'public';
+  onPromptVisibilityChange?: (value: 'private' | 'public') => void;
+  dark?: boolean;
+}) {
+  return (
+    <div className={dark ? 'rounded-xl border border-white/[0.06] bg-white/[0.03] p-3' : 'rounded-[1.2rem] border border-[#7357C6]/18 bg-[#7357C6]/[0.06] p-3'}>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className={dark ? 'text-[10px] font-black uppercase tracking-[0.16em] text-white/42' : 'text-[11px] font-black uppercase tracking-[0.16em] text-[#7357C6]'}>
+          Type de remix
+        </span>
+        <span className={dark ? 'text-[10px] font-semibold text-white/30' : 'text-[10px] font-black text-black/38'}>
+          Credit automatique
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {REMIX_TYPE_OPTIONS.map((option) => {
+          const active = value === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onChange(option.id)}
+              className={
+                dark
+                  ? `rounded-full border px-2.5 py-1 text-[10px] font-bold transition ${active ? 'border-[#7357C6]/70 bg-[#7357C6]/24 text-white' : 'border-white/[0.06] bg-white/[0.03] text-white/54 hover:bg-white/[0.07] hover:text-white/78'}`
+                  : `rounded-full border px-2.5 py-1 text-[10px] font-black transition ${active ? 'border-[#7357C6]/40 bg-[#7357C6] text-white' : 'border-black/[0.07] bg-white/70 text-black/54 hover:bg-white'}`
+              }
+            >
+              {option.shortLabel}
+            </button>
+          );
+        })}
+      </div>
+      {promptVisibility && onPromptVisibilityChange ? (
+        <div className={dark ? 'mt-3 flex rounded-lg border border-white/[0.06] bg-black/20 p-0.5' : 'mt-3 flex rounded-full border border-black/[0.06] bg-white/60 p-0.5'}>
+          {(['private', 'public'] as const).map((item) => {
+            const active = promptVisibility === item;
+            return (
+              <button
+                key={item}
+                type="button"
+                onClick={() => onPromptVisibilityChange(item)}
+                className={
+                  dark
+                    ? `flex-1 rounded-md px-2.5 py-1.5 text-[10px] font-bold transition ${active ? 'bg-white text-[#111111]' : 'text-white/42 hover:text-white/70'}`
+                    : `flex-1 rounded-full px-2.5 py-1.5 text-[10px] font-black transition ${active ? 'bg-[#111111] text-white' : 'text-black/45 hover:text-black/70'}`
+                }
+              >
+                {item === 'private' ? 'Prompt prive' : 'Prompt public'}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function AIGeneratorContent() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
@@ -407,6 +475,8 @@ function AIGeneratorContent() {
   const [remixSourceLabel, setRemixSourceLabel] = useState<string | null>(null);
   const [remixSourceTrackId, setRemixSourceTrackId] = useState<string | null>(null);
   const [sourceContext, setSourceContext] = useState<SourceContext | null>(null);
+  const [remixType, setRemixType] = useState<RemixType>(DEFAULT_REMIX_TYPE);
+  const [remixPromptVisibility, setRemixPromptVisibility] = useState<'private' | 'public'>('private');
   const [challengeId, setChallengeId] = useState<string>('');
   const [challengeTitle, setChallengeTitle] = useState<string | null>(null);
   const [pendingRemixFile, setPendingRemixFile] = useState<File | null>(null);
@@ -2890,6 +2960,13 @@ function AIGeneratorContent() {
     
     try {
       let prompt = '';
+      const remixCreativePrompt = isRemixMode
+        ? buildRemixPrompt({
+            remixType,
+            userPrompt: description,
+            sourceTitle: sourceContext?.title || remixSourceLabel,
+          })
+        : '';
       if (generationModeKind === 'remix' && !remixUploadUrl && !remixSourceTrackId) {
         notify.error('Audio remix requis', 'Ajoute un audio source avant de gÃ©nÃ©rer en mode Remix.');
         setIsGenerating(false);
@@ -2908,7 +2985,7 @@ function AIGeneratorContent() {
           setGenerationStatus('idle');
           return;
         }
-        const styleFinal = [style, ...selectedTags].filter(Boolean).join(', ');
+        const styleFinal = [style, ...selectedTags, remixCreativePrompt].filter(Boolean).join(', ');
         prompt = `Titre: "${title}". Style: ${styleFinal}`;
         if (lyrics.trim()) {
           prompt += `. Paroles: ${lyrics}`;
@@ -2947,6 +3024,9 @@ function AIGeneratorContent() {
           sourceTrackId: sourceContext.id,
           sourceTrackType: sourceContext.sourceTrackType || (sourceContext.id.startsWith('ai-') ? 'ai_track' : 'track'),
         };
+        requestBody.remixType = remixType;
+        requestBody.remixPrompt = remixCreativePrompt;
+        requestBody.remixPromptVisibility = remixPromptVisibility;
         // Permet d'enregistrer la participation au défi même si la variation part en
         // attente d'approbation (voir upsertDraftRemixesForGeneration + decision/route.ts).
         if (challengeId) {
@@ -2972,7 +3052,7 @@ function AIGeneratorContent() {
           return;
         }
         requestBody.title = title.trim() ? title : undefined; // undefined = Suno gÃ©nÃ¨re
-        requestBody.style = [style, ...selectedTags].filter(Boolean).join(', ');
+        requestBody.style = [style, ...selectedTags, remixCreativePrompt].filter(Boolean).join(', ');
         requestBody.prompt = effectiveInstrumental ? undefined : (lyrics.trim() || undefined); // Lyrics si non-instrumental, undefined si instrumental
         requestBody.styleWeight = Number(styleWeightVal.toFixed(2));
         requestBody.weirdnessConstraint = Number(weirdnessVal.toFixed(2));
@@ -2982,7 +3062,7 @@ function AIGeneratorContent() {
         requestBody.durationHint = durationHint; // EnvoyÃ© Ã  createProductionPrompt cÃ´tÃ© API (mode Custom)
       } else {
         // Mode Simple : seulement prompt (description) + indication de durÃ©e dans le texte
-        requestBody.prompt = [description, ...selectedTags].filter(Boolean).join(', ') + ` (about ${generationDuration / 60} min)`;
+        requestBody.prompt = [description, ...selectedTags, remixCreativePrompt].filter(Boolean).join(', ') + ` (about ${generationDuration / 60} min)`;
         // Pas de title, style, styleWeight, etc. en mode Simple selon la doc Suno
       }
 
@@ -3603,6 +3683,26 @@ function AIGeneratorContent() {
                       {sourceContext.audioAttached ? 'Audio source attachÃ© automatiquement.' : 'Recherche de la source audio en cours...'}
                     </p>
                   ) : null}
+                </div>
+              ) : null}
+              {isRemixMode ? (
+                <div className="mt-3 space-y-3">
+                  <RemixDirectionField
+                    value={remixType}
+                    onChange={setRemixType}
+                    promptVisibility={remixPromptVisibility}
+                    onPromptVisibilityChange={setRemixPromptVisibility}
+                  />
+                  <label className="block">
+                    <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Variation souhaitee</span>
+                    <textarea
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      disabled={isGenerationDisabled}
+                      placeholder="Ex: version plus intime, tempo plus rapide, garder les paroles mais changer la production..."
+                      className="min-h-[92px] w-full resize-none rounded-[1.1rem] border border-black/[0.08] bg-white px-4 py-3 text-sm font-semibold leading-6 text-[#171313] outline-none placeholder:text-[#9b8d82] focus:border-[#171313]"
+                    />
+                  </label>
                 </div>
               ) : null}
             </div>
@@ -4771,6 +4871,53 @@ function AIGeneratorContent() {
 
                   {customMode ? (
                     <>
+                  {isRemixMode && sourceContext ? (
+                    <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] p-3">
+                      <div className="flex items-center gap-3">
+                        {sourceContext!.coverUrl ? (
+                          <img src={sourceContext!.coverUrl || undefined} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+                        ) : (
+                          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/[0.06]">
+                            <Music className="h-4 w-4 text-white/35" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[10px] font-black uppercase tracking-[0.14em] text-white/36">Morceau original</p>
+                          <p className="truncate text-sm font-black text-white">{sourceContext!.title}</p>
+                          <p className="truncate text-xs font-semibold text-white/42">@{sourceContext!.artistUsername || sourceContext!.artist || 'artiste'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                  {isRemixMode ? (
+                    <>
+                      <RemixDirectionField
+                        value={remixType}
+                        onChange={setRemixType}
+                        promptVisibility={remixPromptVisibility}
+                        onPromptVisibilityChange={setRemixPromptVisibility}
+                        dark
+                      />
+                      <SunoAccordionSection
+                        title="Variation souhaitee"
+                        description="Direction creative du remix."
+                        isOpen
+                        onToggle={() => {}}
+                        variant="bare"
+                      >
+                        <textarea
+                          value={description}
+                          onChange={(event) => setDescription(event.target.value)}
+                          placeholder="Ex: plus rapide, plus triste, acoustique, garder les paroles mais changer le style..."
+                          rows={3}
+                          maxLength={1200}
+                          disabled={isGenerationDisabled}
+                          className="w-full resize-none rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
+                        />
+                        <div className="mt-1 text-right text-[10px] text-white/30">{description.length}/1200</div>
+                      </SunoAccordionSection>
+                    </>
+                  ) : null}
                   {/* Titre */}
                   <SunoAccordionSection
                     title="Titre"

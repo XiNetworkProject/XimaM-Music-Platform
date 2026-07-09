@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -14,6 +14,12 @@ import { canUseSoundClientSide } from '@/lib/clipPermissions';
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
 import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
 import { useLibraryFavorites } from '@/hooks/useLibraryFavorites';
+import { useTrackWaveform } from '@/hooks/useTrackWaveform';
+import { useMomentComments } from '@/hooks/useMomentComments';
+import { useMomentReactions } from '@/hooks/useMomentReactions';
+import { type MomentReactionType } from '@/lib/momentReactions';
+import Waveform from '@/components/player/Waveform';
+import ReactionPicker from '@/components/player/ReactionPicker';
 import {
   buildAnnouncementItem,
   buildArtistSpotlightItems,
@@ -49,6 +55,7 @@ import {
   Search,
   Settings,
   Share2,
+  SmilePlus,
   Sparkles,
   Trophy,
   User,
@@ -284,79 +291,6 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
   return { containerRef, itemRefs, scrollTo, onTouchStart, onTouchEnd, onScroll };
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   COMPONENT: SeekBar — rAF-driven, zéro re-render React par frame
-   Repris tel quel de components/TikTokPlayer.tsx.
-   ═══════════════════════════════════════════════════════════════ */
-
-interface SeekBarProps {
-  onSeek: (time: number) => void;
-  getAudioElement: () => HTMLAudioElement | null;
-  accentFrom: string;
-  accentTo: string;
-}
-
-const SeekBar = memo(function SeekBar({ onSeek, getAudioElement, accentFrom, accentTo }: SeekBarProps) {
-  const barRef = useRef<HTMLDivElement>(null);
-  const fillRef = useRef<HTMLDivElement>(null);
-  const knobRef = useRef<HTMLDivElement>(null);
-  const timeRef = useRef<HTMLSpanElement>(null);
-  const durRef = useRef<HTMLSpanElement>(null);
-
-  const commit = useCallback((clientX: number) => {
-    const rect = barRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const a = getAudioElement();
-    const dur = a && Number.isFinite(a.duration) ? a.duration : 0;
-    const x = clamp(clientX - rect.left, 0, rect.width);
-    onSeek((x / rect.width) * dur);
-  }, [getAudioElement, onSeek]);
-
-  useEffect(() => {
-    let raf = 0;
-    let lt = -1;
-    let ld = -1;
-    const tick = () => {
-      const a = getAudioElement();
-      const time = a && Number.isFinite(a.currentTime) ? a.currentTime : 0;
-      const dur = a && Number.isFinite(a.duration) ? a.duration : 0;
-      if (dur !== ld || time !== lt) {
-        const pct = dur > 0 ? clamp((time / dur) * 100, 0, 100) : 0;
-        const w = `${pct}%`;
-        if (fillRef.current) fillRef.current.style.width = w;
-        if (knobRef.current) knobRef.current.style.left = w;
-        if (timeRef.current) timeRef.current.textContent = fmtTime(time);
-        if (durRef.current) durRef.current.textContent = fmtTime(dur);
-        lt = time;
-        ld = dur;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [getAudioElement]);
-
-  return (
-    <div className="w-full" onTouchStart={(e) => e.stopPropagation()} onTouchMove={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
-      <div
-        ref={barRef}
-        className="group relative h-1.5 w-full cursor-pointer rounded-full bg-black/[0.08]"
-        onPointerDown={(e) => commit(e.clientX)}
-        onPointerMove={(e) => e.buttons === 1 && commit(e.clientX)}
-        onTouchStart={(e) => commit(e.touches[0].clientX)}
-        onTouchMove={(e) => commit(e.touches[0].clientX)}
-      >
-        <div ref={fillRef} className="absolute inset-y-0 left-0 rounded-full" style={{ width: '0%', background: `linear-gradient(90deg, ${accentFrom}, ${accentTo})` }} />
-        <div ref={knobRef} className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 shadow-[0_0_6px_rgba(0,0,0,0.3)] transition-opacity group-hover:opacity-100" style={{ left: '0%' }} />
-      </div>
-      <div className="mt-2 flex items-center justify-between text-xs font-bold tabular-nums text-black/42">
-        <span ref={timeRef}>0:00</span>
-        <span ref={durRef}>0:00</span>
-      </div>
-    </div>
-  );
-});
-
 export default function SynauraScroll() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -390,6 +324,9 @@ export default function SynauraScroll() {
   const [cityPulse, setCityPulse] = useState<{ title: string; event: string; pulse: number; votes: number } | null>(null);
   const [launchingCollectionId, setLaunchingCollectionId] = useState<string | null>(null);
   const [remixSheetTrack, setRemixSheetTrack] = useState<ScrollTrack | null>(null);
+  const [momentComposer, setMomentComposer] = useState<{ track: ScrollTrack; timestampSeconds: number } | null>(null);
+  const [momentComposerText, setMomentComposerText] = useState('');
+  const [momentComposerSubmitting, setMomentComposerSubmitting] = useState(false);
 
   const accountRef = useRef<HTMLDivElement | null>(null);
   const clipOffsetSeekedRef = useRef<string | null>(null);
@@ -741,6 +678,74 @@ export default function SynauraScroll() {
     }
   }, [setQueueAndPlay]);
 
+  // Waveform réelle + commentaires horodatés : uniquement quand la carte active
+  // est un vrai morceau (pas un clip/artiste/collection/défi/annonce).
+  const activeFeedItem = feedItems[activeIndex] || null;
+  const waveformTrack = activeFeedItem?.type === 'track' ? activeFeedItem.track : null;
+  const trackWaveform = useTrackWaveform(waveformTrack?._id, waveformTrack?.audioUrl, waveformTrack?.duration);
+  const momentComments = useMomentComments(waveformTrack?._id);
+  const momentReactions = useMomentReactions(waveformTrack?._id);
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
+
+  const submitMomentReaction = useCallback(async (reactionType: MomentReactionType, rawTimestamp: number) => {
+    if (!waveformTrack?._id) return;
+    const timestampSeconds = Math.max(0, Math.round(rawTimestamp));
+    try {
+      const response = await fetch(`/api/tracks/${encodeURIComponent(waveformTrack._id)}/reactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reactionType, timestampSeconds }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || "Impossible d'enregistrer la réaction");
+      momentReactions.addOptimistic({
+        id: String(payload?.reaction?.id || `local-${Date.now()}`),
+        reactionType,
+        timestampSeconds,
+      });
+    } catch (error: any) {
+      notify.error('Erreur', error?.message || "Impossible d'enregistrer la réaction");
+    }
+  }, [waveformTrack, momentReactions]);
+
+  const submitMomentComment = useCallback(async () => {
+    if (!momentComposer || !momentComposerText.trim()) return;
+    if (!session?.user) {
+      notify.error('Erreur', 'Connecte-toi pour commenter');
+      return;
+    }
+    setMomentComposerSubmitting(true);
+    try {
+      const response = await fetch(`/api/tracks/${encodeURIComponent(momentComposer.track._id)}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: momentComposerText.trim(), timestampSeconds: momentComposer.timestampSeconds }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || "Impossible d'envoyer le commentaire");
+
+      momentComments.addOptimistic({
+        id: String(payload?.comment?.id || `local-${Date.now()}`),
+        content: payload?.comment?.content ?? momentComposerText.trim(),
+        createdAt: payload?.comment?.createdAt || new Date().toISOString(),
+        timestampSeconds: momentComposer.timestampSeconds,
+        user: {
+          id: String(payload?.comment?.user?.id || ''),
+          username: payload?.comment?.user?.username || 'utilisateur',
+          name: payload?.comment?.user?.name || payload?.comment?.user?.username || 'Membre',
+          avatar: payload?.comment?.user?.avatar || '',
+        },
+      });
+      notify.success('OK', 'Commentaire ajouté au bon moment');
+      setMomentComposer(null);
+      setMomentComposerText('');
+    } catch (error: any) {
+      notify.error('Erreur', error?.message || "Impossible d'envoyer le commentaire");
+    } finally {
+      setMomentComposerSubmitting(false);
+    }
+  }, [momentComposer, momentComposerText, session, momentComments]);
+
   const profileHref = username ? `/profile/${username}` : '/auth/signin';
 
   const accountLinks = [
@@ -997,8 +1002,52 @@ export default function SynauraScroll() {
               </div>
 
               <div className="mt-4">
-                {currentId === track._id ? (
-                  <SeekBar onSeek={seek} getAudioElement={getAudioElement} accentFrom="#7357C6" accentTo="#4A9EAA" />
+                {index === activeIndex && currentId === track._id ? (
+                  <>
+                    <Waveform
+                      variant="light"
+                      peaks={trackWaveform.peaks}
+                      duration={duration}
+                      loading={trackWaveform.loading}
+                      getAudioElement={getAudioElement}
+                      onSeek={seek}
+                      markers={momentComments.markers}
+                      reactionClusters={momentReactions.clusters}
+                    />
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMomentComposer({ track, timestampSeconds: Math.max(0, getAudioElement()?.currentTime || 0) });
+                          setMomentComposerText('');
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.05] px-3 py-1.5 text-[11px] font-black text-black/56 transition hover:bg-[#171313] hover:text-white"
+                      >
+                        <MessageCircle className="h-3 w-3" />
+                        Commenter ce moment
+                      </button>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setReactionPickerOpen((v) => !v)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.05] px-3 py-1.5 text-[11px] font-black text-black/56 transition hover:bg-[#171313] hover:text-white"
+                        >
+                          <SmilePlus className="h-3 w-3" />
+                          Réagir
+                        </button>
+                        <ReactionPicker
+                          open={reactionPickerOpen}
+                          onClose={() => setReactionPickerOpen(false)}
+                          onPick={(type) => {
+                            submitMomentReaction(type, getAudioElement()?.currentTime || 0);
+                            setReactionPickerOpen(false);
+                          }}
+                          variant="light"
+                          className="bottom-full mb-2 right-0"
+                        />
+                      </div>
+                    </div>
+                  </>
                 ) : (
                   <div className="flex items-center justify-between text-xs font-bold tabular-nums text-black/42">
                     <span>0:00</span>
@@ -1467,6 +1516,38 @@ export default function SynauraScroll() {
               </button>
               <button type="button" onClick={() => setRemixSheetTrack(null)} className="h-12 rounded-full border border-black/[0.08] bg-white px-5 text-sm font-black text-black/56">
                 Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {momentComposer ? (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 px-4 pb-4 backdrop-blur-sm" onClick={() => setMomentComposer(null)}>
+          <div className="w-full max-w-lg rounded-[1.6rem] border border-black/[0.08] bg-[#F7F6F3] p-4 text-[#111111] shadow-[0_30px_100px_rgba(17,17,17,0.28)]" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <img src={momentComposer.track.coverUrl || FALLBACK_COVER} alt="" className="h-14 w-14 rounded-2xl object-cover" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#7357C6]">Commentaire à {fmtTime(momentComposer.timestampSeconds)}</p>
+                <h3 className="truncate text-base font-black">{momentComposer.track.title}</h3>
+              </div>
+            </div>
+            <textarea
+              value={momentComposerText}
+              onChange={(event) => setMomentComposerText(event.target.value)}
+              placeholder={`Que se passe-t-il à ${fmtTime(momentComposer.timestampSeconds)} ?`}
+              className="mt-3 min-h-[88px] w-full resize-none rounded-[1rem] border border-black/[0.08] bg-white px-3 py-3 text-sm text-[#171313] outline-none placeholder:text-black/28 focus:border-black/20"
+            />
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <button type="button" onClick={() => setMomentComposer(null)} className="h-11 rounded-full border border-black/[0.08] bg-white px-4 text-sm font-black text-black/56">
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitMomentComment()}
+                disabled={momentComposerSubmitting || !momentComposerText.trim()}
+                className="inline-flex h-11 items-center rounded-full bg-[#171313] px-5 text-sm font-black text-white transition disabled:opacity-50"
+              >
+                {momentComposerSubmitting ? 'Envoi...' : 'Publier'}
               </button>
             </div>
           </div>

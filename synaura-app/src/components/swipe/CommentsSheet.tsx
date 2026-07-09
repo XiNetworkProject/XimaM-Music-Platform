@@ -17,7 +17,7 @@ import { createComment, getCommentsPage } from '@/api/client';
 import type { HomeComment, Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
-import { fmtCount } from './helpers';
+import { fmtCount, fmtTime } from './helpers';
 
 type Props = {
   visible: boolean;
@@ -127,6 +127,12 @@ export function CommentsSheet({ visible, track, commentCount, onClose, onCountCh
             <Text style={styles.handle}>@{comment.user.username}</Text>
             <Text style={styles.time}>· {relativeTime(comment.createdAt)}</Text>
           </View>
+          {comment.timestampSeconds != null ? (
+            <View style={styles.timestampPill}>
+              <Ionicons name="time-outline" size={11} color="#4A9EAA" />
+              <Text style={styles.timestampText}>{fmtTime(comment.timestampSeconds)}</Text>
+            </View>
+          ) : null}
           <Text style={styles.content}>{comment.content}</Text>
           {comment.replies?.length ? (
             <View style={styles.replies}>{comment.replies.map((reply) => renderComment(reply, true))}</View>
@@ -291,6 +297,8 @@ const styles = StyleSheet.create({
   author: { color: '#171313', fontSize: 13, fontWeight: '900' },
   handle: { color: 'rgba(23,19,19,0.42)', fontSize: 11, fontWeight: '700' },
   time: { color: 'rgba(23,19,19,0.32)', fontSize: 11, fontWeight: '700' },
+  timestampPill: { marginTop: 5, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, backgroundColor: 'rgba(74,158,170,0.12)', paddingHorizontal: 8, paddingVertical: 4 },
+  timestampText: { color: '#4A9EAA', fontSize: 10, fontWeight: '900', fontVariant: ['tabular-nums'] },
   content: { color: 'rgba(23,19,19,0.82)', fontSize: 14, lineHeight: 20, marginTop: 4 },
   replies: { marginTop: 8, gap: 8 },
   empty: {

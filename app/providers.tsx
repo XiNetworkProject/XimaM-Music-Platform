@@ -42,6 +42,10 @@ interface Track {
   coverVideoPosterUrl?: string | null;
   musicVideoUrl?: string | null;
   musicVideoPosterUrl?: string | null;
+  visualUrl?: string | null;
+  visualType?: 'image' | 'video' | 'generated' | 'none' | null;
+  dominantColors?: string[];
+  auraVisualEnabled?: boolean;
   duration: number;
   likes: string[];
   comments: string[];
@@ -218,6 +222,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       coverVideoPosterUrl: currentTrack?.coverVideoPosterUrl || currentTrack?.cover_video_poster_url || null,
       musicVideoUrl: currentTrack?.musicVideoUrl || currentTrack?.music_video_url || null,
       musicVideoPosterUrl: currentTrack?.musicVideoPosterUrl || currentTrack?.music_video_poster_url || null,
+      visualUrl: currentTrack?.visualUrl || currentTrack?.visual_url || null,
+      visualType: currentTrack?.visualType || currentTrack?.visual_type || null,
+      dominantColors: currentTrack?.dominantColors || currentTrack?.dominant_colors || [],
+      auraVisualEnabled: (currentTrack?.auraVisualEnabled ?? currentTrack?.aura_visual_enabled) !== false,
     };
     (window as any).__synauraActiveTrackMedia = detail;
     window.dispatchEvent(new CustomEvent('synaura:active-track-media', { detail }));

@@ -62,6 +62,7 @@ import { EventChoice, EventTicker } from '@/components/events/SynauraEvents';
 import { TrackCover } from '@/components/TrackCover';
 import { RemixPermissionsSection, DEFAULT_REMIX_PERMISSIONS, type RemixPermissionsValue } from '@/components/upload/RemixPermissionsSection';
 import { aiStudioPresets, type MobileAIStudioPreset } from '@/constants/aiStudioPresets';
+import { buildRemixPrompt, DEFAULT_REMIX_PROMPT_VISIBILITY, DEFAULT_REMIX_TYPE, REMIX_TYPE_OPTIONS, type RemixPromptVisibility, type RemixType } from '@/constants/remixOptions';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors } from '@/theme/tokens';
 import { getSunoErrorMessage } from '@/utils/getSunoErrorMessage';
@@ -111,6 +112,8 @@ export function AIStudioScreen() {
   const player = usePlayer();
   const [tab, setTab] = useState<StudioTab>('create');
   const [mode, setMode] = useState<StudioMode>('simple');
+  const [remixType, setRemixType] = useState<RemixType>(DEFAULT_REMIX_TYPE);
+  const [remixPromptVisibility, setRemixPromptVisibility] = useState<RemixPromptVisibility>(DEFAULT_REMIX_PROMPT_VISIBILITY);
   const [model, setModel] = useState('V4_5');
   const [duration, setDuration] = useState(120);
   const [title, setTitle] = useState('');
@@ -415,13 +418,22 @@ export function AIStudioScreen() {
     setLiveTracks([]);
     try {
       const tagPrompt = selectedTags.join(', ');
-      const prompt = mode === 'simple' ? `${description.trim()}. ${tagPrompt}. DurÃ©e cible ${duration} secondes.` : lyrics.trim() || description.trim();
+      const remixCreativePrompt = mode === 'remix'
+        ? buildRemixPrompt({
+            remixType,
+            userPrompt: description,
+            sourceTitle: synauraRemixSource?.title || remixSource?.title || remixAsset?.name,
+          })
+        : '';
+      const prompt = mode === 'simple'
+        ? `${description.trim()}. ${tagPrompt}. DurÃ©e cible ${duration} secondes.`
+        : lyrics.trim() || [description.trim(), remixCreativePrompt].filter(Boolean).join('. ');
       const payload = {
         customMode: mode !== 'simple',
         instrumental,
         model,
         title: title.trim() || undefined,
-        style: [style.trim(), tagPrompt].filter(Boolean).join(', ') || undefined,
+        style: [style.trim(), tagPrompt, remixCreativePrompt].filter(Boolean).join(', ') || undefined,
         prompt,
         negativeTags: negativeTags.trim() || undefined,
         vocalGender: vocalGender || undefined,
@@ -438,6 +450,9 @@ export function AIStudioScreen() {
             sourceTrackId: synauraRemixSource.sourceTrackId,
             sourceTrackType: synauraRemixSource.sourceTrackType,
           },
+          remixType,
+          remixPrompt: remixCreativePrompt,
+          remixPromptVisibility,
           // Permet d'enregistrer la participation au défi même si la variation part en
           // attente d'approbation (voir upsertDraftRemixesForGeneration + decision/route.ts).
           ...(challengeId ? { challengeId } : {}),
@@ -729,8 +744,16 @@ export function AIStudioScreen() {
                   </View>
                 </Pressable>
               ) : null}
+              {mode === 'remix' ? (
+                <RemixDirectionPicker
+                  value={remixType}
+                  onChange={setRemixType}
+                  promptVisibility={remixPromptVisibility}
+                  onPromptVisibilityChange={setRemixPromptVisibility}
+                />
+              ) : null}
               {mode !== 'simple' ? <Field label="Titre" value={title} onChangeText={setTitle} placeholder="Nom de la crÃ©ation" /> : null}
-              <Field label={mode === 'simple' ? 'DÃ©cris ton morceau' : 'Direction crÃ©ative'} value={description} onChangeText={setDescription} placeholder="Ambiance, histoire, Ã©nergie, structure..." multiline />
+              <Field label={mode === 'simple' ? 'DÃ©cris ton morceau' : mode === 'remix' ? 'Variation souhaitee' : 'Direction crÃ©ative'} value={description} onChangeText={setDescription} placeholder={mode === 'remix' ? 'Ex: plus rapide, plus triste, acoustique, garder les paroles...' : 'Ambiance, histoire, Ã©nergie, structure...'} multiline />
               {mode !== 'simple' ? <Field label="Style musical" value={style} onChangeText={setStyle} placeholder="Genres, voix, production, instruments..." multiline /> : null}
               <View style={styles.field}>
                 <View style={styles.fieldHead}><Text style={styles.fieldLabel}>COULEURS MUSICALES</Text><Text style={styles.tagCount}>{selectedTags.length} sÃ©lection</Text></View>
@@ -871,6 +894,47 @@ function Field({ label, value, onChangeText, placeholder, multiline, tall }: { l
 
 function ChoiceRow({ label, values, value, suffix = '', onChange }: { label: string; values: string[]; value: string; suffix?: string; onChange: (value: string) => void }) {
   return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><View style={styles.choices}>{values.map((item) => <Pressable key={item || 'auto'} onPress={() => onChange(item)} style={[styles.choice, value === item && styles.choiceActive]}><Text style={[styles.choiceText, value === item && styles.choiceTextActive]}>{item === '' ? 'Auto' : item === 'f' ? 'Femme' : item === 'm' ? 'Homme' : item}{suffix}</Text></Pressable>)}</View></View>;
+}
+
+function RemixDirectionPicker({
+  value,
+  onChange,
+  promptVisibility,
+  onPromptVisibilityChange,
+}: {
+  value: RemixType;
+  onChange: (value: RemixType) => void;
+  promptVisibility: RemixPromptVisibility;
+  onPromptVisibilityChange: (value: RemixPromptVisibility) => void;
+}) {
+  return (
+    <View style={styles.remixDirection}>
+      <View style={styles.fieldHead}>
+        <Text style={styles.fieldLabel}>TYPE DE REMIX</Text>
+        <Text style={styles.tagCount}>credit auto</Text>
+      </View>
+      <View style={styles.remixTypeWrap}>
+        {REMIX_TYPE_OPTIONS.map((option) => {
+          const active = value === option.id;
+          return (
+            <Pressable key={option.id} onPress={() => onChange(option.id)} style={[styles.remixTypeChip, active && styles.remixTypeChipActive]}>
+              <Text style={[styles.remixTypeText, active && styles.remixTypeTextActive]}>{option.shortLabel}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <View style={styles.promptVisibility}>
+        {(['private', 'public'] as const).map((item) => {
+          const active = promptVisibility === item;
+          return (
+            <Pressable key={item} onPress={() => onPromptVisibilityChange(item)} style={[styles.promptVisibilityOption, active && styles.promptVisibilityOptionActive]}>
+              <Text style={[styles.promptVisibilityText, active && styles.promptVisibilityTextActive]}>{item === 'private' ? 'Prompt prive' : 'Prompt public'}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 function ModelChoiceRow({ available, value, onChange, onUpgrade }: { available: string[]; value: string; onChange: (value: string) => void; onUpgrade: () => void }) {
@@ -1156,6 +1220,17 @@ const styles = StyleSheet.create({
   inputTall: { minHeight: 150 },
   remixPicker: { minHeight: 66, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: 'rgba(124,92,255,0.09)', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(124,92,255,0.34)' },
   remixName: { marginTop: 4, color: colors.text, fontSize: 12, fontWeight: '900' },
+  remixDirection: { borderRadius: 18, padding: 12, gap: 10, backgroundColor: 'rgba(115,87,198,0.08)', borderWidth: 1, borderColor: 'rgba(115,87,198,0.18)' },
+  remixTypeWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  remixTypeChip: { minHeight: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 11, backgroundColor: 'rgba(255,250,242,0.86)', borderWidth: 1, borderColor: colors.border },
+  remixTypeChipActive: { backgroundColor: colors.violet, borderColor: colors.violet },
+  remixTypeText: { color: colors.textSecondary, fontSize: 9, fontWeight: '900' },
+  remixTypeTextActive: { color: colors.paper },
+  promptVisibility: { flexDirection: 'row', borderRadius: 18, padding: 2, backgroundColor: 'rgba(255,250,242,0.82)', borderWidth: 1, borderColor: colors.border },
+  promptVisibilityOption: { flex: 1, minHeight: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  promptVisibilityOptionActive: { backgroundColor: colors.black },
+  promptVisibilityText: { color: colors.textTertiary, fontSize: 9, fontWeight: '900' },
+  promptVisibilityTextActive: { color: colors.paper },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: 18, padding: 12, backgroundColor: 'rgba(244,239,230,0.82)' },
   switchTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   switchText: { marginTop: 2, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },

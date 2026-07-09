@@ -10,10 +10,11 @@ export async function GET(request: NextRequest) {
   }
 
   const currentVersionCode = Number(request.nextUrl.searchParams.get('versionCode') || 0);
+  const available = release.versionCode > currentVersionCode;
   return NextResponse.json(
     {
-      available: release.versionCode > currentVersionCode,
-      release,
+      available,
+      release: available ? release : null,
     },
     {
       headers: {

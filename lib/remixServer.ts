@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { remixPermissionsFromRow, type RemixVisibility } from '@/lib/remixPermissions';
 import { notifyRemixPendingApproval } from '@/lib/notifications';
+import { sanitizeRemixPrompt, sanitizeRemixPromptVisibility, sanitizeRemixType } from '@/lib/remixOptions';
 
 export type RemixTrackType = 'track' | 'ai_track';
 export type RemixStatus = 'draft' | 'pending_approval' | 'published' | 'rejected';
@@ -53,6 +54,15 @@ async function isFollower(userId: string | null | undefined, creatorId: string |
     .eq('following_id', creatorId)
     .maybeSingle();
   return Boolean(data?.following_id);
+}
+
+function remixGenerationMetadata(metadata: any) {
+  const remixSource = metadata?.remixSource || {};
+  return {
+    remixDirection: sanitizeRemixType(metadata?.remixType || remixSource?.remixType),
+    remixPrompt: sanitizeRemixPrompt(metadata?.remixPrompt || remixSource?.remixPrompt || metadata?.description || metadata?.prompt),
+    promptVisibility: sanitizeRemixPromptVisibility(metadata?.remixPromptVisibility || remixSource?.remixPromptVisibility),
+  };
 }
 
 export async function getRemixSourceSummary(input: {
@@ -172,7 +182,8 @@ export async function upsertDraftRemixesForGeneration(generationId: string, user
     .select('id, user_id, metadata')
     .eq('id', generationId)
     .maybeSingle();
-  const remixSource = (generation?.metadata as any)?.remixSource;
+  const generationMetadata = (generation?.metadata as any) || {};
+  const remixSource = generationMetadata?.remixSource;
   if (!generation || String(generation.user_id) !== String(userId) || !remixSource?.sourceTrackId) return;
 
   const source = await assertCanCreateAiVariation({
@@ -186,6 +197,7 @@ export async function upsertDraftRemixesForGeneration(generationId: string, user
   // la ligne pour pouvoir enregistrer la participation à l'approbation, même si le
   // défi est terminé entre-temps (voir recordChallengeEntry / decision/route.ts).
   const challengeId = (generation?.metadata as any)?.challengeId || null;
+  const remixMeta = remixGenerationMetadata(generationMetadata);
 
   const { data: tracks } = await supabaseAdmin
     .from('ai_tracks')
@@ -198,12 +210,27 @@ export async function upsertDraftRemixesForGeneration(generationId: string, user
     child_track_type: 'ai_track',
     creator_id: userId,
     remix_type: 'ai_variation',
+    remix_prompt: remixMeta.remixPrompt || null,
+    remix_direction: remixMeta.remixDirection,
+    prompt_visibility: remixMeta.promptVisibility,
     status: 'draft',
     challenge_id: challengeId,
     updated_at: new Date().toISOString(),
   }));
   if (!rows.length) return;
-  await supabaseAdmin.from('track_remixes').upsert(rows, { onConflict: 'child_track_id,child_track_type,remix_type' });
+  const { error } = await supabaseAdmin.from('track_remixes').upsert(rows, { onConflict: 'child_track_id,child_track_type,remix_type' });
+  if (!error) return;
+
+  const canRetryWithoutMetadata =
+    /remix_prompt|remix_direction|prompt_visibility|schema cache|column/i.test(String(error.message || ''));
+  if (!canRetryWithoutMetadata) {
+    console.error('[remix] upsert draft failed', error);
+    return;
+  }
+
+  const compatRows = rows.map(({ remix_prompt, remix_direction, prompt_visibility, ...row }) => row);
+  const { error: compatError } = await supabaseAdmin.from('track_remixes').upsert(compatRows, { onConflict: 'child_track_id,child_track_type,remix_type' });
+  if (compatError) console.error('[remix] fallback upsert draft failed', compatError);
 }
 
 export async function applyRemixPublicationGuard(input: {
@@ -286,6 +313,8 @@ export async function getRemixAttributionForChildren(children: Array<{ id: strin
       trackUrl: source.trackUrl,
       label: `Inspire de ${source.title}`,
       credit: `Creation originale par @${source.artistUsername || source.artist}`,
+      remixType: row.remix_direction || row.remix_type || 'ai_variation',
+      remixPrompt: row.prompt_visibility === 'public' ? row.remix_prompt || null : null,
     });
   }
   return result;
