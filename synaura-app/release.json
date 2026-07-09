@@ -3,10 +3,10 @@
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Partage : genere une carte visuelle premium pour chaque morceau",
-    "Partage : formats Story, Carre et Banniere avec texte personnel",
-    "Partage mobile : telechargement de la carte avant partage natif",
-    "Mises a jour : une version deja installee n'est plus reproposee",
-    "Player : le bouton Partager ouvre la nouvelle carte quand le son est partageable"
+    "Lecture en cours : refonte du lecteur plein ecran avec la vraie waveform du morceau",
+    "Waveform : reagis et commente exactement au moment qui te marque (drop, emotion, punchline...)",
+    "Scroll : la waveform reelle remplace la barre de progression classique sur les morceaux et les Clips",
+    "Partage : genere une carte visuelle premium (Story, Carre, Banniere) pour chaque morceau",
+    "Mises a jour : une version deja installee n'est plus reproposee"
   ]
 }
