@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import Link from 'next/link';
-import { Play, Pause, Heart, Clock, Music, Headphones, Share2, Code, UserPlus, Sparkles, ArrowLeft, MessageSquare, Repeat2, Film } from 'lucide-react';
+import { Play, Pause, Heart, Clock, Music, Headphones, Share2, Code, UserPlus, Sparkles, ArrowLeft, MessageSquare, Repeat2, Film, Trophy } from 'lucide-react';
 import ShareButtons from '@/components/ShareButtons';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import TrackCover from '@/components/TrackCover';
@@ -43,6 +43,7 @@ interface TrackData {
   } | null;
   variationsCount?: number;
   musicClipsCount?: number;
+  linkedChallenge?: { id: string; title: string; status: 'upcoming' | 'active' | 'ended' } | null;
 }
 
 const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec) % 60).padStart(2, '0')}`;
@@ -299,6 +300,23 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
                   Voir le morceau original
                 </Link>
               </div>
+            ) : null}
+
+            {track.linkedChallenge ? (
+              <Link
+                href={`/challenges/${track.linkedChallenge.id}`}
+                className="mt-4 flex items-center gap-3 rounded-[1.35rem] border border-black/[0.08] bg-[#fffaf2]/92 p-4 shadow-[0_16px_42px_rgba(30,25,20,0.08)] transition hover:-translate-y-0.5"
+              >
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[1rem] bg-[#171313] text-white">
+                  <Trophy className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-black/42">
+                    {track.linkedChallenge.status === 'active' ? 'Défi en cours' : track.linkedChallenge.status === 'upcoming' ? 'Défi à venir' : 'Défi terminé'}
+                  </span>
+                  <span className="mt-0.5 block truncate text-sm font-black text-[#111111]">{track.linkedChallenge.title}</span>
+                </span>
+              </Link>
             ) : null}
 
             <div className="mt-4 rounded-[1.35rem] border border-black/[0.08] bg-black/[0.03] p-4">

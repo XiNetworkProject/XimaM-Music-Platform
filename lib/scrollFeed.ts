@@ -203,29 +203,33 @@ export function buildChallengeItem(cityEvents: any[] | null | undefined): { item
   };
 }
 
+function activeMusicChallenges(musicChallenges: any[] | null | undefined): any[] {
+  return (musicChallenges || [])
+    .filter((c: any) => c?.status === 'active')
+    .sort((a: any, b: any) => new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime());
+}
+
+function toMusicChallengeItem(challenge: any): ScrollFeedItem {
+  return {
+    id: `music-challenge-${challenge.id}`,
+    type: 'challenge',
+    challenge: {
+      id: String(challenge.id),
+      title: challenge.title || 'Défi Synaura',
+      description: challenge.prompt,
+      tracksCount: Number(challenge.entryCount || 0),
+      participationCount: Number(challenge.entryCount || 0),
+      href: `/challenges/${challenge.id}`,
+    },
+  };
+}
+
 /** Un vrai défi musical (V1, éditorial) prend priorité sur le challenge algorithmique de Synaura
  * Pulse quand il existe : un seul candidat au total (jamais plus d'un défi dans le feed). */
 export function buildMusicChallengeItem(musicChallenges: any[] | null | undefined): { item: ScrollFeedItem; tracks: ScrollTrack[] } | null {
-  const active = (musicChallenges || [])
-    .filter((c: any) => c?.status === 'active')
-    .sort((a: any, b: any) => new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime());
-  const challenge = active[0];
+  const challenge = activeMusicChallenges(musicChallenges)[0];
   if (!challenge) return null;
-  return {
-    item: {
-      id: `music-challenge-${challenge.id}`,
-      type: 'challenge',
-      challenge: {
-        id: String(challenge.id),
-        title: challenge.title || 'Défi Synaura',
-        description: challenge.prompt,
-        tracksCount: Number(challenge.entryCount || 0),
-        participationCount: Number(challenge.entryCount || 0),
-        href: `/challenges/${challenge.id}`,
-      },
-    },
-    tracks: [],
-  };
+  return { item: toMusicChallengeItem(challenge), tracks: [] };
 }
 
 /** Une annonce éditoriale = une sortie réelle (Friday Drop / temps fort saisonnier) qui mène vers de vrais morceaux. */
@@ -320,10 +324,19 @@ export function buildCreatorsFilterFeed(popularUsers: any[] | null | undefined, 
   return buildArtistSpotlightItems(popularUsers, trackPool, 12);
 }
 
-/** Vue filtrée "Défis" : la carte du défi en cours suivie de ses morceaux réellement inscrits. */
-export function buildChallengesFilterFeed(cityEvents: any[] | null | undefined): ScrollFeedItem[] {
-  const challenge = buildChallengeItem(cityEvents);
-  if (!challenge) return [];
-  const trackItems: ScrollFeedItem[] = challenge.tracks.map((t) => ({ id: `track-${t._id}`, type: 'track', track: t }));
-  return [challenge.item, ...trackItems];
+/** Vue filtrée "Défis" : une carte par vrai défi musical actif (music_challenges),
+ * triées par échéance la plus proche. Repli sur l'ancien challenge algorithmique
+ * Synaura Pulse (avec ses morceaux) uniquement si aucun vrai défi n'est actif ;
+ * jamais de défi fictif — liste vide si rien n'est réellement en cours. */
+export function buildChallengesFilterFeed(
+  musicChallenges: any[] | null | undefined,
+  cityEvents?: any[] | null,
+): ScrollFeedItem[] {
+  const active = activeMusicChallenges(musicChallenges);
+  if (active.length > 0) return active.map(toMusicChallengeItem);
+
+  const legacy = buildChallengeItem(cityEvents);
+  if (!legacy) return [];
+  const trackItems: ScrollFeedItem[] = legacy.tracks.map((t) => ({ id: `track-${t._id}`, type: 'track', track: t }));
+  return [legacy.item, ...trackItems];
 }

@@ -8,6 +8,7 @@ import { getPublishedVariationCounts, getRemixAttributionForChildren, getRemixSo
 import { remixPermissionsFromRow } from '@/lib/remixPermissions';
 import { getPublishedClipCounts } from '@/lib/musicClips';
 import { canViewAiTrack, canViewTrack } from '@/lib/publicTracks';
+import { getLinkedChallengeForSource } from '@/lib/musicChallenges';
 
 const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || 'https://www.synaura.fr').replace(/\/$/, '');
 
@@ -30,6 +31,7 @@ async function getTrack(id: string) {
       getPublishedVariationCounts([{ id: cleanId, type: 'ai_track' }]),
     ]);
     const clipCounts = await getPublishedClipCounts([{ id: cleanId, type: 'ai_track' }]);
+    const linkedChallenge = await getLinkedChallengeForSource(cleanId, 'ai_track');
     return {
       id: `ai-${data.id}`,
       title: data.title || 'Creation IA',
@@ -50,6 +52,7 @@ async function getTrack(id: string) {
       remixAttribution: attributions.get(`ai_track:${cleanId}`) || null,
       variationsCount: counts.get(`ai_track:${cleanId}`) || 0,
       musicClipsCount: clipCounts.get(`ai_track:${cleanId}`) || 0,
+      linkedChallenge: linkedChallenge ? { id: linkedChallenge.id, title: linkedChallenge.title, status: linkedChallenge.status } : null,
     };
   }
 
@@ -66,6 +69,7 @@ async function getTrack(id: string) {
     getPublishedVariationCounts([{ id, type: 'track' }]),
   ]);
   const clipCounts = await getPublishedClipCounts([{ id, type: 'track' }]);
+  const linkedChallenge = await getLinkedChallengeForSource(id, 'track');
 
   let artistProfile: any = null;
   if (track.creator_id) {
@@ -99,6 +103,7 @@ async function getTrack(id: string) {
     remixAttribution: attributions.get(`track:${id}`) || null,
     variationsCount: counts.get(`track:${id}`) || 0,
     musicClipsCount: clipCounts.get(`track:${id}`) || 0,
+    linkedChallenge: linkedChallenge ? { id: linkedChallenge.id, title: linkedChallenge.title, status: linkedChallenge.status } : null,
   };
 }
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {

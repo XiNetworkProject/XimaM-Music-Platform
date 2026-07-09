@@ -143,6 +143,24 @@ export function TrackDetailScreen() {
             <Text style={styles.description}>Création originale par @{track.remixAttribution.artistUsername || track.remixAttribution.artist}</Text>
           </SoftCard>
         ) : null}
+        {track.linkedChallenge ? (
+          <Pressable onPress={() => navigation.navigate('ChallengeDetail', { challengeId: track.linkedChallenge!.id })}>
+            <SoftCard style={styles.clipsCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <View style={styles.challengeIcon}>
+                  <Ionicons name="trophy" size={18} color="#FFFAF2" />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.sectionTitleInline}>
+                    {track.linkedChallenge.status === 'active' ? 'Défi en cours' : track.linkedChallenge.status === 'upcoming' ? 'Défi à venir' : 'Défi terminé'}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.description}>{track.linkedChallenge.title}</Text>
+                </View>
+                <Ionicons name="arrow-forward" size={16} color={colors.textTertiary} />
+              </View>
+            </SoftCard>
+          </Pressable>
+        ) : null}
         {Number(track.variationsCount || 0) > 0 ? <Text style={styles.sectionTitle}>{track.variationsCount} Variations</Text> : null}
         {Number(track.musicClipsCount || 0) > 0 ? (
           <SoftCard style={styles.clipsCard}>
@@ -244,6 +262,7 @@ const styles = StyleSheet.create({
   description: { color: colors.textSecondary, fontSize: 13, lineHeight: 21, fontWeight: '600' },
   clipsCard: { marginHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
   clipsButton: { height: 40, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.md, backgroundColor: colors.black },
+  challengeIcon: { width: 38, height: 38, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
   clipsButtonText: { color: colors.paper, fontSize: 12, fontWeight: '900' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: spacing.lg },
   chip: { overflow: 'hidden', borderRadius: radius.pill, backgroundColor: colors.surface, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, color: colors.textSecondary, fontSize: 10, fontWeight: '800' },

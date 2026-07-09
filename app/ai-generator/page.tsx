@@ -2947,6 +2947,11 @@ function AIGeneratorContent() {
           sourceTrackId: sourceContext.id,
           sourceTrackType: sourceContext.sourceTrackType || (sourceContext.id.startsWith('ai-') ? 'ai_track' : 'track'),
         };
+        // Permet d'enregistrer la participation au défi même si la variation part en
+        // attente d'approbation (voir upsertDraftRemixesForGeneration + decision/route.ts).
+        if (challengeId) {
+          requestBody.challengeId = challengeId;
+        }
       }
 
       // Indice de durÃ©e pour Suno (lâ€™API ne garantit pas la durÃ©e exacte ; on lâ€™injecte dans le prompt / hints)

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export async function GET(request: NextRequest) {
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
     // Recherche dans les posts publics (si nécessaire)
     if (filter === 'all' || filter === 'posts') {
       searchPromises.push(
-        supabase
+        supabaseAdmin
           .from('creator_posts')
           .select(`
             id,

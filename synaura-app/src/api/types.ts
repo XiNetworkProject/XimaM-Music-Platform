@@ -54,6 +54,7 @@ export type Track = {
   } | null;
   variationsCount?: number;
   musicClipsCount?: number;
+  linkedChallenge?: { id: string; title: string; status: 'upcoming' | 'active' | 'ended' } | null;
 };
 
 export type MusicClipSource = Track & {

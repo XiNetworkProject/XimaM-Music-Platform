@@ -1,9 +1,9 @@
 'use client';
 
-import SynauraScrollFeed from '@/components/home/SynauraScrollFeed';
+import SynauraScroll from '@/components/home/SynauraScroll';
 
 export const dynamic = 'force-dynamic';
 
 export default function SwipePage() {
-  return <SynauraScrollFeed />;
+  return <SynauraScroll />;
 }

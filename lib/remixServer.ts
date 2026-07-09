@@ -182,6 +182,11 @@ export async function upsertDraftRemixesForGeneration(generationId: string, user
   });
   if (!source.ok) return;
 
+  // Défi dans le cadre duquel cette variation est générée (optionnel) : conservé sur
+  // la ligne pour pouvoir enregistrer la participation à l'approbation, même si le
+  // défi est terminé entre-temps (voir recordChallengeEntry / decision/route.ts).
+  const challengeId = (generation?.metadata as any)?.challengeId || null;
+
   const { data: tracks } = await supabaseAdmin
     .from('ai_tracks')
     .select('id')
@@ -194,6 +199,7 @@ export async function upsertDraftRemixesForGeneration(generationId: string, user
     creator_id: userId,
     remix_type: 'ai_variation',
     status: 'draft',
+    challenge_id: challengeId,
     updated_at: new Date().toISOString(),
   }));
   if (!rows.length) return;

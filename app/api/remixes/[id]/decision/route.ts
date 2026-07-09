@@ -3,6 +3,7 @@ import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getRemixSourceSummary } from '@/lib/remixServer';
 import { notifyRemixApproved, notifyRemixRejected } from '@/lib/notifications';
+import { recordChallengeEntry } from '@/lib/musicChallenges';
 
 // Decision (approve/reject) du proprietaire du morceau source sur une variation
 // IA en attente. Revalide tout cote serveur : proprietaire reel, statut actuel,
@@ -128,6 +129,26 @@ export async function PATCH(
       notifyRemixApproved(remix.creator_id, remixId, creatorActionUrl).catch((error) =>
         console.error('[notifications] remix_approved failed', error),
       );
+    }
+
+    // Si cette variation avait ete generee dans le cadre d'un defi, la participation
+    // n'a pas ete enregistree a la creation (elle etait en attente d'approbation) :
+    // on la comptabilise maintenant, validee sur la fenetre de soumission initiale
+    // (remix.created_at) plutot que sur le statut actuel du defi - une creation
+    // soumise pendant le defi compte meme approuvee apres la fin de celui-ci.
+    if (remix.challenge_id) {
+      const contentId = remix.child_track_type === 'ai_track' ? `ai-${remix.child_track_id}` : remix.child_track_id;
+      recordChallengeEntry({
+        challengeId: remix.challenge_id,
+        userId: remix.creator_id,
+        contentType: 'variation',
+        contentId,
+        submittedAt: remix.created_at,
+      })
+        .then((result) => {
+          if (!result.ok) console.warn('[challenges] participation post-approbation refusee:', result.error);
+        })
+        .catch((error) => console.error('[challenges] participation post-approbation echouee', error));
     }
 
     return NextResponse.json({ remixId, status: 'published', childTrackId: remix.child_track_id });

@@ -98,8 +98,10 @@ export function ClipSlide({ clip, isActive, isPlaying, height, topPad, bottomPad
 function Action({ icon, count, onPress }: { icon: keyof typeof Ionicons.glyphMap; count?: number; onPress?: () => void }) {
   return (
     <Pressable onPress={onPress} style={styles.actionButton}>
-      <Ionicons name={icon} size={22} color={colors.paper} />
-      {typeof count === 'number' ? <Text style={styles.actionText}>{fmtCount(count)}</Text> : null}
+      <View style={styles.actionCircle}>
+        <Ionicons name={icon} size={22} color={colors.paper} />
+      </View>
+      {typeof count === 'number' && count > 0 ? <Text numberOfLines={1} style={styles.actionLabel}>{fmtCount(count)}</Text> : null}
     </Pressable>
   );
 }
@@ -109,8 +111,30 @@ const styles = StyleSheet.create({
   scrimTop: { position: 'absolute', left: 0, right: 0, top: 0, height: 220, backgroundColor: 'rgba(17,17,17,0.32)' },
   scrimBottom: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 360, backgroundColor: 'rgba(17,17,17,0.62)' },
   actions: { position: 'absolute', right: 14, top: '43%', gap: 12 },
-  actionButton: { minWidth: 48, minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: 'rgba(255,250,242,0.12)', borderWidth: 1, borderColor: 'rgba(255,250,242,0.12)' },
-  actionText: { marginTop: 2, color: colors.paper, fontSize: 9, fontWeight: '900' },
+  actionButton: { width: 48, alignItems: 'center', gap: 3 },
+  actionCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(15,12,14,0.32)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,250,242,0.18)',
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  },
+  actionLabel: {
+    maxWidth: 50,
+    color: 'rgba(255,250,242,0.74)',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.1,
+    textAlign: 'center',
+  },
   copy: { marginHorizontal: 16, marginBottom: 12, paddingRight: 72 },
   clipBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4, backgroundColor: 'rgba(74,158,170,0.2)' },
   clipBadgeText: { color: '#8fd3dc', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },

@@ -33,6 +33,11 @@ type Body = {
     sourceTrackId?: string;
     sourceTrackType?: 'track' | 'ai_track';
   };
+  // Défi musical dans le cadre duquel cette variation est générée (optionnel).
+  // Propagé jusqu'à track_remixes.challenge_id (voir upsertDraftRemixesForGeneration)
+  // pour pouvoir enregistrer la participation même si la variation part en attente
+  // d'approbation, au moment de la décision (app/api/remixes/[id]/decision/route.ts).
+  challengeId?: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -71,6 +76,7 @@ export async function POST(req: NextRequest) {
     if (remixSource && !remixSource.ok) {
       return NextResponse.json({ error: remixSource.error }, { status: remixSource.status });
     }
+    const challengeId = typeof body.challengeId === 'string' && body.challengeId.trim() ? body.challengeId.trim() : null;
     console.log("🎵 Requête génération Suno:", { 
       title: body.title, 
       style: body.style, 
@@ -255,7 +261,8 @@ export async function POST(req: NextRequest) {
           style: body.style || '', // Style musical
           instrumental: body.instrumental,
           customMode: true,
-          ...(remixSource?.ok ? { remixSource: remixSource.source } : {})
+          ...(remixSource?.ok ? { remixSource: remixSource.source } : {}),
+          ...(challengeId ? { challengeId } : {}),
         };
       } else {
         // Mode Simple : description générale dans prompt
@@ -265,7 +272,8 @@ export async function POST(req: NextRequest) {
           description: body.prompt,
           instrumental: body.instrumental,
           customMode: false,
-          ...(remixSource?.ok ? { remixSource: remixSource.source } : {})
+          ...(remixSource?.ok ? { remixSource: remixSource.source } : {}),
+          ...(challengeId ? { challengeId } : {}),
         };
       }
 

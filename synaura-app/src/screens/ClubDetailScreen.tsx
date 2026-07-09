@@ -43,8 +43,10 @@ function relativeDate(value: string) {
   return `${Math.floor(hours / 24)} j`;
 }
 
-// Un club "remix" (Remix Lab) affiche les défis Clip en cours ; "ai" (IA Lab) affiche les défis Variation IA.
-const CLUB_CHALLENGE_CONTENT_TYPE: Record<string, string> = { remix: 'clip', ai: 'variation' };
+// Repli pour les défis créés avant l'ajout du champ clubSlug en admin : un club
+// "remix" affiche alors les défis Clip, "ai" les défis Variation IA. Utilisé
+// uniquement quand le défi n'a pas de clubSlug explicite.
+const LEGACY_CLUB_CHALLENGE_CONTENT_TYPE: Record<string, string> = { remix: 'clip', ai: 'variation' };
 
 function Avatar({ name, uri, size = 40 }: { name: string; uri?: string | null; size?: number }) {
   return (
@@ -73,16 +75,20 @@ export function ClubDetailScreen() {
   const postsAnchorY = useRef(0);
 
   useEffect(() => {
-    const contentType = club ? CLUB_CHALLENGE_CONTENT_TYPE[club.slug] : null;
-    if (!contentType) {
+    if (!club) {
       setClubChallenge(null);
       return;
     }
     let mounted = true;
+    const legacyContentType = LEGACY_CLUB_CHALLENGE_CONTENT_TYPE[club.slug] || null;
     getMusicChallenges('active')
       .then((challenges) => {
         if (!mounted) return;
-        const match = challenges.find((challenge) => challenge.contentType === contentType);
+        // Le clubSlug choisi en admin est la source de vérité ; le contentType ne
+        // sert de repli que pour les défis antérieurs à ce champ (clubSlug absent).
+        const match =
+          challenges.find((challenge) => challenge.clubSlug === club.slug) ||
+          (legacyContentType ? challenges.find((challenge) => !challenge.clubSlug && challenge.contentType === legacyContentType) : null);
         setClubChallenge(match ? { id: match.id, title: match.title } : null);
       })
       .catch(() => {});

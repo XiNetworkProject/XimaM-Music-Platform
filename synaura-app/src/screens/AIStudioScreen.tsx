@@ -438,6 +438,9 @@ export function AIStudioScreen() {
             sourceTrackId: synauraRemixSource.sourceTrackId,
             sourceTrackType: synauraRemixSource.sourceTrackType,
           },
+          // Permet d'enregistrer la participation au défi même si la variation part en
+          // attente d'approbation (voir upsertDraftRemixesForGeneration + decision/route.ts).
+          ...(challengeId ? { challengeId } : {}),
         });
       } else if (mode === 'remix' && remixSource && !remixAsset) {
         result = await startAIRemix({

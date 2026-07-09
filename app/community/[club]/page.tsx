@@ -9,8 +9,10 @@ import { useAudioPlayer } from '@/app/providers';
 import { SynauraAppShell, SynauraPanel, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import { composeHref, getClubBySlug } from '@/lib/communityClubs';
 
-// Un club "remix" (Remix Lab) affiche les défis Clip en cours ; "ai" (IA Lab) affiche les défis Variation IA.
-const CLUB_CHALLENGE_CONTENT_TYPE: Record<string, string> = { remix: 'clip', ai: 'variation' };
+// Repli pour les défis créés avant l'ajout du champ clubSlug en admin (voir
+// ci-dessous) : un club "remix" affiche alors les défis Clip, "ai" les défis
+// Variation IA. Utilisé uniquement quand le défi n'a pas de clubSlug explicite.
+const LEGACY_CLUB_CHALLENGE_CONTENT_TYPE: Record<string, string> = { remix: 'clip', ai: 'variation' };
 
 type ClubChallenge = { id: string; title: string; prompt: string; accentColor: string | null };
 
@@ -114,19 +116,22 @@ export default function ClubDetailPage() {
   const [clubChallenge, setClubChallenge] = useState<ClubChallenge | null>(null);
 
   useEffect(() => {
-    const contentType = club ? CLUB_CHALLENGE_CONTENT_TYPE[club.slug] : null;
-    if (!contentType) {
+    if (!club) {
       setClubChallenge(null);
       return;
     }
     let mounted = true;
+    const legacyContentType = LEGACY_CLUB_CHALLENGE_CONTENT_TYPE[club.slug] || null;
     fetch('/api/challenges?status=active', { cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : null))
       .then((json) => {
         if (!mounted) return;
-        const match = Array.isArray(json?.challenges)
-          ? json.challenges.find((c: any) => c.contentType === contentType)
-          : null;
+        const challenges: any[] = Array.isArray(json?.challenges) ? json.challenges : [];
+        // Le clubSlug choisi en admin est la source de vérité ; le contentType ne
+        // sert de repli que pour les défis antérieurs à ce champ (clubSlug absent).
+        const match =
+          challenges.find((c: any) => c.clubSlug === club.slug) ||
+          (legacyContentType ? challenges.find((c: any) => !c.clubSlug && c.contentType === legacyContentType) : null);
         setClubChallenge(match || null);
       })
       .catch(() => {});

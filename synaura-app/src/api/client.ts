@@ -1985,6 +1985,7 @@ export type StartAIGenerationInput = {
     sourceTrackId: string;
     sourceTrackType: 'track' | 'ai_track';
   };
+  challengeId?: string;
 };
 
 export type RemixSourceResponse = {

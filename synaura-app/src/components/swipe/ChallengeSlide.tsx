@@ -11,9 +11,10 @@ type Props = {
   bottomPad: number;
   isActive: boolean;
   onOpen: () => void;
+  isMusicChallenge?: boolean;
 };
 
-export function ChallengeSlide({ challenge, height, topPad, bottomPad, isActive, onOpen }: Props) {
+export function ChallengeSlide({ challenge, height, topPad, bottomPad, isActive, onOpen, isMusicChallenge = false }: Props) {
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export function ChallengeSlide({ challenge, height, topPad, bottomPad, isActive,
       />
       <View style={styles.card}>
         <View style={styles.icon}><Ionicons name="trophy" size={24} color="#FFFAF2" /></View>
-        <Text style={styles.kicker}>DÉFI SYNAURA PULSE</Text>
+        <Text style={styles.kicker}>{isMusicChallenge ? 'DÉFI SYNAURA' : 'DÉFI SYNAURA PULSE'}</Text>
         <Text style={styles.title}>{challenge.title}</Text>
         {challenge.description ? <Text style={styles.text}>{challenge.description}</Text> : null}
         <View style={styles.stats}>

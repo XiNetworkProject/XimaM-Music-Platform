@@ -129,6 +129,32 @@ function toSummary(row: any, entryCount: number): MusicChallengeSummary {
   };
 }
 
+/** Défi (actif, à venir, ou le plus récemment termine) lié à ce morceau source,
+ * pour l'entrée "Défi lié à ce morceau" sur la page du morceau. Ne cree jamais
+ * de compteur : entryCount reste toujours issu de countRealEntries. */
+export async function getLinkedChallengeForSource(
+  sourceTrackId: string,
+  sourceTrackType: 'track' | 'ai_track',
+): Promise<MusicChallengeSummary | null> {
+  const { data, error } = await supabaseAdmin
+    .from('music_challenges')
+    .select('*')
+    .eq('source_track_id', sourceTrackId)
+    .eq('source_track_type', sourceTrackType)
+    .order('starts_at', { ascending: false });
+  if (error || !data?.length) return null;
+
+  const withStatus = data.map((row: any) => ({ row, status: computeChallengeStatus(row) }));
+  const best =
+    withStatus.find((entry) => entry.status === 'active') ||
+    withStatus.find((entry) => entry.status === 'upcoming') ||
+    withStatus[0];
+  if (!best) return null;
+
+  const entryCount = await countRealEntries(best.row.id);
+  return toSummary(best.row, entryCount);
+}
+
 export async function listMusicChallenges(options: { status?: ChallengeStatus } = {}): Promise<MusicChallengeSummary[]> {
   const { data, error } = await supabaseAdmin
     .from('music_challenges')
@@ -328,12 +354,26 @@ export async function recordChallengeEntry(input: {
   userId: string;
   contentType: ChallengeEntryContentType;
   contentId: string;
+  /** Quand fourni (ex: approbation tardive d'une variation IA en attente), la
+   * fenetre du defi est validee contre cette date de soumission initiale plutot
+   * que contre l'instant present : une creation soumise pendant le defi compte
+   * meme si elle n'est approuvee qu'apres la fin de celui-ci. */
+  submittedAt?: string;
 }): Promise<{ ok: true; created: boolean; entry: any } | { ok: false; status: number; error: string }> {
   const { data: challenge } = await supabaseAdmin.from('music_challenges').select('*').eq('id', input.challengeId).maybeSingle();
   if (!challenge) return { ok: false, status: 404, error: 'Defi introuvable.' };
 
-  const status = computeChallengeStatus(challenge);
-  if (status !== 'active') return { ok: false, status: 400, error: status === 'upcoming' ? "Ce defi n'a pas encore commence." : 'Ce defi est termine.' };
+  if (input.submittedAt) {
+    const submittedAt = new Date(input.submittedAt).getTime();
+    const startsAt = new Date(challenge.starts_at).getTime();
+    const endsAt = new Date(challenge.ends_at).getTime();
+    if (!Number.isFinite(submittedAt) || submittedAt < startsAt || submittedAt > endsAt) {
+      return { ok: false, status: 400, error: "Cette creation n'a pas ete soumise pendant la fenetre de ce defi." };
+    }
+  } else {
+    const status = computeChallengeStatus(challenge);
+    if (status !== 'active') return { ok: false, status: 400, error: status === 'upcoming' ? "Ce defi n'a pas encore commence." : 'Ce defi est termine.' };
+  }
 
   if (challenge.content_type !== 'open' && challenge.content_type !== input.contentType) {
     return { ok: false, status: 400, error: 'Ce type de contenu ne correspond pas a ce defi.' };

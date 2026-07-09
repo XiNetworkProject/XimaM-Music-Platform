@@ -155,8 +155,18 @@ export function ChallengeDetailScreen() {
   );
 }
 
+// Le Clip n'a pas de page de detail dediee (meme convention que le web,
+// resolveEntryContent() dans lib/musicChallenges.ts) : on ouvre le Scroll filtre
+// sur son morceau source, dont l'id est extrait de entry.href (seule source pour
+// ce champ, MusicChallengeEntry n'expose pas sourceTrackId directement).
+function sourceTrackIdFromHref(href: string): string | null {
+  const match = href.match(/[?&]sourceTrackId=([^&]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 function EntryRow({ entry, navigation }: { entry: MusicChallengeEntry; navigation: any }) {
-  const canOpen = entry.contentType === 'track' || entry.contentType === 'variation';
+  const clipSourceTrackId = entry.contentType === 'clip' ? sourceTrackIdFromHref(entry.href) : null;
+  const canOpen = entry.contentType === 'track' || entry.contentType === 'variation' || Boolean(clipSourceTrackId);
   const content = (
     <>
       {entry.coverUrl ? <Image source={{ uri: entry.coverUrl }} style={styles.entryCover} /> : <View style={styles.entryCover} />}
@@ -167,8 +177,15 @@ function EntryRow({ entry, navigation }: { entry: MusicChallengeEntry; navigatio
     </>
   );
   if (!canOpen) return <View style={styles.entryRow}>{content}</View>;
+  const onPress = () => {
+    if (clipSourceTrackId) {
+      navigation.navigate('Swipe', { mode: 'clips', sourceTrackId: clipSourceTrackId });
+    } else {
+      navigation.navigate('TrackDetail', { trackId: entry.contentId });
+    }
+  };
   return (
-    <Pressable style={styles.entryRow} onPress={() => navigation.navigate('TrackDetail', { trackId: entry.contentId })}>
+    <Pressable style={styles.entryRow} onPress={onPress}>
       {content}
     </Pressable>
   );

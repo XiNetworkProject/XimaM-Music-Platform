@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -76,6 +76,17 @@ const STRATEGY_BY_FILTER: Partial<Record<FeedFilter, string>> = {
 
 const FALLBACK_COVER = '/brand/2026/synaura-symbol-2026-white.png';
 
+/** Moteur de scroll repris de components/TikTokPlayer.tsx : détection de position
+ * par wheel/touch/clavier + repli scroll natif, plutôt qu'un IntersectionObserver
+ * (classe de bug déjà rencontrée : l'observer ne se relance pas de façon fiable
+ * après un changement de filtre ou pendant l'état de chargement). */
+const RENDER_BUFFER = 5;
+const WHEEL_LOCK_MS = 260;
+const SNAP_SETTLE_MS = 90;
+const AUTOPLAY_DELAY_MS = 110;
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+
 const fmtTime = (s: number) => {
   if (!Number.isFinite(s) || s < 0) return '0:00';
   const m = Math.floor(s / 60);
@@ -98,7 +109,7 @@ function countOf(value: unknown) {
 
 /** Vidéo d'un Clip : lecture pilotée par ref (play/pause impératifs) plutôt que par
  * l'attribut HTML autoPlay, qui ne se redéclenche pas quand le scroll change l'item
- * actif. Reprend le pattern éprouvé de MusicVideoLayer dans components/TikTokPlayer.tsx. */
+ * actif. Reprend le pattern de MusicVideoLayer dans components/TikTokPlayer.tsx. */
 function ClipVideoLayer({ src, poster, active }: { src: string; poster?: string | null; active: boolean }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -127,10 +138,229 @@ function ClipVideoLayer({ src, poster, active }: { src: string; poster?: string 
   );
 }
 
-export default function SynauraScrollFeed() {
+/* ═══════════════════════════════════════════════════════════════
+   HOOK: useFeedScrollSnap — wheel, keyboard, touch, scroll fallback
+   Adapté de useScrollSnap (components/TikTokPlayer.tsx) : la home est une
+   page permanente (pas un overlay), donc pas de isOpen/onClose/locked-close.
+   ═══════════════════════════════════════════════════════════════ */
+
+interface FeedScrollSnapOpts {
+  itemCount: number;
+  activeIndex: number;
+  locked: boolean;
+  ready: boolean;
+  onNavigate: (index: number, source: string) => void;
+  onTogglePlay: () => void;
+}
+
+function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
+  const { itemCount, activeIndex, locked, ready, onNavigate, onTogglePlay } = opts;
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const itemRefs = useRef<(HTMLElement | null)[]>([]);
+  const wheelLockRef = useRef(false);
+  const isTouchingRef = useRef(false);
+  const programmaticRef = useRef(false);
+  const snapTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const getItemTop = useCallback((idx: number) => {
+    const el = itemRefs.current[idx];
+    if (el) return el.offsetTop;
+    const c = containerRef.current;
+    return idx * Math.max(1, c?.clientHeight || window.innerHeight);
+  }, []);
+
+  const scrollTo = useCallback((idx: number, behavior: ScrollBehavior = 'smooth') => {
+    const el = containerRef.current;
+    if (!el) return;
+    const i = clamp(idx, 0, Math.max(0, itemCount - 1));
+    const top = getItemTop(i);
+    if (Math.abs(el.scrollTop - top) < 2) return;
+    programmaticRef.current = true;
+    el.scrollTo({ top, behavior });
+    setTimeout(() => { programmaticRef.current = false; }, behavior === 'smooth' ? 500 : 100);
+  }, [getItemTop, itemCount]);
+
+  const visibleIndex = useCallback(() => {
+    const el = containerRef.current;
+    if (!el || el.clientHeight <= 0) return activeIndex;
+    return clamp(Math.round(el.scrollTop / el.clientHeight), 0, Math.max(0, itemCount - 1));
+  }, [activeIndex, itemCount]);
+
+  // Wheel (desktop) — un item par geste, listener natif pour garantir preventDefault
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      if (locked) return;
+      e.preventDefault();
+      if (wheelLockRef.current) return;
+      if (Math.abs(e.deltaY) < 8) return;
+      const dir = e.deltaY > 0 ? 1 : -1;
+      const next = clamp(activeIndex + dir, 0, itemCount - 1);
+      if (next === activeIndex) return;
+      wheelLockRef.current = true;
+      scrollTo(next, 'smooth');
+      onNavigate(next, 'scroll-wheel');
+      setTimeout(() => { wheelLockRef.current = false; }, WHEEL_LOCK_MS);
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [ready, activeIndex, itemCount, locked, scrollTo, onNavigate]);
+
+  // Clavier
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (locked) return;
+      switch (e.key) {
+        case 'ArrowDown':
+        case 'PageDown': {
+          e.preventDefault();
+          const next = Math.min(itemCount - 1, activeIndex + 1);
+          scrollTo(next, 'smooth');
+          onNavigate(next, 'scroll-key');
+          break;
+        }
+        case 'ArrowUp':
+        case 'PageUp': {
+          e.preventDefault();
+          const prev = Math.max(0, activeIndex - 1);
+          scrollTo(prev, 'smooth');
+          onNavigate(prev, 'scroll-key');
+          break;
+        }
+        case ' ':
+        case 'Spacebar':
+          e.preventDefault();
+          onTogglePlay();
+          break;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [activeIndex, itemCount, locked, scrollTo, onNavigate, onTogglePlay]);
+
+  const onTouchStart = useCallback(() => {
+    isTouchingRef.current = true;
+    clearTimeout(snapTimerRef.current);
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    if (locked) return;
+    isTouchingRef.current = false;
+    clearTimeout(snapTimerRef.current);
+    snapTimerRef.current = setTimeout(() => {
+      onNavigate(visibleIndex(), 'scroll-touch');
+    }, SNAP_SETTLE_MS);
+  }, [locked, visibleIndex, onNavigate]);
+
+  // Repli scroll natif (trackpad continu, ou navigateurs sans event wheel discret)
+  const onScroll = useCallback(() => {
+    if (locked) return;
+    if (programmaticRef.current || isTouchingRef.current || wheelLockRef.current) return;
+    clearTimeout(snapTimerRef.current);
+    snapTimerRef.current = setTimeout(() => {
+      const idx = visibleIndex();
+      if (idx !== activeIndex) onNavigate(idx, 'scroll-fallback');
+    }, 60);
+  }, [locked, visibleIndex, activeIndex, onNavigate]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !('onscrollend' in window)) return;
+    const handler = () => {
+      if (locked) return;
+      const idx = visibleIndex();
+      if (idx !== activeIndex) onNavigate(idx, 'scroll-end');
+    };
+    el.addEventListener('scrollend', handler);
+    return () => el.removeEventListener('scrollend', handler);
+  }, [ready, activeIndex, locked, onNavigate, visibleIndex]);
+
+  useEffect(() => () => clearTimeout(snapTimerRef.current), []);
+
+  return { containerRef, itemRefs, scrollTo, onTouchStart, onTouchEnd, onScroll };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   COMPONENT: SeekBar — rAF-driven, zéro re-render React par frame
+   Repris tel quel de components/TikTokPlayer.tsx.
+   ═══════════════════════════════════════════════════════════════ */
+
+interface SeekBarProps {
+  onSeek: (time: number) => void;
+  getAudioElement: () => HTMLAudioElement | null;
+  accentFrom: string;
+  accentTo: string;
+}
+
+const SeekBar = memo(function SeekBar({ onSeek, getAudioElement, accentFrom, accentTo }: SeekBarProps) {
+  const barRef = useRef<HTMLDivElement>(null);
+  const fillRef = useRef<HTMLDivElement>(null);
+  const knobRef = useRef<HTMLDivElement>(null);
+  const timeRef = useRef<HTMLSpanElement>(null);
+  const durRef = useRef<HTMLSpanElement>(null);
+
+  const commit = useCallback((clientX: number) => {
+    const rect = barRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const a = getAudioElement();
+    const dur = a && Number.isFinite(a.duration) ? a.duration : 0;
+    const x = clamp(clientX - rect.left, 0, rect.width);
+    onSeek((x / rect.width) * dur);
+  }, [getAudioElement, onSeek]);
+
+  useEffect(() => {
+    let raf = 0;
+    let lt = -1;
+    let ld = -1;
+    const tick = () => {
+      const a = getAudioElement();
+      const time = a && Number.isFinite(a.currentTime) ? a.currentTime : 0;
+      const dur = a && Number.isFinite(a.duration) ? a.duration : 0;
+      if (dur !== ld || time !== lt) {
+        const pct = dur > 0 ? clamp((time / dur) * 100, 0, 100) : 0;
+        const w = `${pct}%`;
+        if (fillRef.current) fillRef.current.style.width = w;
+        if (knobRef.current) knobRef.current.style.left = w;
+        if (timeRef.current) timeRef.current.textContent = fmtTime(time);
+        if (durRef.current) durRef.current.textContent = fmtTime(dur);
+        lt = time;
+        ld = dur;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [getAudioElement]);
+
+  return (
+    <div className="w-full" onTouchStart={(e) => e.stopPropagation()} onTouchMove={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
+      <div
+        ref={barRef}
+        className="group relative h-1.5 w-full cursor-pointer rounded-full bg-black/[0.08]"
+        onPointerDown={(e) => commit(e.clientX)}
+        onPointerMove={(e) => e.buttons === 1 && commit(e.clientX)}
+        onTouchStart={(e) => commit(e.touches[0].clientX)}
+        onTouchMove={(e) => commit(e.touches[0].clientX)}
+      >
+        <div ref={fillRef} className="absolute inset-y-0 left-0 rounded-full" style={{ width: '0%', background: `linear-gradient(90deg, ${accentFrom}, ${accentTo})` }} />
+        <div ref={knobRef} className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 shadow-[0_0_6px_rgba(0,0,0,0.3)] transition-opacity group-hover:opacity-100" style={{ left: '0%' }} />
+      </div>
+      <div className="mt-2 flex items-center justify-between text-xs font-bold tabular-nums text-black/42">
+        <span ref={timeRef}>0:00</span>
+        <span ref={durRef}>0:00</span>
+      </div>
+    </div>
+  );
+});
+
+export default function SynauraScroll() {
   const router = useRouter();
   const { data: session } = useSession();
-  const { audioState, setQueueAndPlay, playTrack, play, pause, seek, handleLike } = useAudioPlayer();
+  const { audioState, setQueueAndPlay, playTrack, play, pause, seek, getAudioElement, handleLike } = useAudioPlayer();
   const { isFavorite, toggleFavorite } = useLibraryFavorites();
 
   const [filter, setFilter] = useState<FeedFilter>(() => {
@@ -161,17 +391,19 @@ export default function SynauraScrollFeed() {
   const [launchingCollectionId, setLaunchingCollectionId] = useState<string | null>(null);
   const [remixSheetTrack, setRemixSheetTrack] = useState<ScrollTrack | null>(null);
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const itemRefs = useRef<(HTMLElement | null)[]>([]);
-  const wheelLockRef = useRef(false);
   const accountRef = useRef<HTMLDivElement | null>(null);
   const clipOffsetSeekedRef = useRef<string | null>(null);
+  // Garde-fous anti-race (repris de loadRequestRef dans components/TikTokPlayer.tsx) :
+  // un changement de filtre rapide (foryou -> new -> foryou) ne doit pas laisser une
+  // réponse réseau périmée écraser un chargement plus récent.
+  const trackLoadRequestRef = useRef(0);
+  const clipLoadRequestRef = useRef(0);
+
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const currentId = currentTrack?._id;
   const username = (session?.user as any)?.username;
   const currentUserId = (session?.user as any)?.id;
   const needsTrackFetch = filter === 'foryou' || filter === 'new';
-  const clipsComingSoon = false;
   const useThisSound = useCallback((track: ScrollTrack) => {
     void recordClipFunnelEvent(track._id, 'clip_use_sound_started');
     const trackType = track._id.startsWith('ai-') ? 'ai_track' : 'track';
@@ -224,7 +456,7 @@ export default function SynauraScrollFeed() {
     }
 
     let mounted = true;
-    containerRef.current?.scrollTo({ top: 0 });
+    const requestId = ++trackLoadRequestRef.current;
     setActiveIndex(0);
 
     (async () => {
@@ -236,12 +468,12 @@ export default function SynauraScrollFeed() {
         if (!res.ok) throw new Error('Chargement impossible');
         const json = await res.json();
         const list = applyCdnToTracks((Array.isArray(json?.tracks) ? json.tracks : []) as any) as ScrollTrack[];
-        if (!mounted) return;
+        if (!mounted || requestId !== trackLoadRequestRef.current) return;
         setBaseTracks(list);
       } catch (e: any) {
-        if (mounted) setError(e?.message || 'Impossible de charger le scroll');
+        if (mounted && requestId === trackLoadRequestRef.current) setError(e?.message || 'Impossible de charger le scroll');
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted && requestId === trackLoadRequestRef.current) setLoading(false);
       }
     })();
 
@@ -253,8 +485,8 @@ export default function SynauraScrollFeed() {
   useEffect(() => {
     if (!(filter === 'clips' || filter === 'foryou' || filter === 'new')) return;
     let mounted = true;
+    const requestId = ++clipLoadRequestRef.current;
     if (filter === 'clips') {
-      containerRef.current?.scrollTo({ top: 0 });
       setActiveIndex(0);
       setLoading(true);
     }
@@ -263,16 +495,16 @@ export default function SynauraScrollFeed() {
     fetch(`/api/music-clips?${params.toString()}`, { cache: 'no-store' })
       .then((response) => response.json().then((json) => ({ ok: response.ok, json })))
       .then(({ ok, json }) => {
-        if (!mounted) return;
+        if (!mounted || requestId !== clipLoadRequestRef.current) return;
         if (!ok) throw new Error(json?.error || 'Impossible de charger les clips');
         setBaseClips(Array.isArray(json?.clips) ? json.clips : []);
         if (filter === 'clips') setError(null);
       })
       .catch((e) => {
-        if (mounted && filter === 'clips') setError(e?.message || 'Impossible de charger les clips');
+        if (mounted && filter === 'clips' && requestId === clipLoadRequestRef.current) setError(e?.message || 'Impossible de charger les clips');
       })
       .finally(() => {
-        if (mounted && filter === 'clips') setLoading(false);
+        if (mounted && filter === 'clips' && requestId === clipLoadRequestRef.current) setLoading(false);
       });
     return () => {
       mounted = false;
@@ -348,7 +580,7 @@ export default function SynauraScrollFeed() {
         .map((clip) => ({ id: `clip-${clip.id}`, type: 'clip' as const, clip, track: clip.sourceTrack }));
     }
     if (filter === 'creators') return buildCreatorsFilterFeed(popularUsersRaw, baseTracks);
-    if (filter === 'challenges') return buildChallengesFilterFeed(cityEventsRaw);
+    if (filter === 'challenges') return buildChallengesFilterFeed(musicChallengesRaw, cityEventsRaw);
 
     const artistItems = buildArtistSpotlightItems(popularUsersRaw, baseTracks, 3);
     const collectionItems = buildCollectionItems(collectionsRaw, 2);
@@ -366,12 +598,24 @@ export default function SynauraScrollFeed() {
 
   // File de lecture : uniquement les entrées réellement jouables (morceau ou artiste en vedette),
   // dans le même ordre que le feed affiché, pour que suivant/précédent restent cohérents.
+  // Les sources du feed (tracks/clips/artistes/collections/défis) arrivent par appels réseau
+  // indépendants et redonnent chacune une nouvelle référence à `feedItems` : on ne renvoie une
+  // nouvelle référence de `queueByPosition` que si la séquence d'ids a réellement changé, pour
+  // que l'effet d'autoplay ci-dessous ne se redéclenche pas en rafale sur des morceaux identiques
+  // pendant que le feed finit de se composer (cause du spam réseau/lecture observé au changement
+  // de filtre).
+  const queueByPositionRef = useRef<Array<ScrollTrack | null>>([]);
   const queueByPosition = useMemo(() => {
-    return feedItems.map((item): ScrollTrack | null => {
+    const next = feedItems.map((item): ScrollTrack | null => {
       const track = item.type === 'track' || item.type === 'clip' ? item.track : item.type === 'artist_spotlight' ? item.track : null;
       if (!track) return null;
       return { ...track, coverUrl: track.coverUrl || FALLBACK_COVER };
     });
+    const prev = queueByPositionRef.current;
+    const unchanged = prev.length === next.length && prev.every((t, i) => (t?._id || null) === (next[i]?._id || null));
+    if (unchanged) return prev;
+    queueByPositionRef.current = next;
+    return next;
   }, [feedItems]);
 
   const playableQueue = useMemo(() => queueByPosition.filter((t): t is ScrollTrack => Boolean(t)).map((t) => ({ ...t, source: 'scroll' })), [queueByPosition]);
@@ -388,50 +632,56 @@ export default function SynauraScrollFeed() {
     return map;
   }, [queueByPosition]);
 
-  const scrollToIndex = useCallback((index: number, behavior: ScrollBehavior = 'smooth') => {
-    itemRefs.current[index]?.scrollIntoView({ behavior, block: 'start' });
-  }, []);
-
   const playIndex = useCallback(
     (index: number) => {
       const track = queueByPosition[index];
       const queueIndex = feedIndexToQueueIndex.get(index);
       if (!track || queueIndex === undefined) return;
-      setActiveIndex(index);
       setQueueAndPlay(playableQueue as any, queueIndex);
     },
     [feedIndexToQueueIndex, playableQueue, queueByPosition, setQueueAndPlay],
   );
 
+  const navigateTo = useCallback((index: number) => {
+    setActiveIndex((current) => (current === index ? current : index));
+  }, []);
+
+  const scrollSnap = useFeedScrollSnap({
+    itemCount: feedItems.length,
+    activeIndex,
+    locked: lyricsOpen,
+    ready: !loading,
+    onNavigate: navigateTo,
+    onTogglePlay: useCallback(() => { audioState.isPlaying ? pause() : play(); }, [audioState.isPlaying, pause, play]),
+  });
+
+  const jump = useCallback((index: number) => {
+    const clamped = clamp(index, 0, feedItems.length - 1);
+    scrollSnap.scrollTo(clamped, 'smooth');
+    navigateTo(clamped);
+  }, [feedItems.length, scrollSnap, navigateTo]);
+
+  // Déclenche la lecture quand l'item actif change (geste de scroll, clic sur une
+  // carte, ou repositionnement après chargement/changement de filtre) : une seule
+  // source de vérité, pas de double-déclenchement à traquer.
+  // Garde d'idempotence stricte : `lastAutoplayRequestRef` retient le dernier morceau
+  // réellement demandé pour la position active, pour ne jamais rappeler setQueueAndPlay
+  // une seconde fois sur le même morceau tant que le contexte player n'a pas eu le temps
+  // de mettre `currentId` à jour (évite la rafale de lecture/réseau si l'effet se
+  // redéclenche plusieurs fois rapprochées pour un même morceau).
+  const lastAutoplayRequestRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!feedItems.length) return;
-    const root = containerRef.current;
-    if (!root) return;
-    const els = itemRefs.current.filter(Boolean) as HTMLElement[];
-    if (!els.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const best = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => (b.intersectionRatio || 0) - (a.intersectionRatio || 0))[0];
-        if (!best) return;
-        const index = Number((best.target as HTMLElement).dataset.index);
-        if (Number.isFinite(index)) setActiveIndex(index);
-      },
-      { root, threshold: [0.55, 0.72, 0.9] },
-    );
-
-    els.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, [feedItems.length]);
-
+    lastAutoplayRequestRef.current = null;
+  }, [activeIndex]);
   useEffect(() => {
     const track = queueByPosition[activeIndex];
     if (!track || lyricsOpen) return;
     const timer = window.setTimeout(() => {
-      if (currentId !== track._id) playIndex(activeIndex);
-    }, 110);
+      if (currentId === track._id) return;
+      if (lastAutoplayRequestRef.current === track._id) return;
+      lastAutoplayRequestRef.current = track._id;
+      playIndex(activeIndex);
+    }, AUTOPLAY_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [activeIndex, currentId, lyricsOpen, playIndex, queueByPosition]);
 
@@ -450,46 +700,6 @@ export default function SynauraScrollFeed() {
     clipOffsetSeekedRef.current = item.clip.id;
     seek(Math.min(offset, Math.max(0, audioState.duration - 0.5)));
   }, [activeIndex, feedItems, currentId, audioState.duration, seek]);
-
-  const onWheel = useCallback(
-    (event: React.WheelEvent) => {
-      if (lyricsOpen) return;
-      if (wheelLockRef.current) {
-        event.preventDefault();
-        return;
-      }
-      const direction = event.deltaY > 0 ? 1 : -1;
-      const next = Math.min(feedItems.length - 1, Math.max(0, activeIndex + direction));
-      if (next === activeIndex) return;
-      wheelLockRef.current = true;
-      event.preventDefault();
-      scrollToIndex(next);
-      window.setTimeout(() => {
-        wheelLockRef.current = false;
-      }, 430);
-    },
-    [activeIndex, lyricsOpen, scrollToIndex, feedItems.length],
-  );
-
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (lyricsOpen) return;
-      if (event.key === 'ArrowDown' || event.key === 'PageDown') {
-        event.preventDefault();
-        scrollToIndex(Math.min(feedItems.length - 1, activeIndex + 1));
-      }
-      if (event.key === 'ArrowUp' || event.key === 'PageUp') {
-        event.preventDefault();
-        scrollToIndex(Math.max(0, activeIndex - 1));
-      }
-      if (event.key === ' ' || event.key === 'Spacebar') {
-        event.preventDefault();
-        audioState.isPlaying ? pause() : play();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [activeIndex, audioState.isPlaying, lyricsOpen, pause, play, scrollToIndex, feedItems.length]);
 
   const shareTrack = useCallback(async (track: ScrollTrack) => {
     const url = `${window.location.origin}/track/${track._id}`;
@@ -545,6 +755,10 @@ export default function SynauraScrollFeed() {
   ];
 
   const showEmptyState = !loading && !error && feedItems.length === 0;
+  const renderRange = {
+    lo: Math.max(0, activeIndex - RENDER_BUFFER),
+    hi: Math.min(feedItems.length - 1, activeIndex + RENDER_BUFFER),
+  };
 
   function renderItemBody(item: ScrollFeedItem, index: number) {
     if (item.type === 'clip') {
@@ -640,7 +854,6 @@ export default function SynauraScrollFeed() {
     if (item.type === 'track') {
       const track = item.track;
       const isPlayingThis = currentId === track._id && audioState.isPlaying;
-      const currentTime = currentId === track._id ? audioState.currentTime || 0 : 0;
       const duration = currentId === track._id ? audioState.duration || track.duration || 0 : track.duration || 0;
       const likesCount = countOf(track.likes);
       const commentsCount = countOf(track.comments);
@@ -784,35 +997,26 @@ export default function SynauraScrollFeed() {
               </div>
 
               <div className="mt-4">
-                <div className="mb-2 flex items-center justify-between text-xs font-bold text-black/42">
-                  <span>{fmtTime(currentTime)}</span>
-                  <span>
-                    {index + 1}/{feedItems.length} · {fmtTime(duration)}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={Math.max(1, duration)}
-                  value={Math.min(currentTime, Math.max(1, duration))}
-                  onChange={(event) => {
-                    const value = Number(event.target.value);
-                    if (currentId === track._id) seek(value);
-                    else {
-                      void playTrack(track as any).then(() => setTimeout(() => seek(value), 120));
-                    }
-                  }}
-                  className="h-1.5 w-full accent-[#7357C6]"
-                />
+                {currentId === track._id ? (
+                  <SeekBar onSeek={seek} getAudioElement={getAudioElement} accentFrom="#7357C6" accentTo="#4A9EAA" />
+                ) : (
+                  <div className="flex items-center justify-between text-xs font-bold tabular-nums text-black/42">
+                    <span>0:00</span>
+                    <span>{fmtTime(duration)}</span>
+                  </div>
+                )}
+                <p className="mt-1.5 text-right text-[11px] font-bold text-black/38">
+                  {index + 1}/{feedItems.length}
+                </p>
               </div>
             </div>
           </div>
 
           <div className="absolute bottom-28 right-4 z-30 hidden flex-col gap-2 md:flex">
-            <button onClick={() => scrollToIndex(Math.max(0, activeIndex - 1))} className="grid h-10 w-10 place-items-center rounded-full border border-white/12 bg-white/10 backdrop-blur-xl transition hover:bg-white/16">
+            <button onClick={() => jump(activeIndex - 1)} className="grid h-10 w-10 place-items-center rounded-full border border-white/12 bg-white/10 backdrop-blur-xl transition hover:bg-white/16">
               <ChevronUp className="h-5 w-5" />
             </button>
-            <button onClick={() => scrollToIndex(Math.min(feedItems.length - 1, activeIndex + 1))} className="grid h-10 w-10 place-items-center rounded-full border border-white/12 bg-white/10 backdrop-blur-xl transition hover:bg-white/16">
+            <button onClick={() => jump(activeIndex + 1)} className="grid h-10 w-10 place-items-center rounded-full border border-white/12 bg-white/10 backdrop-blur-xl transition hover:bg-white/16">
               <ChevronDown className="h-5 w-5" />
             </button>
           </div>
@@ -979,7 +1183,6 @@ export default function SynauraScrollFeed() {
 
     if (item.type === 'challenge') {
       const { challenge } = item;
-      const isMusicChallenge = item.id.startsWith('music-challenge-');
       return (
         <>
           <div className="absolute inset-0 bg-gradient-to-br from-[#D96D63] via-[#171313] to-[#171313]" />
@@ -988,7 +1191,7 @@ export default function SynauraScrollFeed() {
               <Trophy className="h-7 w-7 text-white" />
             </span>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/60">{isMusicChallenge ? 'Défi Synaura' : 'Défi Synaura Pulse'}</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/60">Défi Synaura Pulse</p>
               <h2 className="mt-1.5 max-w-sm text-2xl font-black tracking-tight text-white">{challenge.title}</h2>
               {challenge.description ? (
                 <p className="mx-auto mt-2 max-w-xs text-sm font-semibold leading-6 text-white/65">{challenge.description}</p>
@@ -1154,11 +1357,6 @@ export default function SynauraScrollFeed() {
                   }`}
                 >
                   {meta.label}
-                  {meta.comingSoon ? (
-                    <span className="rounded-full bg-black/22 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-white/75">
-                      À venir
-                    </span>
-                  ) : null}
                 </button>
               );
             })}
@@ -1178,23 +1376,7 @@ export default function SynauraScrollFeed() {
         </button>
       ) : null}
 
-      {clipsComingSoon ? (
-        <div className="flex h-full w-full items-center justify-center px-6">
-          <div className="max-w-sm rounded-[2rem] border border-white/12 bg-white/[0.06] p-8 text-center backdrop-blur-xl">
-            <Sparkles className="mx-auto h-8 w-8 text-white/40" />
-            <p className="mt-4 text-[11px] font-black uppercase tracking-[0.22em] text-white/40">À venir</p>
-            <h2 className="mt-2 text-xl font-black text-white">{FILTER_META[filter].label}</h2>
-            <p className="mt-2 text-sm font-semibold text-white/50">Cette section arrive bientôt dans Synaura.</p>
-            <button
-              type="button"
-              onClick={() => setFilter('foryou')}
-              className="mt-5 h-10 rounded-full bg-white px-5 text-sm font-black text-[#171313]"
-            >
-              Retour à Pour toi
-            </button>
-          </div>
-        </div>
-      ) : loading ? (
+      {loading ? (
         <div className="grid h-full w-full place-items-center">
           <div className="rounded-[2rem] border border-[#dccfbb] bg-white p-8 text-center text-[#171313] shadow-[0_24px_80px_rgba(44,33,19,0.16)]">
             <Loader2 className="mx-auto h-8 w-8 animate-spin" />
@@ -1214,7 +1396,7 @@ export default function SynauraScrollFeed() {
               <>
                 <Trophy className="mx-auto h-10 w-10 text-black/24" />
                 <h1 className="mt-4 text-2xl font-black">Aucun défi en cours</h1>
-                <p className="mt-2 text-sm font-semibold text-black/48">Le prochain défi Synaura Pulse arrive bientôt.</p>
+                <p className="mt-2 text-sm font-semibold text-black/48">Reviens un peu plus tard, le prochain défi Synaura arrive bientôt.</p>
               </>
             ) : (
               <>
@@ -1233,24 +1415,37 @@ export default function SynauraScrollFeed() {
         </div>
       ) : (
         <div
-          ref={containerRef}
-          onWheel={onWheel}
-          className="h-full w-full snap-y snap-mandatory overflow-y-auto overscroll-contain"
-          style={{ scrollSnapType: 'y mandatory' }}
+          ref={scrollSnap.containerRef}
+          onTouchStart={scrollSnap.onTouchStart}
+          onTouchEnd={scrollSnap.onTouchEnd}
+          onScroll={scrollSnap.onScroll}
+          className="synaura-scroll-feed h-full w-full snap-y snap-mandatory touch-pan-y overflow-y-auto overscroll-contain"
+          style={{ scrollSnapType: 'y mandatory', WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain', scrollbarWidth: 'none' }}
         >
-          {feedItems.map((item, index) => (
-            <section
-              key={item.id}
-              ref={(el) => {
-                itemRefs.current[index] = el;
-              }}
-              data-index={index}
-              className="relative h-[100svh] w-full snap-start overflow-hidden"
-              style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
-            >
-              {renderItemBody(item, index)}
-            </section>
-          ))}
+          <style>{`.synaura-scroll-feed::-webkit-scrollbar { display: none; }`}</style>
+          {feedItems.map((item, index) => {
+            if (index < renderRange.lo || index > renderRange.hi) {
+              return (
+                <div
+                  key={item.id}
+                  ref={(el) => { scrollSnap.itemRefs.current[index] = el; }}
+                  className="h-[100svh] w-full snap-start"
+                  style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always', contain: 'layout size paint style' }}
+                />
+              );
+            }
+            return (
+              <section
+                key={item.id}
+                ref={(el) => { scrollSnap.itemRefs.current[index] = el; }}
+                data-index={index}
+                className="relative h-[100svh] w-full snap-start overflow-hidden"
+                style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
+              >
+                {renderItemBody(item, index)}
+              </section>
+            );
+          })}
         </div>
       )}
       {remixSheetTrack ? (

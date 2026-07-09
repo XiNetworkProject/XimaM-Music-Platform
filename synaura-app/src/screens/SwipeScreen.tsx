@@ -706,6 +706,7 @@ export function SwipeScreen() {
           topPad={insets.top}
           bottomPad={tabBarHeight}
           isActive={isActive}
+          isMusicChallenge={isMusicChallenge}
           onOpen={() => (isMusicChallenge
             ? navigation.navigate('ChallengeDetail', { challengeId: item.challenge.id })
             : navigation.navigate('City'))}

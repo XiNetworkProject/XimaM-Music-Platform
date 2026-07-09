@@ -6,6 +6,7 @@ import { remixPermissionsFromRow, remixPermissionsToRow, sanitizeRemixPermission
 import { getPublishedVariationCounts, getRemixAttributionForChildren, getRemixSourceSummary, normalizeRemixTrackRef } from '@/lib/remixServer';
 import { getPublishedClipCounts } from '@/lib/musicClips';
 import { canViewAiTrack, canViewTrack } from '@/lib/publicTracks';
+import { getLinkedChallengeForSource } from '@/lib/musicChallenges';
 
 function readTrackData(value: any): Record<string, any> {
   if (!value) return {};
@@ -54,6 +55,7 @@ export async function GET(
         getPublishedVariationCounts([{ id: ref.id, type: ref.type }]),
       ]);
       const clipCounts = await getPublishedClipCounts([{ id: ref.id, type: ref.type }]);
+      const linkedChallenge = await getLinkedChallengeForSource(ref.id, 'ai_track');
       return NextResponse.json({
         id: `ai-${aiTrack.id}`,
         _id: `ai-${aiTrack.id}`,
@@ -80,6 +82,7 @@ export async function GET(
         remixAttribution: attributions.get(`${ref.type}:${ref.id}`) || null,
         variationsCount: counts.get(`${ref.type}:${ref.id}`) || 0,
         musicClipsCount: clipCounts.get(`${ref.type}:${ref.id}`) || 0,
+        linkedChallenge: linkedChallenge ? { id: linkedChallenge.id, title: linkedChallenge.title, status: linkedChallenge.status } : null,
       });
     }
 
@@ -106,6 +109,7 @@ export async function GET(
       getPublishedVariationCounts([{ id, type: 'track' }]),
     ]);
     const clipCounts = await getPublishedClipCounts([{ id, type: 'track' }]);
+    const linkedChallenge = await getLinkedChallengeForSource(id, 'track');
 
     // Formater la réponse pour l'interface
     const formattedTrack = {
@@ -138,6 +142,7 @@ export async function GET(
       remixAttribution: attributions.get(`track:${id}`) || null,
       variationsCount: counts.get(`track:${id}`) || 0,
       musicClipsCount: clipCounts.get(`track:${id}`) || 0,
+      linkedChallenge: linkedChallenge ? { id: linkedChallenge.id, title: linkedChallenge.title, status: linkedChallenge.status } : null,
     };
 
     return NextResponse.json(formattedTrack);

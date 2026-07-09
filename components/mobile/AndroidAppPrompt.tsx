@@ -69,7 +69,7 @@ export default function AndroidAppPrompt() {
         <Link href="/download" className="inline-flex h-10 items-center justify-center rounded-full bg-black/[0.055] px-4 text-xs font-black text-black/60">
           Voir les détails
         </Link>
-        <a href={release.apkUrl} download className="inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-[#171313] px-4 text-xs font-black text-white">
+        <a href={release.apkUrl} download onClick={close} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-[#171313] px-4 text-xs font-black text-white">
           <Download className="h-3.5 w-3.5" /> Installer
         </a>
       </div>

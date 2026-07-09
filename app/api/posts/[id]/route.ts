@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
+import { isAiTrackPublic, isTrackPublic } from '@/lib/publicTracks';
+import { normalizeRemixTrackRef } from '@/lib/remixServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,13 +37,45 @@ function readTrackData(value: any): Record<string, any> {
   }
 }
 
-async function loadTrack(trackId?: string | null) {
-  if (!trackId) return null;
+async function loadAiTrack(id: string) {
+  const { data: t, error } = await supabaseAdmin
+    .from('ai_tracks')
+    .select('*, generation:ai_generations!inner(user_id, is_public, status)')
+    .eq('id', id)
+    .maybeSingle();
 
+  if (error) {
+    console.error('[posts/id] ai track fetch error:', error);
+    return null;
+  }
+
+  // Le morceau IA attaché a pu devenir privé (ou sa génération dépubliée) depuis la
+  // publication du post : dans ce cas le post ne doit plus exposer ce morceau
+  // (règle identique à publicTracks.ts / posts/route.ts).
+  if (!t || !isAiTrackPublic(t)) return null;
+
+  const creatorId = String((t as any).generation?.user_id || '');
+  const { data: profile } = creatorId
+    ? await supabaseAdmin.from('profiles').select('name, username').eq('id', creatorId).maybeSingle()
+    : { data: null as any };
+
+  return {
+    id: `ai-${(t as any).id}`,
+    title: (t as any).title || 'Création IA',
+    artist_name: profile?.name || profile?.username || 'Artiste Synaura',
+    cover_url: (t as any).image_url || null,
+    cover_video_url: null,
+    cover_video_poster_url: null,
+    audio_url: (t as any).audio_url || (t as any).stream_audio_url,
+    duration: (t as any).duration,
+  };
+}
+
+async function loadClassicTrack(id: string) {
   const { data: t, error: trackErr } = await supabaseAdmin
     .from('tracks')
     .select('*')
-    .eq('id', trackId)
+    .eq('id', id)
     .maybeSingle();
 
   if (trackErr) {
@@ -49,7 +83,9 @@ async function loadTrack(trackId?: string | null) {
     return null;
   }
 
-  if (!t) return null;
+  // Le morceau attaché a pu devenir privé depuis la publication du post : dans ce
+  // cas le post ne doit plus exposer ce morceau (règle identique à posts/route.ts).
+  if (!t || !isTrackPublic(t)) return null;
   const data = readTrackData((t as any).data);
 
   const artistName = (t as any).artist_name
@@ -66,6 +102,12 @@ async function loadTrack(trackId?: string | null) {
     audio_url: (t as any).audio_url,
     duration: (t as any).duration,
   };
+}
+
+async function loadTrack(trackId?: string | null) {
+  if (!trackId) return null;
+  const ref = normalizeRemixTrackRef(trackId);
+  return ref.type === 'ai_track' ? loadAiTrack(ref.id) : loadClassicTrack(ref.id);
 }
 
 async function enrichPost(post: any, userId: string | null, seen = new Set<string>()): Promise<EnrichedPost> {
