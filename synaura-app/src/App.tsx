@@ -14,7 +14,9 @@ import { LoginScreen } from '@/screens/LoginScreen';
 import { RegisterScreen } from '@/screens/RegisterScreen';
 import { ForgotPasswordScreen } from '@/screens/ForgotPasswordScreen';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
+import { WelcomeScreen } from '@/screens/WelcomeScreen';
 import { isOnboardingCompleted } from '@/onboarding/checkOnboarding';
+import { isWelcomeCompleted } from '@/onboarding/welcomeState';
 import { colors } from '@/theme/tokens';
 import { AnimatedBootSplash } from '@/components/AnimatedBootSplash';
 import { UpdateProvider } from '@/updates/UpdateProvider';
@@ -29,6 +31,7 @@ export type RootStackParamList = {
   Register: undefined;
   ForgotPassword: undefined;
   Onboarding: { edit?: boolean; returnTo?: { screen: string; params?: Record<string, unknown> } } | undefined;
+  Welcome: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -61,7 +64,7 @@ function getActiveRouteName(state: any): string {
  */
 function RootStackNavigator() {
   const auth = useAuth();
-  const [gate, setGate] = useState<{ ready: boolean; initialRoute: 'Tabs' | 'Onboarding' }>({
+  const [gate, setGate] = useState<{ ready: boolean; initialRoute: 'Tabs' | 'Onboarding' | 'Welcome' }>({
     ready: false,
     initialRoute: 'Tabs',
   });
@@ -72,7 +75,9 @@ function RootStackNavigator() {
     checkedRef.current = true;
 
     if (!auth.user || !auth.token) {
-      setGate({ ready: true, initialRoute: 'Tabs' });
+      void isWelcomeCompleted().then((completed) => {
+        setGate({ ready: true, initialRoute: completed ? 'Tabs' : 'Welcome' });
+      });
       return;
     }
 
@@ -97,6 +102,7 @@ function RootStackNavigator() {
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+      <Stack.Screen name="Welcome" component={WelcomeScreen} />
     </Stack.Navigator>
   );
 }

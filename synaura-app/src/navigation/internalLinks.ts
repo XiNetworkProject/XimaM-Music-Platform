@@ -76,6 +76,8 @@ export async function openInternalLink(
       options.playTrack(track);
       return true;
     }
+    navigation.navigate('TrackDetail', { trackId: decodeURIComponent(id), track: track || undefined });
+    return true;
   }
   if (root === 'notifications') {
     navigation.navigate('Notifications');

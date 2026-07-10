@@ -154,12 +154,11 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
           const isScroll = route.name === 'Swipe';
           const label = PRIMARY_LABELS[route.name as keyof typeof PRIMARY_LABELS];
           const onPress = () => {
-            void Haptics.selectionAsync().catch(() => {});
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
             if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
           };
           return (
-            <Pressable
+            <AnimatedTabButton
               key={route.key}
               accessibilityRole="button"
               accessibilityState={focused ? { selected: true } : {}}
@@ -182,7 +181,8 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
               <Text numberOfLines={1} style={[styles.dockLabel, focused && styles.dockLabelActive, isScroll && styles.dockLabelScroll]}>
                 {label}
               </Text>
-            </Pressable>
+              {focused ? <View style={styles.activeIndicator} /> : null}
+            </AnimatedTabButton>
           );
         })}
       </BlurView>
@@ -329,4 +329,5 @@ const styles = StyleSheet.create({
   },
   dockLabelActive: { color: colors.black },
   dockLabelScroll: { marginTop: -1 },
+  activeIndicator: { position: 'absolute', bottom: 1, width: 16, height: 2, borderRadius: 1, backgroundColor: colors.violet },
 });

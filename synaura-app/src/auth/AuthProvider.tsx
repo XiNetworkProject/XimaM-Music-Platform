@@ -34,6 +34,7 @@ export type RegisterInput = {
 
 const TOKEN_KEY = 'synaura.mobile.auth.token';
 const USER_KEY = 'synaura.mobile.auth.user';
+const PUSH_TOKEN_KEY = 'synaura.native.push.token.v1';
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 async function readStoredUser() {
@@ -71,29 +72,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
     Promise.all([AsyncStorage.getItem(TOKEN_KEY), readStoredUser()])
-      .then(async ([storedToken, storedUser]) => {
+      .then(([storedToken, storedUser]) => {
         if (!mounted) return;
-        if (storedToken) {
-          try {
-            const response = await authFetch('/api/auth/mobile/me', storedToken);
-            if (response.status === 401 || response.status === 403) {
-              await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
-              storedToken = null;
-              storedUser = null;
-            } else if (response.ok) {
-              const json = await response.json().catch(() => null);
-              if (json?.user?.id) storedUser = { ...storedUser, ...json.user };
-            }
-          } catch {
-            // Conserve la session locale hors-ligne et la reverifie au prochain lancement.
-          }
-        }
-        if (!mounted) return;
+        // La session locale suffit pour monter l'app immédiatement. La validation
+        // serveur se fait ensuite sans garder l'utilisateur devant un ecran vide.
         setAuthTokenProvider(() => storedToken);
         setToken(storedToken);
         setUser(storedUser);
+        setLoading(false);
+
+        if (storedToken) {
+          void authFetch('/api/auth/mobile/me', storedToken)
+            .then(async (response) => {
+              if (!mounted) return;
+              if (response.status === 401 || response.status === 403) {
+                await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+                if (!mounted) return;
+                setAuthTokenProvider(() => null);
+                setToken(null);
+                setUser(null);
+                return;
+              }
+              if (!response.ok) return;
+              const json = await response.json().catch(() => null);
+              if (json?.user?.id && mounted) {
+                const nextUser = { ...storedUser, ...json.user };
+                setUser(nextUser);
+                await AsyncStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+              }
+            })
+            .catch(() => {
+              // La session locale reste utilisable hors-ligne.
+            });
+        }
       })
-      .finally(() => {
+      .catch(() => {
         if (mounted) setLoading(false);
       });
     return () => {
@@ -159,6 +172,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     if (token) {
+      const pushToken = await AsyncStorage.getItem(PUSH_TOKEN_KEY);
+      if (pushToken) {
+        await authFetch('/api/notifications/push/native', token, {
+          method: 'DELETE',
+          body: JSON.stringify({ token: pushToken }),
+        }).catch(() => {});
+        await AsyncStorage.removeItem(PUSH_TOKEN_KEY);
+      }
       await authFetch('/api/auth/mobile/logout', token, { method: 'POST' }).catch(() => {});
     }
     await persistSession(null, null);

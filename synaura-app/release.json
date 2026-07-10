@@ -1,11 +1,13 @@
 {
-  "title": "Synaura mobile 0.9.17",
+  "title": "Synaura mobile 0.10.0",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Synaura Moments : nouvelle timeline immersive dans le lecteur plein ecran",
-    "Waveform : exploration precise avec tete de lecture, temps restant et retour haptique",
-    "Moments : commentaires et reactions accessibles directement depuis leurs marqueurs",
-    "Moments : ajoute une reaction ou un commentaire au passage exact que tu ecoutes"
+    "Bienvenue : nouvelle presentation animee avant la connexion et la creation de compte",
+    "Scroll : ouverture beaucoup plus rapide grace au cache et au chargement progressif",
+    "Waveform : nouveau visuel Synaura et regroupement intelligent des moments charges",
+    "Notifications : activation Android, test push et ouverture directe des contenus",
+    "Partage : les cartes image utilisent maintenant le vrai menu de partage natif",
+    "Navigation : dock plus fluide avec retours haptiques et animations discretes"
   ]
 }

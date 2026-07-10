@@ -63,6 +63,12 @@ export const MOMENT_REACTIONS: ReactionMeta[] = [
 
 const CLUSTER_WINDOW_SECONDS = 4;
 
+type CommentCluster = {
+  id: string;
+  timestampSeconds: number;
+  comments: HomeComment[];
+};
+
 function reactionMeta(type: MomentReactionType) {
   return MOMENT_REACTIONS.find((reaction) => reaction.type === type) || MOMENT_REACTIONS[0];
 }
@@ -101,6 +107,22 @@ function clusterReactions(reactions: MomentReaction[]): MomentReactionCluster[] 
     });
   });
 
+  return clusters;
+}
+
+function clusterComments(comments: HomeComment[], windowSeconds: number): CommentCluster[] {
+  const sorted = [...comments].sort((a, b) => Number(a.timestampSeconds || 0) - Number(b.timestampSeconds || 0));
+  const clusters: CommentCluster[] = [];
+  sorted.forEach((comment) => {
+    const timestampSeconds = Number(comment.timestampSeconds || 0);
+    const last = clusters[clusters.length - 1];
+    if (last && timestampSeconds - last.timestampSeconds <= windowSeconds) {
+      last.comments.push(comment);
+      last.timestampSeconds = last.comments.reduce((sum, item) => sum + Number(item.timestampSeconds || 0), 0) / last.comments.length;
+      return;
+    }
+    clusters.push({ id: `comments-${comment.id}`, timestampSeconds, comments: [comment] });
+  });
   return clusters;
 }
 
@@ -149,6 +171,8 @@ export function MomentWaveform({
     [barCount, waveform?.peaks],
   );
   const clusters = useMemo(() => clusterReactions(reactions), [reactions]);
+  const commentClusterWindow = Math.min(8, Math.max(2.5, safeDuration * 14 / Math.max(240, width || 320)));
+  const commentClusters = useMemo(() => clusterComments(comments, commentClusterWindow), [commentClusterWindow, comments]);
   const activeComment = activeCommentId ? comments.find((comment) => comment.id === activeCommentId) || null : null;
   const activeCluster = activeClusterId ? clusters.find((cluster) => cluster.id === activeClusterId) || null : null;
 
@@ -279,7 +303,7 @@ export function MomentWaveform({
           <Text numberOfLines={1} style={styles.title}>Moments precis</Text>
         </View>
         <View style={[styles.statusPill, isPlaying && styles.statusPillActive]}>
-          {loading ? <ActivityIndicator size="small" color={isPlaying ? colors.paper : colors.textSecondary} /> : <Ionicons name={hasRealWaveform ? 'pulse' : 'time-outline'} size={13} color={isPlaying ? colors.paper : colors.textSecondary} />}
+          {loading ? <ActivityIndicator size="small" color={colors.paper} /> : <Ionicons name={hasRealWaveform ? 'pulse' : 'time-outline'} size={13} color={colors.paper} />}
           <Text style={[styles.statusText, isPlaying && styles.statusTextActive]}>{fmtTime(selectedMoment)}</Text>
         </View>
       </View>
@@ -302,7 +326,7 @@ export function MomentWaveform({
                     height: `${Math.max(8, Math.round((hasRealWaveform ? peak : 0.16) * 100))}%`,
                     backgroundColor: filled
                       ? index % 3 === 0 ? '#7357C6' : index % 3 === 1 ? '#4A9EAA' : '#D96D63'
-                      : hasRealWaveform ? 'rgba(17,17,17,0.16)' : 'rgba(17,17,17,0.08)',
+                      : hasRealWaveform ? 'rgba(255,250,242,0.2)' : 'rgba(255,250,242,0.1)',
                   },
                 ]}
               />
@@ -310,12 +334,13 @@ export function MomentWaveform({
           })}
         </View>
 
-        {comments.slice(0, 80).map((comment) => {
-          const ts = Number(comment.timestampSeconds || 0);
+        {commentClusters.slice(0, 48).map((cluster) => {
+          const comment = cluster.comments.at(-1)!;
+          const ts = cluster.timestampSeconds;
           const left = Math.max(0, Math.min(100, (ts / safeDuration) * 100));
           return (
             <Pressable
-              key={comment.id}
+              key={cluster.id}
               onPress={() => {
                 setSelectedSecond(ts);
                 setActiveCommentId(comment.id);
@@ -325,6 +350,7 @@ export function MomentWaveform({
               style={[styles.commentMarker, { left: `${left}%` }]}
             >
               <Ionicons name="chatbubble" size={9} color={colors.paper} />
+              {cluster.comments.length > 1 ? <Text style={styles.markerCount}>{cluster.comments.length}</Text> : null}
             </Pressable>
           );
         })}
@@ -443,14 +469,19 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(17,17,17,0.08)',
-    backgroundColor: 'rgba(255,255,255,0.62)',
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#171313',
     padding: spacing.md,
+    shadowColor: '#111111',
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 7,
   },
   cardCompact: { padding: spacing.sm },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  kicker: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
-  title: { marginTop: 2, color: colors.text, fontSize: 15, fontWeight: '900' },
+  kicker: { color: 'rgba(255,250,242,0.48)', fontSize: 9, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
+  title: { marginTop: 2, color: '#FFFAF2', fontSize: 15, fontWeight: '900' },
   statusPill: {
     minHeight: 30,
     borderRadius: radius.pill,
@@ -458,10 +489,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: spacing.sm,
-    backgroundColor: 'rgba(17,17,17,0.055)',
+    backgroundColor: 'rgba(255,250,242,0.1)',
   },
-  statusPillActive: { backgroundColor: colors.black },
-  statusText: { color: colors.textSecondary, fontSize: 10, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  statusPillActive: { backgroundColor: '#7357C6' },
+  statusText: { color: 'rgba(255,250,242,0.7)', fontSize: 10, fontWeight: '900', fontVariant: ['tabular-nums'] },
   statusTextActive: { color: colors.paper },
   waveform: {
     marginTop: spacing.md,
@@ -487,15 +518,18 @@ const styles = StyleSheet.create({
     width: 2,
     marginLeft: -1,
     borderRadius: 2,
-    backgroundColor: colors.black,
+    backgroundColor: '#FFFAF2',
   },
   commentMarker: {
     position: 'absolute',
     top: 4,
-    width: 20,
+    minWidth: 20,
     height: 20,
     marginLeft: -10,
     borderRadius: 10,
+    flexDirection: 'row',
+    gap: 2,
+    paddingHorizontal: 5,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#4A9EAA',
@@ -519,21 +553,21 @@ const styles = StyleSheet.create({
   },
   markerCount: { color: colors.paper, fontSize: 8, fontWeight: '900' },
   timeRow: { marginTop: 2, flexDirection: 'row', justifyContent: 'space-between' },
-  timeText: { color: colors.textTertiary, fontSize: 10, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  timeText: { color: 'rgba(255,250,242,0.52)', fontSize: 10, fontWeight: '900', fontVariant: ['tabular-nums'] },
   momentBubble: {
     marginTop: spacing.sm,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
     borderRadius: radius.md,
-    backgroundColor: 'rgba(17,17,17,0.055)',
+    backgroundColor: 'rgba(255,250,242,0.08)',
     padding: spacing.sm,
   },
-  bubbleMeta: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
-  bubbleText: { marginTop: 2, color: colors.text, fontSize: 12, lineHeight: 17, fontWeight: '800' },
+  bubbleMeta: { color: 'rgba(255,250,242,0.48)', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
+  bubbleText: { marginTop: 2, color: '#FFFAF2', fontSize: 12, lineHeight: 17, fontWeight: '800' },
   tools: { marginTop: spacing.md, gap: spacing.sm },
   toolHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  toolTitle: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
+  toolTitle: { color: 'rgba(255,250,242,0.72)', fontSize: 11, fontWeight: '900' },
   commentButton: {
     minHeight: 32,
     borderRadius: radius.pill,
@@ -541,7 +575,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: spacing.sm,
-    backgroundColor: colors.black,
+    backgroundColor: '#7357C6',
   },
   commentButtonText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
   reactionRail: { gap: 7, paddingRight: spacing.md },
@@ -552,10 +586,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     borderWidth: 1,
-    backgroundColor: colors.paper,
+    backgroundColor: 'rgba(255,250,242,0.08)',
     paddingHorizontal: spacing.sm,
   },
-  reactionText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  reactionText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -590,10 +624,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     borderRadius: radius.md,
-    backgroundColor: 'rgba(17,17,17,0.045)',
+    backgroundColor: 'rgba(255,250,242,0.06)',
     padding: spacing.sm,
   },
-  disabledText: { flex: 1, color: colors.textTertiary, fontSize: 10, lineHeight: 15, fontWeight: '800' },
+  disabledText: { flex: 1, color: 'rgba(255,250,242,0.48)', fontSize: 10, lineHeight: 15, fontWeight: '800' },
   message: { marginTop: spacing.sm, color: colors.danger, fontSize: 11, fontWeight: '800' },
 });
 

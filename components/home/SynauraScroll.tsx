@@ -91,6 +91,32 @@ const RENDER_BUFFER = 5;
 const WHEEL_LOCK_MS = 260;
 const SNAP_SETTLE_MS = 90;
 const AUTOPLAY_DELAY_MS = 110;
+const INITIAL_TRACK_LIMIT = 32;
+const MORE_TRACK_LIMIT = 40;
+const FEED_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+type CachedScrollFeed = {
+  savedAt: number;
+  tracks: ScrollTrack[];
+  nextCursor: number;
+  hasMore: boolean;
+};
+
+function readScrollFeedCache(key: string): CachedScrollFeed | null {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(key) || 'null') as CachedScrollFeed | null;
+    if (!parsed?.savedAt || Date.now() - parsed.savedAt > FEED_CACHE_MAX_AGE_MS || !parsed.tracks?.length) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeScrollFeedCache(key: string, value: CachedScrollFeed) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
 
@@ -312,6 +338,8 @@ export default function SynauraScroll() {
 
   const [loading, setLoading] = useState(true);
   const [baseTracks, setBaseTracks] = useState<ScrollTrack[]>([]);
+  const [trackCursor, setTrackCursor] = useState(0);
+  const [trackHasMore, setTrackHasMore] = useState(true);
   const [baseClips, setBaseClips] = useState<ScrollClip[]>([]);
   const [popularUsersRaw, setPopularUsersRaw] = useState<any[]>([]);
   const [collectionsRaw, setCollectionsRaw] = useState<any[]>([]);
@@ -335,6 +363,7 @@ export default function SynauraScroll() {
   // réponse réseau périmée écraser un chargement plus récent.
   const trackLoadRequestRef = useRef(0);
   const clipLoadRequestRef = useRef(0);
+  const loadingMoreTracksRef = useRef(false);
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const currentId = currentTrack?._id;
@@ -397,18 +426,33 @@ export default function SynauraScroll() {
     setActiveIndex(0);
 
     (async () => {
+      const strategy = STRATEGY_BY_FILTER[filter] || 'reco';
+      const cacheKey = `synaura.scroll.feed.v2:${username || 'anonymous'}:${strategy}`;
+      const cached = readScrollFeedCache(cacheKey);
+      let cacheWasShown = false;
+      if (cached?.tracks.length) {
+        setBaseTracks(cached.tracks);
+        setTrackCursor(cached.nextCursor);
+        setTrackHasMore(cached.hasMore);
+        setLoading(false);
+        cacheWasShown = true;
+      }
       try {
-        setLoading(true);
+        if (!cacheWasShown) setLoading(true);
         setError(null);
-        const strategy = STRATEGY_BY_FILTER[filter] || 'reco';
-        const res = await fetch(`/api/ranking/feed?limit=140&ai=1&strategy=${strategy}`, { cache: 'no-store' });
+        const res = await fetch(`/api/ranking/feed?limit=${INITIAL_TRACK_LIMIT}&ai=1&strategy=${strategy}`, { cache: 'no-store' });
         if (!res.ok) throw new Error('Chargement impossible');
         const json = await res.json();
         const list = applyCdnToTracks((Array.isArray(json?.tracks) ? json.tracks : []) as any) as ScrollTrack[];
         if (!mounted || requestId !== trackLoadRequestRef.current) return;
         setBaseTracks(list);
+        const nextCursor = typeof json?.nextCursor === 'number' ? json.nextCursor : list.length;
+        const hasMore = Boolean(json?.hasMore);
+        setTrackCursor(nextCursor);
+        setTrackHasMore(hasMore);
+        writeScrollFeedCache(cacheKey, { savedAt: Date.now(), tracks: list, nextCursor, hasMore });
       } catch (e: any) {
-        if (mounted && requestId === trackLoadRequestRef.current) setError(e?.message || 'Impossible de charger le scroll');
+        if (mounted && requestId === trackLoadRequestRef.current && !cacheWasShown) setError(e?.message || 'Impossible de charger le scroll');
       } finally {
         if (mounted && requestId === trackLoadRequestRef.current) setLoading(false);
       }
@@ -417,7 +461,7 @@ export default function SynauraScroll() {
     return () => {
       mounted = false;
     };
-  }, [filter, needsTrackFetch, reloadKey]);
+  }, [filter, needsTrackFetch, reloadKey, username]);
 
   useEffect(() => {
     if (!(filter === 'clips' || filter === 'foryou' || filter === 'new')) return;
@@ -532,6 +576,35 @@ export default function SynauraScroll() {
       announcement: announcement?.item || null,
     });
   }, [filter, baseTracks, baseClips, popularUsersRaw, collectionsRaw, cityEventsRaw, musicChallengesRaw]);
+
+  // Le premier rendu reste petit et rapide; la suite arrive avant que l'auditeur
+  // atteigne la fin, sans reconstruire les cartes deja visibles.
+  useEffect(() => {
+    if (!needsTrackFetch || loading || loadingMoreTracksRef.current || !trackHasMore || !feedItems.length) return;
+    if (activeIndex < feedItems.length - 8) return;
+    let mounted = true;
+    const strategy = STRATEGY_BY_FILTER[filter] || 'reco';
+    loadingMoreTracksRef.current = true;
+    fetch(`/api/ranking/feed?limit=${MORE_TRACK_LIMIT}&ai=1&strategy=${strategy}&cursor=${trackCursor}`, { cache: 'no-store' })
+      .then((response) => response.json().then((json) => ({ ok: response.ok, json })))
+      .then(({ ok, json }) => {
+        if (!mounted || !ok) return;
+        const incoming = applyCdnToTracks((Array.isArray(json?.tracks) ? json.tracks : []) as any) as ScrollTrack[];
+        setBaseTracks((current) => {
+          const seen = new Set(current.map((track) => track._id));
+          return [...current, ...incoming.filter((track) => !seen.has(track._id))];
+        });
+        setTrackCursor(typeof json?.nextCursor === 'number' ? json.nextCursor : trackCursor + incoming.length);
+        setTrackHasMore(Boolean(json?.hasMore));
+      })
+      .catch(() => {})
+      .finally(() => {
+        loadingMoreTracksRef.current = false;
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [activeIndex, feedItems.length, filter, loading, needsTrackFetch, trackCursor, trackHasMore]);
 
   // File de lecture : uniquement les entrées réellement jouables (morceau ou artiste en vedette),
   // dans le même ordre que le feed affiché, pour que suivant/précédent restent cohérents.

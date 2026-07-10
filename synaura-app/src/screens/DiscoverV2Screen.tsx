@@ -98,15 +98,12 @@ export function DiscoverV2Screen() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    // Chaque section apparait des qu'elle est prete; le Radar ne reste plus
+    // bloque par la requete home ou les collections editoriales.
+    void getHomeData().then(setHome).catch(() => {});
+    void getEditorialCollections().then(setCollections).catch(() => {});
     try {
-      const [homeResult, radarResult, collectionsResult] = await Promise.all([
-        getHomeData(),
-        getDiscoverRadar(16),
-        getEditorialCollections(),
-      ]);
-      setHome(homeResult);
-      setRadar(radarResult);
-      setCollections(collectionsResult);
+      setRadar(await getDiscoverRadar(16));
     } finally {
       setLoading(false);
     }

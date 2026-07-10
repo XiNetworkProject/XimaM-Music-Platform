@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { buildShareCardImageUrl, buildShareUrls, SHARE_CARD_FORMATS, shareTrackToFeed, type ShareCardFormatId } from '@/api/client';
@@ -101,7 +102,15 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
       if (!result?.uri) throw new Error('Image introuvable');
       showToast('Carte prete a partager');
       onShared?.(trackId, 'mobile-share-card-image');
-      await Share.share({ url: result.uri, message: cardShareText || shareText, title: track?.title || 'Synaura' });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(result.uri, {
+          mimeType: 'image/png',
+          dialogTitle: `Partager ${track?.title || 'ce son'} avec Synaura`,
+          UTI: 'public.png',
+        });
+      } else {
+        await Share.share({ url: result.uri, message: cardShareText || shareText, title: track?.title || 'Synaura' });
+      }
     } catch {
       showToast('Image impossible a telecharger');
     } finally {
@@ -213,11 +222,11 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
             <View style={styles.cardActionRow}>
               <Pressable accessibilityLabel="Telecharger l'image de partage" disabled={imageDownloading || !cardImageUrl} onPress={() => void downloadShareCard()} style={[styles.cardAction, (imageDownloading || !cardImageUrl) && styles.cardActionDisabled]}>
                 {imageDownloading ? <ActivityIndicator color="#171313" /> : <Ionicons name="download-outline" size={16} color="#171313" />}
-                <Text style={styles.cardActionText}>Telecharger l'image</Text>
+                <Text style={styles.cardActionText}>Partager l'image</Text>
               </Pressable>
               <Pressable accessibilityLabel="Copier le lien de la carte" onPress={() => void copyValue(cardImageUrl, 'Image')} style={styles.cardGhostAction}>
                 <Ionicons name="copy-outline" size={15} color="#FFFAF2" />
-                <Text style={styles.cardGhostActionText}>Copier l'image</Text>
+                <Text style={styles.cardGhostActionText}>Copier le lien image</Text>
               </Pressable>
             </View>
           </View>

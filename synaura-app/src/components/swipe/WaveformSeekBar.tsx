@@ -76,12 +76,18 @@ function samplePeaks(peaks: number[], targetCount: number) {
 
 const CLUSTER_WINDOW_SECONDS = 4;
 
-function clusterReactions(reactions: MomentReaction[]): MomentReactionCluster[] {
+type CommentCluster = {
+  id: string;
+  timestampSeconds: number;
+  comments: HomeComment[];
+};
+
+function clusterReactions(reactions: MomentReaction[], windowSeconds = CLUSTER_WINDOW_SECONDS): MomentReactionCluster[] {
   const sorted = [...reactions].sort((a, b) => a.timestampSeconds - b.timestampSeconds);
   const clusters: MomentReactionCluster[] = [];
   sorted.forEach((reaction) => {
     const last = clusters[clusters.length - 1];
-    if (last && reaction.timestampSeconds - last.timestampSeconds <= CLUSTER_WINDOW_SECONDS) {
+    if (last && reaction.timestampSeconds - last.timestampSeconds <= windowSeconds) {
       last.total += 1;
       last.byType[reaction.reactionType] = (last.byType[reaction.reactionType] || 0) + 1;
       const top = Object.entries(last.byType).sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))[0]?.[0] as MomentReactionType | undefined;
@@ -93,12 +99,28 @@ function clusterReactions(reactions: MomentReaction[]): MomentReactionCluster[] 
   return clusters;
 }
 
+function clusterComments(comments: HomeComment[], windowSeconds: number): CommentCluster[] {
+  const sorted = [...comments].sort((a, b) => Number(a.timestampSeconds || 0) - Number(b.timestampSeconds || 0));
+  const clusters: CommentCluster[] = [];
+  sorted.forEach((comment) => {
+    const timestampSeconds = Number(comment.timestampSeconds || 0);
+    const last = clusters[clusters.length - 1];
+    if (last && timestampSeconds - last.timestampSeconds <= windowSeconds) {
+      last.comments.push(comment);
+      last.timestampSeconds = last.comments.reduce((sum, item) => sum + Number(item.timestampSeconds || 0), 0) / last.comments.length;
+      return;
+    }
+    clusters.push({ id: `comments-${comment.id}`, timestampSeconds, comments: [comment] });
+  });
+  return clusters;
+}
+
 function reactionMeta(type: MomentReactionType) {
   return MOMENT_REACTIONS.find((reaction) => reaction.type === type) || MOMENT_REACTIONS[0];
 }
 
 type Marker =
-  | { kind: 'comment'; id: string; timestampSeconds: number; comment: HomeComment }
+  | { kind: 'comments'; id: string; timestampSeconds: number; cluster: CommentCluster }
   | { kind: 'cluster'; id: string; timestampSeconds: number; cluster: MomentReactionCluster };
 
 // Rayon de détection tactile autour d'un marqueur (bien plus large que le
@@ -171,13 +193,18 @@ export function WaveformSeekBar({
   const progress = Math.max(0, Math.min(1, visiblePos / safeDuration));
 
   const bars = useMemo(() => (moments?.peaks ? samplePeaks(moments.peaks, barCount) : []), [barCount, moments?.peaks]);
-  const comments = showMoments ? (moments?.comments || []).slice(0, 40) : [];
-  const clusters = useMemo(() => (showMoments ? clusterReactions(moments?.reactions || []).slice(0, 40) : []), [showMoments, moments?.reactions]);
+  const comments = showMoments ? (moments?.comments || []).slice(0, 120) : [];
+  const clusterWindow = Math.min(8, Math.max(2.5, safeDuration * 14 / Math.max(240, width || 320)));
+  const commentClusters = useMemo(() => clusterComments(comments, clusterWindow).slice(0, 48), [clusterWindow, comments]);
+  const clusters = useMemo(
+    () => (showMoments ? clusterReactions(moments?.reactions || [], clusterWindow).slice(0, 48) : []),
+    [clusterWindow, showMoments, moments?.reactions],
+  );
 
   const markers = useMemo<Marker[]>(() => [
-    ...comments.map((comment): Marker => ({ kind: 'comment', id: `c-${comment.id}`, timestampSeconds: Number(comment.timestampSeconds || 0), comment })),
+    ...commentClusters.map((cluster): Marker => ({ kind: 'comments', id: cluster.id, timestampSeconds: cluster.timestampSeconds, cluster })),
     ...clusters.map((cluster): Marker => ({ kind: 'cluster', id: cluster.id, timestampSeconds: cluster.timestampSeconds, cluster })),
-  ], [comments, clusters]);
+  ], [commentClusters, clusters]);
 
   const activeMarker = activeMarkerId ? markers.find((m) => m.id === activeMarkerId) || null : null;
   const momentsCount = comments.length + (moments?.reactions.length || 0);
@@ -309,7 +336,7 @@ export function WaveformSeekBar({
       <View
         {...panResponder.panHandlers}
         onLayout={(event) => setWidth(Math.max(1, event.nativeEvent.layout.width))}
-        style={[styles.waveZone, immersive && styles.waveZoneImmersive, { height }]}
+        style={[styles.waveZone, immersive ? styles.waveZoneImmersive : styles.waveZoneDefault, { height }]}
       >
         {immersive ? <View pointerEvents="none" style={styles.waveAxis} /> : null}
         <View style={styles.bars} pointerEvents="none">
@@ -319,7 +346,7 @@ export function WaveformSeekBar({
               <View key={index} style={[styles.barSlot]}>
                 {filled ? (
                   <LinearGradient
-                    colors={['#7357C6', '#4A9EAA']}
+                    colors={immersive ? ['#7357C6', '#4A9EAA'] : ['#FFFAF2', '#B9A9E5']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 0, y: 1 }}
                     style={[styles.bar, { height: `${Math.max(10, Math.round(peak * 100))}%` }]}
@@ -332,13 +359,14 @@ export function WaveformSeekBar({
           })}
         </View>
 
-        {comments.map((comment) => {
-          const ts = Number(comment.timestampSeconds || 0);
+        {commentClusters.map((cluster) => {
+          const ts = cluster.timestampSeconds;
           const left = Math.max(0, Math.min(100, (ts / safeDuration) * 100));
-          const id = `c-${comment.id}`;
+          const id = cluster.id;
           return (
             <View key={id} pointerEvents="none" style={[styles.commentMarker, { left: `${left}%` }, activeMarkerId === id && styles.markerActive]}>
               <Ionicons name="chatbubble" size={8} color="#FFFAF2" />
+              {cluster.comments.length > 1 ? <Text style={styles.markerCount}>{cluster.comments.length}</Text> : null}
             </View>
           );
         })}
@@ -352,6 +380,7 @@ export function WaveformSeekBar({
               style={[styles.reactionMarker, { left: `${left}%`, backgroundColor: meta.color }, activeMarkerId === cluster.id && styles.markerActive]}
             >
               <Ionicons name={meta.icon} size={8} color="#FFFAF2" />
+              {cluster.total > 1 ? <Text style={styles.markerCount}>{cluster.total}</Text> : null}
             </View>
           );
         })}
@@ -365,11 +394,9 @@ export function WaveformSeekBar({
           </View>
         ) : null}
 
-        {immersive ? (
-          <View pointerEvents="none" style={[styles.playhead, { left: `${progress * 100}%` }]}>
-            <View style={styles.playheadCap} />
-          </View>
-        ) : null}
+        <View pointerEvents="none" style={[styles.playhead, !immersive && styles.playheadCompact, { left: `${progress * 100}%` }]}>
+          {immersive ? <View style={styles.playheadCap} /> : null}
+        </View>
       </View>
 
       {showTimes ? (
@@ -383,8 +410,9 @@ export function WaveformSeekBar({
 }
 
 function MarkerBubble({ marker, width, onClose }: { marker: Marker; width: number; onClose: () => void }) {
-  if (marker.kind === 'comment') {
-    const { comment } = marker;
+  if (marker.kind === 'comments') {
+    const { cluster } = marker;
+    const comment = cluster.comments.at(-1)!;
     return (
       <View style={[styles.bubbleCard, { maxWidth: Math.max(200, width - 16) }]}>
         <View style={styles.bubbleAvatar}>
@@ -396,7 +424,7 @@ function MarkerBubble({ marker, width, onClose }: { marker: Marker; width: numbe
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.bubbleMeta} numberOfLines={1}>
-            {comment.user.name} · {fmtTime(Number(comment.timestampSeconds || 0))}
+            {cluster.comments.length > 1 ? `${cluster.comments.length} commentaires` : comment.user.name} · {fmtTime(cluster.timestampSeconds)}
           </Text>
           <Text style={styles.bubbleText2} numberOfLines={2}>{comment.content}</Text>
         </View>
@@ -434,6 +462,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     borderRadius: 12,
     backgroundColor: 'rgba(255,250,242,0.055)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,250,242,0.1)',
+  },
+  waveZoneDefault: {
+    paddingHorizontal: 5,
+    borderRadius: 10,
+    backgroundColor: 'rgba(10,8,8,0.28)',
     borderWidth: 1,
     borderColor: 'rgba(255,250,242,0.1)',
   },
@@ -500,10 +535,13 @@ const styles = StyleSheet.create({
   commentMarker: {
     position: 'absolute',
     top: 2,
-    width: 15,
-    height: 15,
-    marginLeft: -7.5,
-    borderRadius: 8,
+    minWidth: 18,
+    height: 18,
+    marginLeft: -9,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    flexDirection: 'row',
+    gap: 2,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#4A9EAA',
@@ -513,10 +551,13 @@ const styles = StyleSheet.create({
   reactionMarker: {
     position: 'absolute',
     bottom: 2,
-    width: 15,
-    height: 15,
-    marginLeft: -7.5,
-    borderRadius: 8,
+    minWidth: 18,
+    height: 18,
+    marginLeft: -9,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    flexDirection: 'row',
+    gap: 2,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
@@ -525,6 +566,7 @@ const styles = StyleSheet.create({
   markerActive: {
     transform: [{ scale: 1.35 }],
   },
+  markerCount: { color: '#FFFAF2', fontSize: 7, fontWeight: '900', fontVariant: ['tabular-nums'] },
   playhead: {
     position: 'absolute',
     top: -3,
@@ -538,6 +580,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
+  playheadCompact: { top: 1, bottom: 1, backgroundColor: 'rgba(255,250,242,0.88)' },
   playheadCap: {
     position: 'absolute',
     top: -2,

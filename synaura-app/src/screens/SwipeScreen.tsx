@@ -35,6 +35,7 @@ import type { MusicClip, Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
+import { readRankingFeedCache, writeRankingFeedCache } from '@/feed/rankingFeedCache';
 import { openClipComposerForSound } from '@/navigation/clipEntry';
 import { AnnouncementSlide } from '@/components/swipe/AnnouncementSlide';
 import { ArtistSpotlightSlide } from '@/components/swipe/ArtistSpotlightSlide';
@@ -228,27 +229,46 @@ export function SwipeScreen() {
     }
 
     const seedForReco = feedMode === 'reco' ? currentSeedGenre : null;
+    const userId = auth.user?.id || null;
 
-      Promise.all([
-        fetchRankingFeedChunk(feedMode, 0, seedForReco),
-        getMusicClips({ limit: 20 }).catch(() => ({ clips: [], nextCursor: 0, hasMore: false })),
-      ])
-        .then(([chunk, clipsChunk]) => {
-          if (cancelled || reqId !== lastRequestRef.current) return;
-          const feedTracks = withoutObsoleteRadios(chunk.tracks);
-          const merged = uniqueTracks(player.current?.audioUrl
-            ? [ ...(player.current._id.startsWith('radio-') ? [] : [player.current]), ...feedTracks ]
-            : feedTracks);
-          setTracks(merged);
-          setClips(clipsChunk.clips);
-          setCursor(chunk.nextCursor);
-          setHasMore(chunk.hasMore);
-          setLoadState(merged.length ? 'ready' : 'error');
+    // Les clips enrichissent le Scroll mais ne bloquent jamais le premier son.
+    void getMusicClips({ limit: 20 })
+      .then((chunk) => {
+        if (!cancelled && reqId === lastRequestRef.current) setClips(chunk.clips);
       })
-      .catch(() => {
+      .catch(() => {});
+
+    void (async () => {
+      let cacheWasShown = false;
+      const cached = await readRankingFeedCache(feedMode, seedForReco, userId);
+      if (!cancelled && reqId === lastRequestRef.current && cached?.tracks.length) {
+        const cachedTracks = withoutObsoleteRadios(cached.tracks);
+        const merged = uniqueTracks(player.current?.audioUrl
+          ? [...(player.current._id.startsWith('radio-') ? [] : [player.current]), ...cachedTracks]
+          : cachedTracks);
+        setTracks(merged);
+        setCursor(cached.nextCursor);
+        setHasMore(cached.hasMore);
+        setLoadState(merged.length ? 'ready' : 'loading');
+        cacheWasShown = merged.length > 0;
+      }
+
+      try {
+        const chunk = await fetchRankingFeedChunk(feedMode, 0, seedForReco);
         if (cancelled || reqId !== lastRequestRef.current) return;
-        setLoadState('error');
-      });
+        const feedTracks = withoutObsoleteRadios(chunk.tracks);
+        const merged = uniqueTracks(player.current?.audioUrl
+          ? [...(player.current._id.startsWith('radio-') ? [] : [player.current]), ...feedTracks]
+          : feedTracks);
+        setTracks(merged);
+        setCursor(chunk.nextCursor);
+        setHasMore(chunk.hasMore);
+        setLoadState(merged.length ? 'ready' : cacheWasShown ? 'ready' : 'error');
+        void writeRankingFeedCache(feedMode, seedForReco, chunk, userId);
+      } catch {
+        if (!cancelled && reqId === lastRequestRef.current && !cacheWasShown) setLoadState('error');
+      }
+    })();
 
     return () => {
       cancelled = true;

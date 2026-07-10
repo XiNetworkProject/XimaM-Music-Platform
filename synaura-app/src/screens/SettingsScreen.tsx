@@ -49,6 +49,21 @@ const allLegalDocuments = [
   { label: 'Conformité RGPD', description: 'Droits, délais, sécurité et réclamations', path: '/legal/rgpd', icon: 'people-outline' },
 ] as const;
 const legalDocuments = allLegalDocuments.filter((document) => SHOW_SHUTDOWN_NOTICES || document.path !== '/fermeture');
+const NOTIFICATION_LABELS: Record<string, string> = {
+  push_enabled: 'Notifications push',
+  email_enabled: 'Notifications par email',
+  in_app_enabled: "Centre de notifications dans l'app",
+  new_follower: 'Nouveaux abonnements',
+  new_like: 'Nouveaux likes',
+  like_milestone: 'Paliers de likes',
+  new_comment: 'Nouveaux commentaires',
+  new_message: 'Nouveaux messages',
+  new_track_followed: 'Sorties des artistes suivis',
+  view_milestone: "Paliers d'ecoutes",
+  boost_reminder: 'Rappels de boost',
+  admin_broadcast: 'Annonces Synaura',
+  weekly_recap: 'Recap hebdomadaire',
+};
 
 export function SettingsScreen() {
   const auth = useAuth();
@@ -306,9 +321,15 @@ export function SettingsScreen() {
               label="Push appareil"
               value={mobileSettings.settings.pushDevice}
               onValueChange={(value) => {
-                void mobileSettings.updateSettings({ pushDevice: value });
-                if (value) void nativePush.enable();
-                else void nativePush.disable();
+                void (async () => {
+                  if (value) {
+                    const enabled = await nativePush.enable();
+                    await mobileSettings.updateSettings({ pushDevice: enabled });
+                  } else {
+                    await nativePush.disable();
+                    await mobileSettings.updateSettings({ pushDevice: false });
+                  }
+                })();
               }}
             />
             <Toggle label="Reduire les animations" value={mobileSettings.settings.reducedMotion} onValueChange={(value) => void mobileSettings.updateSettings({ reducedMotion: value })} />
@@ -337,7 +358,7 @@ export function SettingsScreen() {
               </View>
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Pressable onPress={() => void nativePush.enable()} style={[styles.secondary, { flex: 1 }]}>
+              <Pressable onPress={() => void nativePush.enable().then((enabled) => mobileSettings.updateSettings({ pushDevice: enabled }))} style={[styles.secondary, { flex: 1 }]}>
                 <Text style={styles.secondaryText}>Activer</Text>
               </Pressable>
               <Pressable onPress={() => void nativePush.sendTest()} style={[styles.primary, { flex: 1 }]}>
@@ -348,10 +369,10 @@ export function SettingsScreen() {
             {notif ? (
               <>
                 <Text style={styles.groupTitle}>Canaux</Text>
-                {['push_enabled', 'email_enabled'].map((key) => key in notif ? <Toggle key={key} label={key.replace(/_/g, ' ')} value={Boolean((notif as any)[key])} onValueChange={(next) => void patchNotif({ [key]: next } as Partial<NotificationPrefs>)} /> : null)}
+                {['push_enabled', 'email_enabled'].map((key) => key in notif ? <Toggle key={key} label={NOTIFICATION_LABELS[key] || key} value={Boolean((notif as any)[key])} onValueChange={(next) => void patchNotif({ [key]: next } as Partial<NotificationPrefs>)} /> : null)}
                 <Text style={styles.groupTitle}>Social & musique</Text>
                 {Object.entries(notif).filter(([key, value]) => typeof value === 'boolean' && !['push_enabled', 'email_enabled'].includes(key)).map(([key, value]) => (
-                  <Toggle key={key} label={key.replace(/_/g, ' ')} value={Boolean(value)} onValueChange={(next) => void patchNotif({ [key]: next } as Partial<NotificationPrefs>)} />
+                  <Toggle key={key} label={NOTIFICATION_LABELS[key] || key.replace(/_/g, ' ')} value={Boolean(value)} onValueChange={(next) => void patchNotif({ [key]: next } as Partial<NotificationPrefs>)} />
                 ))}
               </>
             ) : <Text style={styles.muted}>Chargement des preferences...</Text>}

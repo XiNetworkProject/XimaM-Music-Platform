@@ -1,4 +1,18 @@
-import React, { createContext, useCallback, useContext, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+import * as Application from 'expo-application';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+import {
+  registerNativePushToken,
+  sendNativePushTest,
+  unregisterNativePushToken,
+} from '@/api/client';
+import { useAuth } from '@/auth/AuthProvider';
+import { openInternalLink } from '@/navigation/internalLinks';
+import { navigationRef } from '@/navigation/navigationRef';
 
 export type NativePushStatus = 'disabled' | 'requesting' | 'ready' | 'denied' | 'unsupported' | 'error';
 
@@ -11,29 +25,160 @@ type NativeNotificationsContextValue = {
   sendTest: () => Promise<void>;
 };
 
-const STARTUP_SAFE_MESSAGE = 'Notifications natives mises en pause dans ce correctif de lancement.';
-
+const TOKEN_KEY = 'synaura.native.push.token.v1';
+const CHANNEL_ID = 'synaura-activity';
 const NativeNotificationsContext = createContext<NativeNotificationsContextValue | null>(null);
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+
+async function configureAndroidChannel() {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+    name: 'Activite Synaura',
+    description: 'Commentaires, reactions, abonnements et sorties musicales',
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: 'default',
+    vibrationPattern: [0, 180, 90, 180],
+    lightColor: '#7357C6',
+  });
+}
+
+function projectId() {
+  return Constants.easConfig?.projectId || (Constants.expoConfig?.extra?.eas?.projectId as string | undefined);
+}
+
+function openNotificationResponse(response: Notifications.NotificationResponse | null) {
+  const url = response?.notification.request.content.data?.url;
+  if (typeof url !== 'string' || !url) return;
+  const open = () => {
+    if (!navigationRef.isReady()) {
+      setTimeout(open, 350);
+      return;
+    }
+    void openInternalLink(navigationRef as any, url);
+  };
+  open();
+}
+
 export function NativeNotificationsProvider({ children }: { children: React.ReactNode }) {
-  const enable = useCallback(async () => false, []);
-  const disable = useCallback(async () => {}, []);
-  const sendTest = useCallback(async () => {}, []);
+  const auth = useAuth();
+  const [status, setStatus] = useState<NativePushStatus>('disabled');
+  const [error, setError] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+
+  const enable = useCallback(async () => {
+    if (!auth.token || !auth.user) {
+      setStatus('error');
+      setError('Connecte-toi pour activer les notifications sur ce telephone.');
+      return false;
+    }
+    if (!Device.isDevice) {
+      setStatus('unsupported');
+      setError('Les notifications push necessitent un telephone physique.');
+      return false;
+    }
+
+    setStatus('requesting');
+    setError(null);
+    try {
+      await configureAndroidChannel();
+      let permission = await Notifications.getPermissionsAsync();
+      if (permission.status !== 'granted') permission = await Notifications.requestPermissionsAsync();
+      if (permission.status !== 'granted') {
+        setStatus('denied');
+        setError('Autorisation refusee. Tu peux la reactiver dans les reglages Android.');
+        return false;
+      }
+
+      const id = projectId();
+      if (!id) throw new Error('Projet Expo non configure');
+      const result = await Notifications.getExpoPushTokenAsync({ projectId: id });
+      await registerNativePushToken({
+        token: result.data,
+        platform: Platform.OS,
+        deviceName: Device.deviceName,
+        appVersion: Application.nativeApplicationVersion,
+      });
+      await AsyncStorage.setItem(TOKEN_KEY, result.data);
+      setToken(result.data);
+      setStatus('ready');
+      return true;
+    } catch (cause) {
+      setStatus('error');
+      setError(cause instanceof Error ? cause.message : 'Activation push impossible.');
+      return false;
+    }
+  }, [auth.token, auth.user]);
+
+  const disable = useCallback(async () => {
+    const stored = token || await AsyncStorage.getItem(TOKEN_KEY);
+    if (stored && auth.token) await unregisterNativePushToken(stored).catch(() => {});
+    await AsyncStorage.removeItem(TOKEN_KEY);
+    setToken(null);
+    setStatus('disabled');
+    setError(null);
+  }, [auth.token, token]);
+
+  const sendTest = useCallback(async () => {
+    const ready = status === 'ready' || await enable();
+    if (!ready) return;
+    try {
+      await sendNativePushTest();
+      setError('Notification de test envoyee.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Test push impossible.');
+    }
+  }, [enable, status]);
+
+  useEffect(() => {
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(openNotificationResponse);
+    void Notifications.getLastNotificationResponseAsync().then(openNotificationResponse).catch(() => {});
+    return () => responseSubscription.remove();
+  }, []);
+
+  useEffect(() => {
+    if (auth.loading) return;
+    if (!auth.token) {
+      setToken(null);
+      setStatus('disabled');
+      return;
+    }
+    void AsyncStorage.getItem(TOKEN_KEY).then(async (stored) => {
+      if (!stored) return;
+      setToken(stored);
+      try {
+        await configureAndroidChannel();
+        await registerNativePushToken({
+          token: stored,
+          platform: Platform.OS,
+          deviceName: Device.deviceName,
+          appVersion: Application.nativeApplicationVersion,
+        });
+        setStatus('ready');
+      } catch {
+        setStatus('error');
+        setError('Le telephone doit etre reconnecte aux notifications.');
+      }
+    });
+  }, [auth.loading, auth.token]);
 
   const value = useMemo<NativeNotificationsContextValue>(() => ({
-    status: 'disabled',
-    error: STARTUP_SAFE_MESSAGE,
-    token: null,
+    status,
+    error,
+    token,
     enable,
     disable,
     sendTest,
-  }), [disable, enable, sendTest]);
+  }), [disable, enable, error, sendTest, status, token]);
 
-  return (
-    <NativeNotificationsContext.Provider value={value}>
-      {children}
-    </NativeNotificationsContext.Provider>
-  );
+  return <NativeNotificationsContext.Provider value={value}>{children}</NativeNotificationsContext.Provider>;
 }
 
 export function useNativeNotifications() {

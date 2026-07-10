@@ -52,7 +52,11 @@ export function LoginScreen() {
       navigation.navigate('Onboarding', { returnTo });
       return;
     }
-    returnToApp();
+    if (returnTo?.screen) {
+      navigation.reset({ index: 0, routes: [{ name: 'Tabs', params: { screen: returnTo.screen, params: returnTo.params } }] });
+      return;
+    }
+    navigation.reset({ index: 0, routes: [{ name: 'Tabs', params: { screen: 'Swipe' } }] });
   };
 
   const submit = async () => {
