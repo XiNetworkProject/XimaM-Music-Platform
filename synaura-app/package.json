@@ -1,6 +1,6 @@
 {
   "name": "synaura-app",
-  "version": "0.9.14",
+  "version": "0.9.17",
   "private": true,
   "main": "index.ts",
   "scripts": {

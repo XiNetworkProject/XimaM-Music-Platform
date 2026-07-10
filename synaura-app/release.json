@@ -1,11 +1,11 @@
 {
-  "title": "Synaura mobile 0.9.16",
+  "title": "Synaura mobile 0.9.17",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Waveform : les marqueurs commentaires/reactions sont enfin visibles et cliquables (avant : quasi invisibles, non tactiles)",
-    "Waveform : tape un marqueur pour voir qui a reagi ou commente, avec seek direct vers ce moment",
-    "Lecture en cours : refonte du lecteur plein ecran avec la vraie waveform du morceau",
-    "Partage : genere une carte visuelle premium (Story, Carre, Banniere) pour chaque morceau"
+    "Synaura Moments : nouvelle timeline immersive dans le lecteur plein ecran",
+    "Waveform : exploration precise avec tete de lecture, temps restant et retour haptique",
+    "Moments : commentaires et reactions accessibles directement depuis leurs marqueurs",
+    "Moments : ajoute une reaction ou un commentaire au passage exact que tu ecoutes"
   ]
 }

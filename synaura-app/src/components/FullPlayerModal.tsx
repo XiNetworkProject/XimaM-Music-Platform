@@ -217,9 +217,10 @@ export function FullPlayerModal({ visible, onClose }: Props) {
     });
   }, [canRemixCurrent, navigation, onClose, track]);
 
-  const openMomentSheet = useCallback(() => {
+  const openMomentSheet = useCallback((seconds?: number) => {
     if (!canInteract) return;
-    setMomentTs(Math.max(0, Math.round(progress.positionSec || 0)));
+    const target = typeof seconds === 'number' ? seconds : progress.positionSec;
+    setMomentTs(Math.max(0, Math.round(target || 0)));
     setMomentOpen(true);
     Haptics.selectionAsync().catch(() => {});
   }, [canInteract, progress.positionSec]);
@@ -340,8 +341,10 @@ export function FullPlayerModal({ visible, onClose }: Props) {
                     duration={progress.durationSec || track.duration || 0}
                     onSeek={(seconds) => void player.seekTo(seconds)}
                     showMoments={canInteract}
-                    height={40}
+                    height={48}
                     barCount={52}
+                    immersive
+                    onCreateMoment={canInteract ? openMomentSheet : undefined}
                     style={styles.waveInner}
                   />
                 </View>
@@ -392,12 +395,6 @@ export function FullPlayerModal({ visible, onClose }: Props) {
                     <Text style={[styles.followText, following && styles.followTextDone]}>
                       {following ? 'Suivi' : 'Suivre'}
                     </Text>
-                  </Pressable>
-                ) : null}
-                {canInteract ? (
-                  <Pressable accessibilityLabel="Réagir à ce moment" onPress={openMomentSheet} style={styles.momentBtn}>
-                    <Ionicons name="pulse" size={13} color="#FFFAF2" />
-                    <Text style={styles.momentBtnText}>{fmtTime(progress.positionSec)}</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -725,9 +722,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingTop: 26,
+    paddingTop: 52,
   },
-  waveInner: { paddingHorizontal: 14, paddingBottom: 10 },
+  waveInner: { paddingHorizontal: 14, paddingBottom: 12 },
   liveOverlay: {
     position: 'absolute',
     left: 14,
@@ -793,16 +790,6 @@ const styles = StyleSheet.create({
   followBtnDone: { backgroundColor: '#171313', borderColor: 'transparent' },
   followText: { color: '#171313', fontSize: 11, fontWeight: '900', letterSpacing: 0.6 },
   followTextDone: { color: '#FFFAF2' },
-  momentBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: '#7357C6',
-  },
-  momentBtnText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900', fontVariant: ['tabular-nums'] },
   controls: {
     marginTop: 16,
     flexDirection: 'row',

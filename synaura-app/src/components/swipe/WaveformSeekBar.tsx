@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GestureResponderEvent, Image, PanResponder, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { GestureResponderEvent, Image, PanResponder, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getMomentReactions, getTimestampedComments, getTrackWaveform } from '@/api/client';
 import type { HomeComment, MomentReaction, MomentReactionCluster, MomentReactionType } from '@/api/types';
@@ -116,6 +117,10 @@ type Props = {
   height?: number;
   showTimes?: boolean;
   barCount?: number;
+  /** Experience enrichie du lecteur plein ecran. */
+  immersive?: boolean;
+  /** Ouvre la creation d'un moment a la position courante. */
+  onCreateMoment?: (seconds: number) => void;
   style?: ViewStyle;
 };
 
@@ -128,6 +133,8 @@ export function WaveformSeekBar({
   height = 44,
   showTimes = true,
   barCount = 56,
+  immersive = false,
+  onCreateMoment,
   style,
 }: Props) {
   const [width, setWidth] = useState(0);
@@ -137,6 +144,7 @@ export function WaveformSeekBar({
   const draggingRef = useRef<number | null>(null);
   const pressedMarkerRef = useRef<Marker | null>(null);
   const pressStartXRef = useRef(0);
+  const lastHapticBucketRef = useRef(-1);
 
   useEffect(() => {
     let mounted = true;
@@ -172,6 +180,7 @@ export function WaveformSeekBar({
   ], [comments, clusters]);
 
   const activeMarker = activeMarkerId ? markers.find((m) => m.id === activeMarkerId) || null : null;
+  const momentsCount = comments.length + (moments?.reactions.length || 0);
 
   const findNearbyMarker = useCallback((x: number): Marker | null => {
     if (width <= 0 || !markers.length) return null;
@@ -189,6 +198,13 @@ export function WaveformSeekBar({
   }, [markers, safeDuration, width]);
 
   const secondFromX = useCallback((x: number) => (width > 0 ? (Math.max(0, Math.min(width, x)) / width) * safeDuration : 0), [safeDuration, width]);
+
+  const pulseWhileScrubbing = useCallback((seconds: number) => {
+    const bucket = Math.floor(seconds / 8);
+    if (bucket === lastHapticBucketRef.current) return;
+    lastHapticBucketRef.current = bucket;
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
 
   const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -208,6 +224,8 @@ export function WaveformSeekBar({
       const next = secondFromX(x);
       draggingRef.current = next;
       setDraggingValue(next);
+      setActiveMarkerId(null);
+      pulseWhileScrubbing(next);
     },
     onPanResponderMove: (event: GestureResponderEvent) => {
       const x = event.nativeEvent.locationX;
@@ -218,6 +236,7 @@ export function WaveformSeekBar({
       const next = secondFromX(x);
       draggingRef.current = next;
       setDraggingValue(next);
+      pulseWhileScrubbing(next);
     },
     onPanResponderRelease: () => {
       if (pressedMarkerRef.current) {
@@ -225,24 +244,56 @@ export function WaveformSeekBar({
         pressedMarkerRef.current = null;
         setActiveMarkerId((current) => (current === marker.id ? null : marker.id));
         onSeek(marker.timestampSeconds);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         return;
       }
-      if (draggingRef.current != null) onSeek(draggingRef.current);
+      if (draggingRef.current != null) {
+        onSeek(draggingRef.current);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      }
       draggingRef.current = null;
+      lastHapticBucketRef.current = -1;
       setDraggingValue(null);
     },
     onPanResponderTerminate: () => {
       pressedMarkerRef.current = null;
       draggingRef.current = null;
+      lastHapticBucketRef.current = -1;
       setDraggingValue(null);
     },
-  }), [findNearbyMarker, onSeek, secondFromX]);
+  }), [findNearbyMarker, onSeek, pulseWhileScrubbing, secondFromX]);
+
+  const immersiveHeader = immersive ? (
+    <View style={styles.immersiveHeader}>
+      <View style={styles.immersiveIdentity}>
+        <View style={styles.identityIcon}>
+          <Ionicons name="pulse" size={12} color="#FFFAF2" />
+        </View>
+        <Text style={styles.identityLabel}>SYNAURA MOMENTS</Text>
+        {momentsCount > 0 ? <Text style={styles.momentCount}>{momentsCount}</Text> : null}
+      </View>
+      {onCreateMoment ? (
+        <Pressable
+          accessibilityLabel={`Reagir a ${fmtTime(visiblePos)}`}
+          onPress={() => {
+            Haptics.selectionAsync().catch(() => {});
+            onCreateMoment(visiblePos);
+          }}
+          style={({ pressed }) => [styles.createMomentButton, pressed && styles.createMomentButtonPressed]}
+        >
+          <Ionicons name="add" size={14} color="#FFFAF2" />
+          <Text style={styles.createMomentText}>Reagir</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  ) : null;
 
   // Pas encore de vraie waveform en cache pour ce morceau : barre classique,
   // mêmes gestes, zéro donnée inventée.
   if (!bars.length) {
     return (
       <View style={style}>
+        {immersiveHeader}
         <InteractiveSeekBar position={position} duration={duration} onSeek={onSeek} variant="dark" />
       </View>
     );
@@ -250,6 +301,7 @@ export function WaveformSeekBar({
 
   return (
     <View style={style}>
+      {immersiveHeader}
       {activeMarker ? (
         <MarkerBubble marker={activeMarker} width={width} onClose={() => setActiveMarkerId(null)} />
       ) : null}
@@ -257,8 +309,9 @@ export function WaveformSeekBar({
       <View
         {...panResponder.panHandlers}
         onLayout={(event) => setWidth(Math.max(1, event.nativeEvent.layout.width))}
-        style={[styles.waveZone, { height }]}
+        style={[styles.waveZone, immersive && styles.waveZoneImmersive, { height }]}
       >
+        {immersive ? <View pointerEvents="none" style={styles.waveAxis} /> : null}
         <View style={styles.bars} pointerEvents="none">
           {bars.map((peak, index) => {
             const filled = index / Math.max(1, bars.length - 1) <= progress;
@@ -311,12 +364,18 @@ export function WaveformSeekBar({
             <Text style={styles.bubbleText}>{fmtTime(draggingValue)}</Text>
           </View>
         ) : null}
+
+        {immersive ? (
+          <View pointerEvents="none" style={[styles.playhead, { left: `${progress * 100}%` }]}>
+            <View style={styles.playheadCap} />
+          </View>
+        ) : null}
       </View>
 
       {showTimes ? (
         <View style={styles.timeRow}>
           <Text style={styles.timeText}>{fmtTime(visiblePos)}</Text>
-          <Text style={styles.timeText}>{fmtTime(safeDuration)}</Text>
+          <Text style={styles.timeText}>{immersive ? `-${fmtTime(Math.max(0, safeDuration - visiblePos))}` : fmtTime(safeDuration)}</Text>
         </View>
       ) : null}
     </View>
@@ -371,6 +430,64 @@ function MarkerBubble({ marker, width, onClose }: { marker: Marker; width: numbe
 
 const styles = StyleSheet.create({
   waveZone: { justifyContent: 'center' },
+  waveZoneImmersive: {
+    paddingHorizontal: 5,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,250,242,0.055)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,250,242,0.1)',
+  },
+  immersiveHeader: {
+    minHeight: 32,
+    marginBottom: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  immersiveIdentity: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
+  identityIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#7357C6',
+  },
+  identityLabel: { color: 'rgba(255,250,242,0.82)', fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
+  momentCount: {
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    borderRadius: 10,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    color: '#FFFAF2',
+    backgroundColor: 'rgba(255,250,242,0.13)',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  createMomentButton: {
+    minHeight: 30,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(115,87,198,0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,250,242,0.2)',
+  },
+  createMomentButtonPressed: { opacity: 0.72, transform: [{ scale: 0.97 }] },
+  createMomentText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
+  waveAxis: {
+    position: 'absolute',
+    left: 5,
+    right: 5,
+    top: '50%',
+    height: 1,
+    backgroundColor: 'rgba(255,250,242,0.09)',
+  },
   bars: {
     height: '100%',
     flexDirection: 'row',
@@ -407,6 +524,28 @@ const styles = StyleSheet.create({
   },
   markerActive: {
     transform: [{ scale: 1.35 }],
+  },
+  playhead: {
+    position: 'absolute',
+    top: -3,
+    bottom: -3,
+    width: 2,
+    marginLeft: -1,
+    borderRadius: 2,
+    backgroundColor: '#FFFAF2',
+    shadowColor: '#111111',
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  playheadCap: {
+    position: 'absolute',
+    top: -2,
+    left: -3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FFFAF2',
   },
   bubble: {
     position: 'absolute',
