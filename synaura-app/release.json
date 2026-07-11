@@ -1,13 +1,13 @@
 {
-  "title": "Synaura mobile 0.10.0",
+  "title": "Synaura mobile 0.11.0",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Bienvenue : nouvelle presentation animee avant la connexion et la creation de compte",
-    "Scroll : ouverture beaucoup plus rapide grace au cache et au chargement progressif",
-    "Waveform : nouveau visuel Synaura et regroupement intelligent des moments charges",
-    "Notifications : activation Android, test push et ouverture directe des contenus",
-    "Partage : les cartes image utilisent maintenant le vrai menu de partage natif",
-    "Navigation : dock plus fluide avec retours haptiques et animations discretes"
+    "Nouvelle identite native : navigation, ecrans, profils, decouverte, creation et Studio repenses",
+    "Waveform Synaura : vrais pics audio, recherche fluide et moments regroupes sans surcharge",
+    "Clips : lecture video et musique synchronisee, sans conflit de focus audio Android",
+    "Flow : demarrage accelere, cache immediat et interactions plus fluides",
+    "Bienvenue : parcours anime jusqu'a la connexion ou la creation du compte",
+    "Notifications et partage : ouverture fiable des contenus et cartes partageables nativement"
   ]
 }

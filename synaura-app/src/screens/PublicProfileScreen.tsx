@@ -12,11 +12,12 @@ import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
 import { CreatorLevelCard } from '@/components/events/SynauraEvents';
 import { usePlayer } from '@/player/PlayerProvider';
-import { MotionPressable } from '@/components/motion/Motion';
+import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { MobileBadge } from '@/components/mobile/MobileBadge';
 import { MobileSocialLinks } from '@/components/mobile/MobileSocialLinks';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 
 type Tab = 'sons' | 'clips' | 'variations' | 'playlists' | 'posts';
 
@@ -176,7 +177,7 @@ export function PublicProfileScreen() {
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: 0 }]} showsVerticalScrollIndicator={false}>
         <AppHeader flush title="Profil artiste" subtitle={`@${profile.username}`} onBack={() => navigation.goBack()} action={{ icon: 'share-outline', label: 'Partager', onPress: () => void share() }} />
 
-        <View style={styles.hero}>
+        <Reveal distance={8} scaleFrom={0.99} style={styles.hero}>
           <View style={styles.banner}>{profile.banner ? <Image source={{ uri: profile.banner }} style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#FFB4A8', '#BCA7FF', '#8DE7EE']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />}</View>
           <View style={styles.heroBody}>
             <View style={styles.avatar}>{profile.avatar ? <Image source={{ uri: profile.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.avatarText}>{profile.name.slice(0, 1).toUpperCase()}</Text>}</View>
@@ -196,10 +197,10 @@ export function PublicProfileScreen() {
                 <Ionicons name={followLoading ? 'ellipsis-horizontal' : profile.isFollowing ? 'checkmark' : 'add'} size={16} color="#FFFAF2" />
                 <Text style={styles.primaryText}>{profile.isFollowing ? 'Suivi' : 'Suivre'}</Text>
               </MotionPressable>
-              <Pressable onPress={share} style={styles.secondary}><Text style={styles.secondaryText}>Partager</Text></Pressable>
+              <MotionPressable onPress={share} style={styles.secondary} scaleTo={0.96}><Ionicons name="share-outline" size={15} color="#171313" /><Text style={styles.secondaryText}>Partager</Text></MotionPressable>
             </View>
           </View>
-        </View>
+        </Reveal>
 
         <CreatorLevelCard
           tracks={profile.tracksCount}
@@ -251,13 +252,7 @@ export function PublicProfileScreen() {
           </View>
         ) : null}
 
-        <View style={styles.tabs}>
-          {(['sons', 'clips', 'variations', 'playlists', 'posts'] as Tab[]).map((item) => (
-            <Pressable key={item} onPress={() => setTab(item)} style={[styles.tab, tab === item && styles.tabActive]}>
-              <Text style={[styles.tabText, tab === item && styles.tabTextActive]}>{TAB_LABELS[item]}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <SegmentedControl value={tab} compact options={(Object.keys(TAB_LABELS) as Tab[]).map((item) => ({ value: item, label: TAB_LABELS[item] }))} onChange={setTab} />
 
         {tab === 'sons' ? (
           <View style={styles.card}>
@@ -370,16 +365,16 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 16, paddingBottom: 130, gap: 11 },
+  content: { paddingHorizontal: 18, paddingBottom: 130, gap: 14 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   back: { width: 42, height: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   topTitle: { color: '#171313', fontSize: 17, fontWeight: '900' },
   title: { color: '#171313', fontSize: 24, fontWeight: '900' },
-  hero: { overflow: 'hidden', borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
-  banner: { height: 112, backgroundColor: '#171313' },
+  hero: { overflow: 'hidden', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.88)', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
+  banner: { height: 138, backgroundColor: '#171313' },
   heroBody: { padding: 14, alignItems: 'center', marginTop: -46 },
-  avatar: { width: 92, height: 92, borderRadius: 22, overflow: 'hidden', borderWidth: 3, borderColor: '#FFFFFF', backgroundColor: '#E8DCCA', alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 92, height: 92, borderRadius: 18, overflow: 'hidden', borderWidth: 3, borderColor: '#FFFFFF', backgroundColor: '#E8DCCA', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#171313', fontSize: 36, fontWeight: '900' },
   name: { marginTop: 10, color: '#171313', fontSize: 23, fontWeight: '900' },
   handle: { marginTop: 2, color: 'rgba(23,19,19,0.45)', fontSize: 12, fontWeight: '800' },
@@ -404,7 +399,7 @@ const styles = StyleSheet.create({
   primary: { flex: 1, height: 44, borderRadius: 11, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
   primaryFollowing: { backgroundColor: '#7C5CFF' },
   primaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
-  secondary: { flex: 1, height: 44, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.06)' },
+  secondary: { flex: 1, height: 44, borderRadius: 8, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.06)' },
   secondaryText: { color: '#171313', fontSize: 13, fontWeight: '900' },
   tabs: { flexDirection: 'row', gap: 8 },
   tab: { flex: 1, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },

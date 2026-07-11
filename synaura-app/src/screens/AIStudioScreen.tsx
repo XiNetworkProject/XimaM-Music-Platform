@@ -67,6 +67,8 @@ import { usePlayer } from '@/player/PlayerProvider';
 import { colors } from '@/theme/tokens';
 import { getSunoErrorMessage } from '@/utils/getSunoErrorMessage';
 import type { SynauraCityData, Track } from '@/api/types';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Reveal } from '@/components/motion/Motion';
 
 type StudioTab = 'create' | 'library';
 type StudioMode = 'simple' | 'custom' | 'remix';
@@ -659,21 +661,25 @@ export function AIStudioScreen() {
           />
         ) : null}
 
-        <View style={styles.tabs}>
-          <Segment active={tab === 'create'} label="CrÃ©er" icon="sparkles-outline" onPress={() => switchTab('create')} />
-          <Segment active={tab === 'library'} label={`BibliothÃ¨que ${libraryTracks.length}`} icon="library-outline" onPress={() => switchTab('library')} />
-        </View>
+        <SegmentedControl
+          value={tab}
+          options={[
+            { value: 'create', label: 'Créer', icon: 'sparkles-outline' },
+            { value: 'library', label: `Bibliothèque ${libraryTracks.length}`, icon: 'library-outline' },
+          ]}
+          onChange={switchTab}
+        />
 
         <EventTicker city={city} onPress={() => navigation.navigate('City')} tone="violet" text="CrÃ©e pour le challenge actuel Â· transforme une idÃ©e Studio en moment Synaura Live" />
 
-        <View style={styles.studioConsole}>
+        <Reveal distance={7} style={styles.studioConsole}>
           <View style={styles.consoleBrand}><View style={styles.consoleDot} /><Text style={styles.consoleBrandText}>STUDIO CONNECTÃ‰</Text></View>
           <View style={styles.consoleMetrics}>
             <View><Text style={styles.consoleValue}>{model.replace('_', '.')}</Text><Text style={styles.consoleLabel}>MODÃˆLE</Text></View>
             <View><Text style={styles.consoleValue}>{mode.toUpperCase()}</Text><Text style={styles.consoleLabel}>MODE</Text></View>
             <View><Text style={styles.consoleValue}>{credits}</Text><Text style={styles.consoleLabel}>CRÃ‰DITS</Text></View>
           </View>
-        </View>
+        </Reveal>
 
         {tab === 'library' ? (
           <View style={styles.librarySummary}>
@@ -695,13 +701,16 @@ export function AIStudioScreen() {
           <>
             <EventChoice events={city?.events || []} selectedId={selectedEventId} onSelect={selectEvent} />
             <Text style={styles.blockEyebrow}>1 · Idee musicale</Text>
-            <View style={styles.modeRow}>
-              {(['simple', 'custom', 'remix'] as StudioMode[]).map((item) => (
-                <Pressable key={item} onPress={() => setMode(item)} style={[styles.mode, mode === item && styles.modeActive]}>
-                  <Text style={[styles.modeText, mode === item && styles.modeTextActive]}>{item === 'simple' ? 'Simple' : item === 'custom' ? 'Custom' : 'Remix'}</Text>
-                </Pressable>
-              ))}
-            </View>
+            <SegmentedControl
+              value={mode}
+              compact
+              options={[
+                { value: 'simple', label: 'Simple', icon: 'flash-outline' },
+                { value: 'custom', label: 'Sur mesure', icon: 'options-outline' },
+                { value: 'remix', label: 'Remix', icon: 'repeat-outline' },
+              ]}
+              onChange={setMode}
+            />
 
             <View style={styles.panel}>
               <View style={styles.panelHead}>
@@ -882,10 +891,6 @@ export function AIStudioScreen() {
 
 function AuthFeature({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
   return <View style={styles.authFeature}><Ionicons name={icon} size={15} color={colors.text} /><Text style={styles.authFeatureText}>{text}</Text></View>;
-}
-
-function Segment({ active, label, icon, onPress }: { active: boolean; label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={[styles.segment, active && styles.segmentActive]}><Ionicons name={icon} size={16} color={active ? colors.paper : colors.textTertiary} /><Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text></Pressable>;
 }
 
 function Field({ label, value, onChangeText, placeholder, multiline, tall }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string; multiline?: boolean; tall?: boolean }) {
@@ -1163,17 +1168,17 @@ function CreditShopModal({ visible, balance, onClose, onComplete }: { visible: b
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 16, gap: 11 },
+  content: { paddingHorizontal: 18, gap: 12 },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  iconButton: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  creditPill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 11, paddingHorizontal: 11, height: 36, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  iconButton: { width: 38, height: 38, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  creditPill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 9, paddingHorizontal: 11, height: 36, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   creditText: { color: colors.text, fontSize: 12, fontWeight: '900' },
   kicker: { marginTop: 9, color: colors.coral, fontSize: 10, fontWeight: '900', letterSpacing: 1.8 },
   title: { color: colors.text, fontSize: 26, lineHeight: 30, fontWeight: '900' },
   titleCompact: { fontSize: 24, lineHeight: 28 },
   subtitle: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700' },
   tabs: { flexDirection: 'row', padding: 3, borderRadius: 13, backgroundColor: '#EDEBE7', borderWidth: 1, borderColor: colors.border },
-  studioConsole: { borderRadius: 14, padding: 12, gap: 11, backgroundColor: colors.black },
+  studioConsole: { borderRadius: 10, padding: 12, gap: 11, backgroundColor: colors.black },
   consoleBrand: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   consoleDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#34D399' },
   consoleBrandText: { color: 'rgba(255,250,242,0.58)', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
@@ -1201,7 +1206,7 @@ const styles = StyleSheet.create({
   modeActive: { backgroundColor: colors.black, borderColor: colors.black },
   modeText: { color: colors.textTertiary, fontSize: 11, fontWeight: '900' },
   modeTextActive: { color: colors.paper },
-  panel: { borderRadius: 14, padding: 12, gap: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  panel: { borderRadius: 10, padding: 12, gap: 12, backgroundColor: 'rgba(255,255,255,0.84)', borderWidth: 1, borderColor: colors.border },
   panelHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   blockEyebrow: { marginTop: 4, marginBottom: -4, color: colors.violet, fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
   blockEyebrowInfo: { marginTop: 4, marginBottom: -4, color: colors.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
@@ -1256,7 +1261,7 @@ const styles = StyleSheet.create({
   advancedIcon: { width: 40, height: 40, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
   advancedTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   advancedText: { marginTop: 3, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
-  generateButton: { minHeight: 50, borderRadius: 13, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 15, backgroundColor: colors.violet },
+  generateButton: { minHeight: 52, borderRadius: 9, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 15, backgroundColor: colors.violet },
   generateText: { flex: 1, color: colors.paper, fontSize: 14, fontWeight: '900' },
   generateCost: { color: 'rgba(255,250,242,0.56)', fontSize: 10, fontWeight: '900' },
   lockedSource: { borderRadius: 18, backgroundColor: '#FFFDF8', borderWidth: 1, borderColor: 'rgba(115,87,198,0.18)', padding: 12, gap: 12 },

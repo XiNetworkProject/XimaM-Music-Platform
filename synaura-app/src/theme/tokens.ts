@@ -30,6 +30,13 @@ export const colors = {
   pink: '#C85D82',
   gold: '#C99B48',
   playing: '#22C55E',
+  dark: '#111111',
+  darkSurface: '#1A1918',
+  darkSurfaceRaised: '#23211F',
+  warmWhite: '#F7F6F3',
+  violetSoft: 'rgba(115,87,198,0.11)',
+  cyanSoft: 'rgba(74,158,170,0.12)',
+  coralSoft: 'rgba(217,109,99,0.12)',
 };
 
 export const spacing = {
@@ -42,34 +49,47 @@ export const spacing = {
 };
 
 export const radius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
+  sm: 6,
+  md: 8,
+  lg: 12,
+  xl: 16,
   pill: 999,
 };
 
 export const shadows = {
   soft: {
     shadowColor: '#111111',
-    shadowOpacity: 0.055,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.045,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
   floating: {
     shadowColor: '#111111',
-    shadowOpacity: 0.11,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 7,
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 6,
   },
 };
 
 export const typography = {
-  title: 24,
+  display: 30,
+  title: 23,
   subtitle: 17,
   body: 14,
   caption: 12,
   tiny: 10,
+};
+
+export const layout = {
+  pagePadding: 18,
+  contentMaxWidth: 760,
+  dockHeight: 66,
+};
+
+export const motion = {
+  quick: 160,
+  standard: 280,
+  reveal: 420,
 };

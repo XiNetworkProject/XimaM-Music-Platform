@@ -1,31 +1,47 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GestureResponderEvent, Image, PanResponder, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  GestureResponderEvent,
+  Image,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { ClipPath, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { getMomentReactions, getTimestampedComments, getTrackWaveform } from '@/api/client';
-import type { HomeComment, MomentReaction, MomentReactionCluster, MomentReactionType } from '@/api/types';
-import { MOMENT_REACTIONS } from '@/components/mobile/MomentWaveform';
+import type { HomeComment, MomentReaction, MomentReactionType } from '@/api/types';
+import { MOMENT_REACTIONS } from '@/constants/momentReactions';
 import { fmtTime } from './helpers';
 import { InteractiveSeekBar } from './InteractiveSeekBar';
 
-// Barre de lecture waveform partagée (Scroll + lecteur plein écran) : vraies
-// peaks issues du cache serveur track_waveforms (calculées côté web via Web
-// Audio API — impossible à décoder côté React Native). Tant qu'aucune vraie
-// waveform n'existe pour le morceau, on retombe honnêtement sur la barre de
-// progression classique : jamais de barres inventées présentées comme le son.
-
-type TrackMoments = {
+// Les peaks viennent exclusivement du cache serveur track_waveforms. Si le
+// morceau n'en possede pas encore, on affiche une barre de progression sobre :
+// aucune waveform decorative n'est presentee comme une donnee audio reelle.
+export type TrackMoments = {
   peaks: number[] | null;
   duration: number;
   comments: HomeComment[];
   reactions: MomentReaction[];
 };
 
-// Cache module-level : le Scroll monte/démonte les slides en permanence, on ne
-// re-télécharge pas les peaks/marqueurs d'un morceau déjà vus dans la session.
+type MomentCluster = {
+  id: string;
+  timestampSeconds: number;
+  comments: HomeComment[];
+  reactions: MomentReaction[];
+  byType: Partial<Record<MomentReactionType, number>>;
+  topType?: MomentReactionType;
+};
+
 const momentsCache = new Map<string, TrackMoments>();
 const momentsInFlight = new Map<string, Promise<TrackMoments>>();
+const MAX_VISIBLE_MOMENTS = 34;
+const DRAG_THRESHOLD = 5;
 
 export function loadTrackMoments(trackId: string, withMoments: boolean): Promise<TrackMoments> {
   const cached = momentsCache.get(trackId);
@@ -51,15 +67,13 @@ export function loadTrackMoments(trackId: string, withMoments: boolean): Promise
     })
     .catch(() => {
       momentsInFlight.delete(trackId);
-      const empty: TrackMoments = { peaks: null, duration: 0, comments: [], reactions: [] };
-      return empty;
+      return { peaks: null, duration: 0, comments: [], reactions: [] };
     });
 
   momentsInFlight.set(trackId, promise);
   return promise;
 }
 
-/** Invalide le cache d'un morceau (après publication d'un commentaire/réaction). */
 export function invalidateTrackMoments(trackId: string) {
   momentsCache.delete(trackId);
 }
@@ -74,76 +88,103 @@ function samplePeaks(peaks: number[], targetCount: number) {
   });
 }
 
-const CLUSTER_WINDOW_SECONDS = 4;
+function topReaction(byType: Partial<Record<MomentReactionType, number>>) {
+  return Object.entries(byType).sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))[0]?.[0] as MomentReactionType | undefined;
+}
 
-type CommentCluster = {
-  id: string;
-  timestampSeconds: number;
-  comments: HomeComment[];
-};
+function clusterMoments(comments: HomeComment[], reactions: MomentReaction[], windowSeconds: number): MomentCluster[] {
+  const events = [
+    ...comments.map((comment) => ({ kind: 'comment' as const, timestamp: Number(comment.timestampSeconds || 0), comment })),
+    ...reactions.map((reaction) => ({ kind: 'reaction' as const, timestamp: reaction.timestampSeconds, reaction })),
+  ].sort((a, b) => a.timestamp - b.timestamp);
 
-function clusterReactions(reactions: MomentReaction[], windowSeconds = CLUSTER_WINDOW_SECONDS): MomentReactionCluster[] {
-  const sorted = [...reactions].sort((a, b) => a.timestampSeconds - b.timestampSeconds);
-  const clusters: MomentReactionCluster[] = [];
-  sorted.forEach((reaction) => {
+  const clusters: MomentCluster[] = [];
+  for (const event of events) {
     const last = clusters[clusters.length - 1];
-    if (last && reaction.timestampSeconds - last.timestampSeconds <= windowSeconds) {
-      last.total += 1;
-      last.byType[reaction.reactionType] = (last.byType[reaction.reactionType] || 0) + 1;
-      const top = Object.entries(last.byType).sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))[0]?.[0] as MomentReactionType | undefined;
-      if (top) last.topType = top;
-      return;
+    if (!last || event.timestamp - last.timestampSeconds > windowSeconds) {
+      clusters.push({
+        id: `moment-${event.timestamp}-${clusters.length}`,
+        timestampSeconds: event.timestamp,
+        comments: event.kind === 'comment' ? [event.comment] : [],
+        reactions: event.kind === 'reaction' ? [event.reaction] : [],
+        byType: event.kind === 'reaction' ? { [event.reaction.reactionType]: 1 } : {},
+        topType: event.kind === 'reaction' ? event.reaction.reactionType : undefined,
+      });
+      continue;
     }
-    clusters.push({ id: `cluster-${reaction.id}`, timestampSeconds: reaction.timestampSeconds, total: 1, topType: reaction.reactionType, byType: { [reaction.reactionType]: 1 } });
-  });
+
+    if (event.kind === 'comment') last.comments.push(event.comment);
+    else {
+      last.reactions.push(event.reaction);
+      last.byType[event.reaction.reactionType] = (last.byType[event.reaction.reactionType] || 0) + 1;
+      last.topType = topReaction(last.byType);
+    }
+    const allTimestamps = [
+      ...last.comments.map((comment) => Number(comment.timestampSeconds || 0)),
+      ...last.reactions.map((reaction) => reaction.timestampSeconds),
+    ];
+    last.timestampSeconds = allTimestamps.reduce((sum, value) => sum + value, 0) / allTimestamps.length;
+  }
   return clusters;
 }
 
-function clusterComments(comments: HomeComment[], windowSeconds: number): CommentCluster[] {
-  const sorted = [...comments].sort((a, b) => Number(a.timestampSeconds || 0) - Number(b.timestampSeconds || 0));
-  const clusters: CommentCluster[] = [];
-  sorted.forEach((comment) => {
-    const timestampSeconds = Number(comment.timestampSeconds || 0);
-    const last = clusters[clusters.length - 1];
-    if (last && timestampSeconds - last.timestampSeconds <= windowSeconds) {
-      last.comments.push(comment);
-      last.timestampSeconds = last.comments.reduce((sum, item) => sum + Number(item.timestampSeconds || 0), 0) / last.comments.length;
-      return;
-    }
-    clusters.push({ id: `comments-${comment.id}`, timestampSeconds, comments: [comment] });
-  });
+function fitMomentClusters(comments: HomeComment[], reactions: MomentReaction[], initialWindow: number) {
+  let windowSeconds = initialWindow;
+  let clusters = clusterMoments(comments, reactions, windowSeconds);
+  while (clusters.length > MAX_VISIBLE_MOMENTS && windowSeconds < 18) {
+    windowSeconds *= 1.45;
+    clusters = clusterMoments(comments, reactions, windowSeconds);
+  }
   return clusters;
 }
 
-function reactionMeta(type: MomentReactionType) {
+function waveformPath(peaks: number[], width: number, height: number) {
+  if (!peaks.length || width <= 0 || height <= 0) return '';
+  const middle = height / 2;
+  const amplitude = height * 0.43;
+  const points = peaks.map((peak, index) => ({
+    x: peaks.length === 1 ? 0 : (index / (peaks.length - 1)) * width,
+    y: middle - Math.max(0.07, Math.min(1, peak)) * amplitude,
+  }));
+  const lower = points.map((point) => ({ x: point.x, y: height - point.y })).reverse();
+
+  const curvedLine = (items: Array<{ x: number; y: number }>) => {
+    let result = `M ${items[0].x.toFixed(2)} ${items[0].y.toFixed(2)}`;
+    for (let index = 1; index < items.length; index += 1) {
+      const previous = items[index - 1];
+      const current = items[index];
+      const midX = (previous.x + current.x) / 2;
+      const midY = (previous.y + current.y) / 2;
+      result += ` Q ${previous.x.toFixed(2)} ${previous.y.toFixed(2)} ${midX.toFixed(2)} ${midY.toFixed(2)}`;
+    }
+    const last = items[items.length - 1];
+    return `${result} L ${last.x.toFixed(2)} ${last.y.toFixed(2)}`;
+  };
+
+  const upperPath = curvedLine(points);
+  const lowerPath = curvedLine(lower).replace(/^M [^Q|L]+/, '');
+  const lastUpper = points[points.length - 1];
+  const firstLower = lower[0];
+  return `${upperPath} L ${firstLower.x.toFixed(2)} ${firstLower.y.toFixed(2)} ${lowerPath} Z`;
+}
+
+function reactionMeta(type?: MomentReactionType) {
   return MOMENT_REACTIONS.find((reaction) => reaction.type === type) || MOMENT_REACTIONS[0];
 }
-
-type Marker =
-  | { kind: 'comments'; id: string; timestampSeconds: number; cluster: CommentCluster }
-  | { kind: 'cluster'; id: string; timestampSeconds: number; cluster: MomentReactionCluster };
-
-// Rayon de détection tactile autour d'un marqueur (bien plus large que le
-// point visuel lui-même, pour rester utilisable au doigt).
-const MARKER_HIT_RADIUS = 18;
-const DRAG_THRESHOLD = 6;
 
 type Props = {
   trackId: string;
   position: number;
   duration: number;
   onSeek: (seconds: number) => void;
-  /** Affiche les marqueurs commentaires/réactions horodatés, cliquables. */
   showMoments?: boolean;
-  /** Hauteur de la zone waveform (hors ligne des temps). */
   height?: number;
   showTimes?: boolean;
   barCount?: number;
-  /** Experience enrichie du lecteur plein ecran. */
   immersive?: boolean;
-  /** Ouvre la creation d'un moment a la position courante. */
   onCreateMoment?: (seconds: number) => void;
-  style?: ViewStyle;
+  refreshKey?: string | number;
+  style?: StyleProp<ViewStyle>;
 };
 
 export function WaveformSeekBar({
@@ -157,15 +198,15 @@ export function WaveformSeekBar({
   barCount = 56,
   immersive = false,
   onCreateMoment,
+  refreshKey = 0,
   style,
 }: Props) {
+  const reactId = useId();
   const [width, setWidth] = useState(0);
   const [moments, setMoments] = useState<TrackMoments | null>(() => momentsCache.get(trackId) || null);
   const [draggingValue, setDraggingValue] = useState<number | null>(null);
   const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
   const draggingRef = useRef<number | null>(null);
-  const pressedMarkerRef = useRef<Marker | null>(null);
-  const pressStartXRef = useRef(0);
   const lastHapticBucketRef = useRef(-1);
 
   useEffect(() => {
@@ -182,49 +223,48 @@ export function WaveformSeekBar({
     return () => {
       mounted = false;
     };
-  }, [showMoments, trackId]);
+  }, [refreshKey, showMoments, trackId]);
 
-  useEffect(() => {
-    setActiveMarkerId(null);
-  }, [trackId]);
+  useEffect(() => setActiveMarkerId(null), [trackId]);
 
   const safeDuration = Math.max(1, duration || moments?.duration || 0);
   const visiblePos = draggingValue ?? position;
   const progress = Math.max(0, Math.min(1, visiblePos / safeDuration));
-
-  const bars = useMemo(() => (moments?.peaks ? samplePeaks(moments.peaks, barCount) : []), [barCount, moments?.peaks]);
-  const comments = showMoments ? (moments?.comments || []).slice(0, 120) : [];
-  const clusterWindow = Math.min(8, Math.max(2.5, safeDuration * 14 / Math.max(240, width || 320)));
-  const commentClusters = useMemo(() => clusterComments(comments, clusterWindow).slice(0, 48), [clusterWindow, comments]);
+  const sampledPeaks = useMemo(
+    () => moments?.peaks ? samplePeaks(moments.peaks, Math.max(52, Math.min(104, Math.round(barCount * 1.6)))) : [],
+    [barCount, moments?.peaks],
+  );
+  const path = useMemo(() => waveformPath(sampledPeaks, width, height), [height, sampledPeaks, width]);
+  const comments = showMoments ? (moments?.comments || []).slice(0, 180) : [];
+  const reactions = showMoments ? (moments?.reactions || []) : [];
+  const clusterWindow = Math.min(6, Math.max(1.8, safeDuration / Math.max(32, (width || 320) / 11)));
   const clusters = useMemo(
-    () => (showMoments ? clusterReactions(moments?.reactions || [], clusterWindow).slice(0, 48) : []),
-    [clusterWindow, showMoments, moments?.reactions],
+    () => fitMomentClusters(comments, reactions, clusterWindow),
+    [clusterWindow, comments, reactions],
+  );
+  const activeMarker = activeMarkerId ? clusters.find((cluster) => cluster.id === activeMarkerId) || null : null;
+  const momentsCount = comments.length + reactions.length;
+  const clipId = `wave-${reactId.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+  const secondFromX = useCallback(
+    (x: number) => width > 0 ? (Math.max(0, Math.min(width, x)) / width) * safeDuration : 0,
+    [safeDuration, width],
   );
 
-  const markers = useMemo<Marker[]>(() => [
-    ...commentClusters.map((cluster): Marker => ({ kind: 'comments', id: cluster.id, timestampSeconds: cluster.timestampSeconds, cluster })),
-    ...clusters.map((cluster): Marker => ({ kind: 'cluster', id: cluster.id, timestampSeconds: cluster.timestampSeconds, cluster })),
-  ], [commentClusters, clusters]);
-
-  const activeMarker = activeMarkerId ? markers.find((m) => m.id === activeMarkerId) || null : null;
-  const momentsCount = comments.length + (moments?.reactions.length || 0);
-
-  const findNearbyMarker = useCallback((x: number): Marker | null => {
-    if (width <= 0 || !markers.length) return null;
-    let best: Marker | null = null;
-    let bestDist = MARKER_HIT_RADIUS;
-    for (const marker of markers) {
-      const markerX = Math.max(0, Math.min(width, (marker.timestampSeconds / safeDuration) * width));
-      const dist = Math.abs(markerX - x);
-      if (dist <= bestDist) {
-        best = marker;
-        bestDist = dist;
+  const findNearbyMarker = useCallback((x: number) => {
+    if (width <= 0 || !clusters.length) return null;
+    let best: MomentCluster | null = null;
+    let bestDistance = 21;
+    for (const cluster of clusters) {
+      const markerX = (cluster.timestampSeconds / safeDuration) * width;
+      const distance = Math.abs(markerX - x);
+      if (distance <= bestDistance) {
+        best = cluster;
+        bestDistance = distance;
       }
     }
     return best;
-  }, [markers, safeDuration, width]);
-
-  const secondFromX = useCallback((x: number) => (width > 0 ? (Math.max(0, Math.min(width, x)) / width) * safeDuration : 0), [safeDuration, width]);
+  }, [clusters, safeDuration, width]);
 
   const pulseWhileScrubbing = useCallback((seconds: number) => {
     const bucket = Math.floor(seconds / 8);
@@ -233,47 +273,26 @@ export function WaveformSeekBar({
     Haptics.selectionAsync().catch(() => {});
   }, []);
 
+  const beginScrub = useCallback((x: number) => {
+    const next = secondFromX(x);
+    draggingRef.current = next;
+    setDraggingValue(next);
+    setActiveMarkerId(null);
+    pulseWhileScrubbing(next);
+  }, [pulseWhileScrubbing, secondFromX]);
+
   const panResponder = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponder: () => false,
+    // Le fil vertical reste prioritaire. La waveform ne capture que les gestes
+    // clairement horizontaux, ce qui supprime l'impression de scroll bloque.
+    onMoveShouldSetPanResponder: (_, gesture) => (
+      Math.abs(gesture.dx) > DRAG_THRESHOLD
+      && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2
+    ),
     onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: (event: GestureResponderEvent) => {
-      const x = event.nativeEvent.locationX;
-      pressStartXRef.current = x;
-      const marker = findNearbyMarker(x);
-      if (marker) {
-        // Attente : ne démarre le drag que si le doigt bouge vraiment (sinon
-        // c'est un tap sur le marqueur, pas un seek).
-        pressedMarkerRef.current = marker;
-        return;
-      }
-      pressedMarkerRef.current = null;
-      const next = secondFromX(x);
-      draggingRef.current = next;
-      setDraggingValue(next);
-      setActiveMarkerId(null);
-      pulseWhileScrubbing(next);
-    },
-    onPanResponderMove: (event: GestureResponderEvent) => {
-      const x = event.nativeEvent.locationX;
-      if (pressedMarkerRef.current) {
-        if (Math.abs(x - pressStartXRef.current) < DRAG_THRESHOLD) return;
-        pressedMarkerRef.current = null;
-      }
-      const next = secondFromX(x);
-      draggingRef.current = next;
-      setDraggingValue(next);
-      pulseWhileScrubbing(next);
-    },
+    onPanResponderGrant: (event) => beginScrub(event.nativeEvent.locationX),
+    onPanResponderMove: (event) => beginScrub(event.nativeEvent.locationX),
     onPanResponderRelease: () => {
-      if (pressedMarkerRef.current) {
-        const marker = pressedMarkerRef.current;
-        pressedMarkerRef.current = null;
-        setActiveMarkerId((current) => (current === marker.id ? null : marker.id));
-        onSeek(marker.timestampSeconds);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-        return;
-      }
       if (draggingRef.current != null) {
         onSeek(draggingRef.current);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -283,20 +302,38 @@ export function WaveformSeekBar({
       setDraggingValue(null);
     },
     onPanResponderTerminate: () => {
-      pressedMarkerRef.current = null;
       draggingRef.current = null;
       lastHapticBucketRef.current = -1;
       setDraggingValue(null);
     },
-  }), [findNearbyMarker, onSeek, pulseWhileScrubbing, secondFromX]);
+  }), [beginScrub, onSeek]);
+
+  const handleTap = useCallback((event: GestureResponderEvent) => {
+    const x = event.nativeEvent.locationX;
+    const marker = findNearbyMarker(x);
+    if (marker) {
+      setActiveMarkerId((current) => current === marker.id ? null : marker.id);
+      onSeek(marker.timestampSeconds);
+    } else {
+      const next = secondFromX(x);
+      setActiveMarkerId(null);
+      onSeek(next);
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }, [findNearbyMarker, onSeek, secondFromX]);
+
+  const handleLongPress = useCallback((event: GestureResponderEvent) => {
+    if (!onCreateMoment) return;
+    const seconds = secondFromX(event.nativeEvent.locationX);
+    onCreateMoment(seconds);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+  }, [onCreateMoment, secondFromX]);
 
   const immersiveHeader = immersive ? (
     <View style={styles.immersiveHeader}>
       <View style={styles.immersiveIdentity}>
-        <View style={styles.identityIcon}>
-          <Ionicons name="pulse" size={12} color="#FFFAF2" />
-        </View>
-        <Text style={styles.identityLabel}>SYNAURA MOMENTS</Text>
+        <View style={styles.identityIcon}><Ionicons name="pulse" size={12} color="#FFFFFF" /></View>
+        <Text style={styles.identityLabel}>MOMENTS SYNAURA</Text>
         {momentsCount > 0 ? <Text style={styles.momentCount}>{momentsCount}</Text> : null}
       </View>
       {onCreateMoment ? (
@@ -308,16 +345,14 @@ export function WaveformSeekBar({
           }}
           style={({ pressed }) => [styles.createMomentButton, pressed && styles.createMomentButtonPressed]}
         >
-          <Ionicons name="add" size={14} color="#FFFAF2" />
+          <Ionicons name="add" size={14} color="#FFFFFF" />
           <Text style={styles.createMomentText}>Reagir</Text>
         </Pressable>
       ) : null}
     </View>
   ) : null;
 
-  // Pas encore de vraie waveform en cache pour ce morceau : barre classique,
-  // mêmes gestes, zéro donnée inventée.
-  if (!bars.length) {
+  if (!sampledPeaks.length) {
     return (
       <View style={style}>
         {immersiveHeader}
@@ -329,75 +364,66 @@ export function WaveformSeekBar({
   return (
     <View style={style}>
       {immersiveHeader}
-      {activeMarker ? (
-        <MarkerBubble marker={activeMarker} width={width} onClose={() => setActiveMarkerId(null)} />
-      ) : null}
-
-      <View
+      {activeMarker ? <MarkerBubble marker={activeMarker} width={width} onClose={() => setActiveMarkerId(null)} /> : null}
+      <Pressable
         {...panResponder.panHandlers}
+        accessibilityLabel="Position de lecture et moments du morceau"
+        delayLongPress={420}
+        onPress={handleTap}
+        onLongPress={onCreateMoment ? handleLongPress : undefined}
         onLayout={(event) => setWidth(Math.max(1, event.nativeEvent.layout.width))}
         style={[styles.waveZone, immersive ? styles.waveZoneImmersive : styles.waveZoneDefault, { height }]}
       >
-        {immersive ? <View pointerEvents="none" style={styles.waveAxis} /> : null}
-        <View style={styles.bars} pointerEvents="none">
-          {bars.map((peak, index) => {
-            const filled = index / Math.max(1, bars.length - 1) <= progress;
-            return (
-              <View key={index} style={[styles.barSlot]}>
-                {filled ? (
-                  <LinearGradient
-                    colors={immersive ? ['#7357C6', '#4A9EAA'] : ['#FFFAF2', '#B9A9E5']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={[styles.bar, { height: `${Math.max(10, Math.round(peak * 100))}%` }]}
-                  />
-                ) : (
-                  <View style={[styles.bar, styles.barDim, { height: `${Math.max(10, Math.round(peak * 100))}%` }]} />
-                )}
-              </View>
-            );
-          })}
-        </View>
+        {width > 0 && path ? (
+          <Svg pointerEvents="none" width={width} height={height} style={StyleSheet.absoluteFill}>
+            <Defs>
+              <LinearGradient id={`${clipId}-gradient`} x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor={immersive ? '#7357C6' : '#FFFFFF'} />
+                <Stop offset="0.58" stopColor={immersive ? '#4A9EAA' : '#D7D0EA'} />
+                <Stop offset="1" stopColor={immersive ? '#D96D63' : '#FFFFFF'} />
+              </LinearGradient>
+              <ClipPath id={`${clipId}-progress`}>
+                <Rect x={0} y={0} width={Math.max(0, width * progress)} height={height} />
+              </ClipPath>
+            </Defs>
+            <Path d={path} fill="rgba(255,255,255,0.22)" />
+            <Path d={path} fill={`url(#${clipId}-gradient)`} clipPath={`url(#${clipId}-progress)`} />
+          </Svg>
+        ) : null}
+        <View pointerEvents="none" style={styles.waveAxis} />
 
-        {commentClusters.map((cluster) => {
-          const ts = cluster.timestampSeconds;
-          const left = Math.max(0, Math.min(100, (ts / safeDuration) * 100));
-          const id = cluster.id;
-          return (
-            <View key={id} pointerEvents="none" style={[styles.commentMarker, { left: `${left}%` }, activeMarkerId === id && styles.markerActive]}>
-              <Ionicons name="chatbubble" size={8} color="#FFFAF2" />
-              {cluster.comments.length > 1 ? <Text style={styles.markerCount}>{cluster.comments.length}</Text> : null}
-            </View>
-          );
-        })}
         {clusters.map((cluster) => {
           const left = Math.max(0, Math.min(100, (cluster.timestampSeconds / safeDuration) * 100));
+          const total = cluster.comments.length + cluster.reactions.length;
+          const hasBoth = cluster.comments.length > 0 && cluster.reactions.length > 0;
           const meta = reactionMeta(cluster.topType);
+          const backgroundColor = hasBoth ? '#7357C6' : cluster.comments.length ? '#4A9EAA' : meta.color;
+          const icon = hasBoth ? 'pulse' : cluster.comments.length ? 'chatbubble' : meta.icon;
           return (
             <View
               key={cluster.id}
               pointerEvents="none"
-              style={[styles.reactionMarker, { left: `${left}%`, backgroundColor: meta.color }, activeMarkerId === cluster.id && styles.markerActive]}
+              style={[
+                styles.momentMarker,
+                { left: `${left}%`, backgroundColor },
+                activeMarkerId === cluster.id && styles.markerActive,
+              ]}
             >
-              <Ionicons name={meta.icon} size={8} color="#FFFAF2" />
-              {cluster.total > 1 ? <Text style={styles.markerCount}>{cluster.total}</Text> : null}
+              <Ionicons name={icon} size={8} color="#FFFFFF" />
+              {total > 1 ? <Text style={styles.markerCount}>{total > 99 ? '99+' : total}</Text> : null}
             </View>
           );
         })}
 
-        {draggingValue != null && !pressedMarkerRef.current ? (
-          <View
-            pointerEvents="none"
-            style={[styles.bubble, { left: Math.max(0, Math.min(width - 56, progress * width - 28)) }]}
-          >
-            <Text style={styles.bubbleText}>{fmtTime(draggingValue)}</Text>
+        {draggingValue != null ? (
+          <View pointerEvents="none" style={[styles.scrubBubble, { left: Math.max(0, Math.min(width - 58, progress * width - 29)) }]}>
+            <Text style={styles.scrubBubbleText}>{fmtTime(draggingValue)}</Text>
           </View>
         ) : null}
-
         <View pointerEvents="none" style={[styles.playhead, !immersive && styles.playheadCompact, { left: `${progress * 100}%` }]}>
           {immersive ? <View style={styles.playheadCap} /> : null}
         </View>
-      </View>
+      </Pressable>
 
       {showTimes ? (
         <View style={styles.timeRow}>
@@ -409,227 +435,89 @@ export function WaveformSeekBar({
   );
 }
 
-function MarkerBubble({ marker, width, onClose }: { marker: Marker; width: number; onClose: () => void }) {
-  if (marker.kind === 'comments') {
-    const { cluster } = marker;
-    const comment = cluster.comments.at(-1)!;
-    return (
-      <View style={[styles.bubbleCard, { maxWidth: Math.max(200, width - 16) }]}>
-        <View style={styles.bubbleAvatar}>
-          {comment.user.avatar ? (
-            <Image source={{ uri: comment.user.avatar }} style={StyleSheet.absoluteFillObject} />
-          ) : (
-            <Text style={styles.bubbleAvatarText}>{(comment.user.name || comment.user.username || '?').slice(0, 1).toUpperCase()}</Text>
-          )}
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={styles.bubbleMeta} numberOfLines={1}>
-            {cluster.comments.length > 1 ? `${cluster.comments.length} commentaires` : comment.user.name} · {fmtTime(cluster.timestampSeconds)}
-          </Text>
-          <Text style={styles.bubbleText2} numberOfLines={2}>{comment.content}</Text>
-        </View>
-        <Text onPress={onClose} style={styles.bubbleClose}>✕</Text>
-      </View>
-    );
-  }
-
-  const { cluster } = marker;
-  const meta = reactionMeta(cluster.topType);
-  const breakdown = Object.entries(cluster.byType)
+function MarkerBubble({ marker, width, onClose }: { marker: MomentCluster; width: number; onClose: () => void }) {
+  const latestComment = marker.comments.at(-1);
+  const total = marker.comments.length + marker.reactions.length;
+  const meta = reactionMeta(marker.topType);
+  const reactionBreakdown = Object.entries(marker.byType)
     .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
-    .map(([type, count]) => `${reactionMeta(type as MomentReactionType).shortLabel} ×${count}`)
+    .slice(0, 3)
+    .map(([type, count]) => `${reactionMeta(type as MomentReactionType).shortLabel} x${count}`)
     .join(' · ');
 
   return (
-    <View style={[styles.bubbleCard, { maxWidth: Math.max(200, width - 16) }]}>
-      <View style={[styles.bubbleAvatar, { backgroundColor: meta.color }]}>
-        <Ionicons name={meta.icon} size={16} color="#FFFAF2" />
+    <View style={[styles.bubbleCard, { maxWidth: Math.max(210, width - 12) }]}>
+      <View style={[styles.bubbleAvatar, !latestComment && { backgroundColor: meta.color }]}>
+        {latestComment?.user.avatar ? (
+          <Image source={{ uri: latestComment.user.avatar }} style={StyleSheet.absoluteFillObject} />
+        ) : latestComment ? (
+          <Text style={styles.bubbleAvatarText}>{(latestComment.user.name || latestComment.user.username || '?').slice(0, 1).toUpperCase()}</Text>
+        ) : (
+          <Ionicons name={meta.icon} size={15} color="#FFFFFF" />
+        )}
       </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
+      <View style={styles.bubbleCopy}>
         <Text style={styles.bubbleMeta} numberOfLines={1}>
-          {fmtTime(cluster.timestampSeconds)} · {cluster.total} réaction{cluster.total > 1 ? 's' : ''}
+          {fmtTime(marker.timestampSeconds)} · {total} moment{total > 1 ? 's' : ''}
         </Text>
-        <Text style={styles.bubbleText2} numberOfLines={1}>{breakdown}</Text>
+        {latestComment ? <Text style={styles.bubbleText} numberOfLines={2}>{latestComment.content}</Text> : null}
+        {reactionBreakdown ? <Text style={styles.bubbleReaction} numberOfLines={1}>{reactionBreakdown}</Text> : null}
       </View>
-      <Text onPress={onClose} style={styles.bubbleClose}>✕</Text>
+      <Pressable accessibilityLabel="Fermer le moment" onPress={onClose} hitSlop={8} style={styles.bubbleClose}>
+        <Ionicons name="close" size={14} color="rgba(255,255,255,0.62)" />
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  waveZone: { justifyContent: 'center' },
+  waveZone: { justifyContent: 'center', overflow: 'visible' },
   waveZoneImmersive: {
-    paddingHorizontal: 5,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,250,242,0.055)',
+    borderRadius: 10,
+    backgroundColor: 'rgba(17,17,17,0.22)',
     borderWidth: 1,
-    borderColor: 'rgba(255,250,242,0.1)',
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   waveZoneDefault: {
-    paddingHorizontal: 5,
-    borderRadius: 10,
-    backgroundColor: 'rgba(10,8,8,0.28)',
+    borderRadius: 8,
+    backgroundColor: 'rgba(17,17,17,0.3)',
     borderWidth: 1,
-    borderColor: 'rgba(255,250,242,0.1)',
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   immersiveHeader: {
     minHeight: 32,
-    marginBottom: 7,
+    marginBottom: 6,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
   },
   immersiveIdentity: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
-  identityIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#7357C6',
-  },
-  identityLabel: { color: 'rgba(255,250,242,0.82)', fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
-  momentCount: {
-    minWidth: 20,
-    height: 20,
-    paddingHorizontal: 5,
-    borderRadius: 10,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    color: '#FFFAF2',
-    backgroundColor: 'rgba(255,250,242,0.13)',
-    fontSize: 9,
-    fontWeight: '900',
-  },
-  createMomentButton: {
-    minHeight: 30,
-    paddingHorizontal: 10,
-    borderRadius: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(115,87,198,0.92)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,250,242,0.2)',
-  },
+  identityIcon: { width: 24, height: 24, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7357C6' },
+  identityLabel: { color: 'rgba(255,255,255,0.78)', fontSize: 9, fontWeight: '900' },
+  momentCount: { minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 7, textAlign: 'center', textAlignVertical: 'center', color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.12)', fontSize: 9, fontWeight: '900' },
+  createMomentButton: { minHeight: 30, paddingHorizontal: 10, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(115,87,198,0.94)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
   createMomentButtonPressed: { opacity: 0.72, transform: [{ scale: 0.97 }] },
-  createMomentText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
-  waveAxis: {
-    position: 'absolute',
-    left: 5,
-    right: 5,
-    top: '50%',
-    height: 1,
-    backgroundColor: 'rgba(255,250,242,0.09)',
-  },
-  bars: {
-    height: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  barSlot: { flex: 1, height: '100%', justifyContent: 'center' },
-  bar: { width: '100%', borderRadius: 999 },
-  barDim: { backgroundColor: 'rgba(255,250,242,0.24)' },
-  commentMarker: {
-    position: 'absolute',
-    top: 2,
-    minWidth: 18,
-    height: 18,
-    marginLeft: -9,
-    paddingHorizontal: 4,
-    borderRadius: 9,
-    flexDirection: 'row',
-    gap: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#4A9EAA',
-    borderWidth: 1.5,
-    borderColor: '#FFFAF2',
-  },
-  reactionMarker: {
-    position: 'absolute',
-    bottom: 2,
-    minWidth: 18,
-    height: 18,
-    marginLeft: -9,
-    paddingHorizontal: 4,
-    borderRadius: 9,
-    flexDirection: 'row',
-    gap: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#FFFAF2',
-  },
-  markerActive: {
-    transform: [{ scale: 1.35 }],
-  },
-  markerCount: { color: '#FFFAF2', fontSize: 7, fontWeight: '900', fontVariant: ['tabular-nums'] },
-  playhead: {
-    position: 'absolute',
-    top: -3,
-    bottom: -3,
-    width: 2,
-    marginLeft: -1,
-    borderRadius: 2,
-    backgroundColor: '#FFFAF2',
-    shadowColor: '#111111',
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  playheadCompact: { top: 1, bottom: 1, backgroundColor: 'rgba(255,250,242,0.88)' },
-  playheadCap: {
-    position: 'absolute',
-    top: -2,
-    left: -3,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FFFAF2',
-  },
-  bubble: {
-    position: 'absolute',
-    top: -30,
-    width: 56,
-    paddingVertical: 4,
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(0,0,0,0.78)',
-  },
-  bubbleText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900', fontVariant: ['tabular-nums'] },
-  bubbleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 8,
-    marginBottom: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 14,
-    backgroundColor: 'rgba(10,8,8,0.88)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-  },
-  bubbleAvatar: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.14)',
-  },
-  bubbleAvatarText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900' },
-  bubbleMeta: { color: 'rgba(255,250,242,0.55)', fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
-  bubbleText2: { marginTop: 2, color: '#FFFAF2', fontSize: 12, fontWeight: '700', lineHeight: 16 },
-  bubbleClose: { color: 'rgba(255,250,242,0.5)', fontSize: 12, fontWeight: '900', paddingHorizontal: 2 },
-  timeRow: { marginTop: 3, flexDirection: 'row', justifyContent: 'space-between' },
-  timeText: { color: 'rgba(255,250,242,0.55)', fontSize: 10, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  createMomentText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
+  waveAxis: { position: 'absolute', left: 0, right: 0, top: '50%', height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.1)' },
+  momentMarker: { position: 'absolute', top: -5, minWidth: 18, height: 18, marginLeft: -9, paddingHorizontal: 4, borderRadius: 6, flexDirection: 'row', gap: 2, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#FFFFFF', shadowColor: '#111111', shadowOpacity: 0.2, shadowRadius: 3, elevation: 3 },
+  markerActive: { transform: [{ scale: 1.28 }] },
+  markerCount: { color: '#FFFFFF', fontSize: 7, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  playhead: { position: 'absolute', top: -3, bottom: -3, width: 2, marginLeft: -1, borderRadius: 2, backgroundColor: '#FFFFFF', shadowColor: '#111111', shadowOpacity: 0.35, shadowRadius: 4, elevation: 4 },
+  playheadCompact: { top: 1, bottom: 1, backgroundColor: 'rgba(255,255,255,0.9)' },
+  playheadCap: { position: 'absolute', top: -2, left: -3, width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFFFFF' },
+  scrubBubble: { position: 'absolute', top: -32, width: 58, paddingVertical: 5, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(17,17,17,0.9)' },
+  scrubBubbleText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  bubbleCard: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 8, marginBottom: 7, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(17,17,17,0.92)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
+  bubbleAvatar: { width: 28, height: 28, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.14)' },
+  bubbleAvatarText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
+  bubbleCopy: { flex: 1, minWidth: 0 },
+  bubbleMeta: { color: 'rgba(255,255,255,0.55)', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
+  bubbleText: { marginTop: 2, color: '#FFFFFF', fontSize: 12, fontWeight: '700', lineHeight: 16 },
+  bubbleReaction: { marginTop: 2, color: 'rgba(255,255,255,0.72)', fontSize: 9, fontWeight: '800' },
+  bubbleClose: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  timeRow: { marginTop: 4, flexDirection: 'row', justifyContent: 'space-between' },
+  timeText: { color: 'rgba(255,255,255,0.56)', fontSize: 10, fontWeight: '800', fontVariant: ['tabular-nums'] },
 });
 
 export default WaveformSeekBar;

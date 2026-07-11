@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,6 +18,8 @@ import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { useAuth } from '@/auth/AuthProvider';
 import { COMMUNITY_CLUBS, getClubByCategory, type ClubConfig } from '@/community/clubs';
 import { colors } from '@/theme/tokens';
+import { ScreenIntro } from '@/components/ui/ScreenIntro';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 
 // Intentions creatives (onboarding "Personnaliser mes gouts") qui mettent un Club
 // en avant. Ne masque jamais les autres Clubs, se contente de les prioriser.
@@ -114,19 +115,19 @@ export function CommunityScreen() {
   return (
     <SynauraBackground variant="warm">
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 150 }]} showsVerticalScrollIndicator={false}>
-        <View style={styles.titleRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.kicker}>ESPACE MUSICAL</Text>
-            <Text style={styles.pageTitle}>Clubs</Text>
-            <Text style={styles.pageSubtitle}>Trouve des personnes, des idées et des sons à faire évoluer.</Text>
-          </View>
-          <View style={styles.headerActions}>
-            <Pressable accessibilityLabel="FAQ communauté" onPress={() => setFaqOpen(true)} style={styles.circleButton}>
-              <Ionicons name="help-circle-outline" size={22} color="#171313" />
-            </Pressable>
-            <MobileAccountButton compact />
-          </View>
-        </View>
+        <ScreenIntro
+          eyebrow="Espace musical"
+          title="Clubs"
+          description="Trouve des personnes, des idées et des sons à faire évoluer ensemble."
+          trailing={(
+            <View style={styles.headerActions}>
+              <MotionPressable accessibilityLabel="FAQ communauté" onPress={() => setFaqOpen(true)} style={styles.circleButton} scaleTo={0.9}>
+                <Ionicons name="help-circle-outline" size={21} color={colors.text} />
+              </MotionPressable>
+              <MobileAccountButton compact />
+            </View>
+          )}
+        />
 
         {loading ? (
           <View style={styles.loadingState}>
@@ -175,7 +176,7 @@ function ClubCard({
           <Text style={styles.clubBadgeText}>Pour toi</Text>
         </View>
       ) : null}
-      <View style={[styles.clubGlow, { backgroundColor: `${club.accent}22` }]} />
+      <View style={[styles.clubAccent, { backgroundColor: club.accent }]} />
       <View style={[styles.clubIcon, { backgroundColor: club.accent }]}>
         <Ionicons name={club.icon as any} size={20} color="#FFFAF2" />
       </View>
@@ -205,68 +206,50 @@ function ClubCard({
 }
 
 function FaqModal({ visible, faqs, onClose }: { visible: boolean; faqs: CommunityFaq[]; onClose: () => void }) {
-  const insets = useSafeAreaInsets();
   const [openId, setOpenId] = useState('');
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalRoot}>
-        <ScrollView contentContainerStyle={[styles.modalContent, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 30 }]}>
-          <View style={styles.modalHeader}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.modalTitle}>FAQ communauté</Text>
-              <Text style={styles.modalSubtitle}>Les réponses aux questions fréquentes.</Text>
-            </View>
-            <Pressable onPress={onClose} style={styles.circleButton}><Ionicons name="close" size={23} color="#171313" /></Pressable>
-          </View>
+    <BottomSheet visible={visible} onClose={onClose} title="FAQ communauté" subtitle="Les réponses aux questions fréquentes." maxHeight="84%">
+        <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
           {faqs.map((faq) => (
-            <Pressable key={faq.id} onPress={() => setOpenId((current) => current === faq.id ? '' : faq.id)} style={styles.faqItem}>
+            <MotionPressable key={faq.id} onPress={() => setOpenId((current) => current === faq.id ? '' : faq.id)} style={styles.faqItem} scaleTo={0.99}>
               <View style={styles.faqQuestionRow}>
                 <Text style={styles.faqQuestion}>{faq.question}</Text>
                 <Ionicons name={openId === faq.id ? 'chevron-up' : 'chevron-down'} size={18} color="#171313" />
               </View>
               {openId === faq.id ? <Text style={styles.faqAnswer}>{faq.answer}</Text> : null}
-            </Pressable>
+            </MotionPressable>
           ))}
           {!faqs.length ? <Text style={styles.faqEmpty}>La FAQ est vide pour le moment.</Text> : null}
         </ScrollView>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 16, gap: 16 },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  content: { paddingHorizontal: 18, gap: 20 },
   headerActions: { flexDirection: 'row', gap: 7 },
-  kicker: { color: 'rgba(23,19,19,0.46)', fontSize: 10, fontWeight: '900', letterSpacing: 1.8 },
-  pageTitle: { color: colors.text, fontSize: 28, lineHeight: 32, fontWeight: '900', marginTop: 3 },
-  pageSubtitle: { color: colors.textSecondary, fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 4, maxWidth: 280 },
-  circleButton: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  circleButton: { width: 40, height: 40, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   loadingState: { minHeight: 240, alignItems: 'center', justifyContent: 'center', gap: 10 },
   loadingText: { color: 'rgba(23,19,19,0.5)', fontSize: 12, fontWeight: '700' },
   clubGrid: { gap: 12 },
-  clubCard: { position: 'relative', overflow: 'hidden', minHeight: 190, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 16 },
+  clubCard: { position: 'relative', overflow: 'hidden', minHeight: 188, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.82)', borderWidth: 1, borderColor: colors.border, padding: 16 },
   clubCardHighlighted: { borderColor: colors.violet, borderWidth: 1.5 },
   clubBadge: { position: 'absolute', right: 14, top: 14, zIndex: 1, borderRadius: 999, backgroundColor: colors.violet, paddingHorizontal: 9, paddingVertical: 4 },
   clubBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
-  clubGlow: { position: 'absolute', right: -50, top: -50, width: 160, height: 160, borderRadius: 80 },
-  clubIcon: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  clubAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
+  clubIcon: { width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   clubName: { marginTop: 12, color: '#171313', fontSize: 20, fontWeight: '900' },
   clubPromise: { marginTop: 4, color: 'rgba(23,19,19,0.5)', fontSize: 12, lineHeight: 17, fontWeight: '700', maxWidth: '92%' },
-  clubLatest: { marginTop: 12, borderRadius: 14, backgroundColor: 'rgba(23,19,19,0.035)', padding: 10 },
+  clubLatest: { marginTop: 12, borderRadius: 8, backgroundColor: 'rgba(23,19,19,0.035)', padding: 10 },
   clubLatestTitle: { color: '#171313', fontSize: 12, fontWeight: '900' },
   clubLatestMeta: { marginTop: 2, color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '700' },
   clubLatestEmpty: { color: 'rgba(23,19,19,0.38)', fontSize: 11, fontWeight: '700' },
   clubFooter: { marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   clubCount: { color: 'rgba(23,19,19,0.4)', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
-  enterButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
+  enterButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9 },
   enterButtonText: { color: '#FFFAF2', fontSize: 12, fontWeight: '900' },
-  modalRoot: { flex: 1, backgroundColor: '#F4EFE6' },
-  modalContent: { paddingHorizontal: 16, gap: 13 },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  modalTitle: { color: '#171313', fontSize: 27, lineHeight: 31, fontWeight: '900' },
-  modalSubtitle: { color: 'rgba(23,19,19,0.48)', fontSize: 11, fontWeight: '700', marginTop: 3 },
-  faqItem: { padding: 15, borderRadius: 20, backgroundColor: '#FFFAF2', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
+  modalContent: { paddingHorizontal: 18, paddingBottom: 12, gap: 10 },
+  faqItem: { padding: 14, borderRadius: 8, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
   faqQuestionRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   faqQuestion: { flex: 1, color: '#171313', fontSize: 14, fontWeight: '900' },
   faqAnswer: { color: 'rgba(23,19,19,0.62)', fontSize: 12, lineHeight: 19, fontWeight: '600', marginTop: 12 },

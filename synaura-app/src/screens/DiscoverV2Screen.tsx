@@ -22,7 +22,10 @@ import { usePlayer } from '@/player/PlayerProvider';
 import { useAuth } from '@/auth/AuthProvider';
 import { DISCOVER_MOODS } from '@/discover/moods';
 import { COMMUNITY_CLUBS } from '@/community/clubs';
-import { colors } from '@/theme/tokens';
+import { MotionPressable, Reveal } from '@/components/motion/Motion';
+import { ScreenIntro } from '@/components/ui/ScreenIntro';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { colors, radius } from '@/theme/tokens';
 
 // Intentions creatives (onboarding "Personnaliser mes gouts") qui mettent un Club
 // en avant. Ne masque jamais les autres Clubs, se contente de les prioriser.
@@ -146,52 +149,48 @@ export function DiscoverV2Screen() {
     <View style={styles.root}>
       <SynauraBackground variant="warm" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingTop: insets.top + 14 }]}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.eyebrow}>EXPLORER</Text>
-            <Text style={styles.title}>Découvrir</Text>
-            <Text style={styles.subtitle}>Choisis une ambiance et entre dans un univers.</Text>
-          </View>
-          <MobileAccountButton compact />
-        </View>
+        <ScreenIntro
+          eyebrow="Explorer"
+          title="Découvrir"
+          description="Entre par une ambiance, un signal ou une communauté."
+          trailing={<MobileAccountButton compact />}
+        />
 
-        <Pressable onPress={() => setSearchOpen(true)} style={styles.search}>
+        <MotionPressable onPress={() => setSearchOpen(true)} style={styles.search} scaleTo={0.98}>
           <Ionicons name="search" size={19} color={colors.textSecondary} />
           <Text style={styles.searchText}>Sons, artistes, playlists, clubs...</Text>
           <View style={styles.searchArrow}><Ionicons name="arrow-forward" size={15} color={colors.text} /></View>
-        </Pressable>
+        </MotionPressable>
 
-        <SectionTitle title="Explorer par ambiance" />
+        <SectionHeader title="Explorer par ambiance" subtitle="Une porte d’entrée vers les sons qui correspondent à ton moment." />
         <View style={styles.moodGrid}>
-          {orderedMoods.map((mood) => {
+          {orderedMoods.map((mood, index) => {
             const highlighted = favoriteMoodIds.includes(mood.id);
             return (
-              <Pressable
-                key={mood.id}
-                onPress={() => navigation.navigate('DiscoverMood', { moodId: mood.id })}
-                style={styles.moodPressable}
-              >
-                <LinearGradient
-                  colors={mood.gradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[styles.moodTile, highlighted && styles.moodTileHighlighted]}
+              <Reveal key={mood.id} delay={Math.min(index * 45, 220)} distance={8} scaleFrom={0.985} style={styles.moodReveal}>
+                <MotionPressable
+                  onPress={() => navigation.navigate('DiscoverMood', { moodId: mood.id })}
+                  style={styles.moodPressable}
+                  scaleTo={0.975}
                 >
-                  {highlighted ? (
-                    <View style={styles.moodBadge}>
-                      <Text style={styles.moodBadgeText}>Pour toi</Text>
+                  <LinearGradient
+                    colors={mood.gradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[styles.moodTile, highlighted && styles.moodTileHighlighted]}
+                  >
+                    {highlighted ? <View style={styles.moodBadge}><Text style={styles.moodBadgeText}>Pour toi</Text></View> : null}
+                    <View>
+                      <Text style={styles.moodLabel}>{mood.label}</Text>
+                      <Text numberOfLines={2} style={styles.moodPromise}>{mood.promise}</Text>
                     </View>
-                  ) : null}
-                  <View>
-                    <Text style={styles.moodLabel}>{mood.label}</Text>
-                    <Text numberOfLines={2} style={styles.moodPromise}>{mood.promise}</Text>
-                  </View>
-                  <View style={styles.moodEnter}>
-                    <Text style={styles.moodEnterText}>Entrer</Text>
-                    <Ionicons name="arrow-forward" size={13} color="#FFFAF2" />
-                  </View>
-                </LinearGradient>
-              </Pressable>
+                    <View style={styles.moodEnter}>
+                      <Text style={styles.moodEnterText}>Entrer</Text>
+                      <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
+                    </View>
+                  </LinearGradient>
+                </MotionPressable>
+              </Reveal>
             );
           })}
         </View>
@@ -212,10 +211,10 @@ export function DiscoverV2Screen() {
 
         {home.playlists.length ? (
           <View>
-            <SectionTitle title="Collections éditoriales" />
+            <SectionHeader title="Collections éditoriales" subtitle="Des sélections construites autour d’une histoire musicale." />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.playlistRail}>
               {home.playlists.map((playlist) => (
-                <Pressable key={playlist.id} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.slug || playlist.id })} style={styles.playlistTile}>
+                <MotionPressable key={playlist.id} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.slug || playlist.id })} style={styles.playlistTile} scaleTo={0.97}>
                   <View style={styles.playlistCover}>
                     {playlist.bannerUrl || playlist.covers?.[0] ? (
                       <Image source={{ uri: playlist.bannerUrl || playlist.covers[0] }} style={StyleSheet.absoluteFillObject} />
@@ -224,7 +223,7 @@ export function DiscoverV2Screen() {
                     )}
                   </View>
                   <Text numberOfLines={1} style={styles.playlistTitle}>{playlist.title}</Text>
-                </Pressable>
+                </MotionPressable>
               ))}
             </ScrollView>
           </View>
@@ -232,7 +231,7 @@ export function DiscoverV2Screen() {
 
         {artistPairings.length ? (
           <View>
-            <SectionTitle title="Artistes à découvrir" />
+            <SectionHeader title="Artistes à découvrir" subtitle="Un premier morceau pour entrer dans leur univers." />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.artistRail}>
               {artistPairings.map(({ creator, track }) => (
                 <ArtistDiscoverCard
@@ -249,12 +248,7 @@ export function DiscoverV2Screen() {
         ) : null}
 
         <View style={styles.clubsSection}>
-          <View style={styles.clubsHeader}>
-            <Text style={styles.clubsTitle}>Créer avec d'autres</Text>
-            <Pressable onPress={() => navigation.navigate('Community')}>
-              <Text style={styles.clubsLink}>Tous les Clubs</Text>
-            </Pressable>
-          </View>
+          <SectionHeader title="Créer avec d'autres" subtitle="Rejoins un espace centré sur une façon de faire de la musique." actionLabel="Tous les Clubs" onAction={() => navigation.navigate('Community')} />
           <View style={styles.clubsGrid}>
             {orderedClubs.map((club) => {
               const highlighted = highlightedClubSlugs.includes(club.slug);
@@ -277,21 +271,13 @@ export function DiscoverV2Screen() {
   );
 }
 
-function SectionTitle({ title }: { title: string }) {
-  return (
-    <View style={styles.sectionTitleRow}>
-      <Text style={styles.sectionHeadingSmall}>{title}</Text>
-    </View>
-  );
-}
-
 function CollectionFeatureCard({ playlist, onPress }: { playlist: Playlist; onPress: () => void }) {
   const collection = playlist.collection;
   const cardColors = collection?.themeColors?.length ? collection.themeColors : playlist.themeColors?.length ? playlist.themeColors : ['#7357C6', '#4A9EAA'];
   const banner = playlist.bannerUrl || collection?.bannerUrl || playlist.coverUrl || playlist.covers[0];
 
   return (
-    <Pressable onPress={onPress} style={styles.collectionFeature}>
+    <MotionPressable onPress={onPress} style={styles.collectionFeature} scaleTo={0.985}>
       <LinearGradient colors={cardColors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
       {banner ? <Image source={{ uri: banner }} style={styles.collectionFeatureImage} /> : null}
       <LinearGradient colors={['rgba(19,16,17,0.20)', 'rgba(19,16,17,0.86)']} style={StyleSheet.absoluteFillObject} />
@@ -304,7 +290,7 @@ function CollectionFeatureCard({ playlist, onPress }: { playlist: Playlist; onPr
           <Text style={styles.collectionFeatureActionText}>Explorer</Text>
         </View>
       </View>
-    </Pressable>
+    </MotionPressable>
   );
 }
 
@@ -345,20 +331,14 @@ function ArtistDiscoverCard({ creator, track, playing, onPlay, onOpen }: {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 16, paddingBottom: 145 },
-  header: { minHeight: 46, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  eyebrow: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', letterSpacing: 1.3 },
-  title: { marginTop: 1, color: colors.text, fontSize: 25, fontWeight: '900' },
-  subtitle: { marginTop: 3, color: colors.textSecondary, fontSize: 11, fontWeight: '700', maxWidth: 260 },
-  search: { height: 44, marginTop: 13, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12 },
+  content: { paddingHorizontal: 18, paddingBottom: 160, gap: 20 },
+  search: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.86)', borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12 },
   searchText: { flex: 1, color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
-  searchArrow: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.05)' },
-  sectionTitleRow: { marginTop: 20, marginBottom: 9 },
-  sectionHeading: { color: colors.text, fontSize: 15, lineHeight: 20, fontWeight: '900' },
-  sectionHeadingSmall: { color: colors.text, fontSize: 18, fontWeight: '900' },
-  moodGrid: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between' },
-  moodPressable: { width: '48.5%', borderRadius: 18, overflow: 'hidden' },
-  moodTile: { minHeight: 138, borderRadius: 18, padding: 13, justifyContent: 'space-between' },
+  searchArrow: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.05)' },
+  moodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between' },
+  moodReveal: { width: '48.5%' },
+  moodPressable: { width: '100%', borderRadius: radius.lg, overflow: 'hidden' },
+  moodTile: { minHeight: 142, borderRadius: radius.lg, padding: 13, justifyContent: 'space-between' },
   moodTileHighlighted: { borderWidth: 2, borderColor: colors.violet },
   moodBadge: { position: 'absolute', left: 12, top: 12, zIndex: 1, borderRadius: 999, backgroundColor: colors.violet, paddingHorizontal: 9, paddingVertical: 4 },
   moodBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
@@ -366,37 +346,37 @@ const styles = StyleSheet.create({
   moodPromise: { marginTop: 5, color: 'rgba(255,250,242,0.72)', fontSize: 10, lineHeight: 14, fontWeight: '700' },
   moodEnter: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' },
   moodEnterText: { color: 'rgba(255,250,242,0.9)', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
-  collectionFeature: { minHeight: 260, borderRadius: 26, overflow: 'hidden', marginTop: 18, backgroundColor: colors.text, shadowColor: colors.text, shadowOpacity: 0.16, shadowRadius: 22, shadowOffset: { width: 0, height: 12 }, elevation: 5 },
+  collectionFeature: { minHeight: 250, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.text, shadowColor: colors.text, shadowOpacity: 0.13, shadowRadius: 18, shadowOffset: { width: 0, height: 9 }, elevation: 4 },
   collectionFeatureImage: { ...StyleSheet.absoluteFillObject, opacity: 0.48 },
   collectionFeatureBody: { flex: 1, justifyContent: 'flex-end', padding: 17 },
   collectionFeatureBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: 999, backgroundColor: 'rgba(255,249,239,0.18)', paddingHorizontal: 11, paddingVertical: 6, color: colors.paper, fontSize: 9, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
   collectionFeatureTitle: { marginTop: 11, color: colors.paper, fontSize: 27, lineHeight: 29, fontWeight: '900' },
   collectionFeatureText: { marginTop: 8, color: 'rgba(255,249,239,0.78)', fontSize: 13, lineHeight: 19, fontWeight: '800' },
-  collectionFeatureAction: { alignSelf: 'flex-start', marginTop: 14, height: 42, borderRadius: 21, backgroundColor: colors.paper, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  collectionFeatureAction: { alignSelf: 'flex-start', marginTop: 14, height: 42, borderRadius: radius.md, backgroundColor: colors.paper, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 7 },
   collectionFeatureActionText: { color: colors.text, fontSize: 12, fontWeight: '900' },
   playlistRail: { gap: 11, paddingRight: 18 },
   playlistTile: { width: 118 },
-  playlistCover: { width: 118, height: 92, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 13, backgroundColor: 'rgba(23,19,19,0.06)' },
+  playlistCover: { width: 118, height: 92, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: radius.md, backgroundColor: 'rgba(23,19,19,0.06)' },
   playlistTitle: { marginTop: 7, color: colors.text, fontSize: 11, fontWeight: '900' },
   artistRail: { gap: 10, paddingRight: 18 },
-  artistCard: { width: 190, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(255,250,242,0.86)', padding: 11, gap: 9 },
+  artistCard: { width: 190, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.76)', padding: 11, gap: 9 },
   artistTop: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  artistAvatar: { width: 44, height: 44, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderRadius: 16 },
+  artistAvatar: { width: 44, height: 44, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
   artistInitial: { color: colors.paper, fontSize: 17, fontWeight: '900' },
   artistName: { color: colors.text, fontSize: 12, fontWeight: '900' },
   artistStyle: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
-  artistTrack: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, backgroundColor: 'rgba(23,19,19,0.045)', padding: 6 },
+  artistTrack: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.md, backgroundColor: 'rgba(23,19,19,0.045)', padding: 6 },
   artistTrackCover: { width: 32, height: 32, borderRadius: 9 },
   artistTrackTitle: { flex: 1, minWidth: 0, color: colors.text, fontSize: 10, fontWeight: '900' },
-  artistTrackPlay: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
-  artistCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 32, borderRadius: 999, backgroundColor: 'rgba(23,19,19,0.05)' },
+  artistTrackPlay: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  artistCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 32, borderRadius: radius.md, backgroundColor: 'rgba(23,19,19,0.05)' },
   artistCtaText: { color: colors.text, fontSize: 10, fontWeight: '900' },
-  clubsSection: { marginTop: 24, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(23,19,19,0.02)', padding: 13 },
+  clubsSection: { gap: 12, paddingTop: 4 },
   clubsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   clubsTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   clubsLink: { color: colors.textTertiary, fontSize: 10, fontWeight: '900' },
   clubsGrid: { marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  clubChip: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '48%', borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 10, paddingVertical: 9 },
+  clubChip: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '48%', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 10, paddingVertical: 10 },
   clubChipHighlighted: { borderColor: colors.violet, borderWidth: 1.5 },
   clubDot: { width: 7, height: 7, borderRadius: 4 },
   clubChipText: { flex: 1, minWidth: 0, color: colors.text, fontSize: 10, fontWeight: '900' },

@@ -11,6 +11,8 @@ import { AppHeader } from '@/components/ui/AppHeader';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors, radius, spacing } from '@/theme/tokens';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { MotionPressable } from '@/components/motion/Motion';
 
 type LibraryTab = 'favorites' | 'recent' | 'downloaded' | 'queue';
 
@@ -61,14 +63,21 @@ export function LibraryScreen() {
               {query ? <Pressable accessibilityLabel="Effacer" onPress={() => setQuery('')}><Ionicons name="close-circle" size={18} color={colors.textTertiary} /></Pressable> : null}
             </View>
             <View style={styles.tabs}>
-              <LibraryTabButton icon="heart-outline" label="Favoris" active={tab === 'favorites'} onPress={() => setTab('favorites')} />
-              <LibraryTabButton icon="time-outline" label="Récents" active={tab === 'recent'} onPress={() => setTab('recent')} />
-              <LibraryTabButton icon="download-outline" label="Hors ligne" active={tab === 'downloaded'} onPress={() => setTab('downloaded')} />
-              <LibraryTabButton icon="list-outline" label="File" active={tab === 'queue'} onPress={() => setTab('queue')} />
+              <SegmentedControl
+                value={tab}
+                compact
+                options={[
+                  { value: 'favorites', label: 'Favoris', icon: 'heart-outline' },
+                  { value: 'recent', label: 'Récents', icon: 'time-outline' },
+                  { value: 'downloaded', label: 'Hors ligne', icon: 'download-outline' },
+                  { value: 'queue', label: 'File', icon: 'list-outline' },
+                ]}
+                onChange={setTab}
+              />
             </View>
 
             {library.recent[0] ? (
-              <Pressable onPress={() => void player.playTrack(library.recent[0])} style={styles.resume}>
+              <MotionPressable onPress={() => void player.playTrack(library.recent[0])} style={styles.resume} scaleTo={0.985}>
                 <TrackCover track={library.recent[0]} active={player.current?._id === library.recent[0]._id && player.isPlaying} style={styles.resumeCover} />
                 <View style={styles.resumeCopy}>
                   <Text style={styles.resumeKicker}>REPRENDRE L’ÉCOUTE</Text>
@@ -76,18 +85,18 @@ export function LibraryScreen() {
                   <Text numberOfLines={1} style={styles.resumeMeta}>{library.recent[0].artist?.name || library.recent[0].artist?.username || 'Artiste Synaura'}</Text>
                 </View>
                 <View style={styles.resumePlay}><Ionicons name={player.current?._id === library.recent[0]._id && player.isPlaying ? 'pause' : 'play'} size={17} color={colors.white} /></View>
-              </Pressable>
+              </MotionPressable>
             ) : null}
 
             {playlists.length ? <RailTitle title="Playlists" subtitle="Tes collections et sélections" /> : null}
             {playlists.length ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.playlistRail}>
                 {playlists.slice(0, 10).map((playlist) => (
-                  <Pressable key={playlist.id} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.id })} style={styles.playlist}>
+                  <MotionPressable key={playlist.id} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.id })} style={styles.playlist} scaleTo={0.97}>
                     <View style={styles.playlistCover}>{playlist.covers[0] ? <Image source={{ uri: playlist.covers[0] }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={23} color={colors.textTertiary} />}</View>
                     <Text numberOfLines={1} style={styles.playlistTitle}>{playlist.title}</Text>
                     <Text numberOfLines={1} style={styles.playlistMeta}>{playlist.tracks}</Text>
-                  </Pressable>
+                  </MotionPressable>
                 ))}
               </ScrollView>
             ) : null}
@@ -96,10 +105,10 @@ export function LibraryScreen() {
             {following.length ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.artistRail}>
                 {following.map((artist) => (
-                  <Pressable key={artist.id} onPress={() => navigation.navigate('PublicProfile', { username: artist.handle.replace(/^@/, '') })} style={styles.artist}>
+                  <MotionPressable key={artist.id} onPress={() => navigation.navigate('PublicProfile', { username: artist.handle.replace(/^@/, '') })} style={styles.artist} scaleTo={0.95}>
                     <View style={[styles.artistAvatar, { backgroundColor: artist.tint }]}>{artist.avatar?.startsWith('http') ? <Image source={{ uri: artist.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.artistInitial}>{artist.name.slice(0, 1)}</Text>}</View>
                     <Text numberOfLines={1} style={styles.artistName}>{artist.name}</Text>
-                  </Pressable>
+                  </MotionPressable>
                 ))}
               </ScrollView>
             ) : null}
@@ -115,35 +124,27 @@ export function LibraryScreen() {
   );
 }
 
-function LibraryTabButton({ icon, label, active, onPress }: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; active: boolean; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={[styles.tab, active && styles.tabActive]}><Ionicons name={icon} size={15} color={active ? colors.white : colors.textSecondary} /><Text numberOfLines={1} style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text></Pressable>;
-}
-
 function RailTitle({ title, subtitle }: { title: string; subtitle: string }) {
   return <View style={styles.railTitle}><Text style={styles.listTitle}>{title}</Text><Text style={styles.railSubtitle}>{subtitle}</Text></View>;
 }
 
 const styles = StyleSheet.create({
   header: { marginBottom: spacing.lg },
-  search: { height: 48, marginHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: spacing.md },
+  search: { height: 48, marginHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.84)', paddingHorizontal: spacing.md },
   searchInput: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '700' },
-  tabs: { marginTop: spacing.md, paddingHorizontal: spacing.lg, flexDirection: 'row', gap: spacing.xs },
-  tab: { flex: 1, height: 40, alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: radius.md, backgroundColor: colors.surface },
-  tabActive: { backgroundColor: colors.black },
-  tabText: { color: colors.textSecondary, fontSize: 8, fontWeight: '800' },
-  tabTextActive: { color: colors.white },
-  resume: { minHeight: 74, marginHorizontal: spacing.lg, marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radius.lg, backgroundColor: colors.black, padding: spacing.sm },
+  tabs: { marginTop: spacing.md, paddingHorizontal: spacing.lg },
+  resume: { minHeight: 74, marginHorizontal: spacing.lg, marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radius.md, backgroundColor: colors.black, padding: spacing.sm },
   resumeCover: { width: 58, height: 58, borderRadius: radius.md },
   resumeCopy: { flex: 1, minWidth: 0 },
   resumeKicker: { color: '#BFB3E8', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
   resumeTitle: { marginTop: 4, color: colors.white, fontSize: 14, fontWeight: '900' },
   resumeMeta: { marginTop: 2, color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: '700' },
-  resumePlay: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
+  resumePlay: { width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
   railTitle: { marginTop: spacing.xl, paddingHorizontal: spacing.lg },
   railSubtitle: { marginTop: 2, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
   playlistRail: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   playlist: { width: 126 },
-  playlistCover: { width: 126, height: 126, overflow: 'hidden', borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  playlistCover: { width: 126, height: 126, overflow: 'hidden', borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   playlistTitle: { marginTop: spacing.sm, color: colors.text, fontSize: 11, fontWeight: '900' },
   playlistMeta: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
   artistRail: { gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.md },

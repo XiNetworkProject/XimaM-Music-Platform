@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import Video from 'react-native-video';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { canUseSoundClientSide } from '@/api/types';
 import { colors } from '@/theme/tokens';
 import { fmtCount, trackArtistName } from './helpers';
 import { useAuth } from '@/auth/AuthProvider';
+import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
 // Slide Clip alignée sur SwipeSlide (même colonne d'actions à droite, même
 // panneau méta sombre en bas à gauche, mêmes gestes tap/double-tap) : un clip
@@ -18,6 +19,7 @@ type Props = {
   clip: MusicClip;
   isActive: boolean;
   isPlaying: boolean;
+  audioPosition: number;
   isLiked: boolean;
   likesCount: number;
   commentsCount: number;
@@ -93,6 +95,7 @@ export function ClipSlide({
   clip,
   isActive,
   isPlaying,
+  audioPosition,
   isLiked,
   likesCount,
   commentsCount,
@@ -114,6 +117,7 @@ export function ClipSlide({
   const track = clip.sourceTrack;
   const artist = trackArtistName(track);
   const auth = useAuth();
+  const { settings } = useMobileSettings();
   const isOwnTrack = Boolean(auth.user?.id) && track.artist?._id === auth.user?.id;
   const canUseSound = canUseSoundClientSide({
     isOwner: isOwnTrack,
@@ -124,14 +128,39 @@ export function ClipSlide({
   const lastTapRef = useRef(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playButtonOpacity = useRef(new Animated.Value(isPlaying ? 0 : 1)).current;
+  const videoRef = useRef<any>(null);
+  const videoTimeRef = useRef(0);
+  const videoDurationRef = useRef(0);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoBuffering, setVideoBuffering] = useState(true);
+
+  const expectedVideoTime = Math.max(0, audioPosition - Math.max(0, clip.sourceTrackOffsetSeconds || 0));
 
   useEffect(() => {
-    Animated.timing(playButtonOpacity, { toValue: isPlaying ? 0 : 1, duration: 220, useNativeDriver: true }).start();
-  }, [isPlaying, playButtonOpacity]);
+    Animated.timing(playButtonOpacity, { toValue: isPlaying ? 0 : 1, duration: settings.reducedMotion ? 0 : 220, useNativeDriver: true }).start();
+  }, [isPlaying, playButtonOpacity, settings.reducedMotion]);
 
   useEffect(() => () => {
     if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    setVideoFailed(false);
+    setVideoReady(false);
+    setVideoBuffering(true);
+    videoTimeRef.current = 0;
+    videoDurationRef.current = 0;
+  }, [clip.id, clip.videoUrl]);
+
+  // TrackPlayer reste la source de verite. La video muette se recale seulement
+  // si la derive devient visible, ce qui evite les seeks permanents couteux.
+  useEffect(() => {
+    if (!isActive || !videoReady || !videoRef.current) return;
+    const duration = videoDurationRef.current;
+    const target = duration > 0 ? expectedVideoTime % duration : expectedVideoTime;
+    if (Math.abs(videoTimeRef.current - target) > 0.55) videoRef.current.seek(target);
+  }, [expectedVideoTime, isActive, videoReady]);
 
   // Mêmes gestes que SwipeSlide : tap = lecture/pause, double-tap = like.
   const handleTap = () => {
@@ -154,16 +183,39 @@ export function ClipSlide({
   return (
     <View style={[styles.page, { height }]}>
       <Pressable accessibilityLabel={isPlaying ? 'Mettre en pause' : 'Lire'} onPress={handleTap} style={styles.pressArea}>
-        {clip.videoUrl ? (
+        {clip.videoUrl && !videoFailed ? (
           <Video
+            ref={videoRef}
             source={{ uri: clip.videoUrl }}
             poster={clip.posterUrl || undefined}
-            paused={!isActive}
+            paused={!isActive || !isPlaying}
             repeat
             muted
+            disableFocus
             resizeMode="cover"
+            playInBackground={false}
+            playWhenInactive={false}
+            onLoad={(event) => {
+              videoDurationRef.current = Number(event.duration || 0);
+              setVideoReady(true);
+              setVideoBuffering(false);
+              const duration = Number(event.duration || 0);
+              const target = duration > 0 ? expectedVideoTime % duration : expectedVideoTime;
+              videoRef.current?.seek(target);
+            }}
+            onProgress={(event) => {
+              videoTimeRef.current = Number(event.currentTime || 0);
+            }}
+            onBuffer={(event) => setVideoBuffering(Boolean(event.isBuffering))}
+            onError={() => {
+              setVideoBuffering(false);
+              setVideoFailed(true);
+            }}
+            progressUpdateInterval={250}
             style={StyleSheet.absoluteFill}
           />
+        ) : clip.posterUrl ? (
+          <Image source={{ uri: clip.posterUrl }} resizeMode="cover" style={StyleSheet.absoluteFill} />
         ) : (
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#171313' }]} />
         )}
@@ -184,6 +236,17 @@ export function ClipSlide({
             <Ionicons name="film-outline" size={11} color="#8fd3dc" />
             <Text style={styles.clipBadgeText}>CLIP SYNAURA</Text>
           </View>
+          {videoFailed ? (
+            <View style={styles.videoStatus}>
+              <Ionicons name="cloud-offline-outline" size={11} color="#FFFAF2" />
+              <Text style={styles.videoStatusText}>VIDEO INDISPONIBLE</Text>
+            </View>
+          ) : isActive && videoBuffering ? (
+            <View style={styles.videoLoading}>
+              <View style={styles.videoLoadingDot} />
+              <Text style={styles.videoStatusText}>CHARGEMENT</Text>
+            </View>
+          ) : null}
         </View>
       </Pressable>
 
@@ -304,10 +367,14 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 999,
+    borderRadius: 8,
     backgroundColor: 'rgba(74,158,170,0.28)',
   },
-  clipBadgeText: { color: '#8fd3dc', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  clipBadgeText: { color: '#8fd3dc', fontSize: 10, fontWeight: '900' },
+  videoStatus: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 7, backgroundColor: 'rgba(217,109,99,0.72)' },
+  videoLoading: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 7, backgroundColor: 'rgba(17,17,17,0.56)' },
+  videoLoadingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.cyan },
+  videoStatusText: { color: '#FFFAF2', fontSize: 8, fontWeight: '900' },
   actionsColumn: {
     position: 'absolute',
     right: 9,
@@ -318,7 +385,7 @@ const styles = StyleSheet.create({
   profileAvatar: {
     width: 46,
     height: 46,
-    borderRadius: 23,
+    borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.7)',
@@ -345,7 +412,7 @@ const styles = StyleSheet.create({
   actionCircle: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(15,12,14,0.32)',
@@ -362,7 +429,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,250,242,0.74)',
     fontSize: 8,
     fontWeight: '900',
-    letterSpacing: 0.1,
     textAlign: 'center',
   },
   metaPanel: {
@@ -376,7 +442,7 @@ const styles = StyleSheet.create({
   tags: { marginTop: 7, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tag: {
     overflow: 'hidden',
-    borderRadius: 999,
+    borderRadius: 7,
     paddingHorizontal: 9,
     paddingVertical: 4,
     backgroundColor: 'rgba(255,250,242,0.14)',
@@ -389,21 +455,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    borderRadius: 18,
+    borderRadius: 10,
     padding: 8,
     backgroundColor: 'rgba(15,12,14,0.55)',
     borderWidth: 1,
     borderColor: 'rgba(255,250,242,0.14)',
   },
-  cover: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,250,242,0.1)' },
+  cover: { width: 44, height: 44, borderRadius: 8, backgroundColor: 'rgba(255,250,242,0.1)' },
   trackCopy: { flex: 1, minWidth: 0 },
-  kicker: { color: '#8fd3dc', fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
+  kicker: { color: '#8fd3dc', fontSize: 8, fontWeight: '900' },
   trackTitle: { marginTop: 2, color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   trackArtist: { marginTop: 1, color: 'rgba(255,250,242,0.6)', fontSize: 10, fontWeight: '800' },
   playButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFAF2',

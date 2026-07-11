@@ -32,6 +32,7 @@ import { TrackDetailScreen } from '@/screens/TrackDetailScreen';
 import { SearchScreen } from '@/screens/SearchScreen';
 import { ChallengeDetailScreen } from '@/screens/ChallengeDetailScreen';
 import { colors } from '@/theme/tokens';
+import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import type { MusicChallenge, Track } from '@/api/types';
 
 export type RootTabsParamList = {
@@ -119,10 +120,10 @@ function AnimatedTabButton({ children, accessibilityState, onPress, style, ...pr
   );
 }
 
-function SynauraScrollIcon({ focused }: { focused: boolean }) {
+function SynauraScrollIcon({ focused, dark }: { focused: boolean; dark: boolean }) {
   return (
-    <View style={[styles.scrollTab, focused && styles.scrollTabActive]}>
-      <Text style={[styles.scrollLetter, focused && styles.scrollLetterActive]}>S</Text>
+    <View style={[styles.scrollTab, dark && styles.scrollTabDark, focused && styles.scrollTabActive, dark && focused && styles.scrollTabActiveDark]}>
+      <Text style={[styles.scrollLetter, dark && styles.scrollLetterDark, focused && styles.scrollLetterActive, dark && focused && styles.scrollLetterActiveDark]}>S</Text>
     </View>
   );
 }
@@ -144,14 +145,18 @@ const PRIMARY_ICONS: Record<Exclude<(typeof PRIMARY_ROUTES)[number], 'Swipe'>, k
 
 function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const activeRoute = state.routes[state.index]?.name as keyof RootTabsParamList | undefined;
+  if (activeRoute && HIDDEN_ROUTES.has(activeRoute)) return null;
+  const dark = activeRoute === 'Swipe';
   const routes = state.routes.filter((route) => PRIMARY_ROUTES.includes(route.name as any));
 
   return (
-    <View pointerEvents="box-none" style={[styles.dockWrap, { paddingBottom: insets.bottom }]}>
-      <BlurView intensity={72} tint="light" style={styles.dock}>
+    <View pointerEvents="box-none" style={[styles.dockWrap, { paddingBottom: Math.max(insets.bottom, 7) }]}>
+      <BlurView intensity={82} tint={dark ? 'dark' : 'light'} style={[styles.dock, dark ? styles.dockDark : styles.dockLight]}>
         {routes.map((route) => {
           const focused = state.routes[state.index]?.key === route.key;
           const isScroll = route.name === 'Swipe';
+          const isCreate = route.name === 'Create';
           const label = PRIMARY_LABELS[route.name as keyof typeof PRIMARY_LABELS];
           const onPress = () => {
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -165,23 +170,29 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
               accessibilityLabel={label}
               testID={`tab-${route.name.toLowerCase()}`}
               onPress={onPress}
-              style={[styles.dockItem, isScroll && styles.dockItemScroll]}
+              style={[styles.dockItem, isCreate && styles.dockItemCreate]}
             >
               {isScroll ? (
-                <SynauraScrollIcon focused={focused} />
+                <SynauraScrollIcon focused={focused} dark={dark} />
+              ) : isCreate ? (
+                <View style={[styles.createDock, dark && styles.createDockDark]}>
+                  <Ionicons name="add" size={25} color={dark ? colors.black : colors.white} />
+                </View>
               ) : (
-                <View style={[styles.iconDock, focused && styles.iconDockActive]}>
+                <View style={[styles.iconDock, focused && styles.iconDockActive, dark && focused && styles.iconDockActiveDark]}>
                   <Ionicons
-                    name={PRIMARY_ICONS[route.name as keyof typeof PRIMARY_ICONS]}
-                    size={20}
-                    color={focused ? colors.black : colors.textTertiary}
+                    name={focused
+                      ? route.name === 'Discover' ? 'compass' : route.name === 'Community' ? 'people' : 'person'
+                      : PRIMARY_ICONS[route.name as keyof typeof PRIMARY_ICONS]}
+                    size={21}
+                    color={focused ? (dark ? colors.white : colors.black) : (dark ? 'rgba(255,255,255,0.48)' : colors.textTertiary)}
                   />
                 </View>
               )}
-              <Text numberOfLines={1} style={[styles.dockLabel, focused && styles.dockLabelActive, isScroll && styles.dockLabelScroll]}>
+              <Text numberOfLines={1} style={[styles.dockLabel, dark && styles.dockLabelDark, focused && styles.dockLabelActive, dark && focused && styles.dockLabelActiveDark, isCreate && styles.dockLabelCreate]}>
                 {label}
               </Text>
-              {focused ? <View style={styles.activeIndicator} /> : null}
+              {focused && !isCreate ? <View style={[styles.activeIndicator, dark && styles.activeIndicatorDark]} /> : null}
             </AnimatedTabButton>
           );
         })}
@@ -193,6 +204,7 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
 export function Tabs() {
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const tabNavigationRef = useRef<any>(null);
+  const { settings } = useMobileSettings();
 
   return (
     <>
@@ -202,6 +214,9 @@ export function Tabs() {
         screenOptions={() => ({
           headerShown: false,
           tabBarHideOnKeyboard: true,
+          animation: settings.reducedMotion ? 'none' : 'shift',
+          lazy: true,
+          sceneStyle: { backgroundColor: colors.background },
         })}
       >
         <Tab.Screen name="Swipe" component={SwipeScreen} />
@@ -271,63 +286,74 @@ const styles = StyleSheet.create({
   iconDock: {
     width: 32,
     height: 26,
-    borderRadius: 10,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconDockActive: { backgroundColor: 'rgba(115,87,198,0.11)' },
+  iconDockActiveDark: { backgroundColor: 'rgba(255,255,255,0.1)' },
   scrollTab: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
+    width: 36,
+    height: 30,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#EDE8F7',
   },
+  scrollTabDark: { backgroundColor: 'rgba(255,255,255,0.1)' },
   scrollTabActive: {
     backgroundColor: colors.black,
     borderColor: colors.black,
   },
+  scrollTabActiveDark: { backgroundColor: colors.white, borderColor: colors.white },
   scrollLetter: {
     color: '#7357C6',
-    fontSize: 21,
-    lineHeight: 24,
+    fontSize: 18,
+    lineHeight: 21,
     fontWeight: '900',
   },
+  scrollLetterDark: { color: 'rgba(255,255,255,0.65)' },
   scrollLetterActive: { color: '#FFFAF2' },
+  scrollLetterActiveDark: { color: colors.black },
   dockWrap: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
+    left: 9,
+    right: 9,
+    bottom: 2,
     zIndex: 80,
-    backgroundColor: 'rgba(250,250,249,0.96)',
+    backgroundColor: 'transparent',
   },
   dock: {
-    height: 60,
+    height: 66,
     overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderColor: 'rgba(17,17,17,0.08)',
-    backgroundColor: 'rgba(250,250,249,0.94)',
-    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 5,
   },
+  dockLight: { borderColor: 'rgba(17,17,17,0.09)', backgroundColor: 'rgba(255,255,255,0.9)' },
+  dockDark: { borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(17,17,17,0.82)' },
   dockItem: {
     flex: 1,
-    height: 58,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 1,
   },
-  dockItemScroll: {},
+  dockItemCreate: { paddingTop: 1 },
+  createDock: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black, shadowColor: colors.black, shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
+  createDockDark: { backgroundColor: colors.white, shadowOpacity: 0.12 },
   dockLabel: {
     maxWidth: '100%',
     color: colors.textTertiary,
     fontSize: 9,
     fontWeight: '800',
   },
+  dockLabelDark: { color: 'rgba(255,255,255,0.48)' },
   dockLabelActive: { color: colors.black },
-  dockLabelScroll: { marginTop: -1 },
-  activeIndicator: { position: 'absolute', bottom: 1, width: 16, height: 2, borderRadius: 1, backgroundColor: colors.violet },
+  dockLabelActiveDark: { color: colors.white },
+  dockLabelCreate: { marginTop: -2 },
+  activeIndicator: { position: 'absolute', bottom: 2, width: 14, height: 2, borderRadius: 1, backgroundColor: colors.violet },
+  activeIndicatorDark: { backgroundColor: colors.cyan },
 });

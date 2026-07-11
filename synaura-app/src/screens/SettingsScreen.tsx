@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,8 +28,10 @@ import { SHOW_SHUTDOWN_NOTICES } from '@/config/features';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { validateSocialUrl, type SocialPlatform } from '@/utils/validateSocialUrl';
 import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
+import { AppHeader } from '@/components/ui/AppHeader';
+import { MotionPressable, Reveal } from '@/components/motion/Motion';
 
-type Tab = 'profil' | 'compte' | 'preferences' | 'notifications' | 'events' | 'parrainage' | 'abonnement' | 'updates' | 'securite' | 'legal';
+type Tab = 'overview' | 'profil' | 'compte' | 'preferences' | 'notifications' | 'events' | 'parrainage' | 'abonnement' | 'updates' | 'securite' | 'legal';
 type EventPrefs = {
   autoParticipate: boolean;
   voteReminders: boolean;
@@ -65,6 +67,19 @@ const NOTIFICATION_LABELS: Record<string, string> = {
   weekly_recap: 'Recap hebdomadaire',
 };
 
+const SETTINGS_DESCRIPTIONS: Record<Exclude<Tab, 'overview'>, string> = {
+  profil: 'Identité, images, bio et liens sociaux',
+  compte: 'Session et informations du compte',
+  preferences: 'Lecture, données et animations',
+  notifications: 'Push et alertes de ton activité',
+  events: 'Participation et rappels Synaura Events',
+  parrainage: 'Invitations et crédits gagnés',
+  abonnement: 'Plan actuel et quotas',
+  updates: 'Version installée et nouvelles sorties',
+  securite: 'Actions sensibles du compte',
+  legal: 'Documents officiels et confidentialité',
+};
+
 export function SettingsScreen() {
   const auth = useAuth();
   const appUpdate = useAppUpdate();
@@ -72,7 +87,7 @@ export function SettingsScreen() {
   const nativePush = useNativeNotifications();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState<Tab>('profil');
+  const [tab, setTab] = useState<Tab>('overview');
   const [profile, setProfile] = useState<MobileProfile | null>(null);
   const [notif, setNotif] = useState<NotificationPrefs | null>(null);
   const [referral, setReferral] = useState<ReferralData | null>(null);
@@ -85,17 +100,17 @@ export function SettingsScreen() {
   const [selectedLegalId, setSelectedLegalId] = useState<string | null>(null);
   const selectedLegal = legalContent.find((document) => document.id === selectedLegalId) || null;
 
-  const tabs = useMemo<Array<{ key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }>>(() => [
+  const tabs = useMemo<Array<{ key: Exclude<Tab, 'overview'>; label: string; icon: keyof typeof Ionicons.glyphMap }>>(() => [
     { key: 'profil', label: 'Profil', icon: 'person-outline' },
     { key: 'compte', label: 'Compte', icon: 'id-card-outline' },
-    { key: 'preferences', label: 'Prefs', icon: 'options-outline' },
-    { key: 'notifications', label: 'Notifs', icon: 'notifications-outline' },
+    { key: 'preferences', label: 'Préférences', icon: 'options-outline' },
+    { key: 'notifications', label: 'Notifications', icon: 'notifications-outline' },
     { key: 'events', label: 'Events', icon: 'flash-outline' },
     { key: 'parrainage', label: 'Parrainage', icon: 'gift-outline' },
-    { key: 'abonnement', label: 'Plan', icon: 'diamond-outline' },
-    { key: 'updates', label: 'Mises a jour', icon: 'cloud-download-outline' },
-    { key: 'securite', label: 'Securite', icon: 'shield-checkmark-outline' },
-    { key: 'legal', label: 'Legal', icon: 'document-text-outline' },
+    { key: 'abonnement', label: 'Abonnement', icon: 'diamond-outline' },
+    { key: 'updates', label: 'Mises à jour', icon: 'cloud-download-outline' },
+    { key: 'securite', label: 'Sécurité', icon: 'shield-checkmark-outline' },
+    { key: 'legal', label: 'Centre légal', icon: 'document-text-outline' },
   ], []);
 
   const load = useCallback(async () => {
@@ -234,26 +249,51 @@ export function SettingsScreen() {
     return <LegalReader document={selectedLegal} onClose={() => setSelectedLegalId(null)} />;
   }
 
+  const activeCategory = tab === 'overview' ? null : tabs.find((item) => item.key === tab) || null;
+
   return (
     <SynauraBackground variant="warm">
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 10 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.back}><Ionicons name="chevron-back" size={20} color="#171313" /></Pressable>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.kicker}>Compte Synaura</Text>
-            <Text style={styles.title}>Parametres</Text>
-          </View>
-          {loading ? <ActivityIndicator color="#171313" /> : null}
-        </View>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: 0 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <AppHeader
+          flush
+          title={activeCategory?.label || 'Paramètres'}
+          subtitle={activeCategory ? SETTINGS_DESCRIPTIONS[activeCategory.key] : `@${auth.user.username || profile?.username || 'synaura'}`}
+          onBack={activeCategory ? () => setTab('overview') : () => navigation.goBack()}
+          action={tab === 'overview' ? { icon: 'refresh-outline', label: 'Actualiser', onPress: () => void load() } : undefined}
+        />
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
-          {tabs.map((item) => (
-            <Pressable key={item.key} onPress={() => setTab(item.key)} style={[styles.tab, tab === item.key && styles.tabActive]}>
-              <Ionicons name={item.icon} size={15} color={tab === item.key ? '#FFFAF2' : 'rgba(23,19,19,0.5)'} />
-              <Text style={[styles.tabText, tab === item.key && styles.tabTextActive]}>{item.label}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        {loading ? <View style={styles.inlineLoading}><ActivityIndicator color={colors.violet} /><Text style={styles.muted}>Synchronisation...</Text></View> : null}
+
+        {tab === 'overview' ? (
+          <>
+            <Reveal distance={8} style={styles.overviewHero}>
+              <View style={styles.overviewAvatar}>
+                {profile?.avatar ? <Image source={{ uri: profile.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.overviewAvatarText}>{(profile?.name || auth.user.name || auth.user.username || 'S').slice(0, 1).toUpperCase()}</Text>}
+              </View>
+              <View style={styles.overviewCopy}>
+                <Text numberOfLines={1} style={styles.overviewName}>{profile?.name || auth.user.name || auth.user.username}</Text>
+                <Text numberOfLines={1} style={styles.overviewMeta}>{auth.user.email || `@${auth.user.username}`}</Text>
+              </View>
+              <View style={styles.overviewStatus}><View style={styles.overviewStatusDot} /><Text style={styles.overviewStatusText}>Synchronisé</Text></View>
+            </Reveal>
+
+            <View style={styles.settingsMenu}>
+              {tabs.map((item, index) => (
+                <Reveal key={item.key} delay={Math.min(index * 30, 180)} distance={5}>
+                  <MotionPressable onPress={() => setTab(item.key)} style={styles.settingsRow} scaleTo={0.985}>
+                    <View style={styles.settingsIcon}><Ionicons name={item.icon} size={19} color={colors.violet} /></View>
+                    <View style={styles.settingsCopy}>
+                      <Text style={styles.settingsTitle}>{item.label}</Text>
+                      <Text numberOfLines={1} style={styles.settingsDescription}>{SETTINGS_DESCRIPTIONS[item.key]}</Text>
+                    </View>
+                    {item.key === 'updates' && appUpdate.release && appUpdate.release.versionCode > appUpdate.currentVersionCode ? <View style={styles.updateDot} /> : null}
+                    <Ionicons name="chevron-forward" size={17} color={colors.textTertiary} />
+                  </MotionPressable>
+                </Reveal>
+              ))}
+            </View>
+          </>
+        ) : null}
 
         {tab === 'profil' ? (
           <Section title="Profil public" text="Ce que les auditeurs voient sur ton profil.">
@@ -583,19 +623,31 @@ function Usage({ label, used, limit, percentage }: { label: string; used: number
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 16, paddingBottom: 130, gap: 11 },
+  content: { paddingHorizontal: 18, paddingBottom: 130, gap: 14 },
   center: { flex: 1, justifyContent: 'center', padding: 24 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   back: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  kicker: { color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '900', letterSpacing: 1.3, textTransform: 'uppercase' },
+  kicker: { color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   title: { color: colors.text, fontSize: 25, fontWeight: '900', letterSpacing: -0.4 },
   muted: { color: 'rgba(23,19,19,0.55)', fontSize: 12, fontWeight: '700', lineHeight: 18 },
-  tabs: { gap: 8, paddingRight: 16 },
-  tab: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, borderRadius: 11, paddingHorizontal: 11, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  tabActive: { backgroundColor: '#171313', borderColor: '#171313' },
-  tabText: { color: 'rgba(23,19,19,0.58)', fontSize: 11, fontWeight: '900' },
-  tabTextActive: { color: '#FFFAF2' },
-  section: { borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 13 },
+  inlineLoading: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 4 },
+  overviewHero: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 10, backgroundColor: colors.black, padding: 12 },
+  overviewAvatar: { width: 50, height: 50, borderRadius: 10, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  overviewAvatarText: { color: colors.white, fontSize: 21, fontWeight: '900' },
+  overviewCopy: { flex: 1, minWidth: 0 },
+  overviewName: { color: colors.white, fontSize: 16, fontWeight: '900' },
+  overviewMeta: { marginTop: 4, color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: '700' },
+  overviewStatus: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  overviewStatusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.cyan },
+  overviewStatusText: { color: 'rgba(255,255,255,0.72)', fontSize: 9, fontWeight: '900' },
+  settingsMenu: { overflow: 'hidden', borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.76)' },
+  settingsRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingHorizontal: 12 },
+  settingsIcon: { width: 38, height: 38, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violetSoft },
+  settingsCopy: { flex: 1, minWidth: 0 },
+  settingsTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  settingsDescription: { marginTop: 3, color: colors.textSecondary, fontSize: 10, fontWeight: '600' },
+  updateDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: colors.coral },
+  section: { borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.82)', borderWidth: 1, borderColor: colors.border, padding: 13 },
   sectionTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
   sectionText: { marginTop: 5, color: 'rgba(23,19,19,0.5)', fontSize: 12, lineHeight: 18, fontWeight: '700' },
   sectionBody: { marginTop: 15, gap: 12 },

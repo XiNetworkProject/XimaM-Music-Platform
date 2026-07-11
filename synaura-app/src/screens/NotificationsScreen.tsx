@@ -1,13 +1,15 @@
 import React from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, FlatList, PanResponder, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { deleteNotification, getNotifications, markAllNotificationsRead, markNotificationRead } from '@/api/client';
 import type { SynauraNotification } from '@/api/types';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { openInternalLink } from '@/navigation/internalLinks';
 import { usePlayer } from '@/player/PlayerProvider';
+import { AppHeader } from '@/components/ui/AppHeader';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 
 const tabs = [
   { id: 'all', label: 'Toutes' },
@@ -36,7 +38,6 @@ function relativeDate(value: string) {
 }
 
 export function NotificationsScreen() {
-  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const player = usePlayer();
   const [category, setCategory] = React.useState<(typeof tabs)[number]['id']>('all');
@@ -90,22 +91,16 @@ export function NotificationsScreen() {
 
   return (
     <SynauraBackground variant="warm">
-      <View style={[styles.screen, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}><Ionicons name="chevron-back" size={20} color="#171313" /></Pressable>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.eyebrow}>{unread ? `${unread} non lue${unread > 1 ? 's' : ''}` : 'Tout est à jour'}</Text>
-            <Text style={styles.title}>Notifications</Text>
-          </View>
-          <Pressable onPress={markAll} disabled={!unread} style={[styles.markBtn, !unread && styles.markBtnDisabled]}><Text style={styles.markText}>Tout lu</Text></Pressable>
-        </View>
-        <View style={styles.tabs}>
-          {tabs.map((tab) => (
-            <Pressable key={tab.id} onPress={() => setCategory(tab.id)} style={[styles.tab, category === tab.id && styles.tabActive]}>
-              <Text style={[styles.tabText, category === tab.id && styles.tabTextActive]}>{tab.label}</Text>
-            </Pressable>
-          ))}
-        </View>
+      <View style={styles.screen}>
+        <AppHeader
+          flush
+          compact
+          title="Notifications"
+          subtitle={unread ? `${unread} non lue${unread > 1 ? 's' : ''}` : 'Tout est à jour'}
+          onBack={() => navigation.goBack()}
+          action={{ icon: 'checkmark-done', label: 'Tout marquer comme lu', onPress: () => { if (unread) void markAll(); } }}
+        />
+        <SegmentedControl value={category} options={tabs.map((tab) => ({ value: tab.id, label: tab.label }))} onChange={setCategory} compact />
         {loading ? <ActivityIndicator color="#8B5CF6" style={{ marginTop: 36 }} /> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <FlatList
@@ -122,25 +117,7 @@ export function NotificationsScreen() {
           ) : null}
           renderItem={({ item }) => {
             const visual = notificationVisual(item);
-            return (
-              <Pressable onPress={() => void openNotification(item)} style={[styles.card, !item.isRead && styles.cardUnread]}>
-                <View style={[styles.visual, { backgroundColor: visual.background }]}>
-                  <Ionicons name={visual.icon} size={19} color={visual.color} />
-                  {!item.isRead ? <View style={styles.unreadDot} /> : null}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                  <Text style={styles.message}>{item.message}</Text>
-                  <View style={styles.cardFooter}>
-                    <Text style={styles.actionText}>{item.actionUrl ? visual.action : item.category}</Text>
-                    <Text style={styles.meta}>{relativeDate(item.createdAt)}</Text>
-                  </View>
-                </View>
-                <Pressable onPress={(event) => { event.stopPropagation(); void remove(item.id); }} style={styles.trash}>
-                  <Ionicons name="close" size={16} color="rgba(23,19,19,0.42)" />
-                </Pressable>
-              </Pressable>
-            );
+            return <NotificationRow item={item} visual={visual} onOpen={() => void openNotification(item)} onRemove={() => void remove(item.id)} />;
           }}
         />
       </View>
@@ -148,24 +125,68 @@ export function NotificationsScreen() {
   );
 }
 
+function NotificationRow({
+  item,
+  visual,
+  onOpen,
+  onRemove,
+}: {
+  item: SynauraNotification;
+  visual: ReturnType<typeof notificationVisual>;
+  onOpen: () => void;
+  onRemove: () => void;
+}) {
+  const translateX = React.useRef(new Animated.Value(0)).current;
+  const responder = React.useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => gesture.dx < -8 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.25,
+    onPanResponderMove: (_, gesture) => translateX.setValue(Math.max(-132, Math.min(0, gesture.dx))),
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dx < -105 || gesture.vx < -1.2) {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+        Animated.timing(translateX, { toValue: -420, duration: 180, useNativeDriver: true }).start(onRemove);
+      } else {
+        Animated.spring(translateX, { toValue: 0, speed: 28, bounciness: 4, useNativeDriver: true }).start();
+      }
+    },
+    onPanResponderTerminate: () => Animated.spring(translateX, { toValue: 0, speed: 28, bounciness: 4, useNativeDriver: true }).start(),
+  }), [onRemove, translateX]);
+
+  return (
+    <View style={styles.rowShell}>
+      <View style={styles.deleteBehind}><Ionicons name="trash-outline" size={19} color="#FFFFFF" /><Text style={styles.deleteBehindText}>Supprimer</Text></View>
+      <Animated.View {...responder.panHandlers} style={{ transform: [{ translateX }] }}>
+        <Pressable onPress={onOpen} style={[styles.card, !item.isRead && styles.cardUnread]}>
+          <View style={[styles.visual, { backgroundColor: visual.background }]}>
+            <Ionicons name={visual.icon} size={19} color={visual.color} />
+            {!item.isRead ? <View style={styles.unreadDot} /> : null}
+          </View>
+          <View style={styles.cardCopy}>
+            <Text style={styles.cardTitle}>{item.title}</Text>
+            <Text style={styles.message}>{item.message}</Text>
+            <View style={styles.cardFooter}>
+              <Text style={styles.actionText}>{item.actionUrl ? visual.action : item.category}</Text>
+              <Text style={styles.meta}>{relativeDate(item.createdAt)}</Text>
+            </View>
+          </View>
+          <Pressable accessibilityLabel="Supprimer" onPress={(event) => { event.stopPropagation(); onRemove(); }} style={styles.trash}>
+            <Ionicons name="close" size={16} color="rgba(23,19,19,0.42)" />
+          </Pressable>
+        </Pressable>
+      </Animated.View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  screen: { flex: 1, paddingHorizontal: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-  iconBtn: { width: 40, height: 40, borderRadius: 11, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  eyebrow: { color: '#8B5CF6', fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
-  title: { color: '#171313', fontSize: 24, fontWeight: '900' },
-  markBtn: { borderRadius: 10, backgroundColor: '#171313', paddingHorizontal: 12, paddingVertical: 9 },
-  markBtnDisabled: { opacity: 0.32 },
-  markText: { color: '#FFF7ED', fontSize: 12, fontWeight: '900' },
-  tabs: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  tab: { borderRadius: 10, backgroundColor: '#FFFFFF', paddingHorizontal: 12, paddingVertical: 9 },
-  tabActive: { backgroundColor: '#171313' },
-  tabText: { color: '#6B5F5A', fontWeight: '800', fontSize: 12 },
-  tabTextActive: { color: '#FFF7ED' },
-  list: { paddingBottom: 120, gap: 8 },
-  card: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, borderRadius: 13, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)', padding: 12 },
-  cardUnread: { borderColor: 'rgba(139,92,246,0.32)', backgroundColor: 'rgba(255,250,244,0.94)' },
-  visual: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  screen: { flex: 1, paddingHorizontal: 18 },
+  list: { paddingTop: 12, paddingBottom: 120, gap: 8 },
+  rowShell: { overflow: 'hidden', borderRadius: 10, backgroundColor: '#C94F4F' },
+  deleteBehind: { ...StyleSheet.absoluteFillObject, alignItems: 'flex-end', justifyContent: 'center', gap: 3, paddingRight: 18 },
+  deleteBehindText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
+  card: { minHeight: 82, flexDirection: 'row', alignItems: 'flex-start', gap: 11, borderRadius: 10, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)', padding: 12 },
+  cardUnread: { borderColor: 'rgba(115,87,198,0.32)', backgroundColor: '#FCFAFF' },
+  visual: { width: 42, height: 42, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  cardCopy: { flex: 1, minWidth: 0 },
   unreadDot: { position: 'absolute', top: -2, right: -2, width: 9, height: 9, borderRadius: 5, backgroundColor: '#8B5CF6', borderWidth: 2, borderColor: '#FFF9EF' },
   cardTitle: { color: '#171313', fontSize: 15, fontWeight: '900' },
   message: { color: '#5A4E49', fontSize: 13, lineHeight: 19, marginTop: 3 },

@@ -34,7 +34,7 @@ import {
 import type { MusicClip, Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useLibrary } from '@/library/LibraryProvider';
-import { usePlayer } from '@/player/PlayerProvider';
+import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
 import { readRankingFeedCache, writeRankingFeedCache } from '@/feed/rankingFeedCache';
 import { openClipComposerForSound } from '@/navigation/clipEntry';
 import { AnnouncementSlide } from '@/components/swipe/AnnouncementSlide';
@@ -63,6 +63,11 @@ import {
   topGenre,
   uniqueTracks,
 } from '@/components/swipe/helpers';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { MotionPressable } from '@/components/motion/Motion';
+import { MobileAnimatedLogo } from '@/components/mobile/MobileAnimatedLogo';
+import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
 const PRELOAD_RANGE = 1;
 const COMMENTS_POLL_DELAY_MS = 900;
@@ -91,8 +96,10 @@ export function SwipeScreen() {
   const itemHeight = Math.max(420, height);
 
   const player = usePlayer();
+  const playerProgress = usePlayerProgress(180);
   const library = useLibrary();
   const auth = useAuth();
+  const { settings } = useMobileSettings();
   const [feedMode, setFeedMode] = useState<FeedMode>(() => (route.params?.mode === 'clips' ? 'clips' : 'reco'));
   const sourceTrackFilter = route.params?.sourceTrackId ? String(route.params.sourceTrackId) : '';
   const [seedGenre, setSeedGenre] = useState<string | null>(null);
@@ -135,6 +142,7 @@ export function SwipeScreen() {
   const fetchedFollowIdsRef = useRef<Set<string>>(new Set());
   const listRef = useRef<FlatList<ScrollFeedItem>>(null);
   const headerOpacity = useRef(new Animated.Value(1)).current;
+  const feedProgress = useRef(new Animated.Value(0)).current;
   const lastCommittedIndexRef = useRef(0);
   const activeIndexRef = useRef(0);
   const clipOffsetSeekedRef = useRef<string | null>(null);
@@ -173,9 +181,9 @@ export function SwipeScreen() {
   }, [feedMode, tracks, clips, popularUsers, collectionsRaw, cityEvents, musicChallenges]);
 
   const playableQueue = useMemo(() => {
-    return feedItems
+    return uniqueTracks(feedItems
       .map((item) => trackOfItem(item))
-      .filter((t): t is Track => Boolean(t) && !!t!.audioUrl && !t!._id.startsWith('radio-'));
+      .filter((t): t is Track => Boolean(t) && !!t!.audioUrl && !t!._id.startsWith('radio-')));
   }, [feedItems]);
 
   const activeItem = feedItems[activeIndex] || null;
@@ -187,6 +195,14 @@ export function SwipeScreen() {
   useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
+
+  useEffect(() => {
+    Animated.timing(feedProgress, {
+      toValue: feedItems.length ? Math.min(1, (activeIndex + 1) / feedItems.length) : 0,
+      duration: settings.reducedMotion ? 0 : 220,
+      useNativeDriver: false,
+    }).start();
+  }, [activeIndex, feedItems.length, feedProgress, settings.reducedMotion]);
 
   useEffect(() => {
     if (isFocused) return;
@@ -342,6 +358,7 @@ export function SwipeScreen() {
       // la source de vÃ©ritÃ© afin d'Ã©viter le rebond 62 -> 63 -> 62 -> 63.
       return;
     }
+    if (trackOfItem(feedItems[activeIndexRef.current])?._id === player.current._id) return;
     const idx = feedItems.findIndex((it) => trackOfItem(it)?._id === player.current?._id);
     if (idx < 0 || idx === activeIndexRef.current) return;
     activeIndexRef.current = idx;
@@ -364,7 +381,10 @@ export function SwipeScreen() {
   // video (ref unique par clip pour ne recaler qu'une seule fois).
   useEffect(() => {
     const item = feedItems[activeIndex];
-    if (!item || item.kind !== 'clip') return;
+    if (!item || item.kind !== 'clip') {
+      clipOffsetSeekedRef.current = null;
+      return;
+    }
     const offset = item.clip.sourceTrackOffsetSeconds || 0;
     if (offset <= 0) return;
     if (player.current?._id !== item.track._id) return;
@@ -372,6 +392,20 @@ export function SwipeScreen() {
     clipOffsetSeekedRef.current = item.clip.id;
     void player.seekTo(offset);
   }, [activeIndex, feedItems, player]);
+
+  // Un Clip boucle sur son extrait audio, pas sur le morceau complet. Une petite
+  // marge absorbe les mises a jour de progression sans couper la derniere frame.
+  useEffect(() => {
+    const item = feedItems[activeIndex];
+    if (!isFocused || !item || item.kind !== 'clip') return;
+    if (player.current?._id !== item.track._id || !player.isPlaying) return;
+    const start = Math.max(0, item.clip.sourceTrackOffsetSeconds || 0);
+    const length = Math.max(3, item.clip.sourceTrackDurationSeconds || 30);
+    const position = playerProgress.positionSec;
+    if (position < start - 0.45 || position >= start + length - 0.12) {
+      void player.seekTo(start);
+    }
+  }, [activeIndex, feedItems, isFocused, player, playerProgress.positionSec]);
 
   // (4) Recuperer batch des compteurs commentaires
   useEffect(() => {
@@ -677,6 +711,7 @@ export function SwipeScreen() {
           bottomPad={tabBarHeight}
           isActive={isActive}
           isPlaying={isPlayingThis}
+          audioPosition={isPlayingThis ? playerProgress.positionSec : item.clip.sourceTrackOffsetSeconds}
           isLiked={!!likedMap[clipTrackId]}
           likesCount={likesMap[clipTrackId] ?? item.track.likesCount ?? 0}
           commentsCount={commentsCounts[clipTrackId] ?? item.track.commentsCount ?? 0}
@@ -839,7 +874,7 @@ export function SwipeScreen() {
     <View style={styles.root}>
       <LinearGradient
         pointerEvents="none"
-        colors={['#1C1620', '#171313', '#130F11']}
+        colors={['#19161B', '#111111', '#102023']}
         locations={[0, 0.52, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -851,48 +886,38 @@ export function SwipeScreen() {
           <View style={styles.scrollIdentity}>
             <View style={styles.scrollMark}><Text style={styles.scrollMarkText}>S</Text></View>
             <View>
-              <Text style={styles.scrollName}>Scroll</Text>
+              <Text style={styles.scrollName}>Flow</Text>
               <Text style={styles.scrollSubtitle}>Synaura</Text>
             </View>
           </View>
-          <View style={styles.modeWrap}>
-            {(['reco', 'trending', 'clips'] as FeedMode[]).map((mode) => {
-              const active = mode === feedMode;
-              return (
-                <Pressable
-                  key={mode}
-                  accessibilityLabel={`Mode ${FEED_MODE_META[mode].label}`}
-                  onPress={() => {
-                    switchFeedMode(mode);
-                  }}
-                  style={[styles.modeButton, active && styles.modeButtonActive]}
-                >
-                  <Text style={[styles.modeButtonText, active && styles.modeButtonTextActive]}>
-                    {FEED_MODE_META[mode].label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Pressable accessibilityLabel="Voir la file d'attente" onPress={() => setQueueOpen(true)} style={styles.queueButton}>
+          <SegmentedControl
+            value={feedMode}
+            dark
+            compact
+            style={styles.modeWrap}
+            options={(['reco', 'trending', 'clips'] as FeedMode[]).map((mode) => ({ value: mode, label: FEED_MODE_META[mode].label }))}
+            onChange={switchFeedMode}
+          />
+          <MotionPressable accessibilityLabel="Voir la file d'attente" onPress={() => setQueueOpen(true)} style={styles.queueButton} scaleTo={0.9}>
             <Ionicons name="albums-outline" size={20} color="#FFFAF2" />
             {player.queue.length ? <View style={styles.queueBadge}><Text style={styles.queueBadgeText}>{player.queue.length}</Text></View> : null}
-          </Pressable>
+          </MotionPressable>
         </View>
+        <View style={styles.feedProgressTrack}><Animated.View style={[styles.feedProgressFill, { width: feedProgress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} /></View>
       </Animated.View>
 
       {loadState === 'loading' || loadState === 'idle' ? (
         <View style={styles.loadingScreen}>
-          <ActivityIndicator color="#FFFAF2" />
-          <Text style={styles.loadingText}>Calage du fil sonore Synaura...</Text>
+          <MobileAnimatedLogo loading size={58} />
+          <Text style={styles.loadingText}>Synaura prépare ton Flow...</Text>
         </View>
       ) : loadState === 'error' || !feedItems.length ? (
         <View style={styles.loadingScreen}>
           <Ionicons name="cloud-offline-outline" size={28} color="rgba(255,250,242,0.55)" />
           <Text style={styles.loadingText}>Aucun son disponible. Reessaie dans un instant.</Text>
-          <Pressable accessibilityLabel="Reessayer" onPress={() => setReloadKey((value) => value + 1)} style={styles.retryBtn}>
+          <MotionPressable accessibilityLabel="Réessayer" onPress={() => setReloadKey((value) => value + 1)} style={styles.retryBtn} scaleTo={0.96}>
             <Text style={styles.retryText}>Reessayer</Text>
-          </Pressable>
+          </MotionPressable>
         </View>
       ) : (
         <FlatList
@@ -955,11 +980,9 @@ export function SwipeScreen() {
         visible={queueOpen}
         onClose={() => setQueueOpen(false)}
       />
-      {remixTrack ? (
-        <View style={styles.remixOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setRemixTrack(null)} />
-          <View style={[styles.remixSheet, { paddingBottom: insets.bottom + 18 }]}>
-            <View style={styles.remixHandle} />
+      <BottomSheet visible={Boolean(remixTrack)} onClose={() => setRemixTrack(null)} title="Remixer ce son" subtitle="Le morceau original restera toujours crédité.">
+        {remixTrack ? (
+          <View style={styles.remixSheet}>
             <View style={styles.remixHead}>
               <Image source={{ uri: remixTrack.coverUrl || undefined }} style={styles.remixCover} />
               <View style={{ flex: 1 }}>
@@ -967,9 +990,8 @@ export function SwipeScreen() {
                 <Text numberOfLines={1} style={styles.remixArtist}>{remixTrack.artist?.name || remixTrack.artist?.username || 'Artiste Synaura'}</Text>
               </View>
             </View>
-            <Text style={styles.remixText}>Créer une variation IA inspirée de ce morceau</Text>
-            <Text style={styles.remixCredit}>Le créateur original sera toujours crédité</Text>
-            <Pressable
+            <Text style={styles.remixText}>Crée une variation IA inspirée de ce morceau.</Text>
+            <MotionPressable
               onPress={() => {
                 const sourceTrackType = remixTrack._id.startsWith('ai-') ? 'ai_track' : 'track';
                 const sourceTrackId = remixTrack._id;
@@ -977,16 +999,17 @@ export function SwipeScreen() {
                 navigation.navigate('AIStudio', { sourceTrackId, sourceTrackType, mode: 'remix' });
               }}
               style={styles.remixPrimary}
+              scaleTo={0.97}
             >
               <Ionicons name="color-wand-outline" size={18} color="#F7F6F3" />
               <Text style={styles.remixPrimaryText}>Ouvrir dans Studio</Text>
-            </Pressable>
-            <Pressable onPress={() => setRemixTrack(null)} style={styles.remixSecondary}>
+            </MotionPressable>
+            <MotionPressable onPress={() => setRemixTrack(null)} style={styles.remixSecondary} scaleTo={0.97}>
               <Text style={styles.remixSecondaryText}>Annuler</Text>
-            </Pressable>
+            </MotionPressable>
           </View>
-        </View>
-      ) : null}
+        ) : null}
+      </BottomSheet>
     </View>
   );
 }
@@ -1018,7 +1041,7 @@ const styles = StyleSheet.create({
   scrollMark: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFAF2',
@@ -1027,10 +1050,10 @@ const styles = StyleSheet.create({
   scrollName: { color: '#FFFAF2', fontSize: 11, lineHeight: 12, fontWeight: '900' },
   scrollSubtitle: { marginTop: 1, color: 'rgba(255,250,242,0.5)', fontSize: 8, fontWeight: '800' },
   modeWrap: {
-    flexDirection: 'row',
+    flex: 1,
+    maxWidth: 220,
     backgroundColor: 'rgba(15,12,14,0.24)',
-    borderRadius: 999,
-    padding: 3,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: 'rgba(255,250,242,0.12)',
   },
@@ -1058,7 +1081,7 @@ const styles = StyleSheet.create({
   queueButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,250,242,0.08)',
@@ -1078,6 +1101,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   queueBadgeText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
+  feedProgressTrack: { height: 2, marginTop: 7, overflow: 'hidden', borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
+  feedProgressFill: { height: 2, borderRadius: 1, backgroundColor: '#4A9EAA' },
   loadingScreen: {
     flex: 1,
     alignItems: 'center',
@@ -1090,22 +1115,20 @@ const styles = StyleSheet.create({
     marginTop: 6,
     paddingHorizontal: 18,
     paddingVertical: 9,
-    borderRadius: 999,
+    borderRadius: 8,
     backgroundColor: '#FFFAF2',
   },
-  retryText: { color: '#171313', fontSize: 12, fontWeight: '900', letterSpacing: 0.6 },
+  retryText: { color: '#171313', fontSize: 12, fontWeight: '900' },
   footer: { paddingVertical: 28, alignItems: 'center', justifyContent: 'center' },
-  remixOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 40, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.42)' },
-  remixSheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: '#F7F6F3', padding: 18, gap: 12 },
-  remixHandle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: 'rgba(17,17,17,0.18)', marginBottom: 4 },
+  remixSheet: { paddingHorizontal: 18, paddingBottom: 10, gap: 12 },
   remixHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  remixCover: { width: 64, height: 64, borderRadius: 16, backgroundColor: 'rgba(17,17,17,0.08)' },
+  remixCover: { width: 64, height: 64, borderRadius: 9, backgroundColor: 'rgba(17,17,17,0.08)' },
   remixTitle: { color: '#111111', fontSize: 18, fontWeight: '900' },
   remixArtist: { marginTop: 2, color: 'rgba(17,17,17,0.52)', fontSize: 13, fontWeight: '800' },
   remixText: { color: '#111111', fontSize: 14, lineHeight: 20, fontWeight: '900' },
   remixCredit: { color: 'rgba(17,17,17,0.5)', fontSize: 12, fontWeight: '700' },
-  remixPrimary: { height: 50, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#111111' },
+  remixPrimary: { height: 50, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#111111' },
   remixPrimaryText: { color: '#F7F6F3', fontSize: 14, fontWeight: '900' },
-  remixSecondary: { height: 48, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.08)' },
+  remixSecondary: { height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.08)' },
   remixSecondaryText: { color: 'rgba(17,17,17,0.62)', fontSize: 13, fontWeight: '900' },
 });

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { colors } from '@/theme/tokens';
@@ -15,6 +16,7 @@ import {
   type CreatorIntentionId,
   type OnboardingUniverseId,
 } from '@/onboarding/options';
+import { MotionPressable, Reveal } from '@/components/motion/Motion';
 
 const UNIVERSE_ICON: Record<OnboardingUniverseId, keyof typeof Ionicons.glyphMap> = {
   pop: 'musical-notes-outline',
@@ -100,10 +102,12 @@ export function OnboardingScreen() {
   }, []);
 
   const toggleUniverse = (id: OnboardingUniverseId) => {
+    void Haptics.selectionAsync().catch(() => {});
     setUniverses((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   };
 
   const toggleIntention = (id: CreatorIntentionId) => {
+    void Haptics.selectionAsync().catch(() => {});
     setIntentions((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   };
 
@@ -178,6 +182,7 @@ export function OnboardingScreen() {
         </View>
 
         <View style={styles.card}>
+          <Reveal key={step} distance={9} scaleFrom={0.99} duration={340}>
           {step === 1 ? (
             <View style={styles.centered}>
               <View style={styles.iconBadge}>
@@ -185,10 +190,10 @@ export function OnboardingScreen() {
               </View>
               <Text style={styles.title}>Entre dans ton univers musical.</Text>
               <Text style={styles.subtitle}>Choisis ce que tu veux écouter, créer et faire évoluer sur Synaura.</Text>
-              <Pressable style={styles.primaryButton} onPress={() => setStep(2)}>
+              <MotionPressable style={styles.primaryButton} onPress={() => setStep(2)} scaleTo={0.97}>
                 <Text style={styles.primaryText}>Personnaliser mon expérience</Text>
                 <Ionicons name="arrow-forward" size={16} color="#FFFAF2" />
-              </Pressable>
+              </MotionPressable>
               <Pressable onPress={skipEverything} disabled={saving} style={styles.skipLink}>
                 <Text style={styles.skipText}>Passer pour l&apos;instant</Text>
               </Pressable>
@@ -207,12 +212,12 @@ export function OnboardingScreen() {
                 {ONBOARDING_UNIVERSES.map((option) => {
                   const active = universes.includes(option.id);
                   return (
-                    <Pressable key={option.id} onPress={() => toggleUniverse(option.id)} style={[styles.tile, active && styles.tileActive]}>
+                    <MotionPressable key={option.id} onPress={() => toggleUniverse(option.id)} style={[styles.tile, active && styles.tileActive]} scaleTo={0.96}>
                       <View style={[styles.tileIcon, active && styles.tileIconActive]}>
                         <Ionicons name={UNIVERSE_ICON[option.id]} size={18} color={active ? '#FFFFFF' : colors.text} />
                       </View>
                       <Text style={styles.tileLabel}>{option.label}</Text>
-                    </Pressable>
+                    </MotionPressable>
                   );
                 })}
               </View>
@@ -233,13 +238,13 @@ export function OnboardingScreen() {
                 {CREATOR_INTENTIONS.map((option) => {
                   const active = intentions.includes(option.id);
                   return (
-                    <Pressable key={option.id} onPress={() => toggleIntention(option.id)} style={[styles.row, active && styles.rowActive]}>
+                    <MotionPressable key={option.id} onPress={() => toggleIntention(option.id)} style={[styles.row, active && styles.rowActive]} scaleTo={0.98}>
                       <View style={[styles.rowIcon, active && styles.tileIconActive]}>
                         <Ionicons name={INTENTION_ICON[option.id]} size={16} color={active ? '#FFFFFF' : colors.text} />
                       </View>
                       <Text style={styles.rowLabel}>{option.label}</Text>
                       {active ? <Ionicons name="checkmark" size={16} color={colors.violet} /> : null}
-                    </Pressable>
+                    </MotionPressable>
                   );
                 })}
               </View>
@@ -265,7 +270,7 @@ export function OnboardingScreen() {
                 <Text style={styles.summaryLabel}>Tu veux surtout</Text>
                 <Text style={styles.summaryValue}>{intentionLabels.length ? intentionLabels.join(', ') : "Tu n'as encore rien précisé."}</Text>
               </View>
-              <Pressable style={[styles.primaryButton, styles.fullWidth]} onPress={finish} disabled={saving}>
+              <MotionPressable style={[styles.primaryButton, styles.fullWidth]} onPress={finish} disabled={saving} scaleTo={0.97}>
                 {saving ? (
                   <ActivityIndicator color="#FFFAF2" />
                 ) : (
@@ -274,9 +279,10 @@ export function OnboardingScreen() {
                     <Ionicons name="arrow-forward" size={16} color="#FFFAF2" />
                   </>
                 )}
-              </Pressable>
+              </MotionPressable>
             </View>
           ) : null}
+          </Reveal>
         </View>
       </ScrollView>
     </SynauraBackground>
@@ -312,10 +318,10 @@ function StepHeader({
 function StepFooter({ onContinue, onSkip, label }: { onContinue: () => void; onSkip: () => void; label: string }) {
   return (
     <View style={{ marginTop: 22 }}>
-      <Pressable style={[styles.primaryButton, styles.fullWidth]} onPress={onContinue}>
+      <MotionPressable style={[styles.primaryButton, styles.fullWidth]} onPress={onContinue} scaleTo={0.97}>
         <Text style={styles.primaryText}>{label}</Text>
         <Ionicons name="arrow-forward" size={16} color="#FFFAF2" />
-      </Pressable>
+      </MotionPressable>
       <Pressable onPress={onSkip} style={styles.skipLink}>
         <Text style={styles.skipText}>Passer cette étape</Text>
       </Pressable>
@@ -329,25 +335,25 @@ const styles = StyleSheet.create({
   progressRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 18 },
   progressDot: { height: 6, borderRadius: 3 },
   card: {
-    borderRadius: 28,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#D8CBB8',
     backgroundColor: 'rgba(255,255,255,0.96)',
     padding: 22,
     shadowColor: '#2C2113',
-    shadowOpacity: 0.14,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 16 },
-    elevation: 8,
+    shadowOpacity: 0.07,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
   centered: { alignItems: 'center' },
-  iconBadge: { width: 60, height: 60, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(115,87,198,0.12)' },
+  iconBadge: { width: 60, height: 60, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(115,87,198,0.12)' },
   title: { marginTop: 16, fontSize: 24, lineHeight: 30, fontWeight: '900', color: colors.text, textAlign: 'center' },
   subtitle: { marginTop: 10, fontSize: 13, lineHeight: 19, fontWeight: '700', color: colors.textSecondary, textAlign: 'center', maxWidth: 320 },
   primaryButton: {
     marginTop: 26,
     height: 50,
-    borderRadius: 17,
+    borderRadius: 9,
     backgroundColor: '#171313',
     flexDirection: 'row',
     alignItems: 'center',
@@ -366,7 +372,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     height: 32,
     paddingHorizontal: 12,
-    borderRadius: 16,
+    borderRadius: 8,
     backgroundColor: 'rgba(17,17,17,0.05)',
     marginBottom: 14,
   },
@@ -379,7 +385,7 @@ const styles = StyleSheet.create({
     width: '47%',
     paddingVertical: 16,
     paddingHorizontal: 10,
-    borderRadius: 20,
+    borderRadius: 9,
     borderWidth: 1,
     borderColor: 'rgba(17,17,17,0.08)',
     backgroundColor: '#FFFFFF',
@@ -387,7 +393,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tileActive: { borderColor: colors.violet, backgroundColor: 'rgba(115,87,198,0.08)' },
-  tileIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.06)' },
+  tileIcon: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.06)' },
   tileIconActive: { backgroundColor: colors.violet },
   tileLabel: { fontSize: 12, fontWeight: '900', color: colors.text, textAlign: 'center' },
   helper: { marginTop: 14, fontSize: 11, fontWeight: '700', color: 'rgba(17,17,17,0.42)', textAlign: 'center' },
@@ -397,15 +403,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     padding: 13,
-    borderRadius: 18,
+    borderRadius: 9,
     borderWidth: 1,
     borderColor: 'rgba(17,17,17,0.08)',
     backgroundColor: '#FFFFFF',
   },
   rowActive: { borderColor: colors.violet, backgroundColor: 'rgba(115,87,198,0.08)' },
-  rowIcon: { width: 32, height: 32, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.06)' },
+  rowIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.06)' },
   rowLabel: { flex: 1, fontSize: 13, fontWeight: '800', color: colors.text },
-  summaryBlock: { marginTop: 14, padding: 14, borderRadius: 18, backgroundColor: 'rgba(17,17,17,0.03)', borderWidth: 1, borderColor: 'rgba(17,17,17,0.06)' },
+  summaryBlock: { marginTop: 14, padding: 14, borderRadius: 8, backgroundColor: 'rgba(17,17,17,0.03)', borderWidth: 1, borderColor: 'rgba(17,17,17,0.06)' },
   summaryLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase', color: 'rgba(17,17,17,0.42)' },
   summaryValue: { marginTop: 6, fontSize: 13, fontWeight: '800', color: colors.text },
 });

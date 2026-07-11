@@ -332,6 +332,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const previousId = currentRef.current?._id || null;
     const previousState = await TrackPlayer.getPlaybackState().then((value) => value.state).catch(() => State.None);
+    const shouldResumePlayback = previousState === State.Playing
+      || previousState === State.Buffering
+      || previousState === State.Loading;
     const previousPosition = await TrackPlayer.getProgress().then((value) => value.position).catch(() => 0);
     const nativeQueue = await TrackPlayer.getQueue().catch(() => []);
     const nativeIds = nativeQueue.map((item) => String(item.id));
@@ -370,6 +373,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (remaining.length) {
         const nextTracks = playable.filter((track) => track._id !== previousId);
         if (nextTracks.length) await TrackPlayer.add(nextTracks.map(toNativeTrack));
+        // ExoPlayer can transiently pause when queue entries surrounding the
+        // active track are removed. Restore the state captured before the
+        // rebuild so opening Flow/Clips never stops the current sound.
+        if (shouldResumePlayback) await TrackPlayer.play().catch(() => {});
         return;
       }
     }
@@ -379,7 +386,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     await TrackPlayer.skip(index);
     if (previousId && previousId === playable[index]._id) {
       if (previousPosition > 0) await TrackPlayer.seekTo(previousPosition).catch(() => {});
-      if (previousState === State.Playing) await TrackPlayer.play().catch(() => {});
+      if (shouldResumePlayback) await TrackPlayer.play().catch(() => {});
     }
   }), [runPlayerCommand]);
 

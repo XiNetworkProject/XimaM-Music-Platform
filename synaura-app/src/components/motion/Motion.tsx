@@ -77,11 +77,17 @@ export function Reveal({
   children,
   delay = 0,
   distance = 12,
+  fromX = 0,
+  scaleFrom = 1,
+  duration = 440,
   style,
 }: {
   children: React.ReactNode;
   delay?: number;
   distance?: number;
+  fromX?: number;
+  scaleFrom?: number;
+  duration?: number;
   style?: StyleProp<ViewStyle>;
 }) {
   const { settings } = useMobileSettings();
@@ -95,11 +101,11 @@ export function Reveal({
     Animated.timing(progress, {
       toValue: 1,
       delay,
-      duration: 440,
+      duration,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
-  }, [delay, progress, settings.reducedMotion]);
+  }, [delay, duration, progress, settings.reducedMotion]);
 
   return (
     <Animated.View
@@ -109,12 +115,70 @@ export function Reveal({
           opacity: progress,
           transform: [
             {
+              translateX: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [fromX, 0],
+              }),
+            },
+            {
               translateY: progress.interpolate({
                 inputRange: [0, 1],
                 outputRange: [distance, 0],
               }),
             },
+            {
+              scale: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [scaleFrom, 1],
+              }),
+            },
           ],
+        },
+      ]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+export function BreathingView({
+  children,
+  active = true,
+  scaleTo = 1.018,
+  duration = 2600,
+  style,
+}: {
+  children: React.ReactNode;
+  active?: boolean;
+  scaleTo?: number;
+  duration?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { settings } = useMobileSettings();
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!active || settings.reducedMotion) {
+      progress.stopAnimation();
+      Animated.timing(progress, { toValue: 0, duration: 160, useNativeDriver: true }).start();
+      return;
+    }
+    const animation = Animated.loop(Animated.sequence([
+      Animated.timing(progress, { toValue: 1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(progress, { toValue: 0, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ]));
+    animation.start();
+    return () => animation.stop();
+  }, [active, duration, progress, settings.reducedMotion]);
+
+  return (
+    <Animated.View
+      style={[
+        style,
+        {
+          transform: [{
+            scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, scaleTo] }),
+          }],
         },
       ]}
     >

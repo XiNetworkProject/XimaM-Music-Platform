@@ -37,6 +37,9 @@ import { CreateArrivalBanner } from '@/components/create/CreateArrivalBanner';
 import { usePlayer } from '@/player/PlayerProvider';
 import { RemixPermissionsSection, DEFAULT_REMIX_PERMISSIONS, type RemixPermissionsValue } from '@/components/upload/RemixPermissionsSection';
 import type { SynauraCityData, Track } from '@/api/types';
+import { AppHeader } from '@/components/ui/AppHeader';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { MotionPressable, Reveal } from '@/components/motion/Motion';
 
 type ReleaseType = 'single' | 'ep' | 'album';
 type Step = 1 | 2 | 3;
@@ -494,10 +497,12 @@ export function UploadScreen() {
     <View style={styles.root}>
       <SynauraBackground variant="warm" />
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 106 }]}
+        contentContainerStyle={[styles.content, { paddingTop: 0, paddingBottom: insets.bottom + 106 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <AppHeader flush eyebrow="Sortie artiste" title="Publier" subtitle="Fichiers, identité, droits et diffusion dans un seul parcours." onBack={() => navigation.goBack()} action={{ icon: 'library-outline', label: 'Bibliothèque', onPress: () => navigation.navigate('Library') }} />
+
         <CreateArrivalBanner context={challengeId ? 'challenge' : 'upload'} title={challengeId ? challengeTitle : null} />
 
         <View style={styles.hero}>
@@ -506,22 +511,17 @@ export function UploadScreen() {
             <Pill label={releaseLabel} />
             <Pill label={`${selectedCount} piste${selectedCount > 1 ? 's' : ''}`} />
           </View>
-          <Text style={styles.heroTitle}>Prepare ta sortie sans te perdre dans les reglages.</Text>
-          <Text style={styles.heroText}>Fichiers, metadata, featuring, droits, programmation et diffusion comme sur le web, adapte mobile.</Text>
+          <Text style={styles.heroTitle}>Prépare une sortie qui te ressemble.</Text>
+          <Text style={styles.heroText}>Importe, présente puis choisis précisément comment ton morceau sera diffusé.</Text>
           <View style={styles.heroActions}>
-            <Pressable onPress={() => navigation.navigate('Library')} style={styles.lightButton}>
+            <MotionPressable onPress={() => navigation.navigate('Library')} style={styles.lightButton} scaleTo={0.96}>
               <Ionicons name="library-outline" size={16} color="#171313" />
               <Text style={styles.lightButtonText}>Bibliotheque</Text>
-            </Pressable>
-            <Pressable onPress={resetUpload} style={styles.ghostButton}>
+            </MotionPressable>
+            <MotionPressable onPress={resetUpload} style={styles.ghostButton} scaleTo={0.96}>
               <Ionicons name="refresh" size={15} color="rgba(255,250,242,0.78)" />
               <Text style={styles.ghostButtonText}>Reset</Text>
-            </Pressable>
-          </View>
-          <View style={styles.heroStatusGrid}>
-            <StatusCard label="Importer" value={`${selectedCount || 0} piste(s)`} active={step === 1} done={step1Valid} />
-            <StatusCard label="Presenter" value={title.trim() || 'Metadata'} active={step === 2} done={step2Valid} />
-            <StatusCard label="Diffuser" value={scheduledLabel} active={step === 3} done={step === 3} />
+            </MotionPressable>
           </View>
         </View>
 
@@ -529,7 +529,6 @@ export function UploadScreen() {
           <ContextBox label="Format" value={releaseLabel} />
           <ContextBox label="Limite" value={uploadLimitLabel} />
           <ContextBox label="Sortie" value={scheduledLabel} />
-          <ContextBox label="Plan" value="Free" />
         </View>
 
         <EventTicker city={city} onPress={() => navigation.navigate('City')} tone="coral" text="Challenge en cours · publie ton son dans un Event Synaura pour gagner en visibilité" />
@@ -539,10 +538,10 @@ export function UploadScreen() {
             const enabled = item === 1 || (item === 2 && step1Valid) || (item === 3 && step1Valid && step2Valid);
             const done = item === 1 ? step1Valid : item === 2 ? step2Valid : step === 3;
             return (
-              <Pressable key={item} disabled={!enabled} onPress={() => setStep(item as Step)} style={[styles.stepButton, step === item && styles.stepButtonActive, !enabled && styles.stepButtonDisabled]}>
+              <MotionPressable key={item} disabled={!enabled} onPress={() => setStep(item as Step)} style={[styles.stepButton, step === item && styles.stepButtonActive, !enabled && styles.stepButtonDisabled]} scaleTo={0.97}>
                 <Text style={[styles.stepNumber, step === item && styles.stepNumberActive]}>{done ? 'OK' : item}</Text>
                 <Text style={[styles.stepLabel, step === item && styles.stepLabelActive]}>{item === 1 ? 'Fichier audio' : item === 2 ? 'Cover & infos' : 'Diffusion & droits'}</Text>
-              </Pressable>
+              </MotionPressable>
             );
           })}
         </View>
@@ -559,15 +558,10 @@ export function UploadScreen() {
               <Text style={styles.panelKicker}>Etape {step}/3</Text>
               <Text style={styles.panelTitle}>{step === 1 ? 'Fichier audio' : step === 2 ? 'Cover & informations' : 'Diffusion & droits de creation'}</Text>
             </View>
-            <View style={styles.segment}>
-              {RELEASES.map((item) => (
-                <Pressable key={item.key} onPress={() => selectRelease(item.key)} style={[styles.segmentItem, releaseType === item.key && styles.segmentItemActive]}>
-                  <Text style={[styles.segmentText, releaseType === item.key && styles.segmentTextActive]}>{item.key}</Text>
-                </Pressable>
-              ))}
-            </View>
+            <SegmentedControl value={releaseType} dark compact options={RELEASES.map((item) => ({ value: item.key, label: item.title }))} onChange={selectRelease} />
           </View>
 
+          <Reveal key={step} distance={8} duration={320}>
           {step === 1 ? (
             <View style={styles.panelBody}>
               <View style={styles.releaseGrid}>
@@ -725,21 +719,22 @@ export function UploadScreen() {
               ) : null}
             </View>
           ) : null}
+          </Reveal>
 
           {stepHint ? <Text style={styles.stepHint}>{stepHint}</Text> : null}
           <View style={styles.footerBar}>
             <View style={styles.footerLeft}>
-              {step > 1 ? <Pressable onPress={() => setStep((current) => Math.max(1, current - 1) as Step)} style={styles.backButton}><Text style={styles.backText}>Retour</Text></Pressable> : null}
-              <Pressable onPress={resetUpload} style={styles.cancelButton}><Text style={styles.cancelText}>Annuler</Text></Pressable>
+              {step > 1 ? <MotionPressable onPress={() => setStep((current) => Math.max(1, current - 1) as Step)} style={styles.backButton} scaleTo={0.96}><Text style={styles.backText}>Retour</Text></MotionPressable> : null}
+              <MotionPressable onPress={resetUpload} style={styles.cancelButton} scaleTo={0.96}><Text style={styles.cancelText}>Annuler</Text></MotionPressable>
             </View>
             {step < 3 ? (
-              <Pressable onPress={goNext} style={[styles.nextButton, ((step === 1 && !step1Valid) || (step === 2 && !step2Valid)) && styles.nextButtonDisabled]}>
+              <MotionPressable onPress={goNext} style={[styles.nextButton, ((step === 1 && !step1Valid) || (step === 2 && !step2Valid)) && styles.nextButtonDisabled]} scaleTo={0.97}>
                 <Text style={styles.nextText}>Suivant</Text>
-              </Pressable>
+              </MotionPressable>
             ) : (
-              <Pressable disabled={!canPublish} onPress={() => void publish()} style={[styles.nextButton, !canPublish && styles.nextButtonDisabled]}>
+              <MotionPressable disabled={!canPublish} onPress={() => void publish()} style={[styles.nextButton, !canPublish && styles.nextButtonDisabled]} scaleTo={0.97}>
                 {uploading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.nextText}>Publier {releaseType === 'single' ? 'le morceau' : releaseType === 'ep' ? "l'EP" : "l'album"}</Text>}
-              </Pressable>
+              </MotionPressable>
             )}
           </View>
         </View>
@@ -867,12 +862,12 @@ function CheckRow({ label, done }: { label: string; done: boolean }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F7F6F3' },
-  content: { paddingHorizontal: 16, gap: 11 },
-  hero: { borderRadius: 16, backgroundColor: '#171313', padding: 15 },
+  content: { paddingHorizontal: 18, gap: 13 },
+  hero: { borderRadius: 12, backgroundColor: '#171313', padding: 15 },
   heroPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   pill: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: 'rgba(255,250,242,0.08)', color: 'rgba(255,250,242,0.62)', fontSize: 9, fontWeight: '900', letterSpacing: 1.3, textTransform: 'uppercase' },
   pillActive: { backgroundColor: '#FFFAF2', color: '#171313' },
-  heroTitle: { marginTop: 12, color: '#FFFFFF', fontSize: 24, lineHeight: 27, fontWeight: '900' },
+  heroTitle: { marginTop: 12, color: '#FFFFFF', fontSize: 23, lineHeight: 27, fontWeight: '900' },
   heroText: { marginTop: 10, color: 'rgba(255,250,242,0.56)', fontSize: 13, lineHeight: 20, fontWeight: '700' },
   heroActions: { flexDirection: 'row', gap: 8, marginTop: 15 },
   lightButton: { flexDirection: 'row', alignItems: 'center', gap: 7, height: 40, borderRadius: 11, paddingHorizontal: 14, backgroundColor: '#FFFFFF' },
@@ -891,11 +886,11 @@ const styles = StyleSheet.create({
   statusValue: { marginTop: 7, color: '#FFFAF2', fontSize: 14, fontWeight: '900' },
   statusValueActive: { color: '#171313' },
   contextGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  contextBox: { width: '48%', borderRadius: 12, padding: 11, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
+  contextBox: { flex: 1, minWidth: 96, borderRadius: 8, padding: 10, backgroundColor: 'rgba(255,255,255,0.82)', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
   contextLabel: { color: 'rgba(23,19,19,0.38)', fontSize: 9, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
   contextValue: { marginTop: 5, color: '#171313', fontSize: 13, fontWeight: '900' },
   stepNav: { flexDirection: 'row', gap: 8 },
-  stepButton: { flex: 1, minHeight: 48, borderRadius: 11, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
+  stepButton: { flex: 1, minHeight: 52, borderRadius: 8, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
   stepButtonActive: { backgroundColor: '#171313', borderColor: '#171313' },
   stepButtonDisabled: { opacity: 0.42 },
   stepNumber: { color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '900' },
@@ -904,7 +899,7 @@ const styles = StyleSheet.create({
   stepLabelActive: { color: '#FFFAF2' },
   progressOuter: { height: 4, borderRadius: 999, backgroundColor: 'rgba(23,19,19,0.09)', overflow: 'hidden' },
   progressInner: { height: 4, borderRadius: 999, backgroundColor: '#171313' },
-  studioPanel: { overflow: 'hidden', borderRadius: 14, backgroundColor: '#171313' },
+  studioPanel: { overflow: 'hidden', borderRadius: 10, backgroundColor: '#171313' },
   panelHeader: { padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,250,242,0.08)', backgroundColor: '#1D1717', gap: 12 },
   panelKicker: { color: 'rgba(255,250,242,0.34)', fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
   panelTitle: { marginTop: 2, color: '#FFFFFF', fontSize: 21, fontWeight: '900' },
@@ -915,13 +910,13 @@ const styles = StyleSheet.create({
   segmentTextActive: { color: '#171313' },
   panelBody: { padding: 14, gap: 14 },
   releaseGrid: { gap: 9 },
-  releaseCard: { minHeight: 78, borderRadius: 11, padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.045)' },
+  releaseCard: { minHeight: 78, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.045)' },
   releaseCardActive: { backgroundColor: '#FFFAF2', borderColor: '#FFFAF2' },
   releaseTitle: { marginTop: 7, color: '#FFFAF2', fontSize: 15, fontWeight: '900' },
   releaseTitleActive: { color: '#171313' },
   releaseSub: { marginTop: 2, color: 'rgba(255,250,242,0.38)', fontSize: 11, fontWeight: '700' },
   releaseSubActive: { color: 'rgba(23,19,19,0.5)' },
-  dropZone: { minHeight: 142, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.035)', alignItems: 'center', justifyContent: 'center', padding: 18 },
+  dropZone: { minHeight: 142, borderRadius: 8, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.035)', alignItems: 'center', justifyContent: 'center', padding: 18 },
   dropZoneTitle: { marginTop: 10, color: '#FFFAF2', textAlign: 'center', fontSize: 16, fontWeight: '900' },
   dropZoneText: { marginTop: 5, color: 'rgba(255,250,242,0.38)', textAlign: 'center', fontSize: 11, fontWeight: '700' },
   trackList: { gap: 9 },
@@ -996,7 +991,7 @@ const styles = StyleSheet.create({
   nextButtonDisabled: { opacity: 0.34 },
   nextText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   stepHint: { color: '#D96D63', fontSize: 11, fontWeight: '700', marginBottom: 8 },
-  checkPanel: { borderRadius: 14, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)', padding: 14, gap: 9 },
+  checkPanel: { borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.82)', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)', padding: 14, gap: 9 },
   checkKicker: { color: 'rgba(23,19,19,0.38)', fontSize: 10, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 9, backgroundColor: 'rgba(17,17,17,0.04)', padding: 10 },
   checkIcon: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },

@@ -27,6 +27,7 @@ export function TrackListItem({
 }) {
   return (
     <MotionPressable onPress={onPlay} style={[styles.root, active && styles.active]} scaleTo={0.985}>
+      {active ? <View style={styles.activeLine} /> : null}
       <TrackCover track={track} active={active} style={styles.cover} />
       <View style={styles.copy}>
         <Text numberOfLines={1} style={styles.title}>{track.title}</Text>
@@ -49,13 +50,14 @@ export function TrackListItem({
 }
 
 const styles = StyleSheet.create({
-  root: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.sm },
-  active: { borderColor: 'rgba(115,87,198,0.28)', backgroundColor: 'rgba(115,87,198,0.07)' },
-  cover: { width: 54, height: 54, borderRadius: radius.md },
+  root: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: 'transparent', backgroundColor: 'rgba(255,255,255,0.64)', padding: spacing.sm, overflow: 'hidden' },
+  active: { borderColor: 'rgba(115,87,198,0.22)', backgroundColor: 'rgba(115,87,198,0.08)' },
+  activeLine: { position: 'absolute', left: 0, top: 10, bottom: 10, width: 3, borderTopRightRadius: 2, borderBottomRightRadius: 2, backgroundColor: colors.violet },
+  cover: { width: 50, height: 50, borderRadius: radius.md },
   copy: { flex: 1, minWidth: 0 },
-  title: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  title: { color: colors.text, fontSize: 14, lineHeight: 18, fontWeight: '900' },
   meta: { marginTop: 4, color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
   iconButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  play: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.055)' },
+  play: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.055)' },
   playActive: { backgroundColor: colors.black },
 });

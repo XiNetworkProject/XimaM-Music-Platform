@@ -28,6 +28,7 @@ type NativeNotificationsContextValue = {
 const TOKEN_KEY = 'synaura.native.push.token.v1';
 const CHANNEL_ID = 'synaura-activity';
 const NativeNotificationsContext = createContext<NativeNotificationsContextValue | null>(null);
+let lastOpenedNotificationId = '';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -57,12 +58,17 @@ function projectId() {
 function openNotificationResponse(response: Notifications.NotificationResponse | null) {
   const url = response?.notification.request.content.data?.url;
   if (typeof url !== 'string' || !url) return;
+  const responseId = response?.notification.request.identifier || url;
+  if (lastOpenedNotificationId === responseId) return;
   const open = () => {
     if (!navigationRef.isReady()) {
       setTimeout(open, 350);
       return;
     }
-    void openInternalLink(navigationRef as any, url);
+    lastOpenedNotificationId = responseId;
+    void openInternalLink(navigationRef as any, url).finally(() => {
+      void Notifications.clearLastNotificationResponseAsync().catch(() => {});
+    });
   };
   open();
 }
@@ -144,6 +150,33 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
   }, []);
 
   useEffect(() => {
+    if (!auth.token) return;
+    const subscription = Notifications.addPushTokenListener(() => {
+      void (async () => {
+        const id = projectId();
+        if (!id) return;
+        try {
+          const result = await Notifications.getExpoPushTokenAsync({ projectId: id });
+          await registerNativePushToken({
+            token: result.data,
+            platform: Platform.OS,
+            deviceName: Device.deviceName,
+            appVersion: Application.nativeApplicationVersion,
+          });
+          await AsyncStorage.setItem(TOKEN_KEY, result.data);
+          setToken(result.data);
+          setStatus('ready');
+          setError(null);
+        } catch {
+          setStatus('error');
+          setError('Le token de notifications doit être resynchronisé.');
+        }
+      })();
+    });
+    return () => subscription.remove();
+  }, [auth.token]);
+
+  useEffect(() => {
     if (auth.loading) return;
     if (!auth.token) {
       setToken(null);
@@ -154,6 +187,12 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
       if (!stored) return;
       setToken(stored);
       try {
+        const permission = await Notifications.getPermissionsAsync();
+        if (permission.status !== 'granted') {
+          setStatus('denied');
+          setError('Les notifications sont désactivées dans les réglages Android.');
+          return;
+        }
         await configureAndroidChannel();
         await registerNativePushToken({
           token: stored,
@@ -162,6 +201,7 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
           appVersion: Application.nativeApplicationVersion,
         });
         setStatus('ready');
+        setError(null);
       } catch {
         setStatus('error');
         setError('Le telephone doit etre reconnecte aux notifications.');

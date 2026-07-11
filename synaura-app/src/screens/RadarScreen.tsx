@@ -10,6 +10,7 @@ import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { RadarMobileSection } from '@/components/radar/RadarMobileSection';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { colors } from '@/theme/tokens';
+import { AppHeader } from '@/components/ui/AppHeader';
 
 export function RadarScreen() {
   const navigation = useNavigation<any>();
@@ -36,17 +37,8 @@ export function RadarScreen() {
   return (
     <View style={styles.root}>
       <SynauraBackground variant="warm" />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={20} color={colors.text} />
-          </Pressable>
-          <View style={styles.headerText}>
-            <Text style={styles.eyebrow}>RADAR SYNAURA</Text>
-            <Text style={styles.title}>Radar</Text>
-          </View>
-          <MobileAccountButton compact />
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <AppHeader flush eyebrow="Découverte émergente" title="Radar" subtitle="Les bons signaux avant les gros chiffres." onBack={() => navigation.goBack()} action={{ icon: 'refresh-outline', label: 'Actualiser', onPress: () => void load() }} />
 
         <RadarMobileSection tracks={tracks} loading={loading} />
       </ScrollView>
@@ -58,7 +50,7 @@ export default RadarScreen;
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 16, paddingBottom: 145 },
+  content: { paddingHorizontal: 18, paddingBottom: 145 },
   header: {
     minHeight: 48,
     flexDirection: 'row',
@@ -80,4 +72,3 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   title: { marginTop: 1, color: colors.text, fontSize: 25, fontWeight: '900' },
 });
-

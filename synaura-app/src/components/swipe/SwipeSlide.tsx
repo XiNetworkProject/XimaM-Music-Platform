@@ -8,6 +8,7 @@ import { WaveformSeekBar } from './WaveformSeekBar';
 import { TrackCover } from '@/components/TrackCover';
 import { usePlayerProgress } from '@/player/PlayerProvider';
 import { useAuth } from '@/auth/AuthProvider';
+import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
 type ActionLabel = 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save' | 'remix' | 'useSound';
 
@@ -202,6 +203,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
   const isAi = !!track.isAI || track._id.startsWith('ai-');
   const genres = (track.genre || []).filter((genre) => Boolean(genre) && genre.length <= 20).slice(0, 1);
   const auth = useAuth();
+  const { settings } = useMobileSettings();
   const isOwnTrack = Boolean(auth.user?.id) && track.artist?._id === auth.user?.id;
   const canUseSound = canUseSoundClientSide({
     isOwner: isOwnTrack,
@@ -216,18 +218,18 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
   const breath = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(playButtonOpacity, { toValue: isPlaying ? 0 : 1, duration: 220, useNativeDriver: true }).start();
+    Animated.timing(playButtonOpacity, { toValue: isPlaying ? 0 : 1, duration: settings.reducedMotion ? 0 : 220, useNativeDriver: true }).start();
     Animated.timing(coverScale, {
       toValue: isPlaying ? 1.03 : 1,
-      duration: 900,
+      duration: settings.reducedMotion ? 0 : 900,
       easing: Easing.inOut(Easing.quad),
       useNativeDriver: true,
     }).start();
-  }, [coverScale, isPlaying, playButtonOpacity]);
+  }, [coverScale, isPlaying, playButtonOpacity, settings.reducedMotion]);
 
   // Respiration douce de la cover pendant la lecture.
   useEffect(() => {
-    if (!isActive || !isPlaying) {
+    if (!isActive || !isPlaying || settings.reducedMotion) {
       breath.stopAnimation();
       Animated.timing(breath, { toValue: 0, duration: 420, useNativeDriver: true }).start();
       return;
@@ -238,7 +240,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
     ]));
     loop.start();
     return () => loop.stop();
-  }, [breath, isActive, isPlaying]);
+  }, [breath, isActive, isPlaying, settings.reducedMotion]);
 
   useEffect(() => {
     if (!isActive && tapTimerRef.current) {
@@ -294,8 +296,8 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
           <View style={styles.cover}>
             <TrackCover
               track={track}
-              active={isActive}
-              autoPlayVideo={isActive}
+              active={isActive && isPlaying}
+              autoPlayVideo={isActive && isPlaying}
               style={StyleSheet.absoluteFill}
               imageStyle={styles.coverImage}
             />
@@ -476,7 +478,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
 // barre de progression classique sinon. Montée uniquement sur la slide active
 // pour ne pas multiplier les requêtes pendant le scroll.
 function ActiveSeekBar({ track, onSeek }: { track: Track; onSeek: (seconds: number) => void }) {
-  const progress = usePlayerProgress(500);
+  const progress = usePlayerProgress(120);
   const isAi = !!track.isAI || track._id.startsWith('ai-');
   return (
     <WaveformSeekBar
@@ -485,8 +487,8 @@ function ActiveSeekBar({ track, onSeek }: { track: Track; onSeek: (seconds: numb
       duration={progress.durationSec || track.duration || 0}
       onSeek={onSeek}
       showMoments={!isAi}
-      height={34}
-      barCount={48}
+      height={42}
+      barCount={68}
     />
   );
 }
@@ -531,9 +533,9 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 999,
+    borderRadius: 8,
   },
-  badgeText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
+  badgeText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
   actionsColumn: {
     position: 'absolute',
     right: 9,
@@ -544,7 +546,7 @@ const styles = StyleSheet.create({
   profileAvatar: {
     width: 46,
     height: 46,
-    borderRadius: 23,
+    borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.7)',
@@ -585,7 +587,7 @@ const styles = StyleSheet.create({
   actionCircle: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(15,12,14,0.32)',
@@ -602,7 +604,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,250,242,0.74)',
     fontSize: 8,
     fontWeight: '900',
-    letterSpacing: 0.1,
     textAlign: 'center',
   },
   metaPanel: {
@@ -617,24 +618,24 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 999,
+    borderRadius: 7,
     backgroundColor: 'rgba(15,12,14,0.3)',
   },
   nowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,250,242,0.36)' },
   nowDotActive: { backgroundColor: '#22C55E' },
-  nowText: { color: 'rgba(255,250,242,0.76)', fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
-  title: { marginTop: 8, color: '#FFFAF2', fontSize: 27, lineHeight: 30, fontWeight: '900', letterSpacing: -0.35 },
+  nowText: { color: 'rgba(255,250,242,0.76)', fontSize: 8, fontWeight: '900' },
+  title: { marginTop: 8, color: '#FFFAF2', fontSize: 27, lineHeight: 30, fontWeight: '900' },
   artistRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   artistNameButton: { maxWidth: '72%' },
   artist: { color: 'rgba(255,250,242,0.86)', fontSize: 13, fontWeight: '900' },
   inlineFollow: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
+    borderRadius: 7,
     backgroundColor: '#FFFAF2',
   },
   inlineFollowDone: { backgroundColor: 'rgba(255,250,242,0.15)' },
-  inlineFollowText: { color: '#171313', fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
+  inlineFollowText: { color: '#171313', fontSize: 10, fontWeight: '900' },
   inlineFollowTextDone: { color: '#FFFAF2' },
   plays: { marginTop: 6, color: 'rgba(255,250,242,0.5)', fontSize: 11, fontWeight: '700' },
   remixAttribution: { marginTop: 5, color: '#C7B8FF', fontSize: 11, fontWeight: '900' },
@@ -645,7 +646,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    borderRadius: 15,
+    borderRadius: 7,
     backgroundColor: 'rgba(255,250,242,0.12)',
     paddingHorizontal: 10,
   },
@@ -653,7 +654,7 @@ const styles = StyleSheet.create({
   seekWrap: { marginTop: 12 },
   // Même hauteur que la WaveformSeekBar active (34 + ligne des temps) pour
   // éviter tout saut de layout quand la slide devient active.
-  seekPlaceholder: { height: 53 },
+  seekPlaceholder: { height: 61 },
 });
 
 export default SwipeSlide;

@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -10,6 +10,9 @@ import { CreateArrivalBanner } from '@/components/create/CreateArrivalBanner';
 import { useAuth } from '@/auth/AuthProvider';
 import { getMusicChallenge, getUserPreferences } from '@/api/client';
 import { colors } from '@/theme/tokens';
+import { AppHeader } from '@/components/ui/AppHeader';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { BreathingView, MotionPressable, Reveal } from '@/components/motion/Motion';
 
 // Suggestion discrete basee sur l'intention creative choisie a l'onboarding
 // (Personnaliser mes gouts). N'importe jamais les autres options du Hub.
@@ -40,7 +43,6 @@ export function CreateHubScreen() {
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
   const auth = useAuth();
-  const float = useRef(new Animated.Value(0)).current;
   const [suggestion, setSuggestion] = useState<IntentionSuggestion | null>(null);
   const challengeId: string = route.params?.challengeId || '';
   const [challengeTitle, setChallengeTitle] = useState<string | null>(null);
@@ -53,15 +55,6 @@ export function CreateHubScreen() {
       mounted = false;
     };
   }, [challengeId]);
-
-  useEffect(() => {
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(float, { toValue: -5, duration: 1500, useNativeDriver: true }),
-      Animated.timing(float, { toValue: 0, duration: 1500, useNativeDriver: true }),
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, [float]);
 
   useEffect(() => {
     if (!auth.requireAuth()) return;
@@ -91,25 +84,14 @@ export function CreateHubScreen() {
     <SynauraBackground variant="warm">
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 112 }]}
+        contentContainerStyle={[styles.content, { paddingTop: 0, paddingBottom: insets.bottom + 112 }]}
       >
-        <View style={styles.header}>
-          <Pressable accessibilityLabel="Retour" onPress={() => navigation.goBack()} style={styles.back}>
-            <Ionicons name="chevron-back" size={23} color={colors.text} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <Text style={styles.kicker}>TON ESPACE CRÉATIF</Text>
-            <Text style={styles.title}>Créer</Text>
-          </View>
-          <View style={styles.logoButton}>
-            <Image source={require('../assets/synaura-symbol-2026.png')} resizeMode="contain" style={styles.logo} />
-          </View>
-        </View>
+        <AppHeader flush eyebrow="Ton espace créatif" title="Créer" subtitle="Commence par une idée, un fichier ou un morceau Synaura." onBack={() => navigation.goBack()} />
 
         {challengeId ? <CreateArrivalBanner context="challenge" title={challengeTitle} /> : null}
 
         {suggestion ? (
-          <Pressable onPress={() => open(suggestion.route)} style={styles.suggestionRow}>
+          <MotionPressable onPress={() => open(suggestion.route)} style={styles.suggestionRow} scaleTo={0.985}>
             <View style={[styles.suggestionIcon, { backgroundColor: colors.violet }]}>
               <Ionicons name={suggestion.icon as any} size={17} color="#FFFFFF" />
             </View>
@@ -118,12 +100,13 @@ export function CreateHubScreen() {
               <Text style={styles.suggestionText}>{suggestion.text}</Text>
             </View>
             <Ionicons name="arrow-forward" size={16} color={colors.violet} />
-          </Pressable>
+          </MotionPressable>
         ) : null}
 
-        <Pressable onPress={() => open('AIStudio')} style={styles.studioShell}>
+        <Reveal distance={8} scaleFrom={0.99}>
+        <MotionPressable onPress={() => open('AIStudio')} style={styles.studioShell} scaleTo={0.985}>
           <LinearGradient
-            colors={['#7357C6', '#5B3FA3']}
+            colors={['#111111', '#292431', '#1E3D40']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.studioHero}
@@ -133,9 +116,9 @@ export function CreateHubScreen() {
                 <Text style={styles.studioKicker}>STUDIO IA</Text>
                 <Text style={styles.studioStatus}>Prêt à composer</Text>
               </View>
-              <Animated.View style={[styles.studioOrb, { transform: [{ translateY: float }] }]}>
+              <BreathingView style={styles.studioOrb} scaleTo={1.06}>
                 <Ionicons name="sparkles" size={21} color={colors.paper} />
-              </Animated.View>
+              </BreathingView>
             </View>
             <Text style={styles.studioTitle}>Créer avec l'IA</Text>
             <Text style={styles.studioText}>Imagine un morceau à partir d'une idée.</Text>
@@ -144,7 +127,8 @@ export function CreateHubScreen() {
               <Ionicons name="arrow-forward" size={18} color={colors.text} />
             </View>
           </LinearGradient>
-        </Pressable>
+        </MotionPressable>
+        </Reveal>
 
         <View style={styles.actionList}>
           {secondaryActions.map((action) => (
@@ -156,7 +140,7 @@ export function CreateHubScreen() {
           ))}
         </View>
 
-        <SectionTitle eyebrow="COMMUNAUTÉ" title="Crée avec les autres" />
+        <SectionHeader title="Crée avec les autres" subtitle="Demande un regard, trouve une collaboration ou lance un défi." />
         <View style={styles.actionList}>
           {communityActions.map((action) => (
             <ActionRow
@@ -171,18 +155,9 @@ export function CreateHubScreen() {
   );
 }
 
-function SectionTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
-  return (
-    <View style={styles.sectionTitle}>
-      <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
-      <Text style={styles.sectionHeading}>{title}</Text>
-    </View>
-  );
-}
-
 function ActionRow({ title, text, icon, tint, onPress }: { title: string; text: string; icon: string; tint: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.actionRow, pressed && styles.actionPressed]}>
+    <MotionPressable onPress={onPress} style={styles.actionRow} scaleTo={0.985}>
       <View style={[styles.actionIcon, { backgroundColor: `${tint}18` }]}>
         <Ionicons name={icon as any} size={22} color={tint} />
       </View>
@@ -193,12 +168,12 @@ function ActionRow({ title, text, icon, tint, onPress }: { title: string; text: 
       <View style={styles.actionArrow}>
         <Ionicons name="arrow-forward" size={17} color={colors.text} />
       </View>
-    </Pressable>
+    </MotionPressable>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 16, gap: 11 },
+  content: { paddingHorizontal: 18, gap: 14 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 },
   back: { width: 42, height: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   headerCopy: { flex: 1 },
@@ -210,35 +185,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    borderRadius: 15,
+    borderRadius: 9,
     padding: 11,
     backgroundColor: 'rgba(115,87,198,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(115,87,198,0.2)',
   },
-  suggestionIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  suggestionIcon: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   suggestionCopy: { flex: 1, minWidth: 0 },
   suggestionTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   suggestionText: { marginTop: 2, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
-  studioShell: { borderRadius: 16, overflow: 'hidden' },
+  studioShell: { borderRadius: 12, overflow: 'hidden' },
   studioHero: { minHeight: 238, padding: 16, justifyContent: 'flex-end' },
   studioTop: { position: 'absolute', left: 19, right: 19, top: 18, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   studioKicker: { color: '#E7DBFF', fontSize: 9, fontWeight: '900', letterSpacing: 1.6 },
   studioStatus: { marginTop: 5, color: 'rgba(255,250,242,0.5)', fontSize: 11, fontWeight: '800' },
-  studioOrb: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' },
+  studioOrb: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.14)' },
   studioTitle: { maxWidth: 310, color: colors.paper, fontSize: 24, lineHeight: 27, fontWeight: '900' },
   studioText: { marginTop: 9, maxWidth: 310, color: 'rgba(255,250,242,0.56)', fontSize: 12, lineHeight: 18, fontWeight: '700' },
-  studioButton: { marginTop: 14, minHeight: 46, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 11, paddingHorizontal: 17, backgroundColor: colors.paper },
+  studioButton: { marginTop: 14, minHeight: 46, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, paddingHorizontal: 17, backgroundColor: colors.paper },
   studioButtonText: { color: colors.text, fontSize: 12, fontWeight: '900' },
   sectionTitle: { marginTop: 13, marginBottom: 2 },
   sectionEyebrow: { color: colors.coral, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
   sectionHeading: { marginTop: 4, color: colors.text, fontSize: 22, lineHeight: 25, fontWeight: '900' },
   actionList: { gap: 8 },
-  actionRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 13, padding: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  actionPressed: { opacity: 0.7, transform: [{ scale: 0.985 }] },
-  actionIcon: { width: 50, height: 50, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  actionRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 9, padding: 10, backgroundColor: 'rgba(255,255,255,0.82)', borderWidth: 1, borderColor: colors.border },
+  actionIcon: { width: 50, height: 50, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   actionCopy: { flex: 1, minWidth: 0 },
   actionTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
   actionText: { marginTop: 3, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
-  actionArrow: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.055)' },
+  actionArrow: { width: 36, height: 36, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.055)' },
 });

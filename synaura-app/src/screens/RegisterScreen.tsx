@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import { API_BASE_URL } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
@@ -17,6 +18,7 @@ import {
   AuthTopBar,
   authStyles,
 } from '@/components/auth/AuthUI';
+import { Reveal } from '@/components/motion/Motion';
 
 type FormData = {
   name: string;
@@ -99,6 +101,7 @@ export function RegisterScreen() {
       return;
     }
     if (step < STEPS.length - 1) {
+      void Haptics.selectionAsync().catch(() => {});
       setStep((value) => value + 1);
       return;
     }
@@ -141,6 +144,7 @@ export function RegisterScreen() {
         {error ? <AuthAlert text={error} /> : null}
 
         <View style={authStyles.formGap}>
+          <Reveal key={step} distance={7} duration={300}>
           {step === 0 ? (
             <>
               <AuthField
@@ -237,6 +241,7 @@ export function RegisterScreen() {
               />
             </>
           ) : null}
+          </Reveal>
 
           {userCount && userCount.remainingSlots > 0 && userCount.canRegister ? (
             <View style={styles.slots}>
@@ -250,6 +255,7 @@ export function RegisterScreen() {
               disabled={step === 0 || loading}
               onPress={() => {
                 setError('');
+                void Haptics.selectionAsync().catch(() => {});
                 setStep((value) => Math.max(0, value - 1));
               }}
               style={[authStyles.actionGhost, step === 0 && styles.disabled]}
@@ -287,7 +293,7 @@ const styles = StyleSheet.create({
   scoreRow: { flexDirection: 'row', gap: 6 },
   score: { flex: 1, height: 7, borderRadius: 999, backgroundColor: 'rgba(23,19,19,0.10)' },
   scoreActive: { backgroundColor: '#171313' },
-  slots: { minHeight: 38, borderRadius: 15, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(23,19,19,0.045)' },
+  slots: { minHeight: 38, borderRadius: 8, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(23,19,19,0.045)' },
   slotsText: { color: 'rgba(23,19,19,0.48)', fontSize: 11, fontWeight: '800' },
   disabled: { opacity: 0.35 },
 });

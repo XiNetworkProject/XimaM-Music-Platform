@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Svg, { Defs, RadialGradient, Rect, Stop, Pattern, Path } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Path, Pattern, Rect, Stop } from 'react-native-svg';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { usePlayer } from '@/player/PlayerProvider';
 
@@ -13,63 +13,33 @@ type Props = {
   animated?: boolean;
 };
 
-const VARIANTS: Record<Variant, {
-  base: string;
-  paper: string;
-  paperDark: string;
-  coral: string;
-  violet: string;
-  cyan: string;
-  gridLine: string;
-  coralAlpha: number;
-  violetAlpha: number;
-  cyanAlpha: number;
-}> = {
+const VARIANTS = {
   warm: {
     base: '#F7F6F3',
-    paper: '#FFFFFF',
-    paperDark: '#EEECE8',
-    coral: '#D96D63',
-    violet: '#7357C6',
-    cyan: '#4A9EAA',
-    gridLine: '#D8D5D0',
-    coralAlpha: 0.055,
-    violetAlpha: 0.05,
-    cyanAlpha: 0.035,
+    line: '#C9C5BF',
+    coralOpacity: 0.055,
+    violetOpacity: 0.05,
+    cyanOpacity: 0.035,
+    trackOpacity: 0.032,
   },
   feed: {
     base: '#F7F6F3',
-    paper: '#FFFFFF',
-    paperDark: '#EEECE8',
-    coral: '#D96D63',
-    violet: '#7357C6',
-    cyan: '#4A9EAA',
-    gridLine: '#D8D5D0',
-    coralAlpha: 0.025,
-    violetAlpha: 0.025,
-    cyanAlpha: 0.02,
+    line: '#D2CEC8',
+    coralOpacity: 0.025,
+    violetOpacity: 0.026,
+    cyanOpacity: 0.02,
+    trackOpacity: 0.022,
   },
   dark: {
-    base: '#0D0A0E',
-    paper: '#171313',
-    paperDark: '#0A070C',
-    coral: '#D96D63',
-    violet: '#7357C6',
-    cyan: '#4A9EAA',
-    gridLine: '#1F1A1C',
-    coralAlpha: 0.16,
-    violetAlpha: 0.18,
-    cyanAlpha: 0.10,
+    base: '#111111',
+    line: '#3B3835',
+    coralOpacity: 0.095,
+    violetOpacity: 0.11,
+    cyanOpacity: 0.075,
+    trackOpacity: 0.07,
   },
-};
+} as const;
 
-/**
- * Fond Synaura cale sur la version web (`SynauraWarmFeed`):
- * - couleur paper #F4EFE6
- * - 3 radial gradients diffus (corail / violet / cyan)
- * - 2 blobs lumineux (corail haut-gauche + violet haut-droit)
- * - grille fine 34px
- */
 export function SynauraBackground({ children, variant = 'warm', showGrid = false, animated = true }: Props) {
   const palette = VARIANTS[variant];
   const { width, height } = useWindowDimensions();
@@ -81,6 +51,7 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
   const activeTones = ['#7357C6', '#4A9EAA', '#D96D63', '#C99B48', '#C85D82'];
   const activeKey = player.current?._id || player.current?.title || '';
   const activeTone = activeTones[Array.from(activeKey).reduce((sum, char) => sum + char.charCodeAt(0), 0) % activeTones.length];
+  const dynamic = Boolean(player.current && settings.dynamicBackground);
 
   useEffect(() => {
     if (!animated || settings.reducedMotion || !settings.dynamicBackground) {
@@ -89,8 +60,8 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
       return;
     }
     const loop = Animated.loop(Animated.sequence([
-      Animated.timing(drift, { toValue: 1, duration: 9000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      Animated.timing(drift, { toValue: 0, duration: 9000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(drift, { toValue: 1, duration: 11000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(drift, { toValue: 0, duration: 11000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
     ]));
     loop.start();
     return () => loop.stop();
@@ -100,71 +71,52 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
     <View pointerEvents={children ? 'auto' : 'none'} style={[styles.root, !children && styles.backdrop, { backgroundColor: palette.base }]}>
       <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid slice" style={StyleSheet.absoluteFill}>
         <Defs>
-          {/* haut-gauche : corail */}
-          <RadialGradient id="g-coral" cx={0.08 * w} cy={0} r={0.62 * Math.max(w, h)} gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor={palette.coral} stopOpacity={palette.coralAlpha} />
-            <Stop offset="0.55" stopColor={palette.coral} stopOpacity={0} />
-          </RadialGradient>
-          {/* haut-droit : violet */}
-          <RadialGradient id="g-violet" cx={0.94 * w} cy={0.04 * h} r={0.66 * Math.max(w, h)} gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor={palette.violet} stopOpacity={palette.violetAlpha} />
-            <Stop offset="0.5" stopColor={palette.violet} stopOpacity={0} />
-          </RadialGradient>
-          {/* bas : cyan */}
-          <RadialGradient id="g-cyan" cx={0.6 * w} cy={1.0 * h} r={0.78 * Math.max(w, h)} gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor={palette.cyan} stopOpacity={palette.cyanAlpha} />
-            <Stop offset="0.55" stopColor={palette.cyan} stopOpacity={0} />
-          </RadialGradient>
-          {/* blob lumineux corail haut-gauche */}
-          <RadialGradient id="g-blob-coral" cx={-40} cy={150} r={220} gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor={palette.coral} stopOpacity={0.22} />
-            <Stop offset="1" stopColor={palette.coral} stopOpacity={0} />
-          </RadialGradient>
-          {/* blob lumineux violet haut-droit */}
-          <RadialGradient id="g-blob-violet" cx={w + 40} cy={120} r={240} gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor={palette.violet} stopOpacity={0.22} />
-            <Stop offset="1" stopColor={palette.violet} stopOpacity={0} />
-          </RadialGradient>
-          <RadialGradient id="g-track" cx={0.48 * w} cy={0.52 * h} r={0.72 * Math.max(w, h)} gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor={activeTone} stopOpacity={player.current && settings.dynamicBackground ? 0.1 : 0} />
-            <Stop offset="0.62" stopColor={activeTone} stopOpacity={0} />
-          </RadialGradient>
-          {/* grille fine type papier */}
+          <LinearGradient id="synaura-top" x1="0" y1="0" x2={w} y2={h * 0.72} gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor="#D96D63" stopOpacity={palette.coralOpacity} />
+            <Stop offset="0.46" stopColor={palette.base} stopOpacity={0} />
+            <Stop offset="1" stopColor="#7357C6" stopOpacity={palette.violetOpacity} />
+          </LinearGradient>
+          <LinearGradient id="synaura-bottom" x1={w} y1={h} x2={w * 0.18} y2={h * 0.36} gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor="#4A9EAA" stopOpacity={palette.cyanOpacity} />
+            <Stop offset="0.78" stopColor={palette.base} stopOpacity={0} />
+          </LinearGradient>
+          <LinearGradient id="synaura-track" x1="0" y1={h * 0.55} x2={w} y2={h * 0.48} gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor={palette.base} stopOpacity={0} />
+            <Stop offset="0.5" stopColor={activeTone} stopOpacity={dynamic ? palette.trackOpacity : 0} />
+            <Stop offset="1" stopColor={palette.base} stopOpacity={0} />
+          </LinearGradient>
           {showGrid ? (
-            <Pattern id="paperGrid" x={0} y={0} width={34} height={34} patternUnits="userSpaceOnUse">
-              <Path d="M0 0 H34" stroke={palette.gridLine} strokeWidth={1} opacity={0.45} />
-              <Path d="M0 0 V34" stroke={palette.gridLine} strokeWidth={1} opacity={0.45} />
+            <Pattern id="synaura-grid" x={0} y={0} width={36} height={36} patternUnits="userSpaceOnUse">
+              <Path d="M0 0 H36 M0 0 V36" stroke={palette.line} strokeWidth={0.7} opacity={0.32} />
             </Pattern>
           ) : null}
-          <Pattern id="paperGrain" x={0} y={0} width={18} height={18} patternUnits="userSpaceOnUse">
-            <Path d="M2 3h.7M12 8h.6M7 15h.5M16 2h.4" stroke={palette.gridLine} strokeWidth={1.2} opacity={0.42} />
+          <Pattern id="synaura-grain" x={0} y={0} width={22} height={22} patternUnits="userSpaceOnUse">
+            <Path d="M3 4h.7M14 9h.6M8 18h.5M19 3h.4" stroke={palette.line} strokeWidth={1} opacity={0.25} />
           </Pattern>
         </Defs>
-
-        <Rect x={0} y={0} width={w} height={h} fill="url(#g-coral)" />
-        <Rect x={0} y={0} width={w} height={h} fill="url(#g-violet)" />
-        <Rect x={0} y={0} width={w} height={h} fill="url(#g-cyan)" />
-        <Rect x={0} y={0} width={w} height={h} fill="url(#g-track)" />
-        {variant === 'dark' ? <Rect x={0} y={0} width={w} height={h} fill="url(#g-blob-violet)" /> : null}
-        {showGrid ? <Rect x={0} y={0} width={w} height={h} fill="url(#paperGrid)" opacity={0.32} /> : null}
-        <Rect x={0} y={0} width={w} height={h} fill="url(#paperGrain)" opacity={variant === 'dark' ? 0.12 : 0.08} />
+        <Rect x={0} y={0} width={w} height={h} fill="url(#synaura-top)" />
+        <Rect x={0} y={0} width={w} height={h} fill="url(#synaura-bottom)" />
+        <Rect x={0} y={0} width={w} height={h} fill="url(#synaura-track)" />
+        {showGrid ? <Rect x={0} y={0} width={w} height={h} fill="url(#synaura-grid)" /> : null}
+        <Rect x={0} y={0} width={w} height={h} fill="url(#synaura-grain)" opacity={variant === 'dark' ? 0.13 : 0.08} />
       </Svg>
+
       <Animated.View
         pointerEvents="none"
         style={[
           styles.waveField,
           {
-            opacity: settings.dynamicBackground ? drift.interpolate({ inputRange: [0, 1], outputRange: [0.025, 0.05] }) : 0,
+            opacity: settings.dynamicBackground ? drift.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.42] }) : 0.16,
             transform: [
-              { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [-24, 18] }) },
-              { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [8, -12] }) },
+              { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [-18, 14] }) },
+              { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [7, -8] }) },
             ],
           },
         ]}
       >
-        <Svg width={w + 80} height={h} viewBox={`0 0 ${w + 80} ${h}`} preserveAspectRatio="none">
-          <Path d={`M-30 ${h * 0.32} C ${w * 0.16} ${h * 0.24}, ${w * 0.26} ${h * 0.42}, ${w * 0.48} ${h * 0.34} S ${w * 0.82} ${h * 0.24}, ${w + 60} ${h * 0.38}`} fill="none" stroke={palette.violet} strokeWidth={1.2} opacity={0.22} />
-          <Path d={`M-40 ${h * 0.7} C ${w * 0.2} ${h * 0.62}, ${w * 0.38} ${h * 0.82}, ${w * 0.62} ${h * 0.69} S ${w * 0.88} ${h * 0.64}, ${w + 70} ${h * 0.74}`} fill="none" stroke={palette.cyan} strokeWidth={1.1} opacity={0.18} />
+        <Svg width={w + 64} height={h} viewBox={`0 0 ${w + 64} ${h}`} preserveAspectRatio="none">
+          <Path d={`M-32 ${h * 0.29} C ${w * 0.2} ${h * 0.25}, ${w * 0.34} ${h * 0.37}, ${w * 0.55} ${h * 0.31} S ${w * 0.84} ${h * 0.24}, ${w + 48} ${h * 0.35}`} fill="none" stroke="#7357C6" strokeWidth={1} opacity={variant === 'dark' ? 0.2 : 0.1} />
+          <Path d={`M-24 ${h * 0.72} C ${w * 0.17} ${h * 0.65}, ${w * 0.42} ${h * 0.79}, ${w * 0.64} ${h * 0.69} S ${w * 0.88} ${h * 0.65}, ${w + 42} ${h * 0.75}`} fill="none" stroke="#4A9EAA" strokeWidth={1} opacity={variant === 'dark' ? 0.18 : 0.09} />
         </Svg>
       </Animated.View>
       {children}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { MotionPressable } from '@/components/motion/Motion';
 import { colors, radius, spacing } from '@/theme/tokens';
 
@@ -24,7 +25,10 @@ export function PremiumButton({
     <MotionPressable
       accessibilityLabel={label}
       disabled={disabled || loading}
-      onPress={onPress}
+      onPress={() => {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        onPress();
+      }}
       style={[styles.root, styles[variant]]}
       scaleTo={0.97}
     >
@@ -44,8 +48,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.lg,
   },
-  primary: { backgroundColor: colors.black },
+  primary: { backgroundColor: colors.black, borderWidth: 1, borderColor: colors.black },
   secondary: { borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface },
-  danger: { backgroundColor: 'rgba(217,45,32,0.08)' },
-  label: { fontSize: 13, fontWeight: '900' },
+  danger: { borderWidth: 1, borderColor: 'rgba(217,45,32,0.14)', backgroundColor: 'rgba(217,45,32,0.08)' },
+  label: { fontSize: 13, lineHeight: 17, fontWeight: '900' },
 });

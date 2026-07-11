@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
 import { SynauraBackground } from '@/components/SynauraBackground';
+import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
 const symbol = require('../assets/synaura-symbol-2026.png');
 
 export function AnimatedBootSplash() {
+  const { settings } = useMobileSettings();
   const [visible, setVisible] = useState(true);
   const entrance = useRef(new Animated.Value(0)).current;
   const exit = useRef(new Animated.Value(0)).current;
@@ -12,17 +14,22 @@ export function AnimatedBootSplash() {
   const bars = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0.35))).current;
 
   useEffect(() => {
+    if (settings.reducedMotion) {
+      entrance.setValue(1);
+      const timer = setTimeout(() => setVisible(false), 260);
+      return () => clearTimeout(timer);
+    }
     const breatheLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(breathe, {
           toValue: 1,
-          duration: 760,
+          duration: 620,
           easing: Easing.inOut(Easing.quad),
           useNativeDriver: true,
         }),
         Animated.timing(breathe, {
           toValue: 0,
-          duration: 760,
+          duration: 620,
           easing: Easing.inOut(Easing.quad),
           useNativeDriver: true,
         }),
@@ -55,14 +62,14 @@ export function AnimatedBootSplash() {
     Animated.sequence([
       Animated.timing(entrance, {
         toValue: 1,
-        duration: 620,
+        duration: 360,
         easing: Easing.out(Easing.back(1.15)),
         useNativeDriver: true,
       }),
-      Animated.delay(760),
+      Animated.delay(300),
       Animated.timing(exit, {
         toValue: 1,
-        duration: 360,
+        duration: 220,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
@@ -74,7 +81,7 @@ export function AnimatedBootSplash() {
       breatheLoop.stop();
       barLoops.forEach((animation) => animation.stop());
     };
-  }, [bars, breathe, entrance, exit]);
+  }, [bars, breathe, entrance, exit, settings.reducedMotion]);
 
   if (!visible) return null;
 
@@ -121,8 +128,8 @@ const styles = StyleSheet.create({
     paddingBottom: 34,
   },
   symbolShell: {
-    width: 176,
-    height: 176,
+    width: 148,
+    height: 148,
   },
   symbol: {
     width: '100%',
@@ -130,7 +137,7 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   wordmark: {
-    marginTop: 24,
+    marginTop: 18,
     alignItems: 'center',
   },
   title: {
@@ -146,7 +153,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.8,
   },
   wave: {
-    marginTop: 26,
+    marginTop: 20,
     height: 24,
     flexDirection: 'row',
     alignItems: 'center',

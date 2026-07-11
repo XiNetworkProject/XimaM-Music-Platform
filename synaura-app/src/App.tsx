@@ -21,6 +21,7 @@ import { colors } from '@/theme/tokens';
 import { AnimatedBootSplash } from '@/components/AnimatedBootSplash';
 import { UpdateProvider } from '@/updates/UpdateProvider';
 import { MobileSettingsProvider } from '@/settings/MobileSettingsProvider';
+import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { NativeNotificationsProvider } from '@/notifications/NativeNotificationsProvider';
 import { navigationRef } from '@/navigation/navigationRef';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
@@ -64,6 +65,7 @@ function getActiveRouteName(state: any): string {
  */
 function RootStackNavigator() {
   const auth = useAuth();
+  const { settings } = useMobileSettings();
   const [gate, setGate] = useState<{ ready: boolean; initialRoute: 'Tabs' | 'Onboarding' | 'Welcome' }>({
     ready: false,
     initialRoute: 'Tabs',
@@ -96,13 +98,21 @@ function RootStackNavigator() {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={gate.initialRoute}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        animation: settings.reducedMotion ? 'none' : 'fade_from_bottom',
+        gestureEnabled: true,
+        contentStyle: { backgroundColor: colors.background },
+      }}
+      initialRouteName={gate.initialRoute}
+    >
       <Stack.Screen name="Tabs" component={Tabs} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-      <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-      <Stack.Screen name="Welcome" component={WelcomeScreen} />
+      <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ animation: settings.reducedMotion ? 'none' : 'slide_from_right' }} />
+      <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ animation: settings.reducedMotion ? 'none' : 'fade' }} />
     </Stack.Navigator>
   );
 }

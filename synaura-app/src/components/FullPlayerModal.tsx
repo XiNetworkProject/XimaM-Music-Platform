@@ -54,7 +54,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const player = usePlayer();
-  const progress = usePlayerProgress(250);
+  const progress = usePlayerProgress(120);
   const library = useLibrary();
   const { settings, updateSettings } = useMobileSettings();
   const track = player.current;
@@ -75,6 +75,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const [coverZoneHeight, setCoverZoneHeight] = useState(0);
 
   const dragY = useRef(new Animated.Value(0)).current;
+  const coverX = useRef(new Animated.Value(0)).current;
   const coverPulse = useRef(new Animated.Value(0)).current;
   const dragStartedRef = useRef(false);
 
@@ -112,7 +113,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
 
   // Subtle cover pulse only when playing.
   useEffect(() => {
-    if (!visible || !player.isPlaying) {
+    if (!visible || !player.isPlaying || settings.reducedMotion) {
       coverPulse.stopAnimation();
       Animated.timing(coverPulse, { toValue: 0, duration: 200, useNativeDriver: true }).start();
       return;
@@ -125,7 +126,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
     );
     loop.start();
     return () => loop.stop();
-  }, [coverPulse, player.isPlaying, visible]);
+  }, [coverPulse, player.isPlaying, settings.reducedMotion, visible]);
 
   const closeWithAnim = useCallback(() => {
     Animated.timing(dragY, {
@@ -164,6 +165,40 @@ export function FullPlayerModal({ visible, onClose }: Props) {
       Animated.spring(dragY, { toValue: 0, useNativeDriver: true, friction: 8, tension: 60 }).start();
     },
   }), [closeWithAnim, dragY]);
+
+  const coverPanResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => (
+      Math.abs(gesture.dx) > 14 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.35
+    ),
+    onPanResponderMove: (_, gesture) => coverX.setValue(Math.max(-96, Math.min(96, gesture.dx))),
+    onPanResponderRelease: (_, gesture) => {
+      const direction = gesture.dx < 0 ? 1 : -1;
+      if (Math.abs(gesture.dx) < 68 && Math.abs(gesture.vx) < 0.85) {
+        Animated.spring(coverX, { toValue: 0, speed: 26, bounciness: 5, useNativeDriver: true }).start();
+        return;
+      }
+      void Haptics.selectionAsync().catch(() => {});
+      Animated.timing(coverX, {
+        toValue: direction > 0 ? -150 : 150,
+        duration: settings.reducedMotion ? 0 : 150,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start(() => {
+        const action = direction > 0 ? player.next() : player.previous();
+        void Promise.resolve(action).finally(() => {
+          coverX.setValue(direction > 0 ? 42 : -42);
+          Animated.spring(coverX, { toValue: 0, speed: 25, bounciness: 5, useNativeDriver: true }).start();
+        });
+      });
+    },
+    onPanResponderTerminate: () => {
+      Animated.spring(coverX, { toValue: 0, speed: 26, bounciness: 5, useNativeDriver: true }).start();
+    },
+  }), [coverX, player, settings.reducedMotion]);
+
+  useEffect(() => {
+    coverX.setValue(0);
+  }, [coverX, trackId]);
 
   const toggleLike = useCallback(async () => {
     if (!canInteract) return;
@@ -297,7 +332,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
                 <Image source={{ uri: track.coverUrl }} blurRadius={28} style={StyleSheet.absoluteFillObject} />
               </Animated.View>
             ) : null}
-            <Animated.View style={[styles.coverFrame, { width: coverSize, height: coverSize, transform: [{ scale: coverScale }] }]}>
+            <Animated.View style={[styles.coverFrame, { width: coverSize, height: coverSize, transform: [{ translateX: coverX }, { scale: coverScale }] }]}>
               {track.coverUrl || track.coverVideoUrl || track.coverVideoPosterUrl ? (
                 <TrackCover track={track} active={visible && player.isPlaying} autoPlayVideo={visible && player.isPlaying} style={StyleSheet.absoluteFill} />
               ) : (
@@ -326,6 +361,8 @@ export function FullPlayerModal({ visible, onClose }: Props) {
                   </View>
                 ) : null}
               </View>
+
+              <View {...coverPanResponder.panHandlers} style={styles.coverGestureZone} />
 
               {/* Waveform réelle intégrée dans la cover, sur scrim sombre */}
               {!isRadio ? (
@@ -679,12 +716,12 @@ const styles = StyleSheet.create({
   },
   coverHalo: {
     position: 'absolute',
-    borderRadius: 34,
+    borderRadius: 22,
     overflow: 'hidden',
     opacity: 0.34,
   },
   coverFrame: {
-    borderRadius: 26,
+    borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#171313',
     borderWidth: 1,
@@ -713,10 +750,11 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 999,
+    borderRadius: 7,
   },
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFAF2' },
-  statusText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
+  statusText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
+  coverGestureZone: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 106, zIndex: 2 },
   waveOverlay: {
     position: 'absolute',
     left: 0,
@@ -734,18 +772,17 @@ const styles = StyleSheet.create({
     gap: 7,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 999,
+    borderRadius: 7,
     backgroundColor: 'rgba(10,8,8,0.55)',
   },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
-  liveText: { color: 'rgba(255,250,242,0.85)', fontSize: 11, fontWeight: '900', letterSpacing: 1.4 },
+  liveText: { color: 'rgba(255,250,242,0.85)', fontSize: 11, fontWeight: '900' },
   meta: { marginTop: 14 },
   title: {
     color: '#171313',
     fontSize: 21,
     lineHeight: 25,
     fontWeight: '900',
-    letterSpacing: -0.4,
   },
   metaRow: {
     marginTop: 8,

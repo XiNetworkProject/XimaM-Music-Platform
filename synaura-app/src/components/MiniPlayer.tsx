@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
 import { trackArtistName } from '@/components/swipe/helpers';
@@ -14,7 +15,8 @@ type Props = {
   onOpen?: () => void;
 };
 
-const VISIBLE_ROUTES = new Set(['Home', 'Discover', 'Community', 'Profile']);
+const DOCK_ROUTES = new Set(['Swipe', 'Discover', 'Community', 'Profile']);
+const HIDDEN_ROUTES = new Set(['Swipe', 'AIStudio', 'Upload', 'ClipComposer', 'CreateVariation', 'CreateHub', 'Welcome', 'Login', 'Register', 'ForgotPassword', 'Onboarding']);
 
 export function MiniPlayer({ activeRoute, onOpen }: Props) {
   const insets = useSafeAreaInsets();
@@ -22,7 +24,9 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
   const playerProgress = usePlayerProgress(500);
   const slide = useRef(new Animated.Value(0)).current;
   const gestureX = useRef(new Animated.Value(0)).current;
-  const isVisible = !!player.current && VISIBLE_ROUTES.has(activeRoute || '');
+  const routeName = activeRoute || '';
+  const isVisible = !!player.current && !HIDDEN_ROUTES.has(routeName);
+  const hasDock = DOCK_ROUTES.has(routeName);
 
   useEffect(() => {
     Animated.timing(slide, {
@@ -74,12 +78,10 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
     <Animated.View
       {...panResponder.panHandlers}
       pointerEvents={isVisible ? 'box-none' : 'none'}
-      style={[styles.wrap, { bottom: 62 + insets.bottom, opacity, transform: [{ translateY }, { translateX: gestureX }] }]}
+      style={[styles.wrap, { bottom: hasDock ? 78 + insets.bottom : Math.max(10, insets.bottom + 6), opacity, transform: [{ translateY }, { translateX: gestureX }] }]}
     >
       <Pressable accessibilityLabel="Ouvrir le lecteur" onPress={onOpen} style={styles.card}>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: colors.accent }]} />
-        </View>
+        <BlurView intensity={86} tint="light" style={StyleSheet.absoluteFill} />
 
         <View style={styles.content}>
           <View style={styles.coverWrap}>
@@ -91,7 +93,10 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
           </View>
           <View style={styles.meta}>
             <Text style={styles.title} numberOfLines={1}>{player.current.title}</Text>
-            <Text style={styles.artist} numberOfLines={1}>{trackArtistName(player.current)}</Text>
+            <View style={styles.artistRow}>
+              {player.isPlaying ? <View style={styles.playingDot} /> : null}
+              <Text style={styles.artist} numberOfLines={1}>{trackArtistName(player.current)}</Text>
+            </View>
           </View>
 
           <MotionPressable
@@ -112,6 +117,9 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
             )}
           </MotionPressable>
         </View>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+        </View>
       </Pressable>
     </Animated.View>
   );
@@ -120,41 +128,39 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    left: 8,
-    right: 8,
+    left: 10,
+    right: 10,
     zIndex: 30,
   },
   card: {
-    borderRadius: 13,
+    borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(23,19,19,0.08)',
-    backgroundColor: 'rgba(255,255,255,0.98)',
+    backgroundColor: 'rgba(255,255,255,0.84)',
     shadowColor: '#111111',
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
-  progressTrack: {
-    height: 3,
-    backgroundColor: 'rgba(23,19,19,0.08)',
-  },
+  progressTrack: { height: 2, backgroundColor: 'rgba(17,17,17,0.07)' },
   progressFill: {
-    height: 3,
+    height: 2,
+    backgroundColor: colors.violet,
   },
   content: {
-    minHeight: 48,
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 9,
-    paddingVertical: 5,
+    paddingVertical: 7,
   },
   coverWrap: {
     width: 38,
     height: 38,
-    borderRadius: 10,
+    borderRadius: 8,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -165,10 +171,11 @@ const styles = StyleSheet.create({
     color: '#171313',
     fontSize: 12,
     fontWeight: '900',
-    letterSpacing: -0.1,
   },
+  artistRow: { marginTop: 2, flexDirection: 'row', alignItems: 'center', gap: 5, minWidth: 0 },
+  playingDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.cyan },
   artist: {
-    marginTop: 2,
+    flexShrink: 1,
     color: 'rgba(23,19,19,0.5)',
     fontSize: 11,
     fontWeight: '700',
@@ -176,10 +183,10 @@ const styles = StyleSheet.create({
   playButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#171313',
+    backgroundColor: colors.black,
     shadowColor: '#171313',
     shadowOpacity: 0.22,
     shadowRadius: 10,
