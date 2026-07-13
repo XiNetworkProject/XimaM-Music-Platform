@@ -120,7 +120,7 @@ function CatalogTrackCard({
   };
 
   return (
-    <MotionPressable onPress={() => onOpen(track)} style={[styles.trackCard, horizontal && styles.trackCardHorizontal]} scaleTo={0.98}>
+    <MotionPressable onPress={() => onOpen(track)} style={[styles.trackCard, horizontal && styles.trackCardHorizontal, playing && styles.trackCardPlaying]} scaleTo={0.98}>
       <View style={[styles.coverWrap, horizontal && styles.coverWrapHorizontal]}>
         <TrackCover track={track} active={playing} autoPlayVideo={playing} style={styles.cover} />
         <View style={styles.coverShade} />
@@ -163,27 +163,28 @@ function formatDuration(value: number) {
 }
 
 const styles = StyleSheet.create({
-  section: { gap: 12 },
+  section: { gap: 12, paddingTop: 2 },
   header: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   headingBlock: { flex: 1, minWidth: 0 },
   kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  kicker: { color: colors.violet, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
+  kicker: { color: colors.violet, fontSize: 9, fontWeight: '900' },
   title: { marginTop: 5, color: colors.text, fontSize: 22, lineHeight: 26, fontWeight: '900' },
   subtitle: { marginTop: 3, color: colors.textTertiary, fontSize: 11, fontWeight: '700' },
   sortControl: { maxWidth: 430 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, alignItems: 'stretch' },
-  trackCard: { width: '100%', overflow: 'hidden', borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, ...shadows.soft },
-  trackCardHorizontal: { minHeight: 112, flexDirection: 'row' },
+  trackCard: { width: '100%', overflow: 'hidden', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, ...shadows.soft },
+  trackCardPlaying: { borderColor: 'rgba(115,87,198,0.5)', backgroundColor: 'rgba(115,87,198,0.035)' },
+  trackCardHorizontal: { minHeight: 104, flexDirection: 'row' },
   coverWrap: { width: '100%', aspectRatio: 1, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
-  coverWrapHorizontal: { width: 112, height: 112, aspectRatio: undefined },
+  coverWrapHorizontal: { width: 104, height: 104, aspectRatio: undefined },
   cover: { width: '100%', height: '100%' },
   coverShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(17,17,17,0.08)' },
-  draftBadge: { position: 'absolute', left: 8, top: 8, overflow: 'hidden', borderRadius: radius.sm, paddingHorizontal: 7, paddingVertical: 5, backgroundColor: 'rgba(17,17,17,0.72)', color: '#FFFFFF', fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
-  manageButton: { position: 'absolute', right: 8, top: 8, width: 32, height: 32, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.66)' },
+  draftBadge: { position: 'absolute', left: 8, top: 8, overflow: 'hidden', borderRadius: radius.sm, paddingHorizontal: 7, paddingVertical: 5, backgroundColor: 'rgba(17,17,17,0.72)', color: '#FFFFFF', fontSize: 8, fontWeight: '900' },
+  manageButton: { position: 'absolute', right: 8, top: 8, width: 32, height: 32, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.7)' },
   playButton: { position: 'absolute', right: 8, bottom: 8, width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   trackBody: { flex: 1, minHeight: 120, padding: 11 },
-  trackBodyHorizontal: { minHeight: 112, justifyContent: 'center' },
-  trackTitle: { color: colors.text, fontSize: 13, lineHeight: 17, fontWeight: '900' },
+  trackBodyHorizontal: { minHeight: 104, justifyContent: 'center' },
+  trackTitle: { color: colors.text, fontSize: 14, lineHeight: 18, fontWeight: '900' },
   genre: { marginTop: 3, color: colors.violet, fontSize: 9, fontWeight: '800' },
   metaRow: { marginTop: 9, minHeight: 16, flexDirection: 'row', alignItems: 'center', gap: 8 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },

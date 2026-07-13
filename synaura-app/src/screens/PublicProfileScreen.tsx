@@ -7,7 +7,6 @@ import { followUser, getMusicClips, getPublicProfile, getUserPosts, getUserVaria
 import type { HomePost, MusicClip, UserVariation } from '@/api/types';
 import type { RootTabsParamList } from '@/navigation/Tabs';
 import { SynauraBackground } from '@/components/SynauraBackground';
-import { TrackCover } from '@/components/TrackCover';
 import { CreatorLevelCard } from '@/components/events/SynauraEvents';
 import { usePlayer } from '@/player/PlayerProvider';
 import { MobileBadge } from '@/components/mobile/MobileBadge';
@@ -185,6 +184,11 @@ export function PublicProfileScreen() {
             loading: followLoading,
           }}
           onShare={() => void share()}
+          onPlaySpotlight={() => {
+            if (!spotlightTrack) return;
+            if (player.current?._id === spotlightTrack._id) void player.togglePlayPause();
+            else void player.playTrack(spotlightTrack);
+          }}
         />
 
         <SegmentedControl value={tab} compact options={(Object.keys(TAB_LABELS) as Tab[]).map((item) => ({ value: item, label: TAB_LABELS[item] }))} onChange={setTab} />
@@ -216,25 +220,6 @@ export function PublicProfileScreen() {
           </View>
         ) : null}
 
-        {spotlightTrack ? (
-          <View style={styles.featured}>
-            <Pressable onPress={() => player.playTrack(spotlightTrack)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-              <TrackCover track={spotlightTrack} style={styles.featuredCover} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.featuredKicker}>À ÉCOUTER MAINTENANT</Text>
-                <Text numberOfLines={1} style={styles.featuredTitle}>{spotlightTrack.title}</Text>
-                <Text style={styles.featuredMeta}>{compact(spotlightTrack.plays || 0)} écoutes</Text>
-              </View>
-            </Pressable>
-            <Pressable accessibilityLabel="Ajouter a la file" onPress={() => void player.addNext(spotlightTrack)} style={styles.featuredPlay}>
-              <Ionicons name="add" size={20} color="#FFFAF2" />
-            </Pressable>
-            <Pressable accessibilityLabel="Ecouter" onPress={() => player.playTrack(spotlightTrack)} style={styles.featuredPlay}>
-              <Ionicons name="play" size={18} color="#FFFAF2" />
-            </Pressable>
-          </View>
-        ) : null}
-
         {(acceptsVariations || clipsAllowed) ? (
           <View style={styles.identityRow}>
             {acceptsVariations ? (
@@ -260,7 +245,7 @@ export function PublicProfileScreen() {
             ) : clips.length ? (
               <View style={styles.clipsGrid}>
                 {clips.map((clip) => (
-                  <Pressable key={clip.id} onPress={() => navigation.navigate('Swipe', { mode: 'clips', sourceTrackId: clip.sourceTrackId })} style={styles.clipTile}>
+                  <Pressable key={clip.id} onPress={() => navigation.navigate('Swipe', { mode: 'clips', sourceTrackId: clip.sourceTrackId })} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
                     {clip.posterUrl ? <Image source={{ uri: clip.posterUrl }} style={StyleSheet.absoluteFillObject} /> : null}
                     <View style={styles.clipTileOverlay}><Text numberOfLines={1} style={styles.clipTileTitle}>{clip.sourceTrack?.title || 'Clip'}</Text></View>
                   </Pressable>
@@ -312,7 +297,7 @@ export function PublicProfileScreen() {
                   <Ionicons name="chevron-forward" size={16} color="rgba(23,19,19,0.35)" />
                 </View>
                 <Text style={styles.postText}>{post.text}</Text>
-                {post.isPinned ? <Text style={styles.pinned}>ÉPINGLÉ</Text> : null}
+                {post.isPinned ? <Text style={styles.pinned}>Épinglé</Text> : null}
                 {post.track ? (
                   <PostAttachedTrackCard
                     track={post.track}
@@ -336,28 +321,22 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 18, paddingBottom: 130, gap: 14 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   title: { color: '#171313', fontSize: 24, fontWeight: '900' },
-  badgePanel: { gap: 8, borderRadius: 14, padding: 13, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
+  badgePanel: { gap: 8, borderRadius: 8, padding: 13, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
   badgePanelTitle: { color: '#171313', fontSize: 17, fontWeight: '900' },
-  featured: { minHeight: 76, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 9, backgroundColor: '#171313' },
-  featuredCover: { width: 58, height: 58, borderRadius: 10 },
-  featuredKicker: { color: '#C7B8FF', fontSize: 9, fontWeight: '900' },
-  featuredTitle: { marginTop: 4, color: '#FFFAF2', fontSize: 15, fontWeight: '900' },
-  featuredMeta: { marginTop: 3, color: 'rgba(255,250,242,0.42)', fontSize: 10, fontWeight: '800' },
-  featuredPlay: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.12)' },
-  card: { gap: 8, borderRadius: 14, padding: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
+  card: { gap: 8, borderRadius: 8, padding: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
   trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(17,17,17,0.06)', paddingVertical: 9 },
-  trackCover: { width: 52, height: 52, borderRadius: 15 },
+  trackCover: { width: 52, height: 52, borderRadius: 8 },
   trackTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
   trackMeta: { marginTop: 3, color: 'rgba(23,19,19,0.45)', fontSize: 10, fontWeight: '800' },
   albumRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(17,17,17,0.06)', paddingVertical: 9 },
-  post: { gap: 10, borderRadius: 20, backgroundColor: 'rgba(23,19,19,0.045)', padding: 11 },
+  post: { gap: 10, borderRadius: 8, backgroundColor: 'rgba(23,19,19,0.045)', padding: 11 },
   postHead: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   postAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
   postAvatarText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   postText: { color: '#171313', fontSize: 13, lineHeight: 19, fontWeight: '700' },
   pinned: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, color: '#5B3FD6', backgroundColor: 'rgba(124,92,255,0.12)', fontSize: 8, fontWeight: '900' },
   postMeta: { color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '800' },
-  albumCover: { width: 52, height: 52, borderRadius: 15, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.07)' },
+  albumCover: { width: 52, height: 52, borderRadius: 8, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.07)' },
   empty: { color: 'rgba(23,19,19,0.5)', fontSize: 12, fontWeight: '800', textAlign: 'center', padding: 14 },
   identityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   identityPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1 },
@@ -365,7 +344,7 @@ const styles = StyleSheet.create({
   identityPillCoral: { backgroundColor: 'rgba(255,111,97,0.10)', borderColor: 'rgba(255,111,97,0.25)' },
   identityPillText: { fontSize: 10, fontWeight: '900' },
   clipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  clipTile: { width: '31%', aspectRatio: 9 / 16, borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.08)' },
+  clipTile: { width: '31%', aspectRatio: 9 / 16, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.08)' },
   clipTileOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 6, backgroundColor: 'rgba(23,19,19,0.55)' },
   clipTileTitle: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
 });

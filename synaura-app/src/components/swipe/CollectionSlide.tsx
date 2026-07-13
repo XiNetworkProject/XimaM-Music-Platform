@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   },
   cover: { width: '100%', height: '100%', backgroundColor: 'rgba(255,255,255,0.08)' },
   badge: { marginTop: 22, color: 'rgba(255,250,242,0.75)', fontSize: 10, fontWeight: '900', letterSpacing: 1.6, textTransform: 'uppercase' },
-  title: { marginTop: 8, maxWidth: 300, textAlign: 'center', color: '#FFFAF2', fontSize: 24, fontWeight: '900', letterSpacing: -0.4 },
+  title: { marginTop: 8, maxWidth: 300, textAlign: 'center', color: '#FFFAF2', fontSize: 24, fontWeight: '900' },
   subtitle: { marginTop: 10, maxWidth: 280, textAlign: 'center', color: 'rgba(255,250,242,0.68)', fontSize: 13, lineHeight: 19, fontWeight: '600' },
   count: { marginTop: 14, color: 'rgba(255,250,242,0.55)', fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' },
   footer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, borderRadius: 28, backgroundColor: 'rgba(255,250,242,0.96)', padding: 14 },

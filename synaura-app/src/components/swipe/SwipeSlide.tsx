@@ -435,7 +435,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
         <View style={styles.metaTopRow}>
           <View style={styles.nowBadge}>
             <View style={[styles.nowDot, isPlaying && styles.nowDotActive]} />
-            <Text style={styles.nowText}>{isAi ? 'CRÃ‰ATION IA' : isPlaying ? 'EN LECTURE' : 'EN PAUSE'}</Text>
+            <Text style={styles.nowText}>{isAi ? 'CRÉATION IA' : isPlaying ? 'EN LECTURE' : 'EN PAUSE'}</Text>
           </View>
         </View>
         <Text maxFontSizeMultiplier={1.15} numberOfLines={2} style={[styles.title, responsive.compactControls && styles.titleCompact]}>{displayTitle}</Text>

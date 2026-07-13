@@ -1,99 +1,92 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Image, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Animated, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { completeWelcome } from '@/onboarding/welcomeState';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { colors } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { SynauraIntroStage, type IntroScene } from '@/components/onboarding/SynauraIntroStage';
 
-const SLIDES = [
+const SLIDES: Array<{
+  eyebrow: string;
+  title: string;
+  text: string;
+  promise: string;
+  scene: IntroScene;
+  accent: string;
+}> = [
   {
     eyebrow: 'Bienvenue sur Synaura',
-    title: 'La musique, avant les chiffres.',
-    text: 'Découvre des sons qui te ressemblent et donne une vraie chance aux créateurs émergents.',
-    icon: 'sparkles' as const,
-    colors: ['#7357C6', '#4A9EAA'] as const,
+    title: 'La musique mérite mieux qu’un compteur.',
+    text: 'Entre dans une plateforme où l’écoute, la création et les rencontres commencent toujours par le son.',
+    promise: 'La musique reste au centre, à chaque écran.',
+    scene: 'synaura',
+    accent: '#7357C6',
   },
   {
     eyebrow: 'Synaura Moments',
-    title: 'Chaque passage peut devenir un moment.',
-    text: 'Explore la vraie waveform, réagis au bon instant et retrouve les commentaires ancrés dans le son.',
-    icon: 'pulse' as const,
-    colors: ['#4A9EAA', '#D96D63'] as const,
+    title: 'Vis vraiment chaque passage.',
+    text: 'Parcours une waveform interactive, réagis sur un instant précis et retrouve les commentaires exactement là où ils ont été laissés.',
+    promise: 'Un moment précis devient une conversation musicale.',
+    scene: 'moments',
+    accent: '#4A9EAA',
   },
   {
     eyebrow: 'Radar',
     title: 'Entends-les avant tout le monde.',
-    text: 'Le Radar met en avant les nouveaux morceaux prometteurs, même quand leur audience commence à peine.',
-    icon: 'radio' as const,
-    colors: ['#D96D63', '#7357C6'] as const,
+    text: 'Le Radar cherche les bons signaux au-delà de la popularité pour donner une vraie place aux créateurs émergents.',
+    promise: 'Même un petit créateur peut trouver ses premiers vrais auditeurs.',
+    scene: 'radar',
+    accent: '#D96D63',
   },
   {
     eyebrow: 'Studio Synaura',
-    title: 'Écoute. Crée. Partage.',
-    text: 'Publie tes morceaux, crée avec le Studio et transforme chaque écoute en lien avec ton public.',
-    icon: 'musical-notes' as const,
-    colors: ['#7357C6', '#D96D63'] as const,
+    title: 'Une idée peut devenir un morceau.',
+    text: 'Décris une direction, affine le style, crée une variation ou prépare une publication sans quitter ton univers musical.',
+    promise: 'Tes créations et tes projets restent réunis dans ton Studio.',
+    scene: 'studio',
+    accent: '#7357C6',
   },
-] as const;
+  {
+    eyebrow: 'Ton univers',
+    title: 'Des profils faits pour être écoutés.',
+    text: 'Présente toute ta discographie, partage l’histoire d’un son et construis un lien avec les personnes qui l’écoutent vraiment.',
+    promise: 'Prêt à découvrir Synaura à ta façon.',
+    scene: 'community',
+    accent: '#4A9EAA',
+  },
+];
 
 export function WelcomeScreen() {
   const navigation = useNavigation<any>();
-  const insets = useSafeAreaInsets();
   const layout = useResponsiveLayout();
   const { settings } = useMobileSettings();
   const [step, setStep] = useState(0);
   const transition = useRef(new Animated.Value(1)).current;
   const gestureX = useRef(new Animated.Value(0)).current;
-  const orbit = useRef(new Animated.Value(0)).current;
-  const waves = useRef(Array.from({ length: 17 }, () => new Animated.Value(0))).current;
   const slide = SLIDES[step];
   const last = step === SLIDES.length - 1;
-  const visualHeight = Math.max(220, Math.min(390, layout.usableHeight * (layout.isShort ? 0.47 : 0.54)));
-  const orbitLargeSize = Math.max(168, Math.min(236, layout.availableContentWidth * 0.72, visualHeight * 0.6));
-  const orbitSmallSize = orbitLargeSize * 0.74;
-  const iconSize = Math.max(84, Math.min(112, orbitLargeSize * 0.48));
+  const splitLayout = layout.isLandscape && layout.safeWidth >= 620;
+  const visualHeight = Math.max(
+    layout.isVeryShort ? 220 : 270,
+    Math.min(layout.isTall ? 470 : 410, layout.usableHeight * 0.48, layout.safeWidth * 1.02),
+  );
 
-  useEffect(() => {
-    if (settings.reducedMotion) {
-      orbit.setValue(0);
-      waves.forEach((value) => value.setValue(0.56));
-      return;
-    }
-    const orbitLoop = Animated.loop(Animated.timing(orbit, {
-      toValue: 1,
-      duration: 14000,
-      easing: Easing.linear,
-      useNativeDriver: true,
-    }));
-    const waveLoop = Animated.loop(Animated.stagger(45, waves.map((value, index) => Animated.sequence([
-      Animated.timing(value, { toValue: 1, duration: 720 + (index % 4) * 110, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      Animated.timing(value, { toValue: 0, duration: 720 + (index % 3) * 100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-    ]))));
-    orbitLoop.start();
-    waveLoop.start();
-    return () => {
-      orbitLoop.stop();
-      waveLoop.stop();
-    };
-  }, [orbit, settings.reducedMotion, waves]);
-
-  const changeStep = (next: number) => {
-    if (next < 0 || next >= SLIDES.length) return;
+  const changeStep = useCallback((next: number) => {
+    if (next < 0 || next >= SLIDES.length || next === step) return;
     void Haptics.selectionAsync().catch(() => {});
     if (settings.reducedMotion) {
       setStep(next);
       return;
     }
-    Animated.timing(transition, { toValue: 0, duration: 130, useNativeDriver: true }).start(() => {
+    Animated.timing(transition, { toValue: 0, duration: 120, useNativeDriver: true }).start(() => {
       setStep(next);
-      Animated.spring(transition, { toValue: 1, speed: 18, bounciness: 5, useNativeDriver: true }).start();
+      Animated.spring(transition, { toValue: 1, speed: 18, bounciness: 4, useNativeDriver: true }).start();
     });
-  };
+  }, [settings.reducedMotion, step, transition]);
 
   const enter = async (target: 'Tabs' | 'Login' | 'Register') => {
     await completeWelcome();
@@ -106,148 +99,173 @@ export function WelcomeScreen() {
   };
 
   const panResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.25,
-    onPanResponderMove: (_, gesture) => gestureX.setValue(Math.max(-70, Math.min(70, gesture.dx * 0.35))),
+    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 14 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.35,
+    onPanResponderMove: (_, gesture) => gestureX.setValue(Math.max(-70, Math.min(70, gesture.dx * 0.32))),
     onPanResponderRelease: (_, gesture) => {
-      if (gesture.dx < -52 && step < SLIDES.length - 1) changeStep(step + 1);
-      else if (gesture.dx > 52 && step > 0) changeStep(step - 1);
-      Animated.spring(gestureX, { toValue: 0, speed: 26, bounciness: 5, useNativeDriver: true }).start();
+      if (gesture.dx < -54 && step < SLIDES.length - 1) changeStep(step + 1);
+      else if (gesture.dx > 54 && step > 0) changeStep(step - 1);
+      Animated.spring(gestureX, { toValue: 0, speed: 26, bounciness: 4, useNativeDriver: true }).start();
     },
-    onPanResponderTerminate: () => Animated.spring(gestureX, { toValue: 0, speed: 26, bounciness: 5, useNativeDriver: true }).start(),
-  }), [gestureX, step]);
+    onPanResponderTerminate: () => Animated.spring(gestureX, { toValue: 0, speed: 26, bounciness: 4, useNativeDriver: true }).start(),
+  }), [changeStep, gestureX, step]);
 
-  const rotate = orbit.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-  const translateY = transition.interpolate({ inputRange: [0, 1], outputRange: [18, 0] });
-
-  return (
-    <View {...panResponder.panHandlers} style={styles.root}>
-      <LinearGradient colors={['#171313', '#211C1D', '#171313']} style={[styles.visual, { minHeight: visualHeight, flex: layout.isShort ? 0.8 : 1.12 }]}>
-        <View style={[styles.topBar, layout.contentFrame, { paddingLeft: layout.pagePaddingLeft, paddingRight: layout.pagePaddingRight, paddingTop: insets.top + 12 }]}>
-          <View style={styles.brand}>
-            <Image source={require('../assets/synaura-symbol-2026.png')} style={styles.logo} />
-            <Text style={styles.brandName}>SYNAURA</Text>
-          </View>
-          {!last ? (
-            <Pressable accessibilityLabel="Passer la presentation" onPress={() => changeStep(SLIDES.length - 1)} style={styles.skipButton}>
-              <Text style={styles.skipText}>Passer</Text>
-            </Pressable>
-          ) : null}
+  const visual = (
+    <View
+      style={[
+        styles.visualPane,
+        splitLayout
+          ? { width: '49%', paddingTop: layout.insets.top + 10, paddingBottom: Math.max(layout.insets.bottom, 10) }
+          : { height: visualHeight, paddingTop: layout.insets.top + 10 },
+      ]}
+    >
+      <View style={[styles.visualTop, { paddingLeft: layout.isTiny ? 12 : 18, paddingRight: layout.isTiny ? 12 : 18 }]}>
+        <View style={styles.brandMark}>
+          <View style={[styles.brandLine, { backgroundColor: slide.accent }]} />
+          <Text style={styles.brandName}>Synaura</Text>
         </View>
+        {!last ? (
+          <Pressable accessibilityLabel="Passer la présentation" hitSlop={8} onPress={() => changeStep(SLIDES.length - 1)} style={styles.skipButton}>
+            <Text style={styles.skipText}>Passer</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      <Animated.View style={[styles.stageWrap, { opacity: transition, transform: [{ translateX: gestureX }] }]}>
+        <SynauraIntroStage scene={slide.scene} compact={layout.isVeryShort || splitLayout} style={styles.stageFill} />
+      </Animated.View>
+    </View>
+  );
 
-        <View style={styles.visualCenter}>
-          <Animated.View style={[styles.orbitLarge, { width: orbitLargeSize, height: orbitLargeSize, borderRadius: orbitLargeSize * 0.15, transform: [{ rotate }] }]} />
-          <Animated.View style={[styles.orbitSmall, { width: orbitSmallSize, height: orbitSmallSize, borderRadius: orbitSmallSize * 0.16, transform: [{ rotate: orbit.interpolate({ inputRange: [0, 1], outputRange: ['360deg', '0deg'] }) }] }]} />
-          <Animated.View style={[styles.iconCore, { width: iconSize, height: iconSize, borderRadius: iconSize * 0.2, opacity: transition, transform: [{ translateX: gestureX }, { scale: transition }] }]}>
-            <LinearGradient colors={[...slide.colors]} style={StyleSheet.absoluteFill} />
-            <Ionicons name={slide.icon} size={42} color="#FFFAF2" />
-          </Animated.View>
+  const copy = (
+    <View
+      style={[
+        styles.copy,
+        layout.contentFrame,
+        {
+          minHeight: splitLayout ? layout.usableHeight : Math.max(330, layout.usableHeight - visualHeight),
+          paddingLeft: layout.pagePaddingLeft,
+          paddingRight: layout.pagePaddingRight,
+          paddingTop: splitLayout ? layout.insets.top + 24 : (layout.isShort ? 20 : 28),
+          paddingBottom: Math.max(layout.insets.bottom, 12) + 18,
+        },
+      ]}
+    >
+      <Animated.View style={{ opacity: transition, transform: [{ translateX: gestureX }, { translateY: transition.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
+        <View style={styles.eyebrowRow}>
+          <View style={[styles.eyebrowLine, { backgroundColor: slide.accent }]} />
+          <Text style={[styles.eyebrow, { color: slide.accent }]}>{slide.eyebrow}</Text>
         </View>
-
-        <View style={[styles.waveform, { height: layout.isShort ? 52 : 74, marginHorizontal: layout.gutter, marginBottom: layout.isShort ? 10 : 20 }]}>
-          {waves.map((value, index) => (
-            <Animated.View
-              key={index}
-              style={[
-                styles.waveBar,
-                {
-                  backgroundColor: index % 3 === 0 ? slide.colors[0] : index % 3 === 1 ? slide.colors[1] : '#FFFAF2',
-                  transform: [{ scaleY: value.interpolate({ inputRange: [0, 1], outputRange: [0.28, 1] }) }],
-                  opacity: value.interpolate({ inputRange: [0, 1], outputRange: [0.38, 0.92] }),
-                },
-              ]}
-            />
-          ))}
+        <Text maxFontSizeMultiplier={1.18} style={[styles.title, layout.isNarrow && styles.titleNarrow, layout.isVeryShort && styles.titleShort]}>{slide.title}</Text>
+        <Text maxFontSizeMultiplier={1.25} style={styles.body}>{slide.text}</Text>
+        <View style={styles.promiseRow}>
+          <Ionicons name="checkmark-circle" size={17} color={slide.accent} />
+          <Text style={styles.promise}>{slide.promise}</Text>
         </View>
-      </LinearGradient>
+      </Animated.View>
 
-      <ScrollView
-        style={[styles.contentScroll, { flex: layout.isShort ? 1.2 : 0.88 }]}
-        contentContainerStyle={[
-          styles.content,
-          layout.contentFrame,
-          {
-            minHeight: layout.isShort ? 300 : undefined,
-            paddingLeft: layout.pagePaddingLeft,
-            paddingRight: layout.pagePaddingRight,
-            paddingTop: layout.isShort ? 18 : 26,
-            paddingBottom: insets.bottom + 18,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <Animated.View style={{ opacity: transition, transform: [{ translateX: gestureX }, { translateY }] }}>
-          <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
-          <Text maxFontSizeMultiplier={1.2} style={[styles.title, layout.isNarrow && styles.titleNarrow]}>{slide.title}</Text>
-          <Text maxFontSizeMultiplier={1.25} style={styles.body}>{slide.text}</Text>
-        </Animated.View>
-
-        <View style={styles.footer}>
-          <View style={styles.progressRow}>
+      <View style={styles.footer}>
+        <View style={styles.progressRow}>
+          <Text style={styles.progressIndex}>{String(step + 1).padStart(2, '0')}</Text>
+          <View style={styles.progressTrack}>
             {SLIDES.map((_, index) => (
-              <Pressable key={index} accessibilityLabel={`Presentation ${index + 1}`} onPress={() => changeStep(index)}>
-                <View style={[styles.progressDot, index === step && styles.progressDotActive]} />
+              <Pressable key={index} accessibilityLabel={`Présentation ${index + 1}`} hitSlop={6} onPress={() => changeStep(index)} style={styles.progressTouch}>
+                <View style={[styles.progressSegment, index <= step && { backgroundColor: slide.accent }]} />
               </Pressable>
             ))}
           </View>
-
-          {last ? (
-            <View style={styles.authActions}>
-              <Pressable onPress={() => void enter('Register')} style={styles.primaryButton}>
-                <Text style={styles.primaryText}>Créer mon compte</Text>
-                <Ionicons name="arrow-forward" size={17} color="#FFFAF2" />
-              </Pressable>
-              <View style={styles.secondaryRow}>
-                <Pressable onPress={() => void enter('Login')} style={styles.secondaryButton}>
-                  <Text style={styles.secondaryText}>Se connecter</Text>
-                </Pressable>
-                <Pressable onPress={() => void enter('Tabs')} style={styles.exploreButton}>
-                  <Text style={styles.exploreText}>Explorer</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-            <Pressable onPress={() => changeStep(step + 1)} style={styles.primaryButton}>
-              <Text style={styles.primaryText}>Continuer</Text>
-              <Ionicons name="arrow-forward" size={17} color="#FFFAF2" />
-            </Pressable>
-          )}
+          <Text style={styles.progressIndex}>{String(SLIDES.length).padStart(2, '0')}</Text>
         </View>
-      </ScrollView>
+
+        {last ? (
+          <View style={styles.authActions}>
+            <Pressable onPress={() => void enter('Register')} style={styles.primaryButton}>
+              <Ionicons name="person-add-outline" size={18} color="#F7F6F3" />
+              <Text style={styles.primaryText}>Créer mon compte</Text>
+              <Ionicons name="arrow-forward" size={17} color="#F7F6F3" />
+            </Pressable>
+            <Pressable onPress={() => void enter('Login')} style={styles.secondaryButton}>
+              <Text style={styles.secondaryText}>J’ai déjà un compte</Text>
+            </Pressable>
+            <Pressable onPress={() => void enter('Tabs')} style={styles.exploreButton}>
+              <Text style={styles.exploreText}>Explorer sans compte</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.navigationRow}>
+            {step > 0 ? (
+              <Pressable accessibilityLabel="Étape précédente" onPress={() => changeStep(step - 1)} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={18} color={colors.text} />
+              </Pressable>
+            ) : <View style={styles.backButtonPlaceholder} />}
+            <Pressable onPress={() => changeStep(step + 1)} style={styles.continueButton}>
+              <Text style={styles.primaryText}>Continuer</Text>
+              <Ionicons name="arrow-forward" size={17} color="#F7F6F3" />
+            </Pressable>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+
+  return (
+    <View {...panResponder.panHandlers} style={styles.root}>
+      <StatusBar style="light" />
+      {splitLayout ? (
+        <View style={styles.split}>
+          {visual}
+          <ScrollView style={styles.copyScroll} contentContainerStyle={styles.copyScrollContent} showsVerticalScrollIndicator={false}>
+            {copy}
+          </ScrollView>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.portraitContent} showsVerticalScrollIndicator={false}>
+          {visual}
+          {copy}
+        </ScrollView>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  visual: { overflow: 'hidden' },
-  topBar: { paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  logo: { width: 32, height: 32, borderRadius: 10 },
-  brandName: { color: '#FFFAF2', fontSize: 12, fontWeight: '900', letterSpacing: 2 },
-  skipButton: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 12 },
-  skipText: { color: 'rgba(255,250,242,0.58)', fontSize: 12, fontWeight: '800' },
-  visualCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  orbitLarge: { position: 'absolute', width: 236, height: 236, borderRadius: 36, borderWidth: 1, borderColor: 'rgba(255,250,242,0.12)', borderTopColor: '#7357C6' },
-  orbitSmall: { position: 'absolute', width: 174, height: 174, borderRadius: 28, borderWidth: 1, borderColor: 'rgba(255,250,242,0.1)', borderBottomColor: '#4A9EAA' },
-  iconCore: { width: 112, height: 112, borderRadius: 22, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 13 }, elevation: 12 },
-  waveform: { height: 74, marginHorizontal: 24, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  waveBar: { flex: 1, height: 58, borderRadius: 3 },
-  contentScroll: { backgroundColor: colors.background },
-  content: { flexGrow: 1, justifyContent: 'space-between' },
-  eyebrow: { color: colors.violet, fontSize: 10, fontWeight: '900', letterSpacing: 1.5, textTransform: 'uppercase' },
-  title: { marginTop: 8, color: colors.text, fontSize: 29, lineHeight: 35, fontWeight: '900' },
-  titleNarrow: { fontSize: 25, lineHeight: 30 },
-  body: { marginTop: 10, color: colors.textSecondary, fontSize: 14, lineHeight: 21, fontWeight: '700' },
-  footer: { marginTop: 18 },
-  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 16 },
-  progressDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(17,17,17,0.14)' },
-  progressDotActive: { width: 28, backgroundColor: colors.violet },
+  split: { flex: 1, flexDirection: 'row', backgroundColor: colors.background },
+  portraitContent: { flexGrow: 1 },
+  visualPane: { overflow: 'hidden', backgroundColor: '#171313' },
+  visualTop: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 3 },
+  brandMark: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  brandLine: { width: 4, height: 22, borderRadius: 2 },
+  brandName: { color: '#F7F6F3', fontSize: 17, fontWeight: '900' },
+  skipButton: { minHeight: 38, justifyContent: 'center', paddingHorizontal: 8 },
+  skipText: { color: 'rgba(247,246,243,0.62)', fontSize: 12, fontWeight: '800' },
+  stageWrap: { flex: 1, marginTop: 4 },
+  stageFill: { flex: 1, minHeight: 0 },
+  copyScroll: { flex: 1, backgroundColor: colors.background },
+  copyScrollContent: { flexGrow: 1 },
+  copy: { flexGrow: 1, justifyContent: 'space-between', backgroundColor: colors.background },
+  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  eyebrowLine: { width: 22, height: 2, borderRadius: 1 },
+  eyebrow: { fontSize: 10, fontWeight: '900' },
+  title: { marginTop: 11, color: colors.text, fontSize: 31, lineHeight: 36, fontWeight: '900' },
+  titleNarrow: { fontSize: 27, lineHeight: 32 },
+  titleShort: { fontSize: 25, lineHeight: 30 },
+  body: { marginTop: 12, maxWidth: 500, color: colors.textSecondary, fontSize: 14, lineHeight: 21, fontWeight: '600' },
+  promiseRow: { marginTop: 16, minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 9, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  promise: { flex: 1, color: colors.text, fontSize: 11, lineHeight: 16, fontWeight: '800' },
+  footer: { marginTop: 24 },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 18 },
+  progressIndex: { width: 18, color: colors.textTertiary, fontSize: 9, fontWeight: '900' },
+  progressTrack: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  progressTouch: { flex: 1, minHeight: 18, justifyContent: 'center' },
+  progressSegment: { width: '100%', height: 3, borderRadius: 2, backgroundColor: 'rgba(17,17,17,0.12)' },
+  navigationRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  backButton: { width: 52, height: 52, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface },
+  backButtonPlaceholder: { width: 52, height: 52 },
+  continueButton: { flex: 1, height: 54, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: colors.black },
+  primaryButton: { minHeight: 54, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 16, backgroundColor: colors.black },
+  primaryText: { flexShrink: 1, color: '#F7F6F3', fontSize: 13, fontWeight: '900', textAlign: 'center' },
   authActions: { gap: 9 },
-  primaryButton: { height: 54, borderRadius: 9, backgroundColor: colors.black, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
-  primaryText: { color: '#FFFAF2', fontSize: 14, fontWeight: '900' },
-  secondaryRow: { flexDirection: 'row', gap: 9 },
-  secondaryButton: { flex: 1, height: 48, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.borderStrong },
+  secondaryButton: { minHeight: 50, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface },
   secondaryText: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  exploreButton: { minWidth: 104, height: 48, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  exploreText: { color: colors.textSecondary, fontSize: 12, fontWeight: '900' },
+  exploreButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
+  exploreText: { color: colors.textSecondary, fontSize: 11, fontWeight: '800' },
 });

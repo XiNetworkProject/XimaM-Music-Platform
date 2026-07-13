@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   back: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   kicker: { color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
-  title: { color: colors.text, fontSize: 25, fontWeight: '900', letterSpacing: -0.4 },
+  title: { color: colors.text, fontSize: 25, fontWeight: '900' },
   muted: { color: 'rgba(23,19,19,0.55)', fontSize: 12, fontWeight: '700', lineHeight: 18 },
   inlineLoading: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 4 },
   overviewHero: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 10, backgroundColor: colors.black, padding: 12 },

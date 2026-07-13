@@ -308,6 +308,11 @@ export function ProfileScreen() {
             primaryAction={{ label: 'Modifier le profil', icon: 'create-outline', onPress: () => navigation.navigate('Settings') }}
             secondaryAction={{ label: 'Créer', icon: 'add', onPress: () => navigation.navigate('CreateHub') }}
             onShare={() => void shareProfile()}
+            onPlaySpotlight={() => {
+              if (!spotlightTrack) return;
+              if (player.current?._id === spotlightTrack._id) void player.togglePlayPause();
+              else void player.playTrack(spotlightTrack);
+            }}
           />
         ) : <ProfileIdentityHeroSkeleton />}
 
@@ -356,20 +361,6 @@ export function ProfileScreen() {
           </View>
         ) : null}
 
-        {spotlightTrack ? (
-          <View style={styles.featured}>
-            <Pressable onPress={() => player.playTrack(spotlightTrack)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-              <TrackCover track={spotlightTrack} style={styles.featuredCover} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.featuredKicker}>À ÉCOUTER MAINTENANT</Text>
-                <Text numberOfLines={1} style={styles.featuredTitle}>{spotlightTrack.title}</Text>
-                <Text style={styles.featuredMeta}>{compact(spotlightTrack.plays || 0)} écoutes · {compact(spotlightTrack.likesCount || 0)} likes</Text>
-              </View>
-            </Pressable>
-            <View style={styles.featuredPlay}><Ionicons name="play" size={17} color="#FFFAF2" /></View>
-          </View>
-        ) : null}
-
         {(acceptsVariations || clipsAllowed) ? (
           <View style={styles.identityRow}>
             {acceptsVariations ? (
@@ -391,7 +382,7 @@ export function ProfileScreen() {
           <Pressable onPress={() => player.playTrack(lastPlayed)} style={styles.resumeCard}>
             <TrackCover track={lastPlayed} style={styles.featuredCover} />
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.resumeKicker}>CONTINUER À ÉCOUTER</Text>
+              <Text style={styles.resumeKicker}>Continuer à écouter</Text>
               <Text numberOfLines={1} style={styles.resumeTitle}>{lastPlayed.title}</Text>
             </View>
             <Ionicons name="play" size={16} color="#171313" />
@@ -444,7 +435,7 @@ export function ProfileScreen() {
           {clipsLoading ? <Empty text="Chargement…" /> : clips.length ? (
             <View style={styles.clipsGrid}>
               {clips.map((clip) => (
-                <Pressable key={clip.id} onPress={() => navigation.navigate('Swipe', { mode: 'clips', sourceTrackId: clip.sourceTrackId })} style={styles.clipTile}>
+                <Pressable key={clip.id} onPress={() => navigation.navigate('Swipe', { mode: 'clips', sourceTrackId: clip.sourceTrackId })} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
                   {clip.posterUrl ? <Image source={{ uri: clip.posterUrl }} style={StyleSheet.absoluteFillObject} /> : null}
                   <View style={styles.clipTileOverlay}><Text numberOfLines={1} style={styles.clipTileTitle}>{clip.sourceTrack?.title || 'Clip'}</Text></View>
                 </Pressable>
@@ -479,7 +470,7 @@ export function ProfileScreen() {
           {posts.length ? posts.slice(0, 8).map((post) => (
             <Pressable key={post.id} onPress={() => navigation.navigate('PostDetail', { postId: post.id })} style={styles.postRow}>
               <View style={{ flex: 1, minWidth: 0 }}>
-                {post.isPinned ? <Text style={styles.postPinned}>ÉPINGLÉ</Text> : null}
+                {post.isPinned ? <Text style={styles.postPinned}>Épinglé</Text> : null}
                 <Text numberOfLines={2} style={styles.postText}>{post.text}</Text>
                 <Text style={styles.postMeta}>{post.time} · {post.likesCount} j’aime · {post.commentsCount} commentaires</Text>
                 {post.track ? (
@@ -583,8 +574,8 @@ function Empty({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 18, paddingBottom: 160, gap: 14 },
-  loginHero: { borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.86)', padding: 20, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
-  loginIcon: { width: 74, height: 74, borderRadius: 16, backgroundColor: '#171313', alignItems: 'center', justifyContent: 'center' },
+  loginHero: { borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.86)', padding: 20, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
+  loginIcon: { width: 74, height: 74, borderRadius: 8, backgroundColor: '#171313', alignItems: 'center', justifyContent: 'center' },
   loginTitle: { marginTop: 16, color: '#171313', fontSize: 28, fontWeight: '900' },
   loginText: { marginTop: 8, color: 'rgba(23,19,19,0.56)', textAlign: 'center', fontSize: 13, lineHeight: 20, fontWeight: '700' },
   guestHighlights: { alignSelf: 'stretch', marginTop: 18, gap: 8 },
@@ -595,58 +586,53 @@ const styles = StyleSheet.create({
   primaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   registerButton: { height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: '#FFFFFF' },
   registerText: { color: '#7C5CFF', fontSize: 13, fontWeight: '900' },
-  badgesPanel: { gap: 8, borderRadius: 14, padding: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  featured: { minHeight: 76, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 9, backgroundColor: colors.black },
+  badgesPanel: { gap: 8, borderRadius: 8, padding: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   featuredCover: { width: 60, height: 60, borderRadius: 8 },
-  featuredKicker: { color: '#C7B8FF', fontSize: 9, fontWeight: '900' },
-  featuredTitle: { marginTop: 4, color: '#FFFAF2', fontSize: 15, fontWeight: '900' },
-  featuredMeta: { marginTop: 3, color: 'rgba(255,250,242,0.42)', fontSize: 10, fontWeight: '800' },
-  featuredPlay: { width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.12)' },
   quickGrid: { gap: 8, paddingRight: 18 },
-  quickAction: { width: 150, minHeight: 104, borderRadius: 10, padding: 12, backgroundColor: 'rgba(255,255,255,0.78)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
+  quickAction: { width: 150, minHeight: 104, borderRadius: 8, padding: 12, backgroundColor: 'rgba(255,255,255,0.78)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
   quickIcon: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(124,92,255,0.1)' },
   quickTitle: { marginTop: 10, color: '#171313', fontSize: 14, fontWeight: '900' },
   quickText: { marginTop: 3, color: 'rgba(23,19,19,0.48)', fontSize: 11, lineHeight: 16, fontWeight: '700' },
-  card: { gap: 9, borderRadius: 14, padding: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  planLink: { minHeight: 38, borderRadius: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 11, backgroundColor: 'rgba(124,92,255,0.08)' },
+  card: { gap: 9, borderRadius: 8, padding: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  planLink: { minHeight: 38, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 11, backgroundColor: 'rgba(124,92,255,0.08)' },
   planLinkText: { color: '#7C5CFF', fontSize: 10, fontWeight: '900' },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { color: '#171313', fontSize: 17, fontWeight: '900' },
-  sectionAction: { color: 'rgba(23,19,19,0.42)', fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+  sectionAction: { color: 'rgba(23,19,19,0.42)', fontSize: 11, fontWeight: '900' },
   usageRow: { gap: 6 },
   usageTop: { flexDirection: 'row', justifyContent: 'space-between' },
   usageLabel: { color: '#171313', fontSize: 12, fontWeight: '900' },
   usageMeta: { color: 'rgba(23,19,19,0.45)', fontSize: 11, fontWeight: '800' },
   usageTrack: { height: 6, borderRadius: 999, backgroundColor: 'rgba(23,19,19,0.08)', overflow: 'hidden' },
   usageFill: { height: 6, borderRadius: 999, backgroundColor: '#7C5CFF' },
-  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, backgroundColor: 'rgba(23,19,19,0.045)', padding: 9 },
-  trackCover: { width: 50, height: 50, borderRadius: 15 },
+  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, backgroundColor: 'rgba(23,19,19,0.045)', padding: 9 },
+  trackCover: { width: 50, height: 50, borderRadius: 8 },
   trackTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
   trackMeta: { marginTop: 3, color: 'rgba(23,19,19,0.45)', fontSize: 10, fontWeight: '800' },
-  variationStatus: { marginTop: 2, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  variationStatus: { marginTop: 2, fontSize: 10, fontWeight: '900' },
   miniIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.055)' },
-  playlistRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, backgroundColor: 'rgba(23,19,19,0.045)', padding: 9 },
-  playlistCover: { width: 48, height: 48, borderRadius: 14, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.07)' },
+  playlistRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, backgroundColor: 'rgba(23,19,19,0.045)', padding: 9 },
+  playlistCover: { width: 48, height: 48, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.07)' },
   playlistTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
   playlistMeta: { marginTop: 3, color: 'rgba(23,19,19,0.45)', fontSize: 10, fontWeight: '800' },
-  postRow: { minHeight: 68, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 11, backgroundColor: 'rgba(23,19,19,0.045)' },
+  postRow: { minHeight: 68, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 11, backgroundColor: 'rgba(23,19,19,0.045)' },
   postText: { color: '#171313', fontSize: 12, lineHeight: 17, fontWeight: '800' },
   postPinned: { marginBottom: 4, color: '#7C5CFF', fontSize: 8, fontWeight: '900' },
   postMeta: { marginTop: 5, color: 'rgba(23,19,19,0.42)', fontSize: 9, fontWeight: '800' },
-  emptyAction: { minHeight: 50, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: 'rgba(124,92,255,0.08)' },
+  emptyAction: { minHeight: 50, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: 'rgba(124,92,255,0.08)' },
   emptyActionText: { color: '#5B3FD6', fontSize: 11, fontWeight: '900' },
-  empty: { borderRadius: 18, padding: 14, backgroundColor: 'rgba(23,19,19,0.045)', color: 'rgba(23,19,19,0.48)', fontSize: 12, fontWeight: '800', textAlign: 'center' },
-  error: { overflow: 'hidden', borderRadius: 16, padding: 12, backgroundColor: 'rgba(239,68,68,0.1)', color: colors.danger, fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  empty: { borderRadius: 8, padding: 14, backgroundColor: 'rgba(23,19,19,0.045)', color: 'rgba(23,19,19,0.48)', fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  error: { overflow: 'hidden', borderRadius: 8, padding: 12, backgroundColor: 'rgba(239,68,68,0.1)', color: colors.danger, fontSize: 12, fontWeight: '800', textAlign: 'center' },
   identityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   identityPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1 },
   identityPillCyan: { backgroundColor: 'rgba(0,194,203,0.10)', borderColor: 'rgba(0,194,203,0.25)' },
   identityPillCoral: { backgroundColor: 'rgba(255,111,97,0.10)', borderColor: 'rgba(255,111,97,0.25)' },
   identityPillText: { fontSize: 10, fontWeight: '900' },
-  resumeCard: { minHeight: 66, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 9, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  resumeCard: { minHeight: 66, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 9, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   resumeKicker: { color: '#7357C6', fontSize: 9, fontWeight: '900' },
   resumeTitle: { marginTop: 3, color: '#171313', fontSize: 13, fontWeight: '900' },
   clipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  clipTile: { width: '31%', aspectRatio: 9 / 16, borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.08)' },
+  clipTile: { width: '31%', aspectRatio: 9 / 16, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.08)' },
   clipTileOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 6, backgroundColor: 'rgba(23,19,19,0.55)' },
   clipTileTitle: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
 });

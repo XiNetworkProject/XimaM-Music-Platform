@@ -450,6 +450,7 @@ function PlaylistTile({ playlist, onPress }: { playlist: Playlist; onPress: () =
 }
 
 function CollectionFeatureCard({ playlist, onPress }: { playlist: Playlist; onPress: () => void }) {
+  const responsive = useResponsiveLayout();
   const collection = playlist.collection;
   const cardColors = collection?.themeColors?.length ? collection.themeColors : playlist.themeColors?.length ? playlist.themeColors : ['#8B5CF6', '#EC4899', '#22D3EE'];
   const banner = playlist.bannerUrl || collection?.bannerUrl || playlist.coverUrl || playlist.covers[0];
@@ -461,7 +462,7 @@ function CollectionFeatureCard({ playlist, onPress }: { playlist: Playlist; onPr
       <LinearGradient colors={['rgba(19,16,17,0.20)', 'rgba(19,16,17,0.86)']} style={StyleSheet.absoluteFillObject} />
       <View style={styles.collectionFeatureBody}>
         <Text style={styles.collectionFeatureBadge}>{playlist.badge || collection?.badge || 'Collection officielle'}</Text>
-        <Text numberOfLines={2} style={styles.collectionFeatureTitle}>{collection?.title || playlist.title}</Text>
+        <Text numberOfLines={2} style={[styles.collectionFeatureTitle, responsive.isNarrow && styles.collectionFeatureTitleNarrow]}>{collection?.title || playlist.title}</Text>
         <Text numberOfLines={2} style={styles.collectionFeatureText}>{collection?.subtitle || playlist.vibe}</Text>
         <View style={styles.collectionFeatureAction}>
           <Ionicons name="play" size={17} color={colors.text} />
@@ -656,6 +657,7 @@ const styles = StyleSheet.create({
   collectionFeatureBody: { flex: 1, justifyContent: 'flex-end', padding: 20 },
   collectionFeatureBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: 999, backgroundColor: 'rgba(255,249,239,0.18)', paddingHorizontal: 12, paddingVertical: 7, color: colors.paper, fontSize: 10, fontWeight: '900', letterSpacing: 1.3, textTransform: 'uppercase' },
   collectionFeatureTitle: { marginTop: 12, color: colors.paper, fontSize: 34, lineHeight: 34, fontWeight: '900' },
+  collectionFeatureTitleNarrow: { fontSize: 27, lineHeight: 29 },
   collectionFeatureText: { marginTop: 10, color: 'rgba(255,249,239,0.78)', fontSize: 14, lineHeight: 20, fontWeight: '800' },
   collectionFeatureAction: { alignSelf: 'flex-start', marginTop: 16, height: 48, borderRadius: 24, backgroundColor: colors.paper, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 8 },
   collectionFeatureActionText: { color: colors.text, fontSize: 13, fontWeight: '900' },

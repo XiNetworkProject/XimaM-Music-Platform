@@ -84,7 +84,7 @@ export function DiscoverMoodScreen() {
                 <Pressable
                   key={track._id}
                   onPress={() => void player.setQueueAndPlay(playable, playable.findIndex((item) => item._id === track._id))}
-                  style={styles.gridItem}
+                  style={[styles.gridItem, { width: responsive.gridColumns === 3 ? '31%' : responsive.gridColumns === 2 ? '47.5%' : '100%' }]}
                 >
                   <View style={styles.gridCoverWrap}>
                     <TrackCover track={track} active={player.current?._id === track._id && player.isPlaying} style={styles.gridCover} />
@@ -115,7 +115,7 @@ export function DiscoverMoodScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, gap: 10 },
-  banner: { marginTop: 4, borderRadius: 22, padding: 20, minHeight: 140, justifyContent: 'center' },
+  banner: { marginTop: 4, borderRadius: 8, padding: 20, minHeight: 140, justifyContent: 'center' },
   bannerTitle: { color: colors.paper, fontSize: 24, fontWeight: '900' },
   bannerPromise: { marginTop: 6, color: 'rgba(255,250,242,0.76)', fontSize: 12, lineHeight: 18, fontWeight: '700', maxWidth: '85%' },
   loader: { marginVertical: 60 },
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   playAllText: { color: colors.paper, fontSize: 12, fontWeight: '900' },
   grid: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
   gridItem: { width: '31%' },
-  gridCoverWrap: { width: '100%', aspectRatio: 1, overflow: 'hidden', borderRadius: 14, backgroundColor: 'rgba(17,17,17,0.06)' },
+  gridCoverWrap: { width: '100%', aspectRatio: 1, overflow: 'hidden', borderRadius: 8, backgroundColor: 'rgba(17,17,17,0.06)' },
   gridCover: { width: '100%', height: '100%' },
   gridPlay: { position: 'absolute', right: 6, bottom: 6, width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.92)' },
   gridTitle: { marginTop: 7, color: colors.text, fontSize: 10, fontWeight: '900' },

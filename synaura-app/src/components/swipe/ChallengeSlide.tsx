@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   },
   icon: { width: 56, height: 56, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
   kicker: { marginTop: 22, color: '#D96D63', fontSize: 10, fontWeight: '900', letterSpacing: 1.5, textTransform: 'uppercase' },
-  title: { marginTop: 8, color: '#171313', fontSize: 30, lineHeight: 33, fontWeight: '900', letterSpacing: -1 },
+  title: { marginTop: 8, color: '#171313', fontSize: 30, lineHeight: 33, fontWeight: '900' },
   text: { marginTop: 12, color: 'rgba(23,19,19,0.58)', fontSize: 13, lineHeight: 20, fontWeight: '700' },
   stats: { marginTop: 18, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   stat: { paddingHorizontal: 12, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 17, backgroundColor: 'rgba(23,19,19,0.055)' },

@@ -212,18 +212,18 @@ export function PlaylistDetailScreen() {
           <LinearGradient colors={['rgba(23,19,19,0.66)', 'rgba(23,19,19,0.40)', 'rgba(23,19,19,0.56)']} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
         </View>
 
-        <View style={[styles.content, responsive.contentFrame, { paddingTop: insets.top + 10, paddingBottom: Math.max(insets.bottom + 132, responsive.miniPlayerClearance) }]}>
+        <View style={[styles.content, responsive.pageContent, { paddingTop: insets.top + 10, paddingBottom: Math.max(insets.bottom + 132, responsive.miniPlayerClearance) }]}>
         {/* Header */}
         <View style={styles.topbar}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={16} color="rgba(255,250,242,0.82)" />
-            <Text style={styles.backText}>Retour</Text>
+            {!responsive.isTiny ? <Text style={styles.backText}>Retour</Text> : null}
           </Pressable>
           <View style={styles.topActions}>
             <Pressable onPress={copyLink} style={styles.iconPill}><Ionicons name="copy-outline" size={16} color="rgba(255,250,242,0.82)" /></Pressable>
             <Pressable onPress={shareCollection} style={styles.sharePill}>
               <Ionicons name="share-social-outline" size={16} color="rgba(255,250,242,0.82)" />
-              <Text style={styles.backText}>Partager</Text>
+              {!responsive.isNarrow ? <Text style={styles.backText}>Partager</Text> : null}
             </Pressable>
           </View>
         </View>
@@ -236,9 +236,9 @@ export function PlaylistDetailScreen() {
             <View style={styles.hero}>
               {banner ? <Image source={{ uri: banner }} style={styles.heroBanner} blurRadius={2} /> : null}
               <LinearGradient colors={['rgba(17,13,13,0.92)', 'rgba(17,13,13,0.58)', 'rgba(17,13,13,0.20)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFillObject} />
-              <View style={styles.heroBody}>
+              <View style={[styles.heroBody, responsive.isNarrow && styles.heroBodyNarrow]}>
                 <View style={styles.badgePill}><Text style={styles.badgeText}>{badge}</Text></View>
-                <Text style={styles.heroTitle}>{title}</Text>
+                <Text maxFontSizeMultiplier={1.15} style={[styles.heroTitle, responsive.isNarrow && styles.heroTitleNarrow]}>{title}</Text>
                 <Text style={styles.heroSubtitle}>{subtitle}</Text>
                 {extraDescription ? <Text style={styles.heroDesc}>{extraDescription}</Text> : null}
 
@@ -258,7 +258,7 @@ export function PlaylistDetailScreen() {
                 </View>
 
                 {/* Cover + stats */}
-                <View style={styles.coverBlock}>
+                <View style={[styles.coverBlock, { maxWidth: Math.min(360, responsive.availableContentWidth) }]}>
                   <View style={styles.coverGlow} />
                   <View style={styles.coverWrap}>
                     {cover ? <Image source={{ uri: cover }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={48} color={CREAM} />}
@@ -450,12 +450,14 @@ const styles = StyleSheet.create({
   sharePill: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
 
   // Hero
-  hero: { borderRadius: 36, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', shadowColor: '#000', shadowOpacity: 0.34, shadowRadius: 40, shadowOffset: { width: 0, height: 30 }, elevation: 10 },
+  hero: { borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', shadowColor: '#000', shadowOpacity: 0.24, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 7 },
   heroBanner: { ...StyleSheet.absoluteFillObject, opacity: 0.48 },
   heroBody: { padding: 22 },
+  heroBodyNarrow: { padding: 14 },
   badgePill: { alignSelf: 'flex-start', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 12, paddingVertical: 6, marginBottom: 14 },
   badgeText: { color: 'rgba(255,250,242,0.82)', fontSize: 10, fontWeight: '900', letterSpacing: 1.6, textTransform: 'uppercase' },
-  heroTitle: { color: CREAM, fontSize: 46, lineHeight: 44, fontWeight: '900', letterSpacing: -2 },
+  heroTitle: { color: CREAM, fontSize: 40, lineHeight: 44, fontWeight: '900' },
+  heroTitleNarrow: { fontSize: 30, lineHeight: 34 },
   heroSubtitle: { color: 'rgba(255,250,242,0.78)', fontSize: 16, lineHeight: 24, fontWeight: '700', marginTop: 16 },
   heroDesc: { color: 'rgba(255,250,242,0.56)', fontSize: 13, lineHeight: 20, fontWeight: '600', marginTop: 8 },
   heroActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 22 },
@@ -466,8 +468,8 @@ const styles = StyleSheet.create({
 
   coverBlock: { width: '100%', maxWidth: 360, alignSelf: 'center', marginTop: 28 },
   coverGlow: { position: 'absolute', top: -18, left: -18, right: -18, bottom: 18, borderRadius: 44, backgroundColor: 'rgba(255,255,255,0.18)' },
-  coverWrap: { width: '100%', aspectRatio: 1, borderRadius: 34, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
-  statsCard: { flexDirection: 'row', gap: 8, marginTop: -36, marginHorizontal: 18, borderRadius: 26, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(23,19,19,0.86)', padding: 10 },
+  coverWrap: { width: '100%', aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  statsCard: { flexDirection: 'row', gap: 8, marginTop: -24, marginHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(23,19,19,0.86)', padding: 8 },
 
   // Stat
   stat: { flex: 1, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.10)', padding: 12 },

@@ -20,7 +20,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getAIGenerationStatus,
@@ -191,6 +191,10 @@ export function AIStudioScreen() {
   const challengeId: string = route.params?.challengeId || '';
   const [challengeTitle, setChallengeTitle] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+
+  useFocusEffect(useCallback(() => {
+    if (auth.user?.username) setTab('create');
+  }, [auth.user?.username]));
 
   useEffect(() => {
     if (!challengeId) return;
@@ -563,7 +567,7 @@ export function AIStudioScreen() {
     (mode === 'simple' ? description.trim() : (style.trim() || selectedTags.length))
     && (mode !== 'remix' || synauraRemixSource || remixAsset || remixSource?.audio_url || remixSource?.stream_audio_url),
   );
-  const composerBottom = (player.current ? responsive.miniPlayerClearance : responsive.bottomDockClearance) + 6;
+  const composerBottom = Math.max(insets.bottom, 10) + 8;
   const libraryTracks = useMemo(() => {
     const rows = library.flatMap((generation) => (generation.tracks || []).map((track) => ({ generation, track })));
     if (liveTaskId && liveTracks.length) {
@@ -642,9 +646,15 @@ export function AIStudioScreen() {
     else void player.setQueueAndPlay(queue, index);
   };
 
-  const switchTab = (next: StudioTab) => {
-    setTab(next);
-    if (next === 'library') void loadStudio(true);
+  const closeComposer = () => {
+    setModelSheetOpen(false);
+    setInspirationSheetOpen(false);
+    setTab('library');
+    requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
+  };
+
+  const openComposer = () => {
+    setTab('create');
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
   };
 
@@ -686,7 +696,7 @@ export function AIStudioScreen() {
         >
           <View style={styles.authTop}>
             <View>
-              <Text style={styles.authKicker}>STUDIO SYNAURA</Text>
+              <Text style={styles.authKicker}>Studio Synaura</Text>
               <Text style={styles.authPageTitle}>Crée sans casser ton élan.</Text>
             </View>
             <View style={styles.authIcon}><Ionicons name="sparkles" size={24} color={colors.paper} /></View>
@@ -717,7 +727,7 @@ export function AIStudioScreen() {
     );
   }
 
-  return (
+  const studioView = (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <SynauraBackground variant="warm">
       <ScrollView
@@ -732,24 +742,26 @@ export function AIStudioScreen() {
           {
             paddingTop: insets.top + 10,
             paddingBottom: tab === 'create'
-              ? (player.current ? responsive.miniPlayerClearance : responsive.bottomDockClearance) + 92
+              ? Math.max(insets.bottom, 10) + 112
               : Math.max(insets.bottom + (player.current ? 205 : 125), player.current ? responsive.miniPlayerClearance : responsive.bottomDockClearance),
           },
         ]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.top}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.iconButton}><Ionicons name="chevron-back" size={22} color={colors.text} /></Pressable>
+          <Pressable accessibilityLabel={tab === 'create' ? 'Fermer la création' : 'Retour'} onPress={tab === 'create' ? closeComposer : () => navigation.goBack()} style={styles.iconButton}>
+            <Ionicons name={tab === 'create' ? 'close' : 'chevron-back'} size={22} color={colors.text} />
+          </Pressable>
           <Pressable onPress={() => setShowCredits(true)} style={styles.creditPill}><Ionicons name="sparkles" size={14} color={colors.coral} /><Text style={styles.creditText}>{credits} crédits</Text><Ionicons name="add-circle" size={16} color={colors.text} /></Pressable>
           <MobileAccountButton compact />
         </View>
         <View style={styles.studioHeading}>
           <View style={styles.studioHeadingCopy}>
-            <Text style={styles.kicker}>{tab === 'create' ? 'STUDIO SYNAURA' : 'ESPACE DE TRAVAIL'}</Text>
-            <Text style={[styles.title, tab === 'library' && styles.titleCompact]}>{tab === 'create' ? 'Composer' : 'Mes projets'}</Text>
-            <Text style={styles.subtitle}>{tab === 'create' ? currentTitle : `${libraryTracks.length} piste${libraryTracks.length > 1 ? 's' : ''} synchronisée${libraryTracks.length > 1 ? 's' : ''}`}</Text>
+            <Text style={styles.kicker}>Studio Synaura</Text>
+            <Text style={[styles.title, tab === 'library' && styles.titleCompact]}>{tab === 'create' ? 'Créer un morceau' : 'Ma bibliothèque'}</Text>
+            <Text style={styles.subtitle}>{tab === 'create' ? currentTitle : `${libraryTracks.length} projet${libraryTracks.length > 1 ? 's' : ''} dans ton espace créatif`}</Text>
           </View>
-          {quota ? <View style={styles.quotaBadge}><Text style={styles.quotaValue}>{quota.remaining}</Text><Text style={styles.quotaLabel}>RESTE</Text></View> : null}
+          {quota ? <View style={styles.quotaBadge}><Text style={styles.quotaValue}>{quota.remaining}</Text><Text style={styles.quotaLabel}>restants</Text></View> : null}
         </View>
 
         {tab === 'create' && (challengeId || synauraRemixSource) ? (
@@ -759,24 +771,24 @@ export function AIStudioScreen() {
           />
         ) : null}
 
-        <SegmentedControl
-          value={tab}
-          options={[
-            { value: 'create', label: 'Créer', icon: 'sparkles-outline' },
-            { value: 'library', label: `Bibliothèque ${libraryTracks.length}`, icon: 'library-outline' },
-          ]}
-          onChange={switchTab}
-        />
-
         {tab === 'library' ? (
-          <View style={styles.librarySummary}>
-            <View style={styles.summaryStat}><Text style={styles.summaryValue}>{libraryTracks.length}</Text><Text style={styles.summaryLabel}>PISTES</Text></View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryStat}><Text style={styles.summaryValue}>{pendingGenerations.length}</Text><Text style={styles.summaryLabel}>EN COURS</Text></View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryStat}><Text style={styles.summaryValue}>{credits}</Text><Text style={styles.summaryLabel}>CRÉDITS</Text></View>
-            <Pressable onPress={() => switchTab('create')} style={styles.summaryCreate}><Ionicons name="add" size={20} color={colors.paper} /></Pressable>
-          </View>
+          <>
+            <MotionPressable onPress={openComposer} style={styles.createCallout} scaleTo={0.985}>
+              <View style={styles.createCalloutIcon}><Ionicons name="add" size={25} color={colors.paper} /></View>
+              <View style={styles.createCalloutCopy}>
+                <Text style={styles.createCalloutTitle}>Nouvelle création</Text>
+                <Text style={styles.createCalloutText}>Composer, remixer ou partir d’une inspiration</Text>
+              </View>
+              <Ionicons name="arrow-forward" size={19} color={colors.paper} />
+            </MotionPressable>
+            <View style={styles.librarySummary}>
+              <View style={styles.summaryStat}><Text style={styles.summaryValue}>{libraryTracks.length}</Text><Text style={styles.summaryLabel}>Pistes</Text></View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryStat}><Text style={styles.summaryValue}>{pendingGenerations.length}</Text><Text style={styles.summaryLabel}>En cours</Text></View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryStat}><Text style={styles.summaryValue}>{credits}</Text><Text style={styles.summaryLabel}>Crédits</Text></View>
+            </View>
+          </>
         ) : null}
 
         {liveTaskId ? <StatusOrb status={liveStatus} /> : null}
@@ -831,7 +843,7 @@ export function AIStudioScreen() {
                       <Text style={styles.lockedSourceText}>Le créateur original sera toujours crédité</Text>
                     </View>
                   </View>
-                  <Pressable onPress={() => navigation.navigate('TrackDetail', { trackId: synauraRemixSource.sourceTrackType === 'ai_track' ? `ai-${synauraRemixSource.sourceTrackId}` : synauraRemixSource.sourceTrackId })} style={styles.lockedSourceButton}>
+                  <Pressable onPress={() => { closeComposer(); navigation.navigate('TrackDetail', { trackId: synauraRemixSource.sourceTrackType === 'ai_track' ? `ai-${synauraRemixSource.sourceTrackId}` : synauraRemixSource.sourceTrackId }); }} style={styles.lockedSourceButton}>
                     <Ionicons name="open-outline" size={15} color={colors.violet} />
                     <Text style={styles.lockedSourceButtonText}>Voir le morceau original</Text>
                   </Pressable>
@@ -841,7 +853,7 @@ export function AIStudioScreen() {
                 <Pressable onPress={pickRemix} style={styles.remixPicker}>
                   <Ionicons name={remixAsset || remixSource ? 'checkmark-circle' : 'musical-notes-outline'} size={25} color={remixAsset || remixSource ? '#6EE7B7' : '#C7B8FF'} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.fieldLabel}>SOURCE AUDIO</Text>
+                    <Text style={styles.fieldLabel}>Source audio</Text>
                     <Text numberOfLines={1} style={styles.remixName}>{remixAsset?.name || remixSource?.title || 'Choisir un fichier à transformer'}</Text>
                   </View>
                 </Pressable>
@@ -854,7 +866,7 @@ export function AIStudioScreen() {
                   onPromptVisibilityChange={setRemixPromptVisibility}
                 />
               ) : null}
-              <Field label={mode === 'simple' ? 'Décris ton morceau' : mode === 'remix' ? 'Variation souhaitee' : 'Direction créative'} value={description} onChangeText={setDescription} placeholder={mode === 'remix' ? 'Ex: plus rapide, plus triste, acoustique, garder les paroles...' : 'Ambiance, histoire, énergie, structure...'} multiline />
+              <Field label={mode === 'simple' ? 'Décris ton morceau' : mode === 'remix' ? 'Variation souhaitée' : 'Direction créative'} value={description} onChangeText={setDescription} placeholder={mode === 'remix' ? 'Ex : plus rapide, plus triste, acoustique, garder les paroles...' : 'Ambiance, histoire, énergie, structure...' } multiline />
             </DisclosureSection>
 
             <DisclosureSection
@@ -874,7 +886,7 @@ export function AIStudioScreen() {
               {!instrumental ? (
                 <>
                   <View style={styles.fieldHead}>
-                    <Text style={styles.fieldLabel}>PAROLES</Text>
+                    <Text style={styles.fieldLabel}>Paroles</Text>
                     <Pressable disabled={lyricsLoading} onPress={createLyrics} style={styles.magicButton}>
                       {lyricsLoading ? <ActivityIndicator color={colors.paper} size="small" /> : <Ionicons name="sparkles" size={14} color={colors.paper} />}
                       <Text style={styles.magicButtonText}>Écrire avec l’IA</Text>
@@ -899,7 +911,7 @@ export function AIStudioScreen() {
               </Pressable>
               <Field label="Style musical" value={style} onChangeText={setStyle} placeholder="Genres, voix, production, instruments..." multiline />
               <View style={styles.field}>
-                <View style={styles.fieldHead}><Text style={styles.fieldLabel}>COULEURS MUSICALES</Text><Text style={styles.tagCount}>{selectedTags.length} sélection</Text></View>
+                <View style={styles.fieldHead}><Text style={styles.fieldLabel}>Couleurs musicales</Text><Text style={styles.tagCount}>{selectedTags.length} sélection</Text></View>
                 <View style={styles.tagWrap}>
                   {STUDIO_TAGS.map((tag) => {
                     const active = selectedTags.includes(tag);
@@ -917,7 +929,7 @@ export function AIStudioScreen() {
               onToggle={() => setAdvancedOpen((current) => !current)}
             >
               <Pressable onPress={() => setModelSheetOpen(true)} style={styles.settingRow}>
-                <View><Text style={styles.fieldLabel}>MODÈLE</Text><Text style={styles.settingValue}>{formatModelLabel(model)}</Text></View>
+                <View><Text style={styles.fieldLabel}>Modèle</Text><Text style={styles.settingValue}>{formatModelLabel(model)}</Text></View>
                 <Ionicons name="chevron-forward" size={17} color={colors.textTertiary} />
               </Pressable>
               <ChoiceRow label="Durée cible" values={DURATIONS.map(String)} value={String(duration)} suffix=" sec" onChange={(value) => setDuration(Number(value))} />
@@ -947,17 +959,17 @@ export function AIStudioScreen() {
               <View style={styles.modelNotice}>
                 <Ionicons name="information-circle-outline" size={17} color={colors.violet} />
                 <Text style={styles.modelNoticeText}>{modelNotice}</Text>
-                {quota?.plan_type !== 'pro' ? <Pressable onPress={() => navigation.navigate('Subscriptions')}><Text style={styles.modelNoticeLink}>Voir Pro</Text></Pressable> : null}
+                {quota?.plan_type !== 'pro' ? <Pressable onPress={() => { closeComposer(); navigation.navigate('Subscriptions'); }}><Text style={styles.modelNoticeLink}>Voir Pro</Text></Pressable> : null}
               </View>
             ) : null}
 
             {liveTaskId ? (
               <View style={styles.livePanel}>
-                <View style={styles.liveTop}><View style={styles.liveDot} /><Text style={styles.liveKicker}>GÉNÉRATION LIVE</Text><Text style={styles.liveStatus}>{liveStatus || 'pending'}</Text></View>
+                <View style={styles.liveTop}><View style={styles.liveDot} /><Text style={styles.liveKicker}>Génération en direct</Text><Text style={styles.liveStatus}>{liveStatus || 'en attente'}</Text></View>
                 <View style={styles.liveVisual}>
                   <MobileAnimatedLogo loading size={52} />
                   <View style={styles.liveVisualCopy}>
-                    <Text style={styles.liveVisualKicker}>COMPOSITION EN COURS</Text>
+                    <Text style={styles.liveVisualKicker}>Composition en cours</Text>
                     <MobileWaveform active style={styles.liveWaveform} />
                   </View>
                 </View>
@@ -1053,6 +1065,7 @@ export function AIStudioScreen() {
         }}
         onDisabledPress={() => {
           setModelSheetOpen(false);
+          closeComposer();
           navigation.navigate('Subscriptions');
         }}
         onClose={() => setModelSheetOpen(false)}
@@ -1097,6 +1110,24 @@ export function AIStudioScreen() {
       </SynauraBackground>
     </KeyboardAvoidingView>
   );
+
+  if (tab === 'create') {
+    return (
+      <View style={styles.root}>
+        <Modal
+          visible
+          animationType="slide"
+          presentationStyle="fullScreen"
+          statusBarTranslucent
+          onRequestClose={closeComposer}
+        >
+          {studioView}
+        </Modal>
+      </View>
+    );
+  }
+
+  return studioView;
 }
 
 function formatLibraryDateLabel(date: Date) {
@@ -1163,7 +1194,7 @@ function StudioInspirationSheet({
   return (
     <BottomSheet visible={visible} title="Trouver une direction" subtitle="Une inspiration remplit de vrais réglages que tu peux ensuite modifier." onClose={onClose} maxHeight="90%">
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.inspirationSheet}>
-        <Text style={styles.sheetSectionLabel}>DIRECTIONS PRÉPARÉES</Text>
+        <Text style={styles.sheetSectionLabel}>Directions préparées</Text>
         <View style={styles.inspirationList}>
           {presets.map((preset) => (
             <MotionPressable key={preset.id} onPress={() => onPreset(preset)} style={styles.inspirationPreset} scaleTo={0.985}>
@@ -1210,7 +1241,7 @@ function RemixDirectionPicker({
   return (
     <View style={styles.remixDirection}>
       <View style={styles.fieldHead}>
-        <Text style={styles.fieldLabel}>TYPE DE REMIX</Text>
+        <Text style={styles.fieldLabel}>Type de remix</Text>
         <Text style={styles.tagCount}>credit auto</Text>
       </View>
       <View style={styles.remixTypeWrap}>
@@ -1250,7 +1281,7 @@ function StatusOrb({ status }: { status: string }) {
   const normalized = String(status || 'idle').toUpperCase();
   const pending = !['IDLE', 'SUCCESS', 'ERROR'].includes(normalized);
   const label = normalized === 'SUCCESS' ? 'Ton son est prêt' : normalized === 'ERROR' ? 'Erreur de génération' : pending ? 'Génération en cours' : 'Studio prêt';
-  return <View style={styles.orbRow}><View style={[styles.orb, pending && styles.orbPending, normalized === 'SUCCESS' && styles.orbSuccess]}><Ionicons name={normalized === 'SUCCESS' ? 'checkmark' : pending ? 'pulse' : 'sparkles'} size={18} color={colors.paper} /></View><View><Text style={styles.orbKicker}>ÉTAT DU STUDIO</Text><Text style={styles.orbText}>{label}</Text></View></View>;
+  return <View style={styles.orbRow}><View style={[styles.orb, pending && styles.orbPending, normalized === 'SUCCESS' && styles.orbSuccess]}><Ionicons name={normalized === 'SUCCESS' ? 'checkmark' : pending ? 'pulse' : 'sparkles'} size={18} color={colors.paper} /></View><View><Text style={styles.orbKicker}>État du Studio</Text><Text style={styles.orbText}>{label}</Text></View></View>;
 }
 
 function GenerationTimeline({ status, hasTracks }: { status: string; hasTracks: boolean }) {
@@ -1341,7 +1372,7 @@ function TrackInspector({ visible, item, onClose, onPlay, onCreatePost, onReuse,
               <TrackCover source={item.track.image_url} videoSource={item.track.music_video_url || item.track.cover_video_url} posterSource={item.track.music_video_poster_url || item.track.cover_video_poster_url} style={{ flex: 1 }} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.inspectorKicker}>INSPECTEUR STUDIO</Text>
+              <Text style={styles.inspectorKicker}>Détails du projet</Text>
               <Text numberOfLines={2} style={styles.inspectorTitle}>{item.track.title}</Text>
               <Text style={styles.inspectorMeta}>{item.generation.model} · {Math.round(item.track.duration || 0)} sec</Text>
             </View>
@@ -1362,14 +1393,14 @@ function TrackInspector({ visible, item, onClose, onPlay, onCreatePost, onReuse,
               <RemixPermissionsSection value={remixPermissions} onChange={setRemixPermissions} />
             </View>
             <View style={styles.inspectorSection}>
-              <Text style={styles.inspectorSectionTitle}>DOSSIER</Text>
+              <Text style={styles.inspectorSectionTitle}>Dossier</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.inspectorFolderRow}>
                 {STUDIO_FOLDERS.map((folder) => <Pressable disabled={Boolean(busy)} key={folder} onPress={() => chooseFolder(folder)} style={[styles.inspectorFolder, item.track.library_folder === folder && styles.inspectorFolderActive]}><Ionicons name={item.track.library_folder === folder ? 'folder-open' : 'folder-outline'} size={14} color={item.track.library_folder === folder ? colors.paper : colors.textSecondary} /><Text style={[styles.inspectorFolderText, item.track.library_folder === folder && styles.inspectorFolderTextActive]}>{folder}</Text></Pressable>)}
               </ScrollView>
             </View>
             {item.track.lyrics || item.track.prompt ? <Pressable onPress={() => onCopyLyrics(item.track)} style={styles.inspectorAction}><Ionicons name="copy-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>Copier les paroles</Text></Pressable> : null}
             <Pressable disabled={Boolean(busy) || !taskId || !audioId} onPress={loadTimedLyrics} style={styles.inspectorAction}>{busy === 'lyrics' ? <ActivityIndicator color={colors.violet} /> : <Ionicons name="mic-outline" size={17} color={colors.violet} />}<Text style={styles.inspectorActionText}>Paroles synchronisées</Text></Pressable>
-            {timedWords.length ? <View style={styles.timedLyrics}><Text style={styles.timedLyricsTitle}>APERÇU SYNCHRONISÉ</Text><Text style={styles.timedLyricsText}>{timedWords.slice(0, 80).map((entry) => entry.word || '').join(' ')}</Text></View> : null}
+            {timedWords.length ? <View style={styles.timedLyrics}><Text style={styles.timedLyricsTitle}>Aperçu synchronisé</Text><Text style={styles.timedLyricsText}>{timedWords.slice(0, 80).map((entry) => entry.word || '').join(' ')}</Text></View> : null}
             {clipUrl ? <Pressable onPress={() => Linking.openURL(clipUrl)} style={styles.inspectorAction}><Ionicons name="videocam" size={17} color={colors.coral} /><Text style={styles.inspectorActionText}>Ouvrir le clip</Text></Pressable> : <Pressable disabled={Boolean(busy) || !taskId || !audioId} onPress={createVideo} style={styles.inspectorAction}>{busy === 'video' ? <ActivityIndicator color={colors.coral} /> : <Ionicons name="videocam-outline" size={17} color={colors.coral} />}<Text style={styles.inspectorActionText}>Créer un clip · 100 crédits</Text></Pressable>}
             <Pressable onPress={() => onCreatePost(item.track)} style={styles.inspectorAction}><Ionicons name="create-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>Créer un post</Text></Pressable>
             <View style={styles.inspectorGrid}>
@@ -1409,7 +1440,7 @@ function CreditShopModal({ visible, balance, onClose, onComplete }: { visible: b
         <View style={styles.creditShop}>
           <View style={styles.shopHead}>
             <View>
-              <Text style={styles.shopKicker}>CRÉDITS STUDIO</Text>
+              <Text style={styles.shopKicker}>Crédits Studio</Text>
               <Text style={styles.shopTitle}>{balance} crédits disponibles</Text>
             </View>
             <Pressable onPress={onClose} style={styles.inspectorClose}><Ionicons name="close" size={21} color={colors.text} /></Pressable>
@@ -1454,7 +1485,7 @@ const styles = StyleSheet.create({
   quotaBadge: { minWidth: 52, height: 52, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
   quotaValue: { color: colors.paper, fontSize: 16, fontWeight: '900' },
   quotaLabel: { marginTop: 2, color: 'rgba(255,255,255,0.5)', fontSize: 7, fontWeight: '900' },
-  kicker: { marginTop: 9, color: colors.coral, fontSize: 10, fontWeight: '900', letterSpacing: 1.8 },
+  kicker: { marginTop: 9, color: colors.coral, fontSize: 10, fontWeight: '900' },
   title: { color: colors.text, fontSize: 26, lineHeight: 30, fontWeight: '900' },
   titleCompact: { fontSize: 24, lineHeight: 28 },
   subtitle: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700' },
@@ -1462,6 +1493,11 @@ const styles = StyleSheet.create({
   modeControl: { flex: 1 },
   modelButton: { height: 42, minWidth: 82, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 11, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong },
   modelButtonText: { color: colors.text, fontSize: 11, fontWeight: '900' },
+  createCallout: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 8, paddingHorizontal: 12, backgroundColor: colors.black },
+  createCalloutIcon: { width: 46, height: 46, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  createCalloutCopy: { flex: 1, minWidth: 0 },
+  createCalloutTitle: { color: colors.paper, fontSize: 15, fontWeight: '900' },
+  createCalloutText: { marginTop: 4, color: 'rgba(247,246,243,0.6)', fontSize: 10, lineHeight: 14, fontWeight: '700' },
   sourceBar: { minHeight: 68, flexDirection: 'row', borderRadius: 8, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   sourceAction: { flex: 1, minWidth: 0, justifyContent: 'center', gap: 5, paddingHorizontal: 9, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colors.border },
   sourceActionSelected: { backgroundColor: colors.violetSoft },
@@ -1472,18 +1508,18 @@ const styles = StyleSheet.create({
   librarySummary: { minHeight: 58, borderRadius: 13, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   summaryStat: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   summaryValue: { color: colors.text, fontSize: 15, fontWeight: '900' },
-  summaryLabel: { marginTop: 3, color: colors.textTertiary, fontSize: 7, fontWeight: '900', letterSpacing: 0.8 },
+  summaryLabel: { marginTop: 3, color: colors.textTertiary, fontSize: 8, fontWeight: '800' },
   summaryDivider: { width: 1, height: 24, backgroundColor: colors.border },
   summaryCreate: { width: 42, height: 42, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginLeft: 10, backgroundColor: colors.black },
   orbRow: { minHeight: 64, borderRadius: 22, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 11, backgroundColor: 'rgba(255,250,242,0.84)', borderWidth: 1, borderColor: colors.border },
   orb: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.coral },
   orbPending: { backgroundColor: '#7C5CFF', shadowColor: '#7C5CFF', shadowOpacity: 0.5, shadowRadius: 12, elevation: 7 },
   orbSuccess: { backgroundColor: '#059669' },
-  orbKicker: { color: colors.textTertiary, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
+  orbKicker: { color: colors.textTertiary, fontSize: 9, fontWeight: '900' },
   orbText: { marginTop: 3, color: colors.text, fontSize: 12, fontWeight: '900' },
   field: { gap: 7 },
   fieldHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  fieldLabel: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', letterSpacing: 1.3, textTransform: 'uppercase' },
+  fieldLabel: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
   input: { minHeight: 44, borderRadius: 10, paddingHorizontal: 12, color: colors.text, backgroundColor: '#F4F3F0', borderWidth: 1, borderColor: colors.border, fontSize: 13, fontWeight: '700' },
   inputMulti: { minHeight: 88, paddingTop: 12, paddingBottom: 12 },
   inputTall: { minHeight: 150 },
@@ -1547,11 +1583,11 @@ const styles = StyleSheet.create({
   liveTop: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   liveVisual: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: 20, padding: 10, backgroundColor: 'rgba(255,249,239,0.7)' },
   liveVisualCopy: { flex: 1, minWidth: 0 },
-  liveVisualKicker: { color: colors.textTertiary, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
+  liveVisualKicker: { color: colors.textTertiary, fontSize: 9, fontWeight: '900' },
   liveWaveform: { height: 24, marginTop: 7 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#34D399' },
-  liveKicker: { flex: 1, color: colors.violet, fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
-  liveStatus: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
+  liveKicker: { flex: 1, color: colors.violet, fontSize: 9, fontWeight: '900' },
+  liveStatus: { color: colors.textTertiary, fontSize: 9, fontWeight: '900' },
   liveTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
   liveTask: { color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
   timeline: { gap: 0, marginVertical: 5 },
@@ -1588,7 +1624,7 @@ const styles = StyleSheet.create({
   generationPulse: { width: 42, height: 42, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   generationTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   generationMeta: { marginTop: 4, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
-  generationStatus: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
+  generationStatus: { color: colors.violet, fontSize: 8, fontWeight: '900' },
   trackRow: { minHeight: 68, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   trackCover: { width: 52, height: 52, borderRadius: 10, overflow: 'hidden', backgroundColor: 'rgba(17,17,17,0.06)' },
   trackTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
@@ -1603,7 +1639,7 @@ const styles = StyleSheet.create({
   emptyText: { marginTop: 5, color: colors.textTertiary, textAlign: 'center', fontSize: 11, lineHeight: 17, fontWeight: '700' },
   authGate: { flexGrow: 1, paddingHorizontal: 16, gap: 18 },
   authTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
-  authKicker: { color: colors.violet, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
+  authKicker: { color: colors.violet, fontSize: 10, fontWeight: '900' },
   authPageTitle: { marginTop: 4, maxWidth: 250, color: colors.text, fontSize: 24, lineHeight: 27, fontWeight: '900' },
   authIcon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
   authPreview: { overflow: 'hidden', borderRadius: 16, backgroundColor: colors.black, padding: 16 },
@@ -1618,7 +1654,7 @@ const styles = StyleSheet.create({
   authButton: { marginTop: 13, height: 46, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22, backgroundColor: colors.black },
   authButtonText: { color: colors.paper, fontSize: 13, fontWeight: '900' },
   inspirationSheet: { gap: 14, padding: 14, paddingBottom: 28 },
-  sheetSectionLabel: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
+  sheetSectionLabel: { color: colors.textTertiary, fontSize: 10, fontWeight: '900' },
   inspirationList: { gap: 3 },
   inspirationPreset: { minHeight: 68, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 10, paddingVertical: 8 },
   inspirationPresetIcon: { width: 42, height: 42, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
@@ -1629,21 +1665,21 @@ const styles = StyleSheet.create({
   inspector: { alignSelf: 'center', width: '100%', maxWidth: 640, maxHeight: '92%', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 18, paddingBottom: 24, backgroundColor: colors.paper },
   inspectorHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   inspectorCover: { width: 62, height: 62, borderRadius: 18, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.08)' },
-  inspectorKicker: { color: colors.violet, fontSize: 9, fontWeight: '900', letterSpacing: 1.4 },
+  inspectorKicker: { color: colors.violet, fontSize: 9, fontWeight: '900' },
   inspectorTitle: { marginTop: 4, color: colors.text, fontSize: 22, fontWeight: '900' },
   inspectorClose: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },
   inspectorMeta: { marginTop: 10, color: colors.textTertiary, fontSize: 10, fontWeight: '900' },
   inspectorPrompt: { marginTop: 12, color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700' },
   inspectorActions: { marginTop: 18, gap: 8 },
   inspectorSection: { gap: 8, borderRadius: 19, padding: 11, backgroundColor: 'rgba(23,19,19,0.035)' },
-  inspectorSectionTitle: { color: colors.textTertiary, fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
+  inspectorSectionTitle: { color: colors.textTertiary, fontSize: 9, fontWeight: '900' },
   inspectorFolderRow: { flexDirection: 'row', gap: 7, paddingRight: 8 },
   inspectorFolder: { minHeight: 35, borderRadius: 17, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.border },
   inspectorFolderActive: { backgroundColor: colors.violet, borderColor: colors.violet },
   inspectorFolderText: { color: colors.textSecondary, fontSize: 9, fontWeight: '900' },
   inspectorFolderTextActive: { color: colors.paper },
   timedLyrics: { borderRadius: 18, padding: 12, backgroundColor: 'rgba(124,92,255,0.08)', borderWidth: 1, borderColor: 'rgba(124,92,255,0.18)' },
-  timedLyricsTitle: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1 },
+  timedLyricsTitle: { color: colors.violet, fontSize: 9, fontWeight: '900' },
   timedLyricsText: { marginTop: 7, color: colors.textSecondary, fontSize: 11, lineHeight: 17, fontWeight: '700' },
   inspectorFeedback: { color: colors.violet, fontSize: 10, lineHeight: 15, fontWeight: '800', textAlign: 'center' },
   inspectorPrimary: { height: 48, borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.black },
@@ -1656,7 +1692,7 @@ const styles = StyleSheet.create({
   inspectorDangerText: { color: colors.danger, fontSize: 11, fontWeight: '900' },
   creditShop: { alignSelf: 'center', width: '100%', maxWidth: 640, maxHeight: '88%', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 18, paddingBottom: 28, backgroundColor: colors.paper },
   shopHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  shopKicker: { color: colors.coral, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
+  shopKicker: { color: colors.coral, fontSize: 9, fontWeight: '900' },
   shopTitle: { marginTop: 5, color: colors.text, fontSize: 22, fontWeight: '900' },
   shopText: { marginTop: 9, color: colors.textSecondary, fontSize: 11, lineHeight: 17, fontWeight: '700' },
   packList: { gap: 8, paddingVertical: 16 },

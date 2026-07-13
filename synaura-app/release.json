@@ -1,13 +1,13 @@
 {
-  "title": "Synaura mobile 0.13.0",
+  "title": "Synaura mobile 0.14.0",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Studio repense avec une creation plus claire, des sections progressives et des selecteurs adaptes au mobile",
-    "Profils prives et publics modernises autour de l'identite musicale de chaque membre",
-    "Discographie complete avec toutes les musiques, tri, lecture directe et gestion des brouillons",
-    "Discover enrichi avec nouveautes, Radar, pepites peu ecoutees, collections et artistes",
-    "Cartes d'ambiance illustrees uniquement par les vraies pochettes disponibles sur Synaura",
-    "Chargement Discover allege et affichage optimise sur petits telephones, tablettes et ecrans larges"
+    "Nouvelle presentation Synaura animee avec cinq experiences produit et acces clair a la connexion",
+    "Onboarding personnalise entierement reconstruit pour les ecrans courts, larges, pliables et tablettes",
+    "Studio organise autour de la bibliotheque avec un compositeur plein ecran fermable a l'ouverture",
+    "Bouton Nouvelle creation replace et libelles du Studio harmonises sans capitales parasites",
+    "Profils prives et publics enrichis avec banniere musicale, morceau mis en avant et discographie complete",
+    "Grilles, onglets, textes et contenus adaptes a huit familles de viewports et aux grandes polices"
   ]
 }

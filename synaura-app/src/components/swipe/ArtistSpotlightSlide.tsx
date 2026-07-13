@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   },
   kicker: { marginTop: 22, color: '#C9A8FF', fontSize: 10, fontWeight: '900', letterSpacing: 1.8 },
   nameRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  name: { color: '#FFFAF2', fontSize: 24, fontWeight: '900', letterSpacing: -0.4 },
+  name: { color: '#FFFAF2', fontSize: 24, fontWeight: '900' },
   style: { marginTop: 4, color: '#4A9EAA', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
   bio: { marginTop: 10, maxWidth: 280, textAlign: 'center', color: 'rgba(255,250,242,0.6)', fontSize: 13, lineHeight: 19, fontWeight: '600' },
   featured: { marginTop: 14, color: 'rgba(255,250,242,0.4)', fontSize: 11, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' },

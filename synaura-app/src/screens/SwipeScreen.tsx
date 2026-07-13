@@ -158,8 +158,8 @@ export function SwipeScreen() {
   }, [feedMode, route.params?.mode]);
 
   // Feed mixte : la trame reste les morceaux (>=75%), les cartes non musicales
-  // (artiste, collection, dÃ©fi, annonce) sont rÃ©parties avec parcimonie. Aucune
-  // promotion Premium n'est injectÃ©e.
+  // (artiste, collection, défi, annonce) sont réparties avec parcimonie. Aucune
+  // promotion Premium n'est injectée.
   const feedItems = useMemo<ScrollFeedItem[]>(() => {
     if (feedMode === 'clips') {
       return clips
@@ -291,8 +291,8 @@ export function SwipeScreen() {
     };
   }, [feedMode, reloadKey, sourceTrackFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Artistes populaires + collections Ã©ditoriales + events Synaura Pulse : chargÃ©s une
-  // fois, rÃ©utilisÃ©s pour composer le feed mixte (mÃªmes rÃ¨gles que le web).
+  // Artistes populaires + collections éditoriales + events Synaura Pulse : chargés une
+  // fois, réutilisés pour composer le feed mixte (mêmes règles que le web).
   useEffect(() => {
     let mounted = true;
     void getPopularArtists(20).then((users) => { if (mounted) setPopularUsers(users); });
@@ -353,9 +353,9 @@ export function SwipeScreen() {
   useEffect(() => {
     if (loadState !== 'ready' || !feedItems.length || !player.current) return;
     if (pendingSwipeTrackRef.current) {
-      // TrackPlayer peut Ã©mettre briÃ¨vement l'ancien index juste aprÃ¨s le nouveau.
-      // Pendant cette fenÃªtre de stabilisation, la slide choisie par le geste reste
-      // la source de vÃ©ritÃ© afin d'Ã©viter le rebond 62 -> 63 -> 62 -> 63.
+      // TrackPlayer peut émettre brièvement l'ancien index juste après le nouveau.
+      // Pendant cette fenêtre de stabilisation, la slide choisie par le geste reste
+      // la source de vérité afin d'éviter le rebond 62 -> 63 -> 62 -> 63.
       return;
     }
     if (trackOfItem(feedItems[activeIndexRef.current])?._id === player.current._id) return;
@@ -634,7 +634,7 @@ export function SwipeScreen() {
     }
   }, [player]);
 
-  // StratÃ©gie de swipe : le snap est entierement gere nativement via
+  // Stratégie de swipe : le snap est entierement gere nativement via
   // snapToInterval + disableIntervalMomentum (une page max par geste, flick leger suffisant).
   // On ne commit la lecture qu'a la fin du snap pour eviter le play/pause spam.
   const commitIndex = useCallback((idx: number) => {

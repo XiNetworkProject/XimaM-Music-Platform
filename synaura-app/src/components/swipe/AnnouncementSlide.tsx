@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   },
   icon: { width: 52, height: 52, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
   kicker: { marginTop: 20, color: '#4A9EAA', fontSize: 10, fontWeight: '900', letterSpacing: 1.5, textTransform: 'uppercase' },
-  title: { marginTop: 8, color: '#171313', fontSize: 27, lineHeight: 30, fontWeight: '900', letterSpacing: -0.8 },
+  title: { marginTop: 8, color: '#171313', fontSize: 27, lineHeight: 30, fontWeight: '900' },
   text: { marginTop: 12, color: 'rgba(23,19,19,0.58)', fontSize: 13, lineHeight: 20, fontWeight: '700' },
   count: { marginTop: 14, color: 'rgba(23,19,19,0.45)', fontSize: 11, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
   button: {

@@ -127,7 +127,7 @@ export function SearchScreen() {
         </Section> : null}
 
         {!loading && results.playlists.length ? <Section title="Playlists">
-          <View style={styles.playlistGrid}>{results.playlists.map((playlist) => <Pressable key={playlist.id} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.id })} style={[styles.playlist, responsive.isTablet && styles.playlistTablet]}><View style={styles.playlistCover}>{playlist.covers[0] ? <Image source={{ uri: playlist.covers[0] }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={24} color={colors.textTertiary} />}</View><Text numberOfLines={1} style={styles.playlistTitle}>{playlist.title}</Text><Text numberOfLines={1} style={styles.playlistMeta}>{playlist.curator}</Text></Pressable>)}</View>
+          <View style={styles.playlistGrid}>{results.playlists.map((playlist) => <Pressable key={playlist.id} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.id })} style={[styles.playlist, { width: responsive.gridColumns === 3 ? '31.5%' : responsive.gridColumns === 2 ? '47%' : '100%' }]}><View style={styles.playlistCover}>{playlist.covers[0] ? <Image source={{ uri: playlist.covers[0] }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={24} color={colors.textTertiary} />}</View><Text numberOfLines={1} style={styles.playlistTitle}>{playlist.title}</Text><Text numberOfLines={1} style={styles.playlistMeta}>{playlist.curator}</Text></Pressable>)}</View>
         </Section> : null}
 
         {!loading && results.posts.length ? <Section title="Communauté">
@@ -168,7 +168,6 @@ const styles = StyleSheet.create({
   artistMeta: { width: 88, marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '700', textAlign: 'center' },
   playlistGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, paddingHorizontal: spacing.lg },
   playlist: { width: '47%' },
-  playlistTablet: { width: '31.5%' },
   playlistCover: { width: '100%', aspectRatio: 1, overflow: 'hidden', borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   playlistTitle: { marginTop: spacing.sm, color: colors.text, fontSize: 12, fontWeight: '900' },
   playlistMeta: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
