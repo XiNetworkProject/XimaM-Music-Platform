@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { CreateMenuSheet } from '@/components/create/CreateMenuSheet';
@@ -34,6 +33,7 @@ import { ChallengeDetailScreen } from '@/screens/ChallengeDetailScreen';
 import { colors } from '@/theme/tokens';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import type { MusicChallenge, Track } from '@/api/types';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 export type RootTabsParamList = {
   Home: undefined;
@@ -144,15 +144,30 @@ const PRIMARY_ICONS: Record<Exclude<(typeof PRIMARY_ROUTES)[number], 'Swipe'>, k
 };
 
 function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
-  const insets = useSafeAreaInsets();
+  const layout = useResponsiveLayout();
   const activeRoute = state.routes[state.index]?.name as keyof RootTabsParamList | undefined;
   if (activeRoute && HIDDEN_ROUTES.has(activeRoute)) return null;
   const dark = activeRoute === 'Swipe';
   const routes = state.routes.filter((route) => PRIMARY_ROUTES.includes(route.name as any));
+  const dockWidth = Math.min(layout.safeWidth - (layout.isNarrow ? 12 : 18), layout.isTablet ? 620 : 520);
 
   return (
-    <View pointerEvents="box-none" style={[styles.dockWrap, { paddingBottom: Math.max(insets.bottom, 7) }]}>
-      <BlurView intensity={82} tint={dark ? 'dark' : 'light'} style={[styles.dock, dark ? styles.dockDark : styles.dockLight]}>
+    <View
+      pointerEvents="box-none"
+      style={[
+        styles.dockWrap,
+        {
+          left: layout.insets.left + (layout.safeWidth - dockWidth) / 2,
+          width: dockWidth,
+          paddingBottom: Math.max(layout.insets.bottom, 7),
+        },
+      ]}
+    >
+      <BlurView
+        intensity={82}
+        tint={dark ? 'dark' : 'light'}
+        style={[styles.dock, { height: layout.dockHeight }, dark ? styles.dockDark : styles.dockLight]}
+      >
         {routes.map((route) => {
           const focused = state.routes[state.index]?.key === route.key;
           const isScroll = route.name === 'Swipe';
@@ -170,13 +185,13 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
               accessibilityLabel={label}
               testID={`tab-${route.name.toLowerCase()}`}
               onPress={onPress}
-              style={[styles.dockItem, isCreate && styles.dockItemCreate]}
+              style={[styles.dockItem, { height: layout.dockHeight - 2 }, isCreate && styles.dockItemCreate]}
             >
               {isScroll ? (
                 <SynauraScrollIcon focused={focused} dark={dark} />
               ) : isCreate ? (
-                <View style={[styles.createDock, dark && styles.createDockDark]}>
-                  <Ionicons name="add" size={25} color={dark ? colors.black : colors.white} />
+                <View style={[styles.createDock, layout.compactControls && styles.createDockCompact, dark && styles.createDockDark]}>
+                  <Ionicons name="add" size={layout.compactControls ? 23 : 25} color={dark ? colors.black : colors.white} />
                 </View>
               ) : (
                 <View style={[styles.iconDock, focused && styles.iconDockActive, dark && focused && styles.iconDockActiveDark]}>
@@ -189,7 +204,7 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
                   />
                 </View>
               )}
-              <Text numberOfLines={1} style={[styles.dockLabel, dark && styles.dockLabelDark, focused && styles.dockLabelActive, dark && focused && styles.dockLabelActiveDark, isCreate && styles.dockLabelCreate]}>
+              <Text maxFontSizeMultiplier={1.15} numberOfLines={1} style={[styles.dockLabel, layout.isNarrow && styles.dockLabelNarrow, dark && styles.dockLabelDark, focused && styles.dockLabelActive, dark && focused && styles.dockLabelActiveDark, isCreate && styles.dockLabelCreate]}>
                 {label}
               </Text>
               {focused && !isCreate ? <View style={[styles.activeIndicator, dark && styles.activeIndicatorDark]} /> : null}
@@ -317,8 +332,6 @@ const styles = StyleSheet.create({
   scrollLetterActiveDark: { color: colors.black },
   dockWrap: {
     position: 'absolute',
-    left: 9,
-    right: 9,
     bottom: 2,
     zIndex: 80,
     backgroundColor: 'transparent',
@@ -343,6 +356,7 @@ const styles = StyleSheet.create({
   },
   dockItemCreate: { paddingTop: 1 },
   createDock: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black, shadowColor: colors.black, shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
+  createDockCompact: { width: 40, height: 40, borderRadius: 12 },
   createDockDark: { backgroundColor: colors.white, shadowOpacity: 0.12 },
   dockLabel: {
     maxWidth: '100%',
@@ -351,6 +365,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   dockLabelDark: { color: 'rgba(255,255,255,0.48)' },
+  dockLabelNarrow: { fontSize: 8 },
   dockLabelActive: { color: colors.black },
   dockLabelActiveDark: { color: colors.white },
   dockLabelCreate: { marginTop: -2 },

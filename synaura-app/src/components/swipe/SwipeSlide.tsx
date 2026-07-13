@@ -9,6 +9,7 @@ import { TrackCover } from '@/components/TrackCover';
 import { usePlayerProgress } from '@/player/PlayerProvider';
 import { useAuth } from '@/auth/AuthProvider';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 type ActionLabel = 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save' | 'remix' | 'useSound';
 
@@ -55,6 +56,7 @@ function ActionButton({
   highlightColor?: string;
   onPress: () => void;
 }) {
+  const responsive = useResponsiveLayout();
   const scale = useRef(new Animated.Value(1)).current;
   const handlePress = () => {
     Animated.sequence([
@@ -64,10 +66,11 @@ function ActionButton({
     onPress();
   };
   return (
-    <Pressable accessibilityLabel={label || String(icon)} disabled={disabled} onPress={handlePress} style={[styles.actionButton, disabled && styles.actionButtonDisabled]}>
+    <Pressable accessibilityLabel={label || String(icon)} disabled={disabled} onPress={handlePress} style={[styles.actionButton, responsive.compactControls && styles.actionButtonCompact, disabled && styles.actionButtonDisabled]}>
       <Animated.View
         style={[
           styles.actionCircle,
+          responsive.compactControls && styles.actionCircleCompact,
           active && {
             backgroundColor: highlightColor ? `${highlightColor}28` : 'rgba(255,75,122,0.26)',
             borderColor: highlightColor ? `${highlightColor}66` : 'rgba(255,75,122,0.5)',
@@ -77,7 +80,7 @@ function ActionButton({
       >
         <Ionicons
           name={(active && iconActive ? iconActive : icon) as any}
-          size={22}
+          size={responsive.compactControls ? 19 : 22}
           color={active ? highlightColor || '#D96D63' : '#FFFAF2'}
         />
       </Animated.View>
@@ -204,6 +207,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
   const genres = (track.genre || []).filter((genre) => Boolean(genre) && genre.length <= 20).slice(0, 1);
   const auth = useAuth();
   const { settings } = useMobileSettings();
+  const responsive = useResponsiveLayout();
   const isOwnTrack = Boolean(auth.user?.id) && track.artist?._id === auth.user?.id;
   const canUseSound = canUseSoundClientSide({
     isOwner: isOwnTrack,
@@ -319,7 +323,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
               </View>
             </Animated.View>
 
-            <View style={[styles.topBadges, { top: topPad + 58 }]}>
+            <View style={[styles.topBadges, { top: topPad + (responsive.compactControls ? 50 : 58) }]}>
               {track.isBoosted ? (
                 <View style={[styles.badge, { backgroundColor: '#FFFAF2' }]}>
                   <Ionicons name="flash" size={11} color="#171313" />
@@ -345,8 +349,9 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
       <Animated.View
         style={[
           styles.actionsColumn,
+          responsive.compactControls && styles.actionsColumnCompact,
           {
-            bottom: bottomPad + 92,
+            bottom: bottomPad + (responsive.compactControls ? 72 : 92),
             opacity: slideReveal,
             transform: [{ translateX: slideReveal.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
           },
@@ -419,8 +424,9 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
       <Animated.View
         style={[
           styles.metaPanel,
+          responsive.isNarrow && styles.metaPanelNarrow,
           {
-            bottom: bottomPad + 14,
+            bottom: bottomPad + (responsive.compactControls ? 8 : 14),
             opacity: slideReveal,
             transform: [{ translateY: slideReveal.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
           },
@@ -432,7 +438,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
             <Text style={styles.nowText}>{isAi ? 'CRÃ‰ATION IA' : isPlaying ? 'EN LECTURE' : 'EN PAUSE'}</Text>
           </View>
         </View>
-        <Text numberOfLines={2} style={styles.title}>{displayTitle}</Text>
+        <Text maxFontSizeMultiplier={1.15} numberOfLines={2} style={[styles.title, responsive.compactControls && styles.titleCompact]}>{displayTitle}</Text>
         <View style={styles.artistRow}>
           <Pressable accessibilityLabel="Ouvrir le profil artiste" disabled={!track.artist?.username} onPress={onOpenArtist} style={styles.artistNameButton}>
             <Text numberOfLines={1} style={styles.artist}>@{displayArtist}</Text>
@@ -478,6 +484,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
 // barre de progression classique sinon. Montée uniquement sur la slide active
 // pour ne pas multiplier les requêtes pendant le scroll.
 function ActiveSeekBar({ track, onSeek }: { track: Track; onSeek: (seconds: number) => void }) {
+  const responsive = useResponsiveLayout();
   const progress = usePlayerProgress(120);
   const isAi = !!track.isAI || track._id.startsWith('ai-');
   return (
@@ -487,8 +494,8 @@ function ActiveSeekBar({ track, onSeek }: { track: Track; onSeek: (seconds: numb
       duration={progress.durationSec || track.duration || 0}
       onSeek={onSeek}
       showMoments={!isAi}
-      height={42}
-      barCount={68}
+      height={responsive.compactControls ? 36 : 42}
+      barCount={responsive.isNarrow ? 52 : 68}
     />
   );
 }
@@ -542,6 +549,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  actionsColumnCompact: { gap: 5 },
   profileCluster: { alignItems: 'center', justifyContent: 'center', width: 50, height: 60, marginBottom: 4 },
   profileAvatar: {
     width: 46,
@@ -583,6 +591,7 @@ const styles = StyleSheet.create({
   },
   followBubbleDone: { backgroundColor: '#7357C6' },
   actionButton: { width: 48, alignItems: 'center', gap: 3 },
+  actionButtonCompact: { width: 42, gap: 2 },
   actionButtonDisabled: { opacity: 0.38 },
   actionCircle: {
     width: 42,
@@ -599,6 +608,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 5,
   },
+  actionCircleCompact: { width: 36, height: 36, borderRadius: 9 },
   actionLabel: {
     maxWidth: 50,
     color: 'rgba(255,250,242,0.74)',
@@ -611,6 +621,7 @@ const styles = StyleSheet.create({
     left: 18,
     right: 76,
   },
+  metaPanelNarrow: { left: 12, right: 64 },
   metaTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   nowBadge: {
     flexDirection: 'row',
@@ -625,6 +636,7 @@ const styles = StyleSheet.create({
   nowDotActive: { backgroundColor: '#22C55E' },
   nowText: { color: 'rgba(255,250,242,0.76)', fontSize: 8, fontWeight: '900' },
   title: { marginTop: 8, color: '#FFFAF2', fontSize: 27, lineHeight: 30, fontWeight: '900' },
+  titleCompact: { marginTop: 5, fontSize: 22, lineHeight: 25 },
   artistRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   artistNameButton: { maxWidth: '72%' },
   artist: { color: 'rgba(255,250,242,0.86)', fontSize: 13, fontWeight: '900' },

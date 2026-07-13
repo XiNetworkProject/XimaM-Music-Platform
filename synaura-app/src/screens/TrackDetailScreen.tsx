@@ -22,8 +22,10 @@ import { TrackListItem } from '@/components/ui/TrackListItem';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
 import { colors, radius, spacing } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 export function TrackDetailScreen() {
+  const responsive = useResponsiveLayout();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const player = usePlayer();
@@ -127,7 +129,10 @@ export function TrackDetailScreen() {
 
   return (
     <SynauraBackground>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, responsive.contentFrame, { paddingBottom: responsive.miniPlayerClearance + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
         <AppHeader title="Morceau" subtitle={artist} onBack={() => navigation.goBack()} action={{ icon: 'ellipsis-horizontal', label: 'Plus', onPress: () => setActionsOpen(true) }} />
         <View style={styles.hero}>
           {track.coverUrl ? <Image source={{ uri: track.coverUrl }} blurRadius={35} style={StyleSheet.absoluteFillObject} /> : null}

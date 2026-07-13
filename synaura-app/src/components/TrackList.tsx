@@ -7,6 +7,7 @@ import { spacing } from '@/theme/tokens';
 import { EmptyState } from './ui/EmptyState';
 import { TrackActionsSheet } from './ui/TrackActionsSheet';
 import { TrackListItem } from './ui/TrackListItem';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 type Props = {
   tracks: Track[];
@@ -22,6 +23,7 @@ type Props = {
 };
 
 export function TrackList({ tracks, emptyTitle, emptyText, header, refreshing, onRefresh, bottomInset = 180, emptyActionLabel, onEmptyAction, topInset = 64 }: Props) {
+  const layout = useResponsiveLayout();
   const player = usePlayer();
   const library = useLibrary();
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
@@ -34,7 +36,11 @@ export function TrackList({ tracks, emptyTitle, emptyText, header, refreshing, o
     <FlatList
       data={tracks}
       keyExtractor={(item) => item._id}
-      contentContainerStyle={[styles.content, { paddingBottom: bottomInset, paddingTop: topInset }]}
+      contentContainerStyle={[
+        styles.content,
+        layout.pageContent,
+        { paddingBottom: Math.max(bottomInset, layout.miniPlayerClearance), paddingTop: topInset },
+      ]}
       refreshing={refreshing}
       onRefresh={onRefresh}
       ListHeaderComponent={header}
@@ -59,7 +65,6 @@ export function TrackList({ tracks, emptyTitle, emptyText, header, refreshing, o
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.lg,
     paddingTop: 64,
   },
 });

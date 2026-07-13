@@ -17,6 +17,7 @@ import {
   type OnboardingUniverseId,
 } from '@/onboarding/options';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 const UNIVERSE_ICON: Record<OnboardingUniverseId, keyof typeof Ionicons.glyphMap> = {
   pop: 'musical-notes-outline',
@@ -50,6 +51,7 @@ export function OnboardingScreen() {
   const params: OnboardingRouteParams = route.params || {};
   const isEdit = Boolean(params.edit);
   const insets = useSafeAreaInsets();
+  const layout = useResponsiveLayout();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(isEdit ? 2 : 1);
   const [universes, setUniverses] = useState<OnboardingUniverseId[]>([]);
@@ -166,7 +168,11 @@ export function OnboardingScreen() {
   return (
     <SynauraBackground variant="warm">
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 40 }]}
+        contentContainerStyle={[
+          styles.content,
+          layout.pageContent,
+          { maxWidth: 620, paddingTop: insets.top + 20, paddingBottom: insets.bottom + 40 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.progressRow}>
@@ -181,7 +187,7 @@ export function OnboardingScreen() {
           ))}
         </View>
 
-        <View style={styles.card}>
+        <View style={[styles.card, layout.isNarrow && styles.cardNarrow]}>
           <Reveal key={step} distance={9} scaleFrom={0.99} duration={340}>
           {step === 1 ? (
             <View style={styles.centered}>
@@ -212,7 +218,12 @@ export function OnboardingScreen() {
                 {ONBOARDING_UNIVERSES.map((option) => {
                   const active = universes.includes(option.id);
                   return (
-                    <MotionPressable key={option.id} onPress={() => toggleUniverse(option.id)} style={[styles.tile, active && styles.tileActive]} scaleTo={0.96}>
+                    <MotionPressable
+                      key={option.id}
+                      onPress={() => toggleUniverse(option.id)}
+                      style={[styles.tile, layout.isTablet && styles.tileTablet, active && styles.tileActive]}
+                      scaleTo={0.96}
+                    >
                       <View style={[styles.tileIcon, active && styles.tileIconActive]}>
                         <Ionicons name={UNIVERSE_ICON[option.id]} size={18} color={active ? '#FFFFFF' : colors.text} />
                       </View>
@@ -331,7 +342,7 @@ function StepFooter({ onContinue, onSkip, label }: { onContinue: () => void; onS
 
 const styles = StyleSheet.create({
   loadingFill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { flexGrow: 1, paddingHorizontal: 18, justifyContent: 'center' },
+  content: { flexGrow: 1, justifyContent: 'center' },
   progressRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 18 },
   progressDot: { height: 6, borderRadius: 3 },
   card: {
@@ -346,6 +357,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 4,
   },
+  cardNarrow: { padding: 14 },
   centered: { alignItems: 'center' },
   iconBadge: { width: 60, height: 60, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(115,87,198,0.12)' },
   title: { marginTop: 16, fontSize: 24, lineHeight: 30, fontWeight: '900', color: colors.text, textAlign: 'center' },
@@ -392,6 +404,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  tileTablet: { width: '31.5%' },
   tileActive: { borderColor: colors.violet, backgroundColor: 'rgba(115,87,198,0.08)' },
   tileIcon: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.06)' },
   tileIconActive: { backgroundColor: colors.violet },

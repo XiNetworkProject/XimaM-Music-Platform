@@ -164,6 +164,9 @@ export function MomentSheet({ visible, track, timestampSeconds, onClose, onComme
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.42)' },
   sheet: {
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 680,
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
     backgroundColor: '#F7F6F3',

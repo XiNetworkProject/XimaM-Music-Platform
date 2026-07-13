@@ -23,6 +23,7 @@ import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors, spacing } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 const emptyHome: HomeData = {
   forYou: [],
@@ -49,6 +50,7 @@ function uniqueTracks(tracks: Track[]) {
 export function HomeV2Screen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const player = usePlayer();
   const [data, setData] = useState<HomeData>(emptyHome);
   const [loading, setLoading] = useState(true);
@@ -99,7 +101,11 @@ export function HomeV2Screen() {
       <SynauraBackground variant="warm" />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
+        contentContainerStyle={[
+          styles.content,
+          responsive.pageContent,
+          { paddingTop: insets.top + 12, paddingBottom: responsive.miniPlayerClearance + 10 },
+        ]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.text} />}
       >
         <View style={styles.header}>

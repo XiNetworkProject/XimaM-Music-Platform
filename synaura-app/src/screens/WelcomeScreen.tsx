@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Image, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Image, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { completeWelcome } from '@/onboarding/welcomeState';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { colors } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 const SLIDES = [
   {
@@ -43,6 +44,7 @@ const SLIDES = [
 export function WelcomeScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const layout = useResponsiveLayout();
   const { settings } = useMobileSettings();
   const [step, setStep] = useState(0);
   const transition = useRef(new Animated.Value(1)).current;
@@ -51,6 +53,10 @@ export function WelcomeScreen() {
   const waves = useRef(Array.from({ length: 17 }, () => new Animated.Value(0))).current;
   const slide = SLIDES[step];
   const last = step === SLIDES.length - 1;
+  const visualHeight = Math.max(220, Math.min(390, layout.usableHeight * (layout.isShort ? 0.47 : 0.54)));
+  const orbitLargeSize = Math.max(168, Math.min(236, layout.availableContentWidth * 0.72, visualHeight * 0.6));
+  const orbitSmallSize = orbitLargeSize * 0.74;
+  const iconSize = Math.max(84, Math.min(112, orbitLargeSize * 0.48));
 
   useEffect(() => {
     if (settings.reducedMotion) {
@@ -115,8 +121,8 @@ export function WelcomeScreen() {
 
   return (
     <View {...panResponder.panHandlers} style={styles.root}>
-      <LinearGradient colors={['#171313', '#211C1D', '#171313']} style={styles.visual}>
-        <View style={[styles.topBar, { paddingTop: insets.top + 12 }]}>
+      <LinearGradient colors={['#171313', '#211C1D', '#171313']} style={[styles.visual, { minHeight: visualHeight, flex: layout.isShort ? 0.8 : 1.12 }]}>
+        <View style={[styles.topBar, layout.contentFrame, { paddingLeft: layout.pagePaddingLeft, paddingRight: layout.pagePaddingRight, paddingTop: insets.top + 12 }]}>
           <View style={styles.brand}>
             <Image source={require('../assets/synaura-symbol-2026.png')} style={styles.logo} />
             <Text style={styles.brandName}>SYNAURA</Text>
@@ -129,15 +135,15 @@ export function WelcomeScreen() {
         </View>
 
         <View style={styles.visualCenter}>
-          <Animated.View style={[styles.orbitLarge, { transform: [{ rotate }] }]} />
-          <Animated.View style={[styles.orbitSmall, { transform: [{ rotate: orbit.interpolate({ inputRange: [0, 1], outputRange: ['360deg', '0deg'] }) }] }]} />
-          <Animated.View style={[styles.iconCore, { opacity: transition, transform: [{ translateX: gestureX }, { scale: transition }] }]}>
+          <Animated.View style={[styles.orbitLarge, { width: orbitLargeSize, height: orbitLargeSize, borderRadius: orbitLargeSize * 0.15, transform: [{ rotate }] }]} />
+          <Animated.View style={[styles.orbitSmall, { width: orbitSmallSize, height: orbitSmallSize, borderRadius: orbitSmallSize * 0.16, transform: [{ rotate: orbit.interpolate({ inputRange: [0, 1], outputRange: ['360deg', '0deg'] }) }] }]} />
+          <Animated.View style={[styles.iconCore, { width: iconSize, height: iconSize, borderRadius: iconSize * 0.2, opacity: transition, transform: [{ translateX: gestureX }, { scale: transition }] }]}>
             <LinearGradient colors={[...slide.colors]} style={StyleSheet.absoluteFill} />
             <Ionicons name={slide.icon} size={42} color="#FFFAF2" />
           </Animated.View>
         </View>
 
-        <View style={styles.waveform}>
+        <View style={[styles.waveform, { height: layout.isShort ? 52 : 74, marginHorizontal: layout.gutter, marginBottom: layout.isShort ? 10 : 20 }]}>
           {waves.map((value, index) => (
             <Animated.View
               key={index}
@@ -154,11 +160,25 @@ export function WelcomeScreen() {
         </View>
       </LinearGradient>
 
-      <View style={[styles.content, { paddingBottom: insets.bottom + 18 }]}>
+      <ScrollView
+        style={[styles.contentScroll, { flex: layout.isShort ? 1.2 : 0.88 }]}
+        contentContainerStyle={[
+          styles.content,
+          layout.contentFrame,
+          {
+            minHeight: layout.isShort ? 300 : undefined,
+            paddingLeft: layout.pagePaddingLeft,
+            paddingRight: layout.pagePaddingRight,
+            paddingTop: layout.isShort ? 18 : 26,
+            paddingBottom: insets.bottom + 18,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         <Animated.View style={{ opacity: transition, transform: [{ translateX: gestureX }, { translateY }] }}>
           <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
-          <Text style={styles.title}>{slide.title}</Text>
-          <Text style={styles.body}>{slide.text}</Text>
+          <Text maxFontSizeMultiplier={1.2} style={[styles.title, layout.isNarrow && styles.titleNarrow]}>{slide.title}</Text>
+          <Text maxFontSizeMultiplier={1.25} style={styles.body}>{slide.text}</Text>
         </Animated.View>
 
         <View style={styles.footer}>
@@ -192,14 +212,14 @@ export function WelcomeScreen() {
             </Pressable>
           )}
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  visual: { flex: 1.12, minHeight: 390, overflow: 'hidden' },
+  visual: { overflow: 'hidden' },
   topBar: { paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   logo: { width: 32, height: 32, borderRadius: 10 },
@@ -212,9 +232,11 @@ const styles = StyleSheet.create({
   iconCore: { width: 112, height: 112, borderRadius: 22, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 13 }, elevation: 12 },
   waveform: { height: 74, marginHorizontal: 24, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 4 },
   waveBar: { flex: 1, height: 58, borderRadius: 3 },
-  content: { flex: 0.88, paddingHorizontal: 24, paddingTop: 26, justifyContent: 'space-between' },
+  contentScroll: { backgroundColor: colors.background },
+  content: { flexGrow: 1, justifyContent: 'space-between' },
   eyebrow: { color: colors.violet, fontSize: 10, fontWeight: '900', letterSpacing: 1.5, textTransform: 'uppercase' },
   title: { marginTop: 8, color: colors.text, fontSize: 29, lineHeight: 35, fontWeight: '900' },
+  titleNarrow: { fontSize: 25, lineHeight: 30 },
   body: { marginTop: 10, color: colors.textSecondary, fontSize: 14, lineHeight: 21, fontWeight: '700' },
   footer: { marginTop: 18 },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 16 },

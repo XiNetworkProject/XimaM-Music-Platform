@@ -13,11 +13,13 @@ import type { Track } from '@/api/types';
 import { colors } from '@/theme/tokens';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 export function CreatePostScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const auth = useAuth();
   const [text, setText] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -71,7 +73,15 @@ export function CreatePostScreen() {
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <SynauraBackground variant="warm" />
-      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingTop: 0, paddingBottom: insets.bottom + 110 }]}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.content,
+          responsive.pageContent,
+          { paddingTop: 0, paddingBottom: Math.max(insets.bottom + 110, responsive.bottomDockClearance + 24) },
+        ]}
+      >
         <AppHeader flush eyebrow="Contexte musical" title="Nouveau post" subtitle="Raconte quelque chose autour d’un son." onBack={() => navigation.goBack()} action={{ icon: submitting ? 'hourglass-outline' : 'send', label: 'Publier', onPress: () => void submit() }} />
         <Reveal distance={8} style={styles.hero}><Text style={styles.kicker}>LA MUSIQUE AU CENTRE</Text><Text style={styles.title}>Donne une histoire à ce que tu écoutes.</Text><TextInput value={text} onChangeText={setText} multiline autoFocus placeholder="Une histoire, un passage précis, une émotion..." placeholderTextColor="rgba(255,250,242,0.3)" style={styles.composer} /></Reveal>
         {error ? <Text style={styles.error}>{error}</Text> : null}

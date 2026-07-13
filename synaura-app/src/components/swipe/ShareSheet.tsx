@@ -22,6 +22,7 @@ import { buildShareCardImageUrl, buildShareUrls, SHARE_CARD_FORMATS, shareTrackT
 import type { Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 type Props = {
   visible: boolean;
@@ -36,6 +37,7 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
+  const responsive = useResponsiveLayout();
   const { user } = useAuth();
   const [caption, setCaption] = useState('');
   const [cardText, setCardText] = useState('');
@@ -155,6 +157,8 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
         style={[
           styles.sheet,
           {
+            left: responsive.overlayLeftInset,
+            right: responsive.overlayRightInset,
             transform: [{ translateY }],
             paddingBottom: keyboardHeight > 0 ? keyboardHeight + 14 : Math.max(insets.bottom, 16) + 16,
           },

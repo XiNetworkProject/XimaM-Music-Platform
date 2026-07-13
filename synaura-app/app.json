@@ -3,9 +3,9 @@
     "name": "Synaura",
     "slug": "synaura",
     "scheme": "synaura",
-    "version": "0.11.0",
+    "version": "0.12.0",
     "icon": "./src/assets/synaura-symbol-2026.png",
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "dark",
     "assetBundlePatterns": [
       "**/*"
@@ -21,8 +21,9 @@
     },
     "android": {
       "package": "com.synaura.music",
-      "versionCode": 34,
+      "versionCode": 35,
       "newArchEnabled": false,
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/synaura-symbol-2026.png",
         "backgroundColor": "#050505"

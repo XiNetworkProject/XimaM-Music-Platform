@@ -22,6 +22,7 @@ import type { Track } from '@/api/types';
 import { TrackCover } from '@/components/TrackCover';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 const CREAM = '#FFFAF2';
 const INK = '#171313';
@@ -52,6 +53,7 @@ function artistName(track: Track) {
 
 export function PlaylistDetailScreen() {
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const player = usePlayer();
@@ -210,7 +212,7 @@ export function PlaylistDetailScreen() {
           <LinearGradient colors={['rgba(23,19,19,0.66)', 'rgba(23,19,19,0.40)', 'rgba(23,19,19,0.56)']} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
         </View>
 
-        <View style={[styles.content, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 132 }]}>
+        <View style={[styles.content, responsive.contentFrame, { paddingTop: insets.top + 10, paddingBottom: Math.max(insets.bottom + 132, responsive.miniPlayerClearance) }]}>
         {/* Header */}
         <View style={styles.topbar}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>

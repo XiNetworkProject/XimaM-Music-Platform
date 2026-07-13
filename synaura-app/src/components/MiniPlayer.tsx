@@ -3,12 +3,12 @@ import { Animated, Easing, PanResponder, Pressable, StyleSheet, Text, View } fro
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
 import { trackArtistName } from '@/components/swipe/helpers';
 import { TrackCover } from '@/components/TrackCover';
 import { MotionPressable } from '@/components/motion/Motion';
 import { colors } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 type Props = {
   activeRoute?: string;
@@ -19,7 +19,7 @@ const DOCK_ROUTES = new Set(['Swipe', 'Discover', 'Community', 'Profile']);
 const HIDDEN_ROUTES = new Set(['Swipe', 'AIStudio', 'Upload', 'ClipComposer', 'CreateVariation', 'CreateHub', 'Welcome', 'Login', 'Register', 'ForgotPassword', 'Onboarding']);
 
 export function MiniPlayer({ activeRoute, onOpen }: Props) {
-  const insets = useSafeAreaInsets();
+  const layout = useResponsiveLayout();
   const player = usePlayer();
   const playerProgress = usePlayerProgress(500);
   const slide = useRef(new Animated.Value(0)).current;
@@ -27,6 +27,7 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
   const routeName = activeRoute || '';
   const isVisible = !!player.current && !HIDDEN_ROUTES.has(routeName);
   const hasDock = DOCK_ROUTES.has(routeName);
+  const playerWidth = Math.min(layout.safeWidth - (layout.isNarrow ? 12 : 20), layout.isTablet ? 560 : 520);
 
   useEffect(() => {
     Animated.timing(slide, {
@@ -78,13 +79,22 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
     <Animated.View
       {...panResponder.panHandlers}
       pointerEvents={isVisible ? 'box-none' : 'none'}
-      style={[styles.wrap, { bottom: hasDock ? 78 + insets.bottom : Math.max(10, insets.bottom + 6), opacity, transform: [{ translateY }, { translateX: gestureX }] }]}
+      style={[
+        styles.wrap,
+        {
+          left: layout.insets.left + (layout.safeWidth - playerWidth) / 2,
+          width: playerWidth,
+          bottom: hasDock ? layout.bottomDockClearance - 3 : Math.max(10, layout.insets.bottom + 6),
+          opacity,
+          transform: [{ translateY }, { translateX: gestureX }],
+        },
+      ]}
     >
       <Pressable accessibilityLabel="Ouvrir le lecteur" onPress={onOpen} style={styles.card}>
         <BlurView intensity={86} tint="light" style={StyleSheet.absoluteFill} />
 
-        <View style={styles.content}>
-          <View style={styles.coverWrap}>
+        <View style={[styles.content, layout.compactControls && styles.contentCompact]}>
+          <View style={[styles.coverWrap, layout.compactControls && styles.coverWrapCompact]}>
             {player.current.coverUrl || player.current.coverVideoUrl || player.current.coverVideoPosterUrl ? (
               <TrackCover track={player.current} active={isVisible} style={StyleSheet.absoluteFill} />
             ) : (
@@ -92,17 +102,17 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
             )}
           </View>
           <View style={styles.meta}>
-            <Text style={styles.title} numberOfLines={1}>{player.current.title}</Text>
+            <Text maxFontSizeMultiplier={1.2} style={styles.title} numberOfLines={1}>{player.current.title}</Text>
             <View style={styles.artistRow}>
               {player.isPlaying ? <View style={styles.playingDot} /> : null}
-              <Text style={styles.artist} numberOfLines={1}>{trackArtistName(player.current)}</Text>
+              <Text maxFontSizeMultiplier={1.2} style={styles.artist} numberOfLines={1}>{trackArtistName(player.current)}</Text>
             </View>
           </View>
 
           <MotionPressable
             accessibilityLabel={player.isPlaying ? 'Mettre en pause' : 'Lire'}
             onPress={(event) => { event.stopPropagation(); handlePlayPause(); }}
-            style={styles.playButton}
+            style={[styles.playButton, layout.compactControls && styles.playButtonCompact]}
             scaleTo={0.86}
           >
             {player.isLoading ? (
@@ -128,8 +138,6 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    left: 10,
-    right: 10,
     zIndex: 30,
   },
   card: {
@@ -157,6 +165,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 7,
   },
+  contentCompact: { minHeight: 50, gap: 8, paddingHorizontal: 7, paddingVertical: 6 },
   coverWrap: {
     width: 38,
     height: 38,
@@ -166,6 +175,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(23,19,19,0.06)',
   },
+  coverWrapCompact: { width: 36, height: 36, borderRadius: 7 },
   meta: { flex: 1, minWidth: 0 },
   title: {
     color: '#171313',
@@ -193,4 +203,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
+  playButtonCompact: { width: 34, height: 34, borderRadius: 9 },
 });

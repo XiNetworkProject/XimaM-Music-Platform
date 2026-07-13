@@ -45,6 +45,7 @@ import { SynauraBackground } from '@/components/SynauraBackground';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors, spacing } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 function compact(value: number | undefined) {
   const next = Number(value || 0);
@@ -84,6 +85,7 @@ function iconName(value: string): any {
 export function CityScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const scrollRef = useRef<ScrollView>(null);
   const auth = useAuth();
   const player = usePlayer();
@@ -215,7 +217,11 @@ export function CityScreen() {
       <SynauraBackground variant="warm" />
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 10 }]}
+        contentContainerStyle={[
+          styles.content,
+          responsive.pageContent,
+          { paddingTop: insets.top + 10, paddingBottom: responsive.miniPlayerClearance },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.text} />}
       >
@@ -796,7 +802,7 @@ const styles = StyleSheet.create({
   creatorButton: { alignSelf: 'flex-start', minHeight: 39, justifyContent: 'center', borderRadius: 20, backgroundColor: colors.paper, paddingHorizontal: 15 },
   creatorButtonText: { color: colors.text, fontSize: 10, fontWeight: '900' },
   sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(23,19,19,0.38)' },
-  eventDetailSheet: { maxHeight: '88%', overflow: 'hidden', borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: colors.paper },
+  eventDetailSheet: { alignSelf: 'center', width: '100%', maxWidth: 680, maxHeight: '88%', overflow: 'hidden', borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: colors.paper },
   eventDetailHero: { minHeight: 238, justifyContent: 'space-between', overflow: 'hidden', padding: 16 },
   eventDetailTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   eventDetailStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 14, backgroundColor: 'rgba(255,250,242,0.16)', paddingHorizontal: 9, paddingVertical: 7 },
@@ -824,7 +830,7 @@ const styles = StyleSheet.create({
   eventDetailEmptyText: { color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
   eventDetailAction: { minHeight: 48, marginHorizontal: 12, marginTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 24, backgroundColor: colors.text },
   eventDetailActionText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
-  sheet: { maxHeight: '78%', borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: colors.paper, padding: 16 },
+  sheet: { alignSelf: 'center', width: '100%', maxWidth: 680, maxHeight: '78%', borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: colors.paper, padding: 16 },
   sheetHandle: { alignSelf: 'center', width: 48, height: 5, borderRadius: 3, backgroundColor: 'rgba(23,19,19,0.16)' },
   sheetKicker: { marginTop: 14, color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
   sheetTitle: { marginTop: 5, color: colors.text, fontSize: 21, lineHeight: 25, fontWeight: '900' },

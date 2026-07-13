@@ -11,9 +11,11 @@ import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard
 import { usePlayer } from '@/player/PlayerProvider';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 export function PostDetailScreen() {
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const player = usePlayer();
@@ -41,7 +43,7 @@ export function PostDetailScreen() {
 
   return (
     <SynauraBackground variant="warm">
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: 0 }]}>
+      <ScrollView contentContainerStyle={[styles.content, responsive.pageContent, { paddingTop: 0, paddingBottom: responsive.miniPlayerClearance }]}>
         <AppHeader flush title="Publication" subtitle={post?.author || 'Communauté Synaura'} onBack={() => navigation.goBack()} action={{ icon: 'share-outline', label: 'Partager', onPress: () => { if (post) void Share.share({ message: `${post.text}\nhttps://xima-m-music-platform.vercel.app/post/${post.id}` }); } }} />
         {loading ? <ActivityIndicator color="#8B5CF6" style={{ marginTop: 60 }} /> : null}
         {post ? (

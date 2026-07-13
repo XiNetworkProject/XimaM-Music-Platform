@@ -8,8 +8,10 @@ import { SynauraBackground } from '@/components/SynauraBackground';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { colors, radius, spacing } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 export function CreateVariationScreen() {
+  const responsive = useResponsiveLayout();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const challengeId: string = route.params?.challengeId || '';
@@ -39,7 +41,7 @@ export function CreateVariationScreen() {
 
   return (
     <SynauraBackground>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, responsive.pageContent]} showsVerticalScrollIndicator={false}>
         <AppHeader title="Créer une variation" subtitle="Choisis un morceau Synaura autorisé" onBack={() => navigation.goBack()} />
         <Text style={styles.hint}>Le créateur original sera toujours crédité.</Text>
 

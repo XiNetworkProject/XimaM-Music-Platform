@@ -3,6 +3,7 @@ import { Animated, Pressable, StyleSheet, Text, View, type StyleProp, type ViewS
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors, radius } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 export type SegmentOption<T extends string> = {
   value: T;
@@ -25,8 +26,10 @@ export function SegmentedControl<T extends string>({
   compact?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const layout = useResponsiveLayout();
+  const effectiveCompact = compact || layout.isNarrow;
   return (
-    <View style={[styles.root, dark && styles.rootDark, compact && styles.rootCompact, style]}>
+    <View style={[styles.root, (options.length > 4 || layout.isNarrow) && styles.rootDense, dark && styles.rootDark, effectiveCompact && styles.rootCompact, style]}>
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -36,7 +39,9 @@ export function SegmentedControl<T extends string>({
             icon={option.icon}
             active={active}
             dark={dark}
-            compact={compact}
+            compact={effectiveCompact}
+            hideIcon={layout.isNarrow && options.length > 3}
+            dense={options.length > 4 || (layout.isNarrow && options.length > 3)}
             onPress={() => {
               if (active) return;
               void Haptics.selectionAsync().catch(() => {});
@@ -49,7 +54,7 @@ export function SegmentedControl<T extends string>({
   );
 }
 
-function Segment({ label, icon, active, dark, compact, onPress }: { label: string; icon?: React.ComponentProps<typeof Ionicons>['name']; active: boolean; dark: boolean; compact: boolean; onPress: () => void }) {
+function Segment({ label, icon, active, dark, compact, hideIcon, dense, onPress }: { label: string; icon?: React.ComponentProps<typeof Ionicons>['name']; active: boolean; dark: boolean; compact: boolean; hideIcon: boolean; dense: boolean; onPress: () => void }) {
   const scale = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (!active) return;
@@ -62,9 +67,9 @@ function Segment({ label, icon, active, dark, compact, onPress }: { label: strin
   const inactiveForeground = dark ? 'rgba(255,255,255,0.62)' : colors.textSecondary;
   return (
     <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={onPress} style={styles.pressable}>
-      <Animated.View style={[styles.segment, compact && styles.segmentCompact, active && styles.segmentActive, dark && active && styles.segmentActiveDark, { transform: [{ scale }] }]}>
-        {icon ? <Ionicons name={icon} size={compact ? 14 : 15} color={active ? activeForeground : inactiveForeground} /> : null}
-        <Text numberOfLines={1} style={[styles.label, compact && styles.labelCompact, { color: active ? activeForeground : inactiveForeground }]}>{label}</Text>
+      <Animated.View style={[styles.segment, compact && styles.segmentCompact, dense && styles.segmentDense, active && styles.segmentActive, dark && active && styles.segmentActiveDark, { transform: [{ scale }] }]}>
+        {icon && !hideIcon ? <Ionicons name={icon} size={compact ? 14 : 15} color={active ? activeForeground : inactiveForeground} /> : null}
+        <Text maxFontSizeMultiplier={1.15} numberOfLines={1} style={[styles.label, compact && styles.labelCompact, dense && styles.labelDense, { color: active ? activeForeground : inactiveForeground }]}>{label}</Text>
       </Animated.View>
     </Pressable>
   );
@@ -74,11 +79,14 @@ const styles = StyleSheet.create({
   root: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.md, padding: 4, backgroundColor: 'rgba(17,17,17,0.055)', borderWidth: 1, borderColor: colors.border },
   rootDark: { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.1)' },
   rootCompact: { minHeight: 40 },
+  rootDense: { gap: 2, padding: 3 },
   pressable: { flex: 1, minWidth: 0 },
   segment: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: radius.sm, paddingHorizontal: 7 },
   segmentCompact: { minHeight: 30 },
+  segmentDense: { gap: 2, paddingHorizontal: 3 },
   segmentActive: { backgroundColor: colors.black },
   segmentActiveDark: { backgroundColor: colors.white },
   label: { maxWidth: '100%', fontSize: 11, fontWeight: '900' },
   labelCompact: { fontSize: 10 },
+  labelDense: { fontSize: 9 },
 });

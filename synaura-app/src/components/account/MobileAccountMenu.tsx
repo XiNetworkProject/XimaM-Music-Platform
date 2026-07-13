@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -59,6 +59,7 @@ export function MobileAccountButton({ compact = false }: { compact?: boolean }) 
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
           <Pressable onPress={() => {}} style={[styles.sheet, { paddingBottom: Math.max(insets.bottom + 16, 24) }]}>
             <View style={styles.handle} />
+            <ScrollView contentContainerStyle={styles.sheetContent} showsVerticalScrollIndicator={false}>
             <View style={styles.identity}>
               <View style={styles.largeAvatar}>
                 {auth.user.avatar ? <Image source={{ uri: auth.user.avatar }} style={styles.avatarImage} /> : <Text style={styles.largeAvatarText}>{name.slice(0, 1).toUpperCase()}</Text>}
@@ -86,6 +87,7 @@ export function MobileAccountButton({ compact = false }: { compact?: boolean }) 
               <Ionicons name="log-out-outline" size={20} color={colors.danger} />
               <Text style={styles.logoutText}>Déconnexion</Text>
             </Pressable>
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -111,6 +113,10 @@ const styles = StyleSheet.create({
   avatarFallback: { color: colors.white, fontSize: 15, fontWeight: '900' },
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(23,19,19,0.38)' },
   sheet: {
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 680,
+    maxHeight: '94%',
     padding: 18,
     gap: 14,
     borderTopLeftRadius: 30,
@@ -120,6 +126,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   handle: { alignSelf: 'center', width: 48, height: 5, borderRadius: 99, backgroundColor: 'rgba(23,19,19,0.16)' },
+  sheetContent: { gap: 14 },
   identity: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   largeAvatar: {
     width: 54,

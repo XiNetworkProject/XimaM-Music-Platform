@@ -21,6 +21,7 @@ import { CreateArrivalBanner } from '@/components/create/CreateArrivalBanner';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { useAuth } from '@/auth/AuthProvider';
 import { colors, radius, spacing } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 const MIN_SECONDS = 15;
 const MAX_SECONDS = 60;
@@ -39,6 +40,7 @@ export function ClipComposerScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const auth = useAuth();
   const presetSourceTrackId = route.params?.sourceTrackId ? String(route.params.sourceTrackId) : '';
   const presetSourceTrackType = route.params?.sourceTrackType === 'ai_track' ? 'ai_track' : 'track';
@@ -160,7 +162,14 @@ export function ClipComposerScreen() {
 
   return (
     <SynauraBackground>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 120 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          responsive.pageContent,
+          { paddingTop: insets.top + 10, paddingBottom: Math.max(insets.bottom + 120, responsive.miniPlayerClearance) },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         <AppHeader title="Publier un clip" subtitle="Video verticale liee a un morceau" onBack={() => navigation.goBack()} />
         <CreateArrivalBanner
           context={challengeId ? 'challenge' : 'clip'}

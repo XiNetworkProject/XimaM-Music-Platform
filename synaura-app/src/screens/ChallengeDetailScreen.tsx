@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { SoftCard } from '@/components/ui/SoftCard';
 import { colors, radius, spacing } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 const CONTENT_TYPE_LABEL: Record<MusicChallengeContentType, string> = {
   clip: 'Clip',
@@ -39,6 +40,7 @@ function formatDate(value: string) {
 }
 
 export function ChallengeDetailScreen() {
+  const responsive = useResponsiveLayout();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const auth = useAuth();
@@ -110,7 +112,10 @@ export function ChallengeDetailScreen() {
 
   return (
     <SynauraBackground>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, responsive.pageContent, { paddingBottom: responsive.miniPlayerClearance + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
         <AppHeader title="Défi" onBack={() => navigation.goBack()} />
 
         <SoftCard style={[styles.hero, { backgroundColor: `${accent}1a` }]}>

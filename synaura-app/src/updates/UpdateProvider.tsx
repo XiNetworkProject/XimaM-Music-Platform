@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getLatestAppRelease, type MobileAppRelease } from '@/api/client';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 const DISMISSED_RELEASE_KEY = 'synaura.mobile.dismissed-release.v1';
 
@@ -222,13 +223,24 @@ function UpdateModal({
   onSettings: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const layout = useResponsiveLayout();
   const downloading = status === 'downloading';
   const isCurrent = status === 'current';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={mandatory ? undefined : onClose}>
-      <View style={[styles.backdrop, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 18 }]}>
-        <View style={styles.sheet}>
+      <View
+        style={[
+          styles.backdrop,
+          {
+            paddingLeft: insets.left + 12,
+            paddingRight: insets.right + 12,
+            paddingTop: insets.top + 18,
+            paddingBottom: insets.bottom + 18,
+          },
+        ]}
+      >
+        <View style={[styles.sheet, { width: Math.min(layout.safeWidth - 24, 520), padding: layout.isNarrow ? 16 : 20 }]}>
           <View style={styles.icon}>
             <Ionicons name={isCurrent ? 'checkmark' : 'cloud-download-outline'} size={28} color="#fffaf2" />
           </View>
@@ -293,8 +305,8 @@ function UpdateModal({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', paddingHorizontal: 12, backgroundColor: 'rgba(23,19,19,0.52)' },
-  sheet: { borderRadius: 28, padding: 20, gap: 12, backgroundColor: '#fffaf2', borderWidth: 1, borderColor: 'rgba(23,19,19,0.09)' },
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(23,19,19,0.52)' },
+  sheet: { alignSelf: 'center', maxHeight: '94%', borderRadius: 28, gap: 12, backgroundColor: '#fffaf2', borderWidth: 1, borderColor: 'rgba(23,19,19,0.09)' },
   icon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7c5cff' },
   close: { position: 'absolute', right: 14, top: 14, width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },
   kicker: { marginTop: 4, color: '#7c5cff', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1.2 },

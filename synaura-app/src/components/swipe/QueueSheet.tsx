@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayer } from '@/player/PlayerProvider';
 import { TrackCover } from '@/components/TrackCover';
 import { trackArtistName } from './helpers';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 type Props = {
   visible: boolean;
@@ -13,6 +14,7 @@ type Props = {
 
 export function QueueSheet({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const player = usePlayer();
   const slide = useRef(new Animated.Value(0)).current;
 
@@ -27,7 +29,7 @@ export function QueueSheet({ visible, onClose }: Props) {
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(13,10,14,0.55)', opacity: slide }]}>
         <Pressable accessibilityLabel="Fermer la file" onPress={onClose} style={StyleSheet.absoluteFill} />
       </Animated.View>
-      <Animated.View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 18), transform: [{ translateY }] }]}>
+      <Animated.View style={[styles.sheet, { left: responsive.overlayLeftInset, right: responsive.overlayRightInset, paddingBottom: Math.max(insets.bottom, 18), transform: [{ translateY }] }]}>
         <View style={styles.handleArea}>
           <View style={styles.handleBar} />
         </View>

@@ -11,10 +11,12 @@ import { RadarMobileSection } from '@/components/radar/RadarMobileSection';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { colors } from '@/theme/tokens';
 import { AppHeader } from '@/components/ui/AppHeader';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 export function RadarScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const auth = useAuth();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,10 @@ export function RadarScreen() {
   return (
     <View style={styles.root}>
       <SynauraBackground variant="warm" />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.content, responsive.pageContent, { paddingBottom: responsive.miniPlayerClearance + 8 }]}
+      >
         <AppHeader flush eyebrow="Découverte émergente" title="Radar" subtitle="Les bons signaux avant les gros chiffres." onBack={() => navigation.goBack()} action={{ icon: 'refresh-outline', label: 'Actualiser', onPress: () => void load() }} />
 
         <RadarMobileSection tracks={tracks} loading={loading} />

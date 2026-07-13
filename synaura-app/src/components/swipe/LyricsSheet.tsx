@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Track } from '@/api/types';
 import { TrackCover } from '@/components/TrackCover';
 import { trackArtistName } from './helpers';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 type Props = {
   visible: boolean;
@@ -14,6 +15,7 @@ type Props = {
 
 export function LyricsSheet({ visible, track, onClose }: Props) {
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const lyrics = track?.lyrics?.trim() || '';
   const slide = useRef(new Animated.Value(0)).current;
 
@@ -28,7 +30,7 @@ export function LyricsSheet({ visible, track, onClose }: Props) {
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(13,10,14,0.6)', opacity: slide }]}>
         <Pressable accessibilityLabel="Fermer les paroles" onPress={onClose} style={StyleSheet.absoluteFill} />
       </Animated.View>
-      <Animated.View style={[styles.sheet, { paddingTop: insets.top + 14, paddingBottom: Math.max(insets.bottom, 18) + 12, transform: [{ translateY }] }]}>
+      <Animated.View style={[styles.sheet, { left: responsive.overlayLeftInset, right: responsive.overlayRightInset, paddingTop: insets.top + 14, paddingBottom: Math.max(insets.bottom, 18) + 12, transform: [{ translateY }] }]}>
         <View style={styles.header}>
           <View style={styles.coverThumb}>
             <TrackCover track={track} active={visible} style={StyleSheet.absoluteFill} />

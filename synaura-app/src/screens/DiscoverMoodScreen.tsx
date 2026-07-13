@@ -12,11 +12,13 @@ import { TrackCover } from '@/components/TrackCover';
 import { usePlayer } from '@/player/PlayerProvider';
 import { getMoodById } from '@/discover/moods';
 import { colors } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 export function DiscoverMoodScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const player = usePlayer();
   const mood = getMoodById(route.params?.moodId);
   const [loading, setLoading] = useState(true);
@@ -54,7 +56,14 @@ export function DiscoverMoodScreen() {
 
   return (
     <SynauraBackground>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 120 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          responsive.pageContent,
+          { paddingTop: insets.top + 10, paddingBottom: Math.max(insets.bottom + 120, responsive.miniPlayerClearance) },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         <AppHeader title="Découvrir" onBack={() => navigation.goBack()} />
 
         <LinearGradient colors={mood.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.banner}>

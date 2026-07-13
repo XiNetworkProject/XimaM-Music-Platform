@@ -8,7 +8,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -68,6 +67,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { MotionPressable } from '@/components/motion/Motion';
 import { MobileAnimatedLogo } from '@/components/mobile/MobileAnimatedLogo';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 const PRELOAD_RANGE = 1;
 const COMMENTS_POLL_DELAY_MS = 900;
@@ -91,9 +91,9 @@ export function SwipeScreen() {
   const route = useRoute<any>();
   const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
-  const tabBarHeight = 76 + insets.bottom;
-  const itemHeight = Math.max(420, height);
+  const responsive = useResponsiveLayout();
+  const tabBarHeight = responsive.dockHeight + Math.max(insets.bottom, 7) + 10;
+  const itemHeight = Math.max(420, responsive.height);
 
   const player = usePlayer();
   const playerProgress = usePlayerProgress(180);
@@ -882,7 +882,7 @@ export function SwipeScreen() {
       <LinearGradient colors={['rgba(23,19,19,0.88)', 'rgba(23,19,19,0.0)']} style={[styles.headerGradient, { height: insets.top + 96 }]} pointerEvents="none" />
 
       <Animated.View style={[styles.header, headerStyle]} pointerEvents="box-none">
-        <View style={styles.headerInner}>
+        <View style={[styles.headerInner, responsive.contentFrame]}>
           <View style={styles.scrollIdentity}>
             <View style={styles.scrollMark}><Text style={styles.scrollMarkText}>S</Text></View>
             <View>

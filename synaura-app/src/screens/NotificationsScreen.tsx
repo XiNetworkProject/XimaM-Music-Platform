@@ -10,6 +10,7 @@ import { openInternalLink } from '@/navigation/internalLinks';
 import { usePlayer } from '@/player/PlayerProvider';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 const tabs = [
   { id: 'all', label: 'Toutes' },
@@ -38,6 +39,7 @@ function relativeDate(value: string) {
 }
 
 export function NotificationsScreen() {
+  const responsive = useResponsiveLayout();
   const navigation = useNavigation<any>();
   const player = usePlayer();
   const [category, setCategory] = React.useState<(typeof tabs)[number]['id']>('all');
@@ -91,7 +93,7 @@ export function NotificationsScreen() {
 
   return (
     <SynauraBackground variant="warm">
-      <View style={styles.screen}>
+      <View style={[styles.screen, responsive.pageContent]}>
         <AppHeader
           flush
           compact
@@ -106,7 +108,7 @@ export function NotificationsScreen() {
         <FlatList
           data={items}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: responsive.bottomDockClearance + 24 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load('refresh')} />}
           ListEmptyComponent={!loading ? (
             <View style={styles.emptyCard}>

@@ -26,6 +26,7 @@ import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { ScreenIntro } from '@/components/ui/ScreenIntro';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { colors, radius } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 // Intentions creatives (onboarding "Personnaliser mes gouts") qui mettent un Club
 // en avant. Ne masque jamais les autres Clubs, se contente de les prioriser.
@@ -50,6 +51,7 @@ type ArtistPairing = { creator: Creator; track: Track };
 export function DiscoverV2Screen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const player = usePlayer();
   const auth = useAuth();
   const [home, setHome] = useState<HomeData>(emptyHome);
@@ -148,7 +150,14 @@ export function DiscoverV2Screen() {
   return (
     <View style={styles.root}>
       <SynauraBackground variant="warm" />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingTop: insets.top + 14 }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.content,
+          responsive.pageContent,
+          { paddingTop: insets.top + 14, paddingBottom: responsive.miniPlayerClearance + 16 },
+        ]}
+      >
         <ScreenIntro
           eyebrow="Explorer"
           title="Découvrir"

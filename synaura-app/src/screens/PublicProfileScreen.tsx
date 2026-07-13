@@ -18,6 +18,7 @@ import { MobileSocialLinks } from '@/components/mobile/MobileSocialLinks';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 type Tab = 'sons' | 'clips' | 'variations' | 'playlists' | 'posts';
 
@@ -39,6 +40,7 @@ export function PublicProfileScreen() {
   const route = useRoute<RouteProp<RootTabsParamList, 'PublicProfile'>>();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const player = usePlayer();
   const [profile, setProfile] = useState<MobileProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -174,7 +176,14 @@ export function PublicProfileScreen() {
 
   return (
     <SynauraBackground variant="warm">
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: 0 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          responsive.pageContent,
+          { paddingTop: 0, paddingBottom: responsive.miniPlayerClearance },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         <AppHeader flush title="Profil artiste" subtitle={`@${profile.username}`} onBack={() => navigation.goBack()} action={{ icon: 'share-outline', label: 'Partager', onPress: () => void share() }} />
 
         <Reveal distance={8} scaleFrom={0.99} style={styles.hero}>

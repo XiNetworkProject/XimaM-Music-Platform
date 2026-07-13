@@ -17,6 +17,7 @@ import { createComment, getCommentsPage } from '@/api/client';
 import type { HomeComment, Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { fmtCount, fmtTime } from './helpers';
 
 type Props = {
@@ -42,6 +43,7 @@ function relativeTime(value: string) {
 
 export function CommentsSheet({ visible, track, commentCount, onClose, onCountChange }: Props) {
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const keyboardHeight = useKeyboardHeight();
   const { user } = useAuth();
   const [comments, setComments] = useState<HomeComment[]>([]);
@@ -154,6 +156,8 @@ export function CommentsSheet({ visible, track, commentCount, onClose, onCountCh
         style={[
           styles.sheet,
           {
+            left: responsive.overlayLeftInset,
+            right: responsive.overlayRightInset,
             transform: [{ translateY }],
             paddingBottom: keyboardHeight > 0 ? keyboardHeight : Math.max(insets.bottom, 14),
           },

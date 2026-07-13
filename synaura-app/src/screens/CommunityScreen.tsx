@@ -20,6 +20,7 @@ import { COMMUNITY_CLUBS, getClubByCategory, type ClubConfig } from '@/community
 import { colors } from '@/theme/tokens';
 import { ScreenIntro } from '@/components/ui/ScreenIntro';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 // Intentions creatives (onboarding "Personnaliser mes gouts") qui mettent un Club
 // en avant. Ne masque jamais les autres Clubs, se contente de les prioriser.
@@ -41,6 +42,7 @@ export function CommunityScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const auth = useAuth();
   const [aggregates, setAggregates] = useState<Record<string, CommunityClubAggregate>>({});
   const [loading, setLoading] = useState(true);
@@ -114,7 +116,14 @@ export function CommunityScreen() {
 
   return (
     <SynauraBackground variant="warm">
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 150 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          responsive.pageContent,
+          { paddingTop: insets.top + 18, paddingBottom: Math.max(insets.bottom + 150, responsive.miniPlayerClearance) },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         <ScreenIntro
           eyebrow="Espace musical"
           title="Clubs"

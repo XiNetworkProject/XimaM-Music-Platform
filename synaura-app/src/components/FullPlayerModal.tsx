@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  Dimensions,
   Easing,
   Image,
   Modal,
@@ -9,6 +8,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  ScrollView,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,13 +37,12 @@ import { MomentSheet } from '@/components/mobile/MomentSheet';
 import { WaveformSeekBar } from '@/components/swipe/WaveformSeekBar';
 import { fmtCount, fmtTime, trackArtistName } from '@/components/swipe/helpers';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
 };
-
-const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 
 // Refonte "lecture en cours" : tout tient sur un seul écran (plus de scroll).
 // La waveform réelle vit DANS la cover (bandeau bas sur scrim sombre) au lieu
@@ -52,6 +51,7 @@ const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 // (paroles, remix, téléchargement, timer, aura) dans une feuille "Plus".
 export function FullPlayerModal({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
+  const layout = useResponsiveLayout();
   const navigation = useNavigation<any>();
   const player = usePlayer();
   const progress = usePlayerProgress(120);
@@ -72,7 +72,6 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const [commentsCount, setCommentsCount] = useState<number>(0);
   const [following, setFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
-  const [coverZoneHeight, setCoverZoneHeight] = useState(0);
 
   const dragY = useRef(new Animated.Value(0)).current;
   const coverX = useRef(new Animated.Value(0)).current;
@@ -130,7 +129,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
 
   const closeWithAnim = useCallback(() => {
     Animated.timing(dragY, {
-      toValue: SCREEN_H,
+      toValue: layout.height,
       duration: 220,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
@@ -138,7 +137,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
       dragY.setValue(0);
       onClose();
     });
-  }, [dragY, onClose]);
+  }, [dragY, layout.height, onClose]);
 
   // Swipe-down gesture on the header to close the modal naturally.
   const panResponder = useMemo(() => PanResponder.create({
@@ -268,7 +267,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   });
 
   const overlayOpacity = dragY.interpolate({
-    inputRange: [0, SCREEN_H * 0.6],
+    inputRange: [0, layout.height * 0.6],
     outputRange: [1, 0.4],
     extrapolate: 'clamp',
   });
@@ -276,7 +275,8 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   // La cover prend toute la place disponible entre le header et le bloc
   // méta/contrôles, sans jamais déborder ni forcer de scroll : sa taille est
   // le min entre la hauteur mesurée de la zone flexible et la largeur écran.
-  const coverSize = Math.max(180, Math.min(coverZoneHeight, SCREEN_W - 48, 360));
+  const coverSize = layout.mediaSize;
+  const transportIconSize = layout.compactControls ? 23 : 26;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={closeWithAnim}>
@@ -292,7 +292,15 @@ export function FullPlayerModal({ visible, onClose }: Props) {
         <SynauraBackground variant="warm" />
         <AuraVisual track={track} active={visible} playing={player.isPlaying} />
 
-        <View {...panResponder.panHandlers} style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <View
+          {...panResponder.panHandlers}
+          style={[
+            styles.header,
+            layout.contentFrame,
+            layout.isNarrow && styles.headerCompact,
+            { paddingLeft: layout.pagePaddingLeft, paddingRight: layout.pagePaddingRight, paddingTop: insets.top + 8 },
+          ]}
+        >
           <Pressable
             accessibilityLabel="Reduire le lecteur"
             onPress={closeWithAnim}
@@ -321,12 +329,24 @@ export function FullPlayerModal({ visible, onClose }: Props) {
           </Pressable>
         </View>
 
-        <View style={[styles.body, { paddingBottom: insets.bottom + 14 }]}>
+        <ScrollView
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+          style={styles.bodyScroll}
+          contentContainerStyle={[
+            styles.body,
+            layout.contentFrame,
+            layout.compactControls && styles.bodyCompact,
+            {
+              minHeight: Math.max(1, layout.height - insets.top - 62),
+              paddingLeft: layout.pagePaddingLeft,
+              paddingRight: layout.pagePaddingRight,
+              paddingBottom: insets.bottom + 14,
+            },
+          ]}
+        >
           {/* Zone cover flexible : absorbe l'espace restant */}
-          <View
-            style={styles.coverZone}
-            onLayout={(event) => setCoverZoneHeight(Math.max(0, event.nativeEvent.layout.height))}
-          >
+          <View style={[styles.coverZone, { minHeight: coverSize + (layout.compactControls ? 12 : 24) }]}>
             {track.coverUrl ? (
               <Animated.View style={[styles.coverHalo, { width: coverSize + 22, height: coverSize + 22, transform: [{ scale: coverScale }] }]}>
                 <Image source={{ uri: track.coverUrl }} blurRadius={28} style={StyleSheet.absoluteFillObject} />
@@ -396,7 +416,13 @@ export function FullPlayerModal({ visible, onClose }: Props) {
 
           {/* Bloc méta compact */}
           <View style={styles.meta}>
-            <Text style={styles.title} numberOfLines={1}>{track.title}</Text>
+            <Text
+              maxFontSizeMultiplier={1.2}
+              style={[styles.title, layout.isNarrow && styles.titleCompact]}
+              numberOfLines={layout.hasLargeText ? 2 : 1}
+            >
+              {track.title}
+            </Text>
             <View style={styles.metaRow}>
               <Pressable
                 onPress={() => track.artist?.username && navigation.navigate('Tabs', {
@@ -439,40 +465,40 @@ export function FullPlayerModal({ visible, onClose }: Props) {
           </View>
 
           {/* Transport */}
-          <View style={styles.controls}>
+          <View style={[styles.controls, layout.compactControls && styles.controlsCompact]}>
             <Pressable
               accessibilityLabel="Activer ou desactiver le shuffle"
               onPress={() => void player.toggleShuffle()}
-              style={[styles.smallBtn, player.shuffleEnabled && styles.smallBtnActive]}
+              style={[styles.smallBtn, layout.compactControls && styles.smallBtnCompact, player.shuffleEnabled && styles.smallBtnActive]}
             >
-              <Ionicons name="shuffle" size={18} color={player.shuffleEnabled ? '#FFFAF2' : '#171313'} />
+              <Ionicons name="shuffle" size={layout.compactControls ? 16 : 18} color={player.shuffleEnabled ? '#FFFAF2' : '#171313'} />
             </Pressable>
-            <Pressable accessibilityLabel="Titre precedent" onPress={() => void player.previous()} style={styles.controlBtn}>
-              <Ionicons name="play-skip-back" size={26} color="#171313" />
+            <Pressable accessibilityLabel="Titre precedent" onPress={() => void player.previous()} style={[styles.controlBtn, layout.compactControls && styles.controlBtnCompact]}>
+              <Ionicons name="play-skip-back" size={transportIconSize} color="#171313" />
             </Pressable>
             <Pressable
               accessibilityLabel={player.isPlaying ? 'Mettre en pause' : 'Lire'}
               onPress={() => void player.togglePlayPause()}
-              style={styles.playBtn}
+              style={[styles.playBtn, layout.compactControls && styles.playBtnCompact]}
             >
               <Ionicons
                 name={player.isPlaying ? 'pause' : 'play'}
-                size={32}
+                size={layout.compactControls ? 28 : 32}
                 color="#FFFAF2"
                 style={!player.isPlaying ? { marginLeft: 4 } : null}
               />
             </Pressable>
-            <Pressable accessibilityLabel="Titre suivant" onPress={() => void player.next()} style={styles.controlBtn}>
-              <Ionicons name="play-skip-forward" size={26} color="#171313" />
+            <Pressable accessibilityLabel="Titre suivant" onPress={() => void player.next()} style={[styles.controlBtn, layout.compactControls && styles.controlBtnCompact]}>
+              <Ionicons name="play-skip-forward" size={transportIconSize} color="#171313" />
             </Pressable>
             <Pressable
               accessibilityLabel="Changer le mode boucle"
               onPress={() => void player.cycleRepeatMode()}
-              style={[styles.smallBtn, player.repeatMode !== 'off' && styles.smallBtnActive]}
+              style={[styles.smallBtn, layout.compactControls && styles.smallBtnCompact, player.repeatMode !== 'off' && styles.smallBtnActive]}
             >
               <Ionicons
                 name={player.repeatMode === 'one' ? 'repeat' : 'repeat-outline'}
-                size={18}
+                size={layout.compactControls ? 16 : 18}
                 color={player.repeatMode !== 'off' ? '#FFFAF2' : '#171313'}
               />
               {player.repeatMode === 'one' ? <Text style={styles.repeatBadge}>1</Text> : null}
@@ -480,7 +506,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
           </View>
 
           {/* Une seule rangée d'actions : le reste vit dans "Plus" */}
-          <View style={styles.actionRow}>
+          <View style={[styles.actionRow, layout.compactControls && styles.actionRowCompact]}>
             <PlayerAction
               icon={liked ? 'heart' : 'heart-outline'}
               label={fmtCount(likesCount) || "J'aime"}
@@ -513,7 +539,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
               onPress={() => setMoreOpen(true)}
             />
           </View>
-        </View>
+        </ScrollView>
 
         <CommentsSheet
           visible={commentsOpen}
@@ -537,8 +563,9 @@ export function FullPlayerModal({ visible, onClose }: Props) {
         <Modal visible={moreOpen} transparent animationType="fade" onRequestClose={() => setMoreOpen(false)}>
           <View style={styles.moreOverlay}>
             <Pressable accessibilityLabel="Fermer" style={StyleSheet.absoluteFill} onPress={() => setMoreOpen(false)} />
-            <View style={[styles.moreSheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={[styles.moreSheet, { width: Math.min(layout.safeWidth, 560), paddingBottom: insets.bottom + 16, transform: [{ translateX: (insets.left - insets.right) / 2 }] }]}>
               <View style={styles.moreHandle} />
+              <ScrollView contentContainerStyle={styles.moreContent} showsVerticalScrollIndicator={false}>
               <MoreRow
                 icon="document-text-outline"
                 label="Paroles"
@@ -581,6 +608,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
                   ))}
                 </View>
               ) : null}
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -667,6 +695,7 @@ const styles = StyleSheet.create({
     gap: 12,
     zIndex: 5,
   },
+  headerCompact: { gap: 8, paddingBottom: 6 },
   headerButton: {
     position: 'relative',
     width: 42,
@@ -707,10 +736,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerBadgeText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
-  body: { flex: 1, paddingHorizontal: 20 },
+  bodyScroll: { flex: 1 },
+  body: { flexGrow: 1, paddingHorizontal: 20 },
+  bodyCompact: { paddingTop: 0 },
   coverZone: {
-    flex: 1,
-    minHeight: 180,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -784,6 +814,7 @@ const styles = StyleSheet.create({
     lineHeight: 25,
     fontWeight: '900',
   },
+  titleCompact: { fontSize: 19, lineHeight: 23 },
   metaRow: {
     marginTop: 8,
     flexDirection: 'row',
@@ -834,6 +865,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
+  controlsCompact: { marginTop: 10, gap: 5 },
   controlBtn: {
     width: 52,
     height: 52,
@@ -844,6 +876,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(23,19,19,0.08)',
   },
+  controlBtnCompact: { width: 46, height: 46, borderRadius: 23 },
   playBtn: {
     width: 72,
     height: 72,
@@ -857,6 +890,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 14 },
     elevation: 14,
   },
+  playBtnCompact: { width: 62, height: 62, borderRadius: 31 },
   smallBtn: {
     position: 'relative',
     width: 40,
@@ -868,6 +902,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(23,19,19,0.08)',
   },
+  smallBtnCompact: { width: 36, height: 36, borderRadius: 18 },
   smallBtnActive: { backgroundColor: '#171313', borderColor: 'transparent' },
   repeatBadge: {
     position: 'absolute',
@@ -883,6 +918,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
+  actionRowCompact: { marginTop: 10 },
   actionBtn: { flex: 1, alignItems: 'center', gap: 6 },
   actionCircle: {
     width: 44,
@@ -903,6 +939,8 @@ const styles = StyleSheet.create({
   },
   moreOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.42)' },
   moreSheet: {
+    alignSelf: 'center',
+    maxHeight: '90%',
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
     backgroundColor: '#F7F6F3',
@@ -910,6 +948,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     gap: 4,
   },
+  moreContent: { gap: 4 },
   moreHandle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: 'rgba(17,17,17,0.18)', marginBottom: 8 },
   moreRow: {
     flexDirection: 'row',

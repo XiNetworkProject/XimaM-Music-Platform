@@ -69,6 +69,7 @@ import { getSunoErrorMessage } from '@/utils/getSunoErrorMessage';
 import type { SynauraCityData, Track } from '@/api/types';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Reveal } from '@/components/motion/Motion';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 type StudioTab = 'create' | 'library';
 type StudioMode = 'simple' | 'custom' | 'remix';
@@ -110,6 +111,7 @@ export function AIStudioScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const auth = useAuth();
   const player = usePlayer();
   const [tab, setTab] = useState<StudioTab>('create');
@@ -599,7 +601,14 @@ export function AIStudioScreen() {
     return (
       <View style={styles.root}>
         <SynauraBackground variant="warm">
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.authGate, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 92 }]}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.authGate,
+            responsive.pageContent,
+            { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 92 },
+          ]}
+        >
           <View style={styles.authTop}>
             <View>
               <Text style={styles.authKicker}>STUDIO SYNAURA</Text>
@@ -642,7 +651,14 @@ export function AIStudioScreen() {
         contentInsetAdjustmentBehavior="never"
         automaticallyAdjustKeyboardInsets
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadStudio(true)} tintColor={colors.violet} />}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + (player.current ? 205 : 125) }]}
+        contentContainerStyle={[
+          styles.content,
+          responsive.pageContent,
+          {
+            paddingTop: insets.top + 10,
+            paddingBottom: Math.max(insets.bottom + (player.current ? 205 : 125), player.current ? responsive.miniPlayerClearance : responsive.bottomDockClearance),
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.top}>
@@ -1348,7 +1364,7 @@ const styles = StyleSheet.create({
   authButton: { marginTop: 13, height: 46, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22, backgroundColor: colors.black },
   authButtonText: { color: colors.paper, fontSize: 13, fontWeight: '900' },
   modalShade: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(8,6,8,0.72)' },
-  inspector: { maxHeight: '92%', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 18, paddingBottom: 24, backgroundColor: colors.paper },
+  inspector: { alignSelf: 'center', width: '100%', maxWidth: 640, maxHeight: '92%', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 18, paddingBottom: 24, backgroundColor: colors.paper },
   inspectorHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   inspectorCover: { width: 62, height: 62, borderRadius: 18, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.08)' },
   inspectorKicker: { color: colors.violet, fontSize: 9, fontWeight: '900', letterSpacing: 1.4 },
@@ -1376,7 +1392,7 @@ const styles = StyleSheet.create({
   inspectorActionText: { color: colors.text, fontSize: 11, fontWeight: '900' },
   inspectorDanger: { height: 46, borderRadius: 23, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(217,45,32,0.07)' },
   inspectorDangerText: { color: colors.danger, fontSize: 11, fontWeight: '900' },
-  creditShop: { maxHeight: '88%', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 18, paddingBottom: 28, backgroundColor: colors.paper },
+  creditShop: { alignSelf: 'center', width: '100%', maxWidth: 640, maxHeight: '88%', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 18, paddingBottom: 28, backgroundColor: colors.paper },
   shopHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   shopKicker: { color: colors.coral, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
   shopTitle: { marginTop: 5, color: colors.text, fontSize: 22, fontWeight: '900' },

@@ -40,6 +40,7 @@ import type { SynauraCityData, Track } from '@/api/types';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 type ReleaseType = 'single' | 'ep' | 'album';
 type Step = 1 | 2 | 3;
@@ -125,6 +126,7 @@ function assetFromImage(asset: ImagePicker.ImagePickerAsset): UploadAsset {
 
 export function UploadScreen() {
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const challengeId: string = route.params?.challengeId || '';
@@ -484,7 +486,7 @@ export function UploadScreen() {
     return (
       <View style={styles.root}>
         <SynauraBackground variant="warm" />
-        <View style={[styles.authGate, { paddingTop: insets.top + 24 }]}>
+        <View style={[styles.authGate, responsive.pageContent, { paddingTop: insets.top + 24 }]}>
           <View style={styles.authIcon}><Ionicons name="cloud-upload-outline" size={34} color="#FFFAF2" /></View>
           <Text style={styles.authTitle}>Connecte-toi pour publier</Text>
           <Text style={styles.authText}>L’upload est reserve aux artistes connectes a Synaura.</Text>
@@ -497,7 +499,11 @@ export function UploadScreen() {
     <View style={styles.root}>
       <SynauraBackground variant="warm" />
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: 0, paddingBottom: insets.bottom + 106 }]}
+        contentContainerStyle={[
+          styles.content,
+          responsive.pageContent,
+          { paddingTop: 0, paddingBottom: Math.max(insets.bottom + 106, responsive.bottomDockClearance + 24) },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

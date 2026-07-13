@@ -34,6 +34,7 @@ import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
 import { getClubBySlug } from '@/community/clubs';
 import { colors } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 function relativeDate(value: string) {
   const diff = Math.max(0, Date.now() - new Date(value).getTime());
@@ -60,6 +61,7 @@ export function ClubDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const auth = useAuth();
   const player = usePlayer();
   const library = useLibrary();
@@ -185,7 +187,11 @@ export function ClubDetailScreen() {
     <SynauraBackground>
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 140 }]}
+        contentContainerStyle={[
+          styles.content,
+          responsive.pageContent,
+          { paddingTop: insets.top + 10, paddingBottom: Math.max(insets.bottom + 140, responsive.miniPlayerClearance) },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={club.accent} />}
       >
@@ -532,7 +538,7 @@ const styles = StyleSheet.create({
   emptyPostsButton: { marginTop: 4, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10 },
   emptyPostsButtonText: { color: '#FFFAF2', fontSize: 12, fontWeight: '900' },
   modalRoot: { flex: 1, backgroundColor: '#F4EFE6' },
-  modalContent: { paddingHorizontal: 16, gap: 13 },
+  modalContent: { alignSelf: 'center', width: '100%', maxWidth: 680, paddingHorizontal: 16, gap: 13 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
   modalKicker: { color: colors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
   modalTitle: { color: '#171313', fontSize: 24, lineHeight: 28, fontWeight: '900', marginTop: 3 },
@@ -550,7 +556,7 @@ const styles = StyleSheet.create({
   submitButtonText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   disabled: { opacity: 0.35 },
   errorText: { color: '#D92D20', fontSize: 11, fontWeight: '800' },
-  discussionBody: { flex: 1, paddingHorizontal: 16 },
+  discussionBody: { flex: 1, alignSelf: 'center', width: '100%', maxWidth: 680, paddingHorizontal: 16 },
   repliesContent: { paddingBottom: 20, gap: 12 },
   originalPost: { padding: 15, borderRadius: 21, backgroundColor: '#FFFAF2', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
   originalContent: { color: '#171313', fontSize: 14, lineHeight: 21, fontWeight: '650' as any },

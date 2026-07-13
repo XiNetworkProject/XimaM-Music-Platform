@@ -2,9 +2,9 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { colors, spacing } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 type HeaderAction = {
   icon: React.ComponentProps<typeof Ionicons>['name'];
@@ -31,7 +31,7 @@ export function AppHeader({
   dark?: boolean;
   compact?: boolean;
 }) {
-  const insets = useSafeAreaInsets();
+  const layout = useResponsiveLayout();
   const foreground = dark ? colors.white : colors.text;
   const muted = dark ? 'rgba(255,255,255,0.58)' : colors.textTertiary;
   const buttonStyle = [styles.iconButton, dark && styles.iconButtonDark];
@@ -42,8 +42,22 @@ export function AppHeader({
   };
 
   return (
-    <Reveal distance={6} duration={300} style={[styles.root, flush && styles.flush, compact && styles.compact, { paddingTop: insets.top + spacing.sm }]}>
-      <View style={styles.row}>
+    <Reveal
+      distance={6}
+      duration={300}
+      style={[
+        styles.root,
+        !flush && layout.contentFrame,
+        flush && styles.flush,
+        compact && styles.compact,
+        {
+          paddingLeft: flush ? 0 : layout.pagePaddingLeft,
+          paddingRight: flush ? 0 : layout.pagePaddingRight,
+          paddingTop: layout.insets.top + spacing.sm,
+        },
+      ]}
+    >
+      <View style={[styles.row, layout.isNarrow && styles.rowNarrow]}>
         {onBack ? (
           <MotionPressable accessibilityLabel="Retour" onPress={() => press(onBack)} style={buttonStyle} scaleTo={0.9}>
             <Ionicons name="chevron-back" size={21} color={foreground} />
@@ -51,8 +65,8 @@ export function AppHeader({
         ) : null}
         <View style={styles.copy}>
           {eyebrow ? <Text numberOfLines={1} style={[styles.eyebrow, { color: dark ? colors.cyan : colors.violet }]}>{eyebrow}</Text> : null}
-          <Text numberOfLines={1} style={[styles.title, compact && styles.titleCompact, { color: foreground }]}>{title}</Text>
-          {subtitle ? <Text numberOfLines={1} style={[styles.subtitle, { color: muted }]}>{subtitle}</Text> : null}
+          <Text maxFontSizeMultiplier={1.2} numberOfLines={1} style={[styles.title, layout.isNarrow && styles.titleNarrow, compact && styles.titleCompact, { color: foreground }]}>{title}</Text>
+          {subtitle ? <Text maxFontSizeMultiplier={1.2} numberOfLines={layout.isNarrow ? 2 : 1} style={[styles.subtitle, { color: muted }]}>{subtitle}</Text> : null}
         </View>
         {action ? (
           <MotionPressable accessibilityLabel={action.label} onPress={() => press(action.onPress)} style={buttonStyle} scaleTo={0.9}>
@@ -69,9 +83,11 @@ const styles = StyleSheet.create({
   flush: { paddingHorizontal: 0 },
   compact: { paddingBottom: spacing.sm },
   row: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  rowNarrow: { gap: spacing.sm },
   copy: { flex: 1, minWidth: 0 },
   eyebrow: { marginBottom: 2, fontSize: 9, lineHeight: 11, fontWeight: '900', textTransform: 'uppercase' },
   title: { fontSize: 23, lineHeight: 28, fontWeight: '900' },
+  titleNarrow: { fontSize: 21, lineHeight: 25 },
   titleCompact: { fontSize: 19, lineHeight: 23 },
   subtitle: { marginTop: 2, fontSize: 11, lineHeight: 15, fontWeight: '700' },
   iconButton: {

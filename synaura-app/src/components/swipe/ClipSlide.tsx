@@ -9,6 +9,7 @@ import { colors } from '@/theme/tokens';
 import { fmtCount, trackArtistName } from './helpers';
 import { useAuth } from '@/auth/AuthProvider';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 // Slide Clip alignée sur SwipeSlide (même colonne d'actions à droite, même
 // panneau méta sombre en bas à gauche, mêmes gestes tap/double-tap) : un clip
@@ -58,6 +59,7 @@ function ActionButton({
   highlightColor?: string;
   onPress: () => void;
 }) {
+  const responsive = useResponsiveLayout();
   const scale = useRef(new Animated.Value(1)).current;
   const handlePress = () => {
     Animated.sequence([
@@ -67,10 +69,11 @@ function ActionButton({
     onPress();
   };
   return (
-    <Pressable accessibilityLabel={label || String(icon)} disabled={disabled} onPress={handlePress} style={[styles.actionButton, disabled && styles.actionButtonDisabled]}>
+    <Pressable accessibilityLabel={label || String(icon)} disabled={disabled} onPress={handlePress} style={[styles.actionButton, responsive.compactControls && styles.actionButtonCompact, disabled && styles.actionButtonDisabled]}>
       <Animated.View
         style={[
           styles.actionCircle,
+          responsive.compactControls && styles.actionCircleCompact,
           active && {
             backgroundColor: highlightColor ? `${highlightColor}28` : 'rgba(255,75,122,0.26)',
             borderColor: highlightColor ? `${highlightColor}66` : 'rgba(255,75,122,0.5)',
@@ -80,7 +83,7 @@ function ActionButton({
       >
         <Ionicons
           name={(active && iconActive ? iconActive : icon) as any}
-          size={22}
+          size={responsive.compactControls ? 19 : 22}
           color={active ? highlightColor || '#D96D63' : '#FFFAF2'}
         />
       </Animated.View>
@@ -118,6 +121,7 @@ export function ClipSlide({
   const artist = trackArtistName(track);
   const auth = useAuth();
   const { settings } = useMobileSettings();
+  const responsive = useResponsiveLayout();
   const isOwnTrack = Boolean(auth.user?.id) && track.artist?._id === auth.user?.id;
   const canUseSound = canUseSoundClientSide({
     isOwner: isOwnTrack,
@@ -231,7 +235,7 @@ export function ClipSlide({
           </View>
         </Animated.View>
 
-        <View style={[styles.topBadges, { top: topPad + 58 }]}>
+        <View style={[styles.topBadges, { top: topPad + (responsive.compactControls ? 50 : 58) }]}>
           <View style={styles.clipBadge}>
             <Ionicons name="film-outline" size={11} color="#8fd3dc" />
             <Text style={styles.clipBadgeText}>CLIP SYNAURA</Text>
@@ -250,7 +254,7 @@ export function ClipSlide({
         </View>
       </Pressable>
 
-      <View style={[styles.actionsColumn, { bottom: bottomPad + 92 }]}>
+      <View style={[styles.actionsColumn, responsive.compactControls && styles.actionsColumnCompact, { bottom: bottomPad + (responsive.compactControls ? 72 : 92) }]}>
         {clip.creator?.username ? (
           <View style={styles.profileCluster}>
             <Pressable accessibilityLabel="Ouvrir le profil du créateur" onPress={onOpenCreator} style={styles.profileAvatar}>
@@ -306,7 +310,7 @@ export function ClipSlide({
         ) : null}
       </View>
 
-      <View style={[styles.metaPanel, { bottom: bottomPad + 14 }]}>
+      <View style={[styles.metaPanel, responsive.isNarrow && styles.metaPanelNarrow, { bottom: bottomPad + (responsive.compactControls ? 8 : 14) }]}>
         <Pressable accessibilityLabel="Ouvrir le profil du créateur" onPress={onOpenCreator} style={styles.creatorRow}>
           <Text numberOfLines={1} style={styles.creator}>@{clip.creator.username || clip.creator.name || 'synaura'}</Text>
         </Pressable>
@@ -381,6 +385,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  actionsColumnCompact: { gap: 5 },
   profileCluster: { alignItems: 'center', justifyContent: 'center', width: 50, height: 60, marginBottom: 4 },
   profileAvatar: {
     width: 46,
@@ -408,6 +413,7 @@ const styles = StyleSheet.create({
   },
   followBubbleDone: { backgroundColor: '#7357C6' },
   actionButton: { width: 48, alignItems: 'center', gap: 3 },
+  actionButtonCompact: { width: 42, gap: 2 },
   actionButtonDisabled: { opacity: 0.38 },
   actionCircle: {
     width: 42,
@@ -424,6 +430,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 5,
   },
+  actionCircleCompact: { width: 36, height: 36, borderRadius: 9 },
   actionLabel: {
     maxWidth: 50,
     color: 'rgba(255,250,242,0.74)',
@@ -436,6 +443,7 @@ const styles = StyleSheet.create({
     left: 18,
     right: 76,
   },
+  metaPanelNarrow: { left: 12, right: 64 },
   creatorRow: { flexDirection: 'row', alignItems: 'center' },
   creator: { color: '#FFFAF2', fontSize: 14, fontWeight: '900' },
   caption: { marginTop: 7, color: 'rgba(255,250,242,0.92)', fontSize: 14, lineHeight: 19, fontWeight: '800' },

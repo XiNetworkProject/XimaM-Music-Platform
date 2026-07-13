@@ -13,6 +13,7 @@ import { colors } from '@/theme/tokens';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { BreathingView, MotionPressable, Reveal } from '@/components/motion/Motion';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 // Suggestion discrete basee sur l'intention creative choisie a l'onboarding
 // (Personnaliser mes gouts). N'importe jamais les autres options du Hub.
@@ -42,6 +43,7 @@ export function CreateHubScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const auth = useAuth();
   const [suggestion, setSuggestion] = useState<IntentionSuggestion | null>(null);
   const challengeId: string = route.params?.challengeId || '';
@@ -84,7 +86,11 @@ export function CreateHubScreen() {
     <SynauraBackground variant="warm">
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingTop: 0, paddingBottom: insets.bottom + 112 }]}
+        contentContainerStyle={[
+          styles.content,
+          responsive.pageContent,
+          { paddingTop: 0, paddingBottom: Math.max(insets.bottom + 112, responsive.bottomDockClearance + 24) },
+        ]}
       >
         <AppHeader flush eyebrow="Ton espace créatif" title="Créer" subtitle="Commence par une idée, un fichier ou un morceau Synaura." onBack={() => navigation.goBack()} />
 

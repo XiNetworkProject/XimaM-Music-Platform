@@ -19,6 +19,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 type Period = 'month' | 'year';
 
@@ -41,6 +42,7 @@ function limit(value: number) {
 export function SubscriptionsScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const auth = useAuth();
   const player = usePlayer();
   const [period, setPeriod] = useState<Period>('year');
@@ -169,7 +171,14 @@ export function SubscriptionsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.violet} />}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + (player.current ? 205 : 125) }]}
+        contentContainerStyle={[
+          styles.content,
+          responsive.pageContent,
+          {
+            paddingTop: insets.top + 10,
+            paddingBottom: Math.max(insets.bottom + (player.current ? 205 : 125), player.current ? responsive.miniPlayerClearance : responsive.bottomDockClearance),
+          },
+        ]}
       >
         <View style={styles.top}>
           <Pressable onPress={() => navigation.goBack()} style={styles.iconButton}><Ionicons name="chevron-back" size={22} color={colors.text} /></Pressable>

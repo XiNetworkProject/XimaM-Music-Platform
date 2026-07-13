@@ -30,6 +30,7 @@ import { validateSocialUrl, type SocialPlatform } from '@/utils/validateSocialUr
 import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 type Tab = 'overview' | 'profil' | 'compte' | 'preferences' | 'notifications' | 'events' | 'parrainage' | 'abonnement' | 'updates' | 'securite' | 'legal';
 type EventPrefs = {
@@ -87,6 +88,7 @@ export function SettingsScreen() {
   const nativePush = useNativeNotifications();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const [tab, setTab] = useState<Tab>('overview');
   const [profile, setProfile] = useState<MobileProfile | null>(null);
   const [notif, setNotif] = useState<NotificationPrefs | null>(null);
@@ -253,7 +255,11 @@ export function SettingsScreen() {
 
   return (
     <SynauraBackground variant="warm">
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: 0 }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[styles.content, responsive.pageContent, { paddingTop: 0, paddingBottom: responsive.bottomDockClearance + 30 }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <AppHeader
           flush
           title={activeCategory?.label || 'Paramètres'}
@@ -542,12 +548,13 @@ function Section({ title, text, children }: { title: string; text: string; child
 
 function LegalReader({ document, onClose }: { document: LegalDocument; onClose: () => void }) {
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const webPath = document.id === 'fermeture' ? '/fermeture' : `/legal/${document.id}`;
   let number = 0;
 
   return (
     <SynauraBackground variant="warm">
-      <ScrollView contentContainerStyle={[styles.legalReader, { paddingTop: insets.top + 10 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.legalReader, responsive.pageContent, { paddingTop: insets.top + 10 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Pressable onPress={onClose} style={styles.back}><Ionicons name="chevron-back" size={20} color="#171313" /></Pressable>
           <View style={{ flex: 1 }}>

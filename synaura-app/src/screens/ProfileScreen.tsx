@@ -26,6 +26,7 @@ import { TrackEditBottomSheet, type TrackEditForm } from '@/components/profile/T
 import { usePlayer } from '@/player/PlayerProvider';
 import { useLibrary } from '@/library/LibraryProvider';
 import { colors } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { MobileBadge } from '@/components/mobile/MobileBadge';
 import { MobileSocialLinks } from '@/components/mobile/MobileSocialLinks';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -54,6 +55,7 @@ export function ProfileScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
+  const responsive = useResponsiveLayout();
   const player = usePlayer();
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<MobileProfile | null>(null);
@@ -260,7 +262,7 @@ export function ProfileScreen() {
   if (!auth.user) {
     return (
       <SynauraBackground variant="warm">
-        <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 28 }]}>
+        <ScrollView contentContainerStyle={[styles.content, responsive.pageContent, { paddingTop: insets.top + 28, paddingBottom: responsive.bottomDockClearance + 24 }]}>
           <View style={styles.loginHero}>
             <View style={styles.loginIcon}><Ionicons name="person-circle" size={38} color="#FFFAF2" /></View>
             <Text style={styles.loginTitle}>Ton espace Synaura</Text>
@@ -287,7 +289,7 @@ export function ProfileScreen() {
   return (
     <SynauraBackground variant="warm">
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: 0 }]}
+        contentContainerStyle={[styles.content, responsive.pageContent, { paddingTop: 0, paddingBottom: responsive.miniPlayerClearance }]}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadProfile} />}
         showsVerticalScrollIndicator={false}
       >

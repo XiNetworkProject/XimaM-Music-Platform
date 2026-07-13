@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { colors } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 export function AuthScreen({
   children,
@@ -26,6 +27,7 @@ export function AuthScreen({
   keyboardOffset?: number;
 }) {
   const insets = useSafeAreaInsets();
+  const layout = useResponsiveLayout();
   return (
     <SynauraBackground variant="warm">
       <KeyboardAvoidingView
@@ -36,6 +38,7 @@ export function AuthScreen({
         <ScrollView
           contentContainerStyle={[
             styles.screenContent,
+            layout.pageContent,
             { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 28 },
           ]}
           keyboardShouldPersistTaps="handled"
@@ -55,6 +58,7 @@ export function AuthTopBar({
   caption: string;
   onBack: () => void;
 }) {
+  const layout = useResponsiveLayout();
   return (
     <View style={styles.topBar}>
       <View style={styles.brand}>
@@ -66,16 +70,17 @@ export function AuthTopBar({
           <Text style={styles.brandCaption}>{caption}</Text>
         </View>
       </View>
-      <Pressable accessibilityLabel="Retour" onPress={onBack} style={styles.backButton}>
+      <Pressable accessibilityLabel="Retour" onPress={onBack} style={[styles.backButton, layout.isNarrow && styles.backButtonNarrow]}>
         <Ionicons name="arrow-back" size={17} color="rgba(23,19,19,0.58)" />
-        <Text style={styles.backText}>Accueil</Text>
+        {!layout.isNarrow ? <Text style={styles.backText}>Accueil</Text> : null}
       </Pressable>
     </View>
   );
 }
 
 export function AuthCard({ children }: { children: React.ReactNode }) {
-  return <Reveal distance={8} scaleFrom={0.99} style={styles.card}>{children}</Reveal>;
+  const layout = useResponsiveLayout();
+  return <Reveal distance={8} scaleFrom={0.99} style={[styles.card, layout.isNarrow && styles.cardNarrow]}>{children}</Reveal>;
 }
 
 export function AuthTitle({
@@ -87,11 +92,12 @@ export function AuthTitle({
   title: string;
   text: string;
 }) {
+  const layout = useResponsiveLayout();
   return (
     <View style={styles.titleBlock}>
       <Text style={styles.eyebrow}>{eyebrow}</Text>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>{text}</Text>
+      <Text maxFontSizeMultiplier={1.2} style={[styles.title, layout.isNarrow && styles.titleNarrow]}>{title}</Text>
+      <Text maxFontSizeMultiplier={1.25} style={styles.subtitle}>{text}</Text>
     </View>
   );
 }
@@ -222,7 +228,7 @@ export const authStyles = StyleSheet.create({
   actionGhostText: { color: 'rgba(23,19,19,0.56)', fontSize: 13, fontWeight: '900' },
   link: { color: '#7C5CFF', fontSize: 12, fontWeight: '900' },
   mutedLink: { color: 'rgba(23,19,19,0.46)', fontSize: 12, fontWeight: '900' },
-  linkRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  linkRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   switchText: { color: 'rgba(23,19,19,0.48)', fontSize: 13, fontWeight: '700', textAlign: 'center' },
   legalText: { color: 'rgba(23,19,19,0.38)', fontSize: 11, lineHeight: 17, fontWeight: '600', textAlign: 'center' },
   legalLink: { color: 'rgba(23,19,19,0.65)', fontWeight: '900' },
@@ -231,7 +237,7 @@ export const authStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  screenContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 13 },
+  screenContent: { flexGrow: 1, justifyContent: 'center' },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0, flexShrink: 1 },
   logoWrap: {
@@ -253,6 +259,7 @@ const styles = StyleSheet.create({
   brandName: { color: '#171313', fontSize: 20, lineHeight: 22, fontWeight: '900' },
   brandCaption: { marginTop: 2, color: 'rgba(23,19,19,0.40)', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   backButton: { height: 38, paddingHorizontal: 11, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(23,19,19,0.05)' },
+  backButtonNarrow: { width: 38, paddingHorizontal: 0, justifyContent: 'center' },
   backText: { color: 'rgba(23,19,19,0.52)', fontSize: 11, fontWeight: '900' },
   card: {
     overflow: 'hidden',
@@ -267,9 +274,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 9 },
     elevation: 5,
   },
+  cardNarrow: { padding: 14 },
   titleBlock: { marginBottom: 20 },
   eyebrow: { color: colors.coral, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   title: { marginTop: 7, color: '#171313', fontSize: 32, lineHeight: 36, fontWeight: '900' },
+  titleNarrow: { fontSize: 27, lineHeight: 32 },
   subtitle: { marginTop: 8, color: 'rgba(23,19,19,0.52)', fontSize: 13, lineHeight: 20, fontWeight: '700' },
   field: { gap: 7 },
   fieldLabel: { color: 'rgba(23,19,19,0.50)', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },

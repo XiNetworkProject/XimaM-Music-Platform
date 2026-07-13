@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MotionPressable } from '@/components/motion/Motion';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 export function BottomSheet({
   visible,
@@ -24,6 +25,7 @@ export function BottomSheet({
   maxHeight?: `${number}%` | number;
 }) {
   const insets = useSafeAreaInsets();
+  const layout = useResponsiveLayout();
   const { settings } = useMobileSettings();
   const progress = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
@@ -58,7 +60,21 @@ export function BottomSheet({
       <KeyboardAvoidingView behavior={keyboard && Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
         <Animated.View style={[StyleSheet.absoluteFill, styles.dim, { opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [0, 0.46] }) }]} />
         <Pressable accessibilityLabel="Fermer" onPress={onClose} style={StyleSheet.absoluteFill} />
-        <Animated.View style={[styles.sheet, { maxHeight, paddingBottom: Math.max(insets.bottom, spacing.md), transform: [{ translateY: Animated.add(hiddenTranslate, dragY) }] }]}>
+        <Animated.View
+          style={[
+            styles.sheet,
+            layout.isTablet && styles.sheetWide,
+            {
+              maxHeight,
+              width: Math.min(layout.safeWidth, 640),
+              paddingBottom: Math.max(insets.bottom, spacing.md),
+              transform: [
+                { translateX: (insets.left - insets.right) / 2 },
+                { translateY: Animated.add(hiddenTranslate, dragY) },
+              ],
+            },
+          ]}
+        >
           <View {...panResponder.panHandlers} style={styles.handleZone}><View style={styles.handle} /></View>
           {title ? (
             <View style={styles.header}>
@@ -82,6 +98,7 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: 'flex-end' },
   dim: { backgroundColor: colors.black },
   sheet: {
+    alignSelf: 'center',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderTopWidth: 1,
@@ -89,6 +106,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundAlt,
     ...shadows.floating,
   },
+  sheetWide: { borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   handleZone: { height: 24, alignItems: 'center', justifyContent: 'center' },
   handle: { width: 38, height: 4, borderRadius: radius.pill, backgroundColor: colors.borderStrong },
   header: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
