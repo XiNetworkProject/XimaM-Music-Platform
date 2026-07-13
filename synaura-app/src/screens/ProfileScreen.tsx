@@ -11,7 +11,6 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { deleteTrack, getMusicClips, getMyProfile, getNotifications, getPendingApprovals, getSubscriptionUsage, getUserPosts, getUserVariations, pinPost, unpinPost, updateTrackMetadata, type MobileProfile, type MobileProfileTrack, type SubscriptionUsage } from '@/api/client';
@@ -28,11 +27,12 @@ import { useLibrary } from '@/library/LibraryProvider';
 import { colors } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { MobileBadge } from '@/components/mobile/MobileBadge';
-import { MobileSocialLinks } from '@/components/mobile/MobileSocialLinks';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard';
-import { MotionPressable, Reveal } from '@/components/motion/Motion';
+import { MotionPressable } from '@/components/motion/Motion';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { ProfileIdentityHero, ProfileIdentityHeroSkeleton } from '@/components/profile/ProfileIdentityHero';
+import { ProfileMusicCatalog } from '@/components/profile/ProfileMusicCatalog';
 
 type ProfileTab = 'sons' | 'clips' | 'variations' | 'playlists' | 'posts';
 
@@ -77,8 +77,6 @@ export function ProfileScreen() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const library = useLibrary();
 
-  const topTracks = useMemo(() => [...(profile?.tracks || [])].sort((a, b) => (b.plays || 0) - (a.plays || 0)).slice(0, 4), [profile?.tracks]);
-  const recentTracks = useMemo(() => (profile?.tracks || []).slice(0, 6), [profile?.tracks]);
   const draftTracks = useMemo(() => (profile?.tracks || []).filter((t) => t.isPublic === false), [profile?.tracks]);
   // Mise en avant musicale : morceau epingle si deja marque comme tel, sinon le
   // plus ecoute, sinon le plus recent. Aucune nouvelle logique de pinning.
@@ -188,7 +186,7 @@ export function ProfileScreen() {
     if (!profile) return;
     await Share.share({
       title: `${profile.name} sur Synaura`,
-      message: `Découvre ${profile.name} sur Synaura: https://xima-m-music-platform.vercel.app/profile/${profile.username}`,
+      message: `Découvre ${profile.name} sur Synaura : https://xima-m-music-platform.vercel.app/profile/${profile.username}`,
     });
   };
 
@@ -245,6 +243,14 @@ export function ProfileScreen() {
     ]);
   };
 
+  const openTrackMenu = (track: MobileProfileTrack) => {
+    Alert.alert(track.title, 'Gérer ce morceau', [
+      { text: 'Modifier', onPress: () => openTrackEdit(track) },
+      { text: 'Supprimer', style: 'destructive', onPress: () => confirmDeleteTrack(track) },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
+  };
+
   const togglePinnedPost = async (postId: string) => {
     const isPinned = profile?.pinnedPostId === postId;
     setProfile((current) => current ? { ...current, pinnedPostId: isPinned ? null : postId } : current);
@@ -294,45 +300,40 @@ export function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <AppHeader flush title="Profil" subtitle="Ton univers sur Synaura" action={{ icon: 'settings-outline', label: 'Paramètres', onPress: () => navigation.navigate('Settings') }} />
-        <Reveal distance={8} scaleFrom={0.99} style={styles.hero}>
-          <View style={styles.banner}>
-            {profile?.banner ? <Image source={{ uri: profile.banner }} style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#FFB4A8', '#BCA7FF', '#8DE7EE']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bannerFallback}><Ionicons name="musical-notes" size={34} color="rgba(255,249,239,0.72)" /></LinearGradient>}
-          </View>
-          <View style={styles.heroBody}>
-            <View style={styles.avatarWrap}>
-              {profile?.avatar ? <Image source={{ uri: profile.avatar }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{(profile?.name || auth.user.name || 'S').slice(0, 1).toUpperCase()}</Text>}
-            </View>
-            <View style={styles.nameRow}>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text numberOfLines={1} style={styles.name}>{profile?.name || auth.user.name || auth.user.username}</Text>
-                <Text style={styles.handle}>@{profile?.username || auth.user.username}</Text>
-              </View>
-              {profile?.isVerified ? <Ionicons name="checkmark-circle" size={24} color="#7C5CFF" /> : null}
-            </View>
-            <Text numberOfLines={3} style={styles.bio}>{profile?.bio || 'Ajoute une bio, une bannière et tes genres pour donner une vraie identité à ton profil.'}</Text>
-            <View style={styles.heroPills}>
-              {profile?.isArtist ? <Pill label="Artiste" /> : <Pill label="Membre" />}
-              {profile?.genre?.slice(0, 2).map((genre) => <Pill key={genre} label={genre} />)}
-              {profile?.location ? <Pill label={profile.location} /> : null}
-              {profile?.badges.slice(0, 3).map((badge) => <Text key={badge} style={styles.badge}>{badge}</Text>)}
-            </View>
-            {profile ? <View style={styles.socialRow}><MobileSocialLinks links={profile.socialLinks} /></View> : null}
-            <View style={styles.actions}>
-              <MotionPressable onPress={() => navigation.navigate('Settings')} style={styles.actionPrimary} scaleTo={0.97}><Ionicons name="create-outline" size={15} color="#FFFFFF" /><Text style={styles.actionPrimaryText}>Modifier</Text></MotionPressable>
-              <MotionPressable accessibilityLabel="Partager le profil" onPress={shareProfile} style={styles.actionGhost} scaleTo={0.9}><Ionicons name="share-outline" size={17} color="#171313" /></MotionPressable>
-              <MotionPressable accessibilityLabel="Créer" onPress={() => navigation.navigate('CreateHub')} style={styles.actionGhost} scaleTo={0.9}><Ionicons name="add" size={18} color="#171313" /></MotionPressable>
-            </View>
-          </View>
-        </Reveal>
+        {profile ? (
+          <ProfileIdentityHero
+            profile={profile}
+            spotlightTrack={spotlightTrack}
+            own
+            primaryAction={{ label: 'Modifier le profil', icon: 'create-outline', onPress: () => navigation.navigate('Settings') }}
+            secondaryAction={{ label: 'Créer', icon: 'add', onPress: () => navigation.navigate('CreateHub') }}
+            onShare={() => void shareProfile()}
+          />
+        ) : <ProfileIdentityHeroSkeleton />}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Reveal delay={45} distance={6} style={styles.statsGrid}>
-          <Stat label="Followers" value={compact(profile?.followerCount || 0)} />
-          <Stat label="Following" value={compact(profile?.followingCount || 0)} />
-          <Stat label="Sons" value={compact(profile?.tracksCount || 0)} />
-          <Stat label="Plays" value={compact(profile?.totalPlays || 0)} />
-        </Reveal>
+        <SegmentedControl
+          value={profileTab}
+          compact
+          options={(Object.keys(PROFILE_TAB_LABELS) as ProfileTab[]).map((item) => ({ value: item, label: PROFILE_TAB_LABELS[item] }))}
+          onChange={setProfileTab}
+        />
+
+        {profileTab === 'sons' ? <>
+        <ProfileMusicCatalog
+          tracks={profile?.tracks || []}
+          currentTrackId={player.current?._id}
+          isPlaying={player.isPlaying}
+          defaultSort="recent"
+          emptyText="Publie ton premier morceau pour commencer ta discographie."
+          onPlay={(track) => {
+            if (player.current?._id === track._id) void player.togglePlayPause();
+            else void player.playTrack(track);
+          }}
+          onOpen={(track) => navigation.navigate('TrackDetail', { trackId: track._id, track })}
+          onManage={openTrackMenu}
+        />
 
         <CreatorLevelCard
           tracks={profile?.tracksCount || 0}
@@ -435,17 +436,6 @@ export function ProfileScreen() {
             <View style={styles.planLink}><Text style={styles.planLinkText}>Comparer et gérer les plans</Text><Ionicons name="arrow-forward" size={16} color="#7C5CFF" /></View>
           </Pressable>
         ) : null}
-
-        <SegmentedControl
-          value={profileTab}
-          compact
-          options={(Object.keys(PROFILE_TAB_LABELS) as ProfileTab[]).map((item) => ({ value: item, label: PROFILE_TAB_LABELS[item] }))}
-          onChange={setProfileTab}
-        />
-
-        {profileTab === 'sons' ? <>
-        <TrackSection title="Top tracks" tracks={topTracks} onPlay={(track) => player.playTrack(track)} onEdit={openTrackEdit} onDelete={confirmDeleteTrack} />
-        <TrackSection title="Derniers sons" tracks={recentTracks} onPlay={(track) => player.playTrack(track)} onEdit={openTrackEdit} onDelete={confirmDeleteTrack} />
         </> : null}
 
         {profileTab === 'clips' ? (
@@ -546,24 +536,11 @@ export function ProfileScreen() {
   );
 }
 
-function Pill({ label }: { label: string }) {
-  return <Text style={styles.pill}>{label}</Text>;
-}
-
 function GuestHighlight({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
   return (
     <View style={styles.guestHighlight}>
       <Ionicons name={icon} size={17} color="#7C5CFF" />
       <Text style={styles.guestHighlightText}>{text}</Text>
-    </View>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
@@ -600,26 +577,6 @@ function UsageRow({ label, used, limit, percentage }: { label: string; used: num
   );
 }
 
-function TrackSection({ title, tracks, onPlay, onEdit, onDelete }: { title: string; tracks: MobileProfileTrack[]; onPlay: (track: MobileProfileTrack) => void; onEdit: (track: MobileProfileTrack) => void; onDelete: (track: MobileProfileTrack) => void }) {
-  return (
-    <View style={styles.card}>
-      <SectionTitle title={title} action={tracks.length ? `${tracks.length}` : undefined} />
-      {tracks.length ? tracks.map((track) => (
-        <Pressable key={track._id} onPress={() => onPlay(track)} style={styles.trackRow}>
-          <TrackCover track={track} style={styles.trackCover} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text numberOfLines={1} style={styles.trackTitle}>{track.title}</Text>
-            <Text style={styles.trackMeta}>{compact(track.plays || 0)} plays · {compact(track.likesCount || 0)} likes</Text>
-          </View>
-          <Ionicons name="play" size={16} color="#171313" />
-          <Pressable onPress={() => onEdit(track)} style={styles.miniIcon}><Ionicons name="create-outline" size={15} color="#171313" /></Pressable>
-          <Pressable onPress={() => onDelete(track)} style={styles.miniIcon}><Ionicons name="trash-outline" size={15} color="#B91C1C" /></Pressable>
-        </Pressable>
-      )) : <Empty text="Aucun son à afficher." />}
-    </View>
-  );
-}
-
 function Empty({ text }: { text: string }) {
   return <Text style={styles.empty}>{text}</Text>;
 }
@@ -630,7 +587,6 @@ const styles = StyleSheet.create({
   loginIcon: { width: 74, height: 74, borderRadius: 16, backgroundColor: '#171313', alignItems: 'center', justifyContent: 'center' },
   loginTitle: { marginTop: 16, color: '#171313', fontSize: 28, fontWeight: '900' },
   loginText: { marginTop: 8, color: 'rgba(23,19,19,0.56)', textAlign: 'center', fontSize: 13, lineHeight: 20, fontWeight: '700' },
-  inputMulti: { minHeight: 92, paddingTop: 12, paddingBottom: 12 },
   guestHighlights: { alignSelf: 'stretch', marginTop: 18, gap: 8 },
   guestHighlight: { minHeight: 44, borderRadius: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: 'rgba(23,19,19,0.045)' },
   guestHighlightText: { flex: 1, color: 'rgba(23,19,19,0.58)', fontSize: 12, fontWeight: '800' },
@@ -639,36 +595,13 @@ const styles = StyleSheet.create({
   primaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   registerButton: { height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: '#FFFFFF' },
   registerText: { color: '#7C5CFF', fontSize: 13, fontWeight: '900' },
-  hero: { overflow: 'hidden', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.86)', borderWidth: 1, borderColor: colors.border },
-  banner: { height: 138, backgroundColor: colors.black },
-  bannerFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  heroBody: { padding: 13, marginTop: -43 },
-  avatarWrap: { width: 88, height: 88, borderRadius: 18, borderWidth: 3, borderColor: colors.surface, backgroundColor: '#E8DCCA', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  avatarImage: { width: '100%', height: '100%' },
-  avatarText: { color: '#171313', fontSize: 34, fontWeight: '900' },
-  nameRow: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: { color: colors.text, fontSize: 22, fontWeight: '900' },
-  handle: { marginTop: 2, color: 'rgba(23,19,19,0.48)', fontSize: 12, fontWeight: '800' },
-  bio: { marginTop: 10, color: 'rgba(23,19,19,0.62)', fontSize: 13, lineHeight: 19, fontWeight: '700' },
-  heroPills: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  pill: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(23,19,19,0.07)', color: '#171313', fontSize: 10, fontWeight: '900' },
-  badge: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(124,92,255,0.13)', color: '#5B3FD6', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
-  socialRow: { marginTop: 11, flexDirection: 'row', gap: 7 },
   badgesPanel: { gap: 8, borderRadius: 14, padding: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  actions: { marginTop: 15, flexDirection: 'row', gap: 8 },
-  actionPrimary: { flex: 1, height: 42, borderRadius: 8, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
-  actionPrimaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
-  actionGhost: { width: 42, height: 42, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEECE8' },
-  statsGrid: { flexDirection: 'row', gap: 2, paddingVertical: 3 },
   featured: { minHeight: 76, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 9, backgroundColor: colors.black },
   featuredCover: { width: 60, height: 60, borderRadius: 8 },
-  featuredKicker: { color: '#C7B8FF', fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
+  featuredKicker: { color: '#C7B8FF', fontSize: 9, fontWeight: '900' },
   featuredTitle: { marginTop: 4, color: '#FFFAF2', fontSize: 15, fontWeight: '900' },
   featuredMeta: { marginTop: 3, color: 'rgba(255,250,242,0.42)', fontSize: 10, fontWeight: '800' },
   featuredPlay: { width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.12)' },
-  stat: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRightWidth: 1, borderColor: colors.border },
-  statValue: { color: colors.text, fontSize: 18, fontWeight: '900' },
-  statLabel: { marginTop: 3, color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
   quickGrid: { gap: 8, paddingRight: 18 },
   quickAction: { width: 150, minHeight: 104, borderRadius: 10, padding: 12, backgroundColor: 'rgba(255,255,255,0.78)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
   quickIcon: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(124,92,255,0.1)' },
@@ -678,7 +611,7 @@ const styles = StyleSheet.create({
   planLink: { minHeight: 38, borderRadius: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 11, backgroundColor: 'rgba(124,92,255,0.08)' },
   planLinkText: { color: '#7C5CFF', fontSize: 10, fontWeight: '900' },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: '#171313', fontSize: 17, fontWeight: '900', letterSpacing: -0.2 },
+  sectionTitle: { color: '#171313', fontSize: 17, fontWeight: '900' },
   sectionAction: { color: 'rgba(23,19,19,0.42)', fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   usageRow: { gap: 6 },
   usageTop: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -690,22 +623,15 @@ const styles = StyleSheet.create({
   trackCover: { width: 50, height: 50, borderRadius: 15 },
   trackTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
   trackMeta: { marginTop: 3, color: 'rgba(23,19,19,0.45)', fontSize: 10, fontWeight: '800' },
-  variationStatus: { marginTop: 2, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
+  variationStatus: { marginTop: 2, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   miniIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.055)' },
-  visibilityToggle: { height: 46, borderRadius: 23, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(23,19,19,0.055)' },
-  visibilityText: { color: '#171313', fontSize: 13, fontWeight: '900' },
-  editActions: { flexDirection: 'row', gap: 8 },
-  secondaryEdit: { flex: 1, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.07)' },
-  secondaryEditText: { color: '#171313', fontSize: 13, fontWeight: '900' },
-  saveEdit: { flex: 1, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
-  saveEditText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   playlistRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, backgroundColor: 'rgba(23,19,19,0.045)', padding: 9 },
   playlistCover: { width: 48, height: 48, borderRadius: 14, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.07)' },
   playlistTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
   playlistMeta: { marginTop: 3, color: 'rgba(23,19,19,0.45)', fontSize: 10, fontWeight: '800' },
   postRow: { minHeight: 68, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 11, backgroundColor: 'rgba(23,19,19,0.045)' },
   postText: { color: '#171313', fontSize: 12, lineHeight: 17, fontWeight: '800' },
-  postPinned: { marginBottom: 4, color: '#7C5CFF', fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
+  postPinned: { marginBottom: 4, color: '#7C5CFF', fontSize: 8, fontWeight: '900' },
   postMeta: { marginTop: 5, color: 'rgba(23,19,19,0.42)', fontSize: 9, fontWeight: '800' },
   emptyAction: { minHeight: 50, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: 'rgba(124,92,255,0.08)' },
   emptyActionText: { color: '#5B3FD6', fontSize: 11, fontWeight: '900' },
@@ -717,7 +643,7 @@ const styles = StyleSheet.create({
   identityPillCoral: { backgroundColor: 'rgba(255,111,97,0.10)', borderColor: 'rgba(255,111,97,0.25)' },
   identityPillText: { fontSize: 10, fontWeight: '900' },
   resumeCard: { minHeight: 66, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 9, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  resumeKicker: { color: '#7357C6', fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
+  resumeKicker: { color: '#7357C6', fontSize: 9, fontWeight: '900' },
   resumeTitle: { marginTop: 3, color: '#171313', fontSize: 13, fontWeight: '900' },
   clipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   clipTile: { width: '31%', aspectRatio: 9 / 16, borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.08)' },

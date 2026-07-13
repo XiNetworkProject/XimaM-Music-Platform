@@ -1,12 +1,13 @@
 {
-  "title": "Synaura mobile 0.12.0",
+  "title": "Synaura mobile 0.13.0",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Toute l'app s'adapte maintenant aux petits et grands telephones, tablettes et ecrans pliables",
-    "Les pages courtes restent utilisables en paysage et avec une grande taille de texte",
-    "Navigation, mini-lecteur et lecteur plein ecran respectent les encoches et zones systeme",
-    "Formulaires, Studio et modales restent accessibles quand le clavier est ouvert",
-    "Grilles et contenus gagnent en confort sur les ecrans larges sans etirer l'interface"
+    "Studio repense avec une creation plus claire, des sections progressives et des selecteurs adaptes au mobile",
+    "Profils prives et publics modernises autour de l'identite musicale de chaque membre",
+    "Discographie complete avec toutes les musiques, tri, lecture directe et gestion des brouillons",
+    "Discover enrichi avec nouveautes, Radar, pepites peu ecoutees, collections et artistes",
+    "Cartes d'ambiance illustrees uniquement par les vraies pochettes disponibles sur Synaura",
+    "Chargement Discover allege et affichage optimise sur petits telephones, tablettes et ecrans larges"
   ]
 }

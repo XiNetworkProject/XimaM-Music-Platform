@@ -593,14 +593,14 @@ export async function getHomeData(): Promise<HomeData> {
   };
 }
 
-export async function getDiscoverPage(input: { page?: number; profilePage?: number; sort?: string; category?: string; limit?: number } = {}): Promise<DiscoverPage> {
+export async function getDiscoverPage(input: { page?: number; profilePage?: number; sort?: string; category?: string; limit?: number; profileLimit?: number } = {}): Promise<DiscoverPage> {
   const params = new URLSearchParams({
     page: String(input.page || 0),
     profilePage: String(input.profilePage ?? input.page ?? 0),
     sort: input.sort || 'trending',
     category: input.category || 'all',
     limit: String(input.limit || 24),
-    profileLimit: '12',
+    profileLimit: String(input.profileLimit || 12),
   });
   const payload = await request<any>(`/api/discover?${params.toString()}`);
   return {

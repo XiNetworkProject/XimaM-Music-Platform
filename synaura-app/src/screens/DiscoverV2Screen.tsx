@@ -1,18 +1,25 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  type GestureResponderEvent,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getDiscoverRadar, getEditorialCollections, getHomeData, getUserPreferences } from '@/api/client';
-import type { Creator, HomeData, Playlist, Track } from '@/api/types';
+import {
+  getDiscoverPage,
+  getDiscoverRadar,
+  getEditorialCollections,
+  getUserPreferences,
+} from '@/api/client';
+import type { Track } from '@/api/types';
 import { UniversalSearchModal } from '@/components/HomeOverlays';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { RadarMobileSection } from '@/components/radar/RadarMobileSection';
@@ -20,33 +27,64 @@ import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
 import { usePlayer } from '@/player/PlayerProvider';
 import { useAuth } from '@/auth/AuthProvider';
-import { DISCOVER_MOODS } from '@/discover/moods';
+import { DISCOVER_MOODS, matchesMoodKeywords, type MoodConfig } from '@/discover/moods';
 import { COMMUNITY_CLUBS } from '@/community/clubs';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { ScreenIntro } from '@/components/ui/ScreenIntro';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { colors, radius } from '@/theme/tokens';
+import { colors, radius, shadows } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
-// Intentions creatives (onboarding "Personnaliser mes gouts") qui mettent un Club
-// en avant. Ne masque jamais les autres Clubs, se contente de les prioriser.
 const INTENTION_TO_CLUB_SLUG: Record<string, string> = {
   remix: 'remix',
   collab: 'collab',
   create_ai: 'ai',
 };
 
-const emptyHome: HomeData = {
-  forYou: [],
-  trending: [],
-  recent: [],
-  boosted: [],
-  playlists: [],
-  creators: [],
-  posts: [],
+type EditorialCollection = {
+  id?: string;
+  playlistId: string;
+  slug?: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  bannerUrl?: string | null;
+  coverUrl?: string | null;
+  themeColors?: string[];
+  badge?: string;
+  trackCount?: number;
+  isFeatured?: boolean;
 };
 
-type ArtistPairing = { creator: Creator; track: Track };
+type ArtistPairing = {
+  id: string;
+  username: string;
+  name: string;
+  avatar?: string | null;
+  track: Track;
+};
+
+function uniqueTracks(tracks: Track[]) {
+  const byId = new Map<string, Track>();
+  tracks.forEach((track) => {
+    if (track?._id && track.audioUrl && !byId.has(track._id)) byId.set(track._id, track);
+  });
+  return Array.from(byId.values());
+}
+
+function artistName(track: Track) {
+  return track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste Synaura';
+}
+
+function trackImage(track: Track) {
+  return track.coverUrl || track.coverVideoPosterUrl || track.musicVideoPosterUrl || null;
+}
+
+function compact(value: number) {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return String(value || 0);
+}
 
 export function DiscoverV2Screen() {
   const navigation = useNavigation<any>();
@@ -54,10 +92,17 @@ export function DiscoverV2Screen() {
   const responsive = useResponsiveLayout();
   const player = usePlayer();
   const auth = useAuth();
-  const [home, setHome] = useState<HomeData>(emptyHome);
+  const requestId = useRef(0);
+  const [newestTracks, setNewestTracks] = useState<Track[]>([]);
+  const [popularTracks, setPopularTracks] = useState<Track[]>([]);
+  const [hiddenTracks, setHiddenTracks] = useState<Track[]>([]);
   const [radar, setRadar] = useState<Track[]>([]);
-  const [collections, setCollections] = useState<any[]>([]);
+  const [collections, setCollections] = useState<EditorialCollection[]>([]);
+  const [totalTracks, setTotalTracks] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [radarLoading, setRadarLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [favoriteMoodIds, setFavoriteMoodIds] = useState<string[]>([]);
   const [highlightedClubSlugs, setHighlightedClubSlugs] = useState<string[]>([]);
@@ -81,77 +126,165 @@ export function DiscoverV2Screen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Priorite visuelle aux ambiances/Clubs choisis a l'onboarding, sans jamais
-  // masquer les autres options : simple reordonnancement stable.
   const orderedMoods = useMemo(() => {
     if (!favoriteMoodIds.length) return DISCOVER_MOODS;
-    return [...DISCOVER_MOODS].sort((a, b) => {
-      const aFav = favoriteMoodIds.includes(a.id) ? 0 : 1;
-      const bFav = favoriteMoodIds.includes(b.id) ? 0 : 1;
-      return aFav - bFav;
-    });
+    return [...DISCOVER_MOODS].sort((a, b) => Number(!favoriteMoodIds.includes(a.id)) - Number(!favoriteMoodIds.includes(b.id)));
   }, [favoriteMoodIds]);
 
   const orderedClubs = useMemo(() => {
     if (!highlightedClubSlugs.length) return COMMUNITY_CLUBS;
-    return [...COMMUNITY_CLUBS].sort((a, b) => {
-      const aFav = highlightedClubSlugs.includes(a.slug) ? 0 : 1;
-      const bFav = highlightedClubSlugs.includes(b.slug) ? 0 : 1;
-      return aFav - bFav;
-    });
+    return [...COMMUNITY_CLUBS].sort((a, b) => Number(!highlightedClubSlugs.includes(a.slug)) - Number(!highlightedClubSlugs.includes(b.slug)));
   }, [highlightedClubSlugs]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    // Chaque section apparait des qu'elle est prete; le Radar ne reste plus
-    // bloque par la requete home ou les collections editoriales.
-    void getHomeData().then(setHome).catch(() => {});
-    void getEditorialCollections().then(setCollections).catch(() => {});
-    try {
-      setRadar(await getDiscoverRadar(16));
-    } finally {
+  const load = useCallback(async (showInitialLoader = true) => {
+    const currentRequest = ++requestId.current;
+    if (showInitialLoader) setLoading(true);
+    else setRefreshing(true);
+    setRadarLoading(true);
+    setLoadError(false);
+
+    let contentRevealed = false;
+    const revealContent = () => {
+      if (contentRevealed || currentRequest !== requestId.current) return;
+      contentRevealed = true;
       setLoading(false);
-    }
+    };
+
+    const newestRequest = getDiscoverPage({ sort: 'newest', limit: 48, profileLimit: 4 })
+      .then((page) => {
+        if (currentRequest !== requestId.current) return;
+        setNewestTracks(page.tracks);
+        setTotalTracks(page.total);
+        revealContent();
+      });
+    const popularRequest = getDiscoverPage({ sort: 'popular', limit: 36, profileLimit: 4 })
+      .then((page) => {
+        if (currentRequest !== requestId.current) return;
+        setPopularTracks(page.tracks);
+        revealContent();
+      });
+    const hiddenRequest = getDiscoverPage({ sort: 'hidden', limit: 36, profileLimit: 4 })
+      .then((page) => {
+        if (currentRequest !== requestId.current) return;
+        setHiddenTracks(page.tracks);
+        revealContent();
+      });
+    const radarRequest = getDiscoverRadar(16)
+      .then((tracks) => {
+        if (currentRequest === requestId.current) setRadar(tracks);
+      })
+      .finally(() => {
+        if (currentRequest === requestId.current) setRadarLoading(false);
+      });
+    const collectionsRequest = getEditorialCollections().then((items) => {
+      if (currentRequest === requestId.current) setCollections(items as EditorialCollection[]);
+    });
+
+    const results = await Promise.allSettled([
+      newestRequest,
+      popularRequest,
+      hiddenRequest,
+      radarRequest,
+      collectionsRequest,
+    ]);
+    if (currentRequest !== requestId.current) return;
+    setLoading(false);
+    setRefreshing(false);
+    setLoadError(results.slice(0, 3).every((result) => result.status === 'rejected'));
   }, []);
 
   useEffect(() => {
-    void load();
+    void load(true);
+    return () => {
+      requestId.current += 1;
+    };
   }, [load]);
 
-  const trackPool = useMemo(() => {
-    const map = new Map<string, Track>();
-    [...home.trending, ...home.recent, ...home.forYou].forEach((track) => {
-      if (track?._id && track.audioUrl && !map.has(track._id)) map.set(track._id, track);
-    });
-    return Array.from(map.values());
-  }, [home.forYou, home.recent, home.trending]);
-
-  const artistPairings = useMemo<ArtistPairing[]>(() => {
-    const pairings: ArtistPairing[] = [];
-    for (const creator of home.creators) {
-      const track = trackPool.find((item) => item.artist?._id === creator.id);
-      if (track) pairings.push({ creator, track });
-      if (pairings.length >= 10) break;
-    }
-    return pairings;
-  }, [home.creators, trackPool]);
-
-  const featuredCollection = useMemo(
-    () => home.playlists.find((playlist) => playlist.isEditorial || playlist.collection || playlist.bannerUrl) || null,
-    [home.playlists],
+  const trackPool = useMemo(
+    () => uniqueTracks([...newestTracks, ...hiddenTracks, ...radar, ...popularTracks]),
+    [hiddenTracks, newestTracks, popularTracks, radar],
   );
 
+  const leadTrack = newestTracks[0] || radar[0] || popularTracks[0] || hiddenTracks[0] || null;
+  const leadLabel = leadTrack && newestTracks.some((track) => track._id === leadTrack._id)
+    ? 'Nouveau sur Synaura'
+    : leadTrack && radar.some((track) => track._id === leadTrack._id)
+      ? 'Signal Radar'
+      : 'À découvrir';
+
+  const moodCovers = useMemo(() => {
+    const result = new Map<string, string[]>();
+    orderedMoods.forEach((mood) => {
+      const covers = trackPool
+        .filter((track) => matchesMoodKeywords(track, mood))
+        .map(trackImage)
+        .filter((cover): cover is string => Boolean(cover))
+        .filter((cover, index, array) => array.indexOf(cover) === index)
+        .slice(0, 4);
+      result.set(mood.id, covers);
+    });
+    return result;
+  }, [orderedMoods, trackPool]);
+
+  const artistPairings = useMemo<ArtistPairing[]>(() => {
+    const artists = new Map<string, ArtistPairing>();
+    trackPool.forEach((track) => {
+      const username = String(track.artist?.username || '');
+      const id = String(track.artist?._id || track.artist?.id || username);
+      if (!id || !username || artists.has(id)) return;
+      artists.set(id, {
+        id,
+        username,
+        name: artistName(track),
+        avatar: track.artist?.avatar || null,
+        track,
+      });
+    });
+    return Array.from(artists.values()).slice(0, 14);
+  }, [trackPool]);
+
+  const featuredCollection = useMemo(
+    () => collections.find((collection) => collection.isFeatured !== false) || collections[0] || null,
+    [collections],
+  );
+  const collectionRail = useMemo(() => {
+    if (!featuredCollection) return collections;
+    return collections.filter((collection) => (collection.id || collection.playlistId) !== (featuredCollection.id || featuredCollection.playlistId));
+  }, [collections, featuredCollection]);
+
+  const newestRailTracks = useMemo(
+    () => newestTracks.length > 1 && leadTrack ? newestTracks.filter((track) => track._id !== leadTrack._id) : newestTracks,
+    [leadTrack, newestTracks],
+  );
+  const hiddenRailTracks = useMemo(() => {
+    const newestIds = new Set(newestTracks.map((track) => track._id));
+    const distinct = hiddenTracks.filter((track) => !newestIds.has(track._id));
+    return distinct.length >= 6 ? distinct : hiddenTracks;
+  }, [hiddenTracks, newestTracks]);
+  const popularRailTracks = useMemo(() => {
+    const seen = new Set([...newestTracks, ...hiddenRailTracks].map((track) => track._id));
+    const distinct = popularTracks.filter((track) => !seen.has(track._id));
+    return distinct.length >= 6 ? distinct : popularTracks;
+  }, [hiddenRailTracks, newestTracks, popularTracks]);
+
   const playFrom = useCallback(async (queue: Track[], track: Track) => {
-    const playable = queue.filter((item) => item.audioUrl);
+    if (player.current?._id === track._id) {
+      await player.togglePlayPause();
+      return;
+    }
+    const playable = uniqueTracks(queue);
     const index = Math.max(0, playable.findIndex((item) => item._id === track._id));
     await player.setQueueAndPlay(playable, index);
   }, [player]);
+
+  const openTrack = (track: Track) => navigation.navigate('TrackDetail', { trackId: track._id, track });
 
   return (
     <View style={styles.root}>
       <SynauraBackground variant="warm" />
       <ScrollView
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(false)} tintColor={colors.violet} colors={[colors.violet]} />}
         contentContainerStyle={[
           styles.content,
           responsive.pageContent,
@@ -161,7 +294,7 @@ export function DiscoverV2Screen() {
         <ScreenIntro
           eyebrow="Explorer"
           title="Découvrir"
-          description="Entre par une ambiance, un signal ou une communauté."
+          description="Des portes d'entrée visuelles vers toute la musique publiée sur Synaura."
           trailing={<MobileAccountButton compact />}
         />
 
@@ -171,85 +304,115 @@ export function DiscoverV2Screen() {
           <View style={styles.searchArrow}><Ionicons name="arrow-forward" size={15} color={colors.text} /></View>
         </MotionPressable>
 
-        <SectionHeader title="Explorer par ambiance" subtitle="Une porte d’entrée vers les sons qui correspondent à ton moment." />
-        <View style={styles.moodGrid}>
-          {orderedMoods.map((mood, index) => {
-            const highlighted = favoriteMoodIds.includes(mood.id);
-            return (
-              <Reveal key={mood.id} delay={Math.min(index * 45, 220)} distance={8} scaleFrom={0.985} style={styles.moodReveal}>
-                <MotionPressable
+        {leadTrack ? (
+          <DiscoverLeadCard
+            track={leadTrack}
+            label={leadLabel}
+            totalTracks={totalTracks}
+            playing={player.current?._id === leadTrack._id && player.isPlaying}
+            tablet={responsive.isTablet}
+            onPlay={() => void playFrom(newestTracks.length ? newestTracks : trackPool, leadTrack)}
+            onOpen={() => openTrack(leadTrack)}
+          />
+        ) : loading ? <DiscoverLeadSkeleton tablet={responsive.isTablet} /> : null}
+
+        <View>
+          <SectionHeader title="Explorer par ambiance" subtitle="Chaque carte est illustrée par des pochettes qui correspondent réellement à son univers." />
+          <View style={styles.moodGrid}>
+            {orderedMoods.map((mood, index) => (
+              <Reveal
+                key={mood.id}
+                delay={Math.min(index * 38, 190)}
+                distance={7}
+                scaleFrom={0.988}
+                style={{ width: responsive.isTablet ? '23.7%' : '48.4%' }}
+              >
+                <MoodImageCard
+                  mood={mood}
+                  covers={moodCovers.get(mood.id) || []}
+                  highlighted={favoriteMoodIds.includes(mood.id)}
                   onPress={() => navigation.navigate('DiscoverMood', { moodId: mood.id })}
-                  style={styles.moodPressable}
-                  scaleTo={0.975}
-                >
-                  <LinearGradient
-                    colors={mood.gradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={[styles.moodTile, highlighted && styles.moodTileHighlighted]}
-                  >
-                    {highlighted ? <View style={styles.moodBadge}><Text style={styles.moodBadgeText}>Pour toi</Text></View> : null}
-                    <View>
-                      <Text style={styles.moodLabel}>{mood.label}</Text>
-                      <Text numberOfLines={2} style={styles.moodPromise}>{mood.promise}</Text>
-                    </View>
-                    <View style={styles.moodEnter}>
-                      <Text style={styles.moodEnterText}>Entrer</Text>
-                      <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
-                    </View>
-                  </LinearGradient>
-                </MotionPressable>
+                />
               </Reveal>
-            );
-          })}
+            ))}
+          </View>
         </View>
 
-        <RadarMobileSection
-          tracks={radar}
+        <DiscoverTrackRail
+          title="Tout juste publiés"
+          subtitle="Les dernières sorties publiques, sans attendre qu'elles deviennent populaires."
+          tracks={newestRailTracks}
           loading={loading}
-          compact
-          onViewAll={() => navigation.navigate('Radar')}
+          tablet={responsive.isTablet}
+          currentTrackId={player.current?._id}
+          isPlaying={player.isPlaying}
+          onOpen={openTrack}
+          onPlay={(track) => void playFrom(newestRailTracks, track)}
+        />
+
+        <RadarMobileSection tracks={radar} loading={radarLoading} compact onViewAll={() => navigation.navigate('Radar')} />
+
+        <DiscoverTrackRail
+          title="Pépites à découvrir"
+          subtitle="Des morceaux publics encore peu écoutés, remontés hors des classements habituels."
+          tracks={hiddenRailTracks}
+          tablet={responsive.isTablet}
+          currentTrackId={player.current?._id}
+          isPlaying={player.isPlaying}
+          onOpen={openTrack}
+          onPlay={(track) => void playFrom(hiddenRailTracks, track)}
         />
 
         {featuredCollection ? (
-          <CollectionFeatureCard
-            playlist={featuredCollection}
-            onPress={() => navigation.navigate('PlaylistDetail', { playlistId: featuredCollection.slug || featuredCollection.id })}
-          />
+          <View>
+            <SectionHeader title="Sélection Synaura" subtitle="Une collection éditoriale pour prolonger l'écoute." />
+            <CollectionFeatureCard
+              collection={featuredCollection}
+              tablet={responsive.isTablet}
+              onPress={() => navigation.navigate('PlaylistDetail', { playlistId: featuredCollection.slug || featuredCollection.playlistId })}
+            />
+          </View>
         ) : null}
 
-        {home.playlists.length ? (
+        {collectionRail.length ? (
           <View>
-            <SectionHeader title="Collections éditoriales" subtitle="Des sélections construites autour d’une histoire musicale." />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.playlistRail}>
-              {home.playlists.map((playlist) => (
-                <MotionPressable key={playlist.id} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.slug || playlist.id })} style={styles.playlistTile} scaleTo={0.97}>
-                  <View style={styles.playlistCover}>
-                    {playlist.bannerUrl || playlist.covers?.[0] ? (
-                      <Image source={{ uri: playlist.bannerUrl || playlist.covers[0] }} style={StyleSheet.absoluteFillObject} />
-                    ) : (
-                      <Ionicons name="albums-outline" size={24} color={colors.textTertiary} />
-                    )}
-                  </View>
-                  <Text numberOfLines={1} style={styles.playlistTitle}>{playlist.title}</Text>
-                </MotionPressable>
+            <SectionHeader title="Collections éditoriales" subtitle="Des sélections publiées autour d'une histoire musicale." />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.collectionRail}>
+              {collectionRail.map((collection) => (
+                <CollectionTile
+                  key={collection.id || collection.playlistId}
+                  collection={collection}
+                  tablet={responsive.isTablet}
+                  onPress={() => navigation.navigate('PlaylistDetail', { playlistId: collection.slug || collection.playlistId })}
+                />
               ))}
             </ScrollView>
           </View>
         ) : null}
 
+        <DiscoverTrackRail
+          title="Plébiscités sur Synaura"
+          subtitle="Les morceaux qui cumulent le plus d'amour et d'écoutes sur la plateforme."
+          tracks={popularRailTracks}
+          tablet={responsive.isTablet}
+          currentTrackId={player.current?._id}
+          isPlaying={player.isPlaying}
+          onOpen={openTrack}
+          onPlay={(track) => void playFrom(popularRailTracks, track)}
+        />
+
         {artistPairings.length ? (
           <View>
-            <SectionHeader title="Artistes à découvrir" subtitle="Un premier morceau pour entrer dans leur univers." />
+            <SectionHeader title="Artistes à découvrir" subtitle="Chaque profil est présenté avec un morceau réel pour entrer directement dans son univers." />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.artistRail}>
-              {artistPairings.map(({ creator, track }) => (
+              {artistPairings.map((artist) => (
                 <ArtistDiscoverCard
-                  key={creator.id}
-                  creator={creator}
-                  track={track}
-                  playing={player.current?._id === track._id && player.isPlaying}
-                  onPlay={() => void playFrom([track], track)}
-                  onOpen={() => navigation.navigate('PublicProfile', { username: creator.handle.replace(/^@/, '') })}
+                  key={artist.id}
+                  artist={artist}
+                  tablet={responsive.isTablet}
+                  playing={player.current?._id === artist.track._id && player.isPlaying}
+                  onPlay={() => void playFrom([artist.track], artist.track)}
+                  onOpen={() => navigation.navigate('PublicProfile', { username: artist.username })}
                 />
               ))}
             </ScrollView>
@@ -257,7 +420,7 @@ export function DiscoverV2Screen() {
         ) : null}
 
         <View style={styles.clubsSection}>
-          <SectionHeader title="Créer avec d'autres" subtitle="Rejoins un espace centré sur une façon de faire de la musique." actionLabel="Tous les Clubs" onAction={() => navigation.navigate('Community')} />
+          <SectionHeader title="Créer avec d'autres" subtitle="Des espaces centrés sur une façon de faire de la musique." actionLabel="Tous les Clubs" onAction={() => navigation.navigate('Community')} />
           <View style={styles.clubsGrid}>
             {orderedClubs.map((club) => {
               const highlighted = highlightedClubSlugs.includes(club.slug);
@@ -265,130 +428,342 @@ export function DiscoverV2Screen() {
                 <Pressable
                   key={club.slug}
                   onPress={() => navigation.navigate('ClubDetail', { slug: club.slug })}
-                  style={[styles.clubChip, highlighted && styles.clubChipHighlighted]}
+                  style={[
+                    styles.clubChip,
+                    { width: responsive.isTablet ? '23.7%' : '48.4%' },
+                    highlighted && styles.clubChipHighlighted,
+                  ]}
                 >
                   <View style={[styles.clubDot, { backgroundColor: club.accent }]} />
                   <Text numberOfLines={1} style={styles.clubChipText}>{club.name}</Text>
+                  <Ionicons name="arrow-forward" size={12} color={colors.textTertiary} />
                 </Pressable>
               );
             })}
           </View>
         </View>
+
+        {loadError && !trackPool.length ? (
+          <View style={styles.errorState}>
+            <Ionicons name="cloud-offline-outline" size={23} color={colors.coral} />
+            <Text style={styles.errorTitle}>Discover n'a pas pu se charger.</Text>
+            <Pressable onPress={() => void load(true)} style={styles.retryButton}><Text style={styles.retryText}>Réessayer</Text></Pressable>
+          </View>
+        ) : null}
       </ScrollView>
       <UniversalSearchModal visible={searchOpen} onClose={() => setSearchOpen(false)} />
     </View>
   );
 }
 
-function CollectionFeatureCard({ playlist, onPress }: { playlist: Playlist; onPress: () => void }) {
-  const collection = playlist.collection;
-  const cardColors = collection?.themeColors?.length ? collection.themeColors : playlist.themeColors?.length ? playlist.themeColors : ['#7357C6', '#4A9EAA'];
-  const banner = playlist.bannerUrl || collection?.bannerUrl || playlist.coverUrl || playlist.covers[0];
-
+function DiscoverLeadCard({ track, label, totalTracks, playing, tablet, onPlay, onOpen }: {
+  track: Track;
+  label: string;
+  totalTracks: number;
+  playing: boolean;
+  tablet: boolean;
+  onPlay: () => void;
+  onOpen: () => void;
+}) {
+  const image = trackImage(track);
   return (
-    <MotionPressable onPress={onPress} style={styles.collectionFeature} scaleTo={0.985}>
-      <LinearGradient colors={cardColors as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
-      {banner ? <Image source={{ uri: banner }} style={styles.collectionFeatureImage} /> : null}
-      <LinearGradient colors={['rgba(19,16,17,0.20)', 'rgba(19,16,17,0.86)']} style={StyleSheet.absoluteFillObject} />
-      <View style={styles.collectionFeatureBody}>
-        <Text style={styles.collectionFeatureBadge}>{playlist.badge || collection?.badge || 'Collection officielle'}</Text>
-        <Text numberOfLines={2} style={styles.collectionFeatureTitle}>{collection?.title || playlist.title}</Text>
-        <Text numberOfLines={2} style={styles.collectionFeatureText}>{collection?.subtitle || playlist.vibe}</Text>
-        <View style={styles.collectionFeatureAction}>
-          <Ionicons name="albums-outline" size={17} color={colors.text} />
-          <Text style={styles.collectionFeatureActionText}>Explorer</Text>
+    <MotionPressable onPress={onOpen} style={[styles.leadCard, tablet && styles.leadCardTablet]} scaleTo={0.99}>
+      {image ? <Image source={{ uri: image }} resizeMode="cover" style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#111111', '#7357C6']} style={StyleSheet.absoluteFillObject} />}
+      <LinearGradient colors={['rgba(17,17,17,0.05)', 'rgba(17,17,17,0.9)']} locations={[0.12, 0.9]} style={StyleSheet.absoluteFillObject} />
+      <View style={styles.leadTop}>
+        <View style={styles.leadBadge}><Ionicons name="sparkles-outline" size={12} color="#FFFFFF" /><Text style={styles.leadBadgeText}>{label}</Text></View>
+        {totalTracks > 0 ? <Text style={styles.leadTotal}>{compact(totalTracks)} sons publics</Text> : null}
+      </View>
+      <View style={styles.leadBody}>
+        <Text numberOfLines={2} style={styles.leadTitle}>{track.title}</Text>
+        <Text numberOfLines={1} style={styles.leadArtist}>{artistName(track)}</Text>
+        <View style={styles.leadMetaRow}>
+          <View style={styles.leadMeta}><Ionicons name="headset-outline" size={13} color="rgba(255,255,255,0.72)" /><Text style={styles.leadMetaText}>{compact(track.plays || 0)} écoutes</Text></View>
+          {track.genre?.[0] ? <Text numberOfLines={1} style={styles.leadGenre}>{track.genre[0]}</Text> : null}
+        </View>
+        <Pressable onPress={(event) => { event.stopPropagation(); onPlay(); }} style={styles.leadPlay}>
+          <Ionicons name={playing ? 'pause' : 'play'} size={18} color={colors.text} />
+          <Text style={styles.leadPlayText}>{playing ? 'Pause' : 'Écouter'}</Text>
+        </Pressable>
+      </View>
+    </MotionPressable>
+  );
+}
+
+function DiscoverLeadSkeleton({ tablet }: { tablet: boolean }) {
+  return (
+    <View style={[styles.leadCard, styles.leadSkeleton, tablet && styles.leadCardTablet]}>
+      <View style={styles.skeletonBadge} />
+      <View style={styles.skeletonCopy}>
+        <View style={styles.skeletonTitle} />
+        <View style={styles.skeletonLine} />
+        <View style={styles.skeletonButton} />
+      </View>
+    </View>
+  );
+}
+
+function MoodImageCard({ mood, covers, highlighted, onPress }: { mood: MoodConfig; covers: string[]; highlighted: boolean; onPress: () => void }) {
+  return (
+    <MotionPressable onPress={onPress} style={[styles.moodCard, highlighted && styles.moodCardHighlighted]} scaleTo={0.97}>
+      <LinearGradient colors={mood.gradient} style={StyleSheet.absoluteFillObject} />
+      {covers.length ? <CoverMosaic covers={covers} /> : null}
+      <LinearGradient colors={['rgba(17,17,17,0.05)', 'rgba(17,17,17,0.84)']} style={StyleSheet.absoluteFillObject} />
+      {highlighted ? <Text style={styles.moodFavorite}>Pour toi</Text> : null}
+      <View style={styles.moodBody}>
+        <Text numberOfLines={2} style={styles.moodLabel}>{mood.label}</Text>
+        <Text numberOfLines={2} style={styles.moodPromise}>{mood.promise}</Text>
+        <View style={styles.moodAction}><Text style={styles.moodActionText}>Explorer</Text><Ionicons name="arrow-forward" size={12} color="#FFFFFF" /></View>
+      </View>
+    </MotionPressable>
+  );
+}
+
+function CoverMosaic({ covers }: { covers: string[] }) {
+  const count = Math.min(4, covers.length);
+  return (
+    <View style={styles.mosaic}>
+      {covers.slice(0, count).map((cover, index) => (
+        <Image
+          key={`${cover}-${index}`}
+          source={{ uri: cover }}
+          resizeMode="cover"
+          style={[
+            styles.mosaicImage,
+            count === 1 && styles.mosaicImageSingle,
+            count === 2 && styles.mosaicImagePair,
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
+function DiscoverTrackRail({ title, subtitle, tracks, loading = false, tablet, currentTrackId, isPlaying, onPlay, onOpen }: {
+  title: string;
+  subtitle: string;
+  tracks: Track[];
+  loading?: boolean;
+  tablet: boolean;
+  currentTrackId?: string | null;
+  isPlaying: boolean;
+  onPlay: (track: Track) => void;
+  onOpen: (track: Track) => void;
+}) {
+  if (!tracks.length && !loading) return null;
+  return (
+    <View>
+      <SectionHeader title={title} subtitle={subtitle} />
+      {tracks.length ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trackRail}>
+          {tracks.slice(0, 20).map((track) => (
+            <DiscoverTrackCard
+              key={track._id}
+              track={track}
+              tablet={tablet}
+              playing={currentTrackId === track._id && isPlaying}
+              onPlay={() => onPlay(track)}
+              onOpen={() => onOpen(track)}
+            />
+          ))}
+        </ScrollView>
+      ) : <LoadingTrackRail tablet={tablet} />}
+    </View>
+  );
+}
+
+function DiscoverTrackCard({ track, tablet, playing, onPlay, onOpen }: { track: Track; tablet: boolean; playing: boolean; onPlay: () => void; onOpen: () => void }) {
+  const handlePlay = (event: GestureResponderEvent) => {
+    event.stopPropagation();
+    onPlay();
+  };
+  return (
+    <MotionPressable onPress={onOpen} style={[styles.trackCard, tablet && styles.trackCardTablet]} scaleTo={0.975}>
+      <View style={styles.trackCoverWrap}>
+        <TrackCover track={track} active={playing} autoPlayVideo={playing} style={styles.trackCover} />
+        <LinearGradient colors={['transparent', 'rgba(17,17,17,0.5)']} style={StyleSheet.absoluteFillObject} />
+        <Pressable accessibilityLabel={playing ? 'Mettre en pause' : 'Lire'} onPress={handlePlay} style={styles.trackPlay}>
+          <Ionicons name={playing ? 'pause' : 'play'} size={16} color={colors.text} />
+        </Pressable>
+      </View>
+      <View style={styles.trackBody}>
+        <Text numberOfLines={1} style={styles.trackTitle}>{track.title}</Text>
+        <Text numberOfLines={1} style={styles.trackArtist}>{artistName(track)}</Text>
+        <View style={styles.trackStats}>
+          <View style={styles.trackStat}><Ionicons name="headset-outline" size={11} color={colors.textTertiary} /><Text style={styles.trackStatText}>{compact(track.plays || 0)}</Text></View>
+          <View style={styles.trackStat}><Ionicons name="heart-outline" size={11} color={colors.textTertiary} /><Text style={styles.trackStatText}>{compact(track.likesCount || 0)}</Text></View>
         </View>
       </View>
     </MotionPressable>
   );
 }
 
-function ArtistDiscoverCard({ creator, track, playing, onPlay, onOpen }: {
-  creator: Creator;
-  track: Track;
-  playing: boolean;
-  onPlay: () => void;
-  onOpen: () => void;
-}) {
+function LoadingTrackRail({ tablet }: { tablet: boolean }) {
   return (
-    <View style={styles.artistCard}>
-      <Pressable onPress={onOpen} style={styles.artistTop}>
-        <View style={[styles.artistAvatar, { backgroundColor: creator.tint || '#8B8193' }]}>
-          {creator.avatar?.startsWith('http')
-            ? <Image source={{ uri: creator.avatar }} style={StyleSheet.absoluteFill} />
-            : <Text style={styles.artistInitial}>{creator.avatar || creator.name.slice(0, 1)}</Text>}
+    <View style={styles.loadingRail}>
+      {[0, 1, 2].map((index) => <View key={index} style={[styles.loadingTrack, tablet && styles.trackCardTablet]} />)}
+    </View>
+  );
+}
+
+function CollectionFeatureCard({ collection, tablet, onPress }: { collection: EditorialCollection; tablet: boolean; onPress: () => void }) {
+  const banner = collection.bannerUrl || collection.coverUrl || null;
+  const configuredColors = (collection.themeColors || []).filter(Boolean).slice(0, 3);
+  const gradient = configuredColors.length >= 2 ? configuredColors : ['#7357C6', '#4A9EAA', '#D96D63'];
+  return (
+    <MotionPressable onPress={onPress} style={[styles.collectionFeature, tablet && styles.collectionFeatureTablet]} scaleTo={0.99}>
+      <LinearGradient colors={gradient as [string, string, ...string[]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
+      {banner ? <Image source={{ uri: banner }} resizeMode="cover" style={StyleSheet.absoluteFillObject} /> : null}
+      <LinearGradient colors={['rgba(17,17,17,0.1)', 'rgba(17,17,17,0.88)']} style={StyleSheet.absoluteFillObject} />
+      <View style={styles.collectionFeatureBody}>
+        <Text style={styles.collectionBadge}>{collection.badge || 'Collection Synaura'}</Text>
+        <Text numberOfLines={2} style={styles.collectionTitle}>{collection.title}</Text>
+        {collection.subtitle || collection.description ? <Text numberOfLines={2} style={styles.collectionText}>{collection.subtitle || collection.description}</Text> : null}
+        <View style={styles.collectionFooter}>
+          {Number(collection.trackCount || 0) > 0 ? <Text style={styles.collectionCount}>{collection.trackCount} sons</Text> : <View />}
+          <View style={styles.collectionOpen}><Text style={styles.collectionOpenText}>Explorer</Text><Ionicons name="arrow-forward" size={13} color={colors.text} /></View>
         </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text numberOfLines={1} style={styles.artistName}>{creator.name}</Text>
-          {track.genre?.[0] ? <Text numberOfLines={1} style={styles.artistStyle}>{track.genre[0]}</Text> : null}
+      </View>
+    </MotionPressable>
+  );
+}
+
+function CollectionTile({ collection, tablet, onPress }: { collection: EditorialCollection; tablet: boolean; onPress: () => void }) {
+  const image = collection.coverUrl || collection.bannerUrl;
+  return (
+    <MotionPressable onPress={onPress} style={[styles.collectionTile, tablet && styles.collectionTileTablet]} scaleTo={0.97}>
+      <View style={styles.collectionTileImage}>
+        {image ? <Image source={{ uri: image }} resizeMode="cover" style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#7357C6', '#4A9EAA']} style={StyleSheet.absoluteFillObject} />}
+      </View>
+      <Text numberOfLines={2} style={styles.collectionTileTitle}>{collection.title}</Text>
+      {Number(collection.trackCount || 0) > 0 ? <Text style={styles.collectionTileMeta}>{collection.trackCount} sons</Text> : null}
+    </MotionPressable>
+  );
+}
+
+function ArtistDiscoverCard({ artist, tablet, playing, onPlay, onOpen }: { artist: ArtistPairing; tablet: boolean; playing: boolean; onPlay: () => void; onOpen: () => void }) {
+  return (
+    <View style={[styles.artistCard, tablet && styles.artistCardTablet]}>
+      <Pressable onPress={onOpen} style={styles.artistIdentity}>
+        <View style={styles.artistAvatar}>
+          {artist.avatar ? <Image source={{ uri: artist.avatar }} style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#7357C6', '#D96D63']} style={StyleSheet.absoluteFillObject} />}
+          {!artist.avatar ? <Text style={styles.artistInitial}>{artist.name.slice(0, 1).toUpperCase()}</Text> : null}
+        </View>
+        <View style={styles.artistCopy}>
+          <Text numberOfLines={1} style={styles.artistName}>{artist.name}</Text>
+          <Text numberOfLines={1} style={styles.artistHandle}>@{artist.username}</Text>
         </View>
       </Pressable>
-
       <Pressable onPress={onPlay} style={styles.artistTrack}>
-        <TrackCover track={track} active={playing} style={styles.artistTrackCover} />
-        <Text numberOfLines={1} style={styles.artistTrackTitle}>{track.title}</Text>
-        <View style={styles.artistTrackPlay}><Ionicons name={playing ? 'pause' : 'play'} size={13} color={colors.paper} /></View>
+        <TrackCover track={artist.track} active={playing} style={styles.artistTrackCover} />
+        <View style={styles.artistTrackCopy}>
+          <Text numberOfLines={1} style={styles.artistTrackTitle}>{artist.track.title}</Text>
+          {artist.track.genre?.[0] ? <Text numberOfLines={1} style={styles.artistTrackGenre}>{artist.track.genre[0]}</Text> : null}
+        </View>
+        <View style={styles.artistPlay}><Ionicons name={playing ? 'pause' : 'play'} size={13} color="#FFFFFF" /></View>
       </Pressable>
-
-      <Pressable onPress={onOpen} style={styles.artistCta}>
-        <Text style={styles.artistCtaText}>Découvrir son univers</Text>
-        <Ionicons name="arrow-forward" size={13} color={colors.text} />
-      </Pressable>
+      <Pressable onPress={onOpen} style={styles.artistOpen}><Text style={styles.artistOpenText}>Voir le profil</Text><Ionicons name="arrow-forward" size={13} color={colors.text} /></Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 18, paddingBottom: 160, gap: 20 },
-  search: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.86)', borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12 },
-  searchText: { flex: 1, color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
-  searchArrow: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.05)' },
-  moodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between' },
-  moodReveal: { width: '48.5%' },
-  moodPressable: { width: '100%', borderRadius: radius.lg, overflow: 'hidden' },
-  moodTile: { minHeight: 142, borderRadius: radius.lg, padding: 13, justifyContent: 'space-between' },
-  moodTileHighlighted: { borderWidth: 2, borderColor: colors.violet },
-  moodBadge: { position: 'absolute', left: 12, top: 12, zIndex: 1, borderRadius: 999, backgroundColor: colors.violet, paddingHorizontal: 9, paddingVertical: 4 },
-  moodBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
-  moodLabel: { color: colors.paper, fontSize: 15, lineHeight: 18, fontWeight: '900' },
-  moodPromise: { marginTop: 5, color: 'rgba(255,250,242,0.72)', fontSize: 10, lineHeight: 14, fontWeight: '700' },
-  moodEnter: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' },
-  moodEnterText: { color: 'rgba(255,250,242,0.9)', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
-  collectionFeature: { minHeight: 250, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.text, shadowColor: colors.text, shadowOpacity: 0.13, shadowRadius: 18, shadowOffset: { width: 0, height: 9 }, elevation: 4 },
-  collectionFeatureImage: { ...StyleSheet.absoluteFillObject, opacity: 0.48 },
-  collectionFeatureBody: { flex: 1, justifyContent: 'flex-end', padding: 17 },
-  collectionFeatureBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: 999, backgroundColor: 'rgba(255,249,239,0.18)', paddingHorizontal: 11, paddingVertical: 6, color: colors.paper, fontSize: 9, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
-  collectionFeatureTitle: { marginTop: 11, color: colors.paper, fontSize: 27, lineHeight: 29, fontWeight: '900' },
-  collectionFeatureText: { marginTop: 8, color: 'rgba(255,249,239,0.78)', fontSize: 13, lineHeight: 19, fontWeight: '800' },
-  collectionFeatureAction: { alignSelf: 'flex-start', marginTop: 14, height: 42, borderRadius: radius.md, backgroundColor: colors.paper, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  collectionFeatureActionText: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  playlistRail: { gap: 11, paddingRight: 18 },
-  playlistTile: { width: 118 },
-  playlistCover: { width: 118, height: 92, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: radius.md, backgroundColor: 'rgba(23,19,19,0.06)' },
-  playlistTitle: { marginTop: 7, color: colors.text, fontSize: 11, fontWeight: '900' },
-  artistRail: { gap: 10, paddingRight: 18 },
-  artistCard: { width: 190, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.76)', padding: 11, gap: 9 },
-  artistTop: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  artistAvatar: { width: 44, height: 44, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
-  artistInitial: { color: colors.paper, fontSize: 17, fontWeight: '900' },
-  artistName: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  artistStyle: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
-  artistTrack: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.md, backgroundColor: 'rgba(23,19,19,0.045)', padding: 6 },
-  artistTrackCover: { width: 32, height: 32, borderRadius: 9 },
-  artistTrackTitle: { flex: 1, minWidth: 0, color: colors.text, fontSize: 10, fontWeight: '900' },
-  artistTrackPlay: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
-  artistCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 32, borderRadius: radius.md, backgroundColor: 'rgba(23,19,19,0.05)' },
-  artistCtaText: { color: colors.text, fontSize: 10, fontWeight: '900' },
-  clubsSection: { gap: 12, paddingTop: 4 },
-  clubsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  clubsTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  clubsLink: { color: colors.textTertiary, fontSize: 10, fontWeight: '900' },
-  clubsGrid: { marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  clubChip: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '48%', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 10, paddingVertical: 10 },
-  clubChipHighlighted: { borderColor: colors.violet, borderWidth: 1.5 },
+  content: { paddingHorizontal: 18, paddingBottom: 160, gap: 22 },
+  search: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.88)', borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12 },
+  searchText: { flex: 1, minWidth: 0, color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
+  searchArrow: { width: 30, height: 30, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  leadCard: { height: 300, overflow: 'hidden', borderRadius: radius.lg, backgroundColor: colors.black, ...shadows.floating },
+  leadCardTablet: { height: 360 },
+  leadTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9, padding: 14 },
+  leadBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.sm, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(17,17,17,0.5)' },
+  leadBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
+  leadTotal: { flexShrink: 1, color: 'rgba(255,255,255,0.72)', fontSize: 9, fontWeight: '800' },
+  leadBody: { position: 'absolute', left: 15, right: 15, bottom: 15 },
+  leadTitle: { maxWidth: 620, color: '#FFFFFF', fontSize: 29, lineHeight: 32, fontWeight: '900' },
+  leadArtist: { marginTop: 4, color: 'rgba(255,255,255,0.78)', fontSize: 13, fontWeight: '800' },
+  leadMetaRow: { marginTop: 9, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  leadMeta: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  leadMetaText: { color: 'rgba(255,255,255,0.72)', fontSize: 10, fontWeight: '800' },
+  leadGenre: { maxWidth: 170, overflow: 'hidden', borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 4, color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.14)', fontSize: 9, fontWeight: '900' },
+  leadPlay: { alignSelf: 'flex-start', marginTop: 13, minWidth: 112, height: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: radius.md, backgroundColor: '#FFFFFF', paddingHorizontal: 14 },
+  leadPlayText: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  leadSkeleton: { backgroundColor: '#DCD8D2' },
+  skeletonBadge: { width: 120, height: 26, margin: 14, borderRadius: radius.sm, backgroundColor: 'rgba(255,255,255,0.44)' },
+  skeletonCopy: { position: 'absolute', left: 15, right: 15, bottom: 15 },
+  skeletonTitle: { width: '72%', height: 26, borderRadius: radius.sm, backgroundColor: 'rgba(255,255,255,0.68)' },
+  skeletonLine: { width: '42%', height: 11, marginTop: 9, borderRadius: radius.sm, backgroundColor: 'rgba(255,255,255,0.48)' },
+  skeletonButton: { width: 112, height: 42, marginTop: 14, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.72)' },
+  moodGrid: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  moodCard: { width: '100%', minHeight: 174, overflow: 'hidden', borderRadius: radius.lg, backgroundColor: colors.black, ...shadows.soft },
+  moodCardHighlighted: { borderWidth: 2, borderColor: colors.violet },
+  mosaic: { ...StyleSheet.absoluteFillObject, flexDirection: 'row', flexWrap: 'wrap', opacity: 0.65 },
+  mosaicImage: { width: '50%', height: '50%' },
+  mosaicImageSingle: { width: '100%', height: '100%' },
+  mosaicImagePair: { width: '50%', height: '100%' },
+  moodFavorite: { position: 'absolute', left: 10, top: 10, overflow: 'hidden', borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 5, color: '#FFFFFF', backgroundColor: colors.violet, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
+  moodBody: { flex: 1, justifyContent: 'flex-end', padding: 12 },
+  moodLabel: { color: '#FFFFFF', fontSize: 16, lineHeight: 19, fontWeight: '900' },
+  moodPromise: { marginTop: 4, color: 'rgba(255,255,255,0.7)', fontSize: 9, lineHeight: 13, fontWeight: '700' },
+  moodAction: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  moodActionText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
+  trackRail: { gap: 10, paddingTop: 12, paddingRight: 18 },
+  trackCard: { width: 156, overflow: 'hidden', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, ...shadows.soft },
+  trackCardTablet: { width: 190 },
+  trackCoverWrap: { width: '100%', aspectRatio: 1, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
+  trackCover: { width: '100%', height: '100%' },
+  trackPlay: { position: 'absolute', right: 8, bottom: 8, width: 38, height: 38, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
+  trackBody: { padding: 10 },
+  trackTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  trackArtist: { marginTop: 3, color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
+  trackStats: { marginTop: 8, flexDirection: 'row', gap: 9 },
+  trackStat: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  trackStatText: { color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
+  loadingRail: { flexDirection: 'row', gap: 10, paddingTop: 12 },
+  loadingTrack: { width: 156, height: 222, borderRadius: radius.md, backgroundColor: '#E1DDD7' },
+  collectionFeature: { minHeight: 270, marginTop: 12, overflow: 'hidden', borderRadius: radius.lg, backgroundColor: colors.black, ...shadows.floating },
+  collectionFeatureTablet: { minHeight: 330 },
+  collectionFeatureBody: { flex: 1, justifyContent: 'flex-end', padding: 16 },
+  collectionBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: radius.sm, paddingHorizontal: 9, paddingVertical: 6, color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.16)', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
+  collectionTitle: { maxWidth: 650, marginTop: 10, color: '#FFFFFF', fontSize: 26, lineHeight: 29, fontWeight: '900' },
+  collectionText: { maxWidth: 560, marginTop: 6, color: 'rgba(255,255,255,0.74)', fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  collectionFooter: { marginTop: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9 },
+  collectionCount: { color: 'rgba(255,255,255,0.68)', fontSize: 10, fontWeight: '800' },
+  collectionOpen: { height: 38, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.md, paddingHorizontal: 12, backgroundColor: '#FFFFFF' },
+  collectionOpenText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  collectionRail: { gap: 10, paddingTop: 12, paddingRight: 18 },
+  collectionTile: { width: 150 },
+  collectionTileTablet: { width: 190 },
+  collectionTileImage: { width: '100%', aspectRatio: 1.25, overflow: 'hidden', borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
+  collectionTileTitle: { marginTop: 7, color: colors.text, fontSize: 11, lineHeight: 15, fontWeight: '900' },
+  collectionTileMeta: { marginTop: 3, color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
+  artistRail: { gap: 10, paddingTop: 12, paddingRight: 18 },
+  artistCard: { width: 210, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 10, gap: 9, ...shadows.soft },
+  artistCardTablet: { width: 240 },
+  artistIdentity: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  artistAvatar: { width: 48, height: 48, overflow: 'hidden', borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  artistInitial: { color: '#FFFFFF', fontSize: 18, fontWeight: '900' },
+  artistCopy: { flex: 1, minWidth: 0 },
+  artistName: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  artistHandle: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
+  artistTrack: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.md, padding: 7, backgroundColor: colors.surfaceMuted },
+  artistTrackCover: { width: 38, height: 38, borderRadius: radius.sm },
+  artistTrackCopy: { flex: 1, minWidth: 0 },
+  artistTrackTitle: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  artistTrackGenre: { marginTop: 2, color: colors.violet, fontSize: 8, fontWeight: '800' },
+  artistPlay: { width: 30, height: 30, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  artistOpen: { height: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: radius.md, backgroundColor: colors.violetSoft },
+  artistOpenText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  clubsSection: { gap: 2 },
+  clubsGrid: { marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  clubChip: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 10, paddingVertical: 10 },
+  clubChipHighlighted: { borderColor: colors.violet, backgroundColor: colors.violetSoft },
   clubDot: { width: 7, height: 7, borderRadius: 4 },
   clubChipText: { flex: 1, minWidth: 0, color: colors.text, fontSize: 10, fontWeight: '900' },
+  errorState: { minHeight: 150, alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface, padding: 18 },
+  errorTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  retryButton: { minWidth: 104, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.text },
+  retryText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
 });
 
 export default DiscoverV2Screen;
