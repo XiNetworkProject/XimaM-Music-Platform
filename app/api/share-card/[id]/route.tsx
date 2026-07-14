@@ -66,15 +66,15 @@ async function loadTrack(id: string): Promise<ShareTrack | null> {
 
   const { data: track } = await supabaseAdmin
     .from('tracks')
-    .select('id, title, creator_id, artist_name, creator_name, cover_url, audio_url, duration, plays, is_public')
+    .select('id, title, creator_id, cover_url, audio_url, duration, plays, is_public')
     .eq('id', refId)
     .maybeSingle();
   if (!track || !canViewTrack(track, null)) return null;
 
-  let artist = track.artist_name || track.creator_name || 'Artiste Synaura';
+  let artist = 'Artiste Synaura';
   if (track.creator_id) {
-    const { data: profile } = await supabaseAdmin.from('profiles').select('name, username').eq('id', track.creator_id).maybeSingle();
-    artist = profile?.name || profile?.username || artist;
+    const { data: profile } = await supabaseAdmin.from('profiles').select('name, username, artist_name').eq('id', track.creator_id).maybeSingle();
+    artist = profile?.artist_name || profile?.name || profile?.username || artist;
   }
 
   return {

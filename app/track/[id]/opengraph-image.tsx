@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'edge';
 export const alt = 'Synaura Track';
@@ -18,37 +18,34 @@ export default async function Image({ params }: { params: { id: string } }) {
 
   try {
     if (isAI) {
-      const { data } = await supabase
-        .from('ai_generated_tracks')
-        .select('title, cover_url, genre, style, generation_id')
+      const { data } = await supabaseAdmin
+        .from('ai_tracks')
+        .select('title, image_url, tags, is_public, generation:ai_generations!inner(user_id, is_public, status)')
         .eq('id', cleanId)
-        .single();
-      if (data) {
+        .maybeSingle();
+      const generation = (data as any)?.generation;
+      if (data?.is_public === true && generation?.is_public === true && generation?.status === 'completed') {
         title = data.title || 'Création IA';
-        coverUrl = data.cover_url;
-        genre = data.genre || data.style || '';
-        const { data: gen } = await supabase
-          .from('ai_generations')
-          .select('profiles!ai_generations_user_id_fkey(name, username)')
-          .eq('id', data.generation_id)
-          .single();
-        artist = (gen as any)?.profiles?.name || (gen as any)?.profiles?.username || 'Artiste IA';
+        coverUrl = data.image_url;
+        genre = Array.isArray(data.tags) ? String(data.tags[0] || '') : '';
+        if (generation?.user_id) {
+          const { data: profile } = await supabaseAdmin.from('profiles').select('name, username, artist_name').eq('id', generation.user_id).maybeSingle();
+          artist = profile?.artist_name || profile?.name || profile?.username || 'Artiste IA';
+        }
       }
     } else {
-      const { data: track } = await supabase
+      const { data: track } = await supabaseAdmin
         .from('tracks')
-        .select('title, cover_url, artist_name, creator_name, genre, creator_id')
+        .select('title, cover_url, genre, creator_id, audio_url, is_public')
         .eq('id', id)
-        .single();
-      if (track) {
+        .maybeSingle();
+      if (track?.is_public === true && track.audio_url) {
         title = track.title;
         coverUrl = track.cover_url;
         genre = track.genre?.[0] || '';
         if (track.creator_id) {
-          const { data: p } = await supabase.from('profiles').select('name').eq('id', track.creator_id).single();
-          artist = p?.name || track.artist_name || track.creator_name || 'Artiste';
-        } else {
-          artist = track.artist_name || track.creator_name || 'Artiste';
+          const { data: profile } = await supabaseAdmin.from('profiles').select('name, username, artist_name').eq('id', track.creator_id).maybeSingle();
+          artist = profile?.artist_name || profile?.name || profile?.username || 'Artiste';
         }
       }
     }
