@@ -2,6 +2,7 @@
 import {
   ActivityIndicator,
   Animated,
+  AppState,
   FlatList,
   Image,
   InteractionManager,
@@ -22,18 +23,20 @@ import {
   getEditorialCollections,
   getMusicChallenges,
   getMusicClips,
+  getMusicClipLikeStatus,
   getPlaylistDetail,
   getPopularArtists,
   getSynauraCity,
   getTrackLikeStatus,
   recordClipFunnelEvent,
   setTrackLike,
+  setMusicClipLike,
   toggleArtistFollow,
 } from '@/api/client';
 import type { MusicClip, Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useLibrary } from '@/library/LibraryProvider';
-import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
+import { usePlayer } from '@/player/PlayerProvider';
 import { readRankingFeedCache, writeRankingFeedCache } from '@/feed/rankingFeedCache';
 import { openClipComposerForSound } from '@/navigation/clipEntry';
 import { AnnouncementSlide } from '@/components/swipe/AnnouncementSlide';
@@ -75,7 +78,13 @@ const SWIPE_TRIGGER_DISTANCE = 48;
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 function withoutObsoleteRadios(tracks: Track[]) {
-  return tracks.filter((track) => !!track.audioUrl && !track._id.startsWith('radio-'));
+  return tracks.filter((track) => (
+    typeof track?._id === 'string'
+    && track._id.length > 0
+    && typeof track.audioUrl === 'string'
+    && track.audioUrl.length > 0
+    && !track._id.startsWith('radio-')
+  ));
 }
 
 function trackOfItem(item: ScrollFeedItem | null | undefined): Track | null {
@@ -84,6 +93,16 @@ function trackOfItem(item: ScrollFeedItem | null | undefined): Track | null {
   if (item.kind === 'clip') return item.track;
   if (item.kind === 'artist_spotlight') return item.track;
   return null;
+}
+
+function playableTrackOfItem(item: ScrollFeedItem | null | undefined): Track | null {
+  if (!item) return null;
+  if (item.kind === 'track' || item.kind === 'artist_spotlight') return item.track;
+  return null;
+}
+
+function clipInteractionKey(clipId: string) {
+  return `clip:${clipId}`;
 }
 
 export function SwipeScreen() {
@@ -96,12 +115,12 @@ export function SwipeScreen() {
   const itemHeight = Math.max(420, responsive.height);
 
   const player = usePlayer();
-  const playerProgress = usePlayerProgress(180);
   const library = useLibrary();
   const auth = useAuth();
   const { settings } = useMobileSettings();
   const [feedMode, setFeedMode] = useState<FeedMode>(() => (route.params?.mode === 'clips' ? 'clips' : 'reco'));
   const sourceTrackFilter = route.params?.sourceTrackId ? String(route.params.sourceTrackId) : '';
+  const clipIdFilter = route.params?.clipId ? String(route.params.clipId) : '';
   const [seedGenre, setSeedGenre] = useState<string | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [clips, setClips] = useState<MusicClip[]>([]);
@@ -115,6 +134,9 @@ export function SwipeScreen() {
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [loadingMore, setLoadingMore] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [resumeGeneration, setResumeGeneration] = useState(0);
+  const [appIsActive, setAppIsActive] = useState(AppState.currentState === 'active');
+  const [playingClipId, setPlayingClipId] = useState<string | null>(null);
   const [launchingCollectionId, setLaunchingCollectionId] = useState<string | null>(null);
 
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -145,13 +167,18 @@ export function SwipeScreen() {
   const feedProgress = useRef(new Animated.Value(0)).current;
   const lastCommittedIndexRef = useRef(0);
   const activeIndexRef = useRef(0);
-  const clipOffsetSeekedRef = useRef<string | null>(null);
   const dragStartOffsetRef = useRef(0);
+  const appStateRef = useRef(AppState.currentState);
+  const feedItemsRef = useRef<ScrollFeedItem[]>([]);
+  const lastAutoStartedClipRef = useRef<string | null>(null);
   const switchFeedMode = useCallback((nextMode: FeedMode) => {
     if (nextMode === feedMode) return;
+    if (nextMode !== 'clips' && route.params?.mode === 'clips') {
+      navigation.setParams({ mode: undefined, sourceTrackId: undefined, clipId: undefined });
+    }
     setFeedMode(nextMode);
     Haptics.selectionAsync().catch(() => {});
-  }, [feedMode]);
+  }, [feedMode, navigation, route.params?.mode]);
 
   useEffect(() => {
     if (route.params?.mode === 'clips' && feedMode !== 'clips') setFeedMode('clips');
@@ -180,21 +207,31 @@ export function SwipeScreen() {
     });
   }, [feedMode, tracks, clips, popularUsers, collectionsRaw, cityEvents, musicChallenges]);
 
+  useEffect(() => {
+    feedItemsRef.current = feedItems;
+  }, [feedItems]);
+
   const playableQueue = useMemo(() => {
     return uniqueTracks(feedItems
-      .map((item) => trackOfItem(item))
+      .map((item) => playableTrackOfItem(item))
       .filter((t): t is Track => Boolean(t) && !!t!.audioUrl && !t!._id.startsWith('radio-')));
   }, [feedItems]);
 
   const activeItem = feedItems[activeIndex] || null;
   const activeTrack = trackOfItem(activeItem);
-  const activeId = activeTrack?._id || '';
+  const activeClip = activeItem?.kind === 'clip' ? activeItem.clip : null;
+  const activeId = activeItem?.kind === 'clip' ? '' : activeTrack?._id || '';
 
   const currentSeedGenre = useMemo(() => seedGenre || topGenre(activeTrack), [activeTrack, seedGenre]);
 
   useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
+
+  useEffect(() => {
+    fetchedLikeIdsRef.current.clear();
+    setLikedMap({});
+  }, [auth.user?.id]);
 
   useEffect(() => {
     Animated.timing(feedProgress, {
@@ -206,11 +243,33 @@ export function SwipeScreen() {
 
   useEffect(() => {
     if (isFocused) return;
+    setPlayingClipId(null);
     setCommentsOpen(false);
     setShareOpen(false);
     setLyricsOpen(false);
     setQueueOpen(false);
   }, [isFocused]);
+
+  // Android peut detacher les surfaces video et les cellules plein ecran quand
+  // l'app passe en arriere-plan. On remonte uniquement la liste au retour, en
+  // conservant les donnees et l'index, et on recharge si le feed etait vide.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      const previousState = appStateRef.current;
+      appStateRef.current = nextState;
+      const isActive = nextState === 'active';
+      setAppIsActive(isActive);
+      if (!isActive) {
+        setPlayingClipId(null);
+        return;
+      }
+      if (previousState === 'background' || previousState === 'inactive') {
+        setResumeGeneration((value) => value + 1);
+        if (!feedItemsRef.current.length) setReloadKey((value) => value + 1);
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   // (1) Charge le feed quand le mode change
   useEffect(() => {
@@ -220,6 +279,7 @@ export function SwipeScreen() {
     setLoadingMore(false);
     setTracks([]);
     setClips([]);
+    setPlayingClipId(null);
     setActiveIndex(0);
     lastCommittedIndexRef.current = 0;
     setCursor(0);
@@ -227,7 +287,7 @@ export function SwipeScreen() {
     queueBoundRef.current = '';
 
     if (feedMode === 'clips') {
-      getMusicClips({ limit: 40, sourceTrackId: sourceTrackFilter || undefined })
+      getMusicClips({ limit: 40, sourceTrackId: sourceTrackFilter || undefined, clipId: clipIdFilter || undefined })
         .then((chunk) => {
           if (cancelled || reqId !== lastRequestRef.current) return;
           setClips(chunk.clips);
@@ -289,7 +349,7 @@ export function SwipeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [feedMode, reloadKey, sourceTrackFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [clipIdFilter, feedMode, reloadKey, sourceTrackFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Artistes populaires + collections éditoriales + events Synaura Pulse : chargés une
   // fois, réutilisés pour composer le feed mixte (mêmes règles que le web).
@@ -316,7 +376,7 @@ export function SwipeScreen() {
   // (2) Synchronise la queue du player une fois le feed pret (premier bind, ou changement de mode).
   // On NE re-bind PAS au simple focus de l'ecran : on garde la lecture en cours stable.
   useEffect(() => {
-    if (loadState !== 'ready' || !tracks.length || !playableQueue.length) return;
+    if (loadState !== 'ready' || !playableQueue.length) return;
     const key = `${feedMode}:${playableQueue[0]?._id}:${playableQueue.at(-1)?._id}:${playableQueue.length}`;
     if (queueBoundRef.current === key) return;
     queueBoundRef.current = key;
@@ -324,12 +384,12 @@ export function SwipeScreen() {
     // Si le track courant fait deja partie du nouveau feed, on enrichit la queue native
     // autour de lui sans reset audio. Sinon, on lance le feed depuis le debut.
     const currentId = player.current?._id;
-    const idxInFeed = currentId ? feedItems.findIndex((it) => trackOfItem(it)?._id === currentId) : -1;
+    const idxInFeed = currentId ? feedItems.findIndex((it) => playableTrackOfItem(it)?._id === currentId) : -1;
     if (idxInFeed >= 0) {
       const queueIndex = playableQueue.findIndex((track) => track._id === currentId);
       void player.setQueueOnly(playableQueue, Math.max(0, queueIndex));
       const pendingIndex = pendingSwipeTrackRef.current
-        ? feedItems.findIndex((it) => trackOfItem(it)?._id === pendingSwipeTrackRef.current)
+        ? feedItems.findIndex((it) => playableTrackOfItem(it)?._id === pendingSwipeTrackRef.current)
         : -1;
       const displayIndex = pendingIndex >= 0 ? pendingIndex : idxInFeed;
       activeIndexRef.current = displayIndex;
@@ -358,8 +418,8 @@ export function SwipeScreen() {
       // la source de vérité afin d'éviter le rebond 62 -> 63 -> 62 -> 63.
       return;
     }
-    if (trackOfItem(feedItems[activeIndexRef.current])?._id === player.current._id) return;
-    const idx = feedItems.findIndex((it) => trackOfItem(it)?._id === player.current?._id);
+    if (playableTrackOfItem(feedItems[activeIndexRef.current])?._id === player.current._id) return;
+    const idx = feedItems.findIndex((it) => playableTrackOfItem(it)?._id === player.current?._id);
     if (idx < 0 || idx === activeIndexRef.current) return;
     activeIndexRef.current = idx;
     lastCommittedIndexRef.current = idx;
@@ -375,43 +435,33 @@ export function SwipeScreen() {
     });
   }, [player.current?._id, loadState, feedItems]);
 
-  // Un Clip a un point de depart choisi par son createur a la publication
-  // (sourceTrackOffsetSeconds) : des que le son du morceau original devient la
-  // piste active, on le positionne a cet instant pour rester synchro avec la
-  // video (ref unique par clip pour ne recaler qu'une seule fois).
+  // Le Clip actif utilise maintenant sa session media locale (ClipSlide). Le
+  // lecteur musical global est seulement mis en pause pour eviter deux audios;
+  // sa file et sa position restent intactes.
   useEffect(() => {
-    const item = feedItems[activeIndex];
-    if (!item || item.kind !== 'clip') {
-      clipOffsetSeekedRef.current = null;
+    if (!isFocused || !appIsActive) {
+      setPlayingClipId(null);
       return;
     }
-    const offset = item.clip.sourceTrackOffsetSeconds || 0;
-    if (offset <= 0) return;
-    if (player.current?._id !== item.track._id) return;
-    if (clipOffsetSeekedRef.current === item.clip.id) return;
-    clipOffsetSeekedRef.current = item.clip.id;
-    void player.seekTo(offset);
-  }, [activeIndex, feedItems, player]);
-
-  // Un Clip boucle sur son extrait audio, pas sur le morceau complet. Une petite
-  // marge absorbe les mises a jour de progression sans couper la derniere frame.
-  useEffect(() => {
     const item = feedItems[activeIndex];
-    if (!isFocused || !item || item.kind !== 'clip') return;
-    if (player.current?._id !== item.track._id || !player.isPlaying) return;
-    const start = Math.max(0, item.clip.sourceTrackOffsetSeconds || 0);
-    const length = Math.max(3, item.clip.sourceTrackDurationSeconds || 30);
-    const position = playerProgress.positionSec;
-    if (position < start - 0.45 || position >= start + length - 0.12) {
-      void player.seekTo(start);
+    if (!item || item.kind !== 'clip') {
+      lastAutoStartedClipRef.current = null;
+      setPlayingClipId(null);
+      return;
     }
-  }, [activeIndex, feedItems, isFocused, player, playerProgress.positionSec]);
+    const token = `${feedMode}:${activeIndex}:${item.clip.id}`;
+    if (lastAutoStartedClipRef.current === token) return;
+    lastAutoStartedClipRef.current = token;
+    if (player.isPlaying) void player.pause();
+    setPlayingClipId(item.clip.id);
+  }, [activeIndex, appIsActive, feedItems, feedMode, isFocused, player]);
 
   // (4) Recuperer batch des compteurs commentaires
   useEffect(() => {
     if (loadState !== 'ready' || !feedItems.length) return;
     const ids = feedItems
       .slice(Math.max(0, activeIndex - 2), Math.min(feedItems.length, activeIndex + 3))
+      .filter((it) => it.kind !== 'clip')
       .map((it) => trackOfItem(it)?._id)
       .filter((id): id is string => !!id && !id.startsWith('ai-') && !fetchedCommentIdsRef.current.has(id));
     if (!ids.length) return;
@@ -436,6 +486,26 @@ export function SwipeScreen() {
       setLikesMap((current) => ({ ...current, [activeId]: data.likesCount || current[activeId] || 0 }));
     });
   }, [activeId]);
+
+  // Les Clips ont leurs propres interactions. Elles ne modifient ni le compteur
+  // ni l'etat de like du morceau source.
+  useEffect(() => {
+    if (!activeClip?.id) return;
+    const key = clipInteractionKey(activeClip.id);
+    setLikedMap((current) => (key in current ? current : { ...current, [key]: activeClip.isLiked }));
+    setLikesMap((current) => (key in current ? current : { ...current, [key]: activeClip.likesCount }));
+    setCommentsCounts((current) => (key in current ? current : { ...current, [key]: activeClip.commentsCount }));
+    if (fetchedLikeIdsRef.current.has(key)) return;
+    fetchedLikeIdsRef.current.add(key);
+    void getMusicClipLikeStatus(activeClip.id)
+      .then((data) => {
+        setLikedMap((current) => ({ ...current, [key]: data.liked }));
+        setLikesMap((current) => ({ ...current, [key]: data.likesCount }));
+      })
+      .catch(() => {
+        fetchedLikeIdsRef.current.delete(key);
+      });
+  }, [activeClip]);
 
   // (6) Statut follow de l'artiste (et du créateur du clip actif, qui peut
   // être une personne différente de l'artiste du morceau source)
@@ -470,7 +540,7 @@ export function SwipeScreen() {
     setLoadingMore(true);
     try {
       if (feedMode === 'clips') {
-        const chunk = await getMusicClips({ limit: 30, cursor, sourceTrackId: sourceTrackFilter || undefined });
+        const chunk = await getMusicClips({ limit: 30, cursor, sourceTrackId: sourceTrackFilter || undefined, clipId: clipIdFilter || undefined });
         const seen = new Set(clips.map((clip) => clip.id));
         const fresh = chunk.clips.filter((clip) => !seen.has(clip.id));
         setClips([...clips, ...fresh]);
@@ -494,7 +564,7 @@ export function SwipeScreen() {
     } finally {
       setLoadingMore(false);
     }
-  }, [clips, cursor, currentSeedGenre, feedMode, hasMore, loadingMore, sourceTrackFilter, tracks]);
+  }, [clipIdFilter, clips, cursor, currentSeedGenre, feedMode, hasMore, loadingMore, sourceTrackFilter, tracks]);
 
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const triggerBurst = useCallback(() => {
@@ -511,33 +581,48 @@ export function SwipeScreen() {
   }, []);
 
   const handleToggleLike = useCallback(async () => {
+    if (!auth.user) {
+      navigation.getParent()?.navigate('Login', { returnTo: { screen: 'Tabs', params: { screen: 'Swipe' } } });
+      return;
+    }
     if (!activeTrack) return;
-    const id = activeTrack._id;
-    if (id.startsWith('ai-')) return;
+    const isClip = activeItem?.kind === 'clip';
+    const id = isClip ? activeItem.clip.id : activeTrack._id;
+    const key = isClip ? clipInteractionKey(id) : id;
+    if (!isClip && id.startsWith('ai-')) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    const wasLiked = !!likedMap[id];
+    const wasLiked = likedMap[key] ?? (isClip ? activeItem.clip.isLiked : Boolean(activeTrack.isLiked));
     const willLike = !wasLiked;
-    setLikedMap((current) => ({ ...current, [id]: willLike }));
+    const previousCount = likesMap[key] ?? (isClip ? activeItem.clip.likesCount : activeTrack.likesCount) ?? 0;
+    setLikedMap((current) => ({ ...current, [key]: willLike }));
     setLikesMap((current) => ({
       ...current,
-      [id]: Math.max(0, (current[id] ?? activeTrack.likesCount ?? 0) + (willLike ? 1 : -1)),
+      [key]: Math.max(0, previousCount + (willLike ? 1 : -1)),
     }));
     if (willLike) triggerBurst();
-    const result = await setTrackLike(id, willLike);
-    if (result) {
-      setLikedMap((current) => ({ ...current, [id]: result.liked }));
-      setLikesMap((current) => ({ ...current, [id]: result.likesCount }));
+    try {
+      const result = isClip
+        ? await setMusicClipLike(id, willLike)
+        : await setTrackLike(id, willLike);
+      if (!result) throw new Error('Interaction non enregistree');
+      setLikedMap((current) => ({ ...current, [key]: result.liked }));
+      setLikesMap((current) => ({ ...current, [key]: result.likesCount }));
+    } catch {
+      setLikedMap((current) => ({ ...current, [key]: wasLiked }));
+      setLikesMap((current) => ({ ...current, [key]: previousCount }));
     }
-  }, [activeTrack, likedMap, triggerBurst]);
+  }, [activeItem, activeTrack, auth.user, likedMap, likesMap, navigation, triggerBurst]);
 
   const handleDoubleTapLike = useCallback(() => {
     if (!activeTrack) return;
-    if (!likedMap[activeTrack._id]) {
+    const key = activeItem?.kind === 'clip' ? clipInteractionKey(activeItem.clip.id) : activeTrack._id;
+    const alreadyLiked = likedMap[key] ?? (activeItem?.kind === 'clip' ? activeItem.clip.isLiked : Boolean(activeTrack.isLiked));
+    if (!alreadyLiked) {
       void handleToggleLike();
     } else {
       triggerBurst();
     }
-  }, [activeTrack, handleToggleLike, likedMap, triggerBurst]);
+  }, [activeItem, activeTrack, handleToggleLike, likedMap, triggerBurst]);
 
   const useThisSound = useCallback((track: Track) => {
     void recordClipFunnelEvent(track._id, 'clip_use_sound_started');
@@ -645,8 +730,19 @@ export function SwipeScreen() {
     setActiveIndex(nextIndex);
     Haptics.selectionAsync().catch(() => {});
 
+    const nextItem = feedItems[nextIndex];
+    if (nextItem?.kind === 'clip') {
+      clearTimeout(playbackCommitRef.current);
+      pendingSwipeTrackRef.current = null;
+      if (player.isPlaying) void player.pause();
+      lastAutoStartedClipRef.current = `${feedMode}:${nextIndex}:${nextItem.clip.id}`;
+      setPlayingClipId(nextItem.clip.id);
+      return;
+    }
+    setPlayingClipId(null);
+
     // Lance la lecture de la slide stable si elle contient un morceau. Idempotent.
-    const target = trackOfItem(feedItems[nextIndex]);
+    const target = playableTrackOfItem(nextItem);
     if (!target?.audioUrl) return;
     if (player.current?._id === target._id) return;
     pendingSwipeTrackRef.current = target._id;
@@ -662,7 +758,7 @@ export function SwipeScreen() {
         else void player.playTrack(target);
       });
     }, 90);
-  }, [player, feedItems]);
+  }, [feedItems, feedMode, player]);
 
   const commitVisibleTrack = useCallback((offsetY: number) => {
     commitIndex(Math.round(offsetY / itemHeight));
@@ -700,8 +796,9 @@ export function SwipeScreen() {
     const isActive = isFocused && index === activeIndex;
 
     if (item.kind === 'clip') {
-      const isPlayingThis = isActive && player.current?._id === item.track._id && player.isPlaying;
+      const isPlayingThis = isActive && appIsActive && playingClipId === item.clip.id;
       const clipTrackId = item.track._id;
+      const clipKey = clipInteractionKey(item.clip.id);
       const creatorKey = item.clip.creator?.username || '';
       return (
         <ClipSlide
@@ -711,16 +808,20 @@ export function SwipeScreen() {
           bottomPad={tabBarHeight}
           isActive={isActive}
           isPlaying={isPlayingThis}
-          audioPosition={isPlayingThis ? playerProgress.positionSec : item.clip.sourceTrackOffsetSeconds}
-          isLiked={!!likedMap[clipTrackId]}
-          likesCount={likesMap[clipTrackId] ?? item.track.likesCount ?? 0}
-          commentsCount={commentsCounts[clipTrackId] ?? item.track.commentsCount ?? 0}
+          isLiked={likedMap[clipKey] ?? item.clip.isLiked}
+          likesCount={likesMap[clipKey] ?? item.clip.likesCount}
+          commentsCount={commentsCounts[clipKey] ?? item.clip.commentsCount}
           isFollowingCreator={!!followingMap[creatorKey]}
           followLoading={!!followLoading[creatorKey]}
           onPressAudio={() => {
-            if (player.current?._id === clipTrackId) void player.togglePlayPause();
-            else void player.playTrack(item.track);
+            if (playingClipId === item.clip.id) {
+              setPlayingClipId(null);
+            } else {
+              if (player.isPlaying) void player.pause();
+              setPlayingClipId(item.clip.id);
+            }
           }}
+          onPlaybackEnd={() => setPlayingClipId((current) => current === item.clip.id ? null : current)}
           onDoubleTapLike={handleDoubleTapLike}
           onToggleLike={() => void handleToggleLike()}
           onOpenComments={() => {
@@ -843,6 +944,7 @@ export function SwipeScreen() {
     );
   }, [
     activeIndex,
+    appIsActive,
     commentsCounts,
     followLoading,
     followingMap,
@@ -861,6 +963,7 @@ export function SwipeScreen() {
     likedMap,
     likesMap,
     player,
+    playingClipId,
     tabBarHeight,
     useThisSound,
   ]);
@@ -921,8 +1024,10 @@ export function SwipeScreen() {
         </View>
       ) : (
         <FlatList
+          key={`flow-${feedMode}-${resumeGeneration}`}
           ref={listRef}
           data={feedItems}
+          extraData={`${activeIndex}:${playingClipId || ''}:${appIsActive ? 'active' : 'paused'}`}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           snapToInterval={itemHeight}
@@ -938,12 +1043,13 @@ export function SwipeScreen() {
           onScrollEndDrag={handleScrollEndDrag}
           onMomentumScrollEnd={handleMomentumScrollEnd}
           getItemLayout={(_, index) => ({ length: itemHeight, offset: itemHeight * index, index })}
+          initialScrollIndex={Math.max(0, Math.min(activeIndex, feedItems.length - 1))}
           initialNumToRender={1}
           windowSize={3}
           maxToRenderPerBatch={1}
           updateCellsBatchingPeriod={48}
           onScrollToIndexFailed={(info) => listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false })}
-          removeClippedSubviews
+          removeClippedSubviews={false}
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.45}
           ListFooterComponent={loadingMore ? (
@@ -959,9 +1065,15 @@ export function SwipeScreen() {
       <CommentsSheet
         visible={commentsOpen}
         track={activeTrack}
-        commentCount={activeTrack ? commentsCounts[activeTrack._id] ?? activeTrack.commentsCount ?? 0 : 0}
+        clip={activeClip}
+        commentCount={activeClip
+          ? commentsCounts[clipInteractionKey(activeClip.id)] ?? activeClip.commentsCount
+          : activeTrack ? commentsCounts[activeTrack._id] ?? activeTrack.commentsCount ?? 0 : 0}
         onClose={() => setCommentsOpen(false)}
-        onCountChange={(id, next) => setCommentsCounts((current) => ({ ...current, [id]: next }))}
+        onCountChange={(id, next) => setCommentsCounts((current) => ({
+          ...current,
+          [activeClip ? clipInteractionKey(id) : id]: next,
+        }))}
       />
 
       <ShareSheet

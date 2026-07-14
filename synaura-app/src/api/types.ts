@@ -144,6 +144,7 @@ export type MusicClip = {
   visibility: 'draft' | 'published' | 'hidden';
   likesCount: number;
   commentsCount: number;
+  isLiked: boolean;
   createdAt: string;
   updatedAt: string;
   sourceTrack: MusicClipSource;

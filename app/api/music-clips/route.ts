@@ -24,6 +24,9 @@ export async function GET(request: NextRequest) {
     const sourceTrackId = params.get('sourceTrackId');
     const sourceTrackType = params.get('sourceTrackType');
     const creatorId = params.get('creatorId');
+    const clipId = params.get('clipId');
+    const session = await getApiSession(request).catch(() => null);
+    const viewerId = session?.user?.id || null;
 
     let query = supabaseAdmin
       .from('music_clips')
@@ -43,10 +46,17 @@ export async function GET(request: NextRequest) {
       query = query.eq('creator_id', creatorId);
     }
 
+    if (clipId) {
+      query = query.eq('id', clipId);
+    }
+
     const { data, error } = await query;
     if (error) throw error;
     const rows = data || [];
-    const clips = await formatMusicClips(rows.slice(0, limit));
+    const clips = await formatMusicClips(
+      rows.slice(0, limit),
+      { viewerId },
+    );
     return NextResponse.json({
       clips,
       nextCursor: cursor + clips.length,

@@ -42,6 +42,7 @@ export type MusicClip = {
   visibility: MusicClipVisibility;
   likesCount: number;
   commentsCount: number;
+  isLiked: boolean;
   createdAt: string;
   updatedAt: string;
   sourceTrack: MusicClipSource;
@@ -239,6 +240,7 @@ export async function formatMusicClip(row: any, options: { viewerId?: string | n
     visibility: row.visibility || 'draft',
     likesCount: Number(row.likes_count || 0),
     commentsCount: Number(row.comments_count || 0),
+    isLiked: Boolean(row.is_liked ?? row.isLiked),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     sourceTrack: source,

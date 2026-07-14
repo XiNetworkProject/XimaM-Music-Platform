@@ -36,6 +36,7 @@ export type RootStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const ROOT_GATE_TIMEOUT_MS = 2400;
 
 const navTheme = {
   ...DefaultTheme,
@@ -75,21 +76,32 @@ function RootStackNavigator() {
   useEffect(() => {
     if (auth.loading || checkedRef.current) return;
     checkedRef.current = true;
+    let mounted = true;
+    let settled = false;
+    const finish = (initialRoute: 'Tabs' | 'Onboarding' | 'Welcome') => {
+      if (!mounted || settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      setGate({ ready: true, initialRoute });
+    };
+
+    // Aucune lecture reseau ou locale ne doit pouvoir retenir la navigation sur
+    // un ecran vide. En cas de stockage/reseau lent, l'app reste accessible.
+    const timeout = setTimeout(() => finish('Tabs'), ROOT_GATE_TIMEOUT_MS);
 
     if (!auth.user || !auth.token) {
-      void isWelcomeCompleted().then((completed) => {
-        setGate({ ready: true, initialRoute: completed ? 'Tabs' : 'Welcome' });
-      });
-      return;
+      void isWelcomeCompleted()
+        .then((completed) => finish(completed ? 'Tabs' : 'Welcome'))
+        .catch(() => finish('Tabs'));
+    } else {
+      void isOnboardingCompleted()
+        .then((completed) => finish(completed ? 'Tabs' : 'Onboarding'))
+        .catch(() => finish('Tabs'));
     }
 
-    let mounted = true;
-    isOnboardingCompleted().then((completed) => {
-      if (!mounted) return;
-      setGate({ ready: true, initialRoute: completed ? 'Tabs' : 'Onboarding' });
-    });
     return () => {
       mounted = false;
+      clearTimeout(timeout);
     };
   }, [auth.loading, auth.user, auth.token]);
 

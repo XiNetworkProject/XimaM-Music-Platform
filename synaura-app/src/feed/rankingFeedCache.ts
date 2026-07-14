@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { RankingFeedChunk } from '@/api/types';
 
-const CACHE_PREFIX = 'synaura.feed.first-page.v2';
+const CACHE_PREFIX = 'synaura.feed.first-page.v3';
 const MAX_CACHE_AGE_MS = 12 * 60 * 60 * 1000;
 
 type CachedFeed = {
@@ -22,7 +22,14 @@ export async function readRankingFeedCache(mode: string, seedGenre: string | nul
     const parsed = JSON.parse(raw) as CachedFeed;
     if (!parsed?.savedAt || Date.now() - parsed.savedAt > MAX_CACHE_AGE_MS) return null;
     if (!Array.isArray(parsed.chunk?.tracks) || !parsed.chunk.tracks.length) return null;
-    return parsed.chunk;
+    const tracks = parsed.chunk.tracks.filter((track) => (
+      typeof track?._id === 'string'
+      && track._id.length > 0
+      && typeof track.audioUrl === 'string'
+      && track.audioUrl.length > 0
+    ));
+    if (!tracks.length) return null;
+    return { ...parsed.chunk, tracks };
   } catch {
     return null;
   }

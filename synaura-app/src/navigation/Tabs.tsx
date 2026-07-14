@@ -40,7 +40,7 @@ export type RootTabsParamList = {
   Discover: undefined;
   Radar: undefined;
   DiscoverMood: { moodId: string };
-  Swipe: { mode?: 'clips'; sourceTrackId?: string } | undefined;
+  Swipe: { mode?: 'clips'; sourceTrackId?: string; clipId?: string } | undefined;
   Community: { compose?: boolean; category?: string; track?: Track } | undefined;
   ClubDetail: { slug: string; compose?: boolean; track?: Track } | undefined;
   Profile: { tab?: 'sons' | 'clips' | 'variations' | 'playlists' | 'posts'; openPendingVariations?: boolean } | undefined;

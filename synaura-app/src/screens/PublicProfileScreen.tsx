@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { followUser, getMusicClips, getPublicProfile, getUserPosts, getUserVariations, type MobileProfile } from '@/api/client';
 import type { HomePost, MusicClip, UserVariation } from '@/api/types';
 import type { RootTabsParamList } from '@/navigation/Tabs';
@@ -54,19 +54,27 @@ export function PublicProfileScreen() {
   const load = useCallback(async () => {
     if (!username) return;
     setLoading(true);
+    setClipsLoading(true);
+    setClipsLoaded(false);
     try {
       const nextProfile = await getPublicProfile(username);
       setProfile(nextProfile);
-      const nextPosts = await getUserPosts(nextProfile.id);
+      const [nextPosts, nextClips] = await Promise.all([
+        getUserPosts(nextProfile.id).catch(() => []),
+        getMusicClips({ creatorId: nextProfile.id, limit: 40 }).then((result) => result.clips).catch(() => []),
+      ]);
       setPosts(nextPosts.map((post) => ({ ...post, isPinned: post.id === nextProfile.pinnedPostId })).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned))));
+      setClips(nextClips);
+      setClipsLoaded(true);
     } finally {
       setLoading(false);
+      setClipsLoading(false);
     }
   }, [username]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     void load();
-  }, [load]);
+  }, [load]));
 
   // Chargement paresseux : Clips et Variations ne sont recuperes que lorsque
   // l'onglet correspondant est ouvert, pour eviter des appels systematiques.
@@ -245,7 +253,7 @@ export function PublicProfileScreen() {
             ) : clips.length ? (
               <View style={styles.clipsGrid}>
                 {clips.map((clip) => (
-                  <Pressable key={clip.id} onPress={() => navigation.navigate('Swipe', { mode: 'clips', sourceTrackId: clip.sourceTrackId })} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
+                  <Pressable key={clip.id} onPress={() => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
                     {clip.posterUrl ? <Image source={{ uri: clip.posterUrl }} style={StyleSheet.absoluteFillObject} /> : null}
                     <View style={styles.clipTileOverlay}><Text numberOfLines={1} style={styles.clipTileTitle}>{clip.sourceTrack?.title || 'Clip'}</Text></View>
                   </Pressable>

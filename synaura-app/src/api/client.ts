@@ -311,6 +311,7 @@ function normalizeMusicClip(raw: any): MusicClip | null {
     visibility: ['draft', 'published', 'hidden'].includes(raw?.visibility) ? raw.visibility : 'draft',
     likesCount: Number(raw?.likesCount ?? raw?.likes_count ?? 0),
     commentsCount: Number(raw?.commentsCount ?? raw?.comments_count ?? 0),
+    isLiked: Boolean(raw?.isLiked ?? raw?.is_liked),
     createdAt: raw?.createdAt || raw?.created_at || new Date().toISOString(),
     updatedAt: raw?.updatedAt || raw?.updated_at || raw?.createdAt || raw?.created_at || new Date().toISOString(),
     sourceTrack: source,
@@ -678,18 +679,37 @@ export async function getTrackById(trackId: string): Promise<Track | null> {
   return json ? normalizeTrack(json?.track || json) : null;
 }
 
-export async function getMusicClips(input: { limit?: number; cursor?: number; sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; creatorId?: string } = {}): Promise<{ clips: MusicClip[]; nextCursor: number; hasMore: boolean }> {
+export async function getMusicClips(input: { limit?: number; cursor?: number; sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; creatorId?: string; clipId?: string } = {}): Promise<{ clips: MusicClip[]; nextCursor: number; hasMore: boolean }> {
   const params = new URLSearchParams();
   params.set('limit', String(input.limit || 20));
   if (input.cursor) params.set('cursor', String(input.cursor));
   if (input.sourceTrackId) params.set('sourceTrackId', input.sourceTrackId);
   if (input.sourceTrackType) params.set('sourceTrackType', input.sourceTrackType);
   if (input.creatorId) params.set('creatorId', input.creatorId);
+  if (input.clipId) params.set('clipId', input.clipId);
   const json = await request<any>(`/api/music-clips?${params.toString()}`);
   return {
     clips: (Array.isArray(json?.clips) ? json.clips : []).map(normalizeMusicClip).filter((clip: MusicClip | null): clip is MusicClip => Boolean(clip)),
     nextCursor: Number(json?.nextCursor || 0),
     hasMore: Boolean(json?.hasMore),
+  };
+}
+
+export async function getMusicClipLikeStatus(clipId: string): Promise<{ liked: boolean; likesCount: number }> {
+  const json = await request<any>(`/api/music-clips/${encodeURIComponent(clipId)}/like`);
+  return {
+    liked: Boolean(json?.liked),
+    likesCount: Number(json?.likesCount ?? json?.likes_count ?? 0),
+  };
+}
+
+export async function setMusicClipLike(clipId: string, like: boolean): Promise<{ liked: boolean; likesCount: number }> {
+  const json = await request<any>(`/api/music-clips/${encodeURIComponent(clipId)}/like`, {
+    method: like ? 'POST' : 'DELETE',
+  });
+  return {
+    liked: Boolean(json?.liked ?? like),
+    likesCount: Number(json?.likesCount ?? json?.likes_count ?? 0),
   };
 }
 
@@ -1125,25 +1145,27 @@ export type CommentsPage = {
 };
 
 export async function getCommentsPage(
-  kind: 'track' | 'post',
+  kind: 'track' | 'post' | 'clip',
   id: string,
   cursor: string | number | null = null,
 ): Promise<CommentsPage> {
   const path = kind === 'track'
     ? `/api/tracks/${encodeURIComponent(id)}/comments?limit=8&offset=${typeof cursor === 'number' ? cursor : 0}`
-    : `/api/posts/${encodeURIComponent(id)}/comments?limit=8${typeof cursor === 'string' ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+    : kind === 'clip'
+      ? `/api/music-clips/${encodeURIComponent(id)}/comments?limit=8&offset=${typeof cursor === 'number' ? cursor : 0}`
+      : `/api/posts/${encodeURIComponent(id)}/comments?limit=8${typeof cursor === 'string' ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
   const json = await request<any>(path);
   const raw = Array.isArray(json?.comments) ? json.comments : Array.isArray(json) ? json : [];
   return {
     comments: raw.map(normalizeComment).filter((comment: HomeComment | null): comment is HomeComment => Boolean(comment)),
-    nextCursor: kind === 'track'
+    nextCursor: kind === 'track' || kind === 'clip'
       ? (typeof json?.nextOffset === 'number' ? json.nextOffset : null)
       : (typeof json?.nextCursor === 'string' ? json.nextCursor : null),
-    hasMore: kind === 'track' ? Boolean(json?.hasMore) : Boolean(json?.nextCursor),
+    hasMore: kind === 'track' || kind === 'clip' ? Boolean(json?.hasMore) : Boolean(json?.nextCursor),
   };
 }
 
-export async function getComments(kind: 'track' | 'post', id: string): Promise<HomeComment[]> {
+export async function getComments(kind: 'track' | 'post' | 'clip', id: string): Promise<HomeComment[]> {
   return (await getCommentsPage(kind, id)).comments;
 }
 
@@ -1157,14 +1179,16 @@ export async function getTimestampedComments(trackId: string): Promise<HomeComme
 }
 
 export async function createComment(
-  kind: 'track' | 'post',
+  kind: 'track' | 'post' | 'clip',
   id: string,
   content: string,
   options?: { timestampSeconds?: number | null },
 ): Promise<HomeComment> {
   const path = kind === 'track'
     ? `/api/tracks/${encodeURIComponent(id)}/comments`
-    : `/api/posts/${encodeURIComponent(id)}/comments`;
+    : kind === 'clip'
+      ? `/api/music-clips/${encodeURIComponent(id)}/comments`
+      : `/api/posts/${encodeURIComponent(id)}/comments`;
   const timestampSeconds = kind === 'track' && options?.timestampSeconds != null && Number.isFinite(Number(options.timestampSeconds))
     ? Math.max(0, Number(options.timestampSeconds))
     : undefined;
@@ -1223,10 +1247,12 @@ export async function addMomentReaction(trackId: string, reactionType: MomentRea
   return reaction;
 }
 
-export async function deleteComment(kind: 'track' | 'post', targetId: string, commentId: string) {
+export async function deleteComment(kind: 'track' | 'post' | 'clip', targetId: string, commentId: string) {
   const path = kind === 'track'
     ? `/api/tracks/${encodeURIComponent(targetId)}/comments/${encodeURIComponent(commentId)}`
-    : `/api/posts/${encodeURIComponent(targetId)}/comments?comment_id=${encodeURIComponent(commentId)}`;
+    : kind === 'clip'
+      ? `/api/music-clips/${encodeURIComponent(targetId)}/comments/${encodeURIComponent(commentId)}`
+      : `/api/posts/${encodeURIComponent(targetId)}/comments?comment_id=${encodeURIComponent(commentId)}`;
   await request(path, { method: 'DELETE' });
 }
 

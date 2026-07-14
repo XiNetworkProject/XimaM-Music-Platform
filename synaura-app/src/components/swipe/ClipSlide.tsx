@@ -11,16 +11,12 @@ import { useAuth } from '@/auth/AuthProvider';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
-// Slide Clip alignée sur SwipeSlide (même colonne d'actions à droite, même
-// panneau méta sombre en bas à gauche, mêmes gestes tap/double-tap) : un clip
-// EST une slide du Scroll, pas un écran à part. Le like/commentaires portent
-// sur le morceau source (comme le reste du Scroll) — il n'existe pas d'API de
-// like par clip.
+// Un clip reste une slide du Scroll, avec sa propre lecture et ses propres
+// interactions. Sa lecture ne modifie jamais la file ou la position du morceau.
 type Props = {
   clip: MusicClip;
   isActive: boolean;
   isPlaying: boolean;
-  audioPosition: number;
   isLiked: boolean;
   likesCount: number;
   commentsCount: number;
@@ -30,6 +26,7 @@ type Props = {
   topPad: number;
   bottomPad: number;
   onPressAudio: () => void;
+  onPlaybackEnd: () => void;
   onDoubleTapLike: () => void;
   onToggleLike: () => void;
   onOpenComments: () => void;
@@ -98,7 +95,6 @@ export function ClipSlide({
   clip,
   isActive,
   isPlaying,
-  audioPosition,
   isLiked,
   likesCount,
   commentsCount,
@@ -108,6 +104,7 @@ export function ClipSlide({
   topPad,
   bottomPad,
   onPressAudio,
+  onPlaybackEnd,
   onDoubleTapLike,
   onToggleLike,
   onOpenComments,
@@ -133,13 +130,21 @@ export function ClipSlide({
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playButtonOpacity = useRef(new Animated.Value(isPlaying ? 0 : 1)).current;
   const videoRef = useRef<any>(null);
+  const audioRef = useRef<any>(null);
   const videoTimeRef = useRef(0);
   const videoDurationRef = useRef(0);
+  const audioTimeRef = useRef(0);
+  const playbackEndedRef = useRef(false);
+  const wasActiveRef = useRef(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [videoBuffering, setVideoBuffering] = useState(true);
-
-  const expectedVideoTime = Math.max(0, audioPosition - Math.max(0, clip.sourceTrackOffsetSeconds || 0));
+  const [audioFailed, setAudioFailed] = useState(false);
+  const [audioReady, setAudioReady] = useState(false);
+  const [audioBuffering, setAudioBuffering] = useState(true);
+  const clipStart = Math.max(0, clip.sourceTrackOffsetSeconds || 0);
+  const clipLength = Math.max(3, clip.sourceTrackDurationSeconds || 30);
+  const clipEnd = clipStart + clipLength;
 
   useEffect(() => {
     Animated.timing(playButtonOpacity, { toValue: isPlaying ? 0 : 1, duration: settings.reducedMotion ? 0 : 220, useNativeDriver: true }).start();
@@ -153,18 +158,48 @@ export function ClipSlide({
     setVideoFailed(false);
     setVideoReady(false);
     setVideoBuffering(true);
+    setAudioFailed(false);
+    setAudioReady(false);
+    setAudioBuffering(true);
     videoTimeRef.current = 0;
     videoDurationRef.current = 0;
-  }, [clip.id, clip.videoUrl]);
+    audioTimeRef.current = clipStart;
+    playbackEndedRef.current = false;
+    wasActiveRef.current = false;
+  }, [clip.id, clip.videoUrl, clipStart]);
 
-  // TrackPlayer reste la source de verite. La video muette se recale seulement
-  // si la derive devient visible, ce qui evite les seeks permanents couteux.
+  // Une session Clip possede sa propre video et son propre extrait audio. Elle
+  // ne touche jamais a TrackPlayer, a sa file ou a la position du morceau source.
   useEffect(() => {
-    if (!isActive || !videoReady || !videoRef.current) return;
-    const duration = videoDurationRef.current;
-    const target = duration > 0 ? expectedVideoTime % duration : expectedVideoTime;
-    if (Math.abs(videoTimeRef.current - target) > 0.55) videoRef.current.seek(target);
-  }, [expectedVideoTime, isActive, videoReady]);
+    if (!isActive) {
+      if (wasActiveRef.current) {
+        audioRef.current?.seek(clipStart);
+        videoRef.current?.seek(0);
+        audioTimeRef.current = clipStart;
+        videoTimeRef.current = 0;
+        playbackEndedRef.current = false;
+      }
+      wasActiveRef.current = false;
+      return;
+    }
+    if (!wasActiveRef.current) {
+      audioRef.current?.seek(clipStart);
+      videoRef.current?.seek(0);
+      audioTimeRef.current = clipStart;
+      videoTimeRef.current = 0;
+      playbackEndedRef.current = false;
+    }
+    wasActiveRef.current = true;
+  }, [clipStart, isActive]);
+
+  useEffect(() => {
+    if (!isActive || !isPlaying || !playbackEndedRef.current) return;
+    playbackEndedRef.current = false;
+    audioRef.current?.seek(clipStart);
+    videoRef.current?.seek(0);
+    audioTimeRef.current = clipStart;
+    videoTimeRef.current = 0;
+  }, [clipStart, isActive, isPlaying]);
 
   // Mêmes gestes que SwipeSlide : tap = lecture/pause, double-tap = like.
   const handleTap = () => {
@@ -193,9 +228,9 @@ export function ClipSlide({
             source={{ uri: clip.videoUrl }}
             poster={clip.posterUrl || undefined}
             paused={!isActive || !isPlaying}
-            repeat
-            muted
-            disableFocus
+            repeat={false}
+            muted={!audioFailed}
+            disableFocus={!audioFailed}
             resizeMode="cover"
             playInBackground={false}
             playWhenInactive={false}
@@ -203,12 +238,17 @@ export function ClipSlide({
               videoDurationRef.current = Number(event.duration || 0);
               setVideoReady(true);
               setVideoBuffering(false);
-              const duration = Number(event.duration || 0);
-              const target = duration > 0 ? expectedVideoTime % duration : expectedVideoTime;
-              videoRef.current?.seek(target);
+              videoRef.current?.seek(Math.max(0, audioTimeRef.current - clipStart));
             }}
             onProgress={(event) => {
               videoTimeRef.current = Number(event.currentTime || 0);
+            }}
+            onEnd={() => {
+              if (!isActive || !isPlaying || playbackEndedRef.current) return;
+              playbackEndedRef.current = true;
+              audioRef.current?.seek(clipStart);
+              videoRef.current?.seek(0);
+              onPlaybackEnd();
             }}
             onBuffer={(event) => setVideoBuffering(Boolean(event.isBuffering))}
             onError={() => {
@@ -223,6 +263,51 @@ export function ClipSlide({
         ) : (
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#171313' }]} />
         )}
+        {track.audioUrl ? (
+          <Video
+            ref={audioRef}
+            source={{ uri: track.audioUrl }}
+            paused={!isActive || !isPlaying || audioFailed || !audioReady}
+            repeat={false}
+            muted={false}
+            volume={1}
+            playInBackground={false}
+            playWhenInactive={false}
+            progressUpdateInterval={180}
+            onLoad={() => {
+              setAudioReady(true);
+              setAudioBuffering(false);
+              audioTimeRef.current = clipStart;
+              audioRef.current?.seek(clipStart);
+            }}
+            onProgress={(event) => {
+              const currentTime = Number(event.currentTime || 0);
+              audioTimeRef.current = currentTime;
+              const relative = Math.max(0, currentTime - clipStart);
+              if (isActive && videoReady && Math.abs(videoTimeRef.current - relative) > 0.5) {
+                videoRef.current?.seek(Math.min(relative, Math.max(0, videoDurationRef.current - 0.05)));
+              }
+              if (!isActive || !isPlaying || playbackEndedRef.current || currentTime < clipEnd - 0.12) return;
+              playbackEndedRef.current = true;
+              audioRef.current?.seek(clipStart);
+              videoRef.current?.seek(0);
+              onPlaybackEnd();
+            }}
+            onBuffer={(event) => setAudioBuffering(Boolean(event.isBuffering))}
+            onEnd={() => {
+              if (playbackEndedRef.current) return;
+              playbackEndedRef.current = true;
+              audioRef.current?.seek(clipStart);
+              videoRef.current?.seek(0);
+              onPlaybackEnd();
+            }}
+            onError={() => {
+              setAudioBuffering(false);
+              setAudioFailed(true);
+            }}
+            style={styles.hiddenAudio}
+          />
+        ) : null}
         <LinearGradient
           colors={['rgba(10,8,8,0.32)', 'rgba(10,8,8,0.0)', 'rgba(10,8,8,0.56)', 'rgba(10,8,8,0.98)']}
           locations={[0, 0.34, 0.73, 1]}
@@ -245,7 +330,7 @@ export function ClipSlide({
               <Ionicons name="cloud-offline-outline" size={11} color="#FFFAF2" />
               <Text style={styles.videoStatusText}>VIDEO INDISPONIBLE</Text>
             </View>
-          ) : isActive && videoBuffering ? (
+          ) : isActive && (videoBuffering || (!audioFailed && (!audioReady || audioBuffering))) ? (
             <View style={styles.videoLoading}>
               <View style={styles.videoLoadingDot} />
               <Text style={styles.videoStatusText}>CHARGEMENT</Text>
@@ -341,6 +426,7 @@ export function ClipSlide({
 const styles = StyleSheet.create({
   page: { width: '100%', position: 'relative', backgroundColor: colors.black },
   pressArea: { flex: 1 },
+  hiddenAudio: { position: 'absolute', width: 1, height: 1, left: 0, bottom: 0, opacity: 0.01 },
   playOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   playCircle: {
     width: 74,

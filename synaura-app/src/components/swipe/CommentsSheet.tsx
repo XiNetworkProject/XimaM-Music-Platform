@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createComment, getCommentsPage } from '@/api/client';
-import type { HomeComment, Track } from '@/api/types';
+import type { HomeComment, MusicClip, Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
@@ -23,6 +23,7 @@ import { fmtCount, fmtTime } from './helpers';
 type Props = {
   visible: boolean;
   track: Track | null;
+  clip?: MusicClip | null;
   commentCount: number;
   onClose: () => void;
   onCountChange?: (trackId: string, nextCount: number) => void;
@@ -41,7 +42,7 @@ function relativeTime(value: string) {
   return new Date(value).toLocaleDateString('fr-FR');
 }
 
-export function CommentsSheet({ visible, track, commentCount, onClose, onCountChange }: Props) {
+export function CommentsSheet({ visible, track, clip = null, commentCount, onClose, onCountChange }: Props) {
   const insets = useSafeAreaInsets();
   const responsive = useResponsiveLayout();
   const keyboardHeight = useKeyboardHeight();
@@ -50,14 +51,16 @@ export function CommentsSheet({ visible, track, commentCount, onClose, onCountCh
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [text, setText] = useState('');
-  const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const offsetRef = useRef(0);
   const slide = useRef(new Animated.Value(0)).current;
 
-  const trackIdValue = track?._id || '';
-  const isRadio = trackIdValue.startsWith('radio-');
-  const isAi = trackIdValue.startsWith('ai-');
-  const disabled = !trackIdValue || isRadio || isAi;
+  const targetKind = clip ? 'clip' as const : 'track' as const;
+  const targetId = clip?.id || track?._id || '';
+  const isRadio = targetKind === 'track' && targetId.startsWith('radio-');
+  const isAi = targetKind === 'track' && targetId.startsWith('ai-');
+  const disabled = !targetId || isRadio || isAi;
 
   useEffect(() => {
     Animated.timing(slide, {
@@ -68,48 +71,53 @@ export function CommentsSheet({ visible, track, commentCount, onClose, onCountCh
   }, [slide, visible]);
 
   const load = useCallback(async (mode: 'initial' | 'more') => {
-    if (!trackIdValue || disabled) {
+    if (!targetId || disabled) {
       setComments([]);
       setHasMore(false);
-      setOffset(0);
+      offsetRef.current = 0;
       return;
     }
-    if (mode === 'initial') setLoading(true);
+    if (mode === 'initial') {
+      setLoading(true);
+      setError(null);
+    }
     try {
-      const cursor = mode === 'initial' ? 0 : offset;
-      const page = await getCommentsPage('track', trackIdValue, cursor);
+      const cursor = mode === 'initial' ? 0 : offsetRef.current;
+      const page = await getCommentsPage(targetKind, targetId, cursor);
       setComments((current) => (mode === 'initial' ? page.comments : [...current, ...page.comments]));
       setHasMore(page.hasMore);
-      setOffset(typeof page.nextCursor === 'number' ? page.nextCursor : cursor + page.comments.length);
-    } catch {
-      // silencieux
+      offsetRef.current = typeof page.nextCursor === 'number' ? page.nextCursor : cursor + page.comments.length;
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Impossible de charger les commentaires.');
     } finally {
       if (mode === 'initial') setLoading(false);
     }
-  }, [disabled, offset, trackIdValue]);
+  }, [disabled, targetId, targetKind]);
 
   useEffect(() => {
     if (!visible) return;
     setText('');
+    setError(null);
     void load('initial');
-  }, [visible, trackIdValue, load]);
+  }, [visible, targetId, load]);
 
   const submit = useCallback(async () => {
     const value = text.trim();
-    if (!trackIdValue || disabled || !value) return;
+    if (!targetId || disabled || !value) return;
     if (!user) return;
     setSubmitting(true);
+    setError(null);
     try {
-      const next = await createComment('track', trackIdValue, value);
+      const next = await createComment(targetKind, targetId, value);
       setComments((current) => [next, ...current]);
       setText('');
-      onCountChange?.(trackIdValue, commentCount + 1);
-    } catch {
-      // ignore
+      onCountChange?.(targetId, commentCount + 1);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Impossible de publier le commentaire.');
     } finally {
       setSubmitting(false);
     }
-  }, [commentCount, disabled, onCountChange, text, trackIdValue, user]);
+  }, [commentCount, disabled, onCountChange, targetId, targetKind, text, user]);
 
   const renderComment = (comment: HomeComment, nested = false) => {
     const initial = (comment.user.name || comment.user.username || '?').slice(0, 1).toUpperCase();
@@ -170,7 +178,7 @@ export function CommentsSheet({ visible, track, commentCount, onClose, onCountCh
         <View style={styles.header}>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.kicker}>Commentaires</Text>
-            <Text numberOfLines={1} style={styles.title}>{track?.title || 'Discussion'}</Text>
+            <Text numberOfLines={1} style={styles.title}>{clip?.sourceTrack?.title || track?.title || 'Discussion'}</Text>
             <Text style={styles.subtitle}>
               {commentCount > 0 ? `${fmtCount(commentCount)} réactions` : 'Aucune réaction encore — lance la conversation.'}
             </Text>
@@ -185,7 +193,13 @@ export function CommentsSheet({ visible, track, commentCount, onClose, onCountCh
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {disabled ? (
+          {error ? (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle-outline" size={22} color="#B8463C" />
+              <Text style={styles.errorText}>{error}</Text>
+              {!disabled ? <Pressable onPress={() => void load('initial')} style={styles.retryButton}><Text style={styles.retryText}>Reessayer</Text></Pressable> : null}
+            </View>
+          ) : disabled ? (
             <View style={styles.empty}>
               <Ionicons name="information-circle-outline" size={28} color="rgba(23,19,19,0.45)" />
               <Text style={styles.emptyText}>Les commentaires ne sont pas disponibles sur cette source.</Text>
@@ -313,6 +327,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyText: { textAlign: 'center', color: 'rgba(23,19,19,0.55)', fontSize: 13, lineHeight: 19 },
+  errorBox: { marginVertical: 12, alignItems: 'center', gap: 8, borderRadius: 12, padding: 18, backgroundColor: 'rgba(217,109,99,0.1)' },
+  errorText: { color: '#8F352E', fontSize: 12, lineHeight: 18, fontWeight: '700', textAlign: 'center' },
+  retryButton: { borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#171313' },
+  retryText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900' },
   moreButton: {
     marginTop: 14,
     alignSelf: 'center',

@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { deleteTrack, getMusicClips, getMyProfile, getNotifications, getPendingApprovals, getSubscriptionUsage, getUserPosts, getUserVariations, pinPost, unpinPost, updateTrackMetadata, type MobileProfile, type MobileProfileTrack, type SubscriptionUsage } from '@/api/client';
 import type { HomePost, MusicClip, PendingVariation, UserVariation } from '@/api/types';
@@ -104,6 +104,8 @@ export function ProfileScreen() {
   const loadProfile = useCallback(async () => {
     if (!auth.user?.username) return;
     setLoading(true);
+    setClipsLoading(true);
+    setClipsLoaded(false);
     setError(null);
     try {
       const [nextProfile, nextUsage] = await Promise.all([
@@ -112,18 +114,24 @@ export function ProfileScreen() {
       ]);
       setProfile(nextProfile);
       setUsage(nextUsage);
-      const nextPosts = await getUserPosts(nextProfile.id);
+      const [nextPosts, nextClips] = await Promise.all([
+        getUserPosts(nextProfile.id).catch(() => []),
+        getMusicClips({ creatorId: nextProfile.id, limit: 40 }).then((result) => result.clips).catch(() => []),
+      ]);
       setPosts(nextPosts.map((post) => ({ ...post, isPinned: post.id === nextProfile.pinnedPostId })).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned))));
+      setClips(nextClips);
+      setClipsLoaded(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Profil impossible à charger');
     } finally {
       setLoading(false);
+      setClipsLoading(false);
     }
   }, [auth.user?.username]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     void loadProfile();
-  }, [loadProfile]);
+  }, [loadProfile]));
 
   // Destination d'une notification ("Mes variations" / "Variations a valider") :
   // params transmis par openInternalLink, appliques une seule fois a l'arrivee.
@@ -435,7 +443,7 @@ export function ProfileScreen() {
           {clipsLoading ? <Empty text="Chargement…" /> : clips.length ? (
             <View style={styles.clipsGrid}>
               {clips.map((clip) => (
-                <Pressable key={clip.id} onPress={() => navigation.navigate('Swipe', { mode: 'clips', sourceTrackId: clip.sourceTrackId })} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
+                <Pressable key={clip.id} onPress={() => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
                   {clip.posterUrl ? <Image source={{ uri: clip.posterUrl }} style={StyleSheet.absoluteFillObject} /> : null}
                   <View style={styles.clipTileOverlay}><Text numberOfLines={1} style={styles.clipTileTitle}>{clip.sourceTrack?.title || 'Clip'}</Text></View>
                 </Pressable>

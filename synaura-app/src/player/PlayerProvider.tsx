@@ -36,6 +36,8 @@ type PlayerContextValue = {
   toggleShuffle: () => Promise<void>;
   setQueueAndPlay: (tracks: Track[], startIndex: number) => Promise<void>;
   setQueueOnly: (tracks: Track[], startIndex: number) => Promise<void>;
+  play: () => Promise<void>;
+  pause: () => Promise<void>;
   togglePlayPause: () => Promise<void>;
   seekTo: (seconds: number) => Promise<void>;
   next: () => Promise<void>;
@@ -52,7 +54,13 @@ function artistName(track: Track) {
 }
 
 function isPlayableTrack(track: Track | null | undefined) {
-  return Boolean(track?.audioUrl && !track._id.startsWith('radio-'));
+  return Boolean(
+    typeof track?._id === 'string'
+    && track._id.length > 0
+    && typeof track.audioUrl === 'string'
+    && track.audioUrl.length > 0
+    && !track._id.startsWith('radio-'),
+  );
 }
 
 function toNativeTrack(track: Track) {
@@ -194,6 +202,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.warn('[SynauraPlayer] restore failed', error);
+        await AsyncStorage.removeItem(PLAYER_STATE_KEY).catch(() => {});
+        await TrackPlayer.reset().catch(() => {});
+        byIdRef.current.clear();
+        queueRef.current = [];
+        currentRef.current = null;
+        setQueue([]);
+        setCurrent(null);
+        setCurrentIndex(0);
       } finally {
         restoredRef.current = true;
       }
@@ -490,6 +506,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }), [runPlayerCommand]);
 
+  const play = useCallback(async () => runPlayerCommand(async () => {
+    if (!currentRef.current) return;
+    await TrackPlayer.play();
+  }), [runPlayerCommand]);
+
+  const pause = useCallback(async () => runPlayerCommand(async () => {
+    await TrackPlayer.pause();
+  }), [runPlayerCommand]);
+
   const next = useCallback(async () => runPlayerCommand(async () => {
     if (currentRef.current) void recordTrackEvent(currentRef.current._id, 'next');
     await TrackPlayer.skipToNext().catch(() => {});
@@ -522,12 +547,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     toggleShuffle,
     setQueueAndPlay,
     setQueueOnly,
+    play,
+    pause,
     togglePlayPause,
     seekTo,
     next,
     previous,
     setSleepTimer,
-  }), [addNext, current, currentIndex, cycleRepeatMode, moveInQueue, next, playQueueIndex, playTrack, playbackState.state, previous, queue, removeFromQueue, repeatMode, seekTo, setQueueAndPlay, setQueueOnly, setSleepTimer, shuffleEnabled, sleepTimerEnd, togglePlayPause, toggleShuffle]);
+  }), [addNext, current, currentIndex, cycleRepeatMode, moveInQueue, next, pause, play, playQueueIndex, playTrack, playbackState.state, previous, queue, removeFromQueue, repeatMode, seekTo, setQueueAndPlay, setQueueOnly, setSleepTimer, shuffleEnabled, sleepTimerEnd, togglePlayPause, toggleShuffle]);
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }
