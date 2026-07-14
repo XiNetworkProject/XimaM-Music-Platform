@@ -138,13 +138,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const resolvedTrack = track;
   const isBanner = format.id === 'banner';
   const isStory = format.id === 'story';
+  const isSquare = format.id === 'square';
   const barCount = isBanner ? 56 : isStory ? 42 : 38;
   const bars = await loadWaveform(resolvedTrack, barCount);
   const trackUrl = `${BASE_URL}/track/${encodeURIComponent(resolvedTrack.id)}`;
   const duration = formatShareCardDuration(resolvedTrack.duration);
-  const coverSize = isBanner ? 430 : isStory ? 710 : 560;
-  const titleSize = isBanner ? 76 : isStory ? 82 : 66;
-  const sidePadding = isBanner ? 86 : isStory ? 78 : 70;
+  const coverSize = isBanner ? 430 : isStory ? 710 : 370;
+  const titleSize = isBanner ? 76 : isStory ? 82 : 50;
+  const sidePadding = isBanner ? 86 : isStory ? 78 : 52;
 
   const cover = resolvedTrack.coverUrl ? (
     <img src={resolvedTrack.coverUrl} width={coverSize} height={coverSize} style={{ objectFit: 'cover' }} />
@@ -217,10 +218,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             flexDirection: isBanner ? 'row' : 'column',
             alignItems: isBanner ? 'center' : 'center',
             justifyContent: 'center',
-            gap: isBanner ? 78 : isStory ? 58 : 38,
+            gap: isBanner ? 78 : isStory ? 58 : 26,
             width: '100%',
             height: '100%',
-            padding: isBanner ? `120px ${sidePadding}px 90px` : `${sidePadding + 68}px ${sidePadding}px ${sidePadding}px`,
+            padding: isBanner
+              ? `120px ${sidePadding}px 90px`
+              : isStory
+                ? `${sidePadding + 68}px ${sidePadding}px ${sidePadding}px`
+                : `112px ${sidePadding}px 36px`,
           }}
         >
           <div style={{ display: 'flex', position: 'relative', flexShrink: 0 }}>
@@ -232,25 +237,25 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
           <div style={{ display: 'flex', flexDirection: 'column', flex: isBanner ? 1 : '0 0 auto', width: isBanner ? undefined : '100%', maxWidth: isBanner ? 850 : 900, alignItems: isBanner ? 'flex-start' : 'center' }}>
             {personalText ? (
-              <div style={{ display: 'flex', marginBottom: isStory ? 30 : 22, maxWidth: isBanner ? 760 : 850, borderRadius: 28, padding: '18px 24px', background: 'rgba(247,246,243,0.11)', border: '1px solid rgba(247,246,243,0.13)', color: 'rgba(247,246,243,0.82)', fontSize: isBanner ? 28 : 30, lineHeight: 1.25, fontWeight: 760, textAlign: isBanner ? 'left' : 'center' }}>
+              <div style={{ display: 'flex', marginBottom: isStory ? 30 : isSquare ? 15 : 22, maxWidth: isBanner ? 760 : 850, borderRadius: isSquare ? 22 : 28, padding: isSquare ? '13px 18px' : '18px 24px', background: 'rgba(247,246,243,0.11)', border: '1px solid rgba(247,246,243,0.13)', color: 'rgba(247,246,243,0.82)', fontSize: isBanner ? 28 : isSquare ? 23 : 30, lineHeight: 1.25, fontWeight: 760, textAlign: isBanner ? 'left' : 'center' }}>
                 {personalText}
               </div>
             ) : null}
             <div style={{ display: 'flex', maxWidth: isBanner ? 820 : 900, color: '#F7F6F3', fontSize: titleSize, lineHeight: 0.95, fontWeight: 950, letterSpacing: -2.2, textAlign: isBanner ? 'left' : 'center' }}>
               {resolvedTrack.title}
             </div>
-            <div style={{ display: 'flex', marginTop: 22, color: 'rgba(247,246,243,0.72)', fontSize: isBanner ? 36 : 34, fontWeight: 850, textAlign: isBanner ? 'left' : 'center' }}>
+            <div style={{ display: 'flex', marginTop: isSquare ? 13 : 22, color: 'rgba(247,246,243,0.72)', fontSize: isBanner ? 36 : isSquare ? 28 : 34, fontWeight: 850, textAlign: isBanner ? 'left' : 'center' }}>
               {resolvedTrack.artist}
             </div>
-            <div style={{ display: 'flex', marginTop: 20, gap: 14, alignItems: 'center', color: 'rgba(247,246,243,0.58)', fontSize: 22, fontWeight: 850 }}>
+            <div style={{ display: 'flex', marginTop: isSquare ? 11 : 20, gap: isSquare ? 10 : 14, alignItems: 'center', color: 'rgba(247,246,243,0.58)', fontSize: isSquare ? 18 : 22, fontWeight: 850 }}>
               {duration ? <span>{duration}</span> : null}
               {duration ? <span>•</span> : null}
               <span>{compactNumber(resolvedTrack.plays)} ecoutes</span>
             </div>
 
-            <div style={{ display: 'flex', width: '100%', maxWidth: isBanner ? 720 : 820, marginTop: isStory ? 62 : 42, padding: isBanner ? '26px 28px' : '28px 30px', borderRadius: 34, background: 'rgba(247,246,243,0.10)', border: '1px solid rgba(247,246,243,0.13)', flexDirection: 'column', gap: 22 }}>
-              <Waveform bars={bars} height={isBanner ? 104 : 112} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 20, color: 'rgba(247,246,243,0.68)', fontSize: 21, fontWeight: 900 }}>
+            <div style={{ display: 'flex', width: '100%', maxWidth: isBanner ? 720 : 820, marginTop: isStory ? 62 : isSquare ? 24 : 42, padding: isBanner ? '26px 28px' : isSquare ? '18px 20px' : '28px 30px', borderRadius: isSquare ? 24 : 34, background: 'rgba(247,246,243,0.10)', border: '1px solid rgba(247,246,243,0.13)', flexDirection: 'column', gap: isSquare ? 14 : 22 }}>
+              <Waveform bars={bars} height={isBanner ? 104 : isSquare ? 72 : 112} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: isSquare ? 12 : 20, color: 'rgba(247,246,243,0.68)', fontSize: isSquare ? 17 : 21, fontWeight: 900 }}>
                 <span>Ecouter sur Synaura</span>
                 <span style={{ color: '#D96D63' }}>{trackUrl.replace(/^https?:\/\//, '')}</span>
               </div>

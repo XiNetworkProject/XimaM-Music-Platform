@@ -106,7 +106,7 @@ export default async function Image({ params }: { params: { username: string } }
           <div style={{ display: 'flex', minWidth: 0, flex: 1, flexDirection: 'column' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
               <span style={{ display: 'flex', maxWidth: 690, fontSize: 66, lineHeight: 0.98, fontWeight: 950 }}>{name}</span>
-              {verified ? <span style={{ display: 'flex', width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', background: '#4A9EAA', color: '#111111', fontSize: 20, fontWeight: 950 }}>✓</span> : null}
+              {verified ? <span style={{ display: 'flex', width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', background: '#4A9EAA', color: '#111111', fontSize: 17, fontWeight: 950 }}>V</span> : null}
             </div>
             <span style={{ display: 'flex', marginTop: 13, color: 'rgba(247,246,243,0.56)', fontSize: 25, fontWeight: 800 }}>@{username}</span>
             {bio ? <span style={{ display: 'flex', maxWidth: 700, marginTop: 22, color: 'rgba(247,246,243,0.74)', fontSize: 24, lineHeight: 1.35, fontWeight: 650 }}>{bio}</span> : null}
