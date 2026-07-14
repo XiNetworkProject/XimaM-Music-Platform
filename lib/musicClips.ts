@@ -207,12 +207,19 @@ export function sanitizeClipOffset(value: unknown) {
   return Math.max(0, seconds);
 }
 
-export async function formatMusicClip(row: any, options: { viewerId?: string | null } = {}): Promise<MusicClip | null> {
+export async function formatMusicClip(
+  row: any,
+  options: { viewerId?: string | null } = {},
+  resolvedSource?: MusicClipSource | null,
+): Promise<MusicClip | null> {
   if (!row) return null;
-  const source = await getClipSourceSummary({
-    sourceTrackId: row.source_track_id,
-    sourceTrackType: row.source_track_type,
-  });
+  const source = resolvedSource === undefined
+    ? await getClipSourceSummary({
+        sourceTrackId: row.source_track_id,
+        sourceTrackType: row.source_track_type,
+        userId: options.viewerId,
+      })
+    : resolvedSource;
   if (!source) return null;
   // Le morceau source a pu devenir privé depuis la publication du Clip : dans ce cas
   // le Clip ne doit plus apparaître nulle part (sauf pour son propre créateur), et ne
@@ -248,7 +255,23 @@ export async function formatMusicClip(row: any, options: { viewerId?: string | n
 }
 
 export async function formatMusicClips(rows: any[], options: { viewerId?: string | null } = {}) {
-  const clips = await Promise.all((rows || []).map((row) => formatMusicClip(row, options)));
+  // Plusieurs Clips pointent souvent vers le meme morceau. Une seule resolution
+  // par source et par requete evite les lectures Supabase et profils dupliquees.
+  const sourcePromises = new Map<string, Promise<MusicClipSource | null>>();
+  const clips = await Promise.all((rows || []).map((row) => {
+    const ref = normalizeRemixTrackRef(row?.source_track_id, row?.source_track_type);
+    const key = `${ref.type}:${ref.id}`;
+    let sourcePromise = sourcePromises.get(key);
+    if (!sourcePromise) {
+      sourcePromise = getClipSourceSummary({
+        sourceTrackId: ref.id,
+        sourceTrackType: ref.type,
+        userId: options.viewerId,
+      });
+      sourcePromises.set(key, sourcePromise);
+    }
+    return sourcePromise.then((source) => formatMusicClip(row, options, source));
+  }));
   return clips.filter((clip): clip is MusicClip => Boolean(clip));
 }
 

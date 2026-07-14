@@ -258,7 +258,7 @@ export default function SynauraScrollFeed() {
       setActiveIndex(0);
       setLoading(true);
     }
-    const params = new URLSearchParams({ limit: String(filter === 'clips' ? 40 : 24) });
+    const params = new URLSearchParams({ limit: String(filter === 'clips' ? 16 : 12) });
     if (filter === 'clips' && sourceTrackFilter) params.set('sourceTrackId', sourceTrackFilter);
     fetch(`/api/music-clips?${params.toString()}`, { cache: 'no-store' })
       .then((response) => response.json().then((json) => ({ ok: response.ok, json })))

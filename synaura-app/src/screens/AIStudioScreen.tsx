@@ -107,7 +107,7 @@ const CREDIT_PACKS: Array<{ id: CreditPackId; label: string; credits: number; pr
 
 function aiTrackToPlayer(track: AIStatusTrack | NonNullable<AIStudioGeneration['tracks']>[number]): Track | null {
   const raw = track as any;
-  const audioUrl = raw.audio_url || raw.stream_audio_url || raw.audio || raw.stream;
+  const audioUrl = raw.stream_audio_url || raw.stream || raw.audio_url || raw.audio;
   if (!audioUrl) return null;
   const id = String(track.id || ('suno_id' in track ? track.suno_id : '') || `ai-${Date.now()}`);
   const image = raw.image_url || raw.image;
@@ -188,11 +188,14 @@ export function AIStudioScreen() {
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [repairingMedia, setRepairingMedia] = useState(false);
   const [repairMessage, setRepairMessage] = useState('');
+  const [libraryPlaybackPendingId, setLibraryPlaybackPendingId] = useState<string | null>(null);
   const [city, setCity] = useState<SynauraCityData | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const challengeId: string = route.params?.challengeId || '';
   const [challengeTitle, setChallengeTitle] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const composerScrollRef = useRef<ScrollView>(null);
+  const libraryPlaybackLockRef = useRef<string | null>(null);
 
   useFocusEffect(useCallback(() => {
     if (auth.user?.username) setTab('create');
@@ -636,17 +639,37 @@ export function AIStudioScreen() {
   }, [librarySort, visibleLibraryTracks]);
   const activeFilterLabel = LIBRARY_FILTER_OPTIONS.find((option) => option.value === libraryFilter)?.label || 'Toutes les créations';
   const activeSortLabel = LIBRARY_SORT_OPTIONS.find((option) => option.value === librarySort)?.label || 'Plus récentes';
-
-  const playLibraryTrack = (selected: AIStudioTrack) => {
-    const queue = visibleLibraryTracks
+  const libraryQueue = useMemo(
+    () => visibleLibraryTracks
       .map(({ track }) => aiTrackToPlayer(track))
-      .filter((track): track is Track => Boolean(track));
+      .filter((track): track is Track => Boolean(track)),
+    [visibleLibraryTracks],
+  );
+
+  const playLibraryTrack = useCallback(async (selected: AIStudioTrack) => {
     const selectedId = aiTrackToPlayer(selected)?._id;
-    const index = selectedId ? queue.findIndex((track) => track._id === selectedId) : -1;
+    if (!selectedId) return;
+    const index = libraryQueue.findIndex((track) => track._id === selectedId);
     if (index < 0) return;
-    if (player.current?._id === selectedId) void player.togglePlayPause();
-    else void player.setQueueAndPlay(queue, index);
-  };
+    if (libraryPlaybackLockRef.current) return;
+    libraryPlaybackLockRef.current = selectedId;
+    setLibraryPlaybackPendingId(selectedId);
+    try {
+      if (player.current?._id === selectedId) {
+        await player.togglePlayPause();
+        return;
+      }
+      const queueAlreadyLoaded = player.queue.length === libraryQueue.length
+        && player.queue.every((track, queueIndex) => track._id === libraryQueue[queueIndex]?._id);
+      if (queueAlreadyLoaded) await player.playQueueIndex(index);
+      else await player.setQueueAndPlay(libraryQueue, index);
+    } catch (playbackError) {
+      setError(playbackError instanceof Error ? playbackError.message : 'Impossible de lancer cette piste.');
+    } finally {
+      if (libraryPlaybackLockRef.current === selectedId) libraryPlaybackLockRef.current = null;
+      setLibraryPlaybackPendingId((current) => current === selectedId ? null : current);
+    }
+  }, [libraryQueue, player]);
 
   const closeComposer = () => {
     setModelSheetOpen(false);
@@ -657,7 +680,7 @@ export function AIStudioScreen() {
 
   const openComposer = () => {
     setTab('create');
-    requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
+    requestAnimationFrame(() => composerScrollRef.current?.scrollTo({ y: 0, animated: false }));
   };
 
   const reuseTrack = (generation: AIStudioGeneration, track: AIStudioTrack) => {
@@ -669,7 +692,7 @@ export function AIStudioScreen() {
     if (MODELS.includes(track.model_name || '')) setModel(String(track.model_name));
     setTab('create');
     setInspector(null);
-    requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
+    requestAnimationFrame(() => composerScrollRef.current?.scrollTo({ y: 0, animated: false }));
   };
 
   const remixTrack = (generation: AIStudioGeneration, track: AIStudioTrack) => {
@@ -681,7 +704,7 @@ export function AIStudioScreen() {
     setStyle(track.style || String(generation.metadata?.style || ''));
     setTab('create');
     setInspector(null);
-    requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
+    requestAnimationFrame(() => composerScrollRef.current?.scrollTo({ y: 0, animated: false }));
   };
 
   if (!auth.user) {
@@ -729,11 +752,11 @@ export function AIStudioScreen() {
     );
   }
 
-  const studioView = (
+  const studioView = (viewTab: StudioTab, drawer = false) => (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <SynauraBackground variant="warm">
       <ScrollView
-        ref={scrollRef}
+        ref={viewTab === 'create' ? composerScrollRef : scrollRef}
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="never"
         automaticallyAdjustKeyboardInsets
@@ -742,8 +765,8 @@ export function AIStudioScreen() {
           styles.content,
           responsive.pageContent,
           {
-            paddingTop: insets.top + 10,
-            paddingBottom: tab === 'create'
+            paddingTop: drawer ? 10 : insets.top + 10,
+            paddingBottom: viewTab === 'create'
               ? Math.max(insets.bottom, 10) + 112
               : Math.max(insets.bottom + (player.current ? 205 : 125), player.current ? responsive.miniPlayerClearance : responsive.bottomDockClearance),
           },
@@ -751,8 +774,8 @@ export function AIStudioScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.top}>
-          <Pressable accessibilityLabel={tab === 'create' ? 'Fermer la création' : 'Retour'} onPress={tab === 'create' ? closeComposer : () => navigation.goBack()} style={styles.iconButton}>
-            <Ionicons name={tab === 'create' ? 'close' : 'chevron-back'} size={22} color={colors.text} />
+          <Pressable accessibilityLabel={viewTab === 'create' ? 'Fermer la création' : 'Retour'} onPress={viewTab === 'create' ? closeComposer : () => navigation.goBack()} style={styles.iconButton}>
+            <Ionicons name={viewTab === 'create' ? 'close' : 'chevron-back'} size={22} color={colors.text} />
           </Pressable>
           <Pressable onPress={() => setShowCredits(true)} style={styles.creditPill}><Ionicons name="sparkles" size={14} color={colors.coral} /><Text style={styles.creditText}>{credits} crédits</Text><Ionicons name="add-circle" size={16} color={colors.text} /></Pressable>
           <MobileAccountButton compact />
@@ -760,20 +783,20 @@ export function AIStudioScreen() {
         <View style={styles.studioHeading}>
           <View style={styles.studioHeadingCopy}>
             <Text style={styles.kicker}>Studio Synaura</Text>
-            <Text style={[styles.title, tab === 'library' && styles.titleCompact]}>{tab === 'create' ? 'Créer un morceau' : 'Ma bibliothèque'}</Text>
-            <Text style={styles.subtitle}>{tab === 'create' ? currentTitle : `${libraryTracks.length} projet${libraryTracks.length > 1 ? 's' : ''} dans ton espace créatif`}</Text>
+            <Text style={[styles.title, viewTab === 'library' && styles.titleCompact]}>{viewTab === 'create' ? 'Créer un morceau' : 'Ma bibliothèque'}</Text>
+            <Text style={styles.subtitle}>{viewTab === 'create' ? currentTitle : `${libraryTracks.length} projet${libraryTracks.length > 1 ? 's' : ''} dans ton espace créatif`}</Text>
           </View>
           {quota ? <View style={styles.quotaBadge}><Text style={styles.quotaValue}>{quota.remaining}</Text><Text style={styles.quotaLabel}>restants</Text></View> : null}
         </View>
 
-        {tab === 'create' && (challengeId || synauraRemixSource) ? (
+        {viewTab === 'create' && (challengeId || synauraRemixSource) ? (
           <CreateArrivalBanner
             context={challengeId ? 'challenge' : (synauraRemixSource ? 'variation' : 'ai')}
             title={challengeId ? challengeTitle : synauraRemixSource?.title}
           />
         ) : null}
 
-        {tab === 'library' ? (
+        {viewTab === 'library' ? (
           <>
             <MotionPressable onPress={openComposer} style={styles.createCallout} scaleTo={0.985}>
               <View style={styles.createCalloutIcon}><Ionicons name="add" size={25} color={colors.paper} /></View>
@@ -798,7 +821,7 @@ export function AIStudioScreen() {
         {error ? <Pressable onPress={() => loadStudio(true)} style={styles.error}><Ionicons name="refresh" size={17} color={colors.danger} /><Text style={styles.errorText}>{error}</Text></Pressable> : null}
         {loading ? <ActivityIndicator color={colors.violet} style={{ marginTop: 30 }} /> : null}
 
-        {tab === 'create' ? (
+        {viewTab === 'create' ? (
           <>
             <View style={styles.composerToolbar}>
               <SegmentedControl
@@ -821,9 +844,29 @@ export function AIStudioScreen() {
               </MotionPressable>
             </View>
 
+            {mode === 'simple' ? (
+              <View style={styles.simpleComposer}>
+                <View style={styles.simpleComposerHead}>
+                  <View style={styles.simpleComposerIcon}><Ionicons name="sparkles" size={17} color={colors.paper} /></View>
+                  <Text style={styles.simpleComposerTitle}>Décris la musique que tu imagines</Text>
+                </View>
+                <TextInput
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Une ambiance, une histoire, une énergie, des instruments…"
+                  placeholderTextColor={colors.textTertiary}
+                  multiline
+                  maxLength={800}
+                  textAlignVertical="top"
+                  style={styles.simplePromptInput}
+                />
+                <Text style={styles.simplePromptCount}>{description.length}/800</Text>
+              </View>
+            ) : (
+              <>
             <StudioSourceBar
               audioSelected={Boolean(synauraRemixSource || remixAsset || remixSource)}
-              voiceSelected={!instrumental && mode !== 'simple'}
+              voiceSelected={!instrumental}
               onAudio={() => void pickRemix()}
               onVoice={configureVoice}
               onInspiration={() => setInspirationSheetOpen(true)}
@@ -868,18 +911,15 @@ export function AIStudioScreen() {
                   onPromptVisibilityChange={setRemixPromptVisibility}
                 />
               ) : null}
-              <Field label={mode === 'simple' ? 'Décris ton morceau' : mode === 'remix' ? 'Variation souhaitée' : 'Direction créative'} value={description} onChangeText={setDescription} placeholder={mode === 'remix' ? 'Ex : plus rapide, plus triste, acoustique, garder les paroles...' : 'Ambiance, histoire, énergie, structure...' } multiline />
+              <Field label={mode === 'remix' ? 'Variation souhaitée' : 'Direction créative'} value={description} onChangeText={setDescription} placeholder={mode === 'remix' ? 'Ex : plus rapide, plus triste, acoustique, garder les paroles...' : 'Ambiance, histoire, énergie, structure...' } multiline />
             </DisclosureSection>
 
             <DisclosureSection
               title="Paroles et voix"
-              summary={instrumental ? 'Instrumental' : lyrics.trim() ? 'Paroles ajoutées' : mode === 'simple' ? 'Passe en mode Avancé pour écrire' : 'Voix activée, paroles optionnelles'}
+              summary={instrumental ? 'Instrumental' : lyrics.trim() ? 'Paroles ajoutées' : 'Voix activée, paroles optionnelles'}
               icon="mic-outline"
               open={lyricsOpen}
-              onToggle={() => {
-                if (!lyricsOpen && mode === 'simple') setMode('custom');
-                setLyricsOpen((current) => !current);
-              }}
+              onToggle={() => setLyricsOpen((current) => !current)}
             >
               <View style={styles.switchRow}>
                 <View><Text style={styles.switchTitle}>Instrumental</Text><Text style={styles.switchText}>Génère sans voix ni paroles</Text></View>
@@ -935,15 +975,11 @@ export function AIStudioScreen() {
                 <Ionicons name="chevron-forward" size={17} color={colors.textTertiary} />
               </Pressable>
               <ChoiceRow label="Durée cible" values={DURATIONS.map(String)} value={String(duration)} suffix=" sec" onChange={(value) => setDuration(Number(value))} />
-              {mode !== 'simple' ? (
-                <>
-                  <ChoiceRow label="Voix" values={['', 'f', 'm']} value={vocalGender} onChange={(value) => setVocalGender(value as '' | 'f' | 'm')} />
-                  <Field label="À éviter" value={negativeTags} onChangeText={setNegativeTags} placeholder="Ex: autotune, guitare, voix grave..." />
-                  <Meter label="Influence du style" value={styleInfluence} onChange={setStyleInfluence} />
-                  <Meter label="Créativité" value={weirdness} onChange={setWeirdness} />
-                  {mode === 'remix' ? <Meter label="Poids audio" value={audioWeight} onChange={setAudioWeight} /> : null}
-                </>
-              ) : null}
+              <ChoiceRow label="Voix" values={['', 'f', 'm']} value={vocalGender} onChange={(value) => setVocalGender(value as '' | 'f' | 'm')} />
+              <Field label="À éviter" value={negativeTags} onChangeText={setNegativeTags} placeholder="Ex: autotune, guitare, voix grave..." />
+              <Meter label="Influence du style" value={styleInfluence} onChange={setStyleInfluence} />
+              <Meter label="Créativité" value={weirdness} onChange={setWeirdness} />
+              {mode === 'remix' ? <Meter label="Poids audio" value={audioWeight} onChange={setAudioWeight} /> : null}
             </DisclosureSection>
 
             <DisclosureSection
@@ -956,6 +992,8 @@ export function AIStudioScreen() {
               <Field label="Titre de la création" value={title} onChangeText={setTitle} placeholder="Facultatif" />
               <EventChoice events={city?.events || []} selectedId={selectedEventId} onSelect={selectEvent} />
             </DisclosureSection>
+              </>
+            )}
 
             {modelNotice ? (
               <View style={styles.modelNotice}>
@@ -1017,6 +1055,8 @@ export function AIStudioScreen() {
                       subtitle={`${generation.model} · ${generation.metadata?.style || generation.prompt || 'Studio IA'}`}
                       image={track.image_url}
                       playing={player.current?._id === `ai-${track.id}`}
+                      loading={libraryPlaybackPendingId === `ai-${track.id}`}
+                      disabled={Boolean(libraryPlaybackPendingId)}
                       onPlay={() => playLibraryTrack(track)}
                       onOpen={() => setInspector({ generation, track })}
                     />
@@ -1027,7 +1067,7 @@ export function AIStudioScreen() {
           </View>
         )}
       </ScrollView>
-      {tab === 'create' && keyboardHeight === 0 ? (
+      {viewTab === 'create' && keyboardHeight === 0 ? (
         <View
           pointerEvents="box-none"
           style={[
@@ -1055,6 +1095,7 @@ export function AIStudioScreen() {
           </MotionPressable>
         </View>
       ) : null}
+      {viewTab === tab ? <>
       <SelectionSheet
         visible={modelSheetOpen}
         title="Choisir le modèle"
@@ -1114,27 +1155,36 @@ export function AIStudioScreen() {
       }} />
       <ShareSheet visible={Boolean(shareTrackTarget)} track={shareTrackTarget} onClose={() => setShareTrackTarget(null)} />
       <CreditShopModal visible={showCredits} balance={credits} onClose={() => setShowCredits(false)} onComplete={() => loadStudio(true)} />
+      </> : null}
       </SynauraBackground>
     </KeyboardAvoidingView>
   );
 
-  if (tab === 'create') {
-    return (
-      <View style={styles.root}>
+  return (
+    <View style={styles.root}>
+      {studioView('library')}
+      {tab === 'create' ? (
         <Modal
           visible
+          transparent
           animationType="slide"
-          presentationStyle="fullScreen"
+          presentationStyle="overFullScreen"
           statusBarTranslucent
           onRequestClose={closeComposer}
         >
-          {studioView}
+          <View style={styles.drawerLayer}>
+            <Pressable accessibilityLabel="Fermer la création" onPress={closeComposer} style={[styles.drawerPeek, { height: Math.max(insets.top + 10, 30) }]} />
+            <View style={styles.drawerPanel}>
+              <Pressable accessibilityLabel="Fermer la création" onPress={closeComposer} style={styles.drawerHandleButton}>
+                <View style={styles.drawerHandle} />
+              </Pressable>
+              <View style={styles.drawerContent}>{studioView('create', true)}</View>
+            </View>
+          </View>
         </Modal>
-      </View>
-    );
-  }
-
-  return studioView;
+      ) : null}
+    </View>
+  );
 }
 
 function formatLibraryDateLabel(date: Date) {
@@ -1279,9 +1329,9 @@ function Meter({ label, value, onChange }: { label: string; value: number; onCha
   return <View style={styles.field}><View style={styles.meterHead}><Text style={styles.fieldLabel}>{label}</Text><Text style={styles.meterValue}>{value}%</Text></View><View style={styles.choices}>{[25, 50, 75, 100].map((item) => <Pressable key={item} onPress={() => onChange(item)} style={[styles.meterStep, value >= item && styles.meterStepActive]} />)}</View></View>;
 }
 
-function StudioTrackRow({ title, subtitle, image, playing, onPlay, onOpen }: { title: string; subtitle?: string; image?: string; playing: boolean; onPlay: () => void; onOpen?: () => void }) {
+function StudioTrackRow({ title, subtitle, image, playing, loading = false, disabled = false, onPlay, onOpen }: { title: string; subtitle?: string; image?: string; playing: boolean; loading?: boolean; disabled?: boolean; onPlay: () => void; onOpen?: () => void }) {
   const preview: Track = { _id: `preview-${title}`, title, audioUrl: '', coverUrl: image, artist: { name: 'Synaura Studio' } };
-  return <View style={styles.trackRow}><View style={styles.trackCover}><TrackCover track={preview} /></View><Pressable disabled={!onOpen} onPress={onOpen} style={{ flex: 1 }}><Text numberOfLines={1} style={styles.trackTitle}>{title}</Text><Text numberOfLines={1} style={styles.trackText}>{subtitle || 'Prête à écouter'}</Text></Pressable>{onOpen ? <Pressable onPress={onOpen} style={styles.trackMore}><Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} /></Pressable> : null}<Pressable onPress={onPlay} style={[styles.trackPlay, playing && styles.trackPlayActive]}><Ionicons name={playing ? 'pause' : 'play'} size={17} color={playing ? colors.text : colors.paper} /></Pressable></View>;
+  return <View style={styles.trackRow}><View style={styles.trackCover}><TrackCover track={preview} /></View><Pressable disabled={!onOpen} onPress={onOpen} style={{ flex: 1 }}><Text numberOfLines={1} style={styles.trackTitle}>{title}</Text><Text numberOfLines={1} style={styles.trackText}>{loading ? 'Chargement de la piste…' : subtitle || 'Prête à écouter'}</Text></Pressable>{onOpen ? <Pressable onPress={onOpen} style={styles.trackMore}><Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} /></Pressable> : null}<Pressable disabled={disabled} onPress={onPlay} style={[styles.trackPlay, playing && styles.trackPlayActive, disabled && !loading && styles.trackPlayDisabled]}>{loading ? <ActivityIndicator size="small" color={colors.paper} /> : <Ionicons name={playing ? 'pause' : 'play'} size={17} color={playing ? colors.text : colors.paper} />}</Pressable></View>;
 }
 
 function StatusOrb({ status }: { status: string }) {
@@ -1482,6 +1532,12 @@ function CreditShopModal({ visible, balance, onClose, onComplete }: { visible: b
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
+  drawerLayer: { flex: 1, backgroundColor: 'rgba(17,17,17,0.18)' },
+  drawerPeek: { width: '100%' },
+  drawerPanel: { flex: 1, overflow: 'hidden', borderTopLeftRadius: 22, borderTopRightRadius: 22, backgroundColor: colors.background, borderTopWidth: 1, borderColor: 'rgba(17,17,17,0.13)' },
+  drawerHandleButton: { height: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+  drawerHandle: { width: 42, height: 4, borderRadius: 2, backgroundColor: 'rgba(17,17,17,0.22)' },
+  drawerContent: { flex: 1 },
   content: { paddingHorizontal: 18, gap: 12 },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   iconButton: { width: 38, height: 38, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
@@ -1500,6 +1556,12 @@ const styles = StyleSheet.create({
   modeControl: { flex: 1 },
   modelButton: { height: 42, minWidth: 82, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 11, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong },
   modelButtonText: { color: colors.text, fontSize: 11, fontWeight: '900' },
+  simpleComposer: { minHeight: 300, overflow: 'hidden', borderRadius: 8, padding: 16, backgroundColor: colors.black, borderWidth: 1, borderColor: 'rgba(115,87,198,0.38)' },
+  simpleComposerHead: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  simpleComposerIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  simpleComposerTitle: { flex: 1, color: colors.paper, fontSize: 14, fontWeight: '900' },
+  simplePromptInput: { minHeight: 206, paddingTop: 18, paddingHorizontal: 2, color: colors.paper, fontSize: 17, lineHeight: 25, fontWeight: '700' },
+  simplePromptCount: { alignSelf: 'flex-end', color: 'rgba(247,246,243,0.42)', fontSize: 9, fontWeight: '800' },
   createCallout: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 8, paddingHorizontal: 12, backgroundColor: colors.black },
   createCalloutIcon: { width: 46, height: 46, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   createCalloutCopy: { flex: 1, minWidth: 0 },
@@ -1638,6 +1700,7 @@ const styles = StyleSheet.create({
   trackText: { marginTop: 4, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
   trackPlay: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
   trackPlayActive: { backgroundColor: colors.paper },
+  trackPlayDisabled: { opacity: 0.38 },
   trackMore: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.05)' },
   error: { overflow: 'hidden', borderRadius: 17, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: 'rgba(217,45,32,0.09)', borderWidth: 1, borderColor: 'rgba(217,45,32,0.16)' },
   errorText: { flex: 1, color: colors.danger, fontSize: 11, lineHeight: 16, fontWeight: '800' },

@@ -76,18 +76,25 @@ export function PublicProfileScreen() {
           setPostsCursor(null);
           setPostsHasMore(false);
         });
+      return nextProfile;
+    } catch {
+      return null;
     } finally {
       setLoading(false);
     }
   }, [username]);
 
-  const loadClips = useCallback(async (cursor = 0) => {
+  const loadClips = useCallback(async (cursor = 0, creatorId?: string) => {
     if (!username) return;
     if (cursor > 0) setClipsLoadingMore(true);
     else setClipsLoading(true);
     setClipsError(null);
     try {
-      const result = await getMusicClips({ creatorUsername: username, limit: 24, cursor });
+      const result = await getMusicClips({
+        ...(creatorId ? { creatorId } : { creatorUsername: username }),
+        limit: 24,
+        cursor,
+      });
       setClips((current) => {
         if (!cursor) return result.clips;
         const byId = new Map(current.map((clip) => [clip.id, clip]));
@@ -105,8 +112,9 @@ export function PublicProfileScreen() {
   }, [username]);
 
   useFocusEffect(useCallback(() => {
-    void load();
-    void loadClips(0);
+    void load().then((nextProfile) => {
+      void loadClips(0, nextProfile?.id);
+    });
   }, [load, loadClips]));
 
   // Les variations restent chargees a la demande. Les Clips sont recuperes des
@@ -250,7 +258,7 @@ export function PublicProfileScreen() {
             {clipsLoading ? (
               <ActivityIndicator color="#171313" style={{ marginVertical: 20 }} />
             ) : clipsError ? (
-              <Pressable onPress={() => void loadClips()} style={styles.retryButton}>
+              <Pressable onPress={() => void loadClips(0, profile?.id)} style={styles.retryButton}>
                 <Ionicons name="refresh" size={17} color="#5B3FD6" />
                 <Text style={styles.retryText}>Recharger les clips</Text>
               </Pressable>
@@ -317,7 +325,7 @@ export function PublicProfileScreen() {
             {clipsLoading ? (
               <ActivityIndicator color="#171313" style={{ marginVertical: 20 }} />
             ) : clipsError ? (
-              <Pressable onPress={() => void loadClips()} style={styles.retryButton}>
+              <Pressable onPress={() => void loadClips(0, profile.id)} style={styles.retryButton}>
                 <Ionicons name="refresh" size={17} color="#5B3FD6" />
                 <Text style={styles.retryText}>Recharger les clips</Text>
               </Pressable>
@@ -332,7 +340,7 @@ export function PublicProfileScreen() {
               </View>
             ) : <Text style={styles.empty}>{profile.username === username ? "Tu n'as pas encore publié de clip." : 'Aucun clip publié.'}</Text>}
             {clipsHasMore ? (
-              <Pressable disabled={clipsLoadingMore} onPress={() => void loadClips(clipsCursor)} style={styles.retryButton}>
+              <Pressable disabled={clipsLoadingMore} onPress={() => void loadClips(clipsCursor, profile.id)} style={styles.retryButton}>
                 {clipsLoadingMore ? <ActivityIndicator size="small" color="#5B3FD6" /> : <Ionicons name="chevron-down" size={17} color="#5B3FD6" />}
                 <Text style={styles.retryText}>Charger plus de clips</Text>
               </Pressable>

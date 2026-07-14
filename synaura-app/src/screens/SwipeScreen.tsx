@@ -38,6 +38,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
 import { readRankingFeedCache, writeRankingFeedCache } from '@/feed/rankingFeedCache';
+import { readClipFeedCache, writeClipFeedCache } from '@/feed/clipFeedCache';
 import { openClipComposerForSound } from '@/navigation/clipEntry';
 import { AnnouncementSlide } from '@/components/swipe/AnnouncementSlide';
 import { ArtistSpotlightSlide } from '@/components/swipe/ArtistSpotlightSlide';
@@ -288,18 +289,29 @@ export function SwipeScreen() {
     queueBoundRef.current = '';
 
     if (feedMode === 'clips') {
-      getMusicClips({ limit: 40, sourceTrackId: sourceTrackFilter || undefined, clipId: clipIdFilter || undefined })
-        .then((chunk) => {
+      void (async () => {
+        let cacheWasShown = false;
+        const cached = await readClipFeedCache(auth.user?.id, sourceTrackFilter, clipIdFilter);
+        if (!cancelled && reqId === lastRequestRef.current && cached?.clips.length) {
+          setClips(cached.clips);
+          setCursor(cached.nextCursor);
+          setHasMore(cached.hasMore);
+          setLoadState('ready');
+          cacheWasShown = true;
+        }
+        try {
+          const chunk = await getMusicClips({ limit: 12, sourceTrackId: sourceTrackFilter || undefined, clipId: clipIdFilter || undefined });
           if (cancelled || reqId !== lastRequestRef.current) return;
           setClips(chunk.clips);
           setCursor(chunk.nextCursor);
           setHasMore(chunk.hasMore);
           setLoadState(chunk.clips.length ? 'ready' : 'error');
-        })
-        .catch(() => {
-          if (cancelled || reqId !== lastRequestRef.current) return;
+          void writeClipFeedCache(chunk, auth.user?.id, sourceTrackFilter, clipIdFilter);
+        } catch {
+          if (cancelled || reqId !== lastRequestRef.current || cacheWasShown) return;
           setLoadState('error');
-        });
+        }
+      })();
       return () => {
         cancelled = true;
       };
@@ -308,12 +320,15 @@ export function SwipeScreen() {
     const seedForReco = feedMode === 'reco' ? currentSeedGenre : null;
     const userId = auth.user?.id || null;
 
-    // Les clips enrichissent le Scroll mais ne bloquent jamais le premier son.
-    void getMusicClips({ limit: 20 })
-      .then((chunk) => {
-        if (!cancelled && reqId === lastRequestRef.current) setClips(chunk.clips);
-      })
-      .catch(() => {});
+    // Les clips enrichissent le Scroll une fois le premier ecran rendu : leur
+    // normalisation ne concurrence plus la restauration du cache audio.
+    const clipHydrationTask = InteractionManager.runAfterInteractions(() => {
+      void getMusicClips({ limit: 8 })
+        .then((chunk) => {
+          if (!cancelled && reqId === lastRequestRef.current) setClips(chunk.clips);
+        })
+        .catch(() => {});
+    });
 
     void (async () => {
       let cacheWasShown = false;
@@ -349,6 +364,7 @@ export function SwipeScreen() {
 
     return () => {
       cancelled = true;
+      clipHydrationTask.cancel();
     };
   }, [clipIdFilter, feedMode, reloadKey, sourceTrackFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -356,12 +372,15 @@ export function SwipeScreen() {
   // fois, réutilisés pour composer le feed mixte (mêmes règles que le web).
   useEffect(() => {
     let mounted = true;
-    void getPopularArtists(20).then((users) => { if (mounted) setPopularUsers(users); });
-    void getEditorialCollections().then((collections) => { if (mounted) setCollectionsRaw(collections); });
-    void getSynauraCity().then((city) => { if (mounted && Array.isArray(city?.events)) setCityEvents(city.events); }).catch(() => {});
-    void getMusicChallenges('active').then((challenges) => { if (mounted) setMusicChallenges(challenges); }).catch(() => {});
+    const hydrationTask = InteractionManager.runAfterInteractions(() => {
+      void getPopularArtists(20).then((users) => { if (mounted) setPopularUsers(users); });
+      void getEditorialCollections().then((collections) => { if (mounted) setCollectionsRaw(collections); });
+      void getSynauraCity().then((city) => { if (mounted && Array.isArray(city?.events)) setCityEvents(city.events); }).catch(() => {});
+      void getMusicChallenges('active').then((challenges) => { if (mounted) setMusicChallenges(challenges); }).catch(() => {});
+    });
     return () => {
       mounted = false;
+      hydrationTask.cancel();
     };
   }, []);
 
@@ -542,7 +561,7 @@ export function SwipeScreen() {
     setLoadingMore(true);
     try {
       if (feedMode === 'clips') {
-        const chunk = await getMusicClips({ limit: 30, cursor, sourceTrackId: sourceTrackFilter || undefined, clipId: clipIdFilter || undefined });
+        const chunk = await getMusicClips({ limit: 12, cursor, sourceTrackId: sourceTrackFilter || undefined, clipId: clipIdFilter || undefined });
         const seen = new Set(clips.map((clip) => clip.id));
         const fresh = chunk.clips.filter((clip) => !seen.has(clip.id));
         setClips([...clips, ...fresh]);
@@ -813,7 +832,7 @@ export function SwipeScreen() {
           bottomPad={tabBarHeight}
           isActive={isActive}
           isPlaying={isPlayingThis}
-          shouldLoadMedia={isFocused && Math.abs(index - activeIndex) <= 1}
+          shouldLoadMedia={isFocused && index === activeIndex}
           isLiked={likedMap[clipKey] ?? item.clip.isLiked}
           likesCount={likesMap[clipKey] ?? item.clip.likesCount}
           commentsCount={commentsCounts[clipKey] ?? item.clip.commentsCount}

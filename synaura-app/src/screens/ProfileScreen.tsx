@@ -133,20 +133,26 @@ export function ProfileScreen() {
           setPostsCursor(null);
           setPostsHasMore(false);
         });
+      return nextProfile;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Profil impossible à charger');
+      return null;
     } finally {
       setLoading(false);
     }
   }, [auth.user?.username]);
 
-  const loadClips = useCallback(async (cursor = 0) => {
+  const loadClips = useCallback(async (cursor = 0, creatorId?: string) => {
     if (!auth.user?.username) return;
     if (cursor > 0) setClipsLoadingMore(true);
     else setClipsLoading(true);
     setClipsError(null);
     try {
-      const result = await getMusicClips({ creatorUsername: auth.user.username, limit: 24, cursor });
+      const result = await getMusicClips({
+        ...(creatorId ? { creatorId } : { creatorUsername: auth.user.username }),
+        limit: 24,
+        cursor,
+      });
       setClips((current) => {
         if (!cursor) return result.clips;
         const byId = new Map(current.map((clip) => [clip.id, clip]));
@@ -164,8 +170,9 @@ export function ProfileScreen() {
   }, [auth.user?.username]);
 
   const refreshProfile = useCallback(() => {
-    void loadProfile();
-    void loadClips(0);
+    void loadProfile().then((nextProfile) => {
+      void loadClips(0, nextProfile?.id);
+    });
     void getSubscriptionUsage().then(setUsage).catch(() => {});
   }, [loadClips, loadProfile]);
 
@@ -403,7 +410,7 @@ export function ProfileScreen() {
           <View style={styles.card}>
             <SectionTitle title="Clips recents" action={clips.length ? `${clips.length}` : undefined} />
             {clipsLoading ? <Empty text="Chargement des clips..." /> : clipsError ? (
-              <Pressable onPress={() => void loadClips()} style={styles.emptyAction}>
+              <Pressable onPress={() => void loadClips(0, profile?.id)} style={styles.emptyAction}>
                 <Ionicons name="refresh" size={18} color="#7C5CFF" />
                 <Text style={styles.emptyActionText}>Recharger les clips</Text>
               </Pressable>
@@ -535,7 +542,7 @@ export function ProfileScreen() {
         <View style={styles.card}>
           <SectionTitle title="Clips" action={clips.length ? `${clips.length}` : undefined} />
           {clipsLoading ? <Empty text="Chargement…" /> : clipsError ? (
-            <Pressable onPress={() => void loadClips()} style={styles.emptyAction}>
+            <Pressable onPress={() => void loadClips(0, profile?.id)} style={styles.emptyAction}>
               <Ionicons name="refresh" size={18} color="#7C5CFF" />
               <Text style={styles.emptyActionText}>Recharger les clips</Text>
             </Pressable>
@@ -551,7 +558,7 @@ export function ProfileScreen() {
             </View>
           ) : <Empty text="Tu n'as pas encore publié de clip." />}
           {clipsHasMore ? (
-            <Pressable disabled={clipsLoadingMore} onPress={() => void loadClips(clipsCursor)} style={styles.emptyAction}>
+            <Pressable disabled={clipsLoadingMore} onPress={() => void loadClips(clipsCursor, profile?.id)} style={styles.emptyAction}>
               {clipsLoadingMore ? <ActivityIndicator size="small" color="#7C5CFF" /> : <Ionicons name="chevron-down" size={18} color="#7C5CFF" />}
               <Text style={styles.emptyActionText}>Charger plus de clips</Text>
             </Pressable>

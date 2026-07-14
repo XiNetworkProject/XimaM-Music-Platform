@@ -100,7 +100,7 @@ if (!welcomeSource.includes('splitLayout') || !welcomeSource.includes('SynauraIn
 const onboardingSource = read('src/screens/OnboardingScreen.tsx');
 if (!onboardingSource.includes('layout.gridColumns')) failures.push("L'onboarding n'adapte plus ses colonnes au viewport.");
 const studioSource = read('src/screens/AIStudioScreen.tsx');
-if (!studioSource.includes('presentationStyle="fullScreen"') || !studioSource.includes("setTab('library')")) failures.push('Le compositeur Studio doit rester un plein ecran fermable sur la bibliotheque.');
+if (!studioSource.includes('presentationStyle="overFullScreen"') || !studioSource.includes('drawerPanel') || !studioSource.includes("setTab('library')")) failures.push('Le compositeur Studio doit rester un tiroir fermable au-dessus de la bibliotheque.');
 const profileHeroSource = read('src/components/profile/ProfileIdentityHero.tsx');
 if (!profileHeroSource.includes('compactStats') || !profileHeroSource.includes('responsive.isNarrow')) failures.push("Le hero profil n'a plus ses variantes compactes.");
 
