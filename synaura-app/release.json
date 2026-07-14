@@ -1,12 +1,12 @@
 {
-  "title": "Synaura mobile 0.15.2",
+  "title": "Synaura mobile 0.15.3",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Nouveau parcours de publication Clip, plus direct et plus lisible",
-    "Choix du son fiabilise avec recherche, pochette et preecoute",
-    "Retour immediat dans Scroll avec progression circulaire de l'upload",
-    "Uploads conserves en cas de fermeture de l'app et relancables apres une erreur",
-    "Envoi Cloudinary fiabilise avec progression reelle et signature serveur"
+    "Compositeur Clip entierement redessine, plus direct et immersif",
+    "Onglet Mes sons avec tous les morceaux publics du createur",
+    "Choix du son coherent avec Utiliser ce son depuis Scroll",
+    "Upload Cloudinary Android remplace par le transfert natif Expo",
+    "Progression reelle, reprise et nouvel essai conserves dans Scroll"
   ]
 }

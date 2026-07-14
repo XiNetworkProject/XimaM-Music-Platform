@@ -79,7 +79,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
     const bytes = Number(body.videoBytes || body.bytes || 0);
     if (Number.isFinite(bytes) && bytes > MUSIC_CLIP_MAX_BYTES) {
-      return NextResponse.json({ error: 'La video depasse la limite de 200 Mo du MVP' }, { status: 422 });
+      return NextResponse.json({ error: 'La video depasse la limite de 95 Mo' }, { status: 422 });
     }
     const videoDuration = Number(body.videoDurationSeconds || body.videoDuration || 0);
     if (Number.isFinite(videoDuration) && videoDuration > 0 && (videoDuration < MUSIC_CLIP_MIN_SECONDS || videoDuration > MUSIC_CLIP_MAX_SECONDS)) {

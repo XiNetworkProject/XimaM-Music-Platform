@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import * as FileSystem from 'expo-file-system/legacy';
 import type {
   Creator,
   CityEventDetail,
@@ -770,11 +771,12 @@ export async function decideRemix(remixId: string, decision: 'approve' | 'reject
   });
 }
 
-export async function getMusicClipSources(input: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; query?: string; limit?: number } = {}): Promise<MusicClipSource[]> {
+export async function getMusicClipSources(input: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; query?: string; limit?: number; scope?: 'all' | 'mine' } = {}): Promise<MusicClipSource[]> {
   const params = new URLSearchParams({ limit: String(Math.min(60, Math.max(1, input.limit || 24))) });
   if (input.sourceTrackId) params.set('sourceTrackId', input.sourceTrackId);
   if (input.sourceTrackType) params.set('sourceTrackType', input.sourceTrackType);
   if (input.query?.trim()) params.set('query', input.query.trim());
+  if (input.scope === 'mine') params.set('scope', 'mine');
   const json = await request<any>(`/api/music-clips/sources?${params.toString()}`);
   return (Array.isArray(json?.sources) ? json.sources : [])
     .map(normalizeClipSource)
@@ -1400,41 +1402,41 @@ export async function uploadToCloudinaryMobile(
   const signedPublicId = String(signature.publicId || publicId);
   const signedFolder = String(signature.folder || uploadFolder);
 
-  const form = new FormData();
-  form.append('file', {
-    uri: asset.uri,
-    name: asset.name,
-    type: asset.type || (resourceType === 'image' ? 'image/jpeg' : 'video/mp4'),
-  } as any);
-  form.append('folder', signedFolder);
-  form.append('public_id', signedPublicId);
-  form.append('timestamp', String(signedTimestamp));
-  form.append('api_key', apiKey);
-  form.append('signature', signature.signature);
-
-  const json = await new Promise<any>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`);
-    xhr.timeout = 10 * 60 * 1000;
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable && event.total > 0) options.onProgress?.(Math.min(1, event.loaded / event.total));
-    };
-    xhr.onerror = () => reject(new Error('Connexion interrompue pendant l’envoi. Réessaie depuis le Flow.'));
-    xhr.ontimeout = () => reject(new Error('L’envoi prend trop de temps. Vérifie ta connexion puis réessaie.'));
-    xhr.onload = () => {
-      let response: any = null;
-      try { response = JSON.parse(xhr.responseText || '{}'); } catch { /* reponse invalide */ }
-      if (xhr.status < 200 || xhr.status >= 300 || !response?.secure_url) {
-        const message = String(response?.error?.message || 'Envoi vidéo impossible');
-        if (/signature|timestamp/i.test(message)) reject(new Error('La session d’envoi a expiré. Réessaie depuis le Flow.'));
-        else if (/too large|file size|maximum/i.test(message)) reject(new Error('Cette vidéo dépasse la taille acceptée. Choisis une version plus légère.'));
-        else reject(new Error(message));
-        return;
+  const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
+  const uploadTask = FileSystem.createUploadTask(
+    uploadUrl,
+    asset.uri,
+    {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: 'file',
+      mimeType: asset.type || (resourceType === 'image' ? 'image/jpeg' : 'video/mp4'),
+      parameters: {
+        folder: signedFolder,
+        public_id: signedPublicId,
+        timestamp: String(signedTimestamp),
+        api_key: String(apiKey),
+        signature: String(signature.signature),
+      },
+    },
+    ({ totalBytesExpectedToSend, totalBytesSent }) => {
+      if (totalBytesExpectedToSend > 0) {
+        options.onProgress?.(Math.min(1, totalBytesSent / totalBytesExpectedToSend));
       }
-      resolve(response);
-    };
-    xhr.send(form as any);
-  });
+    },
+  );
+  const result = await uploadTask.uploadAsync();
+  if (!result) throw new Error('L’envoi a été interrompu. Réessaie depuis le Flow.');
+  let json: any = null;
+  try { json = JSON.parse(result.body || '{}'); } catch { /* reponse invalide */ }
+  if (result.status < 200 || result.status >= 300 || !json?.secure_url) {
+    const message = String(json?.error?.message || `Envoi vidéo impossible (${result.status})`);
+    if (/signature|timestamp/i.test(message)) throw new Error('La session d’envoi a expiré. Réessaie depuis le Flow.');
+    if (/too large|file size|maximum|entity too large|413/i.test(message)) {
+      throw new Error('Cette vidéo dépasse 95 Mo. Choisis une version plus légère.');
+    }
+    throw new Error(message);
+  }
   options.onProgress?.(1);
 
   return {

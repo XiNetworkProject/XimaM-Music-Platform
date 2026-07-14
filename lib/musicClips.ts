@@ -5,7 +5,7 @@ import { canCreateClip } from '@/lib/clipPermissions';
 
 export const MUSIC_CLIP_MIN_SECONDS = 15;
 export const MUSIC_CLIP_MAX_SECONDS = 60;
-export const MUSIC_CLIP_MAX_BYTES = 200 * 1024 * 1024;
+export const MUSIC_CLIP_MAX_BYTES = 95 * 1024 * 1024;
 
 export type MusicClipVisibility = 'draft' | 'published' | 'hidden';
 

@@ -2,6 +2,7 @@ import React from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -11,6 +12,7 @@ import {
   Text,
   TextInput,
   View,
+  type GestureResponderEvent,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -25,19 +27,17 @@ import {
 } from '@/api/client';
 import type { MusicClipSource, Track } from '@/api/types';
 import { SynauraBackground } from '@/components/SynauraBackground';
-import { CreateArrivalBanner } from '@/components/create/CreateArrivalBanner';
-import { AppHeader } from '@/components/ui/AppHeader';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { MotionPressable } from '@/components/motion/Motion';
 import { useAuth } from '@/auth/AuthProvider';
 import { usePlayer } from '@/player/PlayerProvider';
 import { useClipUploads } from '@/clips/ClipUploadProvider';
-import { colors, spacing } from '@/theme/tokens';
+import { colors } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 const MIN_SECONDS = 15;
 const MAX_SECONDS = 60;
-const MAX_BYTES = 200 * 1024 * 1024;
+const MAX_BYTES = 95 * 1024 * 1024;
 
 function mmss(seconds = 0) {
   const safe = Math.max(0, Math.round(seconds || 0));
@@ -65,6 +65,33 @@ function sourceToTrack(source: MusicClipSource): Track {
   } as Track;
 }
 
+function OffsetSlider({ value, max, onChange }: { value: number; max: number; onChange: (next: number) => void }) {
+  const [width, setWidth] = React.useState(1);
+  const progress = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
+  const update = React.useCallback((event: GestureResponderEvent) => {
+    if (max <= 0) return;
+    const x = Math.max(0, Math.min(width, event.nativeEvent.locationX));
+    onChange(Math.round((x / width) * max));
+  }, [max, onChange, width]);
+
+  return (
+    <View
+      accessibilityRole="adjustable"
+      accessibilityLabel="Début de l'extrait"
+      onLayout={(event) => setWidth(Math.max(1, event.nativeEvent.layout.width))}
+      onStartShouldSetResponder={() => true}
+      onMoveShouldSetResponder={() => true}
+      onResponderGrant={update}
+      onResponderMove={update}
+      style={styles.offsetSlider}
+    >
+      <View style={styles.offsetTrack} />
+      <View pointerEvents="none" style={[styles.offsetFill, { width: `${progress * 100}%` }]} />
+      <View pointerEvents="none" style={[styles.offsetKnob, { left: `${progress * 100}%` }]} />
+    </View>
+  );
+}
+
 export function ClipComposerScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -83,14 +110,18 @@ export function ClipComposerScreen() {
   const [selectedSource, setSelectedSource] = React.useState<MusicClipSource | null>(null);
   const [sourceSheetOpen, setSourceSheetOpen] = React.useState(false);
   const [sourceQuery, setSourceQuery] = React.useState('');
-  const [isPreset, setIsPreset] = React.useState(false);
+  const [sourceScope, setSourceScope] = React.useState<'all' | 'mine'>('all');
   const [offset, setOffset] = React.useState(0);
   const [caption, setCaption] = React.useState('');
   const [tagText, setTagText] = React.useState('');
   const [loadingSources, setLoadingSources] = React.useState(true);
   const [sourceError, setSourceError] = React.useState('');
+  const sourceRequestRef = React.useRef(0);
+  const presetRecordedRef = React.useRef(false);
+  const publishingRef = React.useRef(false);
 
-  const loadSources = React.useCallback(async (query = '') => {
+  const loadSources = React.useCallback(async (query = '', scope: 'all' | 'mine' = 'all') => {
+    const requestId = ++sourceRequestRef.current;
     setLoadingSources(true);
     setSourceError('');
     try {
@@ -98,45 +129,42 @@ export function ClipComposerScreen() {
         sourceTrackId: presetSourceTrackId || undefined,
         sourceTrackType: presetSourceTrackType,
         query: query.trim() || undefined,
-        limit: query.trim() ? 40 : 24,
+        limit: query.trim() ? 50 : 36,
+        scope,
       });
+      if (requestId !== sourceRequestRef.current) return;
       setSources(next);
-      if (!selectedSource) {
-        const preset = presetSourceTrackId
-          ? next.find((source) => source._id === presetSourceTrackId || source.sourceTrackId === presetSourceTrackId.replace(/^ai-/, ''))
-          : null;
-        const initial = preset || next[0] || null;
-        setSelectedSource(initial);
+      if (presetSourceTrackId) {
+        const preset = next.find((source) => (
+          source._id === presetSourceTrackId
+          || source.sourceTrackId === presetSourceTrackId.replace(/^ai-/, '')
+        ));
         if (preset) {
-          setIsPreset(true);
-          void recordClipFunnelEvent(preset._id, 'clip_composer_opened');
+          setSelectedSource((current) => current || preset);
+          if (!presetRecordedRef.current) {
+            presetRecordedRef.current = true;
+            void recordClipFunnelEvent(preset._id, 'clip_composer_opened');
+          }
         }
       }
     } catch (error) {
-      setSourceError(error instanceof Error ? error.message : 'Impossible de charger les sons.');
+      if (requestId === sourceRequestRef.current) {
+        setSourceError(error instanceof Error ? error.message : 'Impossible de charger les sons.');
+      }
     } finally {
-      setLoadingSources(false);
+      if (requestId === sourceRequestRef.current) setLoadingSources(false);
     }
-  }, [presetSourceTrackId, presetSourceTrackType, selectedSource]);
-
-  React.useEffect(() => {
-    void loadSources();
-    // La selection initiale ne doit pas relancer la requete.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [presetSourceTrackId, presetSourceTrackType]);
 
   React.useEffect(() => {
-    const query = sourceQuery.trim().toLocaleLowerCase('fr');
-    if (!sourceSheetOpen || query.length < 2) return;
-    const hasLocalMatch = sources.some((source) =>
-      `${source.title} ${source.artist?.name || ''} ${source.artist?.username || ''}`
-        .toLocaleLowerCase('fr')
-        .includes(query),
-    );
-    if (hasLocalMatch) return;
-    const timer = setTimeout(() => void loadSources(sourceQuery), 320);
+    void loadSources('', 'all');
+  }, [loadSources]);
+
+  React.useEffect(() => {
+    if (!sourceSheetOpen) return;
+    const timer = setTimeout(() => void loadSources(sourceQuery, sourceScope), sourceQuery.trim() ? 320 : 0);
     return () => clearTimeout(timer);
-  }, [loadSources, sourceQuery, sourceSheetOpen, sources]);
+  }, [loadSources, sourceQuery, sourceScope, sourceSheetOpen]);
 
   React.useEffect(() => {
     if (!challengeId) return;
@@ -145,13 +173,25 @@ export function ClipComposerScreen() {
     return () => { mounted = false; };
   }, [challengeId]);
 
-  const filteredSources = React.useMemo(() => {
+  const visibleSources = React.useMemo(() => {
     const query = sourceQuery.trim().toLocaleLowerCase('fr');
-    if (!query) return sources;
-    return sources.filter((source) => `${source.title} ${source.artist?.name || ''} ${source.artist?.username || ''}`.toLocaleLowerCase('fr').includes(query));
-  }, [sourceQuery, sources]);
+    return sources
+      .filter((source) => sourceScope !== 'mine' || source.artist?._id === auth.user?.id)
+      .filter((source) => !query || `${source.title} ${source.artist?.name || ''} ${source.artist?.username || ''}`.toLocaleLowerCase('fr').includes(query))
+      .sort((a, b) => Number(b.artist?._id === auth.user?.id) - Number(a.artist?._id === auth.user?.id));
+  }, [auth.user?.id, sourceQuery, sourceScope, sources]);
   const maxOffset = Math.max(0, Math.round((selectedSource?.duration || 0) - Math.max(MIN_SECONDS, duration || MIN_SECONDS)));
   const ready = Boolean(asset && selectedSource && duration >= MIN_SECONDS && duration <= MAX_SECONDS);
+  const currentStep = !asset ? 1 : !selectedSource ? 2 : 3;
+  const wideLayout = responsive.isTablet || responsive.isPhoneLandscape;
+  const previewHeight = Math.max(
+    responsive.isVeryShort ? 220 : 270,
+    Math.min(responsive.isShort ? 340 : 440, responsive.usableHeight * (wideLayout ? 0.68 : 0.48)),
+  );
+  const previewWidth = Math.min(
+    wideLayout ? responsive.availableContentWidth * 0.43 : responsive.availableContentWidth,
+    previewHeight * 0.75,
+  );
 
   const pickVideo = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -175,7 +215,7 @@ export function ClipComposerScreen() {
       return;
     }
     if (bytes > MAX_BYTES) {
-      Alert.alert('Vidéo trop lourde', 'La vidéo dépasse 200 Mo. Choisis une version plus légère.');
+      Alert.alert('Vidéo trop lourde', 'La vidéo dépasse 95 Mo. Choisis une version plus légère.');
       return;
     }
     setAsset({
@@ -195,11 +235,20 @@ export function ClipComposerScreen() {
     await player.playTrack(sourceToTrack(source));
   };
 
+  const chooseSource = (source: MusicClipSource) => {
+    setSelectedSource(source);
+    setOffset(0);
+    setSourceSheetOpen(false);
+    void recordClipFunnelEvent(source._id, 'clip_use_sound_started');
+  };
+
   const publish = () => {
+    if (publishingRef.current) return;
     if (!asset || !selectedSource || !ready) {
       Alert.alert('Clip incomplet', !asset ? 'Choisis d’abord une vidéo.' : 'Choisis le son associé au Clip.');
       return;
     }
+    publishingRef.current = true;
     try {
       uploads.enqueue({
         asset,
@@ -213,87 +262,127 @@ export function ClipComposerScreen() {
       void player.pause();
       navigation.navigate('Swipe', { mode: 'clips' });
     } catch (error) {
+      publishingRef.current = false;
       Alert.alert('Publication impossible', error instanceof Error ? error.message : 'Connexion requise.');
     }
   };
 
-  const primaryLabel = !asset ? 'Choisir une vidéo' : !selectedSource ? 'Choisir un son' : 'Publier le Clip';
+  const primaryLabel = !asset ? 'Ajouter la vidéo' : !selectedSource ? 'Choisir le son' : 'Publier le Clip';
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SynauraBackground>
+      <SynauraBackground variant="dark">
+        <View style={[styles.header, responsive.contentFrame, { paddingTop: insets.top + 8, paddingHorizontal: responsive.gutter }]}>
+          <Pressable accessibilityLabel="Fermer" onPress={() => navigation.goBack()} style={styles.headerButton}>
+            <Ionicons name="close" size={22} color={colors.paper} />
+          </Pressable>
+          <View style={styles.headerTitleWrap}>
+            <Text style={styles.headerTitle}>Créer un Clip</Text>
+            <View style={styles.progressRail}>
+              {[1, 2, 3].map((step) => <View key={step} style={[styles.progressSegment, step <= currentStep && styles.progressSegmentActive]} />)}
+            </View>
+          </View>
+          <Text style={styles.stepText}>{currentStep}/3</Text>
+        </View>
+
         <ScrollView
           contentContainerStyle={[
             styles.content,
             responsive.pageContent,
-            { paddingTop: insets.top + 10, paddingBottom: Math.max(insets.bottom + 142, responsive.miniPlayerClearance) },
+            { paddingBottom: Math.max(insets.bottom + 112, 126) },
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <AppHeader title="Nouveau Clip" subtitle="Une vidéo, un son Synaura" onBack={() => navigation.goBack()} />
-          <CreateArrivalBanner context={challengeId ? 'challenge' : 'clip'} title={challengeId ? challengeTitle : (isPreset ? selectedSource?.title : null)} />
-
-          <View style={styles.videoPanel}>
-            {asset ? (
-              <>
-                <Video source={{ uri: asset.uri }} paused muted repeat resizeMode="cover" style={StyleSheet.absoluteFill} />
-                <View style={styles.videoShade} />
-                <View style={styles.videoTopRow}>
-                  <View style={styles.readyBadge}><Ionicons name="checkmark" size={13} color={colors.paper} /><Text style={styles.readyBadgeText}>VIDÉO PRÊTE</Text></View>
-                  <Pressable accessibilityLabel="Changer la vidéo" onPress={() => void pickVideo()} style={styles.videoChange}><Ionicons name="swap-horizontal" size={18} color={colors.paper} /></Pressable>
-                </View>
-                <View style={styles.videoMeta}>
-                  <Text numberOfLines={1} style={styles.videoName}>{asset.name}</Text>
-                  <Text style={styles.videoDetail}>{mmss(duration)}{asset.size ? ` · ${compactBytes(Number(asset.size))}` : ''}</Text>
-                </View>
-              </>
-            ) : (
-              <Pressable onPress={() => void pickVideo()} style={styles.videoEmpty}>
-                <View style={styles.videoIcon}><Ionicons name="add" size={28} color={colors.paper} /></View>
-                <Text style={styles.videoEmptyTitle}>Choisir la vidéo</Text>
-                <Text style={styles.videoEmptyText}>15 à 60 secondes · format vertical recommandé</Text>
-              </Pressable>
-            )}
-          </View>
-
-          <View style={styles.section}>
-            <View style={styles.sectionHead}>
-              <View><Text style={styles.sectionKicker}>SON ASSOCIÉ</Text><Text style={styles.sectionTitle}>La musique reste au centre</Text></View>
-              <Pressable onPress={() => setSourceSheetOpen(true)} style={styles.changeButton}><Text style={styles.changeButtonText}>{selectedSource ? 'Changer' : 'Choisir'}</Text></Pressable>
+          {challengeId ? (
+            <View style={styles.challengeChip}>
+              <Ionicons name="trophy-outline" size={14} color="#F2C86B" />
+              <Text numberOfLines={1} style={styles.challengeText}>{challengeTitle || 'Challenge Synaura'}</Text>
             </View>
-            {selectedSource ? (
-              <View style={styles.selectedSource}>
-                {selectedSource.coverUrl ? <Image source={{ uri: selectedSource.coverUrl }} style={styles.sourceCover} /> : <View style={styles.sourceCover} />}
-                <Pressable onPress={() => setSourceSheetOpen(true)} style={styles.sourceCopy}>
-                  <Text numberOfLines={1} style={styles.sourceTitle}>{selectedSource.title}</Text>
-                  <Text numberOfLines={1} style={styles.sourceArtist}>{selectedSource.artist?.name || selectedSource.artist?.username || 'Artiste Synaura'}</Text>
-                </Pressable>
-                <Pressable accessibilityLabel="Écouter le son" onPress={() => void previewSource(selectedSource)} style={styles.sourcePlay}>
-                  <Ionicons name={player.current?._id === selectedSource._id && player.isPlaying ? 'pause' : 'play'} size={18} color={colors.paper} />
-                </Pressable>
-              </View>
-            ) : (
-              <Pressable onPress={() => setSourceSheetOpen(true)} style={styles.sourceEmpty}><Ionicons name="musical-notes-outline" size={22} color={colors.violet} /><Text style={styles.sourceEmptyText}>Choisir dans les sons autorisés</Text><Ionicons name="chevron-forward" size={18} color={colors.textTertiary} /></Pressable>
-            )}
-            {selectedSource && duration ? (
-              <View style={styles.offsetRow}>
-                <Pressable disabled={offset <= 0} onPress={() => setOffset(Math.max(0, offset - 5))} style={styles.offsetButton}><Ionicons name="remove" size={18} color={colors.text} /></Pressable>
-                <View style={styles.offsetCopy}><Text style={styles.offsetLabel}>EXTRAIT UTILISÉ</Text><Text style={styles.offsetValue}>{mmss(offset)} – {mmss(offset + duration)}</Text></View>
-                <Pressable disabled={offset >= maxOffset} onPress={() => setOffset(Math.min(maxOffset, offset + 5))} style={styles.offsetButton}><Ionicons name="add" size={18} color={colors.text} /></Pressable>
-              </View>
-            ) : null}
-          </View>
+          ) : null}
 
-          <View style={styles.section}>
-            <Text style={styles.sectionKicker}>PUBLICATION</Text>
-            <TextInput value={caption} onChangeText={setCaption} maxLength={280} multiline placeholder="Ajoute une légende…" placeholderTextColor={colors.textTertiary} style={[styles.input, styles.captionInput]} />
-            <TextInput value={tagText} onChangeText={setTagText} placeholder="#tags séparés par des espaces" placeholderTextColor={colors.textTertiary} style={styles.input} />
-            <Text style={styles.counter}>{caption.length}/280</Text>
+          <View style={[styles.workspace, wideLayout && styles.workspaceWide]}>
+            <View style={[styles.previewFrame, { width: previewWidth, height: previewHeight }]}>
+              {asset ? (
+                <>
+                  <Video source={{ uri: asset.uri }} paused muted repeat resizeMode="cover" style={StyleSheet.absoluteFill} />
+                  <View style={styles.previewShade} />
+                  <Pressable accessibilityLabel="Changer la vidéo" onPress={() => void pickVideo()} style={styles.changeVideoButton}>
+                    <Ionicons name="camera-reverse-outline" size={20} color={colors.paper} />
+                  </Pressable>
+                  <View style={styles.previewMeta}>
+                    <View style={styles.previewReady}><View style={styles.readyDot} /><Text style={styles.previewReadyText}>VIDÉO PRÊTE</Text></View>
+                    <Text numberOfLines={1} style={styles.previewName}>{asset.name}</Text>
+                    <Text style={styles.previewDetail}>{mmss(duration)}{asset.size ? ` · ${compactBytes(Number(asset.size))}` : ''}</Text>
+                  </View>
+                </>
+              ) : (
+                <Pressable onPress={() => void pickVideo()} style={styles.previewEmpty}>
+                  <View style={styles.addVideoIcon}><Ionicons name="add" size={30} color={colors.paper} /></View>
+                  <Text style={styles.previewEmptyTitle}>Ajouter une vidéo</Text>
+                  <Text style={styles.previewEmptyText}>15 à 60 secondes · 95 Mo maximum</Text>
+                </Pressable>
+              )}
+            </View>
+
+            <View style={[styles.editorPanel, wideLayout && styles.editorPanelWide]}>
+              <Pressable onPress={() => setSourceSheetOpen(true)} style={styles.editorRow}>
+                <View style={[styles.rowIcon, styles.rowIconViolet]}>
+                  {selectedSource?.coverUrl ? <Image source={{ uri: selectedSource.coverUrl }} style={styles.rowCover} /> : <Ionicons name="musical-notes" size={19} color="#B8A6F0" />}
+                </View>
+                <View style={styles.rowCopy}>
+                  <Text style={styles.rowLabel}>SON</Text>
+                  <Text numberOfLines={1} style={styles.rowTitle}>{selectedSource?.title || 'Choisir un son Synaura'}</Text>
+                  {selectedSource ? <Text numberOfLines={1} style={styles.rowSubtitle}>{selectedSource.artist?.name || selectedSource.artist?.username || 'Artiste Synaura'}</Text> : null}
+                </View>
+                {selectedSource ? (
+                  <Pressable accessibilityLabel="Écouter" onPress={(event) => { event.stopPropagation(); void previewSource(selectedSource); }} style={styles.inlinePlay}>
+                    <Ionicons name={player.current?._id === selectedSource._id && player.isPlaying ? 'pause' : 'play'} size={16} color={colors.paper} />
+                  </Pressable>
+                ) : <Ionicons name="chevron-forward" size={18} color="rgba(247,246,243,0.42)" />}
+              </Pressable>
+
+              {selectedSource && maxOffset > 0 ? (
+                <View style={styles.offsetSection}>
+                  <View style={styles.offsetHeader}>
+                    <Text style={styles.rowLabel}>DÉBUT DE L'EXTRAIT</Text>
+                    <Text style={styles.offsetValue}>{mmss(offset)} – {mmss(offset + duration)}</Text>
+                  </View>
+                  <OffsetSlider value={offset} max={maxOffset} onChange={setOffset} />
+                </View>
+              ) : null}
+
+              <View style={styles.detailsSection}>
+                <View style={styles.inputHeading}>
+                  <Text style={styles.rowLabel}>LÉGENDE</Text>
+                  <Text style={styles.captionCount}>{caption.length}/280</Text>
+                </View>
+                <TextInput
+                  value={caption}
+                  onChangeText={setCaption}
+                  maxLength={280}
+                  multiline
+                  placeholder="Écris quelque chose sur ce Clip…"
+                  placeholderTextColor="rgba(247,246,243,0.34)"
+                  style={[styles.input, styles.captionInput]}
+                />
+                <View style={styles.tagInputRow}>
+                  <Ionicons name="pricetag-outline" size={17} color="rgba(247,246,243,0.46)" />
+                  <TextInput
+                    value={tagText}
+                    onChangeText={setTagText}
+                    placeholder="Ajouter des tags"
+                    placeholderTextColor="rgba(247,246,243,0.34)"
+                    style={styles.tagInput}
+                    autoCapitalize="none"
+                  />
+                </View>
+              </View>
+            </View>
           </View>
         </ScrollView>
 
-        <View style={[styles.publishDock, { paddingBottom: Math.max(insets.bottom, 10), paddingLeft: responsive.insets.left + responsive.gutter, paddingRight: responsive.insets.right + responsive.gutter }]}>
+        <View style={[styles.publishDock, { paddingBottom: Math.max(insets.bottom, 10), paddingLeft: responsive.pagePaddingLeft, paddingRight: responsive.pagePaddingRight }]}>
           <MotionPressable
             onPress={() => {
               if (!asset) void pickVideo();
@@ -303,40 +392,82 @@ export function ClipComposerScreen() {
             style={[styles.publishButton, ready && styles.publishButtonReady]}
             scaleTo={0.985}
           >
-            <Ionicons name={!asset ? 'videocam-outline' : !selectedSource ? 'musical-notes-outline' : 'arrow-up'} size={19} color={colors.paper} />
+            <Ionicons name={!asset ? 'videocam-outline' : !selectedSource ? 'musical-notes-outline' : 'arrow-up'} size={20} color={colors.paper} />
             <Text style={styles.publishText}>{primaryLabel}</Text>
           </MotionPressable>
         </View>
 
-        <BottomSheet visible={sourceSheetOpen} title="Choisir un son" subtitle="Sons publics autorisés pour les Clips" onClose={() => setSourceSheetOpen(false)} keyboard maxHeight="90%">
+        <BottomSheet visible={sourceSheetOpen} title="Choisir le son" subtitle="Tous les sons que tu peux utiliser" onClose={() => setSourceSheetOpen(false)} keyboard maxHeight="92%">
           <View style={styles.sheetBody}>
+            <View style={styles.scopeTabs}>
+              {([
+                { key: 'all' as const, label: 'Tous les sons', icon: 'musical-notes-outline' as const },
+                { key: 'mine' as const, label: 'Mes sons', icon: 'person-outline' as const },
+              ]).map((item) => {
+                const active = sourceScope === item.key;
+                return (
+                  <Pressable
+                    key={item.key}
+                    onPress={() => {
+                      setSourceScope(item.key);
+                      setSourceQuery('');
+                    }}
+                    style={[styles.scopeTab, active && styles.scopeTabActive]}
+                  >
+                    <Ionicons name={item.icon} size={16} color={active ? colors.paper : colors.textSecondary} />
+                    <Text style={[styles.scopeTabText, active && styles.scopeTabTextActive]}>{item.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
             <View style={styles.searchShell}>
               <Ionicons name="search" size={18} color={colors.textTertiary} />
-              <TextInput value={sourceQuery} onChangeText={setSourceQuery} placeholder="Titre ou artiste…" placeholderTextColor={colors.textTertiary} style={styles.searchInput} autoCorrect={false} />
-              {sourceQuery ? <Pressable accessibilityLabel="Effacer" onPress={() => { setSourceQuery(''); void loadSources(''); }}><Ionicons name="close-circle" size={19} color={colors.textTertiary} /></Pressable> : null}
+              <TextInput value={sourceQuery} onChangeText={setSourceQuery} placeholder="Rechercher un titre ou un artiste" placeholderTextColor={colors.textTertiary} style={styles.searchInput} autoCorrect={false} />
+              {sourceQuery ? <Pressable accessibilityLabel="Effacer" onPress={() => setSourceQuery('')}><Ionicons name="close-circle" size={19} color={colors.textTertiary} /></Pressable> : null}
             </View>
             {loadingSources ? <ActivityIndicator color={colors.violet} style={styles.sheetLoader} /> : sourceError ? (
-              <Pressable onPress={() => void loadSources(sourceQuery)} style={styles.retry}><Ionicons name="refresh" size={18} color={colors.violet} /><Text style={styles.retryText}>Recharger les sons</Text></Pressable>
+              <Pressable onPress={() => void loadSources(sourceQuery, sourceScope)} style={styles.retry}><Ionicons name="refresh" size={18} color={colors.violet} /><Text style={styles.retryText}>Recharger les sons</Text></Pressable>
             ) : (
-              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} contentContainerStyle={styles.sourceList} keyboardShouldPersistTaps="handled">
-                {filteredSources.map((source) => {
+              <FlatList
+                data={visibleSources}
+                style={{ height: Math.max(220, Math.min(470, responsive.usableHeight * 0.55)) }}
+                keyExtractor={(source) => source._id}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                initialNumToRender={8}
+                maxToRenderPerBatch={8}
+                windowSize={5}
+                removeClippedSubviews={Platform.OS === 'android'}
+                contentContainerStyle={styles.sourceList}
+                ListEmptyComponent={(
+                  <View style={styles.noResults}>
+                    <View style={styles.noResultsIcon}><Ionicons name={sourceScope === 'mine' ? 'person-outline' : 'musical-notes-outline'} size={23} color={colors.textTertiary} /></View>
+                    <Text style={styles.noResultsTitle}>{sourceScope === 'mine' ? 'Aucun son public à toi' : 'Aucun son trouvé'}</Text>
+                    <Text style={styles.noResultsText}>{sourceScope === 'mine' ? 'Publie un morceau pour pouvoir créer son Clip officiel.' : 'Essaie un autre titre ou un autre artiste.'}</Text>
+                  </View>
+                )}
+                renderItem={({ item: source }) => {
                   const active = selectedSource?._id === source._id;
                   const own = Boolean(auth.user?.id) && source.artist?._id === auth.user?.id;
                   const playing = player.current?._id === source._id && player.isPlaying;
                   return (
-                    <View key={source._id} style={[styles.sourceRow, active && styles.sourceRowActive]}>
-                      {source.coverUrl ? <Image source={{ uri: source.coverUrl }} style={styles.sheetCover} /> : <View style={styles.sheetCover} />}
-                      <Pressable onPress={() => { setSelectedSource(source); setOffset(0); setSourceSheetOpen(false); }} style={styles.sourceCopy}>
-                        <Text numberOfLines={1} style={styles.sourceTitle}>{source.title}</Text>
-                        <Text numberOfLines={1} style={styles.sourceArtist}>{source.artist?.name || source.artist?.username || 'Artiste Synaura'} · {own ? 'Clip officiel' : 'Utiliser ce son'}</Text>
+                    <Pressable onPress={() => chooseSource(source)} style={[styles.sourceRow, active && styles.sourceRowActive]}>
+                      {source.coverUrl ? <Image source={{ uri: source.coverUrl }} style={styles.sheetCover} /> : <View style={styles.sheetCover}><Ionicons name="musical-note" size={18} color={colors.textTertiary} /></View>}
+                      <View style={styles.sourceCopy}>
+                        <View style={styles.sourceTitleLine}>
+                          <Text numberOfLines={1} style={styles.sourceTitle}>{source.title}</Text>
+                          {own ? <Text style={styles.ownBadge}>MON SON</Text> : null}
+                        </View>
+                        <Text numberOfLines={1} style={styles.sourceArtist}>{source.artist?.name || source.artist?.username || 'Artiste Synaura'} · {mmss(source.duration)}</Text>
+                      </View>
+                      <Pressable accessibilityLabel={playing ? 'Pause' : 'Écouter'} onPress={(event) => { event.stopPropagation(); void previewSource(source); }} style={styles.sheetPlay}>
+                        <Ionicons name={playing ? 'pause' : 'play'} size={17} color={colors.text} />
                       </Pressable>
-                      <Pressable accessibilityLabel={playing ? 'Pause' : 'Écouter'} onPress={() => void previewSource(source)} style={styles.sheetPlay}><Ionicons name={playing ? 'pause' : 'play'} size={17} color={colors.text} /></Pressable>
-                      <Pressable accessibilityLabel="Sélectionner" onPress={() => { setSelectedSource(source); setOffset(0); setSourceSheetOpen(false); }} style={[styles.selectCircle, active && styles.selectCircleActive]}>{active ? <Ionicons name="checkmark" size={15} color={colors.paper} /> : null}</Pressable>
-                    </View>
+                      <View style={[styles.selectCircle, active && styles.selectCircleActive]}>{active ? <Ionicons name="checkmark" size={15} color={colors.paper} /> : <Ionicons name="chevron-forward" size={15} color={colors.textTertiary} />}</View>
+                    </Pressable>
                   );
-                })}
-                {!filteredSources.length ? <View style={styles.noResults}><Ionicons name="musical-notes-outline" size={24} color={colors.textTertiary} /><Text style={styles.noResultsText}>Aucun son autorisé ne correspond.</Text></View> : null}
-              </ScrollView>
+                }}
+              />
             )}
           </View>
         </BottomSheet>
@@ -346,62 +477,89 @@ export function ClipComposerScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: spacing.lg, gap: 14 },
-  videoPanel: { width: '100%', aspectRatio: 4 / 5, maxHeight: 440, overflow: 'hidden', borderRadius: 8, backgroundColor: colors.black, borderWidth: 1, borderColor: 'rgba(17,17,17,0.14)' },
-  videoShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(17,17,17,0.16)' },
-  videoTopRow: { position: 'absolute', left: 12, right: 12, top: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  readyBadge: { height: 30, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 8, paddingHorizontal: 9, backgroundColor: 'rgba(17,17,17,0.72)' },
-  readyBadgeText: { color: colors.paper, fontSize: 9, fontWeight: '900' },
-  videoChange: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.72)' },
-  videoMeta: { position: 'absolute', left: 14, right: 14, bottom: 14 },
-  videoName: { color: colors.paper, fontSize: 15, fontWeight: '900' },
-  videoDetail: { marginTop: 4, color: 'rgba(247,246,243,0.7)', fontSize: 10, fontWeight: '800' },
-  videoEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  videoIcon: { width: 58, height: 58, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
-  videoEmptyTitle: { marginTop: 16, color: colors.paper, fontSize: 21, fontWeight: '900' },
-  videoEmptyText: { marginTop: 7, color: 'rgba(247,246,243,0.58)', textAlign: 'center', fontSize: 11, lineHeight: 17, fontWeight: '700' },
-  section: { gap: 11, borderRadius: 8, padding: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  sectionKicker: { color: colors.violet, fontSize: 9, fontWeight: '900' },
-  sectionTitle: { marginTop: 3, color: colors.text, fontSize: 15, fontWeight: '900' },
-  changeButton: { minHeight: 36, justifyContent: 'center', borderRadius: 8, paddingHorizontal: 11, backgroundColor: colors.violetSoft },
-  changeButtonText: { color: colors.violet, fontSize: 10, fontWeight: '900' },
-  selectedSource: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 8, padding: 9, backgroundColor: colors.background },
-  sourceCover: { width: 52, height: 52, borderRadius: 8, backgroundColor: 'rgba(17,17,17,0.08)' },
-  sourceCopy: { flex: 1, minWidth: 0 },
-  sourceTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  sourceArtist: { marginTop: 4, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
-  sourcePlay: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
-  sourceEmpty: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, paddingHorizontal: 12, backgroundColor: colors.background, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.borderStrong },
-  sourceEmptyText: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '900' },
-  offsetRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderRadius: 8, padding: 8, backgroundColor: colors.background },
-  offsetButton: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  offsetCopy: { flex: 1, alignItems: 'center' },
-  offsetLabel: { color: colors.textTertiary, fontSize: 8, fontWeight: '900' },
-  offsetValue: { marginTop: 3, color: colors.text, fontSize: 13, fontWeight: '900' },
-  input: { minHeight: 48, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 11, color: colors.text, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, fontSize: 13, fontWeight: '700' },
-  captionInput: { minHeight: 106, textAlignVertical: 'top' },
-  counter: { alignSelf: 'flex-end', color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
-  publishDock: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 10, backgroundColor: 'rgba(247,246,243,0.96)', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  publishButton: { minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 8, backgroundColor: colors.black },
-  publishButtonReady: { backgroundColor: colors.violet },
+  root: { flex: 1, backgroundColor: colors.black },
+  header: { width: '100%', minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingBottom: 8 },
+  headerButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(247,246,243,0.08)', borderWidth: 1, borderColor: 'rgba(247,246,243,0.10)' },
+  headerTitleWrap: { flex: 1, maxWidth: 220, alignItems: 'center', gap: 7 },
+  headerTitle: { color: colors.paper, fontSize: 16, fontWeight: '900' },
+  progressRail: { width: '100%', flexDirection: 'row', gap: 5 },
+  progressSegment: { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(247,246,243,0.14)' },
+  progressSegmentActive: { backgroundColor: colors.violet },
+  stepText: { width: 42, color: 'rgba(247,246,243,0.48)', fontSize: 11, fontWeight: '900', textAlign: 'center' },
+  content: { gap: 12, paddingTop: 4 },
+  challengeChip: { maxWidth: '100%', alignSelf: 'center', minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 17, paddingHorizontal: 12, backgroundColor: 'rgba(242,200,107,0.10)', borderWidth: 1, borderColor: 'rgba(242,200,107,0.18)' },
+  challengeText: { maxWidth: 260, color: '#F2D58D', fontSize: 10, fontWeight: '900' },
+  workspace: { width: '100%', alignItems: 'center', gap: 14 },
+  workspaceWide: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 16 },
+  previewFrame: { overflow: 'hidden', borderRadius: 8, backgroundColor: '#191817', borderWidth: 1, borderColor: 'rgba(247,246,243,0.13)' },
+  previewShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(17,17,17,0.15)' },
+  changeVideoButton: { position: 'absolute', right: 12, top: 12, width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.74)', borderWidth: 1, borderColor: 'rgba(247,246,243,0.16)' },
+  previewMeta: { position: 'absolute', left: 14, right: 14, bottom: 14 },
+  previewReady: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 },
+  readyDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.cyan },
+  previewReadyText: { color: 'rgba(247,246,243,0.78)', fontSize: 9, fontWeight: '900' },
+  previewName: { color: colors.paper, fontSize: 15, fontWeight: '900' },
+  previewDetail: { marginTop: 4, color: 'rgba(247,246,243,0.60)', fontSize: 10, fontWeight: '800' },
+  previewEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  addVideoIcon: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet, shadowColor: colors.violet, shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 7 }, elevation: 7 },
+  previewEmptyTitle: { marginTop: 18, color: colors.paper, fontSize: 20, fontWeight: '900' },
+  previewEmptyText: { marginTop: 7, color: 'rgba(247,246,243,0.48)', textAlign: 'center', fontSize: 11, lineHeight: 17, fontWeight: '700' },
+  editorPanel: { width: '100%', overflow: 'hidden', borderRadius: 8, backgroundColor: 'rgba(31,29,28,0.96)', borderWidth: 1, borderColor: 'rgba(247,246,243,0.09)' },
+  editorPanelWide: { flex: 1, minWidth: 260 },
+  editorRow: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 13, paddingVertical: 11 },
+  rowIcon: { width: 48, height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  rowIconViolet: { backgroundColor: 'rgba(115,87,198,0.16)' },
+  rowCover: { width: '100%', height: '100%' },
+  rowCopy: { flex: 1, minWidth: 0 },
+  rowLabel: { color: 'rgba(247,246,243,0.42)', fontSize: 9, fontWeight: '900' },
+  rowTitle: { marginTop: 5, color: colors.paper, fontSize: 13, fontWeight: '900' },
+  rowSubtitle: { marginTop: 3, color: 'rgba(247,246,243,0.48)', fontSize: 10, fontWeight: '700' },
+  inlinePlay: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  offsetSection: { paddingHorizontal: 14, paddingTop: 13, paddingBottom: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(247,246,243,0.10)' },
+  offsetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  offsetValue: { color: colors.paper, fontSize: 11, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  offsetSlider: { height: 28, justifyContent: 'center', marginTop: 6 },
+  offsetTrack: { position: 'absolute', left: 0, right: 0, height: 4, borderRadius: 2, backgroundColor: 'rgba(247,246,243,0.14)' },
+  offsetFill: { position: 'absolute', left: 0, height: 4, borderRadius: 2, backgroundColor: colors.cyan },
+  offsetKnob: { position: 'absolute', width: 16, height: 16, marginLeft: -8, borderRadius: 8, backgroundColor: colors.paper, borderWidth: 3, borderColor: colors.cyan },
+  detailsSection: { gap: 9, padding: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(247,246,243,0.10)' },
+  inputHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  captionCount: { color: 'rgba(247,246,243,0.32)', fontSize: 9, fontWeight: '800' },
+  input: { color: colors.paper, backgroundColor: '#272523', borderWidth: 1, borderColor: 'rgba(247,246,243,0.08)', fontSize: 13, fontWeight: '700' },
+  captionInput: { minHeight: 92, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 11, textAlignVertical: 'top' },
+  tagInputRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 8, paddingHorizontal: 12, backgroundColor: '#272523', borderWidth: 1, borderColor: 'rgba(247,246,243,0.08)' },
+  tagInput: { flex: 1, minWidth: 0, color: colors.paper, fontSize: 12, fontWeight: '700' },
+  publishDock: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 10, backgroundColor: 'rgba(17,17,17,0.97)', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(247,246,243,0.10)' },
+  publishButton: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 8, backgroundColor: '#363331', borderWidth: 1, borderColor: 'rgba(247,246,243,0.10)' },
+  publishButtonReady: { backgroundColor: colors.violet, borderColor: colors.violet },
   publishText: { color: colors.paper, fontSize: 14, fontWeight: '900' },
-  sheetBody: { minHeight: 300, maxHeight: 620, paddingHorizontal: 14, paddingTop: 12 },
-  searchShell: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 8, paddingHorizontal: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  sheetBody: { minHeight: 360, maxHeight: 650, paddingHorizontal: 14, paddingTop: 10 },
+  scopeTabs: { minHeight: 46, flexDirection: 'row', gap: 4, borderRadius: 8, padding: 4, backgroundColor: colors.surfaceMuted },
+  scopeTab: { flex: 1, minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 6 },
+  scopeTabActive: { backgroundColor: colors.black },
+  scopeTabText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
+  scopeTabTextActive: { color: colors.paper },
+  searchShell: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 10, borderRadius: 8, paddingHorizontal: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong },
   searchInput: { flex: 1, minWidth: 0, color: colors.text, fontSize: 13, fontWeight: '700' },
-  sheetLoader: { marginVertical: 70 },
-  sourceList: { gap: 8, paddingTop: 12, paddingBottom: 18 },
-  sourceRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 8, padding: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  sourceRowActive: { borderColor: 'rgba(115,87,198,0.45)', backgroundColor: colors.violetSoft },
-  sheetCover: { width: 50, height: 50, borderRadius: 8, backgroundColor: 'rgba(17,17,17,0.08)' },
-  sheetPlay: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  selectCircle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.borderStrong },
+  sheetLoader: { marginVertical: 80 },
+  sourceList: { gap: 7, paddingTop: 11, paddingBottom: 22 },
+  sourceRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 8, padding: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  sourceRowActive: { borderColor: 'rgba(115,87,198,0.48)', backgroundColor: colors.violetSoft },
+  sheetCover: { width: 52, height: 52, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  sourceCopy: { flex: 1, minWidth: 0 },
+  sourceTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  sourceTitle: { flexShrink: 1, color: colors.text, fontSize: 13, fontWeight: '900' },
+  ownBadge: { color: colors.violet, fontSize: 8, fontWeight: '900' },
+  sourceArtist: { marginTop: 5, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
+  sheetPlay: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  selectCircle: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong },
   selectCircleActive: { backgroundColor: colors.violet, borderColor: colors.violet },
-  retry: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  retry: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   retryText: { color: colors.violet, fontSize: 11, fontWeight: '900' },
-  noResults: { alignItems: 'center', gap: 8, paddingVertical: 42 },
-  noResultsText: { color: colors.textTertiary, fontSize: 11, fontWeight: '800' },
+  noResults: { alignItems: 'center', paddingHorizontal: 22, paddingVertical: 48 },
+  noResultsIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  noResultsTitle: { marginTop: 12, color: colors.text, fontSize: 14, fontWeight: '900' },
+  noResultsText: { maxWidth: 280, marginTop: 6, color: colors.textTertiary, textAlign: 'center', fontSize: 11, lineHeight: 17, fontWeight: '700' },
 });
 
 export default ClipComposerScreen;
