@@ -770,10 +770,11 @@ export async function decideRemix(remixId: string, decision: 'approve' | 'reject
   });
 }
 
-export async function getMusicClipSources(input: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track' } = {}): Promise<MusicClipSource[]> {
-  const params = new URLSearchParams({ limit: '80' });
+export async function getMusicClipSources(input: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; query?: string; limit?: number } = {}): Promise<MusicClipSource[]> {
+  const params = new URLSearchParams({ limit: String(Math.min(60, Math.max(1, input.limit || 24))) });
   if (input.sourceTrackId) params.set('sourceTrackId', input.sourceTrackId);
   if (input.sourceTrackType) params.set('sourceTrackType', input.sourceTrackType);
+  if (input.query?.trim()) params.set('query', input.query.trim());
   const json = await request<any>(`/api/music-clips/sources?${params.toString()}`);
   return (Array.isArray(json?.sources) ? json.sources : [])
     .map(normalizeClipSource)
@@ -1375,6 +1376,7 @@ export async function uploadToCloudinaryMobile(
   asset: UploadAsset,
   resourceType: CloudinaryResourceType,
   folder?: string,
+  options: { onProgress?: (progress: number) => void } = {},
 ): Promise<CloudinaryUploadResult> {
   const timestamp = Math.round(Date.now() / 1000);
   const stem = resourceType === 'video' ? 'track' : 'cover';
@@ -1394,6 +1396,9 @@ export async function uploadToCloudinaryMobile(
   const cloudName = signature?.cloudName;
   const apiKey = signature?.apiKey;
   if (!cloudName || !apiKey || !signature?.signature) throw new Error('Signature Cloudinary invalide');
+  const signedTimestamp = Number(signature.timestamp || timestamp);
+  const signedPublicId = String(signature.publicId || publicId);
+  const signedFolder = String(signature.folder || uploadFolder);
 
   const form = new FormData();
   form.append('file', {
@@ -1401,25 +1406,40 @@ export async function uploadToCloudinaryMobile(
     name: asset.name,
     type: asset.type || (resourceType === 'image' ? 'image/jpeg' : 'video/mp4'),
   } as any);
-  form.append('folder', uploadFolder);
-  form.append('public_id', publicId);
-  form.append('resource_type', resourceType);
-  form.append('timestamp', String(timestamp));
+  form.append('folder', signedFolder);
+  form.append('public_id', signedPublicId);
+  form.append('timestamp', String(signedTimestamp));
   form.append('api_key', apiKey);
   form.append('signature', signature.signature);
 
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
-    method: 'POST',
-    body: form,
+  const json = await new Promise<any>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`);
+    xhr.timeout = 10 * 60 * 1000;
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && event.total > 0) options.onProgress?.(Math.min(1, event.loaded / event.total));
+    };
+    xhr.onerror = () => reject(new Error('Connexion interrompue pendant l’envoi. Réessaie depuis le Flow.'));
+    xhr.ontimeout = () => reject(new Error('L’envoi prend trop de temps. Vérifie ta connexion puis réessaie.'));
+    xhr.onload = () => {
+      let response: any = null;
+      try { response = JSON.parse(xhr.responseText || '{}'); } catch { /* reponse invalide */ }
+      if (xhr.status < 200 || xhr.status >= 300 || !response?.secure_url) {
+        const message = String(response?.error?.message || 'Envoi vidéo impossible');
+        if (/signature|timestamp/i.test(message)) reject(new Error('La session d’envoi a expiré. Réessaie depuis le Flow.'));
+        else if (/too large|file size|maximum/i.test(message)) reject(new Error('Cette vidéo dépasse la taille acceptée. Choisis une version plus légère.'));
+        else reject(new Error(message));
+        return;
+      }
+      resolve(response);
+    };
+    xhr.send(form as any);
   });
-  const json = await res.json().catch(() => null);
-  if (!res.ok || !json?.secure_url) {
-    throw new Error(json?.error?.message || 'Upload Cloudinary impossible');
-  }
+  options.onProgress?.(1);
 
   return {
     secureUrl: String(json.secure_url),
-    publicId: String(json.public_id || publicId),
+    publicId: String(json.public_id || signedPublicId),
     duration: Number(json.duration || 0) || undefined,
     bytes: Number(json.bytes || asset.size || 0) || undefined,
   };

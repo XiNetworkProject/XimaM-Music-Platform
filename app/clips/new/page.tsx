@@ -4,10 +4,11 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { ArrowLeft, Check, Film, Loader2, Music2, Play, UploadCloud, X } from 'lucide-react';
+import { ArrowLeft, Check, Film, Loader2, Music2, Play, Search, UploadCloud, X } from 'lucide-react';
 import { SynauraAppShell, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import CreateArrivalBanner from '@/components/create/CreateArrivalBanner';
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
+import { enqueueClientClipUpload } from '@/lib/clientClipUploadQueue';
 
 type ClipSource = {
   _id: string;
@@ -20,7 +21,6 @@ type ClipSource = {
   duration: number;
 };
 
-const CLIP_FOLDER = 'ximam/music-clips';
 const FALLBACK_COVER = '/brand/2026/synaura-symbol-2026.png';
 const MUSIC_CLIP_MIN_SECONDS = 15;
 const MUSIC_CLIP_MAX_SECONDS = 60;
@@ -33,12 +33,6 @@ function mmss(seconds = 0) {
 
 function tagsFromText(value: string) {
   return value.split(/[,\s]+/).map((tag) => tag.replace(/^#/, '').trim()).filter(Boolean).slice(0, 8);
-}
-
-function cloudinaryVideoPosterUrl(videoUrl?: string | null) {
-  if (!videoUrl) return null;
-  const withTransform = videoUrl.replace('/video/upload/', '/video/upload/so_0,w_720,h_1280,c_fill,f_jpg/');
-  return withTransform.replace(/\.(mp4|webm|mov|m4v)(\?.*)?$/i, '.jpg$2');
 }
 
 function getVideoDuration(file: File) {
@@ -57,36 +51,6 @@ function getVideoDuration(file: File) {
     };
     video.src = url;
   });
-}
-
-async function uploadClipVideo(file: File) {
-  const timestamp = Math.round(Date.now() / 1000);
-  const publicId = `clip_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-  const signatureRes = await fetch('/api/upload/signature', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ timestamp, publicId, resourceType: 'video', folder: CLIP_FOLDER }),
-  });
-  const signature = await signatureRes.json();
-  if (!signatureRes.ok) throw new Error(signature?.error || 'Signature Cloudinary impossible');
-  const form = new FormData();
-  form.append('file', file);
-  form.append('folder', CLIP_FOLDER);
-  form.append('public_id', publicId);
-  form.append('resource_type', 'video');
-  form.append('timestamp', String(timestamp));
-  form.append('api_key', signature.apiKey);
-  form.append('signature', signature.signature);
-  const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${signature.cloudName}/video/upload`, { method: 'POST', body: form });
-  const json = await uploadRes.json().catch(() => null);
-  if (!uploadRes.ok || !json?.secure_url) throw new Error(json?.error?.message || 'Upload video impossible');
-  return {
-    videoUrl: String(json.secure_url),
-    videoPublicId: String(json.public_id || publicId),
-    posterUrl: cloudinaryVideoPosterUrl(String(json.secure_url)),
-    duration: Number(json.duration || 0),
-    bytes: Number(json.bytes || file.size || 0),
-  };
 }
 
 export default function NewMusicClipPage() {
@@ -116,6 +80,7 @@ function NewMusicClipPageContent() {
   const [step, setStep] = useState(1);
   const [challengeTitle, setChallengeTitle] = useState<string | null>(null);
   const [sources, setSources] = useState<ClipSource[]>([]);
+  const [sourceQuery, setSourceQuery] = useState('');
   const [selectedSourceId, setSelectedSourceId] = useState('');
   const [isPreset, setIsPreset] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -124,10 +89,15 @@ function NewMusicClipPageContent() {
   const [tagText, setTagText] = useState('');
   const [offset, setOffset] = useState(0);
   const [loadingSources, setLoadingSources] = useState(true);
-  const [publishing, setPublishing] = useState(false);
+  const [searchingSources, setSearchingSources] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const selectedSource = useMemo(() => sources.find((source) => source._id === selectedSourceId) || null, [selectedSourceId, sources]);
+  const filteredSources = useMemo(() => {
+    const query = sourceQuery.trim().toLocaleLowerCase('fr');
+    if (!query) return sources;
+    return sources.filter((source) => `${source.title} ${source.artist?.name || ''} ${source.artist?.username || ''}`.toLocaleLowerCase('fr').includes(query));
+  }, [sourceQuery, sources]);
   const maxOffset = Math.max(0, Math.round((selectedSource?.duration || 0) - MUSIC_CLIP_MIN_SECONDS));
 
   useEffect(() => {
@@ -151,11 +121,13 @@ function NewMusicClipPageContent() {
         if (!ok) throw new Error(json?.error || 'Connexion requise');
         const nextSources = Array.isArray(json?.sources) ? json.sources : [];
         setSources(nextSources);
-        const presetResolved = Boolean(presetTrackId) && nextSources[0]?._id === presetTrackId;
-        if (presetResolved) {
-          setSelectedSourceId(nextSources[0]._id);
+        const presetSource = presetTrackId
+          ? nextSources.find((source: ClipSource) => source._id === presetTrackId || source.sourceTrackId === presetTrackId.replace(/^ai-/, ''))
+          : null;
+        if (presetSource) {
+          setSelectedSourceId(presetSource._id);
           setIsPreset(true);
-          void recordClipFunnelEvent(presetTrackId, 'clip_composer_opened');
+          void recordClipFunnelEvent(presetSource._id, 'clip_composer_opened');
         } else if (nextSources[0]?._id) {
           setSelectedSourceId(nextSources[0]._id);
         }
@@ -166,6 +138,41 @@ function NewMusicClipPageContent() {
       mounted = false;
     };
   }, [status, presetTrackId, presetTrackType]);
+
+  useEffect(() => {
+    const query = sourceQuery.trim();
+    if (status !== 'authenticated' || query.length < 2 || filteredSources.length > 0) {
+      setSearchingSources(false);
+      return;
+    }
+    let active = true;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setSearchingSources(true);
+      const params = new URLSearchParams({ limit: '40', query });
+      fetch(`/api/music-clips/sources?${params.toString()}`, { cache: 'no-store', signal: controller.signal })
+        .then((res) => res.json().then((json) => ({ ok: res.ok, json })))
+        .then(({ ok, json }) => {
+          if (!active) return;
+          if (!ok) throw new Error(json?.error || 'Recherche impossible');
+          const matches: ClipSource[] = Array.isArray(json?.sources) ? json.sources : [];
+          setSources((current) => {
+            const byId = new Map(current.map((source) => [source._id, source]));
+            matches.forEach((source) => byId.set(source._id, source));
+            return Array.from(byId.values());
+          });
+        })
+        .catch((searchError) => {
+          if (active && searchError?.name !== 'AbortError') setError(searchError?.message || 'Recherche impossible');
+        })
+        .finally(() => active && setSearchingSources(false));
+    }, 320);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [filteredSources.length, sourceQuery, status]);
 
   useEffect(() => {
     if (!challengeId) return;
@@ -208,56 +215,22 @@ function NewMusicClipPageContent() {
     }
   }
 
-  async function publish() {
+  function publish() {
     if (!file || !selectedSource) {
       setError('Ajoute une video et choisis un morceau.');
       return;
     }
-    setPublishing(true);
     setError(null);
-    try {
-      const upload = await uploadClipVideo(file);
-      const draftRes = await fetch('/api/music-clips', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceTrackId: selectedSource.sourceTrackId, sourceTrackType: selectedSource.sourceTrackType }),
-      });
-      const draftJson = await draftRes.json();
-      if (!draftRes.ok) throw new Error(draftJson?.error || 'Brouillon impossible');
-      void recordClipFunnelEvent(selectedSource._id, 'clip_draft_created');
-      const clipId = draftJson?.clip?.id;
-      const publishRes = await fetch(`/api/music-clips/${clipId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          videoUrl: upload.videoUrl,
-          videoPublicId: upload.videoPublicId,
-          posterUrl: upload.posterUrl,
-          videoBytes: upload.bytes,
-          videoDurationSeconds: upload.duration || localDuration,
-          caption,
-          tags: tagsFromText(tagText),
-          sourceTrackOffsetSeconds: offset,
-          sourceTrackDurationSeconds: Math.round(localDuration),
-          visibility: 'published',
-        }),
-      });
-      const publishJson = await publishRes.json();
-      if (!publishRes.ok) throw new Error(publishJson?.error || 'Publication impossible');
-      void recordClipFunnelEvent(selectedSource._id, 'clip_published');
-      if (challengeId && clipId) {
-        fetch(`/api/challenges/${encodeURIComponent(challengeId)}/participate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contentType: 'clip', contentId: clipId }),
-        }).catch(() => {});
-      }
-      router.push('/?filter=clips');
-    } catch (e: any) {
-      setError(e?.message || 'Impossible de publier le clip');
-    } finally {
-      setPublishing(false);
-    }
+    enqueueClientClipUpload({
+      file,
+      source: selectedSource,
+      duration: Math.round(localDuration),
+      offset,
+      caption,
+      tags: tagsFromText(tagText),
+      challengeId: challengeId || undefined,
+    });
+    router.push('/?filter=clips');
   }
 
   return (
@@ -337,11 +310,15 @@ function NewMusicClipPageContent() {
                     </div>
                     <button type="button" onClick={() => setStep(1)} className="grid h-10 w-10 place-items-center rounded-full bg-black/[0.06]"><X className="h-4 w-4" /></button>
                   </div>
-                  {loadingSources ? (
+                  <label className="flex h-12 items-center gap-2 rounded-lg border border-black/[0.08] bg-[#F7F6F3] px-3">
+                    <Search className="h-4 w-4 text-black/40" />
+                    <input value={sourceQuery} onChange={(event) => setSourceQuery(event.target.value)} placeholder="Titre ou artiste…" className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none" />
+                  </label>
+                  {loadingSources || searchingSources ? (
                     <div className="grid min-h-[260px] place-items-center"><Loader2 className="h-7 w-7 animate-spin" /></div>
-                  ) : sources.length ? (
+                  ) : filteredSources.length ? (
                     <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
-                      {sources.map((source) => {
+                      {filteredSources.map((source) => {
                         const isOwnTrack = Boolean(currentUserId) && source.artist?._id === currentUserId;
                         return (
                           <button key={source._id} type="button" onClick={() => setSelectedSourceId(source._id)} className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${selectedSourceId === source._id ? 'border-[#7357C6]/40 bg-[#7357C6]/10' : 'border-black/[0.08] bg-[#F7F6F3] hover:bg-black/[0.04]'}`}>
@@ -381,8 +358,8 @@ function NewMusicClipPageContent() {
                   </label>
                   <textarea value={caption} onChange={(event) => setCaption(event.target.value)} maxLength={280} placeholder="Legende" className="min-h-28 w-full rounded-2xl border border-black/[0.08] bg-[#F7F6F3] p-3 text-sm font-semibold outline-none focus:border-[#7357C6]/45" />
                   <input value={tagText} onChange={(event) => setTagText(event.target.value)} placeholder="Tags separes par espaces ou virgules" className="h-12 w-full rounded-2xl border border-black/[0.08] bg-[#F7F6F3] px-3 text-sm font-semibold outline-none focus:border-[#7357C6]/45" />
-                  <button type="button" disabled={publishing} onClick={() => void publish()} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#111111] text-sm font-black text-white disabled:opacity-55">
-                    {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Film className="h-4 w-4" />}
+                  <button type="button" onClick={publish} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#111111] text-sm font-black text-white disabled:opacity-55">
+                    <Film className="h-4 w-4" />
                     Publier le clip
                   </button>
                 </div>

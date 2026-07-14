@@ -26,6 +26,7 @@ import { NativeNotificationsProvider } from '@/notifications/NativeNotifications
 import { NativeNotificationNudge } from '@/notifications/NativeNotificationNudge';
 import { navigationRef } from '@/navigation/navigationRef';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
+import { ClipUploadProvider } from '@/clips/ClipUploadProvider';
 
 export type RootStackParamList = {
   Tabs: { screen?: string; params?: Record<string, unknown> } | undefined;
@@ -159,6 +160,7 @@ export default function App() {
       <UpdateProvider>
         <MobileSettingsProvider>
           <AuthProvider>
+            <ClipUploadProvider>
             <LibraryProvider>
               <PlayerProvider>
               <NativeNotificationsProvider>
@@ -185,6 +187,7 @@ export default function App() {
               </NativeNotificationsProvider>
               </PlayerProvider>
             </LibraryProvider>
+            </ClipUploadProvider>
           </AuthProvider>
         </MobileSettingsProvider>
       </UpdateProvider>

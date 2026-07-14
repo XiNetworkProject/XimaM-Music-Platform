@@ -14,6 +14,7 @@ import { canUseSoundClientSide } from '@/lib/clipPermissions';
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
 import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
 import { useLibraryFavorites } from '@/hooks/useLibraryFavorites';
+import ClipUploadIndicator from '@/components/clips/ClipUploadIndicator';
 import {
   buildAnnouncementItem,
   buildArtistSpotlightItems,
@@ -192,6 +193,12 @@ export default function SynauraScrollFeed() {
     return () => {
       document.body.style.overflow = prev;
     };
+  }, []);
+
+  useEffect(() => {
+    const refreshClips = () => setReloadKey((value) => value + 1);
+    window.addEventListener('synaura:clip-upload-completed', refreshClips);
+    return () => window.removeEventListener('synaura:clip-upload-completed', refreshClips);
   }, []);
 
   useEffect(() => {
@@ -1055,6 +1062,7 @@ export default function SynauraScrollFeed() {
 
   return (
     <div className="fixed inset-0 z-[100] overflow-hidden bg-[#171313] text-white">
+      <ClipUploadIndicator />
       <div className="absolute left-0 right-0 top-0 z-40 px-3 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-4">
         <div className="flex items-center justify-between gap-2">
           <Link href="/" className="flex min-w-0 items-center gap-2">

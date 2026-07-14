@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Animated,
   AppState,
+  DeviceEventEmitter,
   FlatList,
   Image,
   InteractionManager,
@@ -73,6 +74,7 @@ import { MotionPressable } from '@/components/motion/Motion';
 import { MobileAnimatedLogo } from '@/components/mobile/MobileAnimatedLogo';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { ClipUploadIndicator } from '@/clips/ClipUploadIndicator';
 
 const PRELOAD_RANGE = 1;
 const COMMENTS_POLL_DELAY_MS = 900;
@@ -272,6 +274,14 @@ export function SwipeScreen() {
     });
     return () => subscription.remove();
   }, []);
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('synaura:clip-upload-completed', () => {
+      if (feedMode === 'clips') setReloadKey((value) => value + 1);
+      else void getMusicClips({ limit: 8 }).then((chunk) => setClips(chunk.clips)).catch(() => {});
+    });
+    return () => subscription.remove();
+  }, [feedMode]);
 
   // (1) Charge le feed quand le mode change
   useEffect(() => {
@@ -1039,6 +1049,8 @@ export function SwipeScreen() {
         </View>
         <View style={styles.feedProgressTrack}><Animated.View style={[styles.feedProgressFill, { width: feedProgress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} /></View>
       </Animated.View>
+
+      <ClipUploadIndicator top={insets.top + 82} left={responsive.insets.left + 10} />
 
       {loadState === 'loading' || loadState === 'idle' ? (
         <View style={styles.loadingScreen}>

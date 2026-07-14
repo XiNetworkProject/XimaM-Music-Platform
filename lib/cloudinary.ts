@@ -216,8 +216,6 @@ export const deleteFile = async (publicId: string, resourceType: 'image' | 'vide
 
 // Générer une signature pour l'upload direct (méthode manuelle pour contrôle total)
 export const generateUploadSignature = (params: any) => {
-  console.log('=== GENERATE SIGNATURE ===');
-  console.log('Input params:', params);
   
   // Filtrer les paramètres à exclure de la signature
   const excludedParams = ['file', 'resource_type'];
@@ -229,9 +227,6 @@ export const generateUploadSignature = (params: any) => {
       return result;
     }, {});
 
-  console.log('Filtered params (excluded file, resource_type):', filteredParams);
-  console.log('Resource type value:', filteredParams.resource_type);
-  console.log('All filtered param keys:', Object.keys(filteredParams));
 
   // Créer la chaîne à signer au format key=value&key=value
   // Cloudinary exige un ordre alphabétique des paramètres
@@ -240,8 +235,6 @@ export const generateUploadSignature = (params: any) => {
     .map(([key, value]) => `${key}=${value}`)
     .join('&');
 
-  console.log('String to sign:', signString);
-  console.log('API Secret:', process.env.CLOUDINARY_API_SECRET?.substring(0, 10) + '...');
 
   // Générer la signature SHA1
   const signature = crypto
@@ -249,8 +242,6 @@ export const generateUploadSignature = (params: any) => {
     .update(signString + process.env.CLOUDINARY_API_SECRET!)
     .digest('hex');
 
-  console.log('Generated signature:', signature);
-  console.log('=== END GENERATE SIGNATURE ===');
   
   return signature;
 };
@@ -264,4 +255,4 @@ export const optimizeImage = (publicId: string, options: any = {}) => {
   });
 };
 
-export default cloudinary; 
+export default cloudinary;

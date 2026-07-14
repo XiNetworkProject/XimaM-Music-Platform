@@ -4,45 +4,32 @@ import { generateUploadSignature } from '@/lib/cloudinary';
 
 export async function POST(request: NextRequest) {
   try {
-    // Vérifier l'authentification
     const session = await getApiSession(request);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    }
+    if (!session?.user?.id) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
-    const { timestamp, publicId, resourceType = 'video', resource_type = resourceType, folder } = await request.json();
-
-    // Préparer les paramètres pour la signature
-    const params = {
-      folder: typeof folder === 'string' && folder.trim() ? folder.trim() : ((resource_type || resourceType) === 'video' ? 'ximam/audio' : 'ximam/images'),
-      public_id: publicId,
-      timestamp: timestamp,
-      resource_type: resource_type || resourceType,
-    };
-
-    console.log('=== DEBUG SIGNATURE ===');
-    console.log('Input params:', { timestamp, publicId, resourceType });
-    console.log('Params for signature:', params);
-    console.log('API Secret length:', process.env.CLOUDINARY_API_SECRET?.length);
-
-    // Générer la signature pour l'upload direct
-    const signature = generateUploadSignature(params);
-
-    console.log('Generated signature:', signature);
-    console.log('=== END DEBUG ===');
+    const body = await request.json().catch(() => ({}));
+    const resourceType = body?.resourceType === 'image' ? 'image' : 'video';
+    const timestamp = Math.round(Date.now() / 1000);
+    const publicId = String(body?.publicId || `${resourceType}_${Date.now()}`)
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .slice(0, 120);
+    const requestedFolder = typeof body?.folder === 'string' ? body.folder.trim() : '';
+    const folder = requestedFolder.startsWith('ximam/') && /^[a-zA-Z0-9/_-]+$/.test(requestedFolder)
+      ? requestedFolder
+      : resourceType === 'video' ? 'ximam/audio' : 'ximam/images';
+    const signature = generateUploadSignature({ folder, public_id: publicId, timestamp });
 
     return NextResponse.json({
       signature,
       timestamp,
+      publicId,
+      folder,
+      resourceType,
       apiKey: process.env.CLOUDINARY_API_KEY,
       cloudName: process.env.CLOUDINARY_CLOUD_NAME,
     });
-
   } catch (error) {
-    console.error('Erreur génération signature:', error);
-    return NextResponse.json(
-      { error: 'Erreur lors de la génération de la signature' },
-      { status: 500 }
-    );
+    console.error('Erreur generation signature:', error);
+    return NextResponse.json({ error: 'Erreur lors de la generation de la signature' }, { status: 500 });
   }
-} 
+}

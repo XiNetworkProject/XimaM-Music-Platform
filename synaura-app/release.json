@@ -1,13 +1,12 @@
 {
-  "title": "Synaura mobile 0.15.0",
+  "title": "Synaura mobile 0.15.2",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Interface et onboarding adaptes aux petits, grands et larges ecrans",
-    "Accueil et Discover nettement plus rapides grace au chargement progressif et au cache",
-    "Profils public et prive complets avec tous les sons, clips, posts et playlists",
-    "Waveform Moments plus fluide et clips video independants du lecteur musical",
-    "Partage premium finalise pour morceaux, profils, posts, playlists, clips et Studio",
-    "Notifications natives synchronisees avec badge, premier plan et activation guidee"
+    "Nouveau parcours de publication Clip, plus direct et plus lisible",
+    "Choix du son fiabilise avec recherche, pochette et preecoute",
+    "Retour immediat dans Scroll avec progression circulaire de l'upload",
+    "Uploads conserves en cas de fermeture de l'app et relancables apres une erreur",
+    "Envoi Cloudinary fiabilise avec progression reelle et signature serveur"
   ]
 }
