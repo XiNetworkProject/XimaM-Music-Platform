@@ -1,13 +1,13 @@
 {
-  "title": "Synaura mobile 0.14.1",
+  "title": "Synaura mobile 0.14.2",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Flow restaure correctement apres fermeture ou retour depuis l'arriere-plan, sans devoir effacer les donnees",
-    "Cache musical et etat du lecteur auto-repares si une ancienne session est invalide",
-    "Clips lus dans une session video et audio independante, sans deplacer ni reboucler le morceau original",
-    "Lecture des Clips arretee proprement en fin de video avec reprise manuelle claire",
-    "Likes et commentaires des Clips enregistres reellement et separes des interactions du morceau source",
-    "Clips recharges sur les profils prive et public, avec ouverture directe du bon Clip"
+    "Demarrage garanti meme si la restauration locale de session reste bloquee",
+    "Ecran de reprise visible et navigation resynchronisee au lancement",
+    "Nouveau cache Flow propre pour supprimer les etats persistants invalides",
+    "Clips charges independamment du profil, des posts et des quotas",
+    "Clips visibles directement dans les profils prive et public, puis dans leur onglet complet",
+    "Rechargement explicite des Clips et donnees forcees sans cache Android"
   ]
 }

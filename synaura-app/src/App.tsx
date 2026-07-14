@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { DeviceEventEmitter, View } from 'react-native';
+import { ActivityIndicator, DeviceEventEmitter, Text, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -37,6 +37,7 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const ROOT_GATE_TIMEOUT_MS = 2400;
+const ROOT_BOOT_WATCHDOG_MS = 1700;
 
 const navTheme = {
   ...DefaultTheme,
@@ -74,6 +75,13 @@ function RootStackNavigator() {
   const checkedRef = useRef(false);
 
   useEffect(() => {
+    const watchdog = setTimeout(() => {
+      setGate((current) => current.ready ? current : { ready: true, initialRoute: 'Tabs' });
+    }, ROOT_BOOT_WATCHDOG_MS);
+    return () => clearTimeout(watchdog);
+  }, []);
+
+  useEffect(() => {
     if (auth.loading || checkedRef.current) return;
     checkedRef.current = true;
     let mounted = true;
@@ -106,7 +114,12 @@ function RootStackNavigator() {
   }, [auth.loading, auth.user, auth.token]);
 
   if (!gate.ready) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: colors.background }}>
+        <ActivityIndicator color={colors.violet} />
+        <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '800' }}>Ouverture de Synaura...</Text>
+      </View>
+    );
   }
 
   return (
@@ -131,7 +144,7 @@ function RootStackNavigator() {
 
 export default function App() {
   const [playerOpen, setPlayerOpen] = React.useState(false);
-  const [activeRoute, setActiveRoute] = React.useState('Home');
+  const [activeRoute, setActiveRoute] = React.useState('Swipe');
 
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('synaura:open-full-player', () => {
@@ -152,6 +165,10 @@ export default function App() {
               <NavigationContainer
                 ref={navigationRef}
                 theme={navTheme}
+                onReady={() => {
+                  const state = navigationRef.getRootState();
+                  if (state?.routes?.length) setActiveRoute(getActiveRouteName(state));
+                }}
                 onStateChange={(state) => {
                   setActiveRoute(getActiveRouteName(state));
                 }}

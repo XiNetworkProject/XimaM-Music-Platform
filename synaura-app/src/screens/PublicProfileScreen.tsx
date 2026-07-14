@@ -45,7 +45,7 @@ export function PublicProfileScreen() {
   const [followLoading, setFollowLoading] = useState(false);
   const [clips, setClips] = useState<MusicClip[]>([]);
   const [clipsLoading, setClipsLoading] = useState(false);
-  const [clipsLoaded, setClipsLoaded] = useState(false);
+  const [clipsError, setClipsError] = useState<string | null>(null);
   const [variations, setVariations] = useState<UserVariation[]>([]);
   const [variationsLoading, setVariationsLoading] = useState(false);
   const [variationsLoaded, setVariationsLoaded] = useState(false);
@@ -54,39 +54,42 @@ export function PublicProfileScreen() {
   const load = useCallback(async () => {
     if (!username) return;
     setLoading(true);
-    setClipsLoading(true);
-    setClipsLoaded(false);
     try {
       const nextProfile = await getPublicProfile(username);
       setProfile(nextProfile);
-      const [nextPosts, nextClips] = await Promise.all([
-        getUserPosts(nextProfile.id).catch(() => []),
-        getMusicClips({ creatorId: nextProfile.id, limit: 40 }).then((result) => result.clips).catch(() => []),
-      ]);
-      setPosts(nextPosts.map((post) => ({ ...post, isPinned: post.id === nextProfile.pinnedPostId })).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned))));
-      setClips(nextClips);
-      setClipsLoaded(true);
+      void getUserPosts(nextProfile.id)
+        .then((nextPosts) => {
+          setPosts(nextPosts.map((post) => ({ ...post, isPinned: post.id === nextProfile.pinnedPostId })).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned))));
+        })
+        .catch(() => setPosts([]));
     } finally {
       setLoading(false);
+    }
+  }, [username]);
+
+  const loadClips = useCallback(async () => {
+    if (!username) return;
+    setClipsLoading(true);
+    setClipsError(null);
+    try {
+      const result = await getMusicClips({ creatorUsername: username, limit: 40 });
+      setClips(result.clips);
+    } catch (clipError) {
+      setClipsError(clipError instanceof Error ? clipError.message : 'Impossible de charger les clips.');
+    } finally {
       setClipsLoading(false);
     }
   }, [username]);
 
   useFocusEffect(useCallback(() => {
     void load();
-  }, [load]));
+    void loadClips();
+  }, [load, loadClips]));
 
-  // Chargement paresseux : Clips et Variations ne sont recuperes que lorsque
-  // l'onglet correspondant est ouvert, pour eviter des appels systematiques.
+  // Les variations restent chargees a la demande. Les Clips sont recuperes des
+  // l'ouverture du profil afin d'apparaitre aussi dans son apercu principal.
   useEffect(() => {
     if (!profile?.id) return;
-    if (tab === 'clips' && !clipsLoaded && !clipsLoading) {
-      setClipsLoading(true);
-      getMusicClips({ creatorId: profile.id, limit: 40 })
-        .then((result) => setClips(result.clips))
-        .catch(() => setClips([]))
-        .finally(() => { setClipsLoading(false); setClipsLoaded(true); });
-    }
     if (tab === 'variations' && !variationsLoaded && !variationsLoading && username) {
       setVariationsLoading(true);
       getUserVariations(username)
@@ -94,7 +97,7 @@ export function PublicProfileScreen() {
         .catch(() => setVariations([]))
         .finally(() => { setVariationsLoading(false); setVariationsLoaded(true); });
     }
-  }, [tab, profile?.id, username, clipsLoaded, clipsLoading, variationsLoaded, variationsLoading]);
+  }, [tab, profile?.id, username, variationsLoaded, variationsLoading]);
 
   // Mise en avant musicale : morceau epingle si deja marque comme tel, sinon le
   // plus ecoute, sinon le plus recent. Aucune nouvelle logique de pinning.
@@ -201,6 +204,32 @@ export function PublicProfileScreen() {
 
         <SegmentedControl value={tab} compact options={(Object.keys(TAB_LABELS) as Tab[]).map((item) => ({ value: item, label: TAB_LABELS[item] }))} onChange={setTab} />
 
+        {tab === 'sons' && (clipsLoading || Boolean(clipsError) || clips.length > 0) ? (
+          <View style={styles.card}>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>Clips recents</Text>
+              {clips.length ? <Pressable onPress={() => setTab('clips')}><Text style={styles.sectionLink}>Tout voir ({clips.length})</Text></Pressable> : null}
+            </View>
+            {clipsLoading ? (
+              <ActivityIndicator color="#171313" style={{ marginVertical: 20 }} />
+            ) : clipsError ? (
+              <Pressable onPress={() => void loadClips()} style={styles.retryButton}>
+                <Ionicons name="refresh" size={17} color="#5B3FD6" />
+                <Text style={styles.retryText}>Recharger les clips</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.clipsGrid}>
+                {clips.slice(0, responsive.isTablet ? 4 : 3).map((clip) => (
+                  <Pressable key={`preview-${clip.id}`} onPress={() => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
+                    {clip.posterUrl ? <Image source={{ uri: clip.posterUrl }} style={StyleSheet.absoluteFillObject} /> : null}
+                    <View style={styles.clipTileOverlay}><Text numberOfLines={1} style={styles.clipTileTitle}>{clip.sourceTrack?.title || 'Clip'}</Text></View>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
+        ) : null}
+
         {tab === 'sons' ? <>
         <ProfileMusicCatalog
           tracks={profile.tracks}
@@ -250,6 +279,11 @@ export function PublicProfileScreen() {
           <View style={styles.card}>
             {clipsLoading ? (
               <ActivityIndicator color="#171313" style={{ marginVertical: 20 }} />
+            ) : clipsError ? (
+              <Pressable onPress={() => void loadClips()} style={styles.retryButton}>
+                <Ionicons name="refresh" size={17} color="#5B3FD6" />
+                <Text style={styles.retryText}>Recharger les clips</Text>
+              </Pressable>
             ) : clips.length ? (
               <View style={styles.clipsGrid}>
                 {clips.map((clip) => (
@@ -352,6 +386,11 @@ const styles = StyleSheet.create({
   identityPillCoral: { backgroundColor: 'rgba(255,111,97,0.10)', borderColor: 'rgba(255,111,97,0.25)' },
   identityPillText: { fontSize: 10, fontWeight: '900' },
   clipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  sectionHead: { minHeight: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  sectionTitle: { flex: 1, color: '#171313', fontSize: 16, fontWeight: '900' },
+  sectionLink: { color: '#5B3FD6', fontSize: 11, fontWeight: '900' },
+  retryButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 8, backgroundColor: 'rgba(115,87,198,0.1)' },
+  retryText: { color: '#5B3FD6', fontSize: 11, fontWeight: '900' },
   clipTile: { width: '31%', aspectRatio: 9 / 16, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.08)' },
   clipTileOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 6, backgroundColor: 'rgba(23,19,19,0.55)' },
   clipTileTitle: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },

@@ -68,7 +68,7 @@ export function ProfileScreen() {
   const [profileTab, setProfileTab] = useState<ProfileTab>('sons');
   const [clips, setClips] = useState<MusicClip[]>([]);
   const [clipsLoading, setClipsLoading] = useState(false);
-  const [clipsLoaded, setClipsLoaded] = useState(false);
+  const [clipsError, setClipsError] = useState<string | null>(null);
   const [variations, setVariations] = useState<UserVariation[]>([]);
   const [variationsLoading, setVariationsLoading] = useState(false);
   const [variationsLoaded, setVariationsLoaded] = useState(false);
@@ -104,34 +104,45 @@ export function ProfileScreen() {
   const loadProfile = useCallback(async () => {
     if (!auth.user?.username) return;
     setLoading(true);
-    setClipsLoading(true);
-    setClipsLoaded(false);
     setError(null);
     try {
-      const [nextProfile, nextUsage] = await Promise.all([
-        getMyProfile(auth.user.username),
-        getSubscriptionUsage(),
-      ]);
+      const nextProfile = await getMyProfile(auth.user.username);
       setProfile(nextProfile);
-      setUsage(nextUsage);
-      const [nextPosts, nextClips] = await Promise.all([
-        getUserPosts(nextProfile.id).catch(() => []),
-        getMusicClips({ creatorId: nextProfile.id, limit: 40 }).then((result) => result.clips).catch(() => []),
-      ]);
-      setPosts(nextPosts.map((post) => ({ ...post, isPinned: post.id === nextProfile.pinnedPostId })).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned))));
-      setClips(nextClips);
-      setClipsLoaded(true);
+      void getUserPosts(nextProfile.id)
+        .then((nextPosts) => {
+          setPosts(nextPosts.map((post) => ({ ...post, isPinned: post.id === nextProfile.pinnedPostId })).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned))));
+        })
+        .catch(() => setPosts([]));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Profil impossible à charger');
     } finally {
       setLoading(false);
+    }
+  }, [auth.user?.username]);
+
+  const loadClips = useCallback(async () => {
+    if (!auth.user?.username) return;
+    setClipsLoading(true);
+    setClipsError(null);
+    try {
+      const result = await getMusicClips({ creatorUsername: auth.user.username, limit: 40 });
+      setClips(result.clips);
+    } catch (clipError) {
+      setClipsError(clipError instanceof Error ? clipError.message : 'Impossible de charger les clips.');
+    } finally {
       setClipsLoading(false);
     }
   }, [auth.user?.username]);
 
-  useFocusEffect(useCallback(() => {
+  const refreshProfile = useCallback(() => {
     void loadProfile();
-  }, [loadProfile]));
+    void loadClips();
+    void getSubscriptionUsage().then(setUsage).catch(() => {});
+  }, [loadClips, loadProfile]);
+
+  useFocusEffect(useCallback(() => {
+    refreshProfile();
+  }, [refreshProfile]));
 
   // Destination d'une notification ("Mes variations" / "Variations a valider") :
   // params transmis par openInternalLink, appliques une seule fois a l'arrivee.
@@ -152,17 +163,10 @@ export function ProfileScreen() {
     };
   }, [profile?.id]);
 
-  // Chargement paresseux : Clips et Variations ne sont recuperes que lorsque
-  // l'onglet correspondant est ouvert, pour eviter des appels systematiques.
+  // Les variations restent chargees a la demande. Les Clips sont recuperes des
+  // l'ouverture du profil afin d'apparaitre aussi dans son apercu principal.
   useEffect(() => {
     if (!profile?.id) return;
-    if (profileTab === 'clips' && !clipsLoaded && !clipsLoading) {
-      setClipsLoading(true);
-      getMusicClips({ creatorId: profile.id, limit: 40 })
-        .then((result) => setClips(result.clips))
-        .catch(() => setClips([]))
-        .finally(() => { setClipsLoading(false); setClipsLoaded(true); });
-    }
     if (profileTab === 'variations' && !variationsLoaded && !variationsLoading && profile.username) {
       setVariationsLoading(true);
       getUserVariations(profile.username)
@@ -170,7 +174,7 @@ export function ProfileScreen() {
         .catch(() => setVariations([]))
         .finally(() => { setVariationsLoading(false); setVariationsLoaded(true); });
     }
-  }, [profileTab, profile?.id, profile?.username, clipsLoaded, clipsLoading, variationsLoaded, variationsLoading]);
+  }, [profileTab, profile?.id, profile?.username, variationsLoaded, variationsLoading]);
 
   // Inbox "Variations a valider" : ecran du proprietaire uniquement (ProfileScreen
   // n'affiche jamais un autre profil), vide si rien n'est reellement en attente.
@@ -304,7 +308,7 @@ export function ProfileScreen() {
     <SynauraBackground variant="warm">
       <ScrollView
         contentContainerStyle={[styles.content, responsive.pageContent, { paddingTop: 0, paddingBottom: responsive.miniPlayerClearance }]}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadProfile} />}
+        refreshControl={<RefreshControl refreshing={loading || clipsLoading} onRefresh={refreshProfile} />}
         showsVerticalScrollIndicator={false}
       >
         <AppHeader flush title="Profil" subtitle="Ton univers sur Synaura" action={{ icon: 'settings-outline', label: 'Paramètres', onPress: () => navigation.navigate('Settings') }} />
@@ -332,6 +336,33 @@ export function ProfileScreen() {
           options={(Object.keys(PROFILE_TAB_LABELS) as ProfileTab[]).map((item) => ({ value: item, label: PROFILE_TAB_LABELS[item] }))}
           onChange={setProfileTab}
         />
+
+        {profileTab === 'sons' && (clipsLoading || Boolean(clipsError) || clips.length > 0) ? (
+          <View style={styles.card}>
+            <SectionTitle title="Clips recents" action={clips.length ? `${clips.length}` : undefined} />
+            {clipsLoading ? <Empty text="Chargement des clips..." /> : clipsError ? (
+              <Pressable onPress={() => void loadClips()} style={styles.emptyAction}>
+                <Ionicons name="refresh" size={18} color="#7C5CFF" />
+                <Text style={styles.emptyActionText}>Recharger les clips</Text>
+              </Pressable>
+            ) : (
+              <>
+                <View style={styles.clipsGrid}>
+                  {clips.slice(0, responsive.isTablet ? 4 : 3).map((clip) => (
+                    <Pressable key={`preview-${clip.id}`} onPress={() => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
+                      {clip.posterUrl ? <Image source={{ uri: clip.posterUrl }} style={StyleSheet.absoluteFillObject} /> : null}
+                      <View style={styles.clipTileOverlay}><Text numberOfLines={1} style={styles.clipTileTitle}>{clip.sourceTrack?.title || 'Clip'}</Text></View>
+                    </Pressable>
+                  ))}
+                </View>
+                <Pressable onPress={() => setProfileTab('clips')} style={styles.emptyAction}>
+                  <Ionicons name="film-outline" size={18} color="#7C5CFF" />
+                  <Text style={styles.emptyActionText}>Voir tous les clips</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        ) : null}
 
         {profileTab === 'sons' ? <>
         <ProfileMusicCatalog
@@ -440,7 +471,12 @@ export function ProfileScreen() {
         {profileTab === 'clips' ? (
         <View style={styles.card}>
           <SectionTitle title="Clips" action={clips.length ? `${clips.length}` : undefined} />
-          {clipsLoading ? <Empty text="Chargement…" /> : clips.length ? (
+          {clipsLoading ? <Empty text="Chargement…" /> : clipsError ? (
+            <Pressable onPress={() => void loadClips()} style={styles.emptyAction}>
+              <Ionicons name="refresh" size={18} color="#7C5CFF" />
+              <Text style={styles.emptyActionText}>Recharger les clips</Text>
+            </Pressable>
+          ) : clips.length ? (
             <View style={styles.clipsGrid}>
               {clips.map((clip) => (
                 <Pressable key={clip.id} onPress={() => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>

@@ -334,18 +334,30 @@ function collectTracks(payload: FeedResponse): Track[] {
   return Array.from(byId.values());
 }
 
+const API_REQUEST_TIMEOUT_MS = 15000;
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isForm = typeof FormData !== 'undefined' && init?.body instanceof FormData;
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: authHeaders({
-      ...(!isForm ? { 'Content-Type': 'application/json' } : {}),
-      ...(init?.headers || {}),
-    }),
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(json?.error || json?.message || `Erreur API ${res.status}`);
-  return json;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      signal: init?.signal || controller.signal,
+      headers: authHeaders({
+        ...(!isForm ? { 'Content-Type': 'application/json' } : {}),
+        ...(init?.headers || {}),
+      }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(json?.error || json?.message || `Erreur API ${res.status}`);
+    return json;
+  } catch (error: any) {
+    if (error?.name === 'AbortError') throw new Error('Le serveur met trop de temps a repondre. Reessaie.');
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function optionalRequest<T>(path: string, init?: RequestInit): Promise<T | null> {
@@ -679,14 +691,16 @@ export async function getTrackById(trackId: string): Promise<Track | null> {
   return json ? normalizeTrack(json?.track || json) : null;
 }
 
-export async function getMusicClips(input: { limit?: number; cursor?: number; sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; creatorId?: string; clipId?: string } = {}): Promise<{ clips: MusicClip[]; nextCursor: number; hasMore: boolean }> {
+export async function getMusicClips(input: { limit?: number; cursor?: number; sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; creatorId?: string; creatorUsername?: string; clipId?: string } = {}): Promise<{ clips: MusicClip[]; nextCursor: number; hasMore: boolean }> {
   const params = new URLSearchParams();
   params.set('limit', String(input.limit || 20));
   if (input.cursor) params.set('cursor', String(input.cursor));
   if (input.sourceTrackId) params.set('sourceTrackId', input.sourceTrackId);
   if (input.sourceTrackType) params.set('sourceTrackType', input.sourceTrackType);
   if (input.creatorId) params.set('creatorId', input.creatorId);
+  if (input.creatorUsername) params.set('creatorUsername', input.creatorUsername);
   if (input.clipId) params.set('clipId', input.clipId);
+  params.set('_fresh', String(Date.now()));
   const json = await request<any>(`/api/music-clips?${params.toString()}`);
   return {
     clips: (Array.isArray(json?.clips) ? json.clips : []).map(normalizeMusicClip).filter((clip: MusicClip | null): clip is MusicClip => Boolean(clip)),

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { RankingFeedChunk } from '@/api/types';
 
-const CACHE_PREFIX = 'synaura.feed.first-page.v3';
+const CACHE_PREFIX = 'synaura.feed.first-page.v4';
 const MAX_CACHE_AGE_MS = 12 * 60 * 60 * 1000;
 
 type CachedFeed = {

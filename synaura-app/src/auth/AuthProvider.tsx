@@ -35,10 +35,11 @@ export type RegisterInput = {
 const TOKEN_KEY = 'synaura.mobile.auth.token';
 const USER_KEY = 'synaura.mobile.auth.user';
 const PUSH_TOKEN_KEY = 'synaura.native.push.token.v1';
+const AUTH_RESTORE_TIMEOUT_MS = 1200;
+const AUTH_REQUEST_TIMEOUT_MS = 15000;
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-async function readStoredUser() {
-  const raw = await AsyncStorage.getItem(USER_KEY);
+function parseStoredUser(raw: string | null | undefined) {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
@@ -49,15 +50,22 @@ async function readStoredUser() {
 }
 
 async function authFetch(path: string, token?: string | null, init?: RequestInit) {
-  return fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init?.headers || {}),
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      signal: init?.signal || controller.signal,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init?.headers || {}),
+      },
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -71,9 +79,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([AsyncStorage.getItem(TOKEN_KEY), readStoredUser()])
-      .then(([storedToken, storedUser]) => {
+    const restoreTimeout = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, AUTH_RESTORE_TIMEOUT_MS);
+
+    AsyncStorage.multiGet([TOKEN_KEY, USER_KEY])
+      .then((entries) => {
         if (!mounted) return;
+        clearTimeout(restoreTimeout);
+        const stored = new Map(entries);
+        const storedToken = stored.get(TOKEN_KEY) || null;
+        const storedUser = parseStoredUser(stored.get(USER_KEY));
         // La session locale suffit pour monter l'app immédiatement. La validation
         // serveur se fait ensuite sans garder l'utilisateur devant un ecran vide.
         setAuthTokenProvider(() => storedToken);
@@ -107,10 +123,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(() => {
+        clearTimeout(restoreTimeout);
         if (mounted) setLoading(false);
       });
     return () => {
       mounted = false;
+      clearTimeout(restoreTimeout);
     };
   }, []);
 

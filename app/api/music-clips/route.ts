@@ -4,6 +4,9 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { assertCanCreateClip, formatMusicClips } from '@/lib/musicClips';
 import { normalizeRemixTrackRef } from '@/lib/remixServer';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 function parseLimit(value: string | null) {
   const n = Number(value || 20);
   if (!Number.isFinite(n)) return 20;
@@ -23,10 +26,26 @@ export async function GET(request: NextRequest) {
     const cursor = parseCursor(params.get('cursor'));
     const sourceTrackId = params.get('sourceTrackId');
     const sourceTrackType = params.get('sourceTrackType');
-    const creatorId = params.get('creatorId');
+    let creatorId = params.get('creatorId');
+    const creatorUsername = params.get('creatorUsername');
     const clipId = params.get('clipId');
     const session = await getApiSession(request).catch(() => null);
     const viewerId = session?.user?.id || null;
+
+    if (!creatorId && creatorUsername) {
+      const { data: creator } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('username', creatorUsername)
+        .maybeSingle();
+      creatorId = creator?.id ? String(creator.id) : null;
+      if (!creatorId) {
+        return NextResponse.json(
+          { clips: [], nextCursor: 0, hasMore: false },
+          { headers: { 'Cache-Control': 'no-store, max-age=0' } },
+        );
+      }
+    }
 
     let query = supabaseAdmin
       .from('music_clips')
@@ -57,11 +76,14 @@ export async function GET(request: NextRequest) {
       rows.slice(0, limit),
       { viewerId },
     );
-    return NextResponse.json({
-      clips,
-      nextCursor: cursor + clips.length,
-      hasMore: rows.length > limit,
-    });
+    return NextResponse.json(
+      {
+        clips,
+        nextCursor: cursor + clips.length,
+        hasMore: rows.length > limit,
+      },
+      { headers: { 'Cache-Control': 'no-store, max-age=0' } },
+    );
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Impossible de charger les clips' }, { status: 500 });
   }
