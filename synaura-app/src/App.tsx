@@ -23,6 +23,7 @@ import { UpdateProvider } from '@/updates/UpdateProvider';
 import { MobileSettingsProvider } from '@/settings/MobileSettingsProvider';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { NativeNotificationsProvider } from '@/notifications/NativeNotificationsProvider';
+import { NativeNotificationNudge } from '@/notifications/NativeNotificationNudge';
 import { navigationRef } from '@/navigation/navigationRef';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 
@@ -177,6 +178,7 @@ export default function App() {
                 <RootStackNavigator />
                 <MiniPlayer activeRoute={activeRoute} onOpen={() => setPlayerOpen(true)} />
                 <FullPlayerModal visible={playerOpen} onClose={() => setPlayerOpen(false)} />
+                <NativeNotificationNudge activeRoute={activeRoute} />
               </NavigationContainer>
               </AppErrorBoundary>
               <AnimatedBootSplash />

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { AppState, DeviceEventEmitter, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
@@ -9,6 +9,7 @@ import {
   registerNativePushToken,
   sendNativePushTest,
   unregisterNativePushToken,
+  getNotifications,
 } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { openInternalLink } from '@/navigation/internalLinks';
@@ -20,9 +21,11 @@ type NativeNotificationsContextValue = {
   status: NativePushStatus;
   error: string | null;
   token: string | null;
+  unreadCount: number;
   enable: () => Promise<boolean>;
   disable: () => Promise<void>;
   sendTest: () => Promise<void>;
+  refreshUnread: () => Promise<number>;
 };
 
 const TOKEN_KEY = 'synaura.native.push.token.v1';
@@ -78,6 +81,25 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
   const [status, setStatus] = useState<NativePushStatus>('disabled');
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const refreshUnread = useCallback(async () => {
+    if (!auth.token) {
+      setUnreadCount(0);
+      await Notifications.setBadgeCountAsync(0).catch(() => {});
+      return 0;
+    }
+    try {
+      const result = await getNotifications();
+      const next = Math.max(0, Number(result.unread || 0));
+      setUnreadCount(next);
+      await Notifications.setBadgeCountAsync(next).catch(() => {});
+      DeviceEventEmitter.emit('synaura:notifications-changed', next);
+      return next;
+    } catch {
+      return 0;
+    }
+  }, [auth.token]);
 
   const enable = useCallback(async () => {
     if (!auth.token || !auth.user) {
@@ -130,6 +152,7 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
     setToken(null);
     setStatus('disabled');
     setError(null);
+    await Notifications.setBadgeCountAsync(0).catch(() => {});
   }, [auth.token, token]);
 
   const sendTest = useCallback(async () => {
@@ -145,9 +168,28 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
 
   useEffect(() => {
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(openNotificationResponse);
+    const receivedSubscription = Notifications.addNotificationReceivedListener(() => {
+      void refreshUnread();
+    });
     void Notifications.getLastNotificationResponseAsync().then(openNotificationResponse).catch(() => {});
-    return () => responseSubscription.remove();
-  }, []);
+    return () => {
+      responseSubscription.remove();
+      receivedSubscription.remove();
+    };
+  }, [refreshUnread]);
+
+  useEffect(() => {
+    if (!auth.token) {
+      setUnreadCount(0);
+      void Notifications.setBadgeCountAsync(0).catch(() => {});
+      return;
+    }
+    void refreshUnread();
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') void refreshUnread();
+    });
+    return () => subscription.remove();
+  }, [auth.token, refreshUnread]);
 
   useEffect(() => {
     if (!auth.token) return;
@@ -213,10 +255,12 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
     status,
     error,
     token,
+    unreadCount,
     enable,
     disable,
     sendTest,
-  }), [disable, enable, error, sendTest, status, token]);
+    refreshUnread,
+  }), [disable, enable, error, refreshUnread, sendTest, status, token, unreadCount]);
 
   return <NativeNotificationsContext.Provider value={value}>{children}</NativeNotificationsContext.Provider>;
 }

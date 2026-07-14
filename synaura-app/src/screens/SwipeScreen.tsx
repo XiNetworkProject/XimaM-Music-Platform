@@ -58,6 +58,7 @@ import { HeartBurst } from '@/components/swipe/HeartBurst';
 import { LyricsSheet } from '@/components/swipe/LyricsSheet';
 import { QueueSheet } from '@/components/swipe/QueueSheet';
 import { ShareSheet } from '@/components/swipe/ShareSheet';
+import { ClipShareSheet } from '@/components/social/ClipShareSheet';
 import { SwipeSlide } from '@/components/swipe/SwipeSlide';
 import {
   FEED_MODE_META,
@@ -440,6 +441,7 @@ export function SwipeScreen() {
   // sa file et sa position restent intactes.
   useEffect(() => {
     if (!isFocused || !appIsActive) {
+      lastAutoStartedClipRef.current = null;
       setPlayingClipId(null);
       return;
     }
@@ -744,7 +746,10 @@ export function SwipeScreen() {
     // Lance la lecture de la slide stable si elle contient un morceau. Idempotent.
     const target = playableTrackOfItem(nextItem);
     if (!target?.audioUrl) return;
-    if (player.current?._id === target._id) return;
+    if (player.current?._id === target._id) {
+      if (!player.isPlaying) void player.play();
+      return;
+    }
     pendingSwipeTrackRef.current = target._id;
     clearTimeout(pendingSwipeReleaseRef.current);
     pendingSwipeReleaseRef.current = setTimeout(() => {
@@ -808,6 +813,7 @@ export function SwipeScreen() {
           bottomPad={tabBarHeight}
           isActive={isActive}
           isPlaying={isPlayingThis}
+          shouldLoadMedia={isFocused && Math.abs(index - activeIndex) <= 1}
           isLiked={likedMap[clipKey] ?? item.clip.isLiked}
           likesCount={likesMap[clipKey] ?? item.clip.likesCount}
           commentsCount={commentsCounts[clipKey] ?? item.clip.commentsCount}
@@ -830,8 +836,14 @@ export function SwipeScreen() {
             setLyricsOpen(false);
             setCommentsOpen(true);
           }}
-          onOpenTrack={() => navigation.navigate('TrackDetail', { trackId: clipTrackId, track: item.track })}
-          onOpenCreator={() => creatorKey && navigation.navigate('PublicProfile', { username: creatorKey })}
+          onOpenTrack={() => {
+            setPlayingClipId(null);
+            navigation.navigate('TrackDetail', { trackId: clipTrackId, track: item.track });
+          }}
+          onOpenCreator={() => {
+            setPlayingClipId(null);
+            if (creatorKey) navigation.navigate('PublicProfile', { username: creatorKey });
+          }}
           onToggleFollowCreator={() => void handleToggleFollow(creatorKey)}
           onShare={() => {
             setCommentsOpen(false);
@@ -1076,11 +1088,11 @@ export function SwipeScreen() {
         }))}
       />
 
-      <ShareSheet
-        visible={shareOpen}
-        track={activeTrack}
-        onClose={() => setShareOpen(false)}
-      />
+      {activeClip ? (
+        <ClipShareSheet visible={shareOpen} clip={activeClip} onClose={() => setShareOpen(false)} />
+      ) : (
+        <ShareSheet visible={shareOpen} track={activeTrack} onClose={() => setShareOpen(false)} />
+      )}
 
       <LyricsSheet
         visible={lyricsOpen}

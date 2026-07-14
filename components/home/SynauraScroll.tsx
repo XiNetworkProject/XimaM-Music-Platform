@@ -91,7 +91,7 @@ const RENDER_BUFFER = 5;
 const WHEEL_LOCK_MS = 260;
 const SNAP_SETTLE_MS = 90;
 const AUTOPLAY_DELAY_MS = 110;
-const INITIAL_TRACK_LIMIT = 32;
+const INITIAL_TRACK_LIMIT = 12;
 const MORE_TRACK_LIMIT = 40;
 const FEED_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 
@@ -326,11 +326,15 @@ export default function SynauraScroll() {
   const [filter, setFilter] = useState<FeedFilter>(() => {
     if (typeof window === 'undefined') return 'foryou';
     const params = new URLSearchParams(window.location.search);
-    return params.get('filter') === 'clips' || params.get('sourceTrackId') ? 'clips' : 'foryou';
+    return params.get('filter') === 'clips' || params.get('sourceTrackId') || params.get('clipId') ? 'clips' : 'foryou';
   });
   const [sourceTrackFilter] = useState(() => {
     if (typeof window === 'undefined') return '';
     return new URLSearchParams(window.location.search).get('sourceTrackId') || '';
+  });
+  const [clipIdFilter] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('clipId') || '';
   });
   const [searchOpen, setSearchOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -440,7 +444,7 @@ export default function SynauraScroll() {
       try {
         if (!cacheWasShown) setLoading(true);
         setError(null);
-        const res = await fetch(`/api/ranking/feed?limit=${INITIAL_TRACK_LIMIT}&ai=1&strategy=${strategy}`, { cache: 'no-store' });
+        const res = await fetch(`/api/ranking/feed?limit=${INITIAL_TRACK_LIMIT}&ai=1&strategy=${strategy}&fast=1`, { cache: 'no-store' });
         if (!res.ok) throw new Error('Chargement impossible');
         const json = await res.json();
         const list = applyCdnToTracks((Array.isArray(json?.tracks) ? json.tracks : []) as any) as ScrollTrack[];
@@ -473,6 +477,7 @@ export default function SynauraScroll() {
     }
     const params = new URLSearchParams({ limit: String(filter === 'clips' ? 40 : 24) });
     if (filter === 'clips' && sourceTrackFilter) params.set('sourceTrackId', sourceTrackFilter);
+    if (filter === 'clips' && clipIdFilter) params.set('clipId', clipIdFilter);
     fetch(`/api/music-clips?${params.toString()}`, { cache: 'no-store' })
       .then((response) => response.json().then((json) => ({ ok: response.ok, json })))
       .then(({ ok, json }) => {
@@ -490,7 +495,7 @@ export default function SynauraScroll() {
     return () => {
       mounted = false;
     };
-  }, [filter, reloadKey, sourceTrackFilter]);
+  }, [clipIdFilter, filter, reloadKey, sourceTrackFilter]);
 
   // Artistes populaires + collections éditoriales : chargés une fois, réutilisés pour
   // composer le feed mixte et pour le filtre Créateurs.

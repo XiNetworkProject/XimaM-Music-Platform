@@ -18,6 +18,8 @@ import {
 } from '@/onboarding/options';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
+import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
 const UNIVERSE_ICON: Record<OnboardingUniverseId, keyof typeof Ionicons.glyphMap> = {
   pop: 'musical-notes-outline',
@@ -51,6 +53,8 @@ export function OnboardingScreen() {
   const params: OnboardingRouteParams = route.params || {};
   const isEdit = Boolean(params.edit);
   const layout = useResponsiveLayout();
+  const nativeNotifications = useNativeNotifications();
+  const mobileSettings = useMobileSettings();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(isEdit ? 2 : 1);
   const [universes, setUniverses] = useState<OnboardingUniverseId[]>([]);
   const [intentions, setIntentions] = useState<CreatorIntentionId[]>([]);
@@ -126,6 +130,11 @@ export function OnboardingScreen() {
     goToTarget();
   };
 
+  const activateNotifications = async () => {
+    const enabled = await nativeNotifications.enable();
+    await mobileSettings.updateSettings({ pushDevice: enabled });
+  };
+
   const universeLabels = universes
     .map((id) => ONBOARDING_UNIVERSES.find((option) => option.id === id)?.label)
     .filter((label): label is string => Boolean(label));
@@ -148,6 +157,8 @@ export function OnboardingScreen() {
   return (
     <SynauraBackground variant="warm">
       <ScrollView
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.content,
           layout.pageContent,
@@ -189,7 +200,13 @@ export function OnboardingScreen() {
         <Reveal key={step} distance={8} scaleFrom={0.994} duration={320} style={styles.step}>
           {step === 1 ? (
             <View>
-              <View style={[styles.introStage, { height: layout.isVeryShort ? 230 : Math.min(360, Math.max(270, layout.availableContentWidth * 0.72)) }]}>
+              <View style={[styles.introStage, {
+                height: layout.isPhoneLandscape
+                  ? Math.max(176, Math.min(220, layout.usableHeight * 0.56))
+                  : layout.isVeryShort
+                    ? 210
+                    : Math.min(360, Math.max(250, layout.availableContentWidth * 0.72)),
+              }]}>
                 <SynauraIntroStage scene="synaura" compact={layout.isShort} style={styles.stageFill} />
               </View>
               <View style={styles.introCopy}>
@@ -218,7 +235,7 @@ export function OnboardingScreen() {
                 subtitle="Choisis librement. Il n’y a ni minimum ni mauvais choix."
                 selected={universes.length}
               />
-              <View style={styles.grid}>
+              <View style={[styles.grid, layout.compactControls && styles.gridCompact]}>
                 {ONBOARDING_UNIVERSES.map((option) => {
                   const active = universes.includes(option.id);
                   return (
@@ -227,7 +244,7 @@ export function OnboardingScreen() {
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: active }}
                       onPress={() => toggleUniverse(option.id)}
-                      style={[styles.tile, { width: optionWidth }, active && styles.tileActive]}
+                      style={[styles.tile, layout.compactControls && styles.tileCompact, { width: optionWidth }, active && styles.tileActive]}
                       scaleTo={0.97}
                     >
                       <View style={[styles.tileIcon, active && styles.tileIconActive]}>
@@ -263,7 +280,7 @@ export function OnboardingScreen() {
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: active }}
                       onPress={() => toggleIntention(option.id)}
-                      style={[styles.intention, layout.isTablet && styles.intentionTablet, active && styles.intentionActive]}
+                      style={[styles.intention, layout.isTablet && styles.intentionTablet, layout.compactControls && styles.intentionCompact, active && styles.intentionActive]}
                       scaleTo={0.985}
                     >
                       <View style={[styles.intentionIcon, active && styles.intentionIconActive]}>
@@ -296,6 +313,21 @@ export function OnboardingScreen() {
               </View>
               <SummaryBlock icon="musical-notes-outline" label="Univers" value={universeLabels.length ? universeLabels.join(', ') : 'Découverte libre, sans filtre'} />
               <SummaryBlock icon="sparkles-outline" label="Envies" value={intentionLabels.length ? intentionLabels.join(', ') : 'Tous les chemins restent disponibles'} />
+              <View style={[styles.notificationCard, (layout.isTiny || layout.hasLargeText) && styles.notificationCardStacked]}>
+                <View style={[styles.notificationIcon, nativeNotifications.status === 'ready' && styles.notificationIconReady]}>
+                  <Ionicons name={nativeNotifications.status === 'ready' ? 'checkmark' : 'notifications-outline'} size={20} color="#FFFFFF" />
+                </View>
+                <View style={styles.notificationCopy}>
+                  <Text style={styles.notificationTitle}>{nativeNotifications.status === 'ready' ? 'Notifications activées' : 'Ne rate pas les moments importants'}</Text>
+                  <Text style={styles.notificationText}>{nativeNotifications.status === 'ready' ? 'Ce téléphone est relié à ton activité Synaura.' : 'Commentaires, nouveaux abonnés, sorties et variations à valider.'}</Text>
+                  {nativeNotifications.error ? <Text style={styles.notificationError}>{nativeNotifications.error}</Text> : null}
+                </View>
+                {nativeNotifications.status !== 'ready' ? (
+                  <Pressable disabled={nativeNotifications.status === 'requesting'} onPress={() => void activateNotifications()} style={[styles.notificationAction, (layout.isTiny || layout.hasLargeText) && styles.notificationActionStacked]}>
+                    {nativeNotifications.status === 'requesting' ? <ActivityIndicator size="small" color={colors.text} /> : <Text style={styles.notificationActionText}>Activer</Text>}
+                  </Pressable>
+                ) : null}
+              </View>
               <MotionPressable style={styles.primaryButton} onPress={() => void savePreferences(false)} disabled={saving} scaleTo={0.97}>
                 {saving ? <ActivityIndicator color="#F7F6F3" /> : (
                   <>
@@ -403,7 +435,9 @@ const styles = StyleSheet.create({
   stepTitle: { marginTop: 7, maxWidth: 590, color: colors.text, fontSize: 27, lineHeight: 32, fontWeight: '900' },
   stepSubtitle: { marginTop: 8, maxWidth: 560, color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  gridCompact: { gap: 8 },
   tile: { minHeight: 112, position: 'relative', alignItems: 'flex-start', justifyContent: 'space-between', borderRadius: 8, borderWidth: 1, borderColor: colors.border, padding: 12, backgroundColor: colors.surface },
+  tileCompact: { minHeight: 92, padding: 10 },
   tileActive: { borderColor: colors.violet, backgroundColor: colors.violetSoft },
   tileIcon: { width: 38, height: 38, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
   tileIconActive: { backgroundColor: colors.violet },
@@ -412,6 +446,7 @@ const styles = StyleSheet.create({
   checkActive: { borderColor: colors.violet, backgroundColor: colors.violet },
   intentions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   intention: { width: '100%', minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 11, backgroundColor: colors.surface },
+  intentionCompact: { minHeight: 52 },
   intentionTablet: { width: '49%' },
   intentionActive: { borderColor: colors.violet, backgroundColor: colors.violetSoft },
   intentionIcon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
@@ -430,4 +465,15 @@ const styles = StyleSheet.create({
   summaryBlockCopy: { flex: 1, minWidth: 0 },
   summaryLabel: { color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
   summaryValue: { marginTop: 4, color: colors.text, fontSize: 12, lineHeight: 17, fontWeight: '800' },
+  notificationCard: { minHeight: 78, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, padding: 11, backgroundColor: colors.surface },
+  notificationCardStacked: { flexWrap: 'wrap', alignItems: 'flex-start' },
+  notificationIcon: { width: 40, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  notificationIconReady: { backgroundColor: colors.cyan },
+  notificationCopy: { flex: 1, minWidth: 0 },
+  notificationTitle: { color: colors.text, fontSize: 11, lineHeight: 15, fontWeight: '900' },
+  notificationText: { marginTop: 3, color: colors.textSecondary, fontSize: 9, lineHeight: 13, fontWeight: '700' },
+  notificationError: { marginTop: 4, color: colors.coral, fontSize: 8, lineHeight: 12, fontWeight: '800' },
+  notificationAction: { minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 8, paddingHorizontal: 11, backgroundColor: colors.violetSoft },
+  notificationActionStacked: { width: '100%', marginTop: 2 },
+  notificationActionText: { color: colors.text, fontSize: 9, fontWeight: '900' },
 });

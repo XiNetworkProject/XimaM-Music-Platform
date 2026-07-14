@@ -69,14 +69,18 @@ export async function GET(
 
     // Récupérer uniquement les tracks IA publiées (is_public=true côté track ET
     // côté génération parente) pour le profil
-    let aiTracksQuery = applyPublicAiTrackFilter(supabaseAdmin
+    let aiTracksQuery = supabaseAdmin
       .from('ai_tracks')
       .select(`
         id, title, audio_url, image_url, duration, prompt, tags, play_count, like_count, created_at, is_public,
         generation:ai_generations!inner(id, user_id, is_public, status, task_id, model)
       `)
-      .eq('generation.user_id', profile.id))
+      .eq('generation.user_id', profile.id)
       .order('created_at', { ascending: false });
+
+    if (!isOwnProfile) {
+      aiTracksQuery = applyPublicAiTrackFilter(aiTracksQuery);
+    }
 
     const { data: aiTracks, error: aiTracksError } = await aiTracksQuery;
     if (aiTracksError) {
@@ -119,7 +123,7 @@ export async function GET(
       genre: Array.isArray(t.tags) ? t.tags : [],
       plays: t.play_count || 0,
       likes: t.like_count || 0,
-      is_public: Boolean(t?.generation?.is_public),
+      is_public: Boolean(t?.is_public && t?.generation?.is_public && t?.generation?.status === 'completed'),
       isLiked: false, // Like IA non supporté par le système tracks classique
       is_ai: true,
       generation_id: t?.generation?.id || null,

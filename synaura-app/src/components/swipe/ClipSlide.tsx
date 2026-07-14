@@ -17,6 +17,7 @@ type Props = {
   clip: MusicClip;
   isActive: boolean;
   isPlaying: boolean;
+  shouldLoadMedia: boolean;
   isLiked: boolean;
   likesCount: number;
   commentsCount: number;
@@ -95,6 +96,7 @@ export function ClipSlide({
   clip,
   isActive,
   isPlaying,
+  shouldLoadMedia,
   isLiked,
   likesCount,
   commentsCount,
@@ -222,7 +224,7 @@ export function ClipSlide({
   return (
     <View style={[styles.page, { height }]}>
       <Pressable accessibilityLabel={isPlaying ? 'Mettre en pause' : 'Lire'} onPress={handleTap} style={styles.pressArea}>
-        {clip.videoUrl && !videoFailed ? (
+        {shouldLoadMedia && clip.videoUrl && !videoFailed ? (
           <Video
             ref={videoRef}
             source={{ uri: clip.videoUrl }}
@@ -245,6 +247,7 @@ export function ClipSlide({
             }}
             onEnd={() => {
               if (!isActive || !isPlaying || playbackEndedRef.current) return;
+              if (track.audioUrl && !audioFailed) return;
               playbackEndedRef.current = true;
               audioRef.current?.seek(clipStart);
               videoRef.current?.seek(0);
@@ -263,7 +266,7 @@ export function ClipSlide({
         ) : (
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#171313' }]} />
         )}
-        {track.audioUrl ? (
+        {shouldLoadMedia && track.audioUrl ? (
           <Video
             ref={audioRef}
             source={{ uri: track.audioUrl }}

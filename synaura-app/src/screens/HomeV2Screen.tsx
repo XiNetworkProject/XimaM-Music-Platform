@@ -4,7 +4,6 @@ import {
   Image,
   Pressable,
   RefreshControl,
-  Share,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,16 +13,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getHomeData, getNotifications, togglePostLike } from '@/api/client';
+import { getHomeData, togglePostLike } from '@/api/client';
 import type { Creator, HomeData, HomePost, Playlist, Track } from '@/api/types';
 import { TrackCover } from '@/components/TrackCover';
 import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard';
+import { PostShareSheet } from '@/components/social/PostShareSheet';
 import { UniversalSearchModal, NotificationModal } from '@/components/HomeOverlays';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
 
 const emptyHome: HomeData = {
   forYou: [],
@@ -52,12 +53,12 @@ export function HomeV2Screen() {
   const insets = useSafeAreaInsets();
   const responsive = useResponsiveLayout();
   const player = usePlayer();
+  const nativeNotifications = useNativeNotifications();
   const [data, setData] = useState<HomeData>(emptyHome);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
 
   const load = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true);
@@ -65,12 +66,12 @@ export function HomeV2Screen() {
     try {
       const next = await getHomeData();
       setData(next);
-      void getNotifications().then((result) => setUnread(result.unread)).catch(() => {});
+      void nativeNotifications.refreshUnread();
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [nativeNotifications.refreshUnread]);
 
   useEffect(() => {
     void load();
@@ -122,7 +123,7 @@ export function HomeV2Screen() {
             </Pressable>
             <Pressable accessibilityLabel="Notifications" onPress={() => setNotificationsOpen(true)} style={styles.headerButton}>
               <Ionicons name="notifications-outline" size={19} color={colors.text} />
-              {unread ? <View style={styles.unreadDot} /> : null}
+              {nativeNotifications.unreadCount ? <View style={styles.unreadDot} /> : null}
             </Pressable>
             <MobileAccountButton compact />
           </View>
@@ -259,7 +260,7 @@ export function HomeV2Screen() {
       </ScrollView>
 
       <UniversalSearchModal visible={searchOpen} onClose={() => setSearchOpen(false)} />
-      <NotificationModal visible={notificationsOpen} onClose={() => setNotificationsOpen(false)} onUnreadChange={setUnread} />
+      <NotificationModal visible={notificationsOpen} onClose={() => { setNotificationsOpen(false); void nativeNotifications.refreshUnread(); }} onUnreadChange={() => { void nativeNotifications.refreshUnread(); }} />
     </View>
   );
 }
@@ -493,6 +494,7 @@ function PostPreviewCard({
   const navigation = useNavigation<any>();
   const [liked, setLiked] = useState(post.isLiked);
   const [likes, setLikes] = useState(post.likesCount);
+  const [shareOpen, setShareOpen] = useState(false);
   const playingThis = post.track ? activeId === post.track._id && isPlaying : false;
 
   const like = async () => {
@@ -505,10 +507,6 @@ function PostPreviewCard({
       setLiked(!next);
       setLikes((value) => Math.max(0, value + (next ? -1 : 1)));
     }
-  };
-
-  const share = () => {
-    Share.share({ message: `${post.author} sur Synaura: ${post.text}` }).catch(() => {});
   };
 
   return (
@@ -539,8 +537,9 @@ function PostPreviewCard({
         <Pressable onPress={like} style={[styles.postAction, liked && styles.postActionActive]}><Ionicons name={liked ? 'heart' : 'heart-outline'} size={15} color={liked ? colors.paper : colors.textSecondary} /><Text style={[styles.postActionText, liked && styles.postActionTextActive]}>{likes || 'Like'}</Text></Pressable>
         <Pressable onPress={onOpen} style={styles.postAction}><Ionicons name="chatbubble-outline" size={15} color={colors.textSecondary} /><Text style={styles.postActionText}>{post.commentsCount || 'Avis'}</Text></Pressable>
         {post.track ? <Pressable onPress={() => onRemix(post.track!)} style={styles.postAction}><Ionicons name="sparkles-outline" size={15} color={colors.textSecondary} /><Text style={styles.postActionText}>Remix</Text></Pressable> : null}
-        <Pressable onPress={share} style={styles.postAction}><Ionicons name="share-social-outline" size={15} color={colors.textSecondary} /><Text style={styles.postActionText}>Partager</Text></Pressable>
+        <Pressable onPress={() => setShareOpen(true)} style={styles.postAction}><Ionicons name="share-social-outline" size={15} color={colors.textSecondary} /><Text style={styles.postActionText}>Partager</Text></Pressable>
       </View>
+      <PostShareSheet visible={shareOpen} post={post} onClose={() => setShareOpen(false)} />
     </View>
   );
 }

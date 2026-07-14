@@ -199,6 +199,164 @@ async function applyGlobalTrendingScores(tracks: any[], now: number) {
     .sort((a: any, b: any) => (b.rankingScore || 0) - (a.rankingScore || 0));
 }
 
+function engagementCounts(row: any) {
+  const likesCount = Number(row?.likes_count ?? row?.like_count);
+  const commentsCount = Number(row?.comments_count);
+  const sharesCount = Number(row?.shares_count);
+  return {
+    ...(Number.isFinite(likesCount) ? { likesCount } : {}),
+    ...(Number.isFinite(commentsCount) ? { commentsCount } : {}),
+    ...(Number.isFinite(sharesCount) ? { sharesCount } : {}),
+  };
+}
+
+async function buildFastRankingResponse(input: {
+  includeAi: boolean;
+  userId: string | null;
+  limit: number;
+  cursor: number;
+  strategy: string;
+  genreFilter: string | null;
+}) {
+  const { includeAi, userId, limit, cursor, strategy, genreFilter } = input;
+  const candidateLimit = Math.min(72, Math.max(30, (cursor + limit) * 3));
+  const normalPromise = applyPublicTrackFilter(supabaseAdmin
+    .from('tracks')
+    .select(`
+      *,
+      profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
+    `))
+    .order('created_at', { ascending: false })
+    .limit(candidateLimit);
+  const aiPromise = includeAi
+    ? applyPublicAiTrackFilter(supabaseAdmin
+        .from('ai_tracks')
+        .select(`
+          *,
+          generation:ai_generations!inner ( user_id, is_public, status )
+        `))
+        .order('created_at', { ascending: false })
+        .limit(Math.max(12, Math.ceil(candidateLimit / 3)))
+    : Promise.resolve({ data: [], error: null } as any);
+
+  const [normalResult, aiResult] = await Promise.all([normalPromise, aiPromise]);
+  if (normalResult.error) throw normalResult.error;
+  if (aiResult.error) throw aiResult.error;
+
+  const normalRows = normalResult.data || [];
+  let aiRows = aiResult.data || [];
+  const aiOwnerIds = Array.from(new Set(aiRows.map((row: any) => row.generation?.user_id).filter(Boolean)));
+  const [profilesResult, likesResult] = await Promise.all([
+    aiOwnerIds.length
+      ? supabaseAdmin.from('profiles').select('id, username, name, avatar, is_verified').in('id', aiOwnerIds)
+      : Promise.resolve({ data: [] } as any),
+    userId && normalRows.length
+      ? supabaseAdmin.from('track_likes').select('track_id').eq('user_id', userId).in('track_id', normalRows.map((row: any) => row.id))
+      : Promise.resolve({ data: [] } as any),
+  ]);
+  if (aiOwnerIds.length) {
+    const profiles = profilesResult.data || [];
+    const profilesById = new Map((profiles || []).map((profile: any) => [profile.id, profile]));
+    aiRows = aiRows.map((row: any) => ({
+      ...row,
+      generation: { ...row.generation, profiles: profilesById.get(row.generation?.user_id) },
+    }));
+  }
+  const likedTrackIds = new Set((likesResult.data || []).map((like: any) => String(like.track_id)));
+
+  const now = Date.now();
+  const lightweightScore = (row: any, isAI: boolean) => {
+    const createdAt = row.created_at ? new Date(row.created_at).getTime() : now;
+    const ageHours = Math.max(1, (now - createdAt) / 3_600_000);
+    const plays = Number(isAI ? row.play_count : row.plays) || 0;
+    const likes = Number(row.likes_count ?? row.like_count) || 0;
+    const freshness = 14 * Math.exp(-ageHours * Math.LN2 / 72);
+    const engagement = Math.log1p(plays) * 0.8 + Math.log1p(likes) * 1.8;
+    return strategy === 'trending' ? engagement * 1.4 + freshness * 0.65 : freshness + engagement;
+  };
+
+  const normalTracks = normalRows.map((track: any) => ({
+    _id: track.id,
+    title: track.title,
+    artist: {
+      _id: track.creator_id,
+      username: track.profiles?.username,
+      name: track.profiles?.name,
+      avatar: track.profiles?.avatar,
+      isArtist: track.profiles?.is_artist,
+      artistName: track.profiles?.artist_name,
+    },
+    duration: track.duration || 0,
+    coverUrl: track.cover_url,
+    ...normalTrackVideoMeta(track),
+    audioUrl: track.audio_url,
+    album: track.album || null,
+    genre: track.genre || [],
+    lyrics: track.lyrics || null,
+    likes: [],
+    ...engagementCounts(track),
+    plays: track.plays || 0,
+    createdAt: track.created_at,
+    isFeatured: false,
+    isVerified: track.profiles?.is_verified || false,
+    rankingScore: lightweightScore(track, false),
+    isAI: false,
+    ...remixPermissionsFromRow(track),
+    isLiked: likedTrackIds.has(String(track.id)),
+    isFresh: true,
+  }));
+  const aiTracks = aiRows.map((track: any) => ({
+    _id: `ai-${track.id}`,
+    title: track.title || 'Titre IA',
+    artist: {
+      _id: track.generation?.user_id,
+      username: track.generation?.profiles?.username,
+      name: track.generation?.profiles?.name || track.generation?.profiles?.username,
+      avatar: track.generation?.profiles?.avatar,
+      isArtist: true,
+      artistName: track.generation?.profiles?.name || track.generation?.profiles?.username,
+    },
+    duration: track.duration || 0,
+    coverUrl: track.image_url || '/default-cover.svg',
+    ...aiTrackVideoMeta(track),
+    audioUrl: track.audio_url,
+    genre: Array.isArray(track.tags) ? track.tags : [],
+    likes: [],
+    ...engagementCounts(track),
+    plays: track.play_count || 0,
+    createdAt: track.created_at,
+    isFeatured: false,
+    isVerified: track.generation?.profiles?.is_verified || false,
+    rankingScore: lightweightScore(track, true),
+    isAI: true,
+    ...remixPermissionsFromRow(track),
+    isLiked: false,
+    isFresh: true,
+  }));
+
+  let candidates = [...normalTracks, ...aiTracks];
+  if (genreFilter) {
+    candidates = candidates.filter((track: any) => (Array.isArray(track.genre) ? track.genre : [track.genre])
+      .some((genre: unknown) => String(genre || '').trim().toLowerCase().includes(genreFilter)));
+  }
+  candidates = candidates
+    .map((track: any) => ({
+      ...track,
+      rankingScore: userId
+        ? track.rankingScore * (1 + userTrackJitter(userId, String(track._id)))
+        : track.rankingScore,
+    }))
+    .sort((a: any, b: any) => b.rankingScore - a.rankingScore);
+  candidates = diversifyConsecutiveArtists(candidates, 2);
+
+  const page = candidates.slice(cursor, cursor + limit);
+  const nextCursor = cursor + page.length;
+  return NextResponse.json(
+    { tracks: page, nextCursor, hasMore: nextCursor < candidates.length, fast: true },
+    { headers: { 'Cache-Control': userId ? 'private, no-store' : 'public, s-maxage=45, stale-while-revalidate=180' } },
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -208,10 +366,19 @@ export async function GET(request: NextRequest) {
     const strategy = (searchParams.get('strategy') || 'reco').toLowerCase(); // reco | trending
     const genreFilter = searchParams.get('genre')?.trim().toLowerCase() || null;
     const debug = searchParams.get('debug') === '1';
+    const fast = searchParams.get('fast') === '1';
     
     // Récupérer l'utilisateur connecté (session cookie > fallback query param)
     const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || searchParams.get('userId') || null;
+
+    if (fast) {
+      try {
+        return await buildFastRankingResponse({ includeAi, userId, limit, cursor, strategy, genreFilter });
+      } catch (error) {
+        console.error('ranking: fast feed failed, using full ranking', error);
+      }
+    }
 
     // Récupérer dernières 30j stats + infos track minimales
     const { data: statsRows, error: statsErr } = await supabaseAdmin
@@ -454,6 +621,7 @@ export async function GET(request: NextRequest) {
             album: t.album || null,
             genre: t.genre || [],
             likes: [],
+            ...engagementCounts(t),
             plays: t.plays || 0,
             createdAt: t.created_at,
             isFeatured: false,
@@ -491,6 +659,7 @@ export async function GET(request: NextRequest) {
             audioUrl: t.audio_url,
             genre: Array.isArray(t.tags) ? t.tags : [],
             likes: [],
+            ...engagementCounts(t),
             plays: t.play_count || 0,
             createdAt: t.created_at,
             isFeatured: false,
@@ -702,6 +871,7 @@ export async function GET(request: NextRequest) {
         genre: t.genre || [],
         lyrics: t.lyrics || null,
         likes: [],
+        ...engagementCounts(t),
         plays: t.plays || 0,
         createdAt: t.created_at,
         isFeatured: false,
@@ -942,6 +1112,7 @@ export async function GET(request: NextRequest) {
         audioUrl: t.audio_url,
         genre: Array.isArray(t.tags) ? t.tags : [],
         likes: [],
+        ...engagementCounts(t),
         plays: t.play_count || 0,
         createdAt: t.created_at,
         isFeatured: false,
@@ -993,6 +1164,7 @@ export async function GET(request: NextRequest) {
             genre: track.genre || [],
             lyrics: track.lyrics || null,
             likes: [],
+            ...engagementCounts(track),
             plays: track.plays || 0,
             createdAt: track.created_at,
             isFeatured: false,

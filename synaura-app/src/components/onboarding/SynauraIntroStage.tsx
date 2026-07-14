@@ -155,7 +155,7 @@ export function SynauraIntroStage({ scene, compact = false, style }: { scene: In
 
 const styles = StyleSheet.create({
   stage: { minHeight: 330, overflow: 'hidden', backgroundColor: '#171313' },
-  stageCompact: { minHeight: 230 },
+  stageCompact: { minHeight: 0 },
   accentRail: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5 },
   secondaryRail: { position: 'absolute', right: 0, top: '18%', width: 3, height: '52%', opacity: 0.9 },
   frameBack: { position: 'absolute', left: '20%', top: '17%', width: '60%', aspectRatio: 1, borderWidth: 1, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.025)' },

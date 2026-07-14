@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  InteractionManager,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -21,6 +22,7 @@ import { spacing } from '@/theme/tokens';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { MobileSectionTitle } from '@/components/mobile/MobileSectionTitle';
+import { readDiscoverOverviewCache, writeDiscoverOverviewCache } from '@/discover/discoverCache';
 
 const genres = ['Tout', 'Pop', 'Hip-Hop', 'Rap', 'Rock', 'Electronic', 'R&B', 'Jazz', 'Lo-Fi', 'Indie', 'Ambient'];
 const ambienceTiles = [
@@ -67,30 +69,69 @@ export function DiscoverScreen() {
   const [paging, setPaging] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const requestRef = useRef(0);
+  const enrichmentTaskRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
   const player = usePlayer();
 
   const load = useCallback(async () => {
+    const requestId = ++requestRef.current;
+    enrichmentTaskRef.current?.cancel();
     setLoading(true);
     setError(null);
-    try {
-      const [homeResult, discoverResult] = await Promise.allSettled([getHomeData(), getDiscoverPage({ sort, page: 0 })]);
-      if (homeResult.status === 'rejected') throw homeResult.reason;
-      setData(homeResult.value);
-      if (discoverResult.status === 'fulfilled') {
-        setExploreTracks(discoverResult.value.tracks);
-        setExploreCreators(discoverResult.value.artists);
-        setNextPage(discoverResult.value.nextPage);
-        setHasMore(discoverResult.value.hasMore || discoverResult.value.hasMoreProfiles);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Chargement impossible');
-    } finally {
+    const cached = await readDiscoverOverviewCache(sort);
+    if (requestId !== requestRef.current) return;
+    if (cached) {
+      setData(cached.data);
+      setExploreTracks(cached.tracks);
+      setExploreCreators(cached.creators);
+      setNextPage(cached.nextPage);
+      setHasMore(cached.hasMore);
       setLoading(false);
+    }
+
+    try {
+      const discover = await getDiscoverPage({ sort, page: 0, limit: 18, profileLimit: 8 });
+      if (requestId !== requestRef.current) return;
+      setExploreTracks(discover.tracks);
+      setExploreCreators(discover.artists);
+      setNextPage(discover.nextPage);
+      setHasMore(discover.hasMore || discover.hasMoreProfiles);
+      setLoading(false);
+
+      const baseData = cached?.data || emptyData;
+      void writeDiscoverOverviewCache(sort, {
+        data: baseData,
+        tracks: discover.tracks,
+        creators: discover.artists,
+        nextPage: discover.nextPage,
+        hasMore: discover.hasMore || discover.hasMoreProfiles,
+      });
+
+      enrichmentTaskRef.current = InteractionManager.runAfterInteractions(() => {
+        void getHomeData()
+          .then((home) => {
+            if (requestId !== requestRef.current) return;
+            setData(home);
+            return writeDiscoverOverviewCache(sort, {
+              data: home,
+              tracks: discover.tracks,
+              creators: discover.artists,
+              nextPage: discover.nextPage,
+              hasMore: discover.hasMore || discover.hasMoreProfiles,
+            });
+          })
+          .catch(() => {});
+      });
+    } catch (e) {
+      if (!cached && requestId === requestRef.current) setError(e instanceof Error ? e.message : 'Chargement impossible');
+    } finally {
+      if (requestId === requestRef.current) setLoading(false);
     }
   }, [sort]);
 
   useEffect(() => {
     void load();
+    return () => enrichmentTaskRef.current?.cancel();
   }, [load]);
 
   const loadMore = useCallback(async () => {

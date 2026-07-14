@@ -5,7 +5,6 @@ import {
   Linking,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -17,12 +16,14 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getPlaylistDetail, setTrackLike, type PlaylistDetail } from '@/api/client';
+import { API_BASE_URL, getPlaylistDetail, setTrackLike, type PlaylistDetail } from '@/api/client';
 import type { Track } from '@/api/types';
 import { TrackCover } from '@/components/TrackCover';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { EntityShareSheet } from '@/components/sharing/EntityShareSheet';
+import { ShareSheet } from '@/components/swipe/ShareSheet';
 
 const CREAM = '#FFFAF2';
 const INK = '#171313';
@@ -67,6 +68,8 @@ export function PlaylistDetailScreen() {
   const [genre, setGenre] = React.useState('Tous');
   const [sort, setSort] = React.useState<SortMode>('position');
   const [toast, setToast] = React.useState<string | null>(null);
+  const [shareCollectionOpen, setShareCollectionOpen] = React.useState(false);
+  const [shareTrackTarget, setShareTrackTarget] = React.useState<Track | null>(null);
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showToast = React.useCallback((message: string) => {
@@ -152,7 +155,7 @@ export function PlaylistDetailScreen() {
   }, []);
 
   const slug = collection?.slug || playlist?.slug || playlist?.id || '';
-  const webUrl = `https://www.synaura.fr/playlists/${slug}`;
+  const webUrl = `${API_BASE_URL}/playlists/${encodeURIComponent(slug)}`;
 
   const copyLink = React.useCallback(async () => {
     await Clipboard.setStringAsync(webUrl);
@@ -160,10 +163,9 @@ export function PlaylistDetailScreen() {
     showToast('Lien copié');
   }, [showToast, webUrl]);
 
-  const shareCollection = React.useCallback(async () => {
-    if (!playlist) return;
-    await Share.share({ title: playlist.title, message: `Ecoute ${playlist.title} sur Synaura: ${webUrl}` });
-  }, [playlist, webUrl]);
+  const shareCollection = React.useCallback(() => {
+    if (playlist) setShareCollectionOpen(true);
+  }, [playlist]);
 
   const queueTrack = React.useCallback((track: Track) => {
     player.addNext(track);
@@ -183,9 +185,7 @@ export function PlaylistDetailScreen() {
     }
   }, [liked]);
 
-  const shareTrack = React.useCallback(async (track: Track) => {
-    await Share.share({ title: track.title, message: `Ecoute ${track.title} sur Synaura: https://www.synaura.fr/track/${track._id}` });
-  }, []);
+  const shareTrack = React.useCallback((track: Track) => setShareTrackTarget(track), []);
 
   const downloadTrack = React.useCallback(async (track: Track) => {
     if (!track.audioUrl) return;
@@ -404,6 +404,18 @@ export function PlaylistDetailScreen() {
         ) : !loading ? <Text style={styles.empty}>Playlist introuvable.</Text> : null}
         </View>
       </ScrollView>
+
+      <EntityShareSheet
+        visible={shareCollectionOpen && Boolean(playlist)}
+        title={title || 'Playlist Synaura'}
+        subtitle={subtitle}
+        kindLabel="Playlist"
+        url={webUrl}
+        imageUrl={playlist ? `${webUrl}/opengraph-image` : null}
+        fileKey={`playlist-${slug || 'synaura'}`}
+        onClose={() => setShareCollectionOpen(false)}
+      />
+      <ShareSheet visible={Boolean(shareTrackTarget)} track={shareTrackTarget} onClose={() => setShareTrackTarget(null)} />
 
       {toast ? (
         <View style={[styles.toast, { bottom: insets.bottom + 96 }]} pointerEvents="none">

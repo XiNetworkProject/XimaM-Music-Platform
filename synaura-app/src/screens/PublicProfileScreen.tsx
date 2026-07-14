@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import { followUser, getMusicClips, getPublicProfile, getUserPosts, getUserVariations, type MobileProfile } from '@/api/client';
+import { followUser, getMusicClips, getPublicProfile, getUserPostsPage, getUserVariations, type MobileProfile } from '@/api/client';
 import type { HomePost, MusicClip, UserVariation } from '@/api/types';
 import type { RootTabsParamList } from '@/navigation/Tabs';
 import { SynauraBackground } from '@/components/SynauraBackground';
@@ -43,9 +43,15 @@ export function PublicProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('sons');
   const [posts, setPosts] = useState<HomePost[]>([]);
+  const [postsCursor, setPostsCursor] = useState<string | null>(null);
+  const [postsHasMore, setPostsHasMore] = useState(false);
+  const [postsLoadingMore, setPostsLoadingMore] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [clips, setClips] = useState<MusicClip[]>([]);
   const [clipsLoading, setClipsLoading] = useState(false);
+  const [clipsLoadingMore, setClipsLoadingMore] = useState(false);
+  const [clipsCursor, setClipsCursor] = useState(0);
+  const [clipsHasMore, setClipsHasMore] = useState(false);
   const [clipsError, setClipsError] = useState<string | null>(null);
   const [variations, setVariations] = useState<UserVariation[]>([]);
   const [variationsLoading, setVariationsLoading] = useState(false);
@@ -59,33 +65,48 @@ export function PublicProfileScreen() {
     try {
       const nextProfile = await getPublicProfile(username);
       setProfile(nextProfile);
-      void getUserPosts(nextProfile.id)
-        .then((nextPosts) => {
-          setPosts(nextPosts.map((post) => ({ ...post, isPinned: post.id === nextProfile.pinnedPostId })).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned))));
+      void getUserPostsPage(nextProfile.id)
+        .then((page) => {
+          setPosts(page.posts.map((post) => ({ ...post, isPinned: post.id === nextProfile.pinnedPostId })).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned))));
+          setPostsCursor(page.nextCursor);
+          setPostsHasMore(page.hasMore);
         })
-        .catch(() => setPosts([]));
+        .catch(() => {
+          setPosts([]);
+          setPostsCursor(null);
+          setPostsHasMore(false);
+        });
     } finally {
       setLoading(false);
     }
   }, [username]);
 
-  const loadClips = useCallback(async () => {
+  const loadClips = useCallback(async (cursor = 0) => {
     if (!username) return;
-    setClipsLoading(true);
+    if (cursor > 0) setClipsLoadingMore(true);
+    else setClipsLoading(true);
     setClipsError(null);
     try {
-      const result = await getMusicClips({ creatorUsername: username, limit: 40 });
-      setClips(result.clips);
+      const result = await getMusicClips({ creatorUsername: username, limit: 24, cursor });
+      setClips((current) => {
+        if (!cursor) return result.clips;
+        const byId = new Map(current.map((clip) => [clip.id, clip]));
+        result.clips.forEach((clip) => byId.set(clip.id, clip));
+        return Array.from(byId.values());
+      });
+      setClipsCursor(result.nextCursor);
+      setClipsHasMore(result.hasMore);
     } catch (clipError) {
       setClipsError(clipError instanceof Error ? clipError.message : 'Impossible de charger les clips.');
     } finally {
       setClipsLoading(false);
+      setClipsLoadingMore(false);
     }
   }, [username]);
 
   useFocusEffect(useCallback(() => {
     void load();
-    void loadClips();
+    void loadClips(0);
   }, [load, loadClips]));
 
   // Les variations restent chargees a la demande. Les Clips sont recuperes des
@@ -154,6 +175,23 @@ export function PublicProfileScreen() {
   };
 
   const share = () => setShareOpen(true);
+
+  const loadMorePosts = async () => {
+    if (!profile?.id || !postsCursor || postsLoadingMore) return;
+    setPostsLoadingMore(true);
+    try {
+      const page = await getUserPostsPage(profile.id, 20, postsCursor);
+      setPosts((current) => {
+        const byId = new Map(current.map((post) => [post.id, post]));
+        page.posts.forEach((post) => byId.set(post.id, { ...post, isPinned: post.id === profile.pinnedPostId }));
+        return Array.from(byId.values()).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned)));
+      });
+      setPostsCursor(page.nextCursor);
+      setPostsHasMore(page.hasMore);
+    } finally {
+      setPostsLoadingMore(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -293,6 +331,12 @@ export function PublicProfileScreen() {
                 ))}
               </View>
             ) : <Text style={styles.empty}>{profile.username === username ? "Tu n'as pas encore publié de clip." : 'Aucun clip publié.'}</Text>}
+            {clipsHasMore ? (
+              <Pressable disabled={clipsLoadingMore} onPress={() => void loadClips(clipsCursor)} style={styles.retryButton}>
+                {clipsLoadingMore ? <ActivityIndicator size="small" color="#5B3FD6" /> : <Ionicons name="chevron-down" size={17} color="#5B3FD6" />}
+                <Text style={styles.retryText}>Charger plus de clips</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
 
@@ -351,6 +395,12 @@ export function PublicProfileScreen() {
                 <Text style={styles.postMeta}>{post.likesCount} j’aime · {post.commentsCount} commentaires</Text>
               </Pressable>
             )) : <Text style={styles.empty}>Cet artiste n'a encore rien publié.</Text>}
+            {postsHasMore ? (
+              <Pressable disabled={postsLoadingMore} onPress={() => void loadMorePosts()} style={styles.retryButton}>
+                {postsLoadingMore ? <ActivityIndicator size="small" color="#5B3FD6" /> : <Ionicons name="chevron-down" size={17} color="#5B3FD6" />}
+                <Text style={styles.retryText}>Charger plus de publications</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
       </ScrollView>

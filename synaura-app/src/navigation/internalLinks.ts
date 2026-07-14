@@ -70,6 +70,10 @@ export async function openInternalLink(
     navigation.navigate('PlaylistDetail', { playlistId: decodeURIComponent(id) });
     return true;
   }
+  if ((root === 'clips' || root === 'clip') && id) {
+    navigation.navigate('Swipe', { mode: 'clips', clipId: decodeURIComponent(id) });
+    return true;
+  }
   if ((root === 'track' || root === 'tracks') && id) {
     const track = await getTrackById(decodeURIComponent(id));
     if (track && options?.playTrack) {

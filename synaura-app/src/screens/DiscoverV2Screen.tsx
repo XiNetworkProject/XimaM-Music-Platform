@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
+  InteractionManager,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -34,6 +35,7 @@ import { ScreenIntro } from '@/components/ui/ScreenIntro';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { colors, radius, shadows } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { readDiscoverVisualCache, writeDiscoverVisualCache } from '@/discover/discoverCache';
 
 const INTENTION_TO_CLUB_SLUG: Record<string, string> = {
   remix: 'remix',
@@ -93,6 +95,7 @@ export function DiscoverV2Screen() {
   const player = usePlayer();
   const auth = useAuth();
   const requestId = useRef(0);
+  const backgroundTask = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
   const [newestTracks, setNewestTracks] = useState<Track[]>([]);
   const [popularTracks, setPopularTracks] = useState<Track[]>([]);
   const [hiddenTracks, setHiddenTracks] = useState<Track[]>([]);
@@ -108,7 +111,7 @@ export function DiscoverV2Screen() {
   const [highlightedClubSlugs, setHighlightedClubSlugs] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!auth.requireAuth()) return;
+    if (!auth.user) return;
     let mounted = true;
     getUserPreferences()
       .then((preferences) => {
@@ -138,10 +141,32 @@ export function DiscoverV2Screen() {
 
   const load = useCallback(async (showInitialLoader = true) => {
     const currentRequest = ++requestId.current;
+    backgroundTask.current?.cancel();
     if (showInitialLoader) setLoading(true);
     else setRefreshing(true);
     setRadarLoading(true);
     setLoadError(false);
+
+    const cached = showInitialLoader ? await readDiscoverVisualCache<EditorialCollection>() : null;
+    if (currentRequest !== requestId.current) return;
+    const snapshot = {
+      newest: cached?.newest || [],
+      popular: cached?.popular || [],
+      hidden: cached?.hidden || [],
+      radar: cached?.radar || [],
+      collections: cached?.collections || [],
+      totalTracks: cached?.totalTracks || 0,
+    };
+    if (cached) {
+      setNewestTracks(cached.newest);
+      setPopularTracks(cached.popular);
+      setHiddenTracks(cached.hidden);
+      setRadar(cached.radar);
+      setCollections(cached.collections);
+      setTotalTracks(cached.totalTracks);
+      setLoading(false);
+      setRadarLoading(false);
+    }
 
     let contentRevealed = false;
     const revealContent = () => {
@@ -150,52 +175,74 @@ export function DiscoverV2Screen() {
       setLoading(false);
     };
 
-    const newestRequest = getDiscoverPage({ sort: 'newest', limit: 48, profileLimit: 4 })
+    const persistSnapshot = () => writeDiscoverVisualCache<EditorialCollection>(snapshot);
+    const newestRequest = getDiscoverPage({ sort: 'newest', limit: 20, profileLimit: 4 })
       .then((page) => {
         if (currentRequest !== requestId.current) return;
+        snapshot.newest = page.tracks;
+        snapshot.totalTracks = page.total;
         setNewestTracks(page.tracks);
         setTotalTracks(page.total);
         revealContent();
       });
-    const popularRequest = getDiscoverPage({ sort: 'popular', limit: 36, profileLimit: 4 })
-      .then((page) => {
-        if (currentRequest !== requestId.current) return;
-        setPopularTracks(page.tracks);
-        revealContent();
-      });
-    const hiddenRequest = getDiscoverPage({ sort: 'hidden', limit: 36, profileLimit: 4 })
-      .then((page) => {
-        if (currentRequest !== requestId.current) return;
-        setHiddenTracks(page.tracks);
-        revealContent();
-      });
-    const radarRequest = getDiscoverRadar(16)
+    const radarRequest = getDiscoverRadar(12)
       .then((tracks) => {
-        if (currentRequest === requestId.current) setRadar(tracks);
+        if (currentRequest === requestId.current) {
+          snapshot.radar = tracks;
+          setRadar(tracks);
+        }
       })
       .finally(() => {
         if (currentRequest === requestId.current) setRadarLoading(false);
       });
     const collectionsRequest = getEditorialCollections().then((items) => {
-      if (currentRequest === requestId.current) setCollections(items as EditorialCollection[]);
+      if (currentRequest === requestId.current) {
+        snapshot.collections = items as EditorialCollection[];
+        setCollections(snapshot.collections);
+      }
     });
 
-    const results = await Promise.allSettled([
+    const primaryResults = await Promise.allSettled([
       newestRequest,
-      popularRequest,
-      hiddenRequest,
       radarRequest,
       collectionsRequest,
     ]);
     if (currentRequest !== requestId.current) return;
     setLoading(false);
-    setRefreshing(false);
-    setLoadError(results.slice(0, 3).every((result) => result.status === 'rejected'));
+    setLoadError(!cached && primaryResults.every((result) => result.status === 'rejected'));
+    void persistSnapshot();
+
+    const loadSecondary = async () => {
+      const [popularResult, hiddenResult] = await Promise.allSettled([
+        getDiscoverPage({ sort: 'popular', limit: 20, profileLimit: 4 }),
+        getDiscoverPage({ sort: 'hidden', limit: 20, profileLimit: 4 }),
+      ]);
+      if (currentRequest !== requestId.current) return;
+      if (popularResult.status === 'fulfilled') {
+        snapshot.popular = popularResult.value.tracks;
+        setPopularTracks(snapshot.popular);
+      }
+      if (hiddenResult.status === 'fulfilled') {
+        snapshot.hidden = hiddenResult.value.tracks;
+        setHiddenTracks(snapshot.hidden);
+      }
+      setRefreshing(false);
+      await persistSnapshot();
+    };
+
+    if (showInitialLoader) {
+      backgroundTask.current = InteractionManager.runAfterInteractions(() => {
+        void loadSecondary();
+      });
+    } else {
+      await loadSecondary();
+    }
   }, []);
 
   useEffect(() => {
     void load(true);
     return () => {
+      backgroundTask.current?.cancel();
       requestId.current += 1;
     };
   }, [load]);

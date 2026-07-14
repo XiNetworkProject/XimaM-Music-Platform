@@ -54,9 +54,8 @@ export function ShareSheet({ visible, track, onClose, onShared, onPostCreated }:
 
   const trackId = track?._id || '';
   const isRadio = trackId.startsWith('radio-');
-  const isAi = trackId.startsWith('ai-');
-  const canInternal = !!trackId && !isRadio && !isAi;
   const isPrivate = Boolean((track as (Track & { isPublic?: boolean }) | null)?.isPublic === false);
+  const canInternal = !!trackId && !isRadio && !isPrivate;
   const canGenerateCard = Boolean(trackId && !isRadio && !isPrivate);
 
   const { trackUrl, shareText } = useMemo(() => buildShareUrls(track), [track]);
@@ -380,7 +379,7 @@ export function ShareSheet({ visible, track, onClose, onShared, onPostCreated }:
               </View>
             ) : (
               <View style={styles.notice}>
-                <Text style={styles.noticeText}>Les sons IA ne se republient pas encore. Utilise le partage par lien.</Text>
+                <Text style={styles.noticeText}>Ce son privé ne peut pas être republié. Publie-le d'abord pour le partager dans le feed.</Text>
               </View>
             )}
           </View>

@@ -27,6 +27,7 @@ export type TrackMoments = {
   duration: number;
   comments: HomeComment[];
   reactions: MomentReaction[];
+  momentsLoaded?: boolean;
 };
 
 type MomentCluster = {
@@ -45,8 +46,9 @@ const DRAG_THRESHOLD = 5;
 
 export function loadTrackMoments(trackId: string, withMoments: boolean): Promise<TrackMoments> {
   const cached = momentsCache.get(trackId);
-  if (cached) return Promise.resolve(cached);
-  const inFlight = momentsInFlight.get(trackId);
+  if (cached && (!withMoments || cached.momentsLoaded)) return Promise.resolve(cached);
+  const requestKey = `${trackId}:${withMoments ? 'moments' : 'waveform'}`;
+  const inFlight = momentsInFlight.get(requestKey);
   if (inFlight) return inFlight;
 
   const promise = Promise.all([
@@ -60,22 +62,33 @@ export function loadTrackMoments(trackId: string, withMoments: boolean): Promise
         duration: Number(waveform?.duration || 0),
         comments,
         reactions,
+        momentsLoaded: withMoments,
       };
-      momentsCache.set(trackId, result);
-      momentsInFlight.delete(trackId);
-      return result;
+      const current = momentsCache.get(trackId);
+      const next = current?.momentsLoaded && !withMoments
+        ? current
+        : {
+            ...result,
+            peaks: result.peaks || current?.peaks || null,
+            duration: result.duration || current?.duration || 0,
+          };
+      momentsCache.set(trackId, next);
+      momentsInFlight.delete(requestKey);
+      return next;
     })
     .catch(() => {
-      momentsInFlight.delete(trackId);
-      return { peaks: null, duration: 0, comments: [], reactions: [] };
+      momentsInFlight.delete(requestKey);
+      return cached || { peaks: null, duration: 0, comments: [], reactions: [], momentsLoaded: false };
     });
 
-  momentsInFlight.set(trackId, promise);
+  momentsInFlight.set(requestKey, promise);
   return promise;
 }
 
 export function invalidateTrackMoments(trackId: string) {
   momentsCache.delete(trackId);
+  momentsInFlight.delete(`${trackId}:moments`);
+  momentsInFlight.delete(`${trackId}:waveform`);
 }
 
 function samplePeaks(peaks: number[], targetCount: number) {
@@ -212,11 +225,11 @@ export function WaveformSeekBar({
   useEffect(() => {
     let mounted = true;
     const cached = momentsCache.get(trackId);
-    if (cached) {
+    if (cached && (!showMoments || cached.momentsLoaded)) {
       setMoments(cached);
       return;
     }
-    setMoments(null);
+    setMoments(cached || null);
     void loadTrackMoments(trackId, showMoments).then((result) => {
       if (mounted) setMoments(result);
     });
@@ -235,8 +248,14 @@ export function WaveformSeekBar({
     [barCount, moments?.peaks],
   );
   const path = useMemo(() => waveformPath(sampledPeaks, width, height), [height, sampledPeaks, width]);
-  const comments = showMoments ? (moments?.comments || []).slice(0, 180) : [];
-  const reactions = showMoments ? (moments?.reactions || []) : [];
+  const comments = useMemo(
+    () => showMoments ? (moments?.comments || []).slice(0, 180) : [],
+    [moments?.comments, showMoments],
+  );
+  const reactions = useMemo(
+    () => showMoments ? (moments?.reactions || []) : [],
+    [moments?.reactions, showMoments],
+  );
   const clusterWindow = Math.min(6, Math.max(1.8, safeDuration / Math.max(32, (width || 320) / 11)));
   const clusters = useMemo(
     () => fitMomentClusters(comments, reactions, clusterWindow),

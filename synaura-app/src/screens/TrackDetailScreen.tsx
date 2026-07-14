@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import { openClipComposerForSound } from '@/navigation/clipEntry';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
 import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard';
+import { PostShareSheet } from '@/components/social/PostShareSheet';
 import { MomentWaveform } from '@/components/mobile/MomentWaveform';
 import { CommentsSheet } from '@/components/swipe/CommentsSheet';
 import { ShareSheet } from '@/components/swipe/ShareSheet';
@@ -331,6 +332,7 @@ function TrackPostCard({
 }) {
   const [liked, setLiked] = React.useState(post.isLiked);
   const [likes, setLikes] = React.useState(post.likesCount);
+  const [shareOpen, setShareOpen] = React.useState(false);
   const playingThis = post.track ? activeId === post.track._id && isPlaying : false;
 
   const like = async () => {
@@ -343,10 +345,6 @@ function TrackPostCard({
       setLiked(!next);
       setLikes((value) => Math.max(0, value + (next ? -1 : 1)));
     }
-  };
-
-  const share = () => {
-    Share.share({ message: `${post.author} sur Synaura: ${post.text}` }).catch(() => {});
   };
 
   return (
@@ -381,11 +379,12 @@ function TrackPostCard({
           <Ionicons name="chatbubble-outline" size={15} color={colors.textSecondary} />
           <Text style={styles.trackPostActionText}>{post.commentsCount || 'Avis'}</Text>
         </Pressable>
-        <Pressable onPress={share} style={styles.trackPostAction}>
+        <Pressable onPress={() => setShareOpen(true)} style={styles.trackPostAction}>
           <Ionicons name="share-social-outline" size={15} color={colors.textSecondary} />
           <Text style={styles.trackPostActionText}>Partager</Text>
         </Pressable>
       </View>
+      <PostShareSheet visible={shareOpen} post={post} onClose={() => setShareOpen(false)} />
     </View>
   );
 }

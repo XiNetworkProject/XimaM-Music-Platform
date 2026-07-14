@@ -1,13 +1,13 @@
 {
-  "title": "Synaura mobile 0.14.3",
+  "title": "Synaura mobile 0.15.0",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Cartes de partage de morceaux fiabilisees avec apercu, progression et controle du fichier image",
-    "Meme experience de partage disponible depuis le lecteur, le Scroll, les details et l accueil",
-    "Nouvelles cartes de partage premium pour les profils prive et public",
-    "Partage par lien disponible comme solution de repli claire sur chaque carte",
-    "Nouveau menu Synaura pour gerer les morceaux du profil sans dialogue Android",
-    "Confirmation de suppression integree avec etat de chargement et erreur visible"
+    "Interface et onboarding adaptes aux petits, grands et larges ecrans",
+    "Accueil et Discover nettement plus rapides grace au chargement progressif et au cache",
+    "Profils public et prive complets avec tous les sons, clips, posts et playlists",
+    "Waveform Moments plus fluide et clips video independants du lecteur musical",
+    "Partage premium finalise pour morceaux, profils, posts, playlists, clips et Studio",
+    "Notifications natives synchronisees avec badge, premier plan et activation guidee"
   ]
 }

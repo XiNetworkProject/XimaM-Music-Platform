@@ -217,7 +217,7 @@ export function WelcomeScreen() {
           </ScrollView>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.portraitContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentInsetAdjustmentBehavior="never" contentContainerStyle={styles.portraitContent} showsVerticalScrollIndicator={false}>
           {visual}
           {copy}
         </ScrollView>

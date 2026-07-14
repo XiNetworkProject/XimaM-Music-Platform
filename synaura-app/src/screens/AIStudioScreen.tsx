@@ -8,7 +8,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  Share,
   StyleSheet,
   Switch,
   Text,
@@ -74,6 +73,7 @@ import { DisclosureSection } from '@/components/ui/DisclosureSection';
 import { SelectionSheet, type SelectionSheetOption } from '@/components/ui/SelectionSheet';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
+import { ShareSheet } from '@/components/swipe/ShareSheet';
 
 type StudioTab = 'create' | 'library';
 type StudioMode = 'simple' | 'custom' | 'remix';
@@ -120,7 +120,8 @@ function aiTrackToPlayer(track: AIStatusTrack | NonNullable<AIStudioGeneration['
     artist: { name: 'Synaura Studio', artistName: 'Synaura Studio' },
     genre: ['AI Studio'],
     isAI: true,
-  };
+    isPublic: raw.is_public === true,
+  } as Track;
 }
 
 function formatModelLabel(value: string) {
@@ -170,6 +171,7 @@ export function AIStudioScreen() {
   const [libraryFolder, setLibraryFolder] = useState('');
   const [librarySort, setLibrarySort] = useState<'newest' | 'oldest' | 'title'>('newest');
   const [inspector, setInspector] = useState<{ generation: AIStudioGeneration; track: AIStudioTrack } | null>(null);
+  const [shareTrackTarget, setShareTrackTarget] = useState<Track | null>(null);
   const [showCredits, setShowCredits] = useState(false);
   const [lyricsLoading, setLyricsLoading] = useState(false);
   const [negativeTags, setNegativeTags] = useState('');
@@ -1102,10 +1104,15 @@ export function AIStudioScreen() {
         const playable = aiTrackToPlayer(track);
         setInspector(null);
         if (playable) navigation.navigate('CreatePost', { track: playable });
+      }} onShare={(track) => {
+        const playable = aiTrackToPlayer(track);
+        setInspector(null);
+        if (playable) setShareTrackTarget(playable);
       }} onReuse={reuseTrack} onRemix={remixTrack} onCopyLyrics={async (track) => {
         const text = track.lyrics || track.prompt || '';
         if (text) await Clipboard.setStringAsync(text);
       }} />
+      <ShareSheet visible={Boolean(shareTrackTarget)} track={shareTrackTarget} onClose={() => setShareTrackTarget(null)} />
       <CreditShopModal visible={showCredits} balance={credits} onClose={() => setShowCredits(false)} onComplete={() => loadStudio(true)} />
       </SynauraBackground>
     </KeyboardAvoidingView>
@@ -1305,7 +1312,7 @@ function GenerationStatusRow({ generation, active }: { generation: AIStudioGener
   );
 }
 
-function TrackInspector({ visible, item, onClose, onPlay, onCreatePost, onReuse, onRemix, onCopyLyrics, onRefresh, challengeId }: { visible: boolean; item: { generation: AIStudioGeneration; track: AIStudioTrack } | null; onClose: () => void; onPlay: (track: AIStudioTrack) => void; onCreatePost: (track: AIStudioTrack) => void; onReuse: (generation: AIStudioGeneration, track: AIStudioTrack) => void; onRemix: (generation: AIStudioGeneration, track: AIStudioTrack) => void; onCopyLyrics: (track: AIStudioTrack) => Promise<void>; onRefresh: () => void; challengeId?: string }) {
+function TrackInspector({ visible, item, onClose, onPlay, onCreatePost, onShare, onReuse, onRemix, onCopyLyrics, onRefresh, challengeId }: { visible: boolean; item: { generation: AIStudioGeneration; track: AIStudioTrack } | null; onClose: () => void; onPlay: (track: AIStudioTrack) => void; onCreatePost: (track: AIStudioTrack) => void; onShare: (track: AIStudioTrack) => void; onReuse: (generation: AIStudioGeneration, track: AIStudioTrack) => void; onRemix: (generation: AIStudioGeneration, track: AIStudioTrack) => void; onCopyLyrics: (track: AIStudioTrack) => Promise<void>; onRefresh: () => void; challengeId?: string }) {
   const [busy, setBusy] = useState('');
   const [feedback, setFeedback] = useState('');
   const [timedWords, setTimedWords] = useState<Array<{ word?: string }>>([]);
@@ -1404,7 +1411,7 @@ function TrackInspector({ visible, item, onClose, onPlay, onCreatePost, onReuse,
             {clipUrl ? <Pressable onPress={() => Linking.openURL(clipUrl)} style={styles.inspectorAction}><Ionicons name="videocam" size={17} color={colors.coral} /><Text style={styles.inspectorActionText}>Ouvrir le clip</Text></Pressable> : <Pressable disabled={Boolean(busy) || !taskId || !audioId} onPress={createVideo} style={styles.inspectorAction}>{busy === 'video' ? <ActivityIndicator color={colors.coral} /> : <Ionicons name="videocam-outline" size={17} color={colors.coral} />}<Text style={styles.inspectorActionText}>Créer un clip · 100 crédits</Text></Pressable>}
             <Pressable onPress={() => onCreatePost(item.track)} style={styles.inspectorAction}><Ionicons name="create-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>Créer un post</Text></Pressable>
             <View style={styles.inspectorGrid}>
-              <Pressable onPress={() => Share.share({ message: `${item.track.title} · Synaura\n${audioUrl}` })} style={[styles.inspectorAction, styles.inspectorHalf]}><Ionicons name="share-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>Partager</Text></Pressable>
+              <Pressable onPress={() => onShare(item.track)} style={[styles.inspectorAction, styles.inspectorHalf]}><Ionicons name="share-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>Partager</Text></Pressable>
               <Pressable onPress={() => audioUrl && Linking.openURL(audioUrl)} style={[styles.inspectorAction, styles.inspectorHalf]}><Ionicons name="download-outline" size={17} color={colors.text} /><Text style={styles.inspectorActionText}>Télécharger</Text></Pressable>
             </View>
             {feedback ? <Text style={styles.inspectorFeedback}>{feedback}</Text> : null}

@@ -1069,10 +1069,12 @@ export async function loadMixedPosts(cursor?: string | null): Promise<FeedLoadMo
 }
 
 export async function loadRankingTracks(strategy: 'reco' | 'trending', cursor = 0): Promise<FeedLoadMoreResult> {
-  const json = await request<any>(`/api/ranking/feed?limit=18&ai=1&strategy=${strategy}&cursor=${cursor}`);
+  const initial = cursor === 0;
+  const limit = initial ? 12 : 18;
+  const json = await request<any>(`/api/ranking/feed?limit=${limit}&ai=1&strategy=${strategy}&cursor=${cursor}${initial ? '&fast=1' : ''}`);
   return {
     items: collectTracks(json).map((track) => ({ kind: 'track' as const, track, strategy })),
-    nextCursor: json?.nextCursor == null ? String(cursor + 18) : String(json.nextCursor),
+    nextCursor: json?.nextCursor == null ? String(cursor + limit) : String(json.nextCursor),
     hasMore: Boolean(json?.hasMore),
   };
 }
@@ -1704,12 +1706,23 @@ export async function getPublicProfile(username: string): Promise<MobileProfile>
   return normalizeMobileProfile(json);
 }
 
-export async function getUserPosts(creatorId: string, limit = 30): Promise<HomePost[]> {
-  if (!creatorId) return [];
-  const json = await request<any>(`/api/posts?creator_id=${encodeURIComponent(creatorId)}&limit=${Math.min(30, Math.max(1, limit))}`);
-  return (Array.isArray(json?.posts) ? json.posts : [])
+export async function getUserPostsPage(creatorId: string, limit = 20, cursor?: string | null): Promise<{ posts: HomePost[]; nextCursor: string | null; hasMore: boolean }> {
+  if (!creatorId) return { posts: [], nextCursor: null, hasMore: false };
+  const params = new URLSearchParams({ creator_id: creatorId, limit: String(Math.min(30, Math.max(1, limit))) });
+  if (cursor) params.set('cursor', cursor);
+  const json = await request<any>(`/api/posts?${params.toString()}`);
+  const posts = (Array.isArray(json?.posts) ? json.posts : [])
     .map(normalizePost)
     .filter((post: HomePost | null): post is HomePost => Boolean(post));
+  return {
+    posts,
+    nextCursor: json?.nextCursor ? String(json.nextCursor) : null,
+    hasMore: Boolean(json?.hasMore),
+  };
+}
+
+export async function getUserPosts(creatorId: string, limit = 30): Promise<HomePost[]> {
+  return (await getUserPostsPage(creatorId, limit)).posts;
 }
 
 export async function getTrackPosts(trackId: string, limit = 12): Promise<HomePost[]> {
@@ -1963,7 +1976,9 @@ export async function fetchRankingFeedChunk(
   cursor = 0,
   seedGenre: string | null = null,
 ): Promise<RankingFeedChunk> {
-  const params = new URLSearchParams({ limit: '24', ai: '1', cursor: String(Math.max(0, cursor)) });
+  const initial = cursor === 0;
+  const params = new URLSearchParams({ limit: initial ? '12' : '24', ai: '1', cursor: String(Math.max(0, cursor)) });
+  if (initial) params.set('fast', '1');
   if (strategy === 'trending' || strategy === 'boost') {
     params.set('strategy', 'trending');
   } else {
@@ -1973,7 +1988,7 @@ export async function fetchRankingFeedChunk(
 
   const [feedRes, boosted] = await Promise.all([
     optionalRequest<any>(`/api/ranking/feed?${params.toString()}`),
-    getBoostedTracks(),
+    initial ? Promise.resolve([]) : getBoostedTracks(),
   ]);
 
   const feedTracks = (Array.isArray(feedRes?.tracks) ? feedRes.tracks : [])

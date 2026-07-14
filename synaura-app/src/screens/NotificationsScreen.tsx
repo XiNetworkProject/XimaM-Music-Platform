@@ -11,6 +11,7 @@ import { usePlayer } from '@/player/PlayerProvider';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
 
 const tabs = [
   { id: 'all', label: 'Toutes' },
@@ -42,6 +43,7 @@ export function NotificationsScreen() {
   const responsive = useResponsiveLayout();
   const navigation = useNavigation<any>();
   const player = usePlayer();
+  const nativeNotifications = useNativeNotifications();
   const [category, setCategory] = React.useState<(typeof tabs)[number]['id']>('all');
   const [items, setItems] = React.useState<SynauraNotification[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -57,13 +59,14 @@ export function NotificationsScreen() {
       const data = await getNotifications(category);
       setItems(data.notifications);
       setUnread(data.unread);
+      void nativeNotifications.refreshUnread();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Impossible de charger les notifications');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [category]);
+  }, [category, nativeNotifications.refreshUnread]);
 
   React.useEffect(() => {
     void load();
@@ -74,6 +77,7 @@ export function NotificationsScreen() {
       setItems((current) => current.map((next) => next.id === item.id ? { ...next, isRead: true } : next));
       setUnread((count) => Math.max(0, count - 1));
       markNotificationRead(item.id).catch(() => {});
+      void nativeNotifications.refreshUnread();
     }
     if (item.actionUrl) {
       await openInternalLink(navigation, item.actionUrl, { playTrack: (track) => player.playTrack(track) });
@@ -84,11 +88,13 @@ export function NotificationsScreen() {
     setItems((current) => current.map((item) => ({ ...item, isRead: true })));
     setUnread(0);
     await markAllNotificationsRead();
+    await nativeNotifications.refreshUnread();
   };
 
   const remove = async (id: number) => {
     setItems((current) => current.filter((item) => item.id !== id));
     await deleteNotification(id);
+    await nativeNotifications.refreshUnread();
   };
 
   return (

@@ -50,9 +50,12 @@ export async function GET(request: NextRequest) {
     let query = supabaseAdmin
       .from('music_clips')
       .select('*, creator:profiles!music_clips_creator_id_fkey(id, username, name, avatar)')
-      .eq('visibility', 'published')
       .order('created_at', { ascending: false })
       .range(cursor, cursor + limit);
+
+    if (!creatorId || String(creatorId) !== String(viewerId || '')) {
+      query = query.eq('visibility', 'published');
+    }
 
     if (sourceTrackId) {
       const ref = normalizeRemixTrackRef(sourceTrackId, sourceTrackType);
@@ -79,7 +82,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         clips,
-        nextCursor: cursor + clips.length,
+        nextCursor: cursor + Math.min(rows.length, limit),
         hasMore: rows.length > limit,
       },
       { headers: { 'Cache-Control': 'no-store, max-age=0' } },

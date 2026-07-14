@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   RefreshControl,
@@ -11,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { deleteTrack, getMusicClips, getMyProfile, getNotifications, getPendingApprovals, getSubscriptionUsage, getUserPosts, getUserVariations, pinPost, unpinPost, updateTrackMetadata, type MobileProfile, type MobileProfileTrack, type SubscriptionUsage } from '@/api/client';
+import { deleteTrack, getMusicClips, getMyProfile, getNotifications, getPendingApprovals, getSubscriptionUsage, getUserPostsPage, getUserVariations, pinPost, unpinPost, updateTrackMetadata, type MobileProfile, type MobileProfileTrack, type SubscriptionUsage } from '@/api/client';
 import type { HomePost, MusicClip, PendingVariation, UserVariation } from '@/api/types';
 import { DEFAULT_REMIX_PERMISSIONS } from '@/api/types';
 import { PendingApprovalsModal } from '@/components/variations/PendingApprovalsModal';
@@ -72,9 +73,15 @@ export function ProfileScreen() {
   const [trackForm, setTrackForm] = useState<TrackEditForm>({ title: '', description: '', genreText: '', tagsText: '', isPublic: true, remixPermissions: DEFAULT_REMIX_PERMISSIONS });
   const [trackSaving, setTrackSaving] = useState(false);
   const [posts, setPosts] = useState<HomePost[]>([]);
+  const [postsCursor, setPostsCursor] = useState<string | null>(null);
+  const [postsHasMore, setPostsHasMore] = useState(false);
+  const [postsLoadingMore, setPostsLoadingMore] = useState(false);
   const [profileTab, setProfileTab] = useState<ProfileTab>('sons');
   const [clips, setClips] = useState<MusicClip[]>([]);
   const [clipsLoading, setClipsLoading] = useState(false);
+  const [clipsLoadingMore, setClipsLoadingMore] = useState(false);
+  const [clipsCursor, setClipsCursor] = useState(0);
+  const [clipsHasMore, setClipsHasMore] = useState(false);
   const [clipsError, setClipsError] = useState<string | null>(null);
   const [variations, setVariations] = useState<UserVariation[]>([]);
   const [variationsLoading, setVariationsLoading] = useState(false);
@@ -115,11 +122,17 @@ export function ProfileScreen() {
     try {
       const nextProfile = await getMyProfile(auth.user.username);
       setProfile(nextProfile);
-      void getUserPosts(nextProfile.id)
-        .then((nextPosts) => {
-          setPosts(nextPosts.map((post) => ({ ...post, isPinned: post.id === nextProfile.pinnedPostId })).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned))));
+      void getUserPostsPage(nextProfile.id)
+        .then((page) => {
+          setPosts(page.posts.map((post) => ({ ...post, isPinned: post.id === nextProfile.pinnedPostId })).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned))));
+          setPostsCursor(page.nextCursor);
+          setPostsHasMore(page.hasMore);
         })
-        .catch(() => setPosts([]));
+        .catch(() => {
+          setPosts([]);
+          setPostsCursor(null);
+          setPostsHasMore(false);
+        });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Profil impossible à charger');
     } finally {
@@ -127,23 +140,32 @@ export function ProfileScreen() {
     }
   }, [auth.user?.username]);
 
-  const loadClips = useCallback(async () => {
+  const loadClips = useCallback(async (cursor = 0) => {
     if (!auth.user?.username) return;
-    setClipsLoading(true);
+    if (cursor > 0) setClipsLoadingMore(true);
+    else setClipsLoading(true);
     setClipsError(null);
     try {
-      const result = await getMusicClips({ creatorUsername: auth.user.username, limit: 40 });
-      setClips(result.clips);
+      const result = await getMusicClips({ creatorUsername: auth.user.username, limit: 24, cursor });
+      setClips((current) => {
+        if (!cursor) return result.clips;
+        const byId = new Map(current.map((clip) => [clip.id, clip]));
+        result.clips.forEach((clip) => byId.set(clip.id, clip));
+        return Array.from(byId.values());
+      });
+      setClipsCursor(result.nextCursor);
+      setClipsHasMore(result.hasMore);
     } catch (clipError) {
       setClipsError(clipError instanceof Error ? clipError.message : 'Impossible de charger les clips.');
     } finally {
       setClipsLoading(false);
+      setClipsLoadingMore(false);
     }
   }, [auth.user?.username]);
 
   const refreshProfile = useCallback(() => {
     void loadProfile();
-    void loadClips();
+    void loadClips(0);
     void getSubscriptionUsage().then(setUsage).catch(() => {});
   }, [loadClips, loadProfile]);
 
@@ -292,6 +314,31 @@ export function ProfileScreen() {
     }
   };
 
+  const loadMorePosts = async () => {
+    if (!profile?.id || !postsCursor || postsLoadingMore) return;
+    setPostsLoadingMore(true);
+    try {
+      const page = await getUserPostsPage(profile.id, 20, postsCursor);
+      setPosts((current) => {
+        const byId = new Map(current.map((post) => [post.id, post]));
+        page.posts.forEach((post) => byId.set(post.id, { ...post, isPinned: post.id === profile.pinnedPostId }));
+        return Array.from(byId.values()).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned)));
+      });
+      setPostsCursor(page.nextCursor);
+      setPostsHasMore(page.hasMore);
+    } finally {
+      setPostsLoadingMore(false);
+    }
+  };
+
+  const openProfileClip = (clip: MusicClip) => {
+    if (clip.visibility === 'published') {
+      navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id });
+      return;
+    }
+    navigation.navigate('TrackDetail', { trackId: clip.sourceTrack._id, track: clip.sourceTrack });
+  };
+
   if (!auth.user) {
     return (
       <SynauraBackground variant="warm">
@@ -364,8 +411,9 @@ export function ProfileScreen() {
               <>
                 <View style={styles.clipsGrid}>
                   {clips.slice(0, responsive.isTablet ? 4 : 3).map((clip) => (
-                    <Pressable key={`preview-${clip.id}`} onPress={() => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
+                    <Pressable key={`preview-${clip.id}`} onPress={() => openProfileClip(clip)} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
                       {clip.posterUrl ? <Image source={{ uri: clip.posterUrl }} style={StyleSheet.absoluteFillObject} /> : null}
+                      {clip.visibility !== 'published' ? <Text style={styles.clipStatus}>{clip.visibility === 'draft' ? 'Brouillon' : 'Masqué'}</Text> : null}
                       <View style={styles.clipTileOverlay}><Text numberOfLines={1} style={styles.clipTileTitle}>{clip.sourceTrack?.title || 'Clip'}</Text></View>
                     </Pressable>
                   ))}
@@ -494,13 +542,20 @@ export function ProfileScreen() {
           ) : clips.length ? (
             <View style={styles.clipsGrid}>
               {clips.map((clip) => (
-                <Pressable key={clip.id} onPress={() => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
+                <Pressable key={clip.id} onPress={() => openProfileClip(clip)} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
                   {clip.posterUrl ? <Image source={{ uri: clip.posterUrl }} style={StyleSheet.absoluteFillObject} /> : null}
+                  {clip.visibility !== 'published' ? <Text style={styles.clipStatus}>{clip.visibility === 'draft' ? 'Brouillon' : 'Masqué'}</Text> : null}
                   <View style={styles.clipTileOverlay}><Text numberOfLines={1} style={styles.clipTileTitle}>{clip.sourceTrack?.title || 'Clip'}</Text></View>
                 </Pressable>
               ))}
             </View>
           ) : <Empty text="Tu n'as pas encore publié de clip." />}
+          {clipsHasMore ? (
+            <Pressable disabled={clipsLoadingMore} onPress={() => void loadClips(clipsCursor)} style={styles.emptyAction}>
+              {clipsLoadingMore ? <ActivityIndicator size="small" color="#7C5CFF" /> : <Ionicons name="chevron-down" size={18} color="#7C5CFF" />}
+              <Text style={styles.emptyActionText}>Charger plus de clips</Text>
+            </Pressable>
+          ) : null}
         </View>
         ) : null}
 
@@ -526,7 +581,7 @@ export function ProfileScreen() {
         {profileTab === 'posts' ? (
         <View style={styles.card}>
           <SectionTitle title="Publications" action={`${posts.length}`} />
-          {posts.length ? posts.slice(0, 8).map((post) => (
+          {posts.length ? posts.map((post) => (
             <Pressable key={post.id} onPress={() => navigation.navigate('PostDetail', { postId: post.id })} style={styles.postRow}>
               <View style={{ flex: 1, minWidth: 0 }}>
                 {post.isPinned ? <Text style={styles.postPinned}>Épinglé</Text> : null}
@@ -548,20 +603,27 @@ export function ProfileScreen() {
               <Ionicons name="chevron-forward" size={16} color="rgba(23,19,19,0.35)" />
             </Pressable>
           )) : <Pressable onPress={() => navigation.navigate('CreatePost')} style={styles.emptyAction}><Ionicons name="add-circle-outline" size={18} color="#7C5CFF" /><Text style={styles.emptyActionText}>Créer mon premier post</Text></Pressable>}
+          {postsHasMore ? (
+            <Pressable disabled={postsLoadingMore} onPress={() => void loadMorePosts()} style={styles.emptyAction}>
+              {postsLoadingMore ? <ActivityIndicator size="small" color="#7C5CFF" /> : <Ionicons name="chevron-down" size={18} color="#7C5CFF" />}
+              <Text style={styles.emptyActionText}>Charger plus de publications</Text>
+            </Pressable>
+          ) : null}
         </View>
         ) : null}
 
         {profileTab === 'playlists' ? (
         <View style={styles.card}>
           <SectionTitle title="Playlists" action={`${profile?.playlists.length || 0}`} />
-          {profile?.playlists.length ? profile.playlists.slice(0, 4).map((playlist) => (
-            <View key={playlist.id} style={styles.playlistRow}>
+          {profile?.playlists.length ? profile.playlists.map((playlist) => (
+            <Pressable key={playlist.id} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.id })} style={styles.playlistRow}>
               <View style={styles.playlistCover}>{playlist.coverUrl ? <Image source={{ uri: playlist.coverUrl }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={20} color="rgba(23,19,19,0.42)" />}</View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.playlistTitle}>{playlist.title}</Text>
                 <Text style={styles.playlistMeta}>{playlist.tracksCount} sons {playlist.isAlbum ? '· Album' : ''}</Text>
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+            </Pressable>
           )) : <Empty text="Aucune playlist pour le moment." />}
         </View>
         ) : null}
@@ -731,6 +793,7 @@ const styles = StyleSheet.create({
   resumeTitle: { marginTop: 3, color: '#171313', fontSize: 13, fontWeight: '900' },
   clipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   clipTile: { width: '31%', aspectRatio: 9 / 16, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.08)' },
+  clipStatus: { position: 'absolute', left: 6, top: 6, overflow: 'hidden', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 4, color: '#FFFFFF', backgroundColor: 'rgba(17,17,17,0.76)', fontSize: 8, fontWeight: '900' },
   clipTileOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 6, backgroundColor: 'rgba(23,19,19,0.55)' },
   clipTileTitle: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
 });

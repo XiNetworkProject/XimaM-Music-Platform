@@ -20,6 +20,7 @@ export function useResponsiveLayout() {
   const isLandscape = width > height;
   const isTablet = shortestSide >= 600 || (width >= 700 && height >= 500);
   const isPhoneLandscape = isLandscape && !isTablet;
+  const isUltraNarrow = safeWidth < 300;
   const isTiny = safeWidth < 330;
   const isNarrow = safeWidth < 360;
   const isCompact = safeWidth < 390;
@@ -44,7 +45,7 @@ export function useResponsiveLayout() {
   const bottomDockClearance = dockHeight + Math.max(insets.bottom, 7) + 16;
   const miniPlayerClearance = bottomDockClearance + 68;
   const touchTarget = compactControls ? 42 : 44;
-  const gridColumns = isTablet ? 3 : (isTiny || hasVeryLargeText ? 1 : 2);
+  const gridColumns = isTablet || (isPhoneLandscape && !hasVeryLargeText) ? 3 : (isTiny || hasVeryLargeText ? 1 : 2);
   const mediaSize = clamp(
     Math.min(availableContentWidth, usableHeight * (isLandscape ? 0.48 : 0.43)),
     isVeryShort ? 132 : 156,
@@ -72,6 +73,7 @@ export function useResponsiveLayout() {
     insets,
     isLandscape,
     isPhoneLandscape,
+    isUltraNarrow,
     isTablet,
     isTiny,
     isNarrow,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import { usePlayer } from '@/player/PlayerProvider';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { PostShareSheet } from '@/components/social/PostShareSheet';
 
 export function PostDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -23,6 +24,7 @@ export function PostDetailScreen() {
   const [post, setPost] = React.useState<HomePost | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [commentsOpen, setCommentsOpen] = React.useState(false);
+  const [shareOpen, setShareOpen] = React.useState(false);
 
   React.useEffect(() => {
     let mounted = true;
@@ -44,7 +46,7 @@ export function PostDetailScreen() {
   return (
     <SynauraBackground variant="warm">
       <ScrollView contentContainerStyle={[styles.content, responsive.pageContent, { paddingTop: 0, paddingBottom: responsive.miniPlayerClearance }]}>
-        <AppHeader flush title="Publication" subtitle={post?.author || 'Communauté Synaura'} onBack={() => navigation.goBack()} action={{ icon: 'share-outline', label: 'Partager', onPress: () => { if (post) void Share.share({ message: `${post.text}\nhttps://xima-m-music-platform.vercel.app/post/${post.id}` }); } }} />
+        <AppHeader flush title="Publication" subtitle={post?.author || 'Communauté Synaura'} onBack={() => navigation.goBack()} action={{ icon: 'share-outline', label: 'Partager', onPress: () => setShareOpen(true) }} />
         {loading ? <ActivityIndicator color="#8B5CF6" style={{ marginTop: 60 }} /> : null}
         {post ? (
           <View style={styles.card}>
@@ -81,6 +83,7 @@ export function PostDetailScreen() {
         ) : !loading ? <EmptyState icon="document-text-outline" title="Publication introuvable" text="Ce contenu a peut-être été retiré." actionLabel="Revenir" onAction={() => navigation.goBack()} /> : null}
       </ScrollView>
       {post ? <CommentsSheet visible={commentsOpen} kind="post" targetId={post.id} title={post.author} onClose={() => setCommentsOpen(false)} onCountChange={(delta) => setPost((current) => current ? { ...current, commentsCount: Math.max(0, current.commentsCount + delta) } : current)} /> : null}
+      <PostShareSheet visible={shareOpen} post={post} onClose={() => setShareOpen(false)} />
     </SynauraBackground>
   );
 }
