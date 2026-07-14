@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { ArrowLeft, Check, ChevronRight, Film, Loader2, Music2, Pause, Play, Search, UploadCloud, UserRound, X } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, Film, Loader2, Music2, Pause, Play, Search, UploadCloud, User, X } from 'lucide-react';
 import { SynauraAppShell } from '@/components/synaura/SynauraShell';
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
 import { enqueueClientClipUpload } from '@/lib/clientClipUploadQueue';
@@ -359,7 +359,7 @@ function NewMusicClipPageContent() {
             <div className="p-4 sm:p-5">
               <div className="grid grid-cols-2 gap-1 rounded-lg bg-[#EEECE7] p-1">
                 <button type="button" onClick={() => { setSourceScope('all'); setSourceQuery(''); }} className={`inline-flex h-10 items-center justify-center gap-2 rounded-md text-xs font-black ${sourceScope === 'all' ? 'bg-[#111111] text-white' : 'text-black/55'}`}><Music2 className="h-4 w-4" />Tous les sons</button>
-                <button type="button" onClick={() => { setSourceScope('mine'); setSourceQuery(''); }} className={`inline-flex h-10 items-center justify-center gap-2 rounded-md text-xs font-black ${sourceScope === 'mine' ? 'bg-[#111111] text-white' : 'text-black/55'}`}><UserRound className="h-4 w-4" />Mes sons</button>
+                <button type="button" onClick={() => { setSourceScope('mine'); setSourceQuery(''); }} className={`inline-flex h-10 items-center justify-center gap-2 rounded-md text-xs font-black ${sourceScope === 'mine' ? 'bg-[#111111] text-white' : 'text-black/55'}`}><User className="h-4 w-4" />Mes sons</button>
               </div>
               <label className="mt-3 flex h-12 items-center gap-2 rounded-lg border border-black/[0.10] bg-white px-3">
                 <Search className="h-4 w-4 text-black/35" />
