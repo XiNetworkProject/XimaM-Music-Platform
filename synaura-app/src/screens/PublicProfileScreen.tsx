@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
@@ -16,6 +16,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { ProfileIdentityHero } from '@/components/profile/ProfileIdentityHero';
 import { ProfileMusicCatalog } from '@/components/profile/ProfileMusicCatalog';
+import { ProfileShareSheet } from '@/components/profile/ProfileShareSheet';
 
 type Tab = 'sons' | 'clips' | 'variations' | 'playlists' | 'posts';
 
@@ -49,6 +50,7 @@ export function PublicProfileScreen() {
   const [variations, setVariations] = useState<UserVariation[]>([]);
   const [variationsLoading, setVariationsLoading] = useState(false);
   const [variationsLoaded, setVariationsLoaded] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const username = route.params?.username;
 
   const load = useCallback(async () => {
@@ -151,10 +153,7 @@ export function PublicProfileScreen() {
     }
   };
 
-  const share = async () => {
-    if (!profile) return;
-    await Share.share({ message: `Découvre ${profile.name} sur Synaura : https://xima-m-music-platform.vercel.app/profile/${profile.username}` });
-  };
+  const share = () => setShareOpen(true);
 
   if (loading) {
     return (
@@ -355,6 +354,7 @@ export function PublicProfileScreen() {
           </View>
         ) : null}
       </ScrollView>
+      <ProfileShareSheet visible={shareOpen} profile={profile} onClose={() => setShareOpen(false)} />
     </SynauraBackground>
   );
 }

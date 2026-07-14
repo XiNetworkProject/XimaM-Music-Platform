@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { canViewAiTrack, canViewTrack } from '@/lib/publicTracks';
 import {
@@ -128,17 +128,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const format = getShareCardFormat(request.nextUrl.searchParams.get('format'));
   const personalText = sanitizeShareCardText(request.nextUrl.searchParams.get('text'), 112);
   const track = await loadTrack(params.id);
+  if (!track) {
+    return NextResponse.json(
+      { error: 'Morceau introuvable ou non public.' },
+      { status: 404, headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
 
-  const resolvedTrack = track || {
-    id: params.id,
-    refId: params.id,
-    type: 'track' as const,
-    title: 'Son indisponible',
-    artist: 'Synaura',
-    coverUrl: null,
-    duration: 0,
-    plays: 0,
-  };
+  const resolvedTrack = track;
   const isBanner = format.id === 'banner';
   const isStory = format.id === 'story';
   const barCount = isBanner ? 56 : isStory ? 42 : 38;
@@ -265,6 +262,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     {
       width: format.width,
       height: format.height,
+      headers: {
+        'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600',
+      },
     },
   );
 }

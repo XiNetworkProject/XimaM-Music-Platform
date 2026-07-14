@@ -54,6 +54,8 @@ export default function SynauraProfile() {
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const [showBoosterModal, setShowBoosterModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [profileShareBusy, setProfileShareBusy] = useState(false);
+  const [profileShareError, setProfileShareError] = useState('');
   const [showEditTrackModal, setShowEditTrackModal] = useState(false);
   const [editingTrack, setEditingTrack] = useState<any>(null);
   const [trackEditData, setTrackEditData] = useState<any>({});
@@ -255,29 +257,58 @@ export default function SynauraProfile() {
       notify.error('Erreur', 'Copie impossible');
     }
   }, [getProfileUrl]);
-  const handleShareProfile = useCallback(async () => {
-    const url = getProfileUrl();
-    if (typeof navigator !== 'undefined' && (navigator as any).share) {
-      try {
-        await (navigator as any).share({
-          title: `${profile?.name || profile?.username || 'Profil'} sur Synaura`,
-          text: `Regarde le profil de ${profile?.name || profile?.username || 'ce createur'} sur Synaura`,
-          url,
-        });
-        if (profile?.id) {
-          fetch('/api/recommendations/impressions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contentType: 'post', contentId: profile.id, source: 'artist-profile', eventType: 'profile_share' }),
-            keepalive: true,
-          }).catch(() => {});
-        }
-        return;
-      } catch {}
-    }
-
+  const handleShareProfile = useCallback(() => {
+    setProfileShareError('');
     setShowShareModal(true);
-  }, [getProfileUrl, profile?.name, profile?.username]);
+  }, []);
+
+  const shareProfileCard = useCallback(async () => {
+    if (!usernameStr || profileShareBusy) return;
+    setProfileShareBusy(true);
+    setProfileShareError('');
+    try {
+      const imageUrl = `/profile/${encodeURIComponent(usernameStr)}/opengraph-image?v=${Date.now()}`;
+      const response = await fetch(imageUrl, { cache: 'no-store' });
+      const contentType = response.headers.get('content-type') || '';
+      if (!response.ok || !contentType.startsWith('image/')) throw new Error('La carte de profil est indisponible.');
+      const blob = await response.blob();
+      if (blob.size < 1024) throw new Error('La carte de profil est vide.');
+
+      const file = new File([blob], `synaura-${usernameStr}-profil.png`, { type: 'image/png' });
+      const url = getProfileUrl();
+      const title = `${profile?.name || profile?.username || 'Profil'} sur Synaura`;
+      const text = `Découvre ${profile?.name || profile?.username || 'ce créateur'} sur Synaura`;
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title, text, files: [file] });
+      } else if (navigator.share) {
+        await navigator.share({ title, text, url });
+      } else {
+        const localUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = localUrl;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(localUrl);
+      }
+
+      if (profile?.id) {
+        fetch('/api/recommendations/impressions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contentType: 'post', contentId: profile.id, source: 'artist-profile', eventType: 'profile_share' }),
+          keepalive: true,
+        }).catch(() => {});
+      }
+    } catch (shareError) {
+      if ((shareError as Error)?.name !== 'AbortError') {
+        setProfileShareError(shareError instanceof Error ? shareError.message : 'Le partage a échoué.');
+      }
+    } finally {
+      setProfileShareBusy(false);
+    }
+  }, [getProfileUrl, profile?.id, profile?.name, profile?.username, profileShareBusy, usernameStr]);
   const memberSince = useMemo(() => { const raw = profile?.createdAt || profile?.created_at; if (!raw) return null; const d = new Date(raw); return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }); }, [profile]);
   const socialLinks = useMemo(() => {
     const links = profile?.preferences?.socialLinks || {};
@@ -1233,13 +1264,26 @@ export default function SynauraProfile() {
             <Avatar src={profile?.avatar} name={profile?.name} username={usernameStr || ''} size="md" />
             <div>
               <h2 className="text-base font-bold text-white">Partager le profil</h2>
-              <p className="text-xs text-white/55">Fais circuler le profil de {profile?.name || profile?.username} proprement.</p>
+              <p className="text-xs text-white/55">Une carte artiste prête pour les réseaux.</p>
             </div>
+          </div>
+          <div className="overflow-hidden rounded-xl border border-white/[0.1] bg-[#111111]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/profile/${encodeURIComponent(usernameStr || '')}/opengraph-image`}
+              alt={`Carte de partage de ${profile?.name || profile?.username || 'ce profil'}`}
+              className="aspect-[1200/630] w-full object-cover"
+            />
           </div>
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-3">
             <div className="text-[11px] font-black uppercase tracking-[0.16em] text-white/42">Lien du profil</div>
             <div className="mt-2 break-all text-sm font-semibold text-white/82">{typeof window !== 'undefined' ? getProfileUrl() : ''}</div>
           </div>
+          {profileShareError ? (
+            <div className="rounded-xl border border-[#D96D63]/30 bg-[#D96D63]/10 px-3 py-2 text-xs font-bold text-[#F2A69F]">
+              {profileShareError}
+            </div>
+          ) : null}
           <UModalFooter>
             <UButton variant="secondary" fullWidth onClick={() => { void copyProfileLink(); }}>
               <Globe size={13} /> Copier le lien
@@ -1247,25 +1291,10 @@ export default function SynauraProfile() {
             <UButton
               variant="primary"
               fullWidth
-              onClick={async () => {
-                const url = getProfileUrl();
-                try {
-                  if (typeof navigator !== 'undefined' && (navigator as any).share) {
-                    await (navigator as any).share({
-                      title: `${profile?.name || profile?.username || 'Profil'} sur Synaura`,
-                      text: `Regarde le profil de ${profile?.name || profile?.username || 'ce createur'} sur Synaura`,
-                      url,
-                    });
-                    setShowShareModal(false);
-                    return;
-                  }
-                } catch {}
-
-                await copyProfileLink();
-                setShowShareModal(false);
-              }}
+              disabled={profileShareBusy}
+              onClick={() => { void shareProfileCard(); }}
             >
-              <Share2 size={13} /> Partager
+              {profileShareBusy ? <Loader2 size={13} className="animate-spin" /> : <Share2 size={13} />} {profileShareBusy ? 'Préparation...' : 'Partager la carte'}
             </UButton>
           </UModalFooter>
         </UModalBody>

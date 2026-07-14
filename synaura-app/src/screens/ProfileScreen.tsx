@@ -1,11 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Image,
   Pressable,
   RefreshControl,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -33,6 +31,9 @@ import { MotionPressable } from '@/components/motion/Motion';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { ProfileIdentityHero, ProfileIdentityHeroSkeleton } from '@/components/profile/ProfileIdentityHero';
 import { ProfileMusicCatalog } from '@/components/profile/ProfileMusicCatalog';
+import { ProfileShareSheet } from '@/components/profile/ProfileShareSheet';
+import { ProfileTrackActionsSheet } from '@/components/profile/ProfileTrackActionsSheet';
+import { ShareSheet } from '@/components/swipe/ShareSheet';
 
 type ProfileTab = 'sons' | 'clips' | 'variations' | 'playlists' | 'posts';
 
@@ -62,6 +63,12 @@ export function ProfileScreen() {
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
   const [loading, setLoading] = useState(false);
   const [editingTrack, setEditingTrack] = useState<MobileProfileTrack | null>(null);
+  const [managedTrack, setManagedTrack] = useState<MobileProfileTrack | null>(null);
+  const [shareTrackTarget, setShareTrackTarget] = useState<MobileProfileTrack | null>(null);
+  const [shareProfileOpen, setShareProfileOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [trackDeleting, setTrackDeleting] = useState(false);
+  const [trackDeleteError, setTrackDeleteError] = useState<string | null>(null);
   const [trackForm, setTrackForm] = useState<TrackEditForm>({ title: '', description: '', genreText: '', tagsText: '', isPublic: true, remixPermissions: DEFAULT_REMIX_PERMISSIONS });
   const [trackSaving, setTrackSaving] = useState(false);
   const [posts, setPosts] = useState<HomePost[]>([]);
@@ -194,12 +201,8 @@ export function ProfileScreen() {
     setVariationsLoaded(false);
   };
 
-  const shareProfile = async () => {
-    if (!profile) return;
-    await Share.share({
-      title: `${profile.name} sur Synaura`,
-      message: `Découvre ${profile.name} sur Synaura : https://xima-m-music-platform.vercel.app/profile/${profile.username}`,
-    });
+  const shareProfile = () => {
+    if (profile) setShareProfileOpen(true);
   };
 
   const openTrackEdit = (track: MobileProfileTrack) => {
@@ -241,26 +244,38 @@ export function ProfileScreen() {
     }
   };
 
-  const confirmDeleteTrack = (track: MobileProfileTrack) => {
-    Alert.alert('Supprimer ce son ?', track.title, [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Supprimer',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteTrack(track._id);
-          setProfile((current) => current ? { ...current, tracks: current.tracks.filter((item) => item._id !== track._id), tracksCount: Math.max(0, current.tracksCount - 1) } : current);
-        },
-      },
-    ]);
+  const openTrackMenu = (track: MobileProfileTrack) => {
+    setTrackDeleteError(null);
+    setDeleteConfirmOpen(false);
+    setManagedTrack(track);
   };
 
-  const openTrackMenu = (track: MobileProfileTrack) => {
-    Alert.alert(track.title, 'Gérer ce morceau', [
-      { text: 'Modifier', onPress: () => openTrackEdit(track) },
-      { text: 'Supprimer', style: 'destructive', onPress: () => confirmDeleteTrack(track) },
-      { text: 'Annuler', style: 'cancel' },
-    ]);
+  const requestTrackDelete = (track: MobileProfileTrack) => {
+    setEditingTrack(null);
+    setTrackDeleteError(null);
+    setManagedTrack(track);
+    setDeleteConfirmOpen(true);
+  };
+
+  const deleteManagedTrack = async () => {
+    if (!managedTrack || trackDeleting) return;
+    const track = managedTrack;
+    setTrackDeleting(true);
+    setTrackDeleteError(null);
+    try {
+      await deleteTrack(track._id);
+      setProfile((current) => current ? {
+        ...current,
+        tracks: current.tracks.filter((item) => item._id !== track._id),
+        tracksCount: Math.max(0, current.tracksCount - 1),
+      } : current);
+      setManagedTrack(null);
+      setDeleteConfirmOpen(false);
+    } catch (deleteError) {
+      setTrackDeleteError(deleteError instanceof Error ? deleteError.message : 'La suppression a échoué.');
+    } finally {
+      setTrackDeleting(false);
+    }
   };
 
   const togglePinnedPost = async (postId: string) => {
@@ -559,8 +574,47 @@ export function ProfileScreen() {
         onChange={(patch) => setTrackForm((current) => ({ ...current, ...patch }))}
         onClose={() => setEditingTrack(null)}
         onSave={saveTrackEdit}
-        onDelete={() => editingTrack && confirmDeleteTrack(editingTrack)}
+        onDelete={() => editingTrack && requestTrackDelete(editingTrack)}
       />
+      <ProfileTrackActionsSheet
+        track={managedTrack}
+        playing={Boolean(managedTrack && player.current?._id === managedTrack._id && player.isPlaying)}
+        confirmDelete={deleteConfirmOpen}
+        deleting={trackDeleting}
+        error={trackDeleteError}
+        onClose={() => {
+          setManagedTrack(null);
+          setDeleteConfirmOpen(false);
+          setTrackDeleteError(null);
+        }}
+        onPlay={(track) => {
+          if (player.current?._id === track._id) void player.togglePlayPause();
+          else void player.playTrack(track);
+        }}
+        onOpen={(track) => {
+          setManagedTrack(null);
+          navigation.navigate('TrackDetail', { trackId: track._id, track });
+        }}
+        onEdit={(track) => {
+          setManagedTrack(null);
+          requestAnimationFrame(() => openTrackEdit(track));
+        }}
+        onShare={(track) => {
+          setManagedTrack(null);
+          requestAnimationFrame(() => setShareTrackTarget(track));
+        }}
+        onRequestDelete={() => {
+          setTrackDeleteError(null);
+          setDeleteConfirmOpen(true);
+        }}
+        onCancelDelete={() => {
+          setTrackDeleteError(null);
+          setDeleteConfirmOpen(false);
+        }}
+        onConfirmDelete={() => void deleteManagedTrack()}
+      />
+      <ShareSheet visible={Boolean(shareTrackTarget)} track={shareTrackTarget} onClose={() => setShareTrackTarget(null)} />
+      <ProfileShareSheet visible={shareProfileOpen} profile={profile} onClose={() => setShareProfileOpen(false)} />
       <PendingApprovalsModal
         visible={showPendingModal}
         onClose={() => setShowPendingModal(false)}

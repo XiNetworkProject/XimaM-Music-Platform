@@ -14,26 +14,26 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { buildShareCardImageUrl, buildShareUrls, SHARE_CARD_FORMATS, shareTrackToFeed, type ShareCardFormatId } from '@/api/client';
-import type { Track } from '@/api/types';
+import type { HomePost, Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { cacheRemoteShareImage, shareCachedImage } from '@/sharing/shareAsset';
 
 type Props = {
   visible: boolean;
   track: Track | null;
   onClose: () => void;
   onShared?: (trackId: string, source: string) => void;
+  onPostCreated?: (post: HomePost) => void;
 };
 
 const QUICK_CAPTIONS = ['Coup de cœur', 'À mettre en boucle', "Besoin d'avis"];
 
-export function ShareSheet({ visible, track, onClose, onShared }: Props) {
+export function ShareSheet({ visible, track, onClose, onShared, onPostCreated }: Props) {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
@@ -41,9 +41,14 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
   const { user } = useAuth();
   const [caption, setCaption] = useState('');
   const [cardText, setCardText] = useState('');
+  const [debouncedCardText, setDebouncedCardText] = useState('');
   const [cardFormat, setCardFormat] = useState<ShareCardFormatId>('square');
   const [publishing, setPublishing] = useState(false);
   const [imageDownloading, setImageDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [cardStatus, setCardStatus] = useState<'loading' | 'ready' | 'error' | 'unavailable'>('loading');
+  const [previewRevision, setPreviewRevision] = useState(0);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const slide = useRef(new Animated.Value(0)).current;
 
@@ -51,18 +56,48 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
   const isRadio = trackId.startsWith('radio-');
   const isAi = trackId.startsWith('ai-');
   const canInternal = !!trackId && !isRadio && !isAi;
+  const isPrivate = Boolean((track as (Track & { isPublic?: boolean }) | null)?.isPublic === false);
+  const canGenerateCard = Boolean(trackId && !isRadio && !isPrivate);
 
   const { trackUrl, shareText } = useMemo(() => buildShareUrls(track), [track]);
   const selectedCardFormat = useMemo(
     () => SHARE_CARD_FORMATS.find((item) => item.id === cardFormat) || SHARE_CARD_FORMATS[1],
     [cardFormat],
   );
-  const cardImageUrl = useMemo(() => buildShareCardImageUrl(track, cardFormat, cardText), [cardFormat, cardText, track]);
+  const cardImageUrl = useMemo(
+    () => canGenerateCard ? buildShareCardImageUrl(track, cardFormat, debouncedCardText) : '',
+    [canGenerateCard, cardFormat, debouncedCardText, track],
+  );
+  const cardRequestUrl = useMemo(() => {
+    if (!cardImageUrl) return '';
+    return `${cardImageUrl}${cardImageUrl.includes('?') ? '&' : '?'}preview=${previewRevision}`;
+  }, [cardImageUrl, previewRevision]);
   const cardShareText = useMemo(() => [cardText.trim(), shareText].filter(Boolean).join('\n\n'), [cardText, shareText]);
 
   useEffect(() => {
     Animated.timing(slide, { toValue: visible ? 1 : 0, duration: 220, useNativeDriver: true }).start();
   }, [slide, visible]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedCardText(cardText), 320);
+    return () => clearTimeout(timeout);
+  }, [cardText]);
+
+  useEffect(() => {
+    if (!visible) return;
+    setCardStatus(canGenerateCard ? 'loading' : 'unavailable');
+    setActionError(null);
+    setDownloadProgress(0);
+  }, [canGenerateCard, cardImageUrl, visible]);
+
+  useEffect(() => {
+    if (visible) return;
+    setCaption('');
+    setCardText('');
+    setDebouncedCardText('');
+    setActionError(null);
+    setDownloadProgress(0);
+  }, [visible]);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -82,43 +117,40 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
 
   const nativeShare = useCallback(async () => {
     if (!shareText) return;
+    setActionError(null);
     try {
       const result = await Share.share({ message: cardShareText || shareText, url: trackUrl, title: track?.title || 'Synaura' });
       if (result.action === Share.sharedAction) {
         onShared?.(trackId, 'mobile-share-native');
         onClose();
       }
-    } catch {
-      // ignore
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Le partage du lien a echoue.');
     }
   }, [cardShareText, onClose, onShared, shareText, track?.title, trackId, trackUrl]);
 
   const downloadShareCard = useCallback(async () => {
-    if (!cardImageUrl || !trackId) return;
+    if (!cardRequestUrl || !trackId || !canGenerateCard) return;
     setImageDownloading(true);
+    setDownloadProgress(0);
+    setActionError(null);
     try {
       const safeId = trackId.replace(/[^a-z0-9_-]/gi, '-');
-      const localUri = `${FileSystem.cacheDirectory}synaura-share-${safeId}-${cardFormat}.png`;
-      await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => undefined);
-      const result = await FileSystem.downloadAsync(cardImageUrl, localUri);
-      if (!result?.uri) throw new Error('Image introuvable');
-      showToast('Carte prete a partager');
+      const cached = await cacheRemoteShareImage(
+        cardRequestUrl,
+        `partage-${safeId}-${cardFormat}`,
+        ({ ratio }) => setDownloadProgress(ratio),
+      );
+      await shareCachedImage(cached.uri, `Partager ${track?.title || 'ce son'} avec Synaura`);
+      showToast('Carte prete');
       onShared?.(trackId, 'mobile-share-card-image');
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(result.uri, {
-          mimeType: 'image/png',
-          dialogTitle: `Partager ${track?.title || 'ce son'} avec Synaura`,
-          UTI: 'public.png',
-        });
-      } else {
-        await Share.share({ url: result.uri, message: cardShareText || shareText, title: track?.title || 'Synaura' });
-      }
-    } catch {
-      showToast('Image impossible a telecharger');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'La carte ne peut pas etre partagee.');
+      showToast('Carte indisponible');
     } finally {
       setImageDownloading(false);
     }
-  }, [cardFormat, cardImageUrl, cardShareText, onShared, shareText, showToast, track?.title, trackId]);
+  }, [canGenerateCard, cardFormat, cardRequestUrl, onShared, showToast, track?.title, trackId]);
 
   const publishInternal = useCallback(async () => {
     if (!canInternal || !user) return;
@@ -126,6 +158,7 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
     try {
       const post = await shareTrackToFeed(trackId, caption);
       if (post) {
+        onPostCreated?.(post);
         onShared?.(trackId, 'mobile-share-internal-post');
         showToast('Son publié dans le feed');
         setCaption('');
@@ -138,7 +171,7 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
     } finally {
       setPublishing(false);
     }
-  }, [canInternal, caption, onClose, onShared, showToast, trackId, user]);
+  }, [canInternal, caption, onClose, onPostCreated, onShared, showToast, trackId, user]);
 
   const askCommunity = useCallback(() => {
     if (!track || !canInternal) return;
@@ -198,11 +231,38 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
                 },
               ]}
             >
-              {cardImageUrl ? (
-                <Image source={{ uri: cardImageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+              {cardRequestUrl ? (
+                <Image
+                  key={cardRequestUrl}
+                  source={{ uri: cardRequestUrl }}
+                  style={StyleSheet.absoluteFillObject}
+                  resizeMode="cover"
+                  onLoadStart={() => setCardStatus('loading')}
+                  onLoad={() => setCardStatus('ready')}
+                  onError={() => setCardStatus('error')}
+                />
               ) : (
-                <View style={styles.cardPreviewFallback}><Ionicons name="musical-notes" size={28} color="rgba(255,250,242,0.44)" /></View>
+                <View style={styles.cardPreviewFallback}>
+                  <Ionicons name={isPrivate ? 'lock-closed-outline' : 'musical-notes'} size={28} color="rgba(255,250,242,0.44)" />
+                  <Text style={styles.cardPreviewMessage}>{isPrivate ? 'Un brouillon ne peut pas etre partage.' : 'Carte indisponible pour ce flux.'}</Text>
+                </View>
               )}
+              {cardStatus === 'loading' ? (
+                <View style={styles.cardPreviewState}>
+                  <ActivityIndicator color="#F7F6F3" />
+                  <Text style={styles.cardPreviewStateText}>Creation de la carte...</Text>
+                </View>
+              ) : null}
+              {cardStatus === 'error' ? (
+                <View style={styles.cardPreviewState}>
+                  <Ionicons name="cloud-offline-outline" size={24} color="#F7F6F3" />
+                  <Text style={styles.cardPreviewStateText}>Apercu impossible</Text>
+                  <Pressable accessibilityLabel="Reessayer de charger la carte" onPress={() => setPreviewRevision((value) => value + 1)} style={styles.previewRetry}>
+                    <Ionicons name="refresh" size={14} color="#111111" />
+                    <Text style={styles.previewRetryText}>Reessayer</Text>
+                  </Pressable>
+                </View>
+              ) : null}
             </View>
             <View style={styles.formatRow}>
               {SHARE_CARD_FORMATS.map((item) => {
@@ -224,15 +284,23 @@ export function ShareSheet({ visible, track, onClose, onShared }: Props) {
               style={styles.cardTextInput}
             />
             <View style={styles.cardActionRow}>
-              <Pressable accessibilityLabel="Telecharger l'image de partage" disabled={imageDownloading || !cardImageUrl} onPress={() => void downloadShareCard()} style={[styles.cardAction, (imageDownloading || !cardImageUrl) && styles.cardActionDisabled]}>
-                {imageDownloading ? <ActivityIndicator color="#171313" /> : <Ionicons name="download-outline" size={16} color="#171313" />}
-                <Text style={styles.cardActionText}>Partager l'image</Text>
+              <Pressable accessibilityLabel="Partager la carte image" disabled={imageDownloading || !cardRequestUrl} onPress={() => void downloadShareCard()} style={[styles.cardAction, (imageDownloading || !cardRequestUrl) && styles.cardActionDisabled]}>
+                {imageDownloading ? <ActivityIndicator color="#171313" /> : <Ionicons name="share-social-outline" size={16} color="#171313" />}
+                <Text style={styles.cardActionText}>{imageDownloading ? `Preparation ${Math.round(downloadProgress * 100)}%` : 'Partager la carte'}</Text>
               </Pressable>
-              <Pressable accessibilityLabel="Copier le lien de la carte" onPress={() => void copyValue(cardImageUrl, 'Image')} style={styles.cardGhostAction}>
-                <Ionicons name="copy-outline" size={15} color="#FFFAF2" />
-                <Text style={styles.cardGhostActionText}>Copier le lien image</Text>
+              <Pressable accessibilityLabel="Copier le lien du morceau" onPress={() => void copyValue(trackUrl, 'Lien')} style={styles.cardGhostAction}>
+                <Ionicons name="link-outline" size={15} color="#FFFAF2" />
+                <Text style={styles.cardGhostActionText}>Copier le lien</Text>
               </Pressable>
             </View>
+            {imageDownloading ? <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.max(8, downloadProgress * 100)}%` as `${number}%` }]} /></View> : null}
+            {actionError ? (
+              <View style={styles.shareError}>
+                <Ionicons name="alert-circle-outline" size={16} color="#F2A69F" />
+                <Text style={styles.shareErrorText}>{actionError}</Text>
+                <Pressable accessibilityLabel="Partager le lien a la place" onPress={() => void nativeShare()}><Text style={styles.shareErrorLink}>Partager le lien</Text></Pressable>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.section}>
@@ -401,7 +469,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,250,242,0.14)',
     backgroundColor: 'rgba(255,250,242,0.06)',
   },
-  cardPreviewFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  cardPreviewFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 9, padding: 20 },
+  cardPreviewMessage: { maxWidth: 230, color: 'rgba(255,250,242,0.58)', textAlign: 'center', fontSize: 11, lineHeight: 16, fontWeight: '800' },
+  cardPreviewState: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 9, padding: 20, backgroundColor: 'rgba(17,17,17,0.78)' },
+  cardPreviewStateText: { color: '#F7F6F3', textAlign: 'center', fontSize: 11, fontWeight: '900' },
+  previewRetry: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 14, backgroundColor: '#F7F6F3' },
+  previewRetryText: { color: '#111111', fontSize: 10, fontWeight: '900' },
   formatRow: { flexDirection: 'row', gap: 8 },
   formatChip: {
     flex: 1,
@@ -457,6 +530,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,250,242,0.06)',
   },
   cardGhostActionText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900' },
+  progressTrack: { height: 4, overflow: 'hidden', borderRadius: 2, backgroundColor: 'rgba(247,246,243,0.14)' },
+  progressFill: { height: '100%', borderRadius: 2, backgroundColor: '#4A9EAA' },
+  shareError: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 12, padding: 10, backgroundColor: 'rgba(217,109,99,0.14)', borderWidth: 1, borderColor: 'rgba(217,109,99,0.24)' },
+  shareErrorText: { flex: 1, color: 'rgba(247,246,243,0.74)', fontSize: 10, lineHeight: 14, fontWeight: '700' },
+  shareErrorLink: { color: '#F7F6F3', fontSize: 10, fontWeight: '900', textDecorationLine: 'underline' },
   section: {
     padding: 14,
     borderRadius: 18,

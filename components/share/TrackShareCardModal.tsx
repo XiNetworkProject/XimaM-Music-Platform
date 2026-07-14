@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Check, Copy, Download, Image as ImageIcon, Share2, X } from 'lucide-react';
+import { Check, Copy, Download, Image as ImageIcon, Loader2, Share2, X } from 'lucide-react';
 import {
   SHARE_CARD_FORMATS,
   type ShareCardFormatId,
@@ -31,6 +31,8 @@ export default function TrackShareCardModal({ visible, track, trackUrl, onClose 
   const [format, setFormat] = useState<ShareCardFormatId>('square');
   const [personalText, setPersonalText] = useState('');
   const [status, setStatus] = useState<ActionStatus>('idle');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   const imagePath = useMemo(() => {
     if (!track?.id) return '';
@@ -49,6 +51,17 @@ export default function TrackShareCardModal({ visible, track, trackUrl, onClose 
     window.setTimeout(() => setStatus('idle'), 1800);
   };
 
+  const loadCardBlob = async () => {
+    const response = await fetch(imagePath, { cache: 'no-store' });
+    const contentType = response.headers.get('content-type') || '';
+    if (!response.ok || !contentType.startsWith('image/')) {
+      throw new Error('La carte ne peut pas être générée pour ce morceau.');
+    }
+    const blob = await response.blob();
+    if (blob.size < 1024) throw new Error('La carte générée est vide.');
+    return blob;
+  };
+
   const shareText = [
     personalText.trim(),
     `Ecoute ${track.title} de ${track.artist} sur Synaura`,
@@ -63,9 +76,10 @@ export default function TrackShareCardModal({ visible, track, trackUrl, onClose 
   };
 
   const downloadImage = async () => {
+    setBusy(true);
+    setError('');
     try {
-      const response = await fetch(imagePath, { cache: 'no-store' });
-      const blob = await response.blob();
+      const blob = await loadCardBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -75,13 +89,18 @@ export default function TrackShareCardModal({ visible, track, trackUrl, onClose 
       link.remove();
       URL.revokeObjectURL(url);
       showStatus('downloaded');
-    } catch {}
+    } catch (downloadError) {
+      setError(downloadError instanceof Error ? downloadError.message : 'Le téléchargement a échoué.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const nativeShare = async () => {
+    setBusy(true);
+    setError('');
     try {
-      const response = await fetch(imagePath, { cache: 'no-store' });
-      const blob = await response.blob();
+      const blob = await loadCardBlob();
       const file = new File([blob], shareCardFilename(track.title, format), { type: 'image/png' });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ title: track.title, text: shareText, files: [file] });
@@ -91,7 +110,13 @@ export default function TrackShareCardModal({ visible, track, trackUrl, onClose 
         await navigator.clipboard.writeText(trackUrl);
       }
       showStatus('shared');
-    } catch {}
+    } catch (shareError) {
+      if ((shareError as Error)?.name !== 'AbortError') {
+        setError(shareError instanceof Error ? shareError.message : 'Le partage a échoué.');
+      }
+    } finally {
+      setBusy(false);
+    }
   };
 
   const currentFormat = SHARE_CARD_FORMATS.find((item) => item.id === format) || SHARE_CARD_FORMATS[1];
@@ -176,16 +201,16 @@ export default function TrackShareCardModal({ visible, track, trackUrl, onClose 
 
           <div className="border-t border-black/[0.08] p-5">
             <div className="grid gap-2">
-              <button type="button" onClick={nativeShare} className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#111111] px-5 text-sm font-black text-[#F7F6F3] transition hover:scale-[1.01]">
-                <Share2 className="h-4 w-4" />
-                Partager la carte
+              <button type="button" disabled={busy} onClick={nativeShare} className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#111111] px-5 text-sm font-black text-[#F7F6F3] transition hover:scale-[1.01] disabled:cursor-wait disabled:opacity-55">
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+                {busy ? 'Préparation...' : 'Partager la carte'}
               </button>
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={copyLink} className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-black/[0.06] px-4 text-xs font-black text-black/62 transition hover:bg-black/[0.1]">
                   {status === 'copied' ? <Check className="h-4 w-4 text-[#4A9EAA]" /> : <Copy className="h-4 w-4" />}
                   Copier le lien
                 </button>
-                <button type="button" onClick={downloadImage} className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-black/[0.06] px-4 text-xs font-black text-black/62 transition hover:bg-black/[0.1]">
+                <button type="button" disabled={busy} onClick={downloadImage} className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-black/[0.06] px-4 text-xs font-black text-black/62 transition hover:bg-black/[0.1] disabled:cursor-wait disabled:opacity-55">
                   {status === 'downloaded' ? <Check className="h-4 w-4 text-[#4A9EAA]" /> : <Download className="h-4 w-4" />}
                   Telecharger
                 </button>
@@ -196,6 +221,7 @@ export default function TrackShareCardModal({ visible, track, trackUrl, onClose 
                 {status === 'copied' ? 'Lien copie' : status === 'downloaded' ? 'Image prete' : 'Partage lance'}
               </p>
             ) : null}
+            {error ? <p className="mt-3 rounded-xl border border-[#D96D63]/25 bg-[#D96D63]/10 px-3 py-2 text-center text-xs font-bold text-[#B84D45]">{error}</p> : null}
           </div>
         </div>
       </div>

@@ -57,6 +57,7 @@ import { SHOW_SHUTDOWN_NOTICES } from '@/config/features';
 import { MobileHeader, MOBILE_HEADER_EXPANDED_HEIGHT } from '@/components/mobile/MobileHeader';
 import { MobileActionCard } from '@/components/mobile/MobileActionCard';
 import { MobileWaveform } from '@/components/mobile/MobileWaveform';
+import { ShareSheet } from '@/components/swipe/ShareSheet';
 
 const filters = ['Pour toi', 'Sons', 'Communaute', 'Plus'] as const;
 const quickActions = [
@@ -160,12 +161,6 @@ function matchesFilter(item: FeedItem, filter: HomeFilter) {
   if (filter === 'Sons') return item.kind === 'track' || item.kind === 'rail';
   if (filter === 'Communaute') return item.kind === 'composer' || item.kind === 'post' || item.kind === 'creator' || item.kind === 'city';
   return item.kind === 'playlist' || item.kind === 'library' || item.kind === 'studio' || item.kind === 'booster' || item.kind === 'city';
-}
-
-function shareTrack(track: Track) {
-  Share.share({
-    message: `Ecoute ${track.title} par ${artistName(track)} sur Synaura`,
-  }).catch(() => {});
 }
 
 export function HomeScreen() {
@@ -510,7 +505,8 @@ export function HomeScreen() {
           setCommentsHasMore(false);
         }}
       />
-      <TrackShareSheet
+      <ShareSheet
+        visible={Boolean(shareTarget)}
         track={shareTarget}
         onClose={() => setShareTarget(null)}
         onPostCreated={(post) => {
@@ -752,104 +748,6 @@ function FilterBar({ value, onChange }: { value: HomeFilter; onChange: (value: H
         </Pressable>
       ))}
     </View>
-  );
-}
-
-function TrackShareSheet({
-  track,
-  onClose,
-  onPostCreated,
-}: {
-  track: Track | null;
-  onClose: () => void;
-  onPostCreated: (post: HomePost) => void;
-}) {
-  const auth = useAuth();
-  const [caption, setCaption] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const quickCaptions = ['Coup de coeur', 'A mettre en boucle', 'Besoin d avis', 'Pour vos playlists'];
-
-  useEffect(() => {
-    if (!track) {
-      setCaption('');
-      setError(null);
-    }
-  }, [track]);
-
-  const publish = async () => {
-    if (!track || submitting) return;
-    if (!auth.requireAuth()) {
-      setError('Connecte-toi pour partager ce son dans le feed.');
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const post = await createPost({ content: caption.trim(), trackId: track._id, type: 'track_share' });
-      onPostCreated(post);
-      onClose();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Partage impossible');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Modal visible={Boolean(track)} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBackdrop}>
-        <Pressable style={styles.modalShade} onPress={onClose} />
-        <View style={styles.commentSheet}>
-          <View style={styles.sheetHandle} />
-          <View style={styles.sheetHeader}>
-            <View style={styles.shareHeading}>
-              <Text style={styles.sheetKicker}>Partager sans quitter le fil</Text>
-              <Text numberOfLines={1} style={styles.sheetTitle}>{track?.title || 'Son Synaura'}</Text>
-            </View>
-            <Pressable onPress={onClose} style={styles.sheetClose}>
-              <Ionicons name="close" size={18} color={warm.ink} />
-            </Pressable>
-          </View>
-          {track ? (
-            <View style={styles.shareTrackPreview}>
-              <TrackCover track={track} active style={styles.shareTrackCover} />
-              <View style={styles.shareTrackMeta}>
-                <Text numberOfLines={1} style={styles.postTrackTitle}>{track.title}</Text>
-                <Text numberOfLines={1} style={styles.postTrackArtist}>{artistName(track)}</Text>
-              </View>
-              <Ionicons name="musical-notes" size={20} color={warm.inkSoft} />
-            </View>
-          ) : null}
-          <TextInput
-            value={caption}
-            onChangeText={setCaption}
-            placeholder="Ajoute quelques mots..."
-            placeholderTextColor="rgba(23,19,19,0.34)"
-            multiline
-            style={styles.shareCaption}
-          />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shareChips}>
-            {quickCaptions.map((item) => (
-              <Pressable key={item} onPress={() => setCaption(item)} style={styles.composerChip}>
-                <Text style={styles.composerChipText}>{item}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <View style={styles.shareActions}>
-            <Pressable onPress={publish} disabled={submitting} style={[styles.sharePrimary, submitting && styles.commentSendDisabled]}>
-              {submitting ? <ActivityIndicator color={warm.paper} /> : <Ionicons name="repeat" size={17} color={warm.paper} />}
-              <Text style={styles.sharePrimaryText}>Partager dans le feed</Text>
-            </Pressable>
-            <Pressable onPress={() => track && shareTrack(track)} style={styles.shareSecondary}>
-              <Ionicons name="share-social-outline" size={17} color={warm.inkSoft} />
-              <Text style={styles.shareSecondaryText}>Autres apps</Text>
-            </Pressable>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
   );
 }
 
