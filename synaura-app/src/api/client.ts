@@ -860,6 +860,11 @@ export async function getNotifications(category = 'all'): Promise<NotificationCe
   };
 }
 
+export async function getNotificationUnreadCount(): Promise<number> {
+  const json = await request<any>('/api/notifications?countOnly=true');
+  return Math.max(0, Number(json?.unread || 0));
+}
+
 export async function markNotificationRead(notificationId: number) {
   await request('/api/notifications', {
     method: 'PATCH',
@@ -887,10 +892,14 @@ export async function registerNativePushToken(input: {
   deviceName?: string | null;
   appVersion?: string | null;
 }) {
-  await request('/api/notifications/push/native', {
+  return request<{ ok: boolean; registered: boolean; database: string; transport: string }>('/api/notifications/push/native', {
     method: 'POST',
     body: JSON.stringify(input),
   });
+}
+
+export async function getNativePushRegistration() {
+  return request<{ registered: boolean; devices: number; database: string; transport: string }>('/api/notifications/push/native');
 }
 
 export async function unregisterNativePushToken(token: string) {
@@ -901,7 +910,7 @@ export async function unregisterNativePushToken(token: string) {
 }
 
 export async function sendNativePushTest() {
-  await request('/api/notifications/push/native', { method: 'PATCH' });
+  return request<{ ok: boolean; database: string; transport: string; pushRequested: boolean }>('/api/notifications/push/native', { method: 'PATCH' });
 }
 
 function normalizeCommunityAuthor(raw: any) {

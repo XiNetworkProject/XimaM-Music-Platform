@@ -113,16 +113,26 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   endpoint TEXT NOT NULL,
   p256dh TEXT NOT NULL,
   auth TEXT NOT NULL,
+  platform TEXT,
+  device_name TEXT,
+  app_version TEXT,
+  last_seen_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  last_error TEXT,
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, endpoint)
 );
 
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'push_subscriptions' AND policyname = 'Service role full access push') THEN
-    CREATE POLICY "Service role full access push" ON push_subscriptions FOR ALL USING (auth.role() = 'service_role');
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "push_subs_public_insert" ON push_subscriptions;
+DROP POLICY IF EXISTS "push_subs_service_all" ON push_subscriptions;
+DROP POLICY IF EXISTS "Service role full access push" ON push_subscriptions;
+CREATE POLICY "Service role full access push" ON push_subscriptions
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "push_subs_own_read" ON push_subscriptions;
+CREATE POLICY "push_subs_own_read" ON push_subscriptions
+  FOR SELECT TO authenticated USING ((SELECT auth.uid()) = user_id);
 
 CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_kind ON push_subscriptions(user_id, p256dh);

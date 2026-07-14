@@ -2,7 +2,7 @@ import React from 'react';
 import { ActivityIndicator, Animated, FlatList, PanResponder, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { deleteNotification, getNotifications, markAllNotificationsRead, markNotificationRead } from '@/api/client';
 import type { SynauraNotification } from '@/api/types';
 import { SynauraBackground } from '@/components/SynauraBackground';
@@ -51,15 +51,15 @@ export function NotificationsScreen() {
   const [unread, setUnread] = React.useState(0);
   const [error, setError] = React.useState<string | null>(null);
 
-  const load = React.useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
+  const load = React.useCallback(async (mode: 'initial' | 'refresh' | 'background' = 'initial') => {
     if (mode === 'refresh') setRefreshing(true);
-    else setLoading(true);
+    else if (mode === 'initial') setLoading(true);
     setError(null);
     try {
       const data = await getNotifications(category);
       setItems(data.notifications);
       setUnread(data.unread);
-      void nativeNotifications.refreshUnread();
+      void nativeNotifications.refreshUnread(data.unread);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Impossible de charger les notifications');
     } finally {
@@ -68,9 +68,11 @@ export function NotificationsScreen() {
     }
   }, [category, nativeNotifications.refreshUnread]);
 
-  React.useEffect(() => {
+  useFocusEffect(React.useCallback(() => {
     void load();
-  }, [load]);
+    const interval = setInterval(() => void load('background'), 20_000);
+    return () => clearInterval(interval);
+  }, [load]));
 
   const openNotification = async (item: SynauraNotification) => {
     if (!item.isRead) {
@@ -109,6 +111,16 @@ export function NotificationsScreen() {
           action={{ icon: 'checkmark-done', label: 'Tout marquer comme lu', onPress: () => { if (unread) void markAll(); } }}
         />
         <SegmentedControl value={category} options={tabs.map((tab) => ({ value: tab.id, label: tab.label }))} onChange={setCategory} compact />
+        <View style={[styles.syncStatus, nativeNotifications.syncError && styles.syncStatusError]}>
+          <View style={styles.syncIcon}>
+            <Ionicons name={nativeNotifications.syncError ? 'cloud-offline-outline' : nativeNotifications.lastSyncedAt ? 'cloud-done-outline' : 'sync-outline'} size={17} color={nativeNotifications.syncError ? '#B91C1C' : '#7357C6'} />
+          </View>
+          <View style={styles.syncCopy}>
+            <Text style={styles.syncTitle}>{nativeNotifications.syncError ? 'Synchronisation interrompue' : nativeNotifications.lastSyncedAt ? 'Centre Supabase synchronisé' : 'Synchronisation Supabase'}</Text>
+            <Text style={styles.syncText}>{nativeNotifications.syncError || (!nativeNotifications.lastSyncedAt ? 'Connexion au centre de notifications…' : nativeNotifications.status === 'ready' ? 'Téléphone enregistré pour le push Android' : 'Les alertes restent disponibles dans cette cloche')}</Text>
+          </View>
+          <View style={[styles.syncDot, Boolean(nativeNotifications.lastSyncedAt) && !nativeNotifications.syncError && styles.syncDotReady, nativeNotifications.syncError && styles.syncDotError]} />
+        </View>
         {loading ? <ActivityIndicator color="#8B5CF6" style={{ marginTop: 36 }} /> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <FlatList
@@ -207,4 +219,13 @@ const styles = StyleSheet.create({
   emptyTitle: { marginTop: 12, color: '#171313', fontSize: 17, fontWeight: '900' },
   empty: { marginTop: 5, textAlign: 'center', color: '#6B5F5A', lineHeight: 18, fontWeight: '700' },
   error: { color: '#B91C1C', fontWeight: '800', marginBottom: 10 },
+  syncStatus: { minHeight: 58, marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(115,87,198,0.16)', backgroundColor: 'rgba(115,87,198,0.07)', paddingHorizontal: 11 },
+  syncStatusError: { borderColor: 'rgba(185,28,28,0.18)', backgroundColor: 'rgba(185,28,28,0.06)' },
+  syncIcon: { width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
+  syncCopy: { flex: 1, minWidth: 0 },
+  syncTitle: { color: '#171313', fontSize: 11, fontWeight: '900' },
+  syncText: { marginTop: 2, color: '#6B5F5A', fontSize: 9, lineHeight: 13, fontWeight: '700' },
+  syncDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#D6A63E' },
+  syncDotReady: { backgroundColor: '#16A34A' },
+  syncDotError: { backgroundColor: '#B91C1C' },
 });

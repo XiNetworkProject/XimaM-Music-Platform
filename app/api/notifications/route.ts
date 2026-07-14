@@ -5,6 +5,14 @@ import { getApiSession } from '@/lib/getApiSession';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const SYSTEM_CATEGORIES = ['general', 'admin', 'boost', 'milestone'];
+
+function applyCategoryFilter(query: any, category: string | null) {
+  if (!category || category === 'all') return query;
+  if (category === 'system') return query.in('category', SYSTEM_CATEGORIES);
+  return query.eq('category', category);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getApiSession(request);
@@ -16,7 +24,27 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(50, parseInt(searchParams.get('limit') || '30'));
     const category = searchParams.get('category');
     const unreadOnly = searchParams.get('unread') === 'true';
+    const countOnly = searchParams.get('countOnly') === 'true';
     const offset = (page - 1) * limit;
+
+    if (countOnly) {
+      const { count: unreadCount, error: unreadError } = await supabaseAdmin
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+
+      if (unreadError) {
+        console.error('[notifications] unread count error:', unreadError);
+        return NextResponse.json({ error: 'Compteur Supabase indisponible' }, { status: 503 });
+      }
+
+      return NextResponse.json({
+        unread: unreadCount || 0,
+        source: 'supabase',
+        syncedAt: new Date().toISOString(),
+      });
+    }
 
     let query = supabaseAdmin
       .from('notifications')
@@ -25,9 +53,7 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (category && category !== 'all') {
-      query = query.eq('category', category);
-    }
+    query = applyCategoryFilter(query, category);
     if (unreadOnly) {
       query = query.eq('is_read', false);
     }
@@ -52,7 +78,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[notifications] fetch error:', error);
-      return NextResponse.json({ notifications: [], total: 0, unread: 0, page, limit });
+      return NextResponse.json({ error: 'Lecture Supabase indisponible' }, { status: 503 });
     }
 
     // Enrichir les notifs du schema de base avec les metadonnees stockees dans data
@@ -65,11 +91,16 @@ export async function GET(request: NextRequest) {
       related_id: n.related_id || n.data?.related_id || null,
     }));
 
-    const { count: unreadCount } = await supabaseAdmin
+    const { count: unreadCount, error: unreadError } = await supabaseAdmin
       .from('notifications')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('is_read', false);
+
+    if (unreadError) {
+      console.error('[notifications] unread count error:', unreadError);
+      return NextResponse.json({ error: 'Compteur Supabase indisponible' }, { status: 503 });
+    }
 
     return NextResponse.json({
       notifications: enriched,
@@ -77,10 +108,12 @@ export async function GET(request: NextRequest) {
       unread: unreadCount || 0,
       page,
       limit,
+      source: 'supabase',
+      syncedAt: new Date().toISOString(),
     });
   } catch (e: any) {
     console.error('[notifications] GET error:', e);
-    return NextResponse.json({ notifications: [], total: 0, unread: 0, page: 1, limit: 30 });
+    return NextResponse.json({ error: 'Centre de notifications indisponible' }, { status: 500 });
   }
 }
 
@@ -94,29 +127,32 @@ export async function PATCH(request: NextRequest) {
     const { action, notificationId, notificationIds } = body;
 
     if (action === 'mark_read' && notificationId) {
-      await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('notifications')
         .update({ is_read: true })
         .eq('id', notificationId)
         .eq('user_id', userId);
+      if (error) return NextResponse.json({ error: 'Mise à jour Supabase impossible' }, { status: 500 });
       return NextResponse.json({ ok: true });
     }
 
     if (action === 'mark_all_read') {
-      await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', userId)
         .eq('is_read', false);
+      if (error) return NextResponse.json({ error: 'Mise à jour Supabase impossible' }, { status: 500 });
       return NextResponse.json({ ok: true });
     }
 
     if (action === 'mark_batch_read' && Array.isArray(notificationIds)) {
-      await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', userId)
         .in('id', notificationIds);
+      if (error) return NextResponse.json({ error: 'Mise à jour Supabase impossible' }, { status: 500 });
       return NextResponse.json({ ok: true });
     }
 
@@ -136,19 +172,21 @@ export async function DELETE(request: NextRequest) {
     const { notificationId, clearAll } = body;
 
     if (clearAll) {
-      await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('notifications')
         .delete()
         .eq('user_id', userId);
+      if (error) return NextResponse.json({ error: 'Suppression Supabase impossible' }, { status: 500 });
       return NextResponse.json({ ok: true });
     }
 
     if (notificationId) {
-      await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('notifications')
         .delete()
         .eq('id', notificationId)
         .eq('user_id', userId);
+      if (error) return NextResponse.json({ error: 'Suppression Supabase impossible' }, { status: 500 });
       return NextResponse.json({ ok: true });
     }
 

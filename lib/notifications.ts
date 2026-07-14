@@ -5,6 +5,7 @@ import webpush from 'web-push';
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || '';
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:contact@synaura.fr';
+const EXPO_ACCESS_TOKEN = process.env.EXPO_ACCESS_TOKEN || '';
 
 if (VAPID_PUBLIC && VAPID_PRIVATE) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
@@ -146,7 +147,7 @@ export async function createNotification(opts: CreateNotificationOpts) {
   const shouldInsertInApp = prefs?.in_app_enabled !== false;
 
   if (!shouldInsertInApp) {
-    sendPushInBackground(userId, type, title, message, actionUrl);
+    await sendPushInBackground(userId, type, title, message, actionUrl);
     return { pushOnly: true };
   }
 
@@ -210,12 +211,12 @@ export async function createNotification(opts: CreateNotificationOpts) {
   if (insertError || !notif) {
     console.error('[notifications] all insert attempts failed for user', userId);
     // Toujours envoyer le push meme si le DB insert echoue
-    sendPushInBackground(userId, type, title, message, actionUrl);
+    await sendPushInBackground(userId, type, title, message, actionUrl);
     return null;
   }
 
   console.log('[notifications] created:', { id: notif.id, type, userId: userId.slice(0, 8) });
-  sendPushInBackground(userId, type, title, message, actionUrl);
+  await sendPushInBackground(userId, type, title, message, actionUrl);
 
   return notif;
 }
@@ -289,31 +290,49 @@ async function sendWebPush(userId: string, type: NotifType, title: string, body:
 async function sendNativePush(userId: string, type: NotifType, title: string, body: string, url?: string) {
   const { data: subscriptions, error } = await supabaseAdmin
     .from('push_subscriptions')
-    .select('endpoint')
+    .select('id, endpoint')
     .eq('user_id', userId)
     .eq('p256dh', 'expo');
   if (error || !subscriptions?.length) return;
 
   const tokens = subscriptions.map((entry) => entry.endpoint).filter(Boolean);
-  const response = await fetch('https://exp.host/--/api/v2/push/send', {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Accept-Encoding': 'gzip, deflate',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(tokens.map((to) => ({
-      to,
-      title,
-      body,
-      sound: 'default',
-      priority: 'high',
-      channelId: 'synaura-activity',
-      data: { type, url: url || '/notifications' },
-    }))),
-  });
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'Accept-Encoding': 'gzip, deflate',
+    'Content-Type': 'application/json',
+  };
+  if (EXPO_ACCESS_TOKEN) headers.Authorization = `Bearer ${EXPO_ACCESS_TOKEN}`;
+  let response: Response;
+  try {
+    response = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers,
+      signal: AbortSignal.timeout(6000),
+      body: JSON.stringify(tokens.map((to) => ({
+        to,
+        title,
+        body,
+        sound: 'default',
+        priority: 'high',
+        channelId: 'synaura-activity',
+        data: { type, url: url || '/notifications' },
+      }))),
+    });
+  } catch (cause) {
+    await supabaseAdmin
+      .from('push_subscriptions')
+      .update({ last_error: cause instanceof Error ? cause.message.slice(0, 160) : 'expo_network_error', updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('p256dh', 'expo');
+    return;
+  }
   if (!response.ok) {
     console.warn('[notifications] native push service failed:', response.status);
+    await supabaseAdmin
+      .from('push_subscriptions')
+      .update({ last_error: `expo_http_${response.status}`, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('p256dh', 'expo');
     return;
   }
 
@@ -329,6 +348,28 @@ async function sendNativePush(userId: string, type: NotifType, title: string, bo
       .eq('p256dh', 'expo')
       .in('endpoint', expired);
   }
+
+  const delivered = tickets
+    .map((ticket: any, index: number) => ticket?.status === 'ok' ? tokens[index] : null)
+    .filter(Boolean) as string[];
+  if (delivered.length) {
+    await supabaseAdmin
+      .from('push_subscriptions')
+      .update({ last_error: null, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .in('endpoint', delivered);
+  }
+
+  const failed = tickets
+    .map((ticket: any, index: number) => ticket?.status === 'error' && ticket?.details?.error !== 'DeviceNotRegistered'
+      ? { endpoint: tokens[index], error: String(ticket?.details?.error || ticket?.message || 'expo_error').slice(0, 160) }
+      : null)
+    .filter(Boolean) as Array<{ endpoint: string; error: string }>;
+  await Promise.all(failed.map((entry) => supabaseAdmin
+    .from('push_subscriptions')
+    .update({ last_error: entry.error, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('endpoint', entry.endpoint)));
 }
 
 export async function createBroadcast(opts: {

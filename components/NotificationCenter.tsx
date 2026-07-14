@@ -354,7 +354,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
 
   const doFetchUnread = useCallback(async () => {
     try {
-      const res = await fetch('/api/notifications?limit=1');
+      const res = await fetch('/api/notifications?countOnly=true');
       if (!res.ok) return;
       const data = await res.json();
       setUnreadCount(data.unread || 0);
@@ -376,8 +376,19 @@ export default function NotificationCenter({ className = '' }: NotificationCente
   useEffect(() => {
     if (!isAuthenticated) return;
     doFetchUnread();
-    const interval = setInterval(doFetchUnread, 30000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') void doFetchUnread();
+    }, 20000);
+    const refreshVisible = () => {
+      if (document.visibilityState === 'visible') void doFetchUnread();
+    };
+    window.addEventListener('focus', refreshVisible);
+    document.addEventListener('visibilitychange', refreshVisible);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', refreshVisible);
+      document.removeEventListener('visibilitychange', refreshVisible);
+    };
   }, [isAuthenticated, doFetchUnread]);
 
   useEffect(() => {

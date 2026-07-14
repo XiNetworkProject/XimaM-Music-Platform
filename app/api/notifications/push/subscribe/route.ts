@@ -22,6 +22,10 @@ export async function POST(request: Request) {
         endpoint,
         p256dh: keys.p256dh,
         auth: keys.auth,
+        platform: 'web',
+        last_seen_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_error: null,
       }, { onConflict: 'user_id,endpoint' });
 
     if (error) {

@@ -1,12 +1,12 @@
 {
-  "title": "Synaura mobile 0.15.3",
+  "title": "Synaura mobile 0.15.4",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Compositeur Clip entierement redessine, plus direct et immersif",
-    "Onglet Mes sons avec tous les morceaux publics du createur",
-    "Choix du son coherent avec Utiliser ce son depuis Scroll",
-    "Upload Cloudinary Android remplace par le transfert natif Expo",
-    "Progression reelle, reprise et nouvel essai conserves dans Scroll"
+    "Cloche Alertes accessible dans la navigation avec badge non lu",
+    "Centre de notifications synchronise avec Supabase au lancement et au retour dans l'app",
+    "Likes, commentaires, abonnements et alertes systeme regroupes et filtrables",
+    "Inscription des telephones securisee et diagnostic du push Android plus clair",
+    "Synchronisation web et mobile allegee pour de meilleures performances"
   ]
 }

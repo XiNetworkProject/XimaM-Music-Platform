@@ -401,6 +401,7 @@ export function SettingsScreen() {
                         : 'Notifications téléphone à activer'}
                 </Text>
                 {nativePush.error ? <Text style={styles.updateStatusText}>{nativePush.error}</Text> : null}
+                {nativePush.notice ? <Text style={styles.updateStatusText}>{nativePush.notice}</Text> : null}
               </View>
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -409,7 +410,7 @@ export function SettingsScreen() {
               </Pressable>
               <Pressable onPress={() => void nativePush.sendTest()} style={[styles.primary, { flex: 1 }]}>
                 <Ionicons name="notifications-outline" size={16} color="#FFFAF2" />
-                <Text style={styles.primaryText}>Tester</Text>
+                <Text style={styles.primaryText}>Tester la cloche</Text>
               </Pressable>
             </View>
             {notif ? (

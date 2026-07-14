@@ -9,7 +9,8 @@ import {
   registerNativePushToken,
   sendNativePushTest,
   unregisterNativePushToken,
-  getNotifications,
+  getNotificationUnreadCount,
+  getNativePushRegistration,
 } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { openInternalLink } from '@/navigation/internalLinks';
@@ -22,14 +23,18 @@ type NativeNotificationsContextValue = {
   error: string | null;
   token: string | null;
   unreadCount: number;
+  lastSyncedAt: number | null;
+  syncError: string | null;
+  notice: string | null;
   enable: () => Promise<boolean>;
   disable: () => Promise<void>;
   sendTest: () => Promise<void>;
-  refreshUnread: () => Promise<number>;
+  refreshUnread: (knownCount?: number) => Promise<number>;
 };
 
 const TOKEN_KEY = 'synaura.native.push.token.v1';
 const CHANNEL_ID = 'synaura-activity';
+const FOREGROUND_SYNC_MS = 20_000;
 const NativeNotificationsContext = createContext<NativeNotificationsContextValue | null>(null);
 let lastOpenedNotificationId = '';
 
@@ -58,6 +63,14 @@ function projectId() {
   return Constants.easConfig?.projectId || (Constants.expoConfig?.extra?.eas?.projectId as string | undefined);
 }
 
+function readablePushError(cause: unknown) {
+  const message = cause instanceof Error ? cause.message : String(cause || '');
+  if (/firebase|fcm|google-services|default firebaseapp/i.test(message)) {
+    return "Le centre Supabase est actif, mais le transport push Android n'est pas configuré sur cet APK.";
+  }
+  return message || 'Activation push impossible.';
+}
+
 function openNotificationResponse(response: Notifications.NotificationResponse | null) {
   const url = response?.notification.request.content.data?.url;
   if (typeof url !== 'string' || !url) return;
@@ -82,21 +95,28 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const refreshUnread = useCallback(async () => {
+  const refreshUnread = useCallback(async (knownCount?: number) => {
     if (!auth.token) {
       setUnreadCount(0);
       await Notifications.setBadgeCountAsync(0).catch(() => {});
       return 0;
     }
     try {
-      const result = await getNotifications();
-      const next = Math.max(0, Number(result.unread || 0));
+      const next = typeof knownCount === 'number' && Number.isFinite(knownCount)
+        ? Math.max(0, knownCount)
+        : await getNotificationUnreadCount();
       setUnreadCount(next);
+      setLastSyncedAt(Date.now());
+      setSyncError(null);
       await Notifications.setBadgeCountAsync(next).catch(() => {});
       DeviceEventEmitter.emit('synaura:notifications-changed', next);
       return next;
-    } catch {
+    } catch (cause) {
+      setSyncError(cause instanceof Error ? cause.message : 'Synchronisation Supabase indisponible.');
       return 0;
     }
   }, [auth.token]);
@@ -115,6 +135,7 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
 
     setStatus('requesting');
     setError(null);
+    setNotice(null);
     try {
       await configureAndroidChannel();
       let permission = await Notifications.getPermissionsAsync();
@@ -128,19 +149,21 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
       const id = projectId();
       if (!id) throw new Error('Projet Expo non configure');
       const result = await Notifications.getExpoPushTokenAsync({ projectId: id });
-      await registerNativePushToken({
+      const registered = await registerNativePushToken({
         token: result.data,
         platform: Platform.OS,
         deviceName: Device.deviceName,
         appVersion: Application.nativeApplicationVersion,
       });
+      const verification = await getNativePushRegistration();
+      if (!registered.registered || !verification.registered) throw new Error("Le téléphone n'a pas été confirmé dans Supabase.");
       await AsyncStorage.setItem(TOKEN_KEY, result.data);
       setToken(result.data);
       setStatus('ready');
       return true;
     } catch (cause) {
       setStatus('error');
-      setError(cause instanceof Error ? cause.message : 'Activation push impossible.');
+      setError(readablePushError(cause));
       return false;
     }
   }, [auth.token, auth.user]);
@@ -152,19 +175,24 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
     setToken(null);
     setStatus('disabled');
     setError(null);
+    setNotice(null);
     await Notifications.setBadgeCountAsync(0).catch(() => {});
   }, [auth.token, token]);
 
   const sendTest = useCallback(async () => {
-    const ready = status === 'ready' || await enable();
-    if (!ready) return;
+    setNotice(null);
+    setError(null);
     try {
-      await sendNativePushTest();
-      setError('Notification de test envoyee.');
+      const result = await sendNativePushTest();
+      if (!result.ok) throw new Error('La notification de test n’a pas été créée.');
+      await refreshUnread();
+      setNotice(result.pushRequested
+        ? 'Test créé dans Supabase. Le push Android a été demandé.'
+        : 'Test créé dans Supabase. Il est visible dans la cloche.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Test push impossible.');
     }
-  }, [enable, status]);
+  }, [refreshUnread]);
 
   useEffect(() => {
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(openNotificationResponse);
@@ -181,6 +209,8 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
   useEffect(() => {
     if (!auth.token) {
       setUnreadCount(0);
+      setLastSyncedAt(null);
+      setSyncError(null);
       void Notifications.setBadgeCountAsync(0).catch(() => {});
       return;
     }
@@ -188,7 +218,13 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') void refreshUnread();
     });
-    return () => subscription.remove();
+    const interval = setInterval(() => {
+      if (AppState.currentState === 'active') void refreshUnread();
+    }, FOREGROUND_SYNC_MS);
+    return () => {
+      subscription.remove();
+      clearInterval(interval);
+    };
   }, [auth.token, refreshUnread]);
 
   useEffect(() => {
@@ -226,27 +262,34 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
       return;
     }
     void AsyncStorage.getItem(TOKEN_KEY).then(async (stored) => {
-      if (!stored) return;
-      setToken(stored);
       try {
         const permission = await Notifications.getPermissionsAsync();
         if (permission.status !== 'granted') {
-          setStatus('denied');
-          setError('Les notifications sont désactivées dans les réglages Android.');
+          setStatus(permission.status === 'denied' ? 'denied' : 'disabled');
+          if (permission.status === 'denied') setError('Les notifications sont désactivées dans les réglages Android.');
           return;
         }
         await configureAndroidChannel();
+        const id = projectId();
+        if (!id) throw new Error('Projet Expo non configure');
+        const fresh = await Notifications.getExpoPushTokenAsync({ projectId: id });
+        const currentToken = fresh.data || stored;
+        if (!currentToken) throw new Error('Jeton push Android indisponible');
         await registerNativePushToken({
-          token: stored,
+          token: currentToken,
           platform: Platform.OS,
           deviceName: Device.deviceName,
           appVersion: Application.nativeApplicationVersion,
         });
+        const verification = await getNativePushRegistration();
+        if (!verification.registered) throw new Error("Le téléphone n'a pas été confirmé dans Supabase.");
+        await AsyncStorage.setItem(TOKEN_KEY, currentToken);
+        setToken(currentToken);
         setStatus('ready');
         setError(null);
-      } catch {
+      } catch (cause) {
         setStatus('error');
-        setError('Le telephone doit etre reconnecte aux notifications.');
+        setError(readablePushError(cause));
       }
     });
   }, [auth.loading, auth.token]);
@@ -256,11 +299,14 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
     error,
     token,
     unreadCount,
+    lastSyncedAt,
+    syncError,
+    notice,
     enable,
     disable,
     sendTest,
     refreshUnread,
-  }), [disable, enable, error, refreshUnread, sendTest, status, token, unreadCount]);
+  }), [disable, enable, error, lastSyncedAt, notice, refreshUnread, sendTest, status, syncError, token, unreadCount]);
 
   return <NativeNotificationsContext.Provider value={value}>{children}</NativeNotificationsContext.Provider>;
 }
