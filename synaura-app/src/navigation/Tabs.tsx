@@ -34,7 +34,6 @@ import { colors } from '@/theme/tokens';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import type { MusicChallenge, Track } from '@/api/types';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
-import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
 
 export type RootTabsParamList = {
   Home: undefined;
@@ -50,8 +49,8 @@ export type RootTabsParamList = {
   Library: undefined;
   CreateHub: { challengeId?: string } | undefined;
   CreateVariation: { challengeId?: string } | undefined;
-  ClipComposer: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; challengeId?: string } | undefined;
-  AIStudio: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; mode?: 'remix'; challengeId?: string } | undefined;
+  ClipComposer: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; challengeId?: string; editUploadTaskId?: string } | undefined;
+  AIStudio: { sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; mode?: 'remix'; challengeId?: string; playerMode?: 'library' | 'hidden' } | undefined;
   CreatePost: { track?: Track } | undefined;
   Settings: undefined;
   Subscriptions: undefined;
@@ -87,6 +86,7 @@ const HIDDEN_ROUTES = new Set<keyof RootTabsParamList>([
   'TrackDetail',
   'Search',
   'ChallengeDetail',
+  'Notifications',
 ]);
 
 function AnimatedTabButton({ children, accessibilityState, onPress, style, ...props }: any) {
@@ -128,25 +128,22 @@ function SynauraScrollIcon({ focused, dark }: { focused: boolean; dark: boolean 
   );
 }
 
-const PRIMARY_ROUTES = ['Swipe', 'Discover', 'Create', 'Community', 'Profile', 'Notifications'] as const;
+const PRIMARY_ROUTES = ['Swipe', 'Discover', 'Create', 'Community', 'Profile'] as const;
 const PRIMARY_LABELS: Record<(typeof PRIMARY_ROUTES)[number], string> = {
   Swipe: 'Pour toi',
   Discover: 'Découvrir',
   Create: 'Créer',
   Community: 'Clubs',
   Profile: 'Moi',
-  Notifications: 'Alertes',
 };
 function primaryIcon(routeName: (typeof PRIMARY_ROUTES)[number], focused: boolean): keyof typeof Ionicons.glyphMap {
   if (routeName === 'Discover') return focused ? 'compass' : 'compass-outline';
   if (routeName === 'Community') return focused ? 'people' : 'people-outline';
-  if (routeName === 'Notifications') return focused ? 'notifications' : 'notifications-outline';
   return focused ? 'person' : 'person-outline';
 }
 
 function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
   const layout = useResponsiveLayout();
-  const notifications = useNativeNotifications();
   const activeRoute = state.routes[state.index]?.name as keyof RootTabsParamList | undefined;
   if (activeRoute && HIDDEN_ROUTES.has(activeRoute)) return null;
   const dark = activeRoute === 'Swipe';
@@ -202,11 +199,6 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
                     size={21}
                     color={focused ? (dark ? colors.white : colors.black) : (dark ? 'rgba(255,255,255,0.48)' : colors.textTertiary)}
                   />
-                  {route.name === 'Notifications' && notifications.unreadCount > 0 ? (
-                    <View style={styles.notificationBadge}>
-                      <Text style={styles.notificationBadgeText}>{notifications.unreadCount > 9 ? '9+' : notifications.unreadCount}</Text>
-                    </View>
-                  ) : null}
                 </View>
               )}
               <Text maxFontSizeMultiplier={1.15} numberOfLines={1} style={[styles.dockLabel, layout.isNarrow && styles.dockLabelNarrow, dark && styles.dockLabelDark, focused && styles.dockLabelActive, dark && focused && styles.dockLabelActiveDark, isCreate && styles.dockLabelCreate]}>
@@ -312,8 +304,6 @@ const styles = StyleSheet.create({
   },
   iconDockActive: { backgroundColor: 'rgba(115,87,198,0.11)' },
   iconDockActiveDark: { backgroundColor: 'rgba(255,255,255,0.1)' },
-  notificationBadge: { position: 'absolute', right: -5, top: -5, minWidth: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.coral, paddingHorizontal: 3 },
-  notificationBadgeText: { color: colors.paper, fontSize: 7, fontWeight: '900' },
   scrollTab: {
     width: 36,
     height: 30,

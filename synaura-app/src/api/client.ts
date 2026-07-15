@@ -803,6 +803,12 @@ export async function updateMusicClip(clipId: string, input: Record<string, unkn
   return clip;
 }
 
+export async function deleteMusicClip(clipId: string): Promise<void> {
+  await request(`/api/music-clips/${encodeURIComponent(clipId)}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function getPostDetail(postId: string): Promise<HomePost> {
   const json = await request<any>(`/api/posts/${encodeURIComponent(postId)}`);
   const post = normalizePost(json?.post || json);

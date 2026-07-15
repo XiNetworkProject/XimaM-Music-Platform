@@ -16,7 +16,7 @@ type Props = {
 };
 
 const DOCK_ROUTES = new Set(['Swipe', 'Discover', 'Community', 'Profile']);
-const HIDDEN_ROUTES = new Set(['Swipe', 'AIStudio', 'Upload', 'ClipComposer', 'CreateVariation', 'CreateHub', 'Welcome', 'Login', 'Register', 'ForgotPassword', 'Onboarding']);
+const HIDDEN_ROUTES = new Set(['Swipe', 'AIStudio', 'Notifications', 'Upload', 'ClipComposer', 'CreateVariation', 'CreateHub', 'Welcome', 'Login', 'Register', 'ForgotPassword', 'Onboarding']);
 
 export function MiniPlayer({ activeRoute, onOpen }: Props) {
   const layout = useResponsiveLayout();
@@ -84,7 +84,9 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
         {
           left: layout.insets.left + (layout.safeWidth - playerWidth) / 2,
           width: playerWidth,
-          bottom: hasDock ? layout.bottomDockClearance - 3 : Math.max(10, layout.insets.bottom + 6),
+          bottom: hasDock
+            ? layout.dockHeight + Math.max(layout.insets.bottom, 7) + 6
+            : Math.max(10, layout.insets.bottom + 6),
           opacity,
           transform: [{ translateY }, { translateX: gestureX }],
         },

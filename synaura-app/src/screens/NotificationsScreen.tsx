@@ -1,6 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
-import { ActivityIndicator, Animated, FlatList, PanResponder, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  PanResponder,
+  Pressable,
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -14,6 +24,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
 import { useAuth } from '@/auth/AuthProvider';
+import { colors } from '@/theme/tokens';
 
 const NOTIFICATIONS_REFRESH_MS = 60_000;
 
@@ -24,23 +35,45 @@ const tabs = [
   { id: 'system', label: 'Système' },
 ] as const;
 
+type NotificationSection = { title: string; data: SynauraNotification[] };
+
 function notificationVisual(item: SynauraNotification) {
-  if (item.type.includes('like')) return { icon: 'heart' as const, color: '#EC4899', background: 'rgba(236,72,153,0.12)', action: 'Voir le son' };
-  if (item.type.includes('comment') || item.type.includes('message')) return { icon: 'chatbubble-ellipses' as const, color: '#8B5CF6', background: 'rgba(139,92,246,0.12)', action: 'Répondre' };
-  if (item.type.includes('follower')) return { icon: 'person-add' as const, color: '#0891B2', background: 'rgba(34,211,238,0.13)', action: 'Voir le profil' };
-  if (item.type.includes('milestone')) return { icon: 'flame' as const, color: '#FF6B6B', background: 'rgba(255,107,107,0.14)', action: 'Voir les stats' };
-  if (item.category === 'music') return { icon: 'musical-notes' as const, color: '#16A34A', background: 'rgba(34,197,94,0.12)', action: 'Écouter' };
-  return { icon: 'notifications' as const, color: '#B7791F', background: 'rgba(245,184,75,0.14)', action: 'Ouvrir' };
+  if (item.type.includes('like')) return { icon: 'heart' as const, color: colors.coral, background: 'rgba(217,109,99,0.13)', action: 'Voir le son' };
+  if (item.type.includes('comment') || item.type.includes('message')) return { icon: 'chatbubble-ellipses' as const, color: colors.violet, background: 'rgba(115,87,198,0.12)', action: 'Répondre' };
+  if (item.type.includes('follower')) return { icon: 'person-add' as const, color: colors.cyan, background: 'rgba(74,158,170,0.13)', action: 'Voir le profil' };
+  if (item.type.includes('milestone')) return { icon: 'sparkles' as const, color: '#A65D35', background: 'rgba(217,150,99,0.14)', action: 'Voir les stats' };
+  if (item.category === 'music') return { icon: 'musical-notes' as const, color: '#327E68', background: 'rgba(74,158,170,0.12)', action: 'Écouter' };
+  return { icon: 'notifications' as const, color: '#8A672A', background: 'rgba(214,166,62,0.13)', action: 'Ouvrir' };
 }
 
 function relativeDate(value: string) {
-  const diff = Math.max(0, Date.now() - new Date(value).getTime());
-  const minutes = Math.floor(diff / 60000);
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return '';
+  const diff = Math.max(0, Date.now() - timestamp);
+  const minutes = Math.floor(diff / 60_000);
   if (minutes < 1) return "À l'instant";
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours} h`;
   return `${Math.floor(hours / 24)} j`;
+}
+
+function groupNotifications(items: SynauraNotification[]): NotificationSection[] {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const weekStart = today - 6 * 24 * 60 * 60 * 1000;
+  const groups: NotificationSection[] = [
+    { title: "Aujourd'hui", data: [] },
+    { title: 'Cette semaine', data: [] },
+    { title: 'Plus tôt', data: [] },
+  ];
+  items.forEach((item) => {
+    const timestamp = new Date(item.createdAt).getTime();
+    if (Number.isFinite(timestamp) && timestamp >= today) groups[0].data.push(item);
+    else if (Number.isFinite(timestamp) && timestamp >= weekStart) groups[1].data.push(item);
+    else groups[2].data.push(item);
+  });
+  return groups.filter((group) => group.data.length > 0);
 }
 
 export function NotificationsScreen() {
@@ -59,6 +92,17 @@ export function NotificationsScreen() {
     () => auth.user?.id ? `synaura.notifications.cache.v1.${auth.user.id}.${category}` : null,
     [auth.user?.id, category],
   );
+  const sections = React.useMemo(() => groupNotifications(items), [items]);
+
+  const persistCache = React.useCallback((nextItems: SynauraNotification[], nextUnread: number) => {
+    if (!cacheKey) return;
+    void AsyncStorage.setItem(cacheKey, JSON.stringify({
+      notifications: nextItems,
+      unread: nextUnread,
+      total: nextItems.length,
+      cachedAt: Date.now(),
+    })).catch(() => {});
+  }, [cacheKey]);
 
   const load = React.useCallback(async (mode: 'initial' | 'refresh' | 'background' = 'initial') => {
     if (mode === 'refresh') setRefreshing(true);
@@ -77,7 +121,7 @@ export function NotificationsScreen() {
           setLoading(false);
         }
       } catch {
-        // A broken cache must never block the live Supabase request.
+        // Le cache ne doit jamais bloquer la requête en direct.
       }
     }
 
@@ -86,23 +130,16 @@ export function NotificationsScreen() {
       setItems(data.notifications);
       setUnread(data.unread);
       void nativeNotifications.refreshUnread(data.unread);
-      if (cacheKey) {
-        void AsyncStorage.setItem(cacheKey, JSON.stringify({
-          notifications: data.notifications,
-          unread: data.unread,
-          total: data.total,
-          cachedAt: Date.now(),
-        })).catch(() => {});
-      }
+      persistCache(data.notifications, data.unread);
     } catch (nextError) {
       setError(hasCachedData
-        ? 'Actualisation interrompue. Les dernières notifications restent affichées.'
-        : nextError instanceof Error ? nextError.message : 'Impossible de charger les notifications');
+        ? 'Actualisation interrompue. Ton activité récente reste disponible.'
+        : nextError instanceof Error ? nextError.message : 'Impossible de charger ton activité.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [cacheKey, category, nativeNotifications.refreshUnread]);
+  }, [cacheKey, category, nativeNotifications.refreshUnread, persistCache]);
 
   useFocusEffect(React.useCallback(() => {
     void load();
@@ -112,8 +149,11 @@ export function NotificationsScreen() {
 
   const openNotification = async (item: SynauraNotification) => {
     if (!item.isRead) {
-      setItems((current) => current.map((next) => next.id === item.id ? { ...next, isRead: true } : next));
-      setUnread((count) => Math.max(0, count - 1));
+      const nextItems = items.map((next) => next.id === item.id ? { ...next, isRead: true } : next);
+      const nextUnread = Math.max(0, unread - 1);
+      setItems(nextItems);
+      setUnread(nextUnread);
+      persistCache(nextItems, nextUnread);
       markNotificationRead(item.id).catch(() => {});
       void nativeNotifications.refreshUnread();
     }
@@ -123,17 +163,41 @@ export function NotificationsScreen() {
   };
 
   const markAll = async () => {
-    setItems((current) => current.map((item) => ({ ...item, isRead: true })));
+    if (!unread) return;
+    const previousItems = items;
+    const nextItems = items.map((item) => ({ ...item, isRead: true }));
+    setItems(nextItems);
     setUnread(0);
-    await markAllNotificationsRead();
-    await nativeNotifications.refreshUnread();
+    persistCache(nextItems, 0);
+    try {
+      await markAllNotificationsRead();
+      await nativeNotifications.refreshUnread(0);
+    } catch {
+      setItems(previousItems);
+      setUnread(previousItems.filter((item) => !item.isRead).length);
+      setError("Impossible de marquer toute l'activité comme lue.");
+    }
   };
 
-  const remove = async (id: number) => {
-    setItems((current) => current.filter((item) => item.id !== id));
-    await deleteNotification(id);
-    await nativeNotifications.refreshUnread();
+  const remove = async (item: SynauraNotification) => {
+    const previousItems = items;
+    const previousUnread = unread;
+    const nextItems = items.filter((next) => next.id !== item.id);
+    const nextUnread = Math.max(0, unread - (item.isRead ? 0 : 1));
+    setItems(nextItems);
+    setUnread(nextUnread);
+    persistCache(nextItems, nextUnread);
+    try {
+      await deleteNotification(item.id);
+      await nativeNotifications.refreshUnread(nextUnread);
+    } catch {
+      setItems(previousItems);
+      setUnread(previousUnread);
+      setError('Suppression impossible pour le moment.');
+    }
   };
+
+  const connectionIssue = error || (nativeNotifications.syncError ? 'La mise à jour automatique est momentanément indisponible.' : null);
 
   return (
     <SynauraBackground variant="warm">
@@ -141,39 +205,50 @@ export function NotificationsScreen() {
         <AppHeader
           flush
           compact
-          title="Notifications"
-          subtitle={unread ? `${unread} non lue${unread > 1 ? 's' : ''}` : 'Tout est à jour'}
+          eyebrow="Synaura"
+          title="Activité"
+          subtitle={unread ? `${unread} nouvelle${unread > 1 ? 's' : ''} activité${unread > 1 ? 's' : ''}` : 'Tu es à jour'}
           onBack={() => navigation.goBack()}
-          action={{ icon: 'checkmark-done', label: 'Tout marquer comme lu', onPress: () => { if (unread) void markAll(); } }}
+          action={unread ? { icon: 'checkmark-done', label: 'Tout marquer comme lu', onPress: () => void markAll() } : undefined}
         />
         <SegmentedControl value={category} options={tabs.map((tab) => ({ value: tab.id, label: tab.label }))} onChange={setCategory} compact />
-        <View style={[styles.syncStatus, nativeNotifications.syncError && styles.syncStatusError]}>
-          <View style={styles.syncIcon}>
-            <Ionicons name={nativeNotifications.syncError ? 'cloud-offline-outline' : nativeNotifications.lastSyncedAt ? 'cloud-done-outline' : 'sync-outline'} size={17} color={nativeNotifications.syncError ? '#B91C1C' : '#7357C6'} />
-          </View>
-          <View style={styles.syncCopy}>
-            <Text style={styles.syncTitle}>{nativeNotifications.syncError ? 'Synchronisation interrompue' : nativeNotifications.lastSyncedAt ? 'Centre Supabase synchronisé' : 'Synchronisation Supabase'}</Text>
-            <Text style={styles.syncText}>{nativeNotifications.syncError || (!nativeNotifications.lastSyncedAt ? 'Connexion au centre de notifications…' : nativeNotifications.status === 'ready' ? 'Téléphone enregistré pour le push Android' : 'Les alertes restent disponibles dans cette cloche')}</Text>
-          </View>
-          <View style={[styles.syncDot, Boolean(nativeNotifications.lastSyncedAt) && !nativeNotifications.syncError && styles.syncDotReady, nativeNotifications.syncError && styles.syncDotError]} />
-        </View>
-        {loading ? <ActivityIndicator color="#8B5CF6" style={{ marginTop: 36 }} /> : null}
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <FlatList
-          data={items}
+
+        {connectionIssue ? (
+          <Pressable onPress={() => void load('refresh')} style={styles.connectionBanner}>
+            <Ionicons name="cloud-offline-outline" size={17} color={colors.coral} />
+            <Text numberOfLines={2} style={styles.connectionText}>{connectionIssue}</Text>
+            <Ionicons name="refresh" size={17} color={colors.textSecondary} />
+          </Pressable>
+        ) : null}
+
+        {loading && !items.length ? <ActivityIndicator color={colors.violet} style={styles.loader} /> : null}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={[styles.list, { paddingBottom: responsive.bottomDockClearance + 24 }]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load('refresh')} />}
+          stickySectionHeadersEnabled={false}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.list, { paddingBottom: Math.max(responsive.insets.bottom + 24, 36) }]}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load('refresh')} tintColor={colors.violet} colors={[colors.violet]} />}
+          renderSectionHeader={({ section }) => <Text style={styles.sectionTitle}>{section.title}</Text>}
           ListEmptyComponent={!loading ? (
-            <View style={styles.emptyCard}>
-              <View style={styles.emptyIcon}><Ionicons name="notifications-off-outline" size={24} color="#8B5CF6" /></View>
+            <View style={styles.empty}>
+              <View style={styles.emptyIcon}><Ionicons name="radio-outline" size={27} color={colors.violet} /></View>
               <Text style={styles.emptyTitle}>Tout est calme</Text>
-              <Text style={styles.empty}>Tes likes, commentaires, votes et nouveaux sons apparaîtront ici.</Text>
+              <Text style={styles.emptyText}>Les réactions à tes sons, les commentaires et les nouvelles sorties apparaîtront ici.</Text>
             </View>
           ) : null}
-          renderItem={({ item }) => {
+          renderItem={({ item, index, section }) => {
             const visual = notificationVisual(item);
-            return <NotificationRow item={item} visual={visual} onOpen={() => void openNotification(item)} onRemove={() => void remove(item.id)} />;
+            return (
+              <NotificationRow
+                item={item}
+                visual={visual}
+                first={index === 0}
+                last={index === section.data.length - 1}
+                onOpen={() => void openNotification(item)}
+                onRemove={() => void remove(item)}
+              />
+            );
           }}
         />
       </View>
@@ -184,11 +259,15 @@ export function NotificationsScreen() {
 function NotificationRow({
   item,
   visual,
+  first,
+  last,
   onOpen,
   onRemove,
 }: {
   item: SynauraNotification;
   visual: ReturnType<typeof notificationVisual>;
+  first: boolean;
+  last: boolean;
   onOpen: () => void;
   onRemove: () => void;
 }) {
@@ -208,25 +287,28 @@ function NotificationRow({
   }), [onRemove, translateX]);
 
   return (
-    <View style={styles.rowShell}>
-      <View style={styles.deleteBehind}><Ionicons name="trash-outline" size={19} color="#FFFFFF" /><Text style={styles.deleteBehindText}>Supprimer</Text></View>
+    <View style={[styles.rowShell, first && styles.rowShellFirst, last && styles.rowShellLast]}>
+      <View style={styles.deleteBehind}><Ionicons name="trash-outline" size={19} color={colors.paper} /><Text style={styles.deleteText}>Supprimer</Text></View>
       <Animated.View {...responder.panHandlers} style={{ transform: [{ translateX }] }}>
-        <Pressable onPress={onOpen} style={[styles.card, !item.isRead && styles.cardUnread]}>
+        <Pressable
+          accessibilityActions={[{ name: 'delete', label: 'Supprimer' }]}
+          onAccessibilityAction={(event) => { if (event.nativeEvent.actionName === 'delete') onRemove(); }}
+          onPress={onOpen}
+          style={[styles.row, !item.isRead && styles.rowUnread, !last && styles.rowDivider]}
+        >
+          {!item.isRead ? <View style={styles.unreadRail} /> : null}
           <View style={[styles.visual, { backgroundColor: visual.background }]}>
-            <Ionicons name={visual.icon} size={19} color={visual.color} />
-            {!item.isRead ? <View style={styles.unreadDot} /> : null}
+            <Ionicons name={visual.icon} size={20} color={visual.color} />
           </View>
-          <View style={styles.cardCopy}>
-            <Text style={styles.cardTitle}>{item.title}</Text>
-            <Text style={styles.message}>{item.message}</Text>
-            <View style={styles.cardFooter}>
-              <Text style={styles.actionText}>{item.actionUrl ? visual.action : item.category}</Text>
-              <Text style={styles.meta}>{relativeDate(item.createdAt)}</Text>
+          <View style={styles.rowCopy}>
+            <View style={styles.rowTitleLine}>
+              <Text numberOfLines={1} style={styles.rowTitle}>{item.title}</Text>
+              <Text style={styles.time}>{relativeDate(item.createdAt)}</Text>
             </View>
+            <Text numberOfLines={3} style={styles.message}>{item.message}</Text>
+            {item.actionUrl ? <Text style={styles.actionText}>{visual.action}</Text> : null}
           </View>
-          <Pressable accessibilityLabel="Supprimer" onPress={(event) => { event.stopPropagation(); onRemove(); }} style={styles.trash}>
-            <Ionicons name="close" size={16} color="rgba(23,19,19,0.42)" />
-          </Pressable>
+          {item.actionUrl ? <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} /> : null}
         </Pressable>
       </Animated.View>
     </View>
@@ -235,33 +317,29 @@ function NotificationRow({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: 18 },
-  list: { paddingTop: 12, paddingBottom: 120, gap: 8 },
-  rowShell: { overflow: 'hidden', borderRadius: 10, backgroundColor: '#C94F4F' },
+  list: { paddingTop: 8 },
+  loader: { marginTop: 42 },
+  sectionTitle: { marginTop: 18, marginBottom: 8, color: colors.textSecondary, fontSize: 11, lineHeight: 14, fontWeight: '900', textTransform: 'uppercase' },
+  connectionBanner: { minHeight: 46, marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 9, borderWidth: 1, borderColor: 'rgba(217,109,99,0.2)', backgroundColor: 'rgba(217,109,99,0.07)', paddingHorizontal: 11 },
+  connectionText: { flex: 1, color: colors.textSecondary, fontSize: 10, lineHeight: 14, fontWeight: '700' },
+  rowShell: { overflow: 'hidden', backgroundColor: colors.coral },
+  rowShellFirst: { borderTopLeftRadius: 11, borderTopRightRadius: 11 },
+  rowShellLast: { borderBottomLeftRadius: 11, borderBottomRightRadius: 11 },
   deleteBehind: { ...StyleSheet.absoluteFillObject, alignItems: 'flex-end', justifyContent: 'center', gap: 3, paddingRight: 18 },
-  deleteBehindText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
-  card: { minHeight: 82, flexDirection: 'row', alignItems: 'flex-start', gap: 11, borderRadius: 10, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)', padding: 12 },
-  cardUnread: { borderColor: 'rgba(115,87,198,0.32)', backgroundColor: '#FCFAFF' },
-  visual: { width: 42, height: 42, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  cardCopy: { flex: 1, minWidth: 0 },
-  unreadDot: { position: 'absolute', top: -2, right: -2, width: 9, height: 9, borderRadius: 5, backgroundColor: '#8B5CF6', borderWidth: 2, borderColor: '#FFF9EF' },
-  cardTitle: { color: '#171313', fontSize: 15, fontWeight: '900' },
-  message: { color: '#5A4E49', fontSize: 13, lineHeight: 19, marginTop: 3 },
-  cardFooter: { marginTop: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  actionText: { color: '#8B5CF6', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
-  meta: { color: '#9B8F89', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
-  trash: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(23,19,19,0.04)', alignItems: 'center', justifyContent: 'center' },
-  emptyCard: { marginTop: 42, alignItems: 'center', borderRadius: 14, backgroundColor: '#FFFFFF', padding: 24 },
-  emptyIcon: { width: 54, height: 54, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(139,92,246,0.12)' },
-  emptyTitle: { marginTop: 12, color: '#171313', fontSize: 17, fontWeight: '900' },
-  empty: { marginTop: 5, textAlign: 'center', color: '#6B5F5A', lineHeight: 18, fontWeight: '700' },
-  error: { color: '#B91C1C', fontWeight: '800', marginBottom: 10 },
-  syncStatus: { minHeight: 58, marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(115,87,198,0.16)', backgroundColor: 'rgba(115,87,198,0.07)', paddingHorizontal: 11 },
-  syncStatusError: { borderColor: 'rgba(185,28,28,0.18)', backgroundColor: 'rgba(185,28,28,0.06)' },
-  syncIcon: { width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
-  syncCopy: { flex: 1, minWidth: 0 },
-  syncTitle: { color: '#171313', fontSize: 11, fontWeight: '900' },
-  syncText: { marginTop: 2, color: '#6B5F5A', fontSize: 9, lineHeight: 13, fontWeight: '700' },
-  syncDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#D6A63E' },
-  syncDotReady: { backgroundColor: '#16A34A' },
-  syncDotError: { backgroundColor: '#B91C1C' },
+  deleteText: { color: colors.paper, fontSize: 9, fontWeight: '900' },
+  row: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: colors.surface, paddingHorizontal: 12, paddingVertical: 12 },
+  rowUnread: { backgroundColor: '#FCFAFF' },
+  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  unreadRail: { position: 'absolute', left: 0, top: 13, bottom: 13, width: 3, borderRadius: 2, backgroundColor: colors.violet },
+  visual: { width: 43, height: 43, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  rowCopy: { flex: 1, minWidth: 0 },
+  rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rowTitle: { flex: 1, color: colors.text, fontSize: 14, lineHeight: 18, fontWeight: '900' },
+  time: { color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
+  message: { marginTop: 3, color: colors.textSecondary, fontSize: 12, lineHeight: 17, fontWeight: '600' },
+  actionText: { marginTop: 7, color: colors.violet, fontSize: 9, lineHeight: 11, fontWeight: '900', textTransform: 'uppercase' },
+  empty: { marginTop: 74, alignItems: 'center', paddingHorizontal: 28 },
+  emptyIcon: { width: 60, height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(115,87,198,0.1)' },
+  emptyTitle: { marginTop: 15, color: colors.text, fontSize: 19, lineHeight: 24, fontWeight: '900' },
+  emptyText: { maxWidth: 320, marginTop: 6, color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '600', textAlign: 'center' },
 });

@@ -36,6 +36,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { colors, radius, shadows } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { readDiscoverVisualCache, writeDiscoverVisualCache } from '@/discover/discoverCache';
+import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
 
 const INTENTION_TO_CLUB_SLUG: Record<string, string> = {
   remix: 'remix',
@@ -342,7 +343,12 @@ export function DiscoverV2Screen() {
           eyebrow="Explorer"
           title="Découvrir"
           description="Des portes d'entrée visuelles vers toute la musique publiée sur Synaura."
-          trailing={<MobileAccountButton compact />}
+          trailing={(
+            <View style={styles.headerActions}>
+              <NotificationBellButton />
+              <MobileAccountButton compact />
+            </View>
+          )}
         />
 
         <MotionPressable onPress={() => setSearchOpen(true)} style={styles.search} scaleTo={0.98}>
@@ -717,6 +723,7 @@ function ArtistDiscoverCard({ artist, tablet, playing, onPlay, onOpen }: { artis
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: 18, paddingBottom: 160, gap: 22 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   search: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.88)', borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12 },
   searchText: { flex: 1, minWidth: 0, color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   searchArrow: { width: 30, height: 30, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },

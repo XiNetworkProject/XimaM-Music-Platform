@@ -4,6 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { DeviceEventEmitter } from 'react-native';
 import {
   createMusicClipDraft,
+  deleteMusicClip,
   getCoverVideoPosterUrl,
   participateInChallenge,
   recordClipFunnelEvent,
@@ -41,14 +42,16 @@ export type ClipUploadTask = {
   updatedAt: number;
 };
 
-type EnqueueInput = Pick<ClipUploadTask, 'asset' | 'source' | 'duration' | 'offset' | 'caption' | 'tags' | 'challengeId'>;
+export type ClipUploadInput = Pick<ClipUploadTask, 'asset' | 'source' | 'duration' | 'offset' | 'caption' | 'tags' | 'challengeId'>;
 
 type ClipUploadContextValue = {
   tasks: ClipUploadTask[];
   activeTask: ClipUploadTask | null;
   lastCompletedAt: number;
-  enqueue: (input: EnqueueInput) => string;
+  enqueue: (input: ClipUploadInput) => string;
   retry: (taskId: string) => void;
+  revise: (taskId: string, input: ClipUploadInput) => void;
+  remove: (taskId: string) => void;
 };
 
 const ClipUploadContext = createContext<ClipUploadContextValue | null>(null);
@@ -73,6 +76,7 @@ export function ClipUploadProvider({ children }: { children: React.ReactNode }) 
   const [hydrated, setHydrated] = useState(false);
   const [lastCompletedAt, setLastCompletedAt] = useState(0);
   const processingRef = useRef<string | null>(null);
+  const tasksRef = useRef<ClipUploadTask[]>([]);
 
   const patchTask = useCallback((taskId: string, patch: Partial<ClipUploadTask>) => {
     setTasks((current) => current.map((task) => task.id === taskId
@@ -104,7 +108,11 @@ export function ClipUploadProvider({ children }: { children: React.ReactNode }) 
     void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(persistent)).catch(() => {});
   }, [hydrated, tasks]);
 
-  const enqueue = useCallback((input: EnqueueInput) => {
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
+
+  const enqueue = useCallback((input: ClipUploadInput) => {
     if (!auth.user?.id) throw new Error('Connexion requise');
     const now = Date.now();
     const id = `clip-upload-${now}-${Math.random().toString(36).slice(2, 8)}`;
@@ -130,6 +138,41 @@ export function ClipUploadProvider({ children }: { children: React.ReactNode }) 
     setTasks((current) => current.map((task) => task.id === taskId && task.status === 'failed'
       ? { ...task, status: 'queued', progress: task.upload ? 0.9 : 0.04, error: undefined, attempts: task.attempts + 1, updatedAt: Date.now() }
       : task));
+  }, []);
+
+  const revise = useCallback((taskId: string, input: ClipUploadInput) => {
+    const previous = tasksRef.current.find((task) => task.id === taskId && task.status === 'failed');
+    if (!previous) return;
+    const assetChanged = input.asset.uri !== previous.asset.uri && input.asset.uri !== previous.localUri;
+    const sourceChanged = input.source.sourceTrackId !== previous.source.sourceTrackId
+      || input.source.sourceTrackType !== previous.source.sourceTrackType;
+    const now = Date.now();
+
+    setTasks((current) => current.map((task) => task.id === taskId && task.status === 'failed'
+      ? {
+        ...task,
+        ...input,
+        localUri: assetChanged ? undefined : task.localUri,
+        clipId: sourceChanged ? undefined : task.clipId,
+        upload: assetChanged ? undefined : task.upload,
+        status: 'queued',
+        progress: assetChanged ? 0.03 : task.upload ? 0.9 : 0.04,
+        error: undefined,
+        attempts: task.attempts + 1,
+        updatedAt: now,
+      }
+      : task));
+
+    if (sourceChanged && previous.clipId) void deleteMusicClip(previous.clipId).catch(() => {});
+    if (assetChanged && previous.localUri) void FileSystem.deleteAsync(previous.localUri, { idempotent: true }).catch(() => {});
+  }, []);
+
+  const remove = useCallback((taskId: string) => {
+    const task = tasksRef.current.find((candidate) => candidate.id === taskId);
+    if (!task || processingRef.current === taskId || !['failed', 'completed'].includes(task.status)) return;
+    setTasks((current) => current.filter((candidate) => candidate.id !== taskId));
+    if (task.status === 'failed' && task.clipId) void deleteMusicClip(task.clipId).catch(() => {});
+    if (task.localUri) void FileSystem.deleteAsync(task.localUri, { idempotent: true }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -229,7 +272,7 @@ export function ClipUploadProvider({ children }: { children: React.ReactNode }) 
     || null
   ), [auth.user?.id, tasks]);
 
-  const value = useMemo<ClipUploadContextValue>(() => ({ tasks, activeTask, lastCompletedAt, enqueue, retry }), [activeTask, enqueue, lastCompletedAt, retry, tasks]);
+  const value = useMemo<ClipUploadContextValue>(() => ({ tasks, activeTask, lastCompletedAt, enqueue, retry, revise, remove }), [activeTask, enqueue, lastCompletedAt, remove, retry, revise, tasks]);
   return <ClipUploadContext.Provider value={value}>{children}</ClipUploadContext.Provider>;
 }
 

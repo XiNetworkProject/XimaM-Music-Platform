@@ -1,12 +1,13 @@
 {
-  "title": "Synaura mobile 0.15.6",
+  "title": "Synaura mobile 0.15.7",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Correction de la boucle qui saturait le serveur de notifications",
-    "Chargement du centre de notifications nettement plus stable",
-    "Dernieres alertes conservees a l'ecran pendant une coupure reseau",
-    "Inscription push Android dedupliquee et resynchronisation plus legere",
-    "Transport Expo et FCM verifie sur un appareil enregistre"
+    "Nouvelle page Activite plus claire, rapide et organisee",
+    "Cloche de notifications replacee en haut des pages principales",
+    "Mini-lecteur correctement aligne et disponible dans la bibliotheque du Studio",
+    "Lecture des creations IA acceleree avec cache local et file audio allegee",
+    "Uploads de Clips echoues modifiables, relancables ou supprimables",
+    "Requetes de notifications Supabase executees en parallele"
   ]
 }

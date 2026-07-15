@@ -27,6 +27,7 @@ import { colors } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { MobileBadge } from '@/components/mobile/MobileBadge';
 import { AppHeader } from '@/components/ui/AppHeader';
+import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
 import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard';
 import { MotionPressable } from '@/components/motion/Motion';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
@@ -55,6 +56,7 @@ function compact(value: number) {
 export function ProfileScreen() {
   const auth = useAuth();
   const navigation = useNavigation<any>();
+  const nativeNotifications = useNativeNotifications();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
   const responsive = useResponsiveLayout();
@@ -380,7 +382,15 @@ export function ProfileScreen() {
         refreshControl={<RefreshControl refreshing={loading || clipsLoading} onRefresh={refreshProfile} />}
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader flush title="Profil" subtitle="Ton univers sur Synaura" action={{ icon: 'settings-outline', label: 'Paramètres', onPress: () => navigation.navigate('Settings') }} />
+        <AppHeader
+          flush
+          title="Profil"
+          subtitle="Ton univers sur Synaura"
+          actions={[
+            { icon: nativeNotifications.unreadCount ? 'notifications' : 'notifications-outline', label: 'Activité', badge: nativeNotifications.unreadCount, onPress: () => navigation.navigate('Notifications') },
+            { icon: 'settings-outline', label: 'Paramètres', onPress: () => navigation.navigate('Settings') },
+          ]}
+        />
         {profile ? (
           <ProfileIdentityHero
             profile={profile}

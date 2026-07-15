@@ -46,6 +46,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const unreadCountPromise = supabaseAdmin
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+
     let query = supabaseAdmin
       .from('notifications')
       .select('*', { count: 'exact' })
@@ -91,11 +97,7 @@ export async function GET(request: NextRequest) {
       related_id: n.related_id || n.data?.related_id || null,
     }));
 
-    const { count: unreadCount, error: unreadError } = await supabaseAdmin
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('is_read', false);
+    const { count: unreadCount, error: unreadError } = await unreadCountPromise;
 
     if (unreadError) {
       console.error('[notifications] unread count error:', unreadError);

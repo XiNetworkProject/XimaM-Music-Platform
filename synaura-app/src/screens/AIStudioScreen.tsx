@@ -83,6 +83,7 @@ const PREF_KEY = 'synaura.ai-studio.preferences';
 const ACTIVE_TASK_KEY = 'synaura.ai-studio.active-task';
 const MEDIA_REPAIR_KEY = 'synaura.ai-studio.media-repair.v2';
 const MEDIA_REPAIR_INTERVAL = 12 * 60 * 60 * 1000;
+const LIBRARY_CACHE_PREFIX = 'synaura.ai-studio.library.v1';
 const GENERATION_COST = 12;
 const STUDIO_TAGS = ['Pop', 'Rap FR', 'Electronic', 'Club', 'Cinématique', 'Mélancolique', 'Épique', 'Viral', 'Acoustique', 'Nocturne', 'Énergique', 'Synaura'];
 const STUDIO_FOLDERS = ['Favoris', 'À finir', 'À publier', 'Remix'];
@@ -107,7 +108,7 @@ const CREDIT_PACKS: Array<{ id: CreditPackId; label: string; credits: number; pr
 
 function aiTrackToPlayer(track: AIStatusTrack | NonNullable<AIStudioGeneration['tracks']>[number]): Track | null {
   const raw = track as any;
-  const audioUrl = raw.stream_audio_url || raw.stream || raw.audio_url || raw.audio;
+  const audioUrl = raw.audio_url || raw.audio || raw.stream_audio_url || raw.stream;
   if (!audioUrl) return null;
   const id = String(track.id || ('suno_id' in track ? track.suno_id : '') || `ai-${Date.now()}`);
   const image = raw.image_url || raw.image;
@@ -196,6 +197,25 @@ export function AIStudioScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const composerScrollRef = useRef<ScrollView>(null);
   const libraryPlaybackLockRef = useRef<string | null>(null);
+  const libraryNetworkLoadedRef = useRef(false);
+
+  useEffect(() => {
+    navigation.setParams({ playerMode: tab === 'library' ? 'library' : 'hidden' });
+  }, [navigation, tab]);
+
+  useEffect(() => {
+    if (!auth.user?.id) return;
+    libraryNetworkLoadedRef.current = false;
+    let mounted = true;
+    void AsyncStorage.getItem(`${LIBRARY_CACHE_PREFIX}.${auth.user.id}`).then((raw) => {
+      if (!mounted || !raw || libraryNetworkLoadedRef.current) return;
+      try {
+        const cached = JSON.parse(raw);
+        if (Array.isArray(cached?.library)) setLibrary(cached.library);
+      } catch {}
+    });
+    return () => { mounted = false; };
+  }, [auth.user?.id]);
 
   useFocusEffect(useCallback(() => {
     if (auth.user?.username) setTab('create');
@@ -284,7 +304,16 @@ export function AIStudioScreen() {
         setCreditsKnown(true);
       }
       if (quotaResult.status === 'fulfilled') setQuota(quotaResult.value);
-      if (libraryResult.status === 'fulfilled') setLibrary(libraryResult.value);
+      if (libraryResult.status === 'fulfilled') {
+        libraryNetworkLoadedRef.current = true;
+        setLibrary(libraryResult.value);
+        if (auth.user?.id) {
+          void AsyncStorage.setItem(`${LIBRARY_CACHE_PREFIX}.${auth.user.id}`, JSON.stringify({
+            library: libraryResult.value,
+            cachedAt: Date.now(),
+          })).catch(() => {});
+        }
+      }
       if (libraryResult.status === 'fulfilled') {
         const pending = libraryResult.value.find((generation) => !['completed', 'success', 'failed', 'error'].includes(String(generation.status).toLowerCase()));
         if (pending) {
@@ -659,10 +688,13 @@ export function AIStudioScreen() {
         await player.togglePlayPause();
         return;
       }
-      const queueAlreadyLoaded = player.queue.length === libraryQueue.length
-        && player.queue.every((track, queueIndex) => track._id === libraryQueue[queueIndex]?._id);
-      if (queueAlreadyLoaded) await player.playQueueIndex(index);
-      else await player.setQueueAndPlay(libraryQueue, index);
+      const windowStart = Math.max(0, Math.min(index - 2, libraryQueue.length - 12));
+      const playbackWindow = libraryQueue.slice(windowStart, windowStart + 12);
+      const playbackIndex = index - windowStart;
+      const queueAlreadyLoaded = player.queue.length === playbackWindow.length
+        && player.queue.every((track, queueIndex) => track._id === playbackWindow[queueIndex]?._id);
+      if (queueAlreadyLoaded) await player.playQueueIndex(playbackIndex);
+      else await player.setQueueAndPlay(playbackWindow, playbackIndex);
     } catch (playbackError) {
       setError(playbackError instanceof Error ? playbackError.message : 'Impossible de lancer cette piste.');
     } finally {
@@ -768,7 +800,9 @@ export function AIStudioScreen() {
             paddingTop: drawer ? 10 : insets.top + 10,
             paddingBottom: viewTab === 'create'
               ? Math.max(insets.bottom, 10) + 112
-              : Math.max(insets.bottom + (player.current ? 205 : 125), player.current ? responsive.miniPlayerClearance : responsive.bottomDockClearance),
+              : player.current
+                ? Math.max(insets.bottom + 88, 98)
+                : Math.max(insets.bottom + 30, 40),
           },
         ]}
         keyboardShouldPersistTaps="handled"

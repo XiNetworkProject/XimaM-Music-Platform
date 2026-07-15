@@ -10,6 +10,7 @@ type HeaderAction = {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   label: string;
   onPress: () => void;
+  badge?: number;
 };
 
 export function AppHeader({
@@ -18,6 +19,7 @@ export function AppHeader({
   eyebrow,
   onBack,
   action,
+  actions,
   flush = false,
   dark = false,
   compact = false,
@@ -27,6 +29,7 @@ export function AppHeader({
   eyebrow?: string;
   onBack?: () => void;
   action?: HeaderAction;
+  actions?: HeaderAction[];
   flush?: boolean;
   dark?: boolean;
   compact?: boolean;
@@ -68,10 +71,19 @@ export function AppHeader({
           <Text maxFontSizeMultiplier={1.2} numberOfLines={1} style={[styles.title, layout.isNarrow && styles.titleNarrow, compact && styles.titleCompact, { color: foreground }]}>{title}</Text>
           {subtitle ? <Text maxFontSizeMultiplier={1.2} numberOfLines={layout.isNarrow ? 2 : 1} style={[styles.subtitle, { color: muted }]}>{subtitle}</Text> : null}
         </View>
-        {action ? (
-          <MotionPressable accessibilityLabel={action.label} onPress={() => press(action.onPress)} style={buttonStyle} scaleTo={0.9}>
-            <Ionicons name={action.icon} size={19} color={foreground} />
-          </MotionPressable>
+        {action || actions?.length ? (
+          <View style={styles.actions}>
+            {(actions?.length ? actions : action ? [action] : []).map((item) => (
+              <MotionPressable key={item.label} accessibilityLabel={item.label} onPress={() => press(item.onPress)} style={buttonStyle} scaleTo={0.9}>
+                <Ionicons name={item.icon} size={19} color={foreground} />
+                {item.badge ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{item.badge > 9 ? '9+' : item.badge}</Text>
+                  </View>
+                ) : null}
+              </MotionPressable>
+            ))}
+          </View>
         ) : null}
       </View>
     </Reveal>
@@ -90,6 +102,7 @@ const styles = StyleSheet.create({
   titleNarrow: { fontSize: 21, lineHeight: 25 },
   titleCompact: { fontSize: 19, lineHeight: 23 },
   subtitle: { marginTop: 2, fontSize: 11, lineHeight: 15, fontWeight: '700' },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   iconButton: {
     width: 42,
     height: 42,
@@ -101,4 +114,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   iconButtonDark: { borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.08)' },
+  badge: { position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, backgroundColor: colors.coral, borderWidth: 2, borderColor: colors.background },
+  badgeText: { color: colors.paper, fontSize: 8, lineHeight: 10, fontWeight: '900' },
 });

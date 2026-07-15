@@ -100,9 +100,13 @@ export function ClipComposerScreen() {
   const auth = useAuth();
   const player = usePlayer();
   const uploads = useClipUploads();
-  const presetSourceTrackId = route.params?.sourceTrackId ? String(route.params.sourceTrackId) : '';
-  const presetSourceTrackType = route.params?.sourceTrackType === 'ai_track' ? 'ai_track' : 'track';
-  const challengeId: string = route.params?.challengeId || '';
+  const editUploadTaskId = route.params?.editUploadTaskId ? String(route.params.editUploadTaskId) : '';
+  const editTask = uploads.tasks.find((task) => task.id === editUploadTaskId && task.status === 'failed') || null;
+  const presetSourceTrackId = route.params?.sourceTrackId
+    ? String(route.params.sourceTrackId)
+    : editTask?.source.sourceTrackId || '';
+  const presetSourceTrackType = route.params?.sourceTrackType === 'ai_track' || editTask?.source.sourceTrackType === 'ai_track' ? 'ai_track' : 'track';
+  const challengeId: string = route.params?.challengeId || editTask?.challengeId || '';
   const [challengeTitle, setChallengeTitle] = React.useState<string | null>(null);
   const [asset, setAsset] = React.useState<UploadAsset | null>(null);
   const [duration, setDuration] = React.useState(0);
@@ -118,7 +122,19 @@ export function ClipComposerScreen() {
   const [sourceError, setSourceError] = React.useState('');
   const sourceRequestRef = React.useRef(0);
   const presetRecordedRef = React.useRef(false);
+  const editPrefilledRef = React.useRef(false);
   const publishingRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!editTask || editPrefilledRef.current) return;
+    editPrefilledRef.current = true;
+    setAsset({ ...editTask.asset, uri: editTask.localUri || editTask.asset.uri });
+    setDuration(editTask.duration);
+    setSelectedSource(editTask.source);
+    setOffset(editTask.offset);
+    setCaption(editTask.caption);
+    setTagText(editTask.tags.map((tag) => `#${tag}`).join(' '));
+  }, [editTask]);
 
   const loadSources = React.useCallback(async (query = '', scope: 'all' | 'mine' = 'all') => {
     const requestId = ++sourceRequestRef.current;
@@ -250,7 +266,7 @@ export function ClipComposerScreen() {
     }
     publishingRef.current = true;
     try {
-      uploads.enqueue({
+      const input = {
         asset,
         source: selectedSource,
         duration,
@@ -258,7 +274,9 @@ export function ClipComposerScreen() {
         caption,
         tags: tagsFromText(tagText),
         challengeId: challengeId || undefined,
-      });
+      };
+      if (editTask) uploads.revise(editTask.id, input);
+      else uploads.enqueue(input);
       void player.pause();
       navigation.navigate('Swipe', { mode: 'clips' });
     } catch (error) {
@@ -267,7 +285,7 @@ export function ClipComposerScreen() {
     }
   };
 
-  const primaryLabel = !asset ? 'Ajouter la vidéo' : !selectedSource ? 'Choisir le son' : 'Publier le Clip';
+  const primaryLabel = !asset ? 'Ajouter la vidéo' : !selectedSource ? 'Choisir le son' : editTask ? 'Enregistrer et réessayer' : 'Publier le Clip';
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -277,7 +295,7 @@ export function ClipComposerScreen() {
             <Ionicons name="close" size={22} color={colors.paper} />
           </Pressable>
           <View style={styles.headerTitleWrap}>
-            <Text style={styles.headerTitle}>Créer un Clip</Text>
+            <Text style={styles.headerTitle}>{editTask ? 'Modifier le Clip' : 'Créer un Clip'}</Text>
             <View style={styles.progressRail}>
               {[1, 2, 3].map((step) => <View key={step} style={[styles.progressSegment, step <= currentStep && styles.progressSegmentActive]} />)}
             </View>

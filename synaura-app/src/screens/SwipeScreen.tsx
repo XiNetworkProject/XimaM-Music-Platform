@@ -75,6 +75,7 @@ import { MobileAnimatedLogo } from '@/components/mobile/MobileAnimatedLogo';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { ClipUploadIndicator } from '@/clips/ClipUploadIndicator';
+import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
 
 const PRELOAD_RANGE = 1;
 const COMMENTS_POLL_DELAY_MS = 900;
@@ -1029,10 +1030,12 @@ export function SwipeScreen() {
         <View style={[styles.headerInner, responsive.contentFrame]}>
           <View style={styles.scrollIdentity}>
             <View style={styles.scrollMark}><Text style={styles.scrollMarkText}>S</Text></View>
-            <View>
-              <Text style={styles.scrollName}>Flow</Text>
-              <Text style={styles.scrollSubtitle}>Synaura</Text>
-            </View>
+            {!responsive.isNarrow ? (
+              <View>
+                <Text style={styles.scrollName}>Flow</Text>
+                <Text style={styles.scrollSubtitle}>Synaura</Text>
+              </View>
+            ) : null}
           </View>
           <SegmentedControl
             value={feedMode}
@@ -1042,10 +1045,13 @@ export function SwipeScreen() {
             options={(['reco', 'trending', 'clips'] as FeedMode[]).map((mode) => ({ value: mode, label: FEED_MODE_META[mode].label }))}
             onChange={switchFeedMode}
           />
-          <MotionPressable accessibilityLabel="Voir la file d'attente" onPress={() => setQueueOpen(true)} style={styles.queueButton} scaleTo={0.9}>
-            <Ionicons name="albums-outline" size={20} color="#FFFAF2" />
-            {player.queue.length ? <View style={styles.queueBadge}><Text style={styles.queueBadgeText}>{player.queue.length}</Text></View> : null}
-          </MotionPressable>
+          <View style={styles.headerActions}>
+            <NotificationBellButton dark compact />
+            <MotionPressable accessibilityLabel="Voir la file d'attente" onPress={() => setQueueOpen(true)} style={styles.queueButton} scaleTo={0.9}>
+              <Ionicons name="albums-outline" size={20} color="#FFFAF2" />
+              {player.queue.length ? <View style={styles.queueBadge}><Text style={styles.queueBadgeText}>{player.queue.length}</Text></View> : null}
+            </MotionPressable>
+          </View>
         </View>
         <View style={styles.feedProgressTrack}><Animated.View style={[styles.feedProgressFill, { width: feedProgress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} /></View>
       </Animated.View>
@@ -1188,6 +1194,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   headerInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   scrollIdentity: {
     flexDirection: 'row',
     alignItems: 'center',

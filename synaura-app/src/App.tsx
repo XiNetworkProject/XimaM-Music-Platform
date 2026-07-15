@@ -57,6 +57,7 @@ function getActiveRouteName(state: any): string {
   const route = state?.routes?.[state.index ?? 0];
   if (!route) return 'Home';
   if (route.state) return getActiveRouteName(route.state);
+  if (route.name === 'AIStudio' && route.params?.playerMode === 'library') return 'AIStudioLibrary';
   return route.name || 'Home';
 }
 

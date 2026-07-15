@@ -21,6 +21,7 @@ import { colors } from '@/theme/tokens';
 import { ScreenIntro } from '@/components/ui/ScreenIntro';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
 
 // Intentions creatives (onboarding "Personnaliser mes gouts") qui mettent un Club
 // en avant. Ne masque jamais les autres Clubs, se contente de les prioriser.
@@ -130,6 +131,7 @@ export function CommunityScreen() {
           description="Trouve des personnes, des idées et des sons à faire évoluer ensemble."
           trailing={(
             <View style={styles.headerActions}>
+              <NotificationBellButton />
               <MotionPressable accessibilityLabel="FAQ communauté" onPress={() => setFaqOpen(true)} style={styles.circleButton} scaleTo={0.9}>
                 <Ionicons name="help-circle-outline" size={21} color={colors.text} />
               </MotionPressable>
