@@ -1,12 +1,12 @@
 {
-  "title": "Synaura mobile 0.15.5",
+  "title": "Synaura mobile 0.15.6",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Vraies notifications push Android, meme lorsque Synaura est en arriere-plan",
-    "Inscription automatique et securisee de l'appareil au service de notifications",
-    "Alertes de likes, commentaires et abonnements toujours synchronisees avec Supabase",
-    "Ouverture directe de la bonne page depuis une notification",
-    "Diagnostic des permissions et de l'inscription push plus fiable"
+    "Correction de la boucle qui saturait le serveur de notifications",
+    "Chargement du centre de notifications nettement plus stable",
+    "Dernieres alertes conservees a l'ecran pendant une coupure reseau",
+    "Inscription push Android dedupliquee et resynchronisation plus legere",
+    "Transport Expo et FCM verifie sur un appareil enregistre"
   ]
 }

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, DeviceEventEmitter, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
@@ -10,7 +10,6 @@ import {
   sendNativePushTest,
   unregisterNativePushToken,
   getNotificationUnreadCount,
-  getNativePushRegistration,
 } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { openInternalLink } from '@/navigation/internalLinks';
@@ -34,7 +33,9 @@ type NativeNotificationsContextValue = {
 
 const TOKEN_KEY = 'synaura.native.push.token.v1';
 const CHANNEL_ID = 'synaura-activity';
-const FOREGROUND_SYNC_MS = 20_000;
+const FOREGROUND_SYNC_MS = 60_000;
+const PUSH_REGISTRATION_COOLDOWN_MS = 5 * 60_000;
+const PUSH_TOKEN_EVENT_COOLDOWN_MS = 60_000;
 const NativeNotificationsContext = createContext<NativeNotificationsContextValue | null>(null);
 let lastOpenedNotificationId = '';
 
@@ -98,6 +99,9 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const registrationPromiseRef = useRef<Promise<string> | null>(null);
+  const lastRegistrationRef = useRef<{ token: string; syncedAt: number } | null>(null);
+  const lastPushTokenEventAtRef = useRef(0);
 
   const refreshUnread = useCallback(async (knownCount?: number) => {
     if (!auth.token) {
@@ -118,6 +122,46 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
     } catch (cause) {
       setSyncError(cause instanceof Error ? cause.message : 'Synchronisation Supabase indisponible.');
       return 0;
+    }
+  }, [auth.token]);
+
+  const syncPushRegistration = useCallback(async (force = false) => {
+    if (!auth.token) throw new Error('Session requise pour enregistrer ce telephone.');
+    if (registrationPromiseRef.current) return registrationPromiseRef.current;
+
+    const registration = (async () => {
+      const id = projectId();
+      if (!id) throw new Error('Projet Expo non configure');
+
+      const result = await Notifications.getExpoPushTokenAsync({ projectId: id });
+      const nextToken = result.data;
+      const previous = lastRegistrationRef.current;
+      const recentlySynced = previous?.token === nextToken
+        && Date.now() - previous.syncedAt < PUSH_REGISTRATION_COOLDOWN_MS;
+
+      if (force || !recentlySynced) {
+        const response = await registerNativePushToken({
+          token: nextToken,
+          platform: Platform.OS,
+          deviceName: Device.deviceName,
+          appVersion: Application.nativeApplicationVersion,
+        });
+        if (!response.registered) throw new Error("Le telephone n'a pas ete confirme dans Supabase.");
+        lastRegistrationRef.current = { token: nextToken, syncedAt: Date.now() };
+      }
+
+      await AsyncStorage.setItem(TOKEN_KEY, nextToken);
+      setToken(nextToken);
+      setStatus('ready');
+      setError(null);
+      return nextToken;
+    })();
+
+    registrationPromiseRef.current = registration;
+    try {
+      return await registration;
+    } finally {
+      if (registrationPromiseRef.current === registration) registrationPromiseRef.current = null;
     }
   }, [auth.token]);
 
@@ -146,32 +190,21 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
         return false;
       }
 
-      const id = projectId();
-      if (!id) throw new Error('Projet Expo non configure');
-      const result = await Notifications.getExpoPushTokenAsync({ projectId: id });
-      const registered = await registerNativePushToken({
-        token: result.data,
-        platform: Platform.OS,
-        deviceName: Device.deviceName,
-        appVersion: Application.nativeApplicationVersion,
-      });
-      const verification = await getNativePushRegistration();
-      if (!registered.registered || !verification.registered) throw new Error("Le téléphone n'a pas été confirmé dans Supabase.");
-      await AsyncStorage.setItem(TOKEN_KEY, result.data);
-      setToken(result.data);
-      setStatus('ready');
+      await syncPushRegistration(true);
       return true;
     } catch (cause) {
       setStatus('error');
       setError(readablePushError(cause));
       return false;
     }
-  }, [auth.token, auth.user]);
+  }, [auth.token, auth.user, syncPushRegistration]);
 
   const disable = useCallback(async () => {
     const stored = token || await AsyncStorage.getItem(TOKEN_KEY);
     if (stored && auth.token) await unregisterNativePushToken(stored).catch(() => {});
     await AsyncStorage.removeItem(TOKEN_KEY);
+    lastRegistrationRef.current = null;
+    lastPushTokenEventAtRef.current = 0;
     setToken(null);
     setStatus('disabled');
     setError(null);
@@ -230,38 +263,27 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
   useEffect(() => {
     if (!auth.token) return;
     const subscription = Notifications.addPushTokenListener(() => {
-      void (async () => {
-        const id = projectId();
-        if (!id) return;
-        try {
-          const result = await Notifications.getExpoPushTokenAsync({ projectId: id });
-          await registerNativePushToken({
-            token: result.data,
-            platform: Platform.OS,
-            deviceName: Device.deviceName,
-            appVersion: Application.nativeApplicationVersion,
-          });
-          await AsyncStorage.setItem(TOKEN_KEY, result.data);
-          setToken(result.data);
-          setStatus('ready');
-          setError(null);
-        } catch {
-          setStatus('error');
-          setError('Le token de notifications doit être resynchronisé.');
-        }
-      })();
+      const now = Date.now();
+      if (now - lastPushTokenEventAtRef.current < PUSH_TOKEN_EVENT_COOLDOWN_MS) return;
+      lastPushTokenEventAtRef.current = now;
+      void syncPushRegistration().catch(() => {
+        setStatus('error');
+        setError('Le token de notifications doit être resynchronisé.');
+      });
     });
     return () => subscription.remove();
-  }, [auth.token]);
+  }, [auth.token, syncPushRegistration]);
 
   useEffect(() => {
     if (auth.loading) return;
     if (!auth.token) {
+      lastRegistrationRef.current = null;
+      lastPushTokenEventAtRef.current = 0;
       setToken(null);
       setStatus('disabled');
       return;
     }
-    void AsyncStorage.getItem(TOKEN_KEY).then(async (stored) => {
+    void (async () => {
       try {
         const permission = await Notifications.getPermissionsAsync();
         if (permission.status !== 'granted') {
@@ -270,29 +292,13 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
           return;
         }
         await configureAndroidChannel();
-        const id = projectId();
-        if (!id) throw new Error('Projet Expo non configure');
-        const fresh = await Notifications.getExpoPushTokenAsync({ projectId: id });
-        const currentToken = fresh.data || stored;
-        if (!currentToken) throw new Error('Jeton push Android indisponible');
-        await registerNativePushToken({
-          token: currentToken,
-          platform: Platform.OS,
-          deviceName: Device.deviceName,
-          appVersion: Application.nativeApplicationVersion,
-        });
-        const verification = await getNativePushRegistration();
-        if (!verification.registered) throw new Error("Le téléphone n'a pas été confirmé dans Supabase.");
-        await AsyncStorage.setItem(TOKEN_KEY, currentToken);
-        setToken(currentToken);
-        setStatus('ready');
-        setError(null);
+        await syncPushRegistration();
       } catch (cause) {
         setStatus('error');
         setError(readablePushError(cause));
       }
-    });
-  }, [auth.loading, auth.token]);
+    })();
+  }, [auth.loading, auth.token, syncPushRegistration]);
 
   const value = useMemo<NativeNotificationsContextValue>(() => ({
     status,

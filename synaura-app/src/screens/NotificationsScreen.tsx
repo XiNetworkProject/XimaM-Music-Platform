@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
 import { ActivityIndicator, Animated, FlatList, PanResponder, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +13,9 @@ import { AppHeader } from '@/components/ui/AppHeader';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
+import { useAuth } from '@/auth/AuthProvider';
+
+const NOTIFICATIONS_REFRESH_MS = 60_000;
 
 const tabs = [
   { id: 'all', label: 'Toutes' },
@@ -43,6 +47,7 @@ export function NotificationsScreen() {
   const responsive = useResponsiveLayout();
   const navigation = useNavigation<any>();
   const player = usePlayer();
+  const auth = useAuth();
   const nativeNotifications = useNativeNotifications();
   const [category, setCategory] = React.useState<(typeof tabs)[number]['id']>('all');
   const [items, setItems] = React.useState<SynauraNotification[]>([]);
@@ -50,27 +55,58 @@ export function NotificationsScreen() {
   const [refreshing, setRefreshing] = React.useState(false);
   const [unread, setUnread] = React.useState(0);
   const [error, setError] = React.useState<string | null>(null);
+  const cacheKey = React.useMemo(
+    () => auth.user?.id ? `synaura.notifications.cache.v1.${auth.user.id}.${category}` : null,
+    [auth.user?.id, category],
+  );
 
   const load = React.useCallback(async (mode: 'initial' | 'refresh' | 'background' = 'initial') => {
     if (mode === 'refresh') setRefreshing(true);
     else if (mode === 'initial') setLoading(true);
     setError(null);
+    let hasCachedData = false;
+
+    if (mode === 'initial' && cacheKey) {
+      try {
+        const cachedRaw = await AsyncStorage.getItem(cacheKey);
+        const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
+        if (Array.isArray(cached?.notifications)) {
+          setItems(cached.notifications);
+          setUnread(Math.max(0, Number(cached.unread || 0)));
+          hasCachedData = true;
+          setLoading(false);
+        }
+      } catch {
+        // A broken cache must never block the live Supabase request.
+      }
+    }
+
     try {
       const data = await getNotifications(category);
       setItems(data.notifications);
       setUnread(data.unread);
       void nativeNotifications.refreshUnread(data.unread);
+      if (cacheKey) {
+        void AsyncStorage.setItem(cacheKey, JSON.stringify({
+          notifications: data.notifications,
+          unread: data.unread,
+          total: data.total,
+          cachedAt: Date.now(),
+        })).catch(() => {});
+      }
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Impossible de charger les notifications');
+      setError(hasCachedData
+        ? 'Actualisation interrompue. Les dernières notifications restent affichées.'
+        : nextError instanceof Error ? nextError.message : 'Impossible de charger les notifications');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [category, nativeNotifications.refreshUnread]);
+  }, [cacheKey, category, nativeNotifications.refreshUnread]);
 
   useFocusEffect(React.useCallback(() => {
     void load();
-    const interval = setInterval(() => void load('background'), 20_000);
+    const interval = setInterval(() => void load('background'), NOTIFICATIONS_REFRESH_MS);
     return () => clearInterval(interval);
   }, [load]));
 
