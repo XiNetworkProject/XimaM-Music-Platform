@@ -1,12 +1,12 @@
 {
-  "title": "Synaura mobile 0.15.4",
+  "title": "Synaura mobile 0.15.5",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Cloche Alertes accessible dans la navigation avec badge non lu",
-    "Centre de notifications synchronise avec Supabase au lancement et au retour dans l'app",
-    "Likes, commentaires, abonnements et alertes systeme regroupes et filtrables",
-    "Inscription des telephones securisee et diagnostic du push Android plus clair",
-    "Synchronisation web et mobile allegee pour de meilleures performances"
+    "Vraies notifications push Android, meme lorsque Synaura est en arriere-plan",
+    "Inscription automatique et securisee de l'appareil au service de notifications",
+    "Alertes de likes, commentaires et abonnements toujours synchronisees avec Supabase",
+    "Ouverture directe de la bonne page depuis une notification",
+    "Diagnostic des permissions et de l'inscription push plus fiable"
   ]
 }
