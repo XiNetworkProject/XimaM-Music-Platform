@@ -1,4 +1,13 @@
-export type RecommendationStrategy = 'reco' | 'trending' | 'fresh' | 'mixed';
+export type RecommendationStrategy = 'reco' | 'popular' | 'trending' | 'fresh' | 'boosted' | 'mixed';
+
+export type DiscoveryBucket =
+  | 'affinity'
+  | 'emerging'
+  | 'fresh'
+  | 'momentum'
+  | 'quality'
+  | 'catalog'
+  | 'boosted';
 
 export type RecommendationReason =
   | 'global_performance'
@@ -9,12 +18,37 @@ export type RecommendationReason =
   | 'artist_affinity'
   | 'genre_affinity'
   | 'collaborative'
+  | 'quality_signal'
+  | 'momentum'
+  | 'emerging_creator'
+  | 'catalog_rediscovery'
   | 'social_engagement'
   | 'post_track_match'
   | 'exploration'
   | 'already_seen'
   | 'fatigue'
   | 'skip_penalty';
+
+export type TrackDiscoveryMetrics = {
+  plays30d: number;
+  completes30d: number;
+  likes30d: number;
+  shares30d: number;
+  saves30d: number;
+  comments30d: number;
+  reactions30d: number;
+  uniqueListeners30d: number;
+  completionRate30d: number;
+  creatorFollowers: number;
+  ageHours: number;
+  qualityScore: number;
+  reachScore: number;
+  momentumScore: number;
+  freshnessScore: number;
+  emergingScore: number;
+  catalogScore: number;
+  confidence: number;
+};
 
 export type RecommendedTrack = {
   _id: string;
@@ -26,6 +60,9 @@ export type RecommendedTrack = {
     avatar?: string;
     isArtist?: boolean;
     artistName?: string;
+    bio?: string;
+    followersCount?: number;
+    createdAt?: string;
   };
   duration?: number;
   coverUrl?: string | null;
@@ -50,6 +87,13 @@ export type RecommendedTrack = {
   recommendationDebug?: Record<string, number | string | boolean | string[]>;
   isFresh?: boolean;
   isCurrentObsession?: boolean;
+  recommendationBucket?: DiscoveryBucket;
+  discoveryMetrics?: TrackDiscoveryMetrics;
+  radarScore?: number;
+  radarReasons?: string[];
+  radarSignalLabel?: string;
+  isRadar?: boolean;
+  isNewThisWeek?: boolean;
 };
 
 export type RecommendedPost = {
@@ -102,14 +146,20 @@ export type UserRecommendationSignals = {
   commentedPostIds: Set<string>;
   recentlyRecommendedTrackIds: Set<string>;
   recentlyRecommendedPostIds: Set<string>;
+  recentlyRecommendedClipIds: Set<string>;
+  recommendationCounts: Map<string, number>;
+  lastRecommendedAt: Map<string, number>;
   followedPostCreatorIds: Set<string>;
   preferredGenres: Map<string, number>;
+  avoidedGenres: Map<string, number>;
   artistAffinity: Map<string, number>;
+  artistAversion: Map<string, number>;
   trackRepeatCounts24h: Map<string, number>;
   trackRepeatCounts72h: Map<string, number>;
   trackRecentCompletes72h: Map<string, number>;
   currentObsessionTrackIds: Set<string>;
   recentlyPlayedTrackIds: string[];
+  signalStrength: number;
 };
 
 export type RecommendationContext = {
@@ -117,6 +167,8 @@ export type RecommendationContext = {
   strategy?: RecommendationStrategy;
   debug?: boolean;
   genreFilter?: string | null;
+  seedGenre?: string | null;
+  sessionSeed?: string | null;
   maxConsecutiveArtists?: number;
+  maxPerArtist?: number;
 };
-

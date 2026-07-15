@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { computeRankingScore } from '@/lib/ranking';
 import { supabaseAdmin } from '@/lib/supabase';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
 import {
   buildAnonymousRecommendationSignals,
   buildUserRecommendationSignals,
+  loadGlobalTrackCandidates,
   rerankPosts,
   rerankTracks,
   type RecommendedPost,
@@ -53,97 +53,8 @@ function readTrackData(value: any): Record<string, any> {
   }
 }
 
-function formatTrack(track: any, rankingScore: number): RecommendedTrack {
-  const profile = profileOf(track);
-  const data = readTrackData(track.data);
-  return {
-    _id: String(track.id),
-    title: track.title,
-    artist: {
-      _id: track.creator_id,
-      username: profile?.username,
-      name: profile?.name,
-      avatar: profile?.avatar,
-      isArtist: profile?.is_artist,
-      artistName: profile?.artist_name,
-    },
-    duration: track.duration || 0,
-    coverUrl: track.cover_url,
-    coverVideoUrl: track.cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
-    coverVideoPosterUrl: track.cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || null,
-    audioUrl: track.audio_url,
-    album: track.album || null,
-    genre: track.genre || [],
-    lyrics: track.lyrics || null,
-    likes: [],
-    plays: track.plays || 0,
-    createdAt: track.created_at,
-    isFeatured: false,
-    isVerified: Boolean(profile?.is_verified),
-    rankingScore,
-    isAI: false,
-    isLiked: false,
-  };
-}
-
-async function loadTrackCandidates(limit: number) {
-  const now = Date.now();
-  const { data: statsRows } = await supabaseAdmin.from('track_stats_rolling_30d').select('*').limit(500);
-  const stats = (statsRows || []).filter((row: any) => !row.is_ai_track);
-  const statIds = stats.map((row: any) => row.track_id).filter(Boolean);
-  const statsMap = new Map(stats.map((row: any) => [String(row.track_id), row]));
-
-  const trackIds = Array.from(new Set(statIds)).slice(0, Math.max(120, limit * 8));
-  let rankedTracks: RecommendedTrack[] = [];
-
-  if (trackIds.length) {
-    const { data: tracks } = await supabaseAdmin
-      .from('tracks')
-      .select(`
-        *,
-        profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
-      `)
-      .in('id', trackIds)
-      .eq('is_public', true)
-      .not('audio_url', 'is', null);
-
-    rankedTracks = (tracks || []).map((track: any) => {
-      const row = statsMap.get(String(track.id));
-      const age = track.created_at ? Math.max(1, (now - new Date(track.created_at).getTime()) / 3_600_000) : 24;
-      const score = computeRankingScore({
-        plays_30d: row?.plays_30d || 0,
-        completes_30d: row?.completes_30d || 0,
-        likes_30d: row?.likes_30d || 0,
-        shares_30d: row?.shares_30d || 0,
-        favorites_30d: row?.favorites_30d || 0,
-        listen_ms_30d: row?.listen_ms_30d || 0,
-        unique_listeners_30d: row?.unique_listeners_30d || 0,
-        retention_complete_rate_30d: row?.retention_complete_rate_30d || 0,
-      }, age, 0);
-      return formatTrack(track, score);
-    });
-  }
-
-  const existingIds = new Set(rankedTracks.map((track) => String(track._id)));
-  const { data: freshTracks } = await supabaseAdmin
-    .from('tracks')
-    .select(`
-      *,
-      profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
-    `)
-    .eq('is_public', true)
-    .not('audio_url', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(Math.max(80, limit * 6));
-
-  const freshFormatted = (freshTracks || [])
-    .filter((track: any) => !existingIds.has(String(track.id)))
-    .map((track: any, index: number) => {
-      const age = track.created_at ? Math.max(1, (now - new Date(track.created_at).getTime()) / 3_600_000) : 24;
-      return { ...formatTrack(track, 12 * Math.exp(-age * Math.LN2 / 72) - index * 0.01), isFresh: true };
-    });
-
-  return [...rankedTracks, ...freshFormatted];
+async function loadTrackCandidates(_limit: number) {
+  return loadGlobalTrackCandidates(false);
 }
 
 async function loadPostCandidates(limit: number, userId: string | null) {
@@ -209,6 +120,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '24', 10) || 24, 1), 60);
     const cursor = Math.max(parseInt(searchParams.get('cursor') || '0', 10) || 0, 0);
     const debug = searchParams.get('debug') === '1';
+    const recommendationSessionId = searchParams.get('session')?.slice(0, 120) || null;
     const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || searchParams.get('userId') || null;
 
@@ -218,10 +130,15 @@ export async function GET(request: NextRequest) {
     ]);
 
     const signals = userId
-      ? await buildUserRecommendationSignals({ supabase: supabaseAdmin, userId, candidateTracks: trackCandidates })
+      ? await buildUserRecommendationSignals({ supabase: supabaseAdmin, userId, candidateTracks: trackCandidates, sessionId: recommendationSessionId })
       : buildAnonymousRecommendationSignals();
 
-    const tracks = rerankTracks(trackCandidates, signals, { strategy: 'reco', debug, maxConsecutiveArtists: 2 });
+    const tracks = rerankTracks(trackCandidates, signals, {
+      strategy: 'reco',
+      debug,
+      maxConsecutiveArtists: 1,
+      sessionSeed: recommendationSessionId || `${userId || 'anonymous'}:${new Date().toISOString().slice(0, 10)}:home`,
+    });
     const posts = rerankPosts(postCandidates, signals, { debug });
     const dailyMix = tracks.slice(0, 12);
     const weeklyTop = [...trackCandidates]

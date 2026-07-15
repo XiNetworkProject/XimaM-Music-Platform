@@ -30,6 +30,7 @@ import {
   getSynauraCity,
   getTrackLikeStatus,
   recordClipFunnelEvent,
+  sendRecommendationImpressions,
   setTrackLike,
   setMusicClipLike,
   toggleArtistFollow,
@@ -176,6 +177,7 @@ export function SwipeScreen() {
   const appStateRef = useRef(AppState.currentState);
   const feedItemsRef = useRef<ScrollFeedItem[]>([]);
   const lastAutoStartedClipRef = useRef<string | null>(null);
+  const impressionSeenRef = useRef<Set<string>>(new Set());
   const switchFeedMode = useCallback((nextMode: FeedMode) => {
     if (nextMode === feedMode) return;
     if (nextMode !== 'clips' && route.params?.mode === 'clips') {
@@ -232,6 +234,29 @@ export function SwipeScreen() {
   useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
+
+  useEffect(() => {
+    if (!isFocused || !appIsActive || loadState !== 'ready') return;
+    const item = feedItems[activeIndex];
+    if (!item || (item.kind !== 'track' && item.kind !== 'clip')) return;
+    const kind = item.kind === 'clip' ? 'clip' as const : 'track' as const;
+    const entity = item.kind === 'clip' ? item.clip : item.track;
+    const id = item.kind === 'clip' ? item.clip.id : item.track._id;
+    const key = `${kind}:${id}`;
+    if (!id || impressionSeenRef.current.has(key)) return;
+    const timer = setTimeout(() => {
+      if (impressionSeenRef.current.has(key)) return;
+      impressionSeenRef.current.add(key);
+      void sendRecommendationImpressions([{
+        id,
+        kind,
+        position: activeIndex,
+        score: Number(entity.recommendationScore || 0),
+        reasons: entity.recommendationReasons || [],
+      }]);
+    }, 650);
+    return () => clearTimeout(timer);
+  }, [activeIndex, appIsActive, feedItems, isFocused, loadState]);
 
   useEffect(() => {
     fetchedLikeIdsRef.current.clear();

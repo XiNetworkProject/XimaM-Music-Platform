@@ -1,111 +1,159 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getApiSession } from '@/lib/getApiSession';
-import { applyPublicTrackFilter } from '@/lib/publicTracks';
+import {
+  buildAnonymousRecommendationSignals,
+  buildUserRecommendationSignals,
+  loadGlobalTrackCandidates,
+  rerankTracks,
+  type RecommendedTrack,
+  type RecommendationStrategy,
+} from '@/lib/recommendation';
 
 export const dynamic = 'force-dynamic';
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
+function normalizeGenres(value: RecommendedTrack['genre']) {
+  if (Array.isArray(value)) return value.map((genre) => String(genre || '').trim().toLowerCase()).filter(Boolean);
+  return value ? [String(value).trim().toLowerCase()] : [];
+}
+
+function strategyForSort(sort: string): RecommendationStrategy {
+  if (sort === 'newest') return 'fresh';
+  if (sort === 'hidden') return 'reco';
+  if (sort === 'popular') return 'popular';
+  return 'trending';
+}
+
+function buildArtistResults(tracks: RecommendedTrack[], sort: string) {
+  const byArtist = new Map<string, {
+    artist: NonNullable<RecommendedTrack['artist']>;
+    tracks: number;
+    latest: number;
+    emerging: number;
+    momentum: number;
+    quality: number;
+    reach: number;
+    leadTrack: RecommendedTrack;
+  }>();
+
+  for (const track of tracks) {
+    const artistId = String(track.artist?._id || '');
+    if (!artistId || !track.artist) continue;
+    const created = track.createdAt ? new Date(track.createdAt).getTime() : 0;
+    const metrics = track.discoveryMetrics;
+    const current = byArtist.get(artistId);
+    if (!current) {
+      byArtist.set(artistId, {
+        artist: track.artist,
+        tracks: 1,
+        latest: created,
+        emerging: metrics?.emergingScore || 0,
+        momentum: metrics?.momentumScore || 0,
+        quality: metrics?.qualityScore || 0,
+        reach: metrics?.reachScore || 0,
+        leadTrack: track,
+      });
+      continue;
+    }
+    current.tracks += 1;
+    current.latest = Math.max(current.latest, created);
+    current.emerging = Math.max(current.emerging, metrics?.emergingScore || 0);
+    current.momentum = Math.max(current.momentum, metrics?.momentumScore || 0);
+    current.quality = Math.max(current.quality, metrics?.qualityScore || 0);
+    current.reach = Math.max(current.reach, metrics?.reachScore || 0);
+  }
+
+  return Array.from(byArtist.values())
+    .sort((a, b) => {
+      if (sort === 'newest') return b.latest - a.latest;
+      if (sort === 'hidden') {
+        const aScore = a.emerging + (1 - Math.min(1, Number(a.artist.followersCount || 0) / 500)) * 1.5;
+        const bScore = b.emerging + (1 - Math.min(1, Number(b.artist.followersCount || 0) / 500)) * 1.5;
+        return bScore - aScore;
+      }
+      return (b.momentum * 1.2 + b.quality + b.reach * 0.35) - (a.momentum * 1.2 + a.quality + a.reach * 0.35);
+    })
+    .map((entry) => ({
+      _id: String(entry.artist._id || ''),
+      username: entry.artist.username || '',
+      name: entry.artist.artistName || entry.artist.name || entry.artist.username || 'Artiste Synaura',
+      avatar: entry.artist.avatar || '',
+      bio: entry.artist.bio || '',
+      createdAt: entry.artist.createdAt || null,
+      followersCount: Number(entry.artist.followersCount || 0),
+      tracksCount: entry.tracks,
+      isNew: entry.latest > Date.now() - 14 * 86400000,
+      leadTrack: entry.leadTrack,
+    }));
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const category = searchParams.get('category') || 'all';
     const sort = searchParams.get('sort') || 'trending';
     const page = Math.max(0, Number(searchParams.get('page') || 0));
     const limit = clamp(Number(searchParams.get('limit') || 24), 6, 48);
     const profilePage = Math.max(0, Number(searchParams.get('profilePage') || page));
     const profileLimit = clamp(Number(searchParams.get('profileLimit') || 12), 4, 24);
-    const from = page * limit;
-    const profileFrom = profilePage * profileLimit;
-
+    const sessionId = searchParams.get('session')?.slice(0, 120) || null;
     const session = await getApiSession(request).catch(() => null);
-    const userId = String((session?.user as any)?.id || '');
+    const userId = (session?.user as any)?.id ? String((session?.user as any).id) : null;
+    const categoryFilter = category === 'all' ? null : category.trim().toLowerCase();
+    const candidates = (await loadGlobalTrackCandidates(false)).filter((track) => {
+      if (!categoryFilter) return true;
+      return normalizeGenres(track.genre).some((genre) => genre.includes(categoryFilter));
+    });
+    const signals = userId
+      ? await buildUserRecommendationSignals({ supabase: supabaseAdmin, userId, candidateTracks: candidates, sessionId })
+      : buildAnonymousRecommendationSignals();
+    const strategy = strategyForSort(sort);
+    let source = candidates;
 
-    let tracksQuery = applyPublicTrackFilter(supabaseAdmin
-      .from('tracks')
-      .select(`
-        id, title, creator_id, cover_url, audio_url, duration, plays, likes,
-        is_featured, genre, created_at,
-        profiles!tracks_creator_id_fkey (id, username, name, avatar, is_artist, artist_name)
-      `, { count: 'exact' }));
-
-    if (category !== 'all') tracksQuery = tracksQuery.contains('genre', [category]);
-    if (sort === 'newest') tracksQuery = tracksQuery.order('created_at', { ascending: false });
-    else if (sort === 'popular') tracksQuery = tracksQuery.order('likes', { ascending: false }).order('plays', { ascending: false });
-    else if (sort === 'hidden') tracksQuery = tracksQuery.order('plays', { ascending: true }).order('likes', { ascending: false });
-    else if (sort === 'featured') tracksQuery = tracksQuery.order('is_featured', { ascending: false }).order('plays', { ascending: false });
-    else tracksQuery = tracksQuery.order('plays', { ascending: false }).order('created_at', { ascending: false });
-
-    const [tracksResult, profilesResult] = await Promise.all([
-      tracksQuery.range(from, from + limit - 1),
-      supabaseAdmin
-        .from('profiles')
-        .select('id, username, name, avatar, bio, created_at', { count: 'exact' })
-        .not('username', 'is', null)
-        .order(sort === 'newest' ? 'created_at' : 'username', { ascending: sort !== 'newest' })
-        .range(profileFrom, profileFrom + profileLimit - 1),
-    ]);
-
-    if (tracksResult.error) throw tracksResult.error;
-    if (profilesResult.error) throw profilesResult.error;
-
-    const rows = tracksResult.data || [];
-    const trackIds = rows.map((track: any) => track.id);
-    let liked = new Set<string>();
-    if (userId && trackIds.length) {
-      const { data } = await supabaseAdmin.from('track_likes').select('track_id').eq('user_id', userId).in('track_id', trackIds);
-      liked = new Set((data || []).map((entry: any) => String(entry.track_id)));
+    if (sort === 'hidden') {
+      const emerging = candidates.filter((track) => {
+        const metrics = track.discoveryMetrics;
+        return Number(track.plays || 0) < 500 && (metrics?.emergingScore || 0) >= 2.5;
+      });
+      source = (emerging.length ? emerging : candidates.filter((track) => Number(track.plays || 0) < 500)).map((track) => ({
+        ...track,
+        rankingScore: track.discoveryMetrics?.emergingScore || track.rankingScore || 0,
+      }));
+    } else if (sort === 'featured') {
+      const featured = candidates.filter((track) => track.isFeatured);
+      source = featured.length ? featured : candidates;
     }
 
-    const tracks = rows.map((track: any) => ({
-      _id: track.id,
-      title: track.title,
-      artist: {
-        _id: track.creator_id,
-        username: track.profiles?.username || '',
-        name: track.profiles?.name || track.profiles?.artist_name || track.profiles?.username || 'Artiste Synaura',
-        artistName: track.profiles?.artist_name || track.profiles?.name || track.profiles?.username || 'Artiste Synaura',
-        avatar: track.profiles?.avatar || '',
-      },
-      coverUrl: track.cover_url,
-      audioUrl: track.audio_url,
-      duration: track.duration || 0,
-      plays: track.plays || 0,
-      likes: Array.isArray(track.likes) ? track.likes : [],
-      likesCount: Array.isArray(track.likes) ? track.likes.length : Number(track.likes || 0),
-      genre: track.genre || [],
-      createdAt: track.created_at,
-      isFeatured: Boolean(track.is_featured),
-      isLiked: liked.has(track.id),
-    }));
+    const rankingSeed = sessionId || `${userId || 'anonymous'}:${new Date().toISOString().slice(0, 10)}:discover:${sort}:${category}`;
+    const ranked = rerankTracks(source, signals, {
+      strategy,
+      sessionSeed: rankingSeed,
+      maxConsecutiveArtists: 1,
+      maxPerArtist: 3,
+    }).map((track) => ({ ...track, isLiked: signals.likedTrackIds.has(String(track._id)) }));
+    const artists = buildArtistResults(ranked, sort);
+    const from = page * limit;
+    const profileFrom = profilePage * profileLimit;
+    const tracks = ranked.slice(from, from + limit);
+    const artistPage = artists.slice(profileFrom, profileFrom + profileLimit);
 
-    const artists = (profilesResult.data || []).map((profile: any) => ({
-      _id: profile.id,
-      username: profile.username || '',
-      name: profile.name || profile.username || 'Membre Synaura',
-      avatar: profile.avatar || '',
-      bio: profile.bio || '',
-      createdAt: profile.created_at,
-      isNew: Date.now() - new Date(profile.created_at || 0).getTime() < 14 * 86400000,
-    }));
-
-    const totalTracks = tracksResult.count || 0;
-    const totalArtists = profilesResult.count || 0;
     return NextResponse.json({
       tracks,
-      artists,
+      artists: artistPage,
       page,
       nextPage: page + 1,
-      hasMore: from + tracks.length < totalTracks,
-      total: totalTracks,
+      hasMore: from + tracks.length < ranked.length,
+      total: ranked.length,
       profilePage,
       nextProfilePage: profilePage + 1,
-      hasMoreProfiles: profileFrom + artists.length < totalArtists,
-      totalArtists,
+      hasMoreProfiles: profileFrom + artistPage.length < artists.length,
+      totalArtists: artists.length,
       category,
       sort,
-    }, { headers: { 'Cache-Control': 'no-store' } });
+      engineVersion: 'discovery-v2',
+    }, { headers: { 'Cache-Control': userId ? 'private, no-store' : 'public, s-maxage=30, stale-while-revalidate=90' } });
   } catch (error: any) {
     console.error('Discover API error:', error);
     return NextResponse.json({ error: error?.message || 'Erreur interne du serveur' }, { status: 500 });

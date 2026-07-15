@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '12', 10) || 12, 1), 40);
     const cursor = Math.max(parseInt(searchParams.get('cursor') || '0', 10) || 0, 0);
     const debug = searchParams.get('debug') === '1';
+    const recommendationSessionId = searchParams.get('session')?.slice(0, 120) || null;
 
     const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || searchParams.get('userId') || null;
@@ -98,7 +99,7 @@ export async function GET(request: NextRequest) {
       creator_id: track.creator_id,
     }));
     const signals = userId
-      ? await buildUserRecommendationSignals({ supabase: supabaseAdmin, userId, candidateTracks })
+      ? await buildUserRecommendationSignals({ supabase: supabaseAdmin, userId, candidateTracks, sessionId: recommendationSessionId })
       : buildAnonymousRecommendationSignals();
 
     const posts = (rawPosts || []).map((post: any) => ({
@@ -110,7 +111,7 @@ export async function GET(request: NextRequest) {
       isLiked: liked.has(String(post.id)),
     }));
 
-    const ranked = rerankPosts(posts, signals, { debug });
+    const ranked = rerankPosts(posts, signals, { debug, sessionSeed: recommendationSessionId || undefined });
     const page = ranked.slice(cursor, cursor + limit);
     const nextCursor = cursor + page.length;
 
@@ -119,6 +120,7 @@ export async function GET(request: NextRequest) {
         posts: page,
         nextCursor: nextCursor < ranked.length ? String(nextCursor) : null,
         hasMore: nextCursor < ranked.length,
+        engineVersion: 'discovery-v2',
       },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } },
     );

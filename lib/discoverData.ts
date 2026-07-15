@@ -1,4 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase';
+import { computeTrackDiscoveryMetrics } from '@/lib/ranking';
+import { loadGlobalTrackCandidates } from '@/lib/recommendation/candidates';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RADAR_LOW_PLAY_CEILING = 500;
@@ -91,11 +93,6 @@ function isMissingColumnError(error: any) {
   return error?.code === '42703' || message.includes('does not exist') || message.includes('column');
 }
 
-function isMissingTableError(error: any) {
-  const message = String(error?.message || error?.details || '').toLowerCase();
-  return error?.code === '42P01' || message.includes('does not exist') || message.includes('schema cache');
-}
-
 export async function getPublicTrackPool(input: { limit?: number; order?: 'plays_desc' | 'plays_asc' | 'recent' } = {}): Promise<PublicTrackRow[]> {
   const limit = input.limit || 300;
   const buildQuery = (withData: boolean) => {
@@ -144,28 +141,6 @@ function ratio(part: number, total: number) {
   return total > 0 ? part / total : part > 0 ? 1 : 0;
 }
 
-function increment(map: Map<string, number>, key: unknown, amount = 1) {
-  const id = String(key || '');
-  if (!id) return;
-  map.set(id, (map.get(id) || 0) + amount);
-}
-
-async function optionalRows<T>(label: string, run: () => PromiseLike<{ data: T[] | null; error: any }>): Promise<T[]> {
-  try {
-    const { data, error } = await run();
-    if (error) {
-      if (!isMissingColumnError(error) && !isMissingTableError(error)) {
-        console.warn(`radar: signal ${label} unavailable`, error.message || error);
-      }
-      return [];
-    }
-    return data || [];
-  } catch (error: any) {
-    console.warn(`radar: signal ${label} unavailable`, error?.message || error);
-    return [];
-  }
-}
-
 export function calculateRadarScore(input: RadarScoreInput): number {
   const plays = Math.max(0, Math.round(input.plays || 0));
   const likes = Math.max(0, Math.round(input.likes || 0));
@@ -175,49 +150,25 @@ export function calculateRadarScore(input: RadarScoreInput): number {
   const completionRate = Math.max(0, Math.min(100, Number(input.completionRate || 0)));
   const ageDays = Math.max(0, Number(input.ageDays || 9999));
 
-  const completionRateBonus =
-    completionRate >= 70 ? 18 :
-    completionRate >= 55 ? 12 :
-    completionRate >= 40 ? 7 :
-    0;
-
-  const ratioBonus = Math.min(
-    28,
-    ratio(likes, plays) * 80 +
-    ratio(saves, plays) * 95 +
-    ratio(comments + reactions, plays) * 55,
-  );
-
-  const freshnessBonus =
-    ageDays <= RADAR_NEW_THIS_WEEK_DAYS ? 14 :
-    ageDays <= 30 ? 8 :
-    ageDays <= RADAR_RECENT_DAYS ? 4 :
-    0;
-
-  const lowPlayBonus =
-    plays < 50 ? 10 :
-    plays < 200 ? 7 :
-    plays < RADAR_LOW_PLAY_CEILING ? 3 :
-    0;
-
-  const progressionBonus = Math.min(
-    20,
-    Math.max(0, input.recentPlays || 0) * 0.6 +
-    Math.max(0, input.recentLikes || 0) * 2 +
-    Math.max(0, input.shares || 0) * 2,
-  );
-
-  return Math.round(
-    likes * 2 +
-    saves * 3 +
-    comments * 2 +
-    reactions +
-    completionRateBonus +
-    ratioBonus +
-    freshnessBonus +
-    lowPlayBonus +
-    progressionBonus,
-  );
+  const recentPlays = Math.max(0, Number(input.recentPlays || 0));
+  const uniqueListeners = Math.min(Math.max(1, recentPlays), Math.max(1, plays));
+  const momentumRaw = recentPlays * 0.28 + Math.max(0, input.recentLikes || 0) * 1.8 + Math.max(0, input.shares || 0) * 2.2;
+  const metrics = computeTrackDiscoveryMetrics({
+    plays_30d: recentPlays || plays,
+    completes_30d: Math.round((completionRate / 100) * (recentPlays || plays)),
+    likes_30d: likes,
+    shares_30d: Math.max(0, input.shares || 0),
+    favorites_30d: saves,
+    listen_ms_30d: 0,
+    unique_listeners_30d: uniqueListeners,
+    retention_complete_rate_30d: completionRate,
+    ageHours: ageDays * 24,
+    momentumScore: 10 * momentumRaw / (momentumRaw + 9),
+    comments30d: comments,
+    reactions30d: reactions,
+    playlistSaves30d: saves,
+  });
+  return Math.round(metrics.emergingScore * 10);
 }
 
 function radarReasons(input: RadarScoreInput): string[] {
@@ -263,89 +214,48 @@ function withRadarSignals(track: PublicTrackRow, input: RadarScoreInput): Public
 }
 
 /**
- * Regles Radar V1 : morceaux publics reels (getPublicTrackPool filtre is_public
- * + audio valide), faible volume d'ecoutes et signaux qualite mesurables. Le
- * score reste volontairement simple et lisible :
- * likes x2 + saves x3 + comments x2 + reactions + completion_rate_bonus.
- * Les bonus de fraicheur, faible exposition et progression aident les nouveaux
- * sons sans transformer le Radar en page des morceaux deja populaires.
+ * Le Radar reutilise exactement les signaux de Discovery V2. Les ratios sont
+ * corriges par un prior statistique : un like sur une seule ecoute reste un bon
+ * debut, mais ne peut plus battre artificiellement un signal confirme.
  */
 export async function getRadarTracks(limit = 16): Promise<PublicTrackRow[]> {
-  const pool = await getPublicTrackPool({ limit: 260, order: 'recent' });
-  if (!pool.length) return [];
-
-  const ids = pool.map((track) => track._id);
-  const since30d = new Date(Date.now() - 30 * DAY_MS).toISOString();
-
-  const [likesRows, commentsRows, savesRows, reactionsRows, statsRows, eventRows] = await Promise.all([
-    optionalRows<any>('likes', () => supabaseAdmin.from('track_likes').select('track_id, created_at').in('track_id', ids).limit(10000)),
-    optionalRows<any>('comments', () => supabaseAdmin.from('comments').select('track_id, created_at').in('track_id', ids).limit(10000)),
-    optionalRows<any>('playlist_saves', () => supabaseAdmin.from('playlist_tracks').select('track_id, added_at').in('track_id', ids).limit(10000)),
-    optionalRows<any>('moment_reactions', () => supabaseAdmin.from('track_moment_reactions').select('track_id, created_at').in('track_id', ids).limit(10000)),
-    optionalRows<any>('rolling_stats', () => supabaseAdmin
-      .from('track_stats_rolling_30d')
-      .select('track_id, plays_30d, likes_30d, completes_30d, shares_30d, retention_complete_rate_30d')
-      .in('track_id', ids)
-      .limit(10000)),
-    optionalRows<any>('events', () => supabaseAdmin
-      .from('track_events')
-      .select('track_id, event_type, created_at')
-      .in('track_id', ids)
-      .gte('created_at', since30d)
-      .limit(10000)),
-  ]);
-
-  const likesMap = new Map<string, number>();
-  const commentsMap = new Map<string, number>();
-  const savesMap = new Map<string, number>();
-  const reactionsMap = new Map<string, number>();
-  const statsMap = new Map<string, any>();
-  const eventsMap = new Map<string, { starts: number; completes: number; likes: number; shares: number }>();
-
-  for (const row of likesRows) increment(likesMap, row.track_id);
-  for (const row of commentsRows) increment(commentsMap, row.track_id);
-  for (const row of savesRows) increment(savesMap, row.track_id);
-  for (const row of reactionsRows) increment(reactionsMap, row.track_id);
-  for (const row of statsRows) statsMap.set(String(row.track_id), row);
-  for (const row of eventRows) {
-    const id = String(row.track_id || '');
-    if (!id) continue;
-    const entry = eventsMap.get(id) || { starts: 0, completes: 0, likes: 0, shares: 0 };
-    if (row.event_type === 'play_start') entry.starts += 1;
-    if (row.event_type === 'play_complete') entry.completes += 1;
-    if (row.event_type === 'like' || row.event_type === 'favorite') entry.likes += 1;
-    if (row.event_type === 'share') entry.shares += 1;
-    eventsMap.set(id, entry);
-  }
-
-  const artistLatestTrackAge = new Map<string, number>();
-  for (const track of pool) {
-    const artistId = track.artist._id || track._id;
-    const age = daysSince(track.createdAt);
-    artistLatestTrackAge.set(artistId, Math.min(artistLatestTrackAge.get(artistId) ?? 9999, age));
-  }
-
-  const scored = pool.map((track) => {
-    const stats = statsMap.get(track._id) || {};
-    const events = eventsMap.get(track._id) || { starts: 0, completes: 0, likes: 0, shares: 0 };
-    const recentPlays = Number(stats.plays_30d || events.starts || 0);
-    const completes = Number(stats.completes_30d || events.completes || 0);
-    const completionRate = Number(stats.retention_complete_rate_30d || (recentPlays > 0 ? (completes / recentPlays) * 100 : 0));
-    const likes = Math.max(countValue(track.likes), likesMap.get(track._id) || 0);
-    const ageDays = daysSince(track.createdAt);
-    const artistAge = artistLatestTrackAge.get(track.artist._id || track._id) ?? ageDays;
-    return withRadarSignals(track, {
-      plays: Number(track.plays || 0),
-      likes,
-      saves: savesMap.get(track._id) || 0,
-      comments: commentsMap.get(track._id) || 0,
-      reactions: reactionsMap.get(track._id) || 0,
-      completionRate,
-      ageDays: Math.min(ageDays, artistAge),
-      recentPlays,
-      recentLikes: Number(stats.likes_30d || events.likes || 0),
-      shares: Number(stats.shares_30d || events.shares || 0),
-    });
+  const candidates = (await loadGlobalTrackCandidates(false)).filter((track) => !track.isAI);
+  if (!candidates.length) return [];
+  const scored = candidates.map((candidate) => {
+    const track = candidate as any;
+    const metrics = candidate.discoveryMetrics!;
+    const input: RadarScoreInput = {
+      plays: Number(candidate.plays || 0),
+      likes: Number(metrics.likes30d || track.likesCount || 0),
+      saves: Number(metrics.saves30d || track.savesCount || 0),
+      comments: Number(metrics.comments30d || track.commentsCount || 0),
+      reactions: Number(metrics.reactions30d || track.reactionsCount || 0),
+      completionRate: Number(metrics.completionRate30d || 0),
+      ageDays: Number(metrics.ageHours || 0) / 24,
+      recentPlays: Number(metrics.plays30d || 0),
+      recentLikes: Number(metrics.likes30d || 0),
+      shares: Number(metrics.shares30d || 0),
+    };
+    const base = {
+      ...track,
+      artist: {
+        _id: String(candidate.artist?._id || ''),
+        username: String(candidate.artist?.username || ''),
+        name: String(candidate.artist?.name || candidate.artist?.artistName || candidate.artist?.username || 'Artiste Synaura'),
+        artistName: candidate.artist?.artistName,
+        avatar: String(candidate.artist?.avatar || ''),
+      },
+      coverUrl: candidate.coverUrl || null,
+      audioUrl: String(candidate.audioUrl || ''),
+      duration: Number(candidate.duration || 0),
+      likes: [],
+      genre: Array.isArray(candidate.genre) ? candidate.genre : candidate.genre ? [candidate.genre] : [],
+      isAI: false as const,
+    } as PublicTrackRow;
+    return {
+      ...withRadarSignals(base, input),
+      radarScore: Math.round(metrics.emergingScore * 10),
+    };
   });
 
   const eligible = scored.filter((track) => {
@@ -358,7 +268,7 @@ export async function getRadarTracks(limit = 16): Promise<PublicTrackRow[]> {
       track.commentsCount > 0 ||
       track.reactionsCount > 0 ||
       track.completionRate >= 45 ||
-      track.radarScore >= 18;
+      track.radarScore >= 34;
     return isLowKnown && (isRecent || hasQualitySignal);
   });
 

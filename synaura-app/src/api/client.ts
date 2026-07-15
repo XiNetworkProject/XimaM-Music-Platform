@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
+import { getRecommendationSessionId } from '@/feed/recommendationSession';
 import type {
   Creator,
   CityEventDetail,
@@ -210,6 +211,7 @@ function normalizeTrack(raw: any): Track | null {
       username: safeString(raw?.artist?.username, ''),
       avatar: raw?.artist?.avatar || null,
       artistName: safeString(raw?.artist?.artistName || label, label),
+      followersCount: Number(raw?.artist?.followersCount ?? raw?.artist?.follower_count ?? 0),
     },
     audioUrl: String(audioUrl),
     coverUrl: absoluteAsset(raw?.coverUrl || raw?.cover_url || raw?.imageUrl || raw?.image_url) || fallbackCover,
@@ -316,6 +318,12 @@ function normalizeMusicClip(raw: any): MusicClip | null {
     createdAt: raw?.createdAt || raw?.created_at || new Date().toISOString(),
     updatedAt: raw?.updatedAt || raw?.updated_at || raw?.createdAt || raw?.created_at || new Date().toISOString(),
     sourceTrack: source,
+    recommendationScore: Number(raw?.recommendationScore ?? raw?.recommendation_score ?? 0),
+    recommendationReasons: Array.isArray(raw?.recommendationReasons)
+      ? raw.recommendationReasons.map(String)
+      : Array.isArray(raw?.recommendation_reasons)
+        ? raw.recommendation_reasons.map(String)
+        : [],
   };
 }
 
@@ -508,10 +516,11 @@ function normalizePost(raw: any): HomePost | null {
 }
 
 export async function getHomeFeed(): Promise<Track[]> {
+  const sessionId = await getRecommendationSessionId();
   const endpoints = [
-    '/api/ranking/feed?limit=80&ai=1&strategy=reco',
-    '/api/recommendations/feed?limit=60',
-    '/api/tracks/trending?limit=60',
+    `/api/ranking/feed?limit=80&ai=1&strategy=reco&session=${encodeURIComponent(sessionId)}`,
+    `/api/recommendations/feed?limit=60&session=${encodeURIComponent(sessionId)}`,
+    `/api/tracks/trending?limit=60&session=${encodeURIComponent(sessionId)}`,
   ];
 
   const results = await Promise.allSettled(endpoints.map((endpoint) => request<FeedResponse>(endpoint)));
@@ -526,11 +535,12 @@ export async function getHomeFeed(): Promise<Track[]> {
 }
 
 export async function getHomeData(): Promise<HomeData> {
+  const sessionId = await getRecommendationSessionId();
   const [feed, trending, recent, boosted, playlists, featuredCollections, artists, libraryPlaylists, libraryFavorites, libraryRecent] = await Promise.allSettled([
-    request<FeedResponse>('/api/recommendations/feed?limit=24'),
-    request<FeedResponse>('/api/tracks/trending?limit=18'),
-    request<FeedResponse>('/api/tracks/recent?limit=18'),
-    request<FeedResponse>('/api/tracks/boosted?limit=8'),
+    request<FeedResponse>(`/api/recommendations/feed?limit=24&session=${encodeURIComponent(sessionId)}`),
+    request<FeedResponse>(`/api/tracks/trending?limit=18&session=${encodeURIComponent(sessionId)}`),
+    request<FeedResponse>(`/api/tracks/recent?limit=18&session=${encodeURIComponent(sessionId)}`),
+    request<FeedResponse>(`/api/tracks/boosted?limit=8&session=${encodeURIComponent(sessionId)}`),
     request<FeedResponse>('/api/playlists/popular?limit=8'),
     optionalRequest<FeedResponse>('/api/editorial-collections/featured'),
     request<FeedResponse>('/api/artists?sort=trending&limit=8'),
@@ -615,6 +625,7 @@ export async function getDiscoverPage(input: { page?: number; profilePage?: numb
     category: input.category || 'all',
     limit: String(input.limit || 24),
     profileLimit: String(input.profileLimit || 12),
+    session: await getRecommendationSessionId(),
   });
   const payload = await request<any>(`/api/discover?${params.toString()}`);
   return {
@@ -632,17 +643,20 @@ export async function getDiscoverPage(input: { page?: number; profilePage?: numb
 }
 
 export async function getTrendingTracks(): Promise<Track[]> {
-  const payload = await request<FeedResponse>('/api/tracks/trending?limit=80');
+  const sessionId = await getRecommendationSessionId();
+  const payload = await request<FeedResponse>(`/api/tracks/trending?limit=80&session=${encodeURIComponent(sessionId)}`);
   return collectTracks(payload);
 }
 
 export async function getRecentTracks(): Promise<Track[]> {
-  const payload = await request<FeedResponse>('/api/tracks/recent?limit=80');
+  const sessionId = await getRecommendationSessionId();
+  const payload = await request<FeedResponse>(`/api/tracks/recent?limit=80&session=${encodeURIComponent(sessionId)}`);
   return collectTracks(payload);
 }
 
 export async function getPopularTracks(): Promise<Track[]> {
-  const payload = await request<FeedResponse>('/api/tracks/popular?limit=80');
+  const sessionId = await getRecommendationSessionId();
+  const payload = await request<FeedResponse>(`/api/tracks/popular?limit=80&session=${encodeURIComponent(sessionId)}`);
   return collectTracks(payload);
 }
 
@@ -701,6 +715,7 @@ export async function getMusicClips(input: { limit?: number; cursor?: number; so
   if (input.creatorId) params.set('creatorId', input.creatorId);
   if (input.creatorUsername) params.set('creatorUsername', input.creatorUsername);
   if (input.clipId) params.set('clipId', input.clipId);
+  params.set('session', await getRecommendationSessionId());
   params.set('_fresh', String(Date.now()));
   const json = await request<any>(`/api/music-clips?${params.toString()}`);
   return {
@@ -1074,9 +1089,10 @@ export async function loadUnifiedFeed(cursor?: string | null): Promise<FeedLoadM
 }
 
 export async function loadMixedPosts(cursor?: string | null): Promise<FeedLoadMoreResult> {
+  const sessionId = await getRecommendationSessionId();
   const path = cursor
-    ? `/api/recommendations/mixed?limit=6&cursor=${encodeURIComponent(cursor)}`
-    : '/api/recommendations/mixed?limit=6';
+    ? `/api/recommendations/mixed?limit=6&cursor=${encodeURIComponent(cursor)}&session=${encodeURIComponent(sessionId)}`
+    : `/api/recommendations/mixed?limit=6&session=${encodeURIComponent(sessionId)}`;
   const json = await request<any>(path);
   const posts = (Array.isArray(json?.posts) ? json.posts : []).map(normalizePost).filter((post: HomePost | null): post is HomePost => Boolean(post));
   return {
@@ -1089,7 +1105,8 @@ export async function loadMixedPosts(cursor?: string | null): Promise<FeedLoadMo
 export async function loadRankingTracks(strategy: 'reco' | 'trending', cursor = 0): Promise<FeedLoadMoreResult> {
   const initial = cursor === 0;
   const limit = initial ? 12 : 18;
-  const json = await request<any>(`/api/ranking/feed?limit=${limit}&ai=1&strategy=${strategy}&cursor=${cursor}${initial ? '&fast=1' : ''}`);
+  const sessionId = await getRecommendationSessionId();
+  const json = await request<any>(`/api/ranking/feed?limit=${limit}&ai=1&strategy=${strategy}&cursor=${cursor}&session=${encodeURIComponent(sessionId)}`);
   return {
     items: collectTracks(json).map((track) => ({ kind: 'track' as const, track, strategy })),
     nextCursor: json?.nextCursor == null ? String(cursor + limit) : String(json.nextCursor),
@@ -1097,16 +1114,20 @@ export async function loadRankingTracks(strategy: 'reco' | 'trending', cursor = 
   };
 }
 
-export async function sendRecommendationImpressions(impressions: Array<{ id: string; kind: 'track' | 'post'; position?: number }>) {
+export async function sendRecommendationImpressions(impressions: Array<{ id: string; kind: 'track' | 'post' | 'clip'; position?: number; score?: number; reasons?: string[] }>) {
   if (!impressions.length) return;
+  const sessionId = await getRecommendationSessionId();
   await optionalRequest('/api/recommendations/impressions', {
     method: 'POST',
     body: JSON.stringify({
+      sessionId,
       impressions: impressions.map((item) => ({
         contentId: item.id,
         contentType: item.kind,
         rank: item.position,
-        source: 'mobile-home',
+        score: item.score,
+        reasons: item.reasons,
+        source: 'mobile-scroll',
       })),
     }),
   });
@@ -1122,13 +1143,31 @@ export async function togglePostLike(postId: string) {
   return request<any>(`/api/posts/${encodeURIComponent(postId)}/like`, { method: 'POST' });
 }
 
-export async function recordTrackEvent(trackId: string, eventType: string, extra?: Record<string, unknown>) {
+export type TrackEventTelemetry = {
+  positionSeconds?: number;
+  durationSeconds?: number;
+  progressPct?: number;
+  source?: string;
+};
+
+export async function recordTrackEvent(
+  trackId: string,
+  eventType: string,
+  extra?: Record<string, unknown>,
+  telemetry: TrackEventTelemetry = {},
+) {
   if (!trackId || trackId.startsWith('radio-')) return;
+  const positionMs = Number.isFinite(telemetry.positionSeconds) ? Math.max(0, Math.round(Number(telemetry.positionSeconds) * 1000)) : null;
+  const durationMs = Number.isFinite(telemetry.durationSeconds) ? Math.max(0, Math.round(Number(telemetry.durationSeconds) * 1000)) : null;
+  const derivedProgress = durationMs && positionMs != null ? (positionMs / durationMs) * 100 : null;
   await optionalRequest(`/api/tracks/${encodeURIComponent(trackId)}/events`, {
     method: 'POST',
     body: JSON.stringify({
       event_type: eventType,
-      source: 'mobile-player',
+      position_ms: positionMs,
+      duration_ms: durationMs,
+      progress_pct: Number.isFinite(telemetry.progressPct) ? telemetry.progressPct : derivedProgress,
+      source: telemetry.source || 'mobile-player',
       platform: 'mobile',
       is_ai_track: trackId.startsWith('ai-'),
       extra,
@@ -2015,38 +2054,25 @@ export async function fetchRankingFeedChunk(
 ): Promise<RankingFeedChunk> {
   const initial = cursor === 0;
   const params = new URLSearchParams({ limit: initial ? '12' : '24', ai: '1', cursor: String(Math.max(0, cursor)) });
-  if (initial) params.set('fast', '1');
-  if (strategy === 'trending' || strategy === 'boost') {
+  params.set('session', await getRecommendationSessionId());
+  if (strategy === 'trending') {
     params.set('strategy', 'trending');
+  } else if (strategy === 'boost') {
+    params.set('strategy', 'boosted');
   } else {
     params.set('strategy', 'reco');
-    if (seedGenre) params.set('genre', seedGenre);
+    if (seedGenre) params.set('seedGenre', seedGenre);
   }
 
-  const [feedRes, boosted] = await Promise.all([
-    optionalRequest<any>(`/api/ranking/feed?${params.toString()}`),
-    initial ? Promise.resolve([]) : getBoostedTracks(),
-  ]);
+  const feedRes = await optionalRequest<any>(`/api/ranking/feed?${params.toString()}`);
 
   const feedTracks = (Array.isArray(feedRes?.tracks) ? feedRes.tracks : [])
     .map(normalizeTrack)
     .filter((t: Track | null): t is Track => Boolean(t));
 
-  let merged: Track[] = feedTracks;
-  if (strategy === 'boost') {
-    merged = uniqueTracks([
-      ...boosted.slice(0, Math.min(boosted.length, 6)),
-      ...injectBoosted(feedTracks, boosted, 3),
-    ]);
-  } else if (strategy === 'trending') {
-    merged = injectBoosted(feedTracks, boosted, 6);
-  } else {
-    merged = injectBoosted(feedTracks, boosted, 5);
-  }
-
   const cursorVal = typeof feedRes?.nextCursor === 'number' ? feedRes.nextCursor : cursor + feedTracks.length;
   return {
-    tracks: uniqueTracks(merged),
+    tracks: uniqueTracks(feedTracks),
     nextCursor: cursorVal,
     hasMore: Boolean(feedRes?.hasMore),
   };

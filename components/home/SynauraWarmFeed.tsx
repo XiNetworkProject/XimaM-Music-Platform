@@ -17,6 +17,7 @@ import SynauraAndroidHomeBanner from '@/components/mobile/SynauraAndroidHomeBann
 import SynauraEventsRail from '@/components/synaura/SynauraEventsRail';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { sendTrackEvents } from '@/lib/analyticsClient';
+import { getRecommendationSessionId } from '@/lib/recommendation/clientSession';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
 import {
   Bookmark,
@@ -545,19 +546,6 @@ function recordTrackShare(track: Track | undefined, source: string) {
       is_ai_track: Boolean(track.playerTrack.isAI),
     });
   } catch {}
-}
-
-function getRecommendationSessionId() {
-  try {
-    const key = 'synaura_reco_session_id';
-    const existing = localStorage.getItem(key);
-    if (existing) return existing;
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    localStorage.setItem(key, id);
-    return id;
-  } catch {
-    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  }
 }
 
 function feedItemImpression(item: FeedItem, rank: number) {
@@ -2892,6 +2880,7 @@ export default function SynauraWarmFeed() {
 
   const refreshHomeData = useCallback(async () => {
     setLoading(true);
+    const recommendationSessionId = getRecommendationSessionId();
 
     const [
       feedJson,
@@ -2905,10 +2894,10 @@ export default function SynauraWarmFeed() {
       libraryFavoritesJson,
       libraryRecentJson,
     ] = await Promise.all([
-      fetchJson('/api/recommendations/feed?limit=24'),
-      fetchJson('/api/tracks/trending?limit=18'),
-      fetchJson('/api/tracks/recent?limit=18'),
-      fetchJson('/api/tracks/boosted?limit=8'),
+      fetchJson(`/api/recommendations/feed?limit=24&session=${encodeURIComponent(recommendationSessionId)}`),
+      fetchJson(`/api/tracks/trending?limit=18&session=${encodeURIComponent(recommendationSessionId)}`),
+      fetchJson(`/api/tracks/recent?limit=18&session=${encodeURIComponent(recommendationSessionId)}`),
+      fetchJson(`/api/tracks/boosted?limit=8&session=${encodeURIComponent(recommendationSessionId)}`),
       fetchJson('/api/playlists/popular?limit=8'),
       fetchJson('/api/editorial-collections/featured'),
       fetchJson('/api/artists?sort=trending&limit=8'),
@@ -3022,9 +3011,10 @@ export default function SynauraWarmFeed() {
       let nextMusicItems: FeedItem[] = [];
 
       if (filter === 'Pour toi') {
+        const recommendationSessionId = getRecommendationSessionId();
         const feedUrl = postCursor
-          ? `/api/recommendations/feed?limit=${MUSIC_BATCH_SIZE + POST_BATCH_SIZE}&cursor=${encodeURIComponent(postCursor)}`
-          : `/api/recommendations/feed?limit=${MUSIC_BATCH_SIZE + POST_BATCH_SIZE}`;
+          ? `/api/recommendations/feed?limit=${MUSIC_BATCH_SIZE + POST_BATCH_SIZE}&cursor=${encodeURIComponent(postCursor)}&session=${encodeURIComponent(recommendationSessionId)}`
+          : `/api/recommendations/feed?limit=${MUSIC_BATCH_SIZE + POST_BATCH_SIZE}&session=${encodeURIComponent(recommendationSessionId)}`;
         const feedJson = await fetchJson(feedUrl);
         nextItems = normalizeUnifiedFeedItems(Array.isArray(feedJson?.items) ? feedJson.items : [], seenTrackIdsRef.current.size);
         setPostCursor(typeof feedJson?.nextCursor === 'string' ? feedJson.nextCursor : null);
@@ -3042,9 +3032,10 @@ export default function SynauraWarmFeed() {
       }
 
       if (canLoadPosts) {
+        const recommendationSessionId = getRecommendationSessionId();
         const postsUrl = postCursor
-          ? `/api/recommendations/mixed?limit=${POST_BATCH_SIZE}&cursor=${encodeURIComponent(postCursor)}`
-          : `/api/recommendations/mixed?limit=${POST_BATCH_SIZE}`;
+          ? `/api/recommendations/mixed?limit=${POST_BATCH_SIZE}&cursor=${encodeURIComponent(postCursor)}&session=${encodeURIComponent(recommendationSessionId)}`
+          : `/api/recommendations/mixed?limit=${POST_BATCH_SIZE}&session=${encodeURIComponent(recommendationSessionId)}`;
         const postsJson = await fetchJson(postsUrl);
         nextPosts = (Array.isArray(postsJson?.posts) ? postsJson.posts : [])
           .map(normalizePost)
@@ -3056,8 +3047,9 @@ export default function SynauraWarmFeed() {
 
       if (canLoadMusic) {
         const activeStrategy = musicStrategy;
+        const recommendationSessionId = getRecommendationSessionId();
         const musicJson = await fetchJson(
-          `/api/ranking/feed?limit=${MUSIC_BATCH_SIZE}&ai=1&strategy=${activeStrategy}&cursor=${musicCursor}`,
+          `/api/ranking/feed?limit=${MUSIC_BATCH_SIZE}&ai=1&strategy=${activeStrategy}&cursor=${musicCursor}&session=${encodeURIComponent(recommendationSessionId)}`,
         );
         const rawTracks = Array.isArray(musicJson?.tracks) ? musicJson.tracks : [];
         const normalizedTracks = uniqueTracks(rawTracks.map(normalizeTrack));

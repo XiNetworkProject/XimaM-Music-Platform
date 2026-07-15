@@ -49,6 +49,18 @@ const PlayerContext = createContext<PlayerContextValue | null>(null);
 let playerReady = false;
 const PLAYER_STATE_KEY = 'synaura.player.state.v3';
 
+type PlaybackTelemetry = {
+  trackId: string;
+  maxPosition: number;
+  duration: number;
+  milestones: Set<number>;
+  completed: boolean;
+};
+
+function emptyPlaybackTelemetry(trackId = '', duration = 0): PlaybackTelemetry {
+  return { trackId, maxPosition: 0, duration, milestones: new Set(), completed: false };
+}
+
 function artistName(track: Track) {
   return track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste Synaura';
 }
@@ -132,6 +144,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const repeatModeRef = useRef<PlayerRepeatMode>('off');
   const shuffleRef = useRef(false);
   const wasPlayingRef = useRef(false);
+  const playbackTelemetryRef = useRef<PlaybackTelemetry>(emptyPlaybackTelemetry());
+  const explicitNavigationAtRef = useRef(0);
 
   const playbackState = usePlaybackState();
   const activeTrack = useActiveTrack();
@@ -279,7 +293,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     addRecent(track);
     if (lastRecordedTrackIdRef.current !== track._id) {
       lastRecordedTrackIdRef.current = track._id;
-      void recordTrackEvent(track._id, 'play_start');
+      playbackTelemetryRef.current = emptyPlaybackTelemetry(track._id, Number(track.duration || 0));
+      void recordTrackEvent(track._id, 'play_start', undefined, { durationSeconds: Number(track.duration || 0) });
     }
     const nextIndex = queue.findIndex((item) => item._id === track._id);
     if (nextIndex >= 0) setCurrentIndex(nextIndex);
@@ -289,9 +304,42 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // mais on s'assure que le PlaybackQueueEnded ne laisse pas le state en pause "fantome"
   // et que les erreurs de lecture sautent au titre suivant.
   useTrackPlayerEvents(
-    [Event.PlaybackQueueEnded, Event.PlaybackError, Event.PlaybackActiveTrackChanged],
+    [Event.PlaybackQueueEnded, Event.PlaybackError, Event.PlaybackActiveTrackChanged, Event.PlaybackProgressUpdated],
     async (event) => {
       try {
+        if (event.type === Event.PlaybackProgressUpdated) {
+          const payload = event as any;
+          const track = currentRef.current;
+          if (!track) return;
+          const position = Math.max(0, Number(payload.position || 0));
+          const duration = Math.max(0, Number(payload.duration || track.duration || 0));
+          let telemetry = playbackTelemetryRef.current;
+          if (telemetry.trackId !== track._id) {
+            telemetry = emptyPlaybackTelemetry(track._id, duration);
+            playbackTelemetryRef.current = telemetry;
+          }
+          telemetry.maxPosition = Math.max(telemetry.maxPosition, position);
+          telemetry.duration = Math.max(telemetry.duration, duration);
+          const progress = telemetry.duration > 0 ? telemetry.maxPosition / telemetry.duration : 0;
+          for (const milestone of [25, 65]) {
+            if (progress * 100 < milestone || telemetry.milestones.has(milestone)) continue;
+            telemetry.milestones.add(milestone);
+            void recordTrackEvent(track._id, 'play_progress', { milestone }, {
+              positionSeconds: telemetry.maxPosition,
+              durationSeconds: telemetry.duration,
+              progressPct: progress * 100,
+            });
+          }
+          if (progress >= 0.9 && !telemetry.completed) {
+            telemetry.completed = true;
+            void recordTrackEvent(track._id, 'play_complete', undefined, {
+              positionSeconds: telemetry.maxPosition,
+              durationSeconds: telemetry.duration,
+              progressPct: Math.min(100, progress * 100),
+            });
+          }
+          return;
+        }
         if (event.type === Event.PlaybackQueueEnded) {
           // En mode repeat 'all', on revient au debut. Sinon on stoppe proprement.
           if (currentRef.current) void recordTrackEvent(currentRef.current._id, 'queue_end');
@@ -302,7 +350,28 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         if (event.type === Event.PlaybackActiveTrackChanged) {
-          const trackIndex = (event as any).index;
+          const payload = event as any;
+          const previous = playbackTelemetryRef.current;
+          const nextTrackId = String(payload.track?.id || '');
+          if (previous.trackId && previous.trackId !== nextTrackId && previous.duration > 0) {
+            const progress = Math.min(1, previous.maxPosition / previous.duration);
+            if (!previous.completed && progress >= 0.9) {
+              previous.completed = true;
+              void recordTrackEvent(previous.trackId, 'play_complete', undefined, {
+                positionSeconds: previous.maxPosition,
+                durationSeconds: previous.duration,
+                progressPct: progress * 100,
+              });
+            } else if (!previous.completed && progress < 0.35 && Date.now() - explicitNavigationAtRef.current > 1500) {
+              void recordTrackEvent(previous.trackId, 'skip', { transition: 'track_change' }, {
+                positionSeconds: previous.maxPosition,
+                durationSeconds: previous.duration,
+                progressPct: progress * 100,
+              });
+            }
+          }
+          playbackTelemetryRef.current = emptyPlaybackTelemetry(nextTrackId, Number(payload.track?.duration || 0));
+          const trackIndex = payload.index;
           if (typeof trackIndex === 'number' && trackIndex >= 0) {
             setCurrentIndex(trackIndex);
           }
@@ -516,12 +585,30 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }), [runPlayerCommand]);
 
   const next = useCallback(async () => runPlayerCommand(async () => {
-    if (currentRef.current) void recordTrackEvent(currentRef.current._id, 'next');
+    explicitNavigationAtRef.current = Date.now();
+    if (currentRef.current) {
+      const telemetry = playbackTelemetryRef.current;
+      const progress = telemetry.duration > 0 ? telemetry.maxPosition / telemetry.duration : 0;
+      void recordTrackEvent(currentRef.current._id, 'next', undefined, {
+        positionSeconds: telemetry.maxPosition,
+        durationSeconds: telemetry.duration,
+        progressPct: progress * 100,
+      });
+    }
     await TrackPlayer.skipToNext().catch(() => {});
   }), [runPlayerCommand]);
 
   const previous = useCallback(async () => runPlayerCommand(async () => {
-    if (currentRef.current) void recordTrackEvent(currentRef.current._id, 'prev');
+    explicitNavigationAtRef.current = Date.now();
+    if (currentRef.current) {
+      const telemetry = playbackTelemetryRef.current;
+      const progress = telemetry.duration > 0 ? telemetry.maxPosition / telemetry.duration : 0;
+      void recordTrackEvent(currentRef.current._id, 'prev', undefined, {
+        positionSeconds: telemetry.maxPosition,
+        durationSeconds: telemetry.duration,
+        progressPct: progress * 100,
+      });
+    }
     await TrackPlayer.skipToPrevious().catch(() => {});
   }), [runPlayerCommand]);
 

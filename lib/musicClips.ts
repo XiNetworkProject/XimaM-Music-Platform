@@ -18,6 +18,7 @@ export type MusicClipSource = {
   audioUrl: string;
   coverUrl?: string | null;
   duration: number;
+  genre?: string[];
   trackUrl: string;
   allowClips: boolean;
   remixVisibility: RemixVisibility;
@@ -46,6 +47,8 @@ export type MusicClip = {
   createdAt: string;
   updatedAt: string;
   sourceTrack: MusicClipSource;
+  recommendationScore?: number;
+  recommendationReasons?: string[];
 };
 
 function toStringArray(value: unknown): string[] {
@@ -57,6 +60,10 @@ function toStringArray(value: unknown): string[] {
 function safeDuration(value: unknown) {
   const numberValue = Number(value || 0);
   return Number.isFinite(numberValue) ? Math.max(0, Math.round(numberValue)) : 0;
+}
+
+function one<T = any>(value: T | T[] | null | undefined): T | undefined {
+  return Array.isArray(value) ? value[0] : value || undefined;
 }
 
 function publicTrackId(source: MusicClipSource) {
@@ -128,6 +135,7 @@ export async function getClipSourceSummary(input: {
       audioUrl: data.audio_url || data.stream_audio_url || '',
       coverUrl: data.image_url || null,
       duration: safeDuration(data.duration),
+      genre: toStringArray(data.tags),
       trackUrl: `/track/ai-${data.id}`,
       allowClips: permissions.allowClips,
       remixVisibility: permissions.remixVisibility,
@@ -170,6 +178,7 @@ export async function getClipSourceSummary(input: {
     audioUrl: data.audio_url || '',
     coverUrl: data.cover_url || null,
     duration: safeDuration(data.duration),
+    genre: toStringArray(data.genre),
     trackUrl: `/track/${data.id}`,
     allowClips: permissions.allowClips,
     remixVisibility: permissions.remixVisibility,
@@ -254,23 +263,132 @@ export async function formatMusicClip(
   };
 }
 
+async function getClipSourceSummaries(rows: any[], viewerId?: string | null) {
+  const refs = Array.from(new Map((rows || []).map((row) => {
+    const ref = normalizeRemixTrackRef(row?.source_track_id, row?.source_track_type);
+    return [`${ref.type}:${ref.id}`, ref];
+  })).values()).filter((ref) => ref.id);
+  const normalIds = refs.filter((ref) => ref.type === 'track').map((ref) => ref.id);
+  const aiIds = refs.filter((ref) => ref.type === 'ai_track').map((ref) => ref.id);
+  const [normalResult, aiResult] = await Promise.all([
+    normalIds.length
+      ? supabaseAdmin
+          .from('tracks')
+          .select('*, profiles:profiles!tracks_creator_id_fkey(id, username, name, avatar)')
+          .in('id', normalIds)
+      : Promise.resolve({ data: [] } as any),
+    aiIds.length
+      ? supabaseAdmin
+          .from('ai_tracks')
+          .select('*, generation:ai_generations!inner(id, user_id, prompt, metadata, is_public, status)')
+          .in('id', aiIds)
+      : Promise.resolve({ data: [] } as any),
+  ]);
+  const normalRows = normalResult.data || [];
+  const aiRows = aiResult.data || [];
+  const aiOwnerIds = Array.from(new Set(aiRows.map((row: any) => one(row.generation)?.user_id).filter(Boolean)));
+  const { data: aiProfiles } = aiOwnerIds.length
+    ? await supabaseAdmin.from('profiles').select('id, username, name, avatar').in('id', aiOwnerIds)
+    : { data: [] as any[] };
+  const profileMap = new Map((aiProfiles || []).map((profile: any) => [String(profile.id), profile]));
+  const creatorIds = Array.from(new Set([
+    ...normalRows.map((row: any) => String(row.creator_id || '')),
+    ...aiRows.map((row: any) => String(one(row.generation)?.user_id || '')),
+  ].filter(Boolean)));
+  const followed = new Set<string>();
+  if (viewerId && creatorIds.length) {
+    const { data } = await supabaseAdmin
+      .from('user_follows')
+      .select('following_id')
+      .eq('follower_id', viewerId)
+      .in('following_id', creatorIds);
+    for (const row of data || []) followed.add(String(row.following_id));
+  }
+
+  const sources = new Map<string, MusicClipSource>();
+  for (const data of normalRows) {
+    const profile = one((data as any).profiles) || {};
+    const creatorId = String((data as any).creator_id || '');
+    const permissions = remixPermissionsFromRow(data);
+    const isPublic = data.is_public === true;
+    const isOwner = Boolean(viewerId && creatorId === String(viewerId));
+    const canCreateClipValue = canCreateClip({
+      isPublic,
+      isOwner,
+      allowClips: permissions.allowClips,
+      remixVisibility: permissions.remixVisibility,
+      isFollower: followed.has(creatorId),
+    });
+    const source: MusicClipSource = {
+      _id: String(data.id),
+      sourceTrackId: String(data.id),
+      sourceTrackType: 'track',
+      title: data.title || 'Sans titre',
+      artist: {
+        _id: creatorId,
+        name: profile.name || profile.username || (data as any).artist_name || (data as any).creator_name || 'Artiste Synaura',
+        username: profile.username || '',
+        avatar: profile.avatar || null,
+      },
+      audioUrl: data.audio_url || '',
+      coverUrl: data.cover_url || null,
+      duration: safeDuration(data.duration),
+      genre: toStringArray(data.genre),
+      trackUrl: `/track/${data.id}`,
+      allowClips: permissions.allowClips,
+      remixVisibility: permissions.remixVisibility,
+      canCreateClip: canCreateClipValue,
+      isPublic,
+    };
+    sources.set(`track:${data.id}`, source);
+  }
+
+  for (const data of aiRows) {
+    const generation = one((data as any).generation) || {};
+    const creatorId = String(generation.user_id || '');
+    const profile = profileMap.get(creatorId) || {};
+    const permissions = remixPermissionsFromRow(data);
+    const isPublic = data.is_public === true && generation.status === 'completed' && generation.is_public === true;
+    const isOwner = Boolean(viewerId && creatorId === String(viewerId));
+    const canCreateClipValue = canCreateClip({
+      isPublic,
+      isOwner,
+      allowClips: permissions.allowClips,
+      remixVisibility: permissions.remixVisibility,
+      isFollower: followed.has(creatorId),
+    });
+    const source: MusicClipSource = {
+      _id: `ai-${data.id}`,
+      sourceTrackId: String(data.id),
+      sourceTrackType: 'ai_track',
+      title: data.title || generation.metadata?.title || 'Creation IA',
+      artist: {
+        _id: creatorId,
+        name: profile.name || profile.username || 'Artiste Synaura',
+        username: profile.username || '',
+        avatar: profile.avatar || null,
+      },
+      audioUrl: data.audio_url || data.stream_audio_url || '',
+      coverUrl: data.image_url || null,
+      duration: safeDuration(data.duration),
+      genre: toStringArray(data.tags),
+      trackUrl: `/track/ai-${data.id}`,
+      allowClips: permissions.allowClips,
+      remixVisibility: permissions.remixVisibility,
+      canCreateClip: canCreateClipValue,
+      isPublic,
+    };
+    sources.set(`ai_track:${data.id}`, source);
+  }
+  return sources;
+}
+
 export async function formatMusicClips(rows: any[], options: { viewerId?: string | null } = {}) {
-  // Plusieurs Clips pointent souvent vers le meme morceau. Une seule resolution
-  // par source et par requete evite les lectures Supabase et profils dupliquees.
-  const sourcePromises = new Map<string, Promise<MusicClipSource | null>>();
+  const sources = await getClipSourceSummaries(rows, options.viewerId);
   const clips = await Promise.all((rows || []).map((row) => {
     const ref = normalizeRemixTrackRef(row?.source_track_id, row?.source_track_type);
     const key = `${ref.type}:${ref.id}`;
-    let sourcePromise = sourcePromises.get(key);
-    if (!sourcePromise) {
-      sourcePromise = getClipSourceSummary({
-        sourceTrackId: ref.id,
-        sourceTrackType: ref.type,
-        userId: options.viewerId,
-      });
-      sourcePromises.set(key, sourcePromise);
-    }
-    return sourcePromise.then((source) => formatMusicClip(row, options, source));
+    return formatMusicClip(row, options, sources.get(key) || null);
   }));
   return clips.filter((clip): clip is MusicClip => Boolean(clip));
 }

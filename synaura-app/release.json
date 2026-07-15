@@ -1,13 +1,13 @@
 {
-  "title": "Synaura mobile 0.15.7",
+  "title": "Synaura mobile 0.16.0",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Nouvelle page Activite plus claire, rapide et organisee",
-    "Cloche de notifications replacee en haut des pages principales",
-    "Mini-lecteur correctement aligne et disponible dans la bibliotheque du Studio",
-    "Lecture des creations IA acceleree avec cache local et file audio allegee",
-    "Uploads de Clips echoues modifiables, relancables ou supprimables",
-    "Requetes de notifications Supabase executees en parallele"
+    "Nouveau moteur de decouverte commun a Flow, Discover, Radar et Clips",
+    "Davantage de place pour les petits createurs, les nouveautes et les morceaux de qualite",
+    "Recommandations plus variees, stables dans la session et moins repetitives",
+    "Tendances basees sur la progression recente plutot que sur les seuls compteurs",
+    "Historique d'ecoute mobile enrichi avec progression, completion et passages ignores",
+    "Chargement du fil et des donnees de remix nettement accelere"
   ]
 }

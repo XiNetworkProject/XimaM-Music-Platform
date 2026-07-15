@@ -1,3 +1,5 @@
+import type { TrackDiscoveryMetrics } from './recommendation/types';
+
 export type TrackStats = {
   plays_30d: number;
   completes_30d: number;
@@ -6,57 +8,138 @@ export type TrackStats = {
   favorites_30d: number;
   listen_ms_30d: number;
   unique_listeners_30d: number;
-  retention_complete_rate_30d: number; // 0..100
+  retention_complete_rate_30d: number;
 };
 
-export function computeRankingScore(stats: TrackStats, ageHours: number, sourceBonus: number = 0): number {
-  const plays = stats.plays_30d || 0;
-  const completes = stats.completes_30d || 0;
-  const likes = stats.likes_30d || 0;
-  const shares = stats.shares_30d || 0;
-  const favorites = stats.favorites_30d || 0;
-  const listenMs = stats.listen_ms_30d || 0;
-  const listeners = stats.unique_listeners_30d || 0;
-  const retention = (stats.retention_complete_rate_30d || 0) / 100.0;
+export type TrackDiscoveryInput = TrackStats & {
+  ageHours: number;
+  momentumScore?: number;
+  creatorFollowers?: number;
+  comments30d?: number;
+  reactions30d?: number;
+  playlistSaves30d?: number;
+};
 
-  // Normalisations simples pour limiter l'impact des gros volumes
-  const playsNorm = Math.log10(1 + plays);
-  const completesNorm = Math.log10(1 + completes);
-  const likesNorm = Math.log10(1 + likes);
-  const sharesNorm = Math.log10(1 + shares);
-  const favsNorm = Math.log10(1 + favorites);
-  const listenPerUser = listeners > 0 ? listenMs / (listeners * 60_000) : 0; // minutes moyennes par user sur 30j
-  const listenNorm = Math.min(1.5, listenPerUser / 3); // cap à 1.5 pour 4.5 min moyennes
+const clamp = (value: number, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 
-  // Poids (ajustables)
-  const w1 = 0.8;  // plays
-  const w2 = 1.0;  // completes
-  const w3 = 2.2;  // retention
-  const w4 = 1.2;  // avg listen
-  const w5 = 0.9;  // likes
-  const w6 = 1.1;  // shares
-  const w7 = 1.0;  // favorites
-
-  // Décroissance temporelle (12h demi-vie)
-  const halfLifeH = 12;
-  const decay = Math.exp(-Math.max(0, ageHours) * Math.LN2 / halfLifeH);
-
-  // Freshness boost: tracks < 48h get extra visibility (linearly decays from +2.0 to 0)
-  const freshnessBoost = ageHours < 48 ? 2.0 * (1 - ageHours / 48) : 0;
-
-  const score = (
-    w1 * playsNorm +
-    w2 * completesNorm +
-    w3 * retention +
-    w4 * listenNorm +
-    w5 * likesNorm +
-    w6 * sharesNorm +
-    w7 * favsNorm +
-    sourceBonus +
-    freshnessBoost
-  ) * decay;
-
-  return Number(score.toFixed(6));
+function finite(value: unknown) {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 }
 
+function bayesianRate(successes: number, trials: number, prior: number, priorWeight: number) {
+  const safeTrials = Math.max(0, trials);
+  const safeSuccesses = Math.min(safeTrials, Math.max(0, successes));
+  return (safeSuccesses + prior * priorWeight) / (safeTrials + priorWeight);
+}
 
+function normalizeRate(value: number, low: number, high: number) {
+  if (high <= low) return 0;
+  return clamp((value - low) / (high - low));
+}
+
+function boundedLog(value: number, reference: number) {
+  return clamp(Math.log1p(Math.max(0, value)) / Math.log1p(reference));
+}
+
+/**
+ * Signals shared by Flow, Discover and Radar.
+ *
+ * Rates use conservative priors so one like after one play cannot outrank a
+ * title with a sustained audience. Repeated plays are capped by unique
+ * listeners, which also prevents one listener from manufacturing momentum.
+ */
+export function computeTrackDiscoveryMetrics(input: TrackDiscoveryInput): TrackDiscoveryMetrics {
+  const plays = finite(input.plays_30d);
+  const listeners = finite(input.unique_listeners_30d);
+  const effectivePlays = listeners > 0
+    ? Math.max(listeners, Math.min(plays, listeners * 5))
+    : Math.min(plays, 20);
+  const completes = Math.min(finite(input.completes_30d), effectivePlays);
+  const likes = Math.min(finite(input.likes_30d), effectivePlays);
+  const shares = Math.min(finite(input.shares_30d), effectivePlays);
+  const saves = Math.min(
+    Math.max(finite(input.favorites_30d), finite(input.playlistSaves30d)),
+    effectivePlays,
+  );
+  const comments = Math.min(finite(input.comments30d), effectivePlays);
+  const reactions = Math.min(finite(input.reactions30d), effectivePlays);
+  const retentionFromView = clamp(finite(input.retention_complete_rate_30d) / 100);
+  const retentionFromCounts = effectivePlays > 0 ? completes / effectivePlays : 0;
+  const observedCompletion = retentionFromView > 0 ? retentionFromView : retentionFromCounts;
+
+  const completionRate = bayesianRate(observedCompletion * effectivePlays, effectivePlays, 0.38, 10);
+  const likeRate = bayesianRate(likes, effectivePlays, 0.045, 18);
+  const saveRate = bayesianRate(saves, effectivePlays, 0.02, 22);
+  const shareRate = bayesianRate(shares, effectivePlays, 0.012, 24);
+  const discussionRate = bayesianRate(comments + reactions, effectivePlays, 0.018, 20);
+
+  const qualityScore = 10 * (
+    normalizeRate(completionRate, 0.22, 0.8) * 0.52 +
+    normalizeRate(likeRate, 0.025, 0.175) * 0.23 +
+    normalizeRate(saveRate, 0.012, 0.09) * 0.11 +
+    normalizeRate(shareRate, 0.008, 0.06) * 0.07 +
+    normalizeRate(discussionRate, 0.012, 0.09) * 0.07
+  );
+
+  const followers = finite(input.creatorFollowers);
+  const reachScore = 10 * (
+    boundedLog(listeners, 75) * 0.52 +
+    boundedLog(plays, 400) * 0.33 +
+    boundedLog(followers, 500) * 0.15
+  );
+  const ageHours = finite(input.ageHours);
+  const freshnessScore = 10 * Math.exp(-ageHours * Math.LN2 / (24 * 14));
+  const momentumScore = clamp(finite(input.momentumScore), 0, 10);
+  const confidence = clamp(1 - Math.exp(-(effectivePlays + listeners * 0.75) / 14));
+  const lowExposure = 1 - clamp((plays + followers * 1.5) / 1200);
+
+  const emergingScore = clamp(
+    (
+      qualityScore * 0.43 +
+      momentumScore * 0.28 +
+      freshnessScore * 0.19 +
+      lowExposure * 1.5
+    ) * (0.55 + confidence * 0.45),
+    0,
+    10,
+  );
+  const catalogMaturity = 10 * (1 - Math.exp(-ageHours / (24 * 45)));
+  const catalogScore = clamp(qualityScore * 0.62 + reachScore * 0.22 + catalogMaturity * 0.16, 0, 10);
+
+  return {
+    plays30d: Math.round(plays),
+    completes30d: Math.round(completes),
+    likes30d: Math.round(likes),
+    shares30d: Math.round(shares),
+    saves30d: Math.round(saves),
+    comments30d: Math.round(comments),
+    reactions30d: Math.round(reactions),
+    uniqueListeners30d: Math.round(listeners),
+    completionRate30d: Number((completionRate * 100).toFixed(2)),
+    creatorFollowers: Math.round(followers),
+    ageHours: Number(ageHours.toFixed(2)),
+    qualityScore: Number(qualityScore.toFixed(4)),
+    reachScore: Number(reachScore.toFixed(4)),
+    momentumScore: Number(momentumScore.toFixed(4)),
+    freshnessScore: Number(freshnessScore.toFixed(4)),
+    emergingScore: Number(emergingScore.toFixed(4)),
+    catalogScore: Number(catalogScore.toFixed(4)),
+    confidence: Number(confidence.toFixed(4)),
+  };
+}
+
+export function globalDiscoveryScore(metrics: TrackDiscoveryMetrics) {
+  return Number((
+    metrics.qualityScore * 0.38 +
+    metrics.momentumScore * 0.3 +
+    metrics.reachScore * 0.24 +
+    metrics.freshnessScore * 0.08
+  ).toFixed(6));
+}
+
+/** Backwards-compatible entry point for older recommendation call sites. */
+export function computeRankingScore(stats: TrackStats, ageHours: number, sourceBonus = 0): number {
+  const metrics = computeTrackDiscoveryMetrics({ ...stats, ageHours });
+  return Number((globalDiscoveryScore(metrics) + finite(sourceBonus)).toFixed(6));
+}

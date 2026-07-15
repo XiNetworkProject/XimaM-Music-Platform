@@ -322,14 +322,19 @@ export async function getRemixAttributionForChildren(children: Array<{ id: strin
 
 export async function getPublishedVariationCounts(sources: Array<{ id: string; type: RemixTrackType }>) {
   const result = new Map<string, number>();
-  for (const source of sources) {
-    const { count } = await supabaseAdmin
-      .from('track_remixes')
-      .select('id', { count: 'exact', head: true })
-      .eq('source_track_id', source.id)
-      .eq('source_track_type', source.type)
-      .eq('status', 'published');
-    if ((count || 0) > 0) result.set(`${source.type}:${source.id}`, count || 0);
+  const unique = Array.from(new Map(sources.filter((source) => source.id).map((source) => [`${source.type}:${source.id}`, source])).values());
+  if (!unique.length) return result;
+  const ids = Array.from(new Set(unique.map((source) => source.id)));
+  const allowed = new Set(unique.map((source) => `${source.type}:${source.id}`));
+  const { data } = await supabaseAdmin
+    .from('track_remixes')
+    .select('source_track_id, source_track_type')
+    .in('source_track_id', ids)
+    .eq('status', 'published')
+    .limit(10000);
+  for (const row of data || []) {
+    const key = `${row.source_track_type}:${row.source_track_id}`;
+    if (allowed.has(key)) result.set(key, (result.get(key) || 0) + 1);
   }
   return result;
 }

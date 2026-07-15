@@ -3,6 +3,7 @@ import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { assertCanCreateClip, formatMusicClips } from '@/lib/musicClips';
 import { normalizeRemixTrackRef } from '@/lib/remixServer';
+import { buildAnonymousRecommendationSignals, buildUserRecommendationSignals, rankMusicClips } from '@/lib/recommendation';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest) {
     let creatorId = params.get('creatorId');
     const creatorUsername = params.get('creatorUsername');
     const clipId = params.get('clipId');
+    const recommendationSessionId = params.get('session')?.slice(0, 120) || null;
     const session = await getApiSession(request).catch(() => null);
     const viewerId = session?.user?.id || null;
 
@@ -47,11 +49,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const isGeneralFeed = !sourceTrackId && !creatorId && !creatorUsername && !clipId;
     let query = supabaseAdmin
       .from('music_clips')
       .select('*, creator:profiles!music_clips_creator_id_fkey(id, username, name, avatar)')
-      .order('created_at', { ascending: false })
-      .range(cursor, cursor + limit);
+      .order('created_at', { ascending: false });
+
+    if (isGeneralFeed) query = query.limit(Math.min(240, Math.max(80, (cursor + limit) * 4)));
+    else query = query.range(cursor, cursor + limit);
 
     if (!creatorId || String(creatorId) !== String(viewerId || '')) {
       query = query.eq('visibility', 'published');
@@ -75,15 +80,33 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query;
     if (error) throw error;
     const rows = data || [];
-    const clips = await formatMusicClips(
-      rows.slice(0, limit),
-      { viewerId },
-    );
+    const formatted = await formatMusicClips(isGeneralFeed ? rows : rows.slice(0, limit), { viewerId });
+    let clips = formatted;
+    if (isGeneralFeed) {
+      const sourceCandidates = formatted.map((clip) => ({
+        _id: clip.sourceTrackId,
+        artist: clip.sourceTrack.artist,
+        genre: clip.sourceTrack.genre || [],
+        createdAt: clip.createdAt,
+      }));
+      const signals = viewerId
+        ? await buildUserRecommendationSignals({
+            supabase: supabaseAdmin,
+            userId: viewerId,
+            candidateTracks: sourceCandidates,
+            sessionId: recommendationSessionId,
+          })
+        : buildAnonymousRecommendationSignals();
+      const seed = recommendationSessionId || `${viewerId || 'anonymous'}:${new Date().toISOString().slice(0, 10)}:clips`;
+      clips = rankMusicClips(formatted, signals, { sessionSeed: seed }).slice(cursor, cursor + limit);
+    }
+    const nextCursor = cursor + clips.length;
     return NextResponse.json(
       {
         clips,
-        nextCursor: cursor + Math.min(rows.length, limit),
-        hasMore: rows.length > limit,
+        nextCursor,
+        hasMore: isGeneralFeed ? nextCursor < formatted.length : rows.length > limit,
+        engineVersion: isGeneralFeed ? 'discovery-v2' : undefined,
       },
       { headers: { 'Cache-Control': 'no-store, max-age=0' } },
     );

@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
         created_at: now,
         user_id: userId,
         session_id: sessionId,
-        content_type: item.contentType === 'post' ? 'post' : item.contentType === 'track' ? 'track' : '',
+        content_type: item.contentType === 'post' ? 'post' : item.contentType === 'track' ? 'track' : item.contentType === 'clip' ? 'clip' : '',
         content_id: String(item.contentId || ''),
         source: item.source || 'home',
         rank: Number.isFinite(item.rank) ? item.rank : index,

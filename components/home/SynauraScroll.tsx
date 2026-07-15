@@ -12,6 +12,7 @@ import NotificationCenter, { notify } from '@/components/NotificationCenter';
 import { isAiVariationAvailable } from '@/lib/remixPermissions';
 import { canUseSoundClientSide } from '@/lib/clipPermissions';
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
+import { getRecommendationSessionId } from '@/lib/recommendation/clientSession';
 import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
 import { useLibraryFavorites } from '@/hooks/useLibraryFavorites';
 import { useTrackWaveform } from '@/hooks/useTrackWaveform';
@@ -79,7 +80,7 @@ const FILTER_META: Record<FeedFilter, { label: string; comingSoon?: boolean }> =
 
 const STRATEGY_BY_FILTER: Partial<Record<FeedFilter, string>> = {
   foryou: 'reco',
-  new: 'trending',
+  new: 'fresh',
 };
 
 const FALLBACK_COVER = '/brand/2026/synaura-symbol-2026-white.png';
@@ -369,6 +370,7 @@ export default function SynauraScroll() {
   const trackLoadRequestRef = useRef(0);
   const clipLoadRequestRef = useRef(0);
   const loadingMoreTracksRef = useRef(false);
+  const impressionSeenRef = useRef<Set<string>>(new Set());
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const currentId = currentTrack?._id;
@@ -451,7 +453,13 @@ export default function SynauraScroll() {
       try {
         if (!cacheWasShown) setLoading(true);
         setError(null);
-        const res = await fetch(`/api/ranking/feed?limit=${INITIAL_TRACK_LIMIT}&ai=1&strategy=${strategy}&fast=1`, { cache: 'no-store' });
+        const feedParams = new URLSearchParams({
+          limit: String(INITIAL_TRACK_LIMIT),
+          ai: '1',
+          strategy,
+          session: getRecommendationSessionId(),
+        });
+        const res = await fetch(`/api/ranking/feed?${feedParams.toString()}`, { cache: 'no-store' });
         if (!res.ok) throw new Error('Chargement impossible');
         const json = await res.json();
         const list = applyCdnToTracks((Array.isArray(json?.tracks) ? json.tracks : []) as any) as ScrollTrack[];
@@ -483,6 +491,7 @@ export default function SynauraScroll() {
       setLoading(true);
     }
     const params = new URLSearchParams({ limit: String(filter === 'clips' ? 16 : 12) });
+    params.set('session', getRecommendationSessionId());
     if (filter === 'clips' && sourceTrackFilter) params.set('sourceTrackId', sourceTrackFilter);
     if (filter === 'clips' && clipIdFilter) params.set('clipId', clipIdFilter);
     fetch(`/api/music-clips?${params.toString()}`, { cache: 'no-store' })
@@ -589,6 +598,40 @@ export default function SynauraScroll() {
     });
   }, [filter, baseTracks, baseClips, popularUsersRaw, collectionsRaw, cityEventsRaw, musicChallengesRaw]);
 
+  useEffect(() => {
+    if (loading) return;
+    const item = feedItems[activeIndex];
+    if (!item || (item.type !== 'track' && item.type !== 'clip')) return;
+    const contentType = item.type === 'clip' ? 'clip' : 'track';
+    const contentId = item.type === 'clip' ? item.clip.id : item.track._id;
+    const key = `${contentType}:${contentId}`;
+    if (!contentId || impressionSeenRef.current.has(key)) return;
+    const timer = window.setTimeout(() => {
+      if (impressionSeenRef.current.has(key)) return;
+      impressionSeenRef.current.add(key);
+      const entity = item.type === 'clip' ? item.clip : item.track;
+      void fetch('/api/recommendations/impressions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        keepalive: true,
+        body: JSON.stringify({
+          sessionId: getRecommendationSessionId(),
+          impressions: [{
+            contentType,
+            contentId,
+            source: 'scroll-web',
+            rank: activeIndex,
+            score: Number((entity as any).recommendationScore || 0),
+            reasons: (entity as any).recommendationReasons || [],
+          }],
+        }),
+      }).catch(() => {
+        impressionSeenRef.current.delete(key);
+      });
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [activeIndex, feedItems, loading]);
+
   // Le premier rendu reste petit et rapide; la suite arrive avant que l'auditeur
   // atteigne la fin, sans reconstruire les cartes deja visibles.
   useEffect(() => {
@@ -597,7 +640,14 @@ export default function SynauraScroll() {
     let mounted = true;
     const strategy = STRATEGY_BY_FILTER[filter] || 'reco';
     loadingMoreTracksRef.current = true;
-    fetch(`/api/ranking/feed?limit=${MORE_TRACK_LIMIT}&ai=1&strategy=${strategy}&cursor=${trackCursor}`, { cache: 'no-store' })
+    const params = new URLSearchParams({
+      limit: String(MORE_TRACK_LIMIT),
+      ai: '1',
+      strategy,
+      cursor: String(trackCursor),
+      session: getRecommendationSessionId(),
+    });
+    fetch(`/api/ranking/feed?${params.toString()}`, { cache: 'no-store' })
       .then((response) => response.json().then((json) => ({ ok: response.ok, json })))
       .then(({ ok, json }) => {
         if (!mounted || !ok) return;

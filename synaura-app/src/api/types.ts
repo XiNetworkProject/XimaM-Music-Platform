@@ -5,6 +5,7 @@ export type Artist = {
   username?: string;
   artistName?: string;
   avatar?: string | null;
+  followersCount?: number;
 };
 
 export type Track = {
@@ -67,6 +68,9 @@ export type Track = {
   variationsCount?: number;
   musicClipsCount?: number;
   linkedChallenge?: { id: string; title: string; status: 'upcoming' | 'active' | 'ended' } | null;
+  recommendationScore?: number;
+  recommendationReasons?: string[];
+  recommendationBucket?: string;
 };
 
 export type MusicClipSource = Track & {
@@ -148,6 +152,8 @@ export type MusicClip = {
   createdAt: string;
   updatedAt: string;
   sourceTrack: MusicClipSource;
+  recommendationScore?: number;
+  recommendationReasons?: string[];
 };
 
 export type RemixPermissions = {
