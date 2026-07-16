@@ -1,14 +1,14 @@
 {
-  "title": "Synaura Flow 0.19.1",
+  "title": "Synaura Hybrid Flow 0.19.2",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Accueil Flow reconstruit dans une direction sombre coherente avec toute l'app",
-    "Scene Flow pleine largeur qui remplit tout l'espace restant jusqu'a la navigation",
-    "Suppression de la pochette geante et du faux ecran intermediaire",
-    "Un seul swipe ou geste de molette suffit maintenant pour entrer dans le fil",
-    "Pochettes utilisees comme ambiance visuelle avec une miniature nette et lisible",
-    "Raccourcis, lecture en cours, nouveaux sons et posts conserves sans faux contenu",
+    "Nouvel accueil hybride inspire de la mise en scene editoriale du Flow",
+    "Direction entierement sombre, chaude et coherente avec l'identite Synaura",
+    "Vraie pochette au centre avec ambiance coloree issue du morceau selectionne",
+    "Actions Ecouter et Entrer dans le Flow immediatement accessibles",
+    "Pochette contenue sur ordinateur et mise en page adaptee aux petits ecrans",
+    "Un seul swipe ou geste de molette suffit pour entrer dans le fil",
     "Mise en page validee sur 31 ecrans natifs et huit formats de telephones et tablettes"
   ]
 }

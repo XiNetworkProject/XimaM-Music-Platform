@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Animated, Image, PanResponder, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, PanResponder, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { HomePost, Track } from '@/api/types';
@@ -7,7 +7,8 @@ import { MotionPressable } from '@/components/motion/Motion';
 import { getTrackCoverImage, TrackCover } from '@/components/TrackCover';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
-import { colors } from '@/theme/tokens';
+
+const brandSymbol = require('../../assets/synaura-symbol-2026.png');
 
 type Props = {
   visible: boolean;
@@ -32,11 +33,6 @@ type Props = {
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-function greeting() {
-  const hour = new Date().getHours();
-  return hour < 6 || hour >= 18 ? 'Bonsoir' : 'Bonjour';
-}
-
 function artistName(track: Track) {
   return track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste Synaura';
 }
@@ -45,37 +41,30 @@ export function HomeFlowPrelude(props: Props) {
   const {
     visible,
     tracks,
-    posts,
     currentTrack,
     currentPlaying,
-    userName,
     topPad,
     bottomPad,
     onEnterFlow,
     onPlayTrack,
     onOpenTrack,
-    onOpenPost,
     onSearch,
     onNotifications,
-    onDiscover,
-    onRadar,
     onStudio,
-    onEvents,
   } = props;
   const responsive = useResponsiveLayout();
   const { settings } = useMobileSettings();
   const progress = useRef(new Animated.Value(0)).current;
   const progressValue = useRef(0);
   const finishingRef = useRef(false);
-  const firstTrack = tracks[0] || null;
-  const firstCover = getTrackCoverImage(firstTrack);
-  const resumeTrack = currentTrack?.audioUrl ? currentTrack : firstTrack;
-  const firstName = String(userName || '').trim().split(/\s+/)[0] || '';
-  const displayTracks = useMemo(() => tracks.filter((track) => track.audioUrl).slice(0, 5), [tracks]);
-  const displayPosts = useMemo(() => posts.filter((post) => post.text || post.track || post.imageUrl).slice(0, 2), [posts]);
-  const showResume = !responsive.isVeryShort && !responsive.isPhoneLandscape;
-  const showTracks = !responsive.isShort && !responsive.isPhoneLandscape;
-  const showPosts = responsive.height >= 900 && !responsive.isPhoneLandscape;
+  const firstTrack = tracks.find((track) => Boolean(track.audioUrl)) || null;
+  const featuredTrack = currentTrack?.audioUrl ? currentTrack : firstTrack;
+  const featuredCover = getTrackCoverImage(featuredTrack);
+  const isCurrentTrack = Boolean(featuredTrack && currentTrack?._id === featuredTrack._id);
+  const isResume = Boolean(isCurrentTrack && currentTrack?.audioUrl);
+  const artworkSize = responsive.isPhoneLandscape
+    ? clamp(responsive.usableHeight * 0.3, 82, 118)
+    : clamp(Math.min(responsive.safeWidth * 0.43, responsive.usableHeight * 0.28), 112, responsive.isTablet ? 280 : 188);
 
   useEffect(() => {
     const id = progress.addListener(({ value }) => {
@@ -102,7 +91,7 @@ export function HomeFlowPrelude(props: Props) {
     }
     Animated.timing(progress, {
       toValue: 1,
-      duration: 280,
+      duration: 300,
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) onEnterFlow();
@@ -137,35 +126,46 @@ export function HomeFlowPrelude(props: Props) {
 
   if (!visible) return null;
 
-  const quickActions = [
-    { label: 'Découvrir', icon: 'compass-outline' as const, tone: '#A995E8', action: onDiscover },
-    { label: 'Radar', icon: 'radio-outline' as const, tone: '#74C7CF', action: onRadar },
-    { label: 'Studio', icon: 'sparkles-outline' as const, tone: '#F09A91', action: onStudio },
-    { label: 'Events', icon: 'calendar-outline' as const, tone: '#F7F6F3', action: onEvents },
-  ];
   const screenTranslateY = progress.interpolate({ inputRange: [0, 1], outputRange: [0, -responsive.height] });
-  const screenOpacity = progress.interpolate({ inputRange: [0, 0.72, 1], outputRange: [1, 0.96, 0.48], extrapolate: 'clamp' });
+  const screenOpacity = progress.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1, 0.98, 0.72], extrapolate: 'clamp' });
+  const sceneOpacity = progress.interpolate({ inputRange: [0, 0.58, 1], outputRange: [1, 0.55, 0], extrapolate: 'clamp' });
+  const sceneTranslateY = progress.interpolate({ inputRange: [0, 1], outputRange: [0, -48] });
+  const sceneScale = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.975] });
+  const portraitArtworkPosition = {
+    width: artworkSize,
+    height: artworkSize,
+    left: '50%' as const,
+    top: responsive.isVeryShort ? 48 : responsive.isShort ? 54 : 62,
+    transform: [{ translateX: -artworkSize / 2 }],
+  };
+  const landscapeArtworkPosition = {
+    width: artworkSize,
+    height: artworkSize,
+    right: 18,
+    top: '50%' as const,
+    transform: [{ translateY: -artworkSize / 2 }],
+  };
 
   return (
     <Animated.View
       {...panResponder.panHandlers}
       style={[styles.overlay, { opacity: screenOpacity, transform: [{ translateY: screenTranslateY }] }]}
     >
-      <LinearGradient colors={['#121212', '#0D0D0D', '#090909']} locations={[0, 0.48, 1]} style={StyleSheet.absoluteFillObject} />
-      <LinearGradient colors={['rgba(115,87,198,0.18)', 'rgba(74,158,170,0.04)', 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.72 }} style={StyleSheet.absoluteFillObject} />
-
-      <View style={[styles.surface, { paddingBottom: bottomPad }]}>
+      <Animated.View style={[styles.scene, { opacity: sceneOpacity, transform: [{ translateY: sceneTranslateY }, { scale: sceneScale }] }]}>
+        <LinearGradient colors={['#151318', '#0D0D0D', '#090909']} locations={[0, 0.48, 1]} style={StyleSheet.absoluteFillObject} />
         <View
           style={[
-            styles.homeContent,
+            styles.shell,
             responsive.contentFrame,
             {
-              paddingTop: topPad + 7,
+              paddingTop: topPad + (responsive.isPhoneLandscape ? 4 : 8),
+              paddingBottom: Math.max(7, bottomPad + (responsive.isPhoneLandscape ? 3 : 7)),
               paddingHorizontal: responsive.gutter,
+              gap: responsive.isShort ? 8 : 11,
             },
           ]}
         >
-          <View style={styles.topBar}>
+          <View style={[styles.header, responsive.isPhoneLandscape && styles.headerLandscape]}>
             <View style={styles.brand}>
               <View style={styles.brandMark}><Ionicons name="pulse" size={21} color="#111111" /></View>
               <View><Text style={styles.brandName}>Synaura</Text><Text style={styles.brandSubtitle}>Ton monde musical</Text></View>
@@ -176,157 +176,127 @@ export function HomeFlowPrelude(props: Props) {
             </View>
           </View>
 
-          <View style={[styles.greeting, responsive.isPhoneLandscape && styles.greetingLandscape]}>
-            <Text style={styles.eyebrow}>POUR TOI, MAINTENANT</Text>
-            <Text maxFontSizeMultiplier={1.15} numberOfLines={1} adjustsFontSizeToFit style={[styles.greetingTitle, responsive.compactControls && styles.greetingTitleCompact]}>{greeting()}{firstName ? ` ${firstName}` : ''}.</Text>
-            {!responsive.isPhoneLandscape ? <Text style={styles.greetingText}>Tes raccourcis, tes sons, puis ton Flow.</Text> : null}
-          </View>
+          <View style={styles.hero}>
+            <LinearGradient colors={['#76505A', '#272126', '#0D0D0D']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
+            {featuredCover ? <Image source={{ uri: featuredCover }} resizeMode="cover" blurRadius={22} style={styles.heroBackdrop} /> : null}
+            <LinearGradient
+              colors={['rgba(11,10,10,0.34)', 'rgba(11,10,10,0.48)', 'rgba(11,10,10,0.92)']}
+              locations={[0, 0.5, 1]}
+              style={StyleSheet.absoluteFillObject}
+            />
+            {responsive.isPhoneLandscape ? (
+              <LinearGradient colors={['rgba(11,10,10,0.94)', 'rgba(11,10,10,0.46)', 'rgba(11,10,10,0.22)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFillObject} />
+            ) : null}
 
-          <View style={styles.quickGrid}>
-            {quickActions.map((action) => (
-              <MotionPressable key={action.label} accessibilityLabel={action.label} onPress={action.action} style={styles.quickAction} scaleTo={0.94}>
-                <Ionicons name={action.icon} size={16} color={action.tone} />
-                <Text numberOfLines={1} adjustsFontSizeToFit style={styles.quickLabel}>{action.label}</Text>
-              </MotionPressable>
-            ))}
-          </View>
-
-          {resumeTrack && showResume ? (
-            <View style={styles.resumeCard}>
-              <MotionPressable accessibilityLabel="Ouvrir le morceau" onPress={() => onOpenTrack(resumeTrack)} style={styles.resumeCoverWrap} scaleTo={0.96}>
-                <TrackCover track={resumeTrack} active={false} style={styles.resumeCover} />
-              </MotionPressable>
-              <MotionPressable accessibilityLabel="Ouvrir le morceau" onPress={() => onOpenTrack(resumeTrack)} style={styles.resumeCopy} scaleTo={0.98}>
-                <Text style={styles.resumeKicker}>{currentTrack?.audioUrl ? "REPRENDRE L'ÉCOUTE" : 'À DÉCOUVRIR MAINTENANT'}</Text>
-                <Text numberOfLines={1} style={styles.resumeTitle}>{resumeTrack.title}</Text>
-                <Text numberOfLines={1} style={styles.resumeArtist}>{artistName(resumeTrack)}</Text>
-              </MotionPressable>
-              <MotionPressable accessibilityLabel={currentPlaying ? 'Pause' : 'Lecture'} onPress={() => onPlayTrack(resumeTrack)} style={styles.resumePlay} scaleTo={0.9}>
-                <Ionicons name={currentPlaying && currentTrack?._id === resumeTrack._id ? 'pause' : 'play'} size={18} color="#111111" />
-              </MotionPressable>
+            <View style={styles.kickerRow}>
+              <View style={styles.kickerDot} />
+              <Text style={styles.kicker}>{isResume ? "REPRENDRE L'ÉCOUTE" : 'CHOISI POUR TOI'}</Text>
             </View>
-          ) : null}
 
-          {showTracks && displayTracks.length ? (
-            <View style={styles.secondarySection}>
-              <View style={styles.sectionHead}><Text style={styles.sectionTitle}>À écouter maintenant</Text><Text style={styles.sectionNote}>Du moment</Text></View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trackRail}>
-                {displayTracks.map((track) => (
-                  <MotionPressable key={track._id} accessibilityLabel={`Écouter ${track.title}`} onPress={() => onOpenTrack(track)} style={styles.miniTrack} scaleTo={0.95}>
-                    <View style={styles.miniCoverWrap}>
-                      <TrackCover track={track} active={false} style={styles.miniCover} />
-                      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.5)']} style={StyleSheet.absoluteFillObject} />
-                      <Ionicons name="play" size={12} color="#FFFFFF" style={styles.miniPlay} />
-                    </View>
-                    <Text numberOfLines={1} style={styles.miniTitle}>{track.title}</Text>
-                  </MotionPressable>
-                ))}
-              </ScrollView>
-            </View>
-          ) : null}
+            {featuredTrack && featuredCover ? (
+              <MotionPressable
+                accessibilityLabel={`Ouvrir ${featuredTrack.title}`}
+                onPress={() => onOpenTrack(featuredTrack)}
+                style={[styles.artwork, responsive.isPhoneLandscape ? landscapeArtworkPosition : portraitArtworkPosition]}
+                scaleTo={0.97}
+              >
+                <TrackCover track={featuredTrack} active={false} style={styles.artworkImage} />
+              </MotionPressable>
+            ) : (
+              <View style={[styles.artwork, styles.fallbackArtwork, responsive.isPhoneLandscape ? landscapeArtworkPosition : portraitArtworkPosition]}>
+                <Image source={brandSymbol} resizeMode="contain" style={styles.fallbackSymbol} />
+              </View>
+            )}
 
-          {showPosts && displayPosts.length ? (
-            <View style={styles.postRow}>
-              {displayPosts.map((post) => (
-                <MotionPressable key={post.id} accessibilityLabel="Ouvrir la publication" onPress={() => onOpenPost(post)} style={styles.postPreview} scaleTo={0.97}>
-                  <View style={styles.postAvatar}>
-                    {post.avatar?.startsWith('http') ? <TrackCover source={post.avatar} style={styles.postAvatarImage} /> : <Text style={styles.postAvatarText}>{(post.author || 'S').slice(0, 1).toUpperCase()}</Text>}
-                  </View>
-                  <View style={styles.postCopy}><Text numberOfLines={1} style={styles.postAuthor}>{post.author}</Text><Text numberOfLines={1} style={styles.postText}>{post.text || (post.track ? `À propos de ${post.track.title}` : 'Publication Synaura')}</Text></View>
-                  {post.track ? <TrackCover track={post.track} active={false} style={styles.postTrackCover} /> : null}
+            <View
+              style={[
+                styles.heroCopy,
+                responsive.isPhoneLandscape && styles.heroCopyLandscape,
+                !responsive.isPhoneLandscape && { paddingTop: artworkSize + (responsive.isShort ? 62 : 74) },
+              ]}
+            >
+              <MotionPressable accessibilityLabel="Ouvrir le morceau" disabled={!featuredTrack} onPress={() => featuredTrack && onOpenTrack(featuredTrack)} style={styles.trackCopy} scaleTo={0.99}>
+                <Text numberOfLines={2} adjustsFontSizeToFit style={[styles.heroTitle, responsive.compactControls && styles.heroTitleCompact]}>{featuredTrack?.title || 'Ton Flow se prépare'}</Text>
+                <Text numberOfLines={1} style={styles.heroArtist}>{featuredTrack ? artistName(featuredTrack) : 'De nouveaux sons arrivent sur Synaura'}</Text>
+              </MotionPressable>
+
+              <View style={styles.heroActions}>
+                <MotionPressable accessibilityLabel="Écouter" disabled={!featuredTrack} onPress={() => featuredTrack && onPlayTrack(featuredTrack)} style={[styles.listenButton, !featuredTrack && styles.disabledButton]} scaleTo={0.94}>
+                  <Ionicons name={isCurrentTrack && currentPlaying ? 'pause' : 'play'} size={17} color="#111111" />
+                  <Text style={styles.listenText}>Écouter</Text>
                 </MotionPressable>
-              ))}
+                <MotionPressable accessibilityLabel="Entrer dans le Flow" onPress={finish} style={styles.enterButton} scaleTo={0.96}>
+                  <Ionicons name="pulse" size={17} color="#FFFFFF" />
+                  <Text numberOfLines={1} adjustsFontSizeToFit style={styles.enterText}>Entrer dans le Flow</Text>
+                </MotionPressable>
+              </View>
             </View>
-          ) : null}
-        </View>
+          </View>
 
-        <View style={styles.flowStage}>
-          <LinearGradient colors={['#211A2E', '#142326', '#171313', '#090909']} locations={[0, 0.35, 0.66, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
-          {firstCover ? <Image source={{ uri: firstCover }} resizeMode="cover" blurRadius={14} style={styles.flowBackdrop} /> : null}
-          <LinearGradient colors={['#090909', 'rgba(9,9,9,0.56)', 'rgba(9,9,9,0.08)', 'rgba(9,9,9,0.8)']} locations={[0, 0.19, 0.54, 1]} style={StyleSheet.absoluteFillObject} />
-          <LinearGradient colors={['rgba(9,9,9,0.58)', 'transparent', 'rgba(9,9,9,0.22)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFillObject} />
-
-          <View style={[styles.flowContent, { paddingHorizontal: responsive.gutter }]}>
-            <MotionPressable accessibilityLabel="Ouvrir le premier son du Flow" disabled={!firstTrack} onPress={() => firstTrack && onOpenTrack(firstTrack)} style={styles.flowIdentity} scaleTo={0.98}>
-              <View style={[styles.flowCoverWrap, responsive.isShort && styles.flowCoverWrapCompact]}>
-                {firstTrack ? <TrackCover track={firstTrack} active={false} style={styles.flowCover} /> : <Ionicons name="musical-notes" size={24} color="rgba(255,255,255,0.45)" />}
-              </View>
-              <View style={styles.flowCopy}>
-                <Text style={styles.flowBadge}>TON FLOW</Text>
-                <Text numberOfLines={1} style={[styles.flowTitle, responsive.isNarrow && styles.flowTitleNarrow]}>{firstTrack?.title || 'Le Flow arrive'}</Text>
-                <Text numberOfLines={1} style={styles.flowArtist}>{firstTrack ? artistName(firstTrack) : 'Synaura prépare ta sélection'}</Text>
-              </View>
+          <View style={[styles.shortcutRow, responsive.isPhoneLandscape && styles.shortcutRowLandscape]}>
+            <MotionPressable accessibilityLabel="Entrer dans le Flow" onPress={finish} style={styles.shortcut} scaleTo={0.97}>
+              <Ionicons name="pulse" size={20} color="#4A9EAA" />
+              <View style={styles.shortcutCopy}><Text style={styles.shortcutTitle}>Flow</Text><Text numberOfLines={1} style={styles.shortcutSub}>Découvrir maintenant</Text></View>
             </MotionPressable>
-            <MotionPressable accessibilityLabel="Entrer dans le Flow" onPress={finish} style={styles.flowButton} scaleTo={0.9}>
-              <Ionicons name="arrow-up" size={21} color="#111111" />
+            <MotionPressable accessibilityLabel="Ouvrir le Studio" onPress={onStudio} style={styles.shortcut} scaleTo={0.97}>
+              <Ionicons name="sparkles-outline" size={20} color="#D96D63" />
+              <View style={styles.shortcutCopy}><Text style={styles.shortcutTitle}>Studio</Text><Text numberOfLines={1} style={styles.shortcutSub}>Créer un morceau</Text></View>
             </MotionPressable>
           </View>
+
+          {!responsive.isShort && !responsive.isPhoneLandscape ? (
+            <MotionPressable accessibilityLabel="Glisser vers le Flow" onPress={finish} style={styles.swipeHint} scaleTo={0.97}>
+              <Text style={styles.swipeHintText}>GLISSE VERS LE FLOW</Text>
+              <Ionicons name="arrow-up" size={14} color="rgba(255,255,255,0.42)" />
+            </MotionPressable>
+          ) : null}
         </View>
-      </View>
+      </Animated.View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 40, overflow: 'hidden', backgroundColor: '#090909' },
-  surface: { flex: 1 },
-  homeContent: { width: '100%', alignSelf: 'center', flexShrink: 0, paddingBottom: 10 },
-  topBar: { height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 40, overflow: 'hidden', backgroundColor: '#0D0D0D' },
+  scene: { flex: 1, backgroundColor: '#0D0D0D' },
+  shell: { flex: 1, width: '100%', alignSelf: 'center' },
+  header: { height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerLandscape: { height: 42 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  brandMark: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F6F3', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
-  brandName: { color: '#F7F6F3', fontSize: 14, fontWeight: '900' },
-  brandSubtitle: { marginTop: 1, color: 'rgba(255,255,255,0.46)', fontSize: 9, fontWeight: '700' },
+  brandMark: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F6F3', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', shadowColor: '#000000', shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, elevation: 4 },
+  brandName: { color: '#F7F6F3', fontSize: 15, lineHeight: 17, fontWeight: '900' },
+  brandSubtitle: { marginTop: 1, color: 'rgba(255,255,255,0.45)', fontSize: 9, fontWeight: '700' },
   topActions: { flexDirection: 'row', gap: 7 },
-  topButton: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  greeting: { marginTop: 11 },
-  greetingLandscape: { marginTop: 5 },
-  eyebrow: { color: '#A995E8', fontSize: 9, fontWeight: '900' },
-  greetingTitle: { marginTop: 5, color: '#F7F6F3', fontSize: 28, lineHeight: 31, fontWeight: '900' },
-  greetingTitleCompact: { fontSize: 23, lineHeight: 26 },
-  greetingText: { marginTop: 4, color: 'rgba(255,255,255,0.52)', fontSize: 11, lineHeight: 15, fontWeight: '700' },
-  quickGrid: { marginTop: 11, flexDirection: 'row', gap: 6 },
-  quickAction: { flex: 1, minWidth: 0, height: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  quickLabel: { color: '#F7F6F3', fontSize: 8, fontWeight: '900' },
-  resumeCard: { marginTop: 11, minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 8, padding: 7, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  resumeCoverWrap: { width: 50, height: 50, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.06)' },
-  resumeCover: { width: '100%', height: '100%' },
-  resumeCopy: { flex: 1, minWidth: 0 },
-  resumeKicker: { color: '#74C7CF', fontSize: 8, fontWeight: '900' },
-  resumeTitle: { marginTop: 3, color: '#F7F6F3', fontSize: 13, fontWeight: '900' },
-  resumeArtist: { marginTop: 2, color: 'rgba(255,255,255,0.46)', fontSize: 9, fontWeight: '700' },
-  resumePlay: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F6F3' },
-  secondarySection: { marginTop: 10 },
-  sectionHead: { marginBottom: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: '#F7F6F3', fontSize: 12, fontWeight: '900' },
-  sectionNote: { color: 'rgba(255,255,255,0.38)', fontSize: 8, fontWeight: '700' },
-  trackRail: { gap: 8, paddingRight: 4 },
-  miniTrack: { width: 56 },
-  miniCoverWrap: { width: 56, height: 56, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.06)' },
-  miniCover: { width: '100%', height: '100%' },
-  miniPlay: { position: 'absolute', right: 6, bottom: 6 },
-  miniTitle: { marginTop: 3, color: '#F7F6F3', fontSize: 8, fontWeight: '900' },
-  postRow: { marginTop: 9, flexDirection: 'row', gap: 7 },
-  postPreview: { flex: 1, minWidth: 0, minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 8, padding: 6, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  postAvatar: { width: 32, height: 32, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
-  postAvatarImage: { width: '100%', height: '100%' },
-  postAvatarText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
-  postCopy: { flex: 1, minWidth: 0 },
-  postAuthor: { color: '#F7F6F3', fontSize: 9, fontWeight: '900' },
-  postText: { marginTop: 2, color: 'rgba(255,255,255,0.48)', fontSize: 8, lineHeight: 11, fontWeight: '700' },
-  postTrackCover: { width: 32, height: 32, borderRadius: 8 },
-  flowStage: { flex: 1, minHeight: 168, overflow: 'hidden', backgroundColor: '#111111', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.08)' },
-  flowBackdrop: { ...StyleSheet.absoluteFillObject, width: '112%', height: '112%', left: '-6%', top: '-6%', opacity: 0.62, transform: [{ scale: 1.06 }] },
-  flowContent: { position: 'absolute', left: 0, right: 0, bottom: 14, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
-  flowIdentity: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  flowCoverWrap: { width: 70, height: 70, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' },
-  flowCoverWrapCompact: { width: 58, height: 58 },
-  flowCover: { width: '100%', height: '100%' },
-  flowCopy: { flex: 1, minWidth: 0 },
-  flowBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: 5, paddingHorizontal: 7, paddingVertical: 4, color: '#FFFFFF', backgroundColor: colors.violet, fontSize: 8, fontWeight: '900' },
-  flowTitle: { marginTop: 7, color: '#FFFFFF', fontSize: 21, lineHeight: 25, fontWeight: '900' },
-  flowTitleNarrow: { fontSize: 18, lineHeight: 22 },
-  flowArtist: { marginTop: 2, color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '800' },
-  flowButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F6F3', borderWidth: 1, borderColor: '#FFFFFF', shadowColor: '#000000', shadowOpacity: 0.35, shadowRadius: 18, shadowOffset: { width: 0, height: 9 }, elevation: 8 },
+  topButton: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  hero: { flex: 1, minHeight: 218, overflow: 'hidden', borderRadius: 8, backgroundColor: '#151214', shadowColor: '#1E1619', shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 7 },
+  heroBackdrop: { ...StyleSheet.absoluteFillObject, width: '124%', height: '124%', left: '-12%', top: '-12%', opacity: 0.58, transform: [{ scale: 1.08 }] },
+  kickerRow: { position: 'absolute', zIndex: 4, left: 16, top: 16, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  kickerDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#D96D63' },
+  kicker: { color: '#F1CEC1', fontSize: 9, fontWeight: '900' },
+  artwork: { position: 'absolute', zIndex: 3, overflow: 'hidden', borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', shadowColor: '#000000', shadowOpacity: 0.42, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 10 },
+  artworkImage: { width: '100%', height: '100%' },
+  fallbackArtwork: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)' },
+  fallbackSymbol: { width: '58%', height: '58%', opacity: 0.65 },
+  heroCopy: { flex: 1, zIndex: 5, justifyContent: 'flex-end', paddingHorizontal: 16, paddingBottom: 16 },
+  heroCopyLandscape: { width: '68%', paddingTop: 50, paddingRight: 8, paddingBottom: 13 },
+  trackCopy: { minWidth: 0 },
+  heroTitle: { color: '#FFFFFF', fontSize: 29, lineHeight: 31, fontWeight: '900' },
+  heroTitleCompact: { fontSize: 23, lineHeight: 25 },
+  heroArtist: { marginTop: 5, color: 'rgba(255,255,255,0.64)', fontSize: 11, lineHeight: 14, fontWeight: '700' },
+  heroActions: { marginTop: 12, flexDirection: 'row', gap: 8 },
+  listenButton: { height: 40, minWidth: 102, borderRadius: 8, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: '#F7F6F3' },
+  listenText: { color: '#111111', fontSize: 12, fontWeight: '900' },
+  enterButton: { height: 40, minWidth: 0, maxWidth: 178, borderRadius: 8, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.22)' },
+  enterText: { flexShrink: 1, color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
+  disabledButton: { opacity: 0.5 },
+  shortcutRow: { minHeight: 66, flexDirection: 'row', gap: 9 },
+  shortcutRowLandscape: { minHeight: 54 },
+  shortcut: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, paddingHorizontal: 13, backgroundColor: '#19191A', borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', shadowColor: '#000000', shadowOpacity: 0.24, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 4 },
+  shortcutCopy: { flex: 1, minWidth: 0 },
+  shortcutTitle: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
+  shortcutSub: { marginTop: 3, color: 'rgba(255,255,255,0.48)', fontSize: 9, fontWeight: '600' },
+  swipeHint: { height: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  swipeHintText: { color: 'rgba(255,255,255,0.42)', fontSize: 8, fontWeight: '900' },
 });
 
 export default HomeFlowPrelude;
