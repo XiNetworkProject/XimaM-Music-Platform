@@ -75,6 +75,15 @@ function uniqueTracks(tracks: Track[]) {
   return Array.from(byId.values());
 }
 
+function sortNewest(tracks: Track[]) {
+  return uniqueTracks(tracks).sort((left, right) => {
+    const leftTimestamp = left.createdAt ? Date.parse(left.createdAt) : 0;
+    const rightTimestamp = right.createdAt ? Date.parse(right.createdAt) : 0;
+    const dateDifference = (Number.isFinite(rightTimestamp) ? rightTimestamp : 0) - (Number.isFinite(leftTimestamp) ? leftTimestamp : 0);
+    return dateDifference || String(right._id).localeCompare(String(left._id));
+  });
+}
+
 function artistName(track: Track) {
   return track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste Synaura';
 }
@@ -151,7 +160,7 @@ export function DiscoverV2Screen() {
     const cached = showInitialLoader ? await readDiscoverVisualCache<EditorialCollection>() : null;
     if (currentRequest !== requestId.current) return;
     const snapshot = {
-      newest: cached?.newest || [],
+      newest: sortNewest(cached?.newest || []),
       popular: cached?.popular || [],
       hidden: cached?.hidden || [],
       radar: cached?.radar || [],
@@ -159,7 +168,7 @@ export function DiscoverV2Screen() {
       totalTracks: cached?.totalTracks || 0,
     };
     if (cached) {
-      setNewestTracks(cached.newest);
+      setNewestTracks(snapshot.newest);
       setPopularTracks(cached.popular);
       setHiddenTracks(cached.hidden);
       setRadar(cached.radar);
@@ -180,9 +189,9 @@ export function DiscoverV2Screen() {
     const newestRequest = getDiscoverPage({ sort: 'newest', limit: 20, profileLimit: 4 })
       .then((page) => {
         if (currentRequest !== requestId.current) return;
-        snapshot.newest = page.tracks;
+        snapshot.newest = sortNewest(page.tracks);
         snapshot.totalTracks = page.total;
-        setNewestTracks(page.tracks);
+        setNewestTracks(snapshot.newest);
         setTotalTracks(page.total);
         revealContent();
       });
@@ -300,10 +309,7 @@ export function DiscoverV2Screen() {
     return collections.filter((collection) => (collection.id || collection.playlistId) !== (featuredCollection.id || featuredCollection.playlistId));
   }, [collections, featuredCollection]);
 
-  const newestRailTracks = useMemo(
-    () => newestTracks.length > 1 && leadTrack ? newestTracks.filter((track) => track._id !== leadTrack._id) : newestTracks,
-    [leadTrack, newestTracks],
-  );
+  const newestRailTracks = newestTracks;
   const hiddenRailTracks = useMemo(() => {
     const newestIds = new Set(newestTracks.map((track) => track._id));
     const distinct = hiddenTracks.filter((track) => !newestIds.has(track._id));

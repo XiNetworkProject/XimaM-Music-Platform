@@ -201,9 +201,9 @@ export function CityScreen() {
     setActingEventId(event.id);
     setError(null);
     try {
-      await claimCityEventReward(event.id);
+      const result = await claimCityEventReward(event.id);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      setToast('Récompense récupérée. Bien joué.');
+      setToast(result.message || 'Boost x1,35 actif pendant 24 h.');
       await load(true);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Récompense impossible.');
@@ -247,7 +247,7 @@ export function CityScreen() {
             <View style={styles.stack}>
               {city.events.map((event, index) => (
                 event.kind === 'battle'
-                  ? <BattleCard key={event.id} event={event} voting={voting} player={player} onPlay={play} onVote={(trackId) => vote(event.id, trackId)} onDetails={() => setDetailEvent(event)} />
+                  ? <BattleCard key={event.id} event={event} voting={voting} player={player} onPlay={play} onVote={(trackId) => vote(event.id, trackId)} onDetails={() => setDetailEvent(event)} onClaim={() => claim(event)} />
                   : <LiveEventCard key={event.id} event={event} index={index} busy={actingEventId === event.id} onDetails={() => setDetailEvent(event)} onParticipate={() => openParticipate(event)} onClaim={() => claim(event)} onPlay={play} />
               ))}
             </View>
@@ -431,15 +431,17 @@ function LiveEventCard({ event, index, busy, onDetails, onParticipate, onClaim, 
   const first = event.tracks?.[0];
   const participated = Boolean(event.userParticipation);
   const claimable = event.claimStatus === 'available';
+  const boosted = Boolean(event.activeBoost);
   return (
     <Reveal delay={index * 40}>
       <View style={styles.liveEvent}>
         <EventSummaryCard event={event} onOpen={onDetails} />
         <Text style={styles.liveEventDescription}>{event.description}</Text>
+        {event.activeBoost ? <Text style={styles.activeBoostText}>Boost x1,35 actif jusqu'au {new Date(event.activeBoost.expiresAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</Text> : null}
         <View style={styles.liveEventActions}>
-          <MotionPressable disabled={busy || (participated && !claimable)} onPress={claimable ? onClaim : onParticipate} style={[styles.primaryButton, participated && !claimable && styles.doneButton]}>
-            <Ionicons name={participated && !claimable ? 'checkmark' : claimable ? 'gift' : 'add'} size={15} color={colors.paper} />
-            <Text style={styles.primaryButtonText}>{busy ? 'Chargement...' : claimable ? 'Récupérer' : participated ? 'Inscrit' : 'Participer'}</Text>
+          <MotionPressable disabled={busy || ((participated || boosted) && !claimable)} onPress={claimable ? onClaim : onParticipate} style={[styles.primaryButton, (participated || boosted) && !claimable && styles.doneButton]}>
+            <Ionicons name={boosted ? 'sparkles' : participated && !claimable ? 'checkmark' : claimable ? 'gift' : 'add'} size={15} color={colors.paper} />
+            <Text style={styles.primaryButtonText}>{busy ? 'Chargement...' : claimable ? 'Activer le boost' : boosted ? 'Boost x1,35 actif' : participated ? 'Inscrit' : 'Participer'}</Text>
           </MotionPressable>
           <MotionPressable onPress={onDetails} style={styles.secondaryButton}><Ionicons name="people" size={15} color={colors.text} /><Text style={styles.secondaryButtonText}>Inscrits</Text></MotionPressable>
           {first ? <MotionPressable onPress={() => onPlay(first)} style={styles.iconAction}><Ionicons name="play" size={15} color={colors.text} /></MotionPressable> : null}
@@ -449,7 +451,7 @@ function LiveEventCard({ event, index, busy, onDetails, onParticipate, onClaim, 
   );
 }
 
-function BattleCard({ event, voting, player, onPlay, onVote, onDetails }: { event: CityEvent; voting: boolean; player: ReturnType<typeof usePlayer>; onPlay: (track: Track) => void; onVote: (trackId: string) => void; onDetails: () => void }) {
+function BattleCard({ event, voting, player, onPlay, onVote, onDetails, onClaim }: { event: CityEvent; voting: boolean; player: ReturnType<typeof usePlayer>; onPlay: (track: Track) => void; onVote: (trackId: string) => void; onDetails: () => void; onClaim: () => void }) {
   const tracks = event.tracks || [];
   const total = tracks.reduce((sum, track) => sum + Number(event.voteCounts?.[track._id] || 0), 0) || 1;
   const canVote = Boolean(event.isLive);
@@ -474,6 +476,8 @@ function BattleCard({ event, voting, player, onPlay, onVote, onDetails }: { even
           );
         })}
       </View>
+      {event.claimStatus === 'available' ? <MotionPressable onPress={onClaim} style={styles.battleRewardButton}><Ionicons name="sparkles" size={15} color={colors.paper} /><Text style={styles.battleRewardButtonText}>Activer le boost x1,35</Text></MotionPressable> : null}
+      {event.activeBoost ? <Text style={styles.activeBoostText}>Boost x1,35 actif jusqu'au {new Date(event.activeBoost.expiresAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</Text> : null}
     </View>
   );
 }
@@ -730,6 +734,7 @@ const styles = StyleSheet.create({
   premiereArtist: { marginTop: 3, color: 'rgba(255,250,242,0.5)', fontSize: 9, fontWeight: '800' },
   liveEvent: { gap: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 10 },
   liveEventDescription: { color: colors.textSecondary, fontSize: 10, lineHeight: 15, fontWeight: '700', paddingHorizontal: 4 },
+  activeBoostText: { color: colors.violet, fontSize: 9, lineHeight: 14, fontWeight: '900', paddingHorizontal: 4 },
   liveEventActions: { flexDirection: 'row', gap: 8, paddingHorizontal: 4, paddingBottom: 2 },
   battle: { overflow: 'hidden', borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 12 },
   battleHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -739,6 +744,8 @@ const styles = StyleSheet.create({
   battleMeta: { marginTop: 3, color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
   battleFlash: { width: 43, height: 43, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   battleGrid: { marginTop: 13, flexDirection: 'row', gap: 8 },
+  battleRewardButton: { minHeight: 42, marginTop: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 21, backgroundColor: colors.violet },
+  battleRewardButtonText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
   battleTrack: { flex: 1, minWidth: 0, borderRadius: 11, backgroundColor: colors.background, padding: 8, gap: 5 },
   battleTrackSelected: { borderWidth: 1, borderColor: colors.violet, backgroundColor: 'rgba(124,92,255,0.1)' },
   battleCoverWrap: { aspectRatio: 1, overflow: 'hidden', borderRadius: 16 },

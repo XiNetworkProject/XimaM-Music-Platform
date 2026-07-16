@@ -2671,8 +2671,19 @@ export async function participateCityEvent(eventId: string, trackId: string): Pr
   });
 }
 
-export async function claimCityEventReward(eventId: string): Promise<void> {
-  await request(`/api/city/events/${encodeURIComponent(eventId)}/claim`, {
+export type CityRewardClaimResult = {
+  success: true;
+  message: string;
+  boost: {
+    trackId: string;
+    multiplier: number;
+    expiresAt: string;
+    source: 'city_winner';
+  };
+};
+
+export async function claimCityEventReward(eventId: string): Promise<CityRewardClaimResult> {
+  return request<CityRewardClaimResult>(`/api/city/events/${encodeURIComponent(eventId)}/claim`, {
     method: 'POST',
     body: JSON.stringify({}),
   });

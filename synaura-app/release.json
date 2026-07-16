@@ -1,13 +1,12 @@
 {
-  "title": "Synaura mobile 0.16.0",
+  "title": "Synaura mobile 0.16.1",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Nouveau moteur de decouverte commun a Flow, Discover, Radar et Clips",
-    "Davantage de place pour les petits createurs, les nouveautes et les morceaux de qualite",
-    "Recommandations plus variees, stables dans la session et moins repetitives",
-    "Tendances basees sur la progression recente plutot que sur les seuls compteurs",
-    "Historique d'ecoute mobile enrichi avec progression, completion et passages ignores",
-    "Chargement du fil et des donnees de remix nettement accelere"
+    "Tout juste publie affiche maintenant les sorties dans leur ordre chronologique reel",
+    "Cache Discover renouvele pour faire apparaitre immediatement les dernieres nouveautes",
+    "Votes Synaura City persistants et comptes uniquement a partir des votes reels",
+    "Aucun gagnant n'est designe lorsqu'une battle ne recoit aucun vote",
+    "Boost de victoire x1,35 confirme avec sa duree et son expiration dans l'app"
   ]
 }

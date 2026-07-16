@@ -510,6 +510,7 @@ export type CityEvent = {
     rewardTitle?: string | null;
   } | null;
   reward?: CityEventReward | null;
+  activeBoost?: CityRewardBoost | null;
   claimStatus?: 'none' | 'available' | 'claimed' | 'expired';
   detailCta?: {
     label: string;
@@ -517,6 +518,13 @@ export type CityEvent = {
     href?: string;
   };
   config?: Record<string, unknown>;
+};
+
+export type CityRewardBoost = {
+  trackId: string;
+  multiplier: number;
+  expiresAt: string;
+  source: 'city_winner';
 };
 
 export type CityEventParticipant = {

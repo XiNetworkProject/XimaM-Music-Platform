@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { HomeData, Track } from '@/api/types';
 
-const CACHE_PREFIX = 'synaura.discover.overview.v2';
+const CACHE_PREFIX = 'synaura.discover.overview.v3';
 const MAX_AGE_MS = 8 * 60 * 60 * 1000;
 
 export type DiscoverOverviewCache = {
@@ -34,7 +34,7 @@ export async function writeDiscoverOverviewCache(sort: string, cache: Omit<Disco
   await AsyncStorage.setItem(key(sort), JSON.stringify({ ...cache, savedAt: Date.now() })).catch(() => {});
 }
 
-const V2_CACHE_KEY = 'synaura.discover.visual.v2';
+const V2_CACHE_KEY = 'synaura.discover.visual.v3';
 
 export type DiscoverVisualCache<Collection = Record<string, unknown>> = {
   savedAt: number;

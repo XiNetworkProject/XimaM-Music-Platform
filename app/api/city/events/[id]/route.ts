@@ -54,6 +54,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       winners: winnersRes.data || [],
       claimStatus: reward?.status || 'none',
       reward,
+      activeBoost: reward?.metadata?.boost || null,
     });
   } catch (error) {
     console.error('city event detail failed', error);

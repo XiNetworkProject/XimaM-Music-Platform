@@ -118,6 +118,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       .upsert({
         event_id: eventId,
         track_id: trackId,
+        creator_id: session.user.id,
         slot: 1000,
         source: 'submission',
         metadata: { submittedBy: session.user.id },

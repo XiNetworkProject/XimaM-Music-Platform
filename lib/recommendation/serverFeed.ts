@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { buildAnonymousRecommendationSignals, buildUserRecommendationSignals } from './signals';
 import { loadGlobalTrackCandidates } from './candidates';
 import { rerankTracks } from './engine';
+import { sortTracksNewest } from './chronological';
 import type { RecommendationStrategy } from './types';
 
 type DiscoveryFeedMode = 'all' | 'following' | 'boosted';
@@ -14,6 +15,7 @@ type DiscoveryFeedOptions = {
   mode?: DiscoveryFeedMode;
   defaultLimit?: number;
   maxLimit?: number;
+  strictChronological?: boolean;
 };
 
 function integerParam(value: string | null, fallback: number, min: number, max: number) {
@@ -49,12 +51,15 @@ export async function legacyDiscoveryFeed(request: NextRequest, options: Discove
       source = candidates.filter((track) => track.isBoosted);
     }
 
-    const ranked = rerankTracks(source, signals, {
-      strategy: options.strategy,
-      sessionSeed,
-      maxConsecutiveArtists: 1,
-      maxPerArtist: 3,
-    }).map((track) => ({
+    const rankedSource = options.strictChronological
+      ? sortTracksNewest(source)
+      : rerankTracks(source, signals, {
+          strategy: options.strategy,
+          sessionSeed,
+          maxConsecutiveArtists: 1,
+          maxPerArtist: 3,
+        });
+    const ranked = rankedSource.map((track) => ({
       ...track,
       isLiked: signals.likedTrackIds.has(String(track._id)),
     }));

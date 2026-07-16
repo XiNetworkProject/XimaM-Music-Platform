@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { computeTrackDiscoveryMetrics, globalDiscoveryScore } from '../lib/ranking.ts';
 import { rerankTracks, scoreTrackCandidate } from '../lib/recommendation/engine.ts';
+import { sortTracksNewest } from '../lib/recommendation/chronological.ts';
 
 function signals() {
   return {
@@ -111,4 +112,19 @@ test('session ranking is stable and protects artist diversity', () => {
   }
   assert.ok(firstTwelve.filter((item) => item.artist?._id === 'artist-a').length <= 3);
   assert.ok(firstTwelve.filter((item) => item.recommendationBucket === 'emerging').length >= 2);
+});
+
+test('newest sorting is strictly chronological and does not use recommendation scores', () => {
+  const newest = track('newest', 'artist-a', 0.1);
+  newest.createdAt = '2026-07-16T09:00:00.000Z';
+  const popularOlder = track('popular-older', 'artist-b', 999);
+  popularOlder.createdAt = '2026-07-15T09:00:00.000Z';
+  const oldest = track('oldest', 'artist-c', 5000);
+  oldest.createdAt = '2026-07-14T09:00:00.000Z';
+
+  assert.deepEqual(sortTracksNewest([oldest, newest, popularOlder]).map((item) => item._id), [
+    'newest',
+    'popular-older',
+    'oldest',
+  ]);
 });

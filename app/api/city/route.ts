@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { createNotification } from '@/lib/notifications';
+import { selectCityBattleWinner } from '@/lib/cityVoting';
 import {
   getArtistLevel,
   getPulseState,
@@ -72,10 +73,7 @@ function makeVoteSessions(day: string, pulse: CityPulseTrack[]): CityVoteSession
   return schedules.map((session) => {
     const id = `${day}-vote-${session.key}`;
     const tracks = rotate(pulse.slice(0, 12), id).slice(0, 2);
-    const voteCounts = Object.fromEntries(tracks.map((track) => [
-      track._id,
-      Math.max(2, Math.round(track.pulse * 0.22 + track.recentLikes * 1.4 + stableNumber(`${id}-${track._id}`) % 8)),
-    ]));
+    const voteCounts = Object.fromEntries(tracks.map((track) => [track._id, 0]));
     return {
       id,
       kind: 'battle',
@@ -305,10 +303,12 @@ function decorateCityEvent(event: CityEvent, now = new Date()): CityEvent {
   const totalVotes = Object.values(event.voteCounts || {}).reduce((sum, value) => sum + Number(value || 0), 0);
   const live = status === 'live';
   const ended = status === 'ended' || status === 'resolved' || status === 'archived';
-  const detailCta = event.kind === 'battle'
-    ? { label: event.selectedTrackId ? 'Vote enregistre' : 'Voter', action: 'vote' as const }
-    : event.claimStatus === 'available'
-      ? { label: 'Reclamer', action: 'claim' as const }
+  const detailCta = event.claimStatus === 'available'
+    ? { label: 'Activer le boost', action: 'claim' as const }
+    : event.activeBoost
+      ? { label: 'Boost x1,35 actif', action: 'open' as const }
+      : event.kind === 'battle'
+        ? { label: event.selectedTrackId ? 'Vote enregistre' : 'Voter', action: 'vote' as const }
       : event.userParticipation
         ? { label: 'Participation envoyee', action: 'open' as const }
         : { label: 'Participer', action: 'participate' as const, href: event.kind === 'challenge' ? `/community?tag=${encodeURIComponent(event.challengeTag || '')}` : '/upload' };
@@ -339,6 +339,7 @@ async function hydratePersistedEvents(
   dayKey: string,
   weekKey: string,
   now = new Date(),
+  legacyProfiles: any[] = [],
 ) {
   const trackMap = new Map(allPulse.map((track) => [track._id, track]));
   const decorated = baseEvents.map((event) => decorateCityEvent(event, now));
@@ -369,10 +370,11 @@ async function hydratePersistedEvents(
   const eventTrackRows = decorated.flatMap((event) => (event.tracks || []).map((track, slot) => ({
     event_id: event.id,
     track_id: track._id,
+    creator_id: track.artist?._id || null,
     slot,
     source: 'algorithmic',
     score: 'pulse' in track ? track.pulse : null,
-    metadata: { title: track.title },
+    metadata: { title: track.title, creatorId: track.artist?._id || null },
   })));
   if (eventTrackRows.length) {
     const { error } = await supabaseAdmin
@@ -381,17 +383,82 @@ async function hydratePersistedEvents(
     if (error) throw error;
   }
 
+  const eventByIdForImport = new Map(decorated.map((event) => [event.id, event]));
+  const eventTrackIds = new Map(decorated.map((event) => [event.id, new Set((event.tracks || []).map((track) => track._id))]));
+  const legacyVoteRows: Array<{ event_id: string; track_id: string; user_id: string }> = [];
+  const legacyParticipationRows: Array<{ event_id: string; track_id: string; user_id: string; status: 'submitted'; metadata: Record<string, unknown> }> = [];
+  const legacyParticipationTrackRows: Array<{ event_id: string; track_id: string; creator_id: string; slot: number; source: 'submission'; metadata: Record<string, unknown> }> = [];
+
+  for (const profile of legacyProfiles) {
+    const profileId = String(profile?.id || '');
+    const preferences = profile?.preferences && typeof profile.preferences === 'object' ? profile.preferences : {};
+    if (!profileId) continue;
+
+    for (const [eventId, rawTrackId] of Object.entries(preferences.cityBattleVotes || {})) {
+      const trackId = String(rawTrackId || '');
+      const event = eventByIdForImport.get(eventId);
+      if (event?.kind === 'battle' && trackId && eventTrackIds.get(eventId)?.has(trackId)) {
+        legacyVoteRows.push({ event_id: eventId, track_id: trackId, user_id: profileId });
+      }
+    }
+
+    for (const [eventId, rawParticipation] of Object.entries(preferences.cityParticipations || {})) {
+      const event = eventByIdForImport.get(eventId);
+      const participation = rawParticipation && typeof rawParticipation === 'object' ? rawParticipation as any : null;
+      const trackId = String(participation?.trackId || '');
+      const track = trackMap.get(trackId);
+      if (!event || event.kind === 'battle' || !trackId || !track) continue;
+      legacyParticipationTrackRows.push({
+        event_id: eventId,
+        track_id: trackId,
+        creator_id: profileId,
+        slot: 1000,
+        source: 'submission',
+        metadata: { submittedBy: profileId, importedFromLegacy: true },
+      });
+      legacyParticipationRows.push({
+        event_id: eventId,
+        track_id: trackId,
+        user_id: profileId,
+        status: 'submitted',
+        metadata: { importedFromLegacy: true },
+      });
+    }
+  }
+
+  if (legacyParticipationTrackRows.length) {
+    const { error } = await supabaseAdmin
+      .from('city_event_tracks')
+      .upsert(legacyParticipationTrackRows, { onConflict: 'event_id,track_id' });
+    if (error) throw error;
+  }
+  if (legacyVoteRows.length) {
+    const { error } = await supabaseAdmin
+      .from('city_event_votes')
+      .upsert(legacyVoteRows, { onConflict: 'event_id,user_id' });
+    if (error) throw error;
+  }
+  if (legacyParticipationRows.length) {
+    const { error } = await supabaseAdmin
+      .from('city_event_participations')
+      .upsert(legacyParticipationRows, { onConflict: 'event_id,user_id,track_id' });
+    if (error) throw error;
+  }
+
   const ids = decorated.map((event) => event.id);
-  const [eventsRes, tracksRes, votesRes, participationsRes, winnersRes, rewardsRes] = await Promise.all([
+  const [eventsRes, tracksRes, votesRes, participationsRes, winnersRes, rewardsRes, boostsRes] = await Promise.all([
     supabaseAdmin.from('city_events').select('*').in('id', ids),
     supabaseAdmin.from('city_event_tracks').select('*').in('event_id', ids).order('slot', { ascending: true }),
     supabaseAdmin.from('city_event_votes').select('event_id, track_id, user_id, created_at').in('event_id', ids),
     supabaseAdmin.from('city_event_participations').select('*').in('event_id', ids).order('created_at', { ascending: false }),
     supabaseAdmin.from('city_event_winners').select('*').in('event_id', ids).order('rank', { ascending: true }),
     userId ? supabaseAdmin.from('city_user_rewards').select('*').eq('user_id', userId).in('event_id', ids) : Promise.resolve({ data: [] } as any),
+    userId
+      ? supabaseAdmin.from('active_track_boosts').select('track_id, multiplier, expires_at, source').eq('user_id', userId).eq('source', 'city_winner').gt('expires_at', now.toISOString())
+      : Promise.resolve({ data: [] } as any),
   ]);
 
-  for (const result of [eventsRes, tracksRes, votesRes, participationsRes, winnersRes, rewardsRes]) {
+  for (const result of [eventsRes, tracksRes, votesRes, participationsRes, winnersRes, rewardsRes, boostsRes]) {
     if ((result as any).error) throw (result as any).error;
   }
 
@@ -441,6 +508,21 @@ async function hydratePersistedEvents(
 
   const rewardsByEvent = new Map<string, any>();
   for (const row of rewardsRes.data || []) rewardsByEvent.set(String(row.event_id), row);
+  const boostsByTrack = new Map<string, { trackId: string; multiplier: number; expiresAt: string; source: 'city_winner' }>();
+  for (const row of boostsRes.data || []) {
+    const trackId = String(row.track_id || '');
+    if (!trackId) continue;
+    const candidate = {
+      trackId,
+      multiplier: Number(row.multiplier || 1.35),
+      expiresAt: String(row.expires_at),
+      source: 'city_winner' as const,
+    };
+    const current = boostsByTrack.get(trackId);
+    if (!current || candidate.multiplier > current.multiplier || new Date(candidate.expiresAt).getTime() > new Date(current.expiresAt).getTime()) {
+      boostsByTrack.set(trackId, candidate);
+    }
+  }
 
   const resolvedEvents = await Promise.all(decorated.map(async (event) => {
     const row = eventById.get(event.id);
@@ -451,7 +533,7 @@ async function hydratePersistedEvents(
 
     if (!winnerTrackId && (row?.status === 'ended' || row?.status === 'resolved')) {
       const bestTrack = event.kind === 'battle'
-        ? [...eventTracks].sort((a, b) => Number(voteCounts[b._id] || 0) - Number(voteCounts[a._id] || 0))[0]
+        ? selectCityBattleWinner(eventTracks, voteCounts)
         : [...eventTracks].sort((a, b) => b.pulse - a.pulse)[0];
       if (bestTrack) {
         const { data: inserted } = await supabaseAdmin
@@ -546,6 +628,7 @@ async function hydratePersistedEvents(
       theme: row?.theme || event.theme,
       config: row?.config || event.config,
       reward,
+      activeBoost: rewardRow?.metadata?.boost || (winnerTrackId ? boostsByTrack.get(winnerTrackId) : null) || null,
       tracks: eventTracks,
       voteCounts,
       selectedTrackId: selectedByEvent.get(event.id) || event.selectedTrackId || null,
@@ -647,7 +730,7 @@ function applyLegacyEventState(
     const ended = eventStatus === 'ended' || eventStatus === 'resolved' || eventStatus === 'archived';
     const winnerTrack = ended
       ? event.kind === 'battle'
-        ? [...eventTracks].sort((a, b) => Number(voteCounts[b._id] || 0) - Number(voteCounts[a._id] || 0) || b.pulse - a.pulse)[0]
+        ? selectCityBattleWinner(eventTracks, voteCounts)
         : [...submittedTracks].sort((a, b) => b.pulse - a.pulse)[0]
       : null;
     const winnerParticipant = winnerTrack
@@ -679,6 +762,7 @@ function applyLegacyEventState(
       winnerTrackId: winnerTrack?._id || null,
       userIsWinner,
       reward,
+      activeBoost: rewardEntry?.boost || null,
       claimStatus: userIsWinner ? rewardEntry?.status || 'available' : 'none',
       celebration: userIsWinner ? {
         title: 'Ton titre remporte la lumiere',
@@ -747,7 +831,7 @@ async function tryHydratePersistedEvents(
   legacyProfiles: any[] = [],
 ) {
   try {
-    const hydrated = await hydratePersistedEvents(events, pulse, userId, dayKey, weekKey, now);
+    const hydrated = await hydratePersistedEvents(events, pulse, userId, dayKey, weekKey, now, legacyProfiles);
     // Les actions legacy (faites avant migration) restent visibles.
     const merged = hydrated.map((event) => {
       if (event.userParticipation || !legacyProfiles.length) return event;

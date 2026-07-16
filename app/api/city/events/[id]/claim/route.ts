@@ -6,47 +6,108 @@ import { createNotification } from '@/lib/notifications';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+const CITY_WINNER_MULTIPLIER = 1.35;
+const CITY_WINNER_DURATION_MS = 24 * 60 * 60 * 1000;
+const CITY_WINNER_MESSAGE = 'Boost x1,35 actif pendant 24 h.';
+
+type CityWinnerBoost = {
+  trackId: string;
+  multiplier: number;
+  expiresAt: string;
+  source: 'city_winner';
+};
+
 function cityTableMissing(error: any) {
   const message = String(error?.message || error?.details || '').toLowerCase();
   return error?.code === '42P01' || message.includes('does not exist') || message.includes('schema cache');
 }
 
-async function activateWinnerShowcase(userId: string, trackId?: string | null) {
-  if (!trackId) return null;
+async function activateWinnerShowcase(userId: string, trackId?: string | null): Promise<CityWinnerBoost> {
+  if (!trackId) throw new Error('Le morceau gagnant est introuvable.');
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
-  const { data: active } = await supabaseAdmin
+  const expiresAt = new Date(now.getTime() + CITY_WINNER_DURATION_MS).toISOString();
+  const { data: active, error: activeError } = await supabaseAdmin
     .from('active_track_boosts')
     .select('id, multiplier, expires_at')
     .eq('track_id', trackId)
+    .eq('user_id', userId)
+    .eq('source', 'city_winner')
     .gt('expires_at', now.toISOString())
     .order('multiplier', { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (activeError) throw activeError;
   if (active?.id) {
-    await supabaseAdmin.from('active_track_boosts').update({
-      multiplier: Math.max(1.35, Number(active.multiplier || 1)),
-      expires_at: new Date(Math.max(new Date(active.expires_at).getTime(), new Date(expiresAt).getTime())).toISOString(),
+    const mergedExpiresAt = new Date(Math.max(new Date(active.expires_at).getTime(), new Date(expiresAt).getTime())).toISOString();
+    const mergedMultiplier = Math.max(CITY_WINNER_MULTIPLIER, Number(active.multiplier || 1));
+    const { data: updated, error } = await supabaseAdmin.from('active_track_boosts').update({
+      multiplier: mergedMultiplier,
+      expires_at: mergedExpiresAt,
+    }).eq('id', active.id).select('track_id, multiplier, expires_at').maybeSingle();
+    if (error || !updated) throw error || new Error('Le boost City n a pas pu etre confirme.');
+    return {
+      trackId: String(updated.track_id),
+      multiplier: Number(updated.multiplier || CITY_WINNER_MULTIPLIER),
+      expiresAt: String(updated.expires_at),
       source: 'city_winner',
-    }).eq('id', active.id);
-    return expiresAt;
+    };
   }
-  const { data: booster } = await supabaseAdmin.from('boosters').select('id').eq('type', 'track').order('multiplier', { ascending: false }).limit(1).maybeSingle();
-  if (!booster?.id) return null;
-  await supabaseAdmin.from('active_track_boosts').insert({
+
+  let { data: booster, error: boosterError } = await supabaseAdmin
+    .from('boosters')
+    .select('id')
+    .eq('key', 'city-winner-showcase')
+    .eq('enabled', true)
+    .maybeSingle();
+  if (boosterError) throw boosterError;
+  if (!booster?.id) {
+    const fallback = await supabaseAdmin
+      .from('boosters')
+      .select('id')
+      .eq('type', 'track')
+      .eq('enabled', true)
+      .order('multiplier', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (fallback.error) throw fallback.error;
+    booster = fallback.data;
+  }
+  if (!booster?.id) throw new Error('Le boost City n est pas configure.');
+
+  const { data: inserted, error: insertError } = await supabaseAdmin.from('active_track_boosts').insert({
     track_id: trackId,
     user_id: userId,
     booster_id: booster.id,
-    multiplier: 1.35,
+    multiplier: CITY_WINNER_MULTIPLIER,
     started_at: now.toISOString(),
     expires_at: expiresAt,
     source: 'city_winner',
-  });
-  return expiresAt;
+  }).select('track_id, multiplier, expires_at').maybeSingle();
+  if (insertError || !inserted) throw insertError || new Error('Le boost City n a pas pu etre active.');
+  return {
+    trackId: String(inserted.track_id),
+    multiplier: Number(inserted.multiplier || CITY_WINNER_MULTIPLIER),
+    expiresAt: String(inserted.expires_at),
+    source: 'city_winner',
+  };
+}
+
+async function readLegacyReward(userId: string, eventId: string) {
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .select('preferences')
+    .eq('id', userId)
+    .maybeSingle();
+  if (profileError) throw profileError;
+
+  const preferences = profile?.preferences && typeof profile.preferences === 'object' ? profile.preferences : {};
+  const rewards = preferences.cityRewards && typeof preferences.cityRewards === 'object' ? preferences.cityRewards : {};
+  const current = rewards[eventId];
+  return current && current.status === 'available' && current.trackId && current.rewardKey ? current : null;
 }
 
 // Fallback sans migration: les recompenses vivent dans profiles.preferences.
-async function claimLegacyReward(userId: string, eventId: string) {
+async function claimLegacyReward(userId: string, eventId: string, boost: CityWinnerBoost) {
   const { data: profile, error: profileError } = await supabaseAdmin
     .from('profiles')
     .select('preferences')
@@ -60,15 +121,14 @@ async function claimLegacyReward(userId: string, eventId: string) {
   if (!current || current.status !== 'available' || !current.trackId || !current.rewardKey) return null;
 
   const now = new Date().toISOString();
-  const featuredUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-  const cityRewards = { ...rewards, [eventId]: { ...current, status: 'claimed', claimedAt: now, updatedAt: now } };
+  const cityRewards = { ...rewards, [eventId]: { ...current, status: 'claimed', claimedAt: now, updatedAt: now, boost } };
   const cityWins = {
     ...(preferences.cityWins && typeof preferences.cityWins === 'object' ? preferences.cityWins : {}),
     [eventId]: { eventId, trackId: current.trackId || null, wonAt: current.createdAt || now, claimedAt: now },
   };
   const cityFeaturedTracks = current.trackId ? {
     ...(preferences.cityFeaturedTracks && typeof preferences.cityFeaturedTracks === 'object' ? preferences.cityFeaturedTracks : {}),
-    [current.trackId]: { eventId, startsAt: now, endsAt: featuredUntil },
+    [current.trackId]: { eventId, startsAt: now, endsAt: boost.expiresAt, multiplier: boost.multiplier },
   } : preferences.cityFeaturedTracks;
   const { error } = await supabaseAdmin
     .from('profiles')
@@ -84,7 +144,28 @@ async function claimLegacyReward(userId: string, eventId: string) {
     })
     .eq('id', userId);
   if (error) throw error;
-  return { ...current, status: 'claimed', claimedAt: now, featuredUntil };
+  return { ...current, status: 'claimed', claimedAt: now, featuredUntil: boost.expiresAt, boost };
+}
+
+async function claimLegacyWinner(userId: string, eventId: string) {
+  const available = await readLegacyReward(userId, eventId);
+  if (!available) return null;
+  const boost = await activateWinnerShowcase(userId, available.trackId);
+  const claimed = await claimLegacyReward(userId, eventId, boost);
+  return claimed ? { claimed, boost } : null;
+}
+
+async function notifyBoostActivated(userId: string, eventId: string, boost: CityWinnerBoost) {
+  await createNotification({
+    userId,
+    type: 'general',
+    title: 'Boost Synaura City active',
+    message: CITY_WINNER_MESSAGE,
+    actionUrl: '/city',
+    relatedId: boost.trackId,
+    data: { surface: 'city', eventId, kind: 'city_reward_claimed', boost },
+    skipPrefCheck: true,
+  }).catch(() => null);
 }
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
@@ -106,53 +187,43 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       .maybeSingle();
     if (rewardError) {
       if (cityTableMissing(rewardError)) {
-        const claimed = await claimLegacyReward(session.user.id, eventId);
-        if (!claimed) return NextResponse.json({ error: 'Aucune recompense disponible.' }, { status: 404 });
-        await activateWinnerShowcase(session.user.id, claimed.trackId).catch(() => null);
-        await createNotification({
-          userId: session.user.id,
-          type: 'general',
-          title: 'Recompense Event activee',
-          message: 'Ton titre profite maintenant de 24 h de mise en avant dans Synaura Pulse.',
-          actionUrl: '/city',
-          relatedId: claimed.trackId || undefined,
-          data: { surface: 'city', eventId, kind: 'city_reward_claimed', featuredUntil: claimed.featuredUntil },
-          skipPrefCheck: true,
-        }).catch(() => null);
-        return NextResponse.json({ success: true, legacy: true, reward: claimed });
+        const legacyResult = await claimLegacyWinner(session.user.id, eventId);
+        if (!legacyResult) return NextResponse.json({ error: 'Aucune recompense disponible.' }, { status: 404 });
+        await notifyBoostActivated(session.user.id, eventId, legacyResult.boost);
+        return NextResponse.json({ success: true, legacy: true, reward: legacyResult.claimed, boost: legacyResult.boost, message: CITY_WINNER_MESSAGE });
       }
       throw rewardError;
     }
     if (!reward || reward?.metadata?.source === 'vote' || reward?.metadata?.source === 'participation') {
-      const claimed = await claimLegacyReward(session.user.id, eventId).catch(() => false);
-      if (claimed) {
-        await activateWinnerShowcase(session.user.id, (claimed as any).trackId).catch(() => null);
-        return NextResponse.json({ success: true, legacy: true, reward: claimed });
+      const legacyResult = await claimLegacyWinner(session.user.id, eventId);
+      if (legacyResult) {
+        await notifyBoostActivated(session.user.id, eventId, legacyResult.boost);
+        return NextResponse.json({ success: true, legacy: true, reward: legacyResult.claimed, boost: legacyResult.boost, message: CITY_WINNER_MESSAGE });
       }
       return NextResponse.json({ error: 'Aucune recompense disponible.' }, { status: 404 });
     }
 
-    const { error } = await supabaseAdmin
+    const trackId = String(reward?.metadata?.trackId || reward?.metadata?.track_id || '');
+    if (!trackId) return NextResponse.json({ error: 'Le morceau gagnant est introuvable.' }, { status: 409 });
+    const boost = await activateWinnerShowcase(session.user.id, trackId);
+    const claimedAt = new Date().toISOString();
+    const { data: claimedReward, error } = await supabaseAdmin
       .from('city_user_rewards')
-      .update({ status: 'claimed', claimed_at: new Date().toISOString() })
-      .eq('id', reward.id);
+      .update({
+        status: 'claimed',
+        claimed_at: claimedAt,
+        metadata: { ...(reward.metadata || {}), boost },
+      })
+      .eq('id', reward.id)
+      .eq('status', 'available')
+      .select('*')
+      .maybeSingle();
     if (error) throw error;
+    if (!claimedReward) return NextResponse.json({ error: 'Cette recompense a deja ete activee.' }, { status: 409 });
 
-    await claimLegacyReward(session.user.id, eventId).catch(() => {});
-    await activateWinnerShowcase(session.user.id, reward?.metadata?.trackId || reward?.metadata?.track_id).catch(() => null);
+    await notifyBoostActivated(session.user.id, eventId, boost);
 
-    try {
-      await supabaseAdmin.from('notifications').insert({
-        user_id: session.user.id,
-        type: 'city_reward',
-        title: 'Recompense Synaura Events',
-        message: 'Ta recompense City a ete reclamee.',
-        category: 'city',
-        data: { eventId, rewardKey: reward.reward_key },
-      });
-    } catch {}
-
-    return NextResponse.json({ success: true, reward: { ...reward, status: 'claimed', claimed_at: new Date().toISOString() } });
+    return NextResponse.json({ success: true, reward: claimedReward, boost, message: CITY_WINNER_MESSAGE });
   } catch (error) {
     console.error('city claim failed', error);
     return NextResponse.json({ error: 'Recompense impossible a reclamer.' }, { status: 500 });

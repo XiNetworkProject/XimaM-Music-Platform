@@ -209,7 +209,7 @@ export default function SynauraCityPage() {
       const response = await fetch(`/api/city/events/${encodeURIComponent(event.id)}/claim`, { method: 'POST' });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.error || 'Recompense impossible.');
-      setToast('Recompense recuperee.');
+      setToast(data?.message || 'Boost x1,35 actif pendant 24 h.');
       await load();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Recompense impossible.');
@@ -310,8 +310,9 @@ export default function SynauraCityPage() {
                 key={event.id}
                 event={event}
                 onPrimary={() => {
-                  if (event.kind === 'battle') document.getElementById('battle-live')?.scrollIntoView({ behavior: 'smooth' });
-                  else if (event.claimStatus === 'available') void claim(event);
+                  if (event.claimStatus === 'available') void claim(event);
+                  else if (event.kind === 'battle') document.getElementById('battle-live')?.scrollIntoView({ behavior: 'smooth' });
+                  else if (event.activeBoost) setDetailEvent(event);
                   else openParticipate(event);
                 }}
                 onSecondary={() => setDetailEvent(event)}
@@ -320,7 +321,7 @@ export default function SynauraCityPage() {
           </div>
         </section>
 
-        {battle ? <BattlePanel event={battle} voting={voting} currentId={currentId} isPlaying={audio.audioState.isPlaying} onPlay={play} onVote={vote} /> : null}
+        {battle ? <BattlePanel event={battle} voting={voting} currentId={currentId} isPlaying={audio.audioState.isPlaying} onPlay={play} onVote={vote} onClaim={() => void claim(battle)} /> : null}
 
         <section className="space-y-4">
           <SynauraSectionHeader eyebrow="Synaura Pulse" title="Sons en feu" description="Les signaux recents comptent davantage que les vieux classements." href="/discover" icon={<Activity className="h-6 w-6 text-[#ff6f61]" />} />
@@ -349,9 +350,10 @@ export default function SynauraCityPage() {
                     <h3 className="mt-2 text-2xl font-black tracking-tight">{event.title}</h3>
                     <p className="mt-2 max-w-lg text-sm font-bold text-black/52">{event.description}</p>
                     <p className="mt-3 text-xs font-black text-[#7c5cff]">{event.reward?.title || 'Mise en avant Synaura'}</p>
+                    {event.activeBoost ? <p className="mt-2 text-xs font-black text-[#7357c6]">Boost x1,35 actif jusqu'au {new Date(event.activeBoost.expiresAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p> : null}
                   </div>
-                  <SynauraButton className="shrink-0" onClick={() => event.claimStatus === 'available' ? void claim(event) : openParticipate(event)}>
-                    {event.claimStatus === 'available' ? 'Recuperer' : event.userParticipation ? 'Changer de son' : 'Participer'}
+                  <SynauraButton className="shrink-0" onClick={() => event.claimStatus === 'available' ? void claim(event) : event.activeBoost ? setDetailEvent(event) : openParticipate(event)}>
+                    {event.claimStatus === 'available' ? 'Activer le boost' : event.activeBoost ? 'Boost x1,35 actif' : event.userParticipation ? 'Changer de son' : 'Participer'}
                   </SynauraButton>
                 </div>
               </SynauraColorBand>
@@ -450,9 +452,10 @@ function PulseRow({ track, rank, playing, onPlay }: { track: CityPulseTrack; ran
   );
 }
 
-function BattlePanel({ event, voting, currentId, isPlaying, onPlay, onVote }: { event: CityEvent; voting: boolean; currentId?: string; isPlaying: boolean; onPlay: (track: CityTrack) => void; onVote: (trackId: string) => void }) {
+function BattlePanel({ event, voting, currentId, isPlaying, onPlay, onVote, onClaim }: { event: CityEvent; voting: boolean; currentId?: string; isPlaying: boolean; onPlay: (track: CityTrack) => void; onVote: (trackId: string) => void; onClaim: () => void }) {
   const tracks = event.tracks || [];
   const total = tracks.reduce((sum, track) => sum + Number(event.voteCounts?.[track._id] || 0), 0) || 1;
+  const canVote = Boolean(event.isLive);
   return (
     <section id="battle-live" className="scroll-mt-32">
       <SynauraInkPanel className="p-5 sm:p-7">
@@ -483,14 +486,16 @@ function BattlePanel({ event, voting, currentId, isPlaying, onPlay, onVote }: { 
                     </div>
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-[#171313]">{playing ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}</span>
                   </button>
-                  <button disabled={voting} onClick={() => onVote(track._id)} className={`mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full text-xs font-black transition disabled:opacity-50 ${selected ? 'bg-[#ff9a90] text-[#171313]' : 'bg-white/10 text-white hover:bg-white/16'}`}>
+                  <button disabled={voting || !canVote} onClick={() => onVote(track._id)} className={`mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full text-xs font-black transition disabled:opacity-50 ${selected ? 'bg-[#ff9a90] text-[#171313]' : 'bg-white/10 text-white hover:bg-white/16'}`}>
                     {selected ? <Check className="h-4 w-4" /> : <Vote className="h-4 w-4" />}
-                    {selected ? 'Ton vote' : `Voter · ${percent}%`}
+                    {selected ? 'Ton vote' : canVote ? `Voter · ${percent}%` : `Résultat · ${percent}%`}
                   </button>
                 </div>
               );
             })}
           </div>
+          {event.claimStatus === 'available' ? <SynauraButton className="mt-4 w-full bg-white text-[#171313]" onClick={onClaim}>Activer le boost x1,35</SynauraButton> : null}
+          {event.activeBoost ? <p className="mt-4 rounded-full bg-white/10 px-4 py-3 text-center text-xs font-black text-white">Boost x1,35 actif jusqu'au {new Date(event.activeBoost.expiresAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p> : null}
         </div>
       </SynauraInkPanel>
     </section>

@@ -67,6 +67,12 @@ export default function SynauraEventCard({
         </div>
       ) : null}
 
+      {event.activeBoost ? (
+        <div className="mt-2 rounded-[1rem] bg-[#7357c6]/10 px-3 py-2.5 text-xs font-black text-[#7357c6]">
+          Boost x1,35 actif jusqu'au {new Date(event.activeBoost.expiresAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+        </div>
+      ) : null}
+
       <div className="mt-auto flex gap-2 pt-5">
         <SynauraButton className="flex-1 px-4" onClick={() => onPrimary?.(event)} disabled={!onPrimary}>
           {primaryLabel}

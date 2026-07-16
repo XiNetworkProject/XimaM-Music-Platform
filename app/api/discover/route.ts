@@ -6,6 +6,7 @@ import {
   buildUserRecommendationSignals,
   loadGlobalTrackCandidates,
   rerankTracks,
+  sortTracksNewest,
   type RecommendedTrack,
   type RecommendationStrategy,
 } from '@/lib/recommendation';
@@ -127,12 +128,18 @@ export async function GET(request: NextRequest) {
     }
 
     const rankingSeed = sessionId || `${userId || 'anonymous'}:${new Date().toISOString().slice(0, 10)}:discover:${sort}:${category}`;
-    const ranked = rerankTracks(source, signals, {
-      strategy,
-      sessionSeed: rankingSeed,
-      maxConsecutiveArtists: 1,
-      maxPerArtist: 3,
-    }).map((track) => ({ ...track, isLiked: signals.likedTrackIds.has(String(track._id)) }));
+    const rankedSource = sort === 'newest'
+      ? sortTracksNewest(source)
+      : rerankTracks(source, signals, {
+          strategy,
+          sessionSeed: rankingSeed,
+          maxConsecutiveArtists: 1,
+          maxPerArtist: 3,
+        });
+    const ranked = rankedSource.map((track) => ({
+      ...track,
+      isLiked: signals.likedTrackIds.has(String(track._id)),
+    }));
     const artists = buildArtistResults(ranked, sort);
     const from = page * limit;
     const profileFrom = profilePage * profileLimit;
