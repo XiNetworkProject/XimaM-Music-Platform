@@ -106,6 +106,28 @@ async function readLegacyReward(userId: string, eventId: string) {
   return current && current.status === 'available' && current.trackId && current.rewardKey ? current : null;
 }
 
+async function winnerHasARealVote(eventId: string, trackId: string) {
+  const { data: event, error: eventError } = await supabaseAdmin
+    .from('city_events')
+    .select('kind')
+    .eq('id', eventId)
+    .maybeSingle();
+  if (eventError) {
+    if (cityTableMissing(eventError)) return true;
+    throw eventError;
+  }
+  if (!event) return false;
+  if (event.kind !== 'battle') return true;
+
+  const { count, error: voteError } = await supabaseAdmin
+    .from('city_event_votes')
+    .select('id', { count: 'exact', head: true })
+    .eq('event_id', eventId)
+    .eq('track_id', trackId);
+  if (voteError) throw voteError;
+  return Number(count || 0) > 0;
+}
+
 // Fallback sans migration: les recompenses vivent dans profiles.preferences.
 async function claimLegacyReward(userId: string, eventId: string, boost: CityWinnerBoost) {
   const { data: profile, error: profileError } = await supabaseAdmin
@@ -150,6 +172,7 @@ async function claimLegacyReward(userId: string, eventId: string, boost: CityWin
 async function claimLegacyWinner(userId: string, eventId: string) {
   const available = await readLegacyReward(userId, eventId);
   if (!available) return null;
+  if (!await winnerHasARealVote(eventId, String(available.trackId))) return null;
   const boost = await activateWinnerShowcase(userId, available.trackId);
   const claimed = await claimLegacyReward(userId, eventId, boost);
   return claimed ? { claimed, boost } : null;
@@ -205,6 +228,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const trackId = String(reward?.metadata?.trackId || reward?.metadata?.track_id || '');
     if (!trackId) return NextResponse.json({ error: 'Le morceau gagnant est introuvable.' }, { status: 409 });
+    if (!await winnerHasARealVote(eventId, trackId)) {
+      return NextResponse.json({ error: 'Ce boost ne peut pas etre active sans vote reel.' }, { status: 409 });
+    }
     const boost = await activateWinnerShowcase(session.user.id, trackId);
     const claimedAt = new Date().toISOString();
     const { data: claimedReward, error } = await supabaseAdmin

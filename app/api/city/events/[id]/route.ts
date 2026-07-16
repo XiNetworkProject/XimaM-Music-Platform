@@ -40,7 +40,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const participations = participationsRes.data || [];
     const userVote = userId ? votes.find((vote: any) => String(vote.user_id) === userId) : null;
     const userParticipation = userId ? participations.find((entry: any) => String(entry.user_id) === userId) : null;
-    const reward = (rewardsRes.data || [])[0] || null;
+    const battleHasRealVotes = eventRes.data.kind !== 'battle' || votes.length > 0;
+    const reward = battleHasRealVotes ? (rewardsRes.data || [])[0] || null : null;
 
     return NextResponse.json({
       event: eventRes.data,
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       participations,
       participationCount: participations.length,
       userParticipation,
-      winners: winnersRes.data || [],
+      winners: battleHasRealVotes ? winnersRes.data || [] : [],
       claimStatus: reward?.status || 'none',
       reward,
       activeBoost: reward?.metadata?.boost || null,

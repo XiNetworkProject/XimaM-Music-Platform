@@ -528,7 +528,9 @@ async function hydratePersistedEvents(
     const row = eventById.get(event.id);
     const eventTracks = tracksByEvent.get(event.id) || event.tracks || [];
     const voteCounts = votesByEvent.get(event.id) || Object.fromEntries(eventTracks.map((track) => [track._id, 0]));
-    let winners = winnersByEvent.get(event.id) || [];
+    const battleHasRealVotes = event.kind !== 'battle'
+      || Object.values(voteCounts).some((count) => Number(count || 0) > 0);
+    let winners = battleHasRealVotes ? winnersByEvent.get(event.id) || [] : [];
     let winnerTrackId = winners[0]?.trackId || null;
 
     if (!winnerTrackId && (row?.status === 'ended' || row?.status === 'resolved')) {
