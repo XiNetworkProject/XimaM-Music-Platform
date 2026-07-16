@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import {
@@ -749,6 +749,14 @@ export default function StatsPage() {
   const [audience, setAudience] = useState<any>(null);
   const [heatmap, setHeatmap] = useState<number[][]>([]);
   const [trackDetail, setTrackDetail] = useState<TrackDetail | null>(null);
+  const linkedTrackApplied = useRef(false);
+
+  useEffect(() => {
+    if (linkedTrackApplied.current || typeof window === 'undefined') return;
+    linkedTrackApplied.current = true;
+    const linkedTrack = new URLSearchParams(window.location.search).get('track');
+    if (linkedTrack) setSelectedTrack(linkedTrack);
+  }, []);
 
   const loadStats = useCallback(async () => {
     if (!session?.user?.id) {

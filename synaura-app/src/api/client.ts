@@ -37,6 +37,16 @@ import type {
   DiscoverPage,
 } from './types';
 import { DEFAULT_REMIX_PERMISSIONS } from './types';
+import type {
+  CreatorAudienceStats,
+  CreatorPostStats,
+  CreatorStatsDashboard,
+  CreatorStatsOverview,
+  CreatorStatsRange,
+  CreatorTrackDetail,
+  CreatorTrackPoint,
+  CreatorTrackStat,
+} from '@/stats/types';
 
 const fallbackBaseUrl = 'https://xima-m-music-platform.vercel.app';
 const fallbackCover = 'https://xima-m-music-platform.vercel.app/default-cover.svg';
@@ -375,6 +385,60 @@ async function optionalRequest<T>(path: string, init?: RequestInit): Promise<T |
   } catch {
     return null;
   }
+}
+
+const EMPTY_POST_STATS: CreatorPostStats = {
+  totalPosts: 0,
+  postsInRange: 0,
+  likes: 0,
+  comments: 0,
+  engagement: 0,
+  byType: {},
+  series: [],
+  bestPost: null,
+  posts: [],
+};
+
+const EMPTY_AUDIENCE_STATS: CreatorAudienceStats = {
+  countries: {},
+  devices: {},
+  os: {},
+  browsers: {},
+};
+
+export async function getCreatorStatsDashboard(
+  range: CreatorStatsRange,
+  trackId = 'all',
+  compareTrackId = '',
+): Promise<CreatorStatsDashboard> {
+  const query = `range=${encodeURIComponent(range)}`;
+  const trackQuery = `${query}&track=${encodeURIComponent(trackId || 'all')}`;
+  const [overview, tracksPayload, trackSeries, posts, audience, heatmapPayload, trackDetail, compareSeries] = await Promise.all([
+    optionalRequest<CreatorStatsOverview>(`/api/stats/overview?${query}`),
+    optionalRequest<{ tracks?: CreatorTrackStat[] }>('/api/stats/all-tracks'),
+    optionalRequest<CreatorTrackPoint[]>(`/api/stats/timeseries?${trackQuery}`),
+    optionalRequest<CreatorPostStats>(`/api/stats/posts?${query}`),
+    optionalRequest<CreatorAudienceStats>(`/api/stats/audience?${trackQuery}`),
+    optionalRequest<{ matrix?: number[][] }>(`/api/stats/heatmap?${trackQuery}`),
+    trackId && trackId !== 'all'
+      ? optionalRequest<CreatorTrackDetail>(`/api/stats/tracks?track_id=${encodeURIComponent(trackId)}`)
+      : Promise.resolve(null),
+    compareTrackId
+      ? optionalRequest<CreatorTrackPoint[]>(`/api/stats/timeseries?${query}&track=${encodeURIComponent(compareTrackId)}`)
+      : Promise.resolve(null),
+  ]);
+
+  if (!overview) throw new Error('Impossible de charger tes statistiques pour le moment.');
+  return {
+    overview,
+    tracks: Array.isArray(tracksPayload?.tracks) ? tracksPayload.tracks : [],
+    trackSeries: Array.isArray(trackSeries) ? trackSeries : [],
+    compareSeries: Array.isArray(compareSeries) ? compareSeries : [],
+    posts: posts || EMPTY_POST_STATS,
+    audience: audience || EMPTY_AUDIENCE_STATS,
+    heatmap: Array.isArray(heatmapPayload?.matrix) ? heatmapPayload.matrix : [],
+    trackDetail,
+  };
 }
 
 export async function getLatestAppRelease(versionCode: number): Promise<MobileAppReleaseResponse> {

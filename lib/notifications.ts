@@ -468,7 +468,7 @@ export async function notifyLikeMilestone(userId: string, trackTitle: string, co
     type: 'like_milestone',
     title: `${count} likes !`,
     message: `"${trackTitle}" a atteint ${count} likes`,
-    actionUrl: `/track/${trackId}`,
+    actionUrl: `/stats?track=${encodeURIComponent(trackId)}`,
     relatedId: trackId,
   });
 }
@@ -503,7 +503,7 @@ export async function notifyViewMilestone(userId: string, trackTitle: string, co
     type: 'view_milestone',
     title: `${count} ecoutes !`,
     message: `"${trackTitle}" a atteint ${count} ecoutes`,
-    actionUrl: `/track/${trackId}`,
+    actionUrl: `/stats?track=${encodeURIComponent(trackId)}`,
     relatedId: trackId,
   });
 }

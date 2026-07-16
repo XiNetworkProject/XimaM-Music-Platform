@@ -283,6 +283,25 @@ export function SettingsScreen() {
               <View style={styles.overviewStatus}><View style={styles.overviewStatusDot} /><Text style={styles.overviewStatusText}>Synchronisé</Text></View>
             </Reveal>
 
+            <View style={styles.dashboardShortcuts}>
+              <MotionPressable onPress={() => navigation.navigate('Stats')} style={[styles.dashboardShortcut, styles.dashboardShortcutDark]} scaleTo={0.98}>
+                <Ionicons name="analytics-outline" size={20} color="#FFFFFF" />
+                <View style={styles.dashboardShortcutCopy}>
+                  <Text style={styles.dashboardShortcutTitleLight}>Stats Synaura</Text>
+                  <Text numberOfLines={1} style={styles.dashboardShortcutTextLight}>Audience et performances</Text>
+                </View>
+                <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
+              </MotionPressable>
+              <MotionPressable onPress={() => navigation.navigate('City')} style={styles.dashboardShortcut} scaleTo={0.98}>
+                <Ionicons name="flash-outline" size={20} color={colors.violet} />
+                <View style={styles.dashboardShortcutCopy}>
+                  <Text style={styles.dashboardShortcutTitle}>Synaura Events</Text>
+                  <Text numberOfLines={1} style={styles.dashboardShortcutText}>Votes et challenges</Text>
+                </View>
+                <Ionicons name="arrow-forward" size={15} color={colors.text} />
+              </MotionPressable>
+            </View>
+
             <View style={styles.settingsMenu}>
               {tabs.map((item, index) => (
                 <Reveal key={item.key} delay={Math.min(index * 30, 180)} distance={5}>
@@ -648,6 +667,14 @@ const styles = StyleSheet.create({
   overviewStatus: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   overviewStatusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.cyan },
   overviewStatusText: { color: 'rgba(255,255,255,0.72)', fontSize: 9, fontWeight: '900' },
+  dashboardShortcuts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  dashboardShortcut: { minHeight: 66, flexBasis: 210, flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 12 },
+  dashboardShortcutDark: { borderColor: colors.text, backgroundColor: colors.text },
+  dashboardShortcutCopy: { flex: 1, minWidth: 0 },
+  dashboardShortcutTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  dashboardShortcutText: { marginTop: 2, color: colors.textSecondary, fontSize: 9, fontWeight: '700' },
+  dashboardShortcutTitleLight: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
+  dashboardShortcutTextLight: { marginTop: 2, color: 'rgba(255,255,255,0.58)', fontSize: 9, fontWeight: '700' },
   settingsMenu: { overflow: 'hidden', borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.76)' },
   settingsRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingHorizontal: 12 },
   settingsIcon: { width: 38, height: 38, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violetSoft },

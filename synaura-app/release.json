@@ -1,12 +1,12 @@
 {
-  "title": "Synaura mobile 0.16.1",
+  "title": "Synaura mobile 0.16.2",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Tout juste publie affiche maintenant les sorties dans leur ordre chronologique reel",
-    "Cache Discover renouvele pour faire apparaitre immediatement les dernieres nouveautes",
-    "Votes Synaura City persistants et comptes uniquement a partir des votes reels",
-    "Aucun gagnant n'est designe lorsqu'une battle ne recoit aucun vote",
-    "Boost de victoire x1,35 confirme avec sa duree et son expiration dans l'app"
+    "Synaura Events est maintenant accessible depuis Discover, le profil et les reglages",
+    "Nouvelle page Stats createur complete avec tendances, audience et engagement",
+    "Analyse par morceau, comparaison, retention, sources et carte des heures d'ecoute",
+    "Classements reels des sons et des posts, sans statistiques simulees",
+    "Les notifications de jalons ouvrent directement les statistiques du bon morceau"
   ]
 }

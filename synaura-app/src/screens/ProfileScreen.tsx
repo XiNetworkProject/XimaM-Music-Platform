@@ -407,6 +407,27 @@ export function ProfileScreen() {
           />
         ) : <ProfileIdentityHeroSkeleton />}
 
+        <View style={styles.ownerDashboard}>
+          <MotionPressable onPress={() => navigation.navigate('Stats')} style={[styles.ownerDashboardItem, styles.ownerDashboardStats]} scaleTo={0.975}>
+            <View style={styles.ownerDashboardIcon}><Ionicons name="analytics-outline" size={20} color="#FFFFFF" /></View>
+            <View style={styles.ownerDashboardCopy}>
+              <Text style={styles.ownerDashboardKicker}>Tableau de bord</Text>
+              <Text style={styles.ownerDashboardTitle}>Mes statistiques</Text>
+              <Text numberOfLines={1} style={styles.ownerDashboardText}>Écoutes, audience et rétention</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+          </MotionPressable>
+          <MotionPressable onPress={() => navigation.navigate('City')} style={[styles.ownerDashboardItem, styles.ownerDashboardEvents]} scaleTo={0.975}>
+            <View style={[styles.ownerDashboardIcon, styles.ownerDashboardIconLight]}><Ionicons name="flash-outline" size={20} color={colors.violet} /></View>
+            <View style={styles.ownerDashboardCopy}>
+              <Text style={[styles.ownerDashboardKicker, styles.ownerDashboardKickerDark]}>Synaura Events</Text>
+              <Text style={[styles.ownerDashboardTitle, styles.ownerDashboardTitleDark]}>Votes et challenges</Text>
+              <Text numberOfLines={1} style={[styles.ownerDashboardText, styles.ownerDashboardTextDark]}>Entre dans la scène du moment</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={16} color={colors.text} />
+          </MotionPressable>
+        </View>
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <SegmentedControl
@@ -751,6 +772,19 @@ function Empty({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 18, paddingBottom: 160, gap: 14 },
+  ownerDashboard: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  ownerDashboardItem: { minHeight: 86, flexBasis: 220, flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, padding: 12 },
+  ownerDashboardStats: { backgroundColor: '#171313' },
+  ownerDashboardEvents: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  ownerDashboardIcon: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
+  ownerDashboardIconLight: { backgroundColor: colors.violetSoft },
+  ownerDashboardCopy: { flex: 1, minWidth: 0 },
+  ownerDashboardKicker: { color: 'rgba(255,255,255,0.52)', fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
+  ownerDashboardKickerDark: { color: colors.violet },
+  ownerDashboardTitle: { marginTop: 2, color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
+  ownerDashboardTitleDark: { color: colors.text },
+  ownerDashboardText: { marginTop: 3, color: 'rgba(255,255,255,0.58)', fontSize: 9, fontWeight: '700' },
+  ownerDashboardTextDark: { color: colors.textSecondary },
   loginHero: { borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.86)', padding: 20, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
   loginIcon: { width: 74, height: 74, borderRadius: 8, backgroundColor: '#171313', alignItems: 'center', justifyContent: 'center' },
   loginTitle: { marginTop: 16, color: '#171313', fontSize: 28, fontWeight: '900' },

@@ -75,6 +75,7 @@ const responsiveScreens = [
   'CommunityScreen', 'ClubDetailScreen', 'ProfileScreen', 'CreateHubScreen', 'UploadScreen',
   'CreateVariationScreen', 'ClipComposerScreen', 'AIStudioScreen', 'CreatePostScreen',
   'SettingsScreen', 'SubscriptionsScreen', 'CityScreen', 'PublicProfileScreen',
+  'StatsScreen',
   'NotificationsScreen', 'PostDetailScreen', 'PlaylistDetailScreen', 'TrackDetailScreen',
   'SearchScreen', 'ChallengeDetailScreen', 'WelcomeScreen', 'OnboardingScreen',
 ];

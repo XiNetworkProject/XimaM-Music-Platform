@@ -99,6 +99,11 @@ export async function openInternalLink(
     navigation.navigate('City');
     return true;
   }
+  if (root === 'stats') {
+    const query = toQuery(urlOrPath);
+    navigation.navigate('Stats', { trackId: query.get('track') || undefined });
+    return true;
+  }
   if (root === 'challenges' && id) {
     navigation.navigate('ChallengeDetail', { challengeId: decodeURIComponent(id) });
     return true;

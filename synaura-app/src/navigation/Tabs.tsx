@@ -30,6 +30,7 @@ import { CityScreen } from '@/screens/CityScreen';
 import { TrackDetailScreen } from '@/screens/TrackDetailScreen';
 import { SearchScreen } from '@/screens/SearchScreen';
 import { ChallengeDetailScreen } from '@/screens/ChallengeDetailScreen';
+import { StatsScreen } from '@/screens/StatsScreen';
 import { colors } from '@/theme/tokens';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import type { MusicChallenge, Track } from '@/api/types';
@@ -55,6 +56,7 @@ export type RootTabsParamList = {
   Settings: undefined;
   Subscriptions: undefined;
   City: undefined;
+  Stats: { trackId?: string } | undefined;
   PublicProfile: { username: string };
   Notifications: undefined;
   PostDetail: { postId: string };
@@ -80,6 +82,7 @@ const HIDDEN_ROUTES = new Set<keyof RootTabsParamList>([
   'Settings',
   'Subscriptions',
   'City',
+  'Stats',
   'PublicProfile',
   'PostDetail',
   'PlaylistDetail',
@@ -261,6 +264,7 @@ export function Tabs() {
         <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Subscriptions" component={SubscriptionsScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="City" component={CityScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Stats" component={StatsScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="PublicProfile" component={PublicProfileScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="PostDetail" component={PostDetailScreen} options={{ tabBarButton: () => null }} />

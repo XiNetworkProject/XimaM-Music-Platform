@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getApiSession } from '@/lib/getApiSession';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,12 +11,38 @@ function viewDate(row: any): Date | null {
 }
 
 export async function GET(request: NextRequest) {
-  const emptyRes = { daily: [], sources: [], funnel: { starts: 0, p25Rate: 0, p50Rate: 0, p75Rate: 0, completeRate: 0 } };
   try {
     const { searchParams } = new URL(request.url);
     const trackId = searchParams.get('track_id');
     if (!trackId) {
       return NextResponse.json({ error: 'track_id requis' }, { status: 400 });
+    }
+
+    const session = await getApiSession(request);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+
+    const userId = session.user.id;
+    const normalOwner = await supabaseAdmin
+      .from('tracks')
+      .select('id')
+      .eq('id', trackId)
+      .or(`creator_id.eq.${userId},user_id.eq.${userId}`)
+      .maybeSingle();
+    if (normalOwner.error) throw normalOwner.error;
+
+    let ownsTrack = Boolean(normalOwner.data);
+    if (!ownsTrack && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trackId)) {
+      const aiOwner = await supabaseAdmin
+        .from('ai_tracks')
+        .select('id, generation:ai_generations!inner(user_id)')
+        .eq('id', trackId)
+        .eq('generation.user_id', userId)
+        .maybeSingle();
+      if (aiOwner.error) throw aiOwner.error;
+      ownsTrack = Boolean(aiOwner.data);
+    }
+    if (!ownsTrack) {
+      return NextResponse.json({ error: 'Morceau introuvable' }, { status: 404 });
     }
 
     const sinceDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -122,6 +149,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Erreur API stats tracks:', error);
-    return NextResponse.json(emptyRes);
+    return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }

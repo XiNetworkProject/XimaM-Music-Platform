@@ -37,6 +37,7 @@ import { colors, radius, shadows } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { readDiscoverVisualCache, writeDiscoverVisualCache } from '@/discover/discoverCache';
 import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
+import { CityHomeBanner } from '@/components/city/CityHomeBanner';
 
 const INTENTION_TO_CLUB_SLUG: Record<string, string> = {
   remix: 'remix',
@@ -362,6 +363,8 @@ export function DiscoverV2Screen() {
           <Text style={styles.searchText}>Sons, artistes, playlists, clubs...</Text>
           <View style={styles.searchArrow}><Ionicons name="arrow-forward" size={15} color={colors.text} /></View>
         </MotionPressable>
+
+        <CityHomeBanner onOpen={() => navigation.navigate('City')} />
 
         {leadTrack ? (
           <DiscoverLeadCard
