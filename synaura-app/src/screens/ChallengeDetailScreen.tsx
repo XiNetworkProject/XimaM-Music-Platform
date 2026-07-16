@@ -10,7 +10,7 @@ import { AppHeader } from '@/components/ui/AppHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { SoftCard } from '@/components/ui/SoftCard';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { colors, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 const CONTENT_TYPE_LABEL: Record<MusicChallengeContentType, string> = {
@@ -118,7 +118,7 @@ export function ChallengeDetailScreen() {
       >
         <AppHeader title="Défi" onBack={() => navigation.goBack()} />
 
-        <SoftCard style={[styles.hero, { backgroundColor: `${accent}1a` }]}>
+        <SoftCard style={[styles.hero, { borderTopColor: accent }]}>
           <View style={styles.heroTop}>
             <View style={styles.heroIcon}><Ionicons name="trophy" size={20} color={colors.white} /></View>
             <View style={[styles.statusPill, challenge.status === 'active' && styles.statusPillActive]}>
@@ -199,19 +199,19 @@ function EntryRow({ entry, navigation }: { entry: MusicChallengeEntry; navigatio
 const styles = StyleSheet.create({
   content: { paddingBottom: 170, gap: spacing.lg, paddingHorizontal: spacing.lg },
   loading: { paddingHorizontal: spacing.lg },
-  hero: { gap: spacing.sm },
+  hero: { gap: spacing.sm, borderWidth: 0, borderTopWidth: 3, borderBottomWidth: StyleSheet.hairlineWidth, borderRadius: 0, backgroundColor: 'transparent', paddingVertical: spacing.lg },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  heroIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
-  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(17,17,17,0.06)' },
+  heroIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
+  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4, paddingVertical: 6 },
   statusPillActive: { backgroundColor: 'rgba(43,201,111,0.14)' },
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(17,17,17,0.3)' },
   statusDotActive: { backgroundColor: '#2bc96f' },
   statusText: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6, color: colors.textSecondary },
   kicker: { marginTop: spacing.sm, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, color: colors.textTertiary },
-  title: { marginTop: 4, fontSize: 24, fontWeight: '900', color: colors.text },
+  title: { marginTop: 4, fontSize: 29, lineHeight: 33, fontWeight: '900', color: colors.text },
   prompt: { marginTop: spacing.xs, fontSize: 13, lineHeight: 20, fontWeight: '600', color: colors.textSecondary },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
-  metaPill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.6)' },
+  metaPill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 6 },
   metaText: { fontSize: 11, fontWeight: '800', color: colors.textSecondary },
   dates: { marginTop: spacing.xs, fontSize: 11, fontWeight: '700', color: colors.textTertiary },
   cta: { marginTop: spacing.md, height: 48, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.black },
@@ -220,9 +220,9 @@ const styles = StyleSheet.create({
   userEntryNote: { marginTop: spacing.sm, fontSize: 11, fontWeight: '800', color: '#168746' },
   sectionTitle: { marginBottom: spacing.sm, fontSize: 17, fontWeight: '900', color: colors.text },
   emptyText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  entries: { gap: spacing.sm },
-  entryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  entryCover: { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(17,17,17,0.08)' },
+  entries: { gap: 0 },
+  entryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
+  entryCover: { width: 48, height: 48, borderRadius: 4, backgroundColor: 'rgba(17,17,17,0.08)' },
   entryTitle: { fontSize: 13, fontWeight: '900', color: colors.text },
   entrySubtitle: { marginTop: 2, fontSize: 11, fontWeight: '700', color: colors.textSecondary },
   error: { color: colors.danger, textAlign: 'center', fontSize: 11, fontWeight: '700' },

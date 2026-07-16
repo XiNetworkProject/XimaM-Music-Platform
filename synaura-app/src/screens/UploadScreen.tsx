@@ -507,7 +507,7 @@ export function UploadScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader flush eyebrow="Sortie artiste" title="Publier" subtitle="Fichiers, identité, droits et diffusion dans un seul parcours." onBack={() => navigation.goBack()} action={{ icon: 'library-outline', label: 'Bibliothèque', onPress: () => navigation.navigate('Library') }} />
+        <AppHeader flush eyebrow="Sortie artiste" title="Publier" subtitle="Ton son, son identité, puis sa diffusion." onBack={() => navigation.goBack()} action={{ icon: 'library-outline', label: 'Bibliothèque', onPress: () => navigation.navigate('Library') }} />
 
         <CreateArrivalBanner context={challengeId ? 'challenge' : 'upload'} title={challengeId ? challengeTitle : null} />
 
@@ -517,16 +517,15 @@ export function UploadScreen() {
             <Pill label={releaseLabel} />
             <Pill label={`${selectedCount} piste${selectedCount > 1 ? 's' : ''}`} />
           </View>
-          <Text style={styles.heroTitle}>Prépare une sortie qui te ressemble.</Text>
-          <Text style={styles.heroText}>Importe, présente puis choisis précisément comment ton morceau sera diffusé.</Text>
+          <Text style={styles.heroTitle}>Une sortie, trois décisions.</Text>
           <View style={styles.heroActions}>
             <MotionPressable onPress={() => navigation.navigate('Library')} style={styles.lightButton} scaleTo={0.96}>
               <Ionicons name="library-outline" size={16} color="#171313" />
-              <Text style={styles.lightButtonText}>Bibliotheque</Text>
+              <Text style={styles.lightButtonText}>Bibliothèque</Text>
             </MotionPressable>
             <MotionPressable onPress={resetUpload} style={styles.ghostButton} scaleTo={0.96}>
               <Ionicons name="refresh" size={15} color="rgba(255,250,242,0.78)" />
-              <Text style={styles.ghostButtonText}>Reset</Text>
+              <Text style={styles.ghostButtonText}>Réinitialiser</Text>
             </MotionPressable>
           </View>
         </View>
@@ -561,8 +560,8 @@ export function UploadScreen() {
         <View style={styles.studioPanel}>
           <View style={styles.panelHeader}>
             <View>
-              <Text style={styles.panelKicker}>Etape {step}/3</Text>
-              <Text style={styles.panelTitle}>{step === 1 ? 'Fichier audio' : step === 2 ? 'Cover & informations' : 'Diffusion & droits de creation'}</Text>
+              <Text style={styles.panelKicker}>Étape {step}/3</Text>
+              <Text style={styles.panelTitle}>{step === 1 ? 'Fichier audio' : step === 2 ? 'Pochette et informations' : 'Diffusion et droits de création'}</Text>
             </View>
             <SegmentedControl value={releaseType} dark compact options={RELEASES.map((item) => ({ value: item.key, label: item.title }))} onChange={selectRelease} />
           </View>
@@ -613,7 +612,7 @@ export function UploadScreen() {
 
           {step === 2 ? (
             <View style={styles.panelBody}>
-              <View style={styles.coverTitleRow}>
+              <View style={[styles.coverTitleRow, responsive.isTiny && styles.coverTitleRowStack]}>
                 <Pressable onPress={pickCover} style={styles.coverPicker}>
                   {previewTrack ? <TrackCover track={previewTrack} active autoPlayVideo style={StyleSheet.absoluteFill} /> : (
                     <View style={styles.coverEmpty}>
@@ -667,11 +666,11 @@ export function UploadScreen() {
 
           {step === 3 ? (
             <View style={styles.panelBody}>
-              <Text style={styles.sectionLabel}>Visibilite</Text>
+              <Text style={styles.sectionLabel}>Visibilité</Text>
               <View style={styles.visibilityGrid}>
                 {(['public', 'unlisted', 'private'] as Visibility[]).map((item) => (
                   <Pressable key={item} onPress={() => setVisibility(item)} style={[styles.visibilityItem, visibility === item && styles.visibilityItemActive]}>
-                    <Text style={[styles.visibilityText, visibility === item && styles.visibilityTextActive]}>{item === 'public' ? 'Public' : item === 'unlisted' ? 'Non liste' : 'Prive'}</Text>
+                    <Text style={[styles.visibilityText, visibility === item && styles.visibilityTextActive]}>{item === 'public' ? 'Public' : item === 'unlisted' ? 'Non répertorié' : 'Privé'}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -688,7 +687,7 @@ export function UploadScreen() {
                 <View style={styles.remixPermissionsHead}>
                   <View style={styles.remixPermissionsIcon}><Ionicons name="repeat" size={15} color="#8fd3da" /></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.remixPermissionsTitle}>Droits de creation</Text>
+                    <Text style={styles.remixPermissionsTitle}>Droits de création</Text>
                     <Text style={styles.remixPermissionsSub}>Ce que les autres membres peuvent faire avec ce morceau.</Text>
                   </View>
                 </View>
@@ -702,7 +701,7 @@ export function UploadScreen() {
 
               <EventChoice events={city?.events || []} selectedId={selectedEventId} onSelect={setSelectedEventId} />
 
-              <Field dark label="Annee copyright" value={copyrightYear} onChangeText={setCopyrightYear} placeholder="2026" />
+              <Field dark label="Année copyright" value={copyrightYear} onChangeText={setCopyrightYear} placeholder="2026" />
 
               <View style={styles.previewBox}>
                 <View style={styles.previewCover}>
@@ -746,7 +745,7 @@ export function UploadScreen() {
         </View>
 
         <View style={styles.checkPanel}>
-          <Text style={styles.checkKicker}>A verifier</Text>
+          <Text style={styles.checkKicker}>À vérifier</Text>
           <CheckRow label="Audio" done={step1Valid} />
           <CheckRow label="Pochette + titre" done={step2Valid} />
           <CheckRow label="Publication" done={step === 3} />
@@ -869,16 +868,15 @@ function CheckRow({ label, done }: { label: string; done: boolean }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#F7F6F3' },
   content: { paddingHorizontal: 18, gap: 13 },
-  hero: { borderRadius: 12, backgroundColor: '#171313', padding: 15 },
+  hero: { borderRadius: 4, backgroundColor: '#171313', padding: 16, borderLeftWidth: 4, borderLeftColor: '#D96D63' },
   heroPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   pill: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: 'rgba(255,250,242,0.08)', color: 'rgba(255,250,242,0.62)', fontSize: 9, fontWeight: '900', letterSpacing: 1.3, textTransform: 'uppercase' },
   pillActive: { backgroundColor: '#FFFAF2', color: '#171313' },
-  heroTitle: { marginTop: 12, color: '#FFFFFF', fontSize: 23, lineHeight: 27, fontWeight: '900' },
-  heroText: { marginTop: 10, color: 'rgba(255,250,242,0.56)', fontSize: 13, lineHeight: 20, fontWeight: '700' },
+  heroTitle: { marginTop: 12, color: '#FFFFFF', fontSize: 25, lineHeight: 29, fontWeight: '900' },
   heroActions: { flexDirection: 'row', gap: 8, marginTop: 15 },
-  lightButton: { flexDirection: 'row', alignItems: 'center', gap: 7, height: 40, borderRadius: 11, paddingHorizontal: 14, backgroundColor: '#FFFFFF' },
+  lightButton: { flexDirection: 'row', alignItems: 'center', gap: 7, height: 40, borderRadius: 4, paddingHorizontal: 14, backgroundColor: '#FFFFFF' },
   lightButtonText: { color: '#171313', fontSize: 12, fontWeight: '900' },
-  ghostButton: { flexDirection: 'row', alignItems: 'center', gap: 7, height: 40, borderRadius: 11, paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  ghostButton: { flexDirection: 'row', alignItems: 'center', gap: 7, height: 40, borderRadius: 4, paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
   ghostButtonText: { color: 'rgba(255,250,242,0.78)', fontSize: 12, fontWeight: '900' },
   heroStatusGrid: { marginTop: 15, gap: 8 },
   statusCard: { borderRadius: 11, padding: 11, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.06)' },
@@ -892,11 +890,11 @@ const styles = StyleSheet.create({
   statusValue: { marginTop: 7, color: '#FFFAF2', fontSize: 14, fontWeight: '900' },
   statusValueActive: { color: '#171313' },
   contextGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  contextBox: { flex: 1, minWidth: 96, borderRadius: 8, padding: 10, backgroundColor: 'rgba(255,255,255,0.82)', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
+  contextBox: { flex: 1, minWidth: 96, borderRadius: 0, paddingVertical: 10, paddingHorizontal: 4, backgroundColor: 'transparent', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.16)' },
   contextLabel: { color: 'rgba(23,19,19,0.38)', fontSize: 9, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
   contextValue: { marginTop: 5, color: '#171313', fontSize: 13, fontWeight: '900' },
-  stepNav: { flexDirection: 'row', gap: 8 },
-  stepButton: { flex: 1, minHeight: 52, borderRadius: 8, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)' },
+  stepNav: { flexDirection: 'row', gap: 0, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.15)' },
+  stepButton: { flex: 1, minHeight: 56, borderRadius: 0, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', borderRightWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.12)' },
   stepButtonActive: { backgroundColor: '#171313', borderColor: '#171313' },
   stepButtonDisabled: { opacity: 0.42 },
   stepNumber: { color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '900' },
@@ -905,7 +903,7 @@ const styles = StyleSheet.create({
   stepLabelActive: { color: '#FFFAF2' },
   progressOuter: { height: 4, borderRadius: 999, backgroundColor: 'rgba(23,19,19,0.09)', overflow: 'hidden' },
   progressInner: { height: 4, borderRadius: 999, backgroundColor: '#171313' },
-  studioPanel: { overflow: 'hidden', borderRadius: 10, backgroundColor: '#171313' },
+  studioPanel: { overflow: 'hidden', borderRadius: 4, backgroundColor: '#171313', borderTopWidth: 3, borderTopColor: '#7357C6' },
   panelHeader: { padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,250,242,0.08)', backgroundColor: '#1D1717', gap: 12 },
   panelKicker: { color: 'rgba(255,250,242,0.34)', fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
   panelTitle: { marginTop: 2, color: '#FFFFFF', fontSize: 21, fontWeight: '900' },
@@ -915,42 +913,43 @@ const styles = StyleSheet.create({
   segmentText: { color: 'rgba(255,250,242,0.46)', fontSize: 11, fontWeight: '900', textTransform: 'capitalize' },
   segmentTextActive: { color: '#171313' },
   panelBody: { padding: 14, gap: 14 },
-  releaseGrid: { gap: 9 },
-  releaseCard: { minHeight: 78, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.045)' },
+  releaseGrid: { gap: 0 },
+  releaseCard: { minHeight: 78, borderRadius: 0, padding: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'transparent' },
   releaseCardActive: { backgroundColor: '#FFFAF2', borderColor: '#FFFAF2' },
   releaseTitle: { marginTop: 7, color: '#FFFAF2', fontSize: 15, fontWeight: '900' },
   releaseTitleActive: { color: '#171313' },
   releaseSub: { marginTop: 2, color: 'rgba(255,250,242,0.38)', fontSize: 11, fontWeight: '700' },
   releaseSubActive: { color: 'rgba(23,19,19,0.5)' },
-  dropZone: { minHeight: 142, borderRadius: 8, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.035)', alignItems: 'center', justifyContent: 'center', padding: 18 },
+  dropZone: { minHeight: 156, borderRadius: 4, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.25)', backgroundColor: 'rgba(255,255,255,0.035)', alignItems: 'center', justifyContent: 'center', padding: 18 },
   dropZoneTitle: { marginTop: 10, color: '#FFFAF2', textAlign: 'center', fontSize: 16, fontWeight: '900' },
   dropZoneText: { marginTop: 5, color: 'rgba(255,250,242,0.38)', textAlign: 'center', fontSize: 11, fontWeight: '700' },
   trackList: { gap: 9 },
   trackListHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionLabel: { color: 'rgba(255,250,242,0.48)', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
   warnText: { color: '#D96D63', fontSize: 11, fontWeight: '900' },
-  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.045)', padding: 9 },
+  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 0, backgroundColor: 'transparent', paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.12)' },
   trackIndex: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.08)' },
   trackIndexText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900' },
   trackInput: { minHeight: 38, color: '#FFFAF2', fontSize: 14, fontWeight: '900', padding: 0 },
   trackFile: { color: 'rgba(255,250,242,0.34)', fontSize: 10, fontWeight: '700' },
   iconButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.07)' },
   coverTitleRow: { flexDirection: 'row', gap: 12 },
-  coverPicker: { width: 120, height: 120, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.035)' },
+  coverPicker: { width: 120, height: 120, borderRadius: 4, overflow: 'hidden', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.035)' },
+  coverTitleRowStack: { flexDirection: 'column', alignItems: 'stretch' },
   coverEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 8 },
   coverEmptyText: { marginTop: 8, color: 'rgba(255,250,242,0.48)', fontSize: 11, fontWeight: '900', textAlign: 'center' },
   coverEmptySub: { marginTop: 3, color: 'rgba(255,250,242,0.28)', fontSize: 9, fontWeight: '800' },
   coverInfo: { color: 'rgba(167,243,208,0.85)', fontSize: 11, fontWeight: '800' },
   artistField: { gap: 7 },
-  artistValue: { minHeight: 46, borderRadius: 10, paddingHorizontal: 13, paddingVertical: 14, backgroundColor: 'rgba(255,255,255,0.035)', color: 'rgba(255,255,255,0.44)', fontSize: 13, fontWeight: '800' },
+  artistValue: { minHeight: 46, borderRadius: 4, paddingHorizontal: 13, paddingVertical: 14, backgroundColor: 'rgba(255,255,255,0.035)', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.16)', color: 'rgba(255,255,255,0.44)', fontSize: 13, fontWeight: '800' },
   field: { gap: 7 },
   label: { color: 'rgba(23,19,19,0.55)', fontSize: 11, fontWeight: '900', letterSpacing: 0.7, textTransform: 'uppercase' },
   darkLabel: { color: 'rgba(255,250,242,0.36)', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
-  input: { minHeight: 46, borderRadius: 10, backgroundColor: 'rgba(17,17,17,0.055)', paddingHorizontal: 13, color: '#171313', fontSize: 14, fontWeight: '700' },
-  inputDark: { backgroundColor: 'rgba(255,250,242,0.05)', borderWidth: 1, borderColor: 'rgba(255,250,242,0.1)', color: '#FFFAF2' },
+  input: { minHeight: 46, borderRadius: 4, backgroundColor: 'rgba(17,17,17,0.055)', paddingHorizontal: 13, color: '#171313', fontSize: 14, fontWeight: '700', borderBottomWidth: 1, borderBottomColor: 'rgba(17,17,17,0.14)' },
+  inputDark: { backgroundColor: 'rgba(255,250,242,0.04)', borderBottomColor: 'rgba(255,250,242,0.18)', color: '#FFFAF2' },
   inputMulti: { minHeight: 86, paddingTop: 12, paddingBottom: 12 },
   inputTall: { minHeight: 150 },
-  collapsible: { overflow: 'hidden', borderRadius: 11, borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', backgroundColor: 'rgba(255,255,255,0.035)' },
+  collapsible: { overflow: 'hidden', borderRadius: 0, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.13)', backgroundColor: 'transparent' },
   collapsibleHead: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12 },
   collapsibleIcon: { width: 32, height: 32, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.06)' },
   collapsibleTitle: { flex: 1, color: 'rgba(255,250,242,0.86)', fontSize: 13, fontWeight: '900' },
@@ -963,21 +962,21 @@ const styles = StyleSheet.create({
   chipText: { color: 'rgba(23,19,19,0.7)', fontSize: 11, fontWeight: '900' },
   chipTextDark: { color: 'rgba(255,250,242,0.54)' },
   chipTextActive: { color: '#171313' },
-  visibilityGrid: { gap: 8 },
-  visibilityItem: { height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  visibilityGrid: { flexDirection: 'row', gap: 4 },
+  visibilityItem: { flex: 1, minHeight: 44, borderRadius: 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, backgroundColor: 'rgba(255,255,255,0.06)' },
   visibilityItemActive: { backgroundColor: '#FFFAF2' },
   visibilityText: { color: 'rgba(255,250,242,0.48)', fontSize: 13, fontWeight: '900' },
   visibilityTextActive: { color: '#171313' },
-  switchRowDark: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.045)', padding: 13 },
-  remixPermissionsBox: { borderRadius: 14, backgroundColor: 'rgba(74,158,170,0.08)', borderWidth: 1, borderColor: 'rgba(74,158,170,0.22)', padding: 13 },
+  switchRowDark: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 0, backgroundColor: 'transparent', paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.13)' },
+  remixPermissionsBox: { borderRadius: 4, backgroundColor: 'rgba(74,158,170,0.08)', borderLeftWidth: 3, borderColor: '#4A9EAA', padding: 13 },
   remixPermissionsHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   remixPermissionsIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(74,158,170,0.16)' },
   remixPermissionsTitle: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   remixPermissionsSub: { marginTop: 1, color: 'rgba(255,250,242,0.4)', fontSize: 10, fontWeight: '700' },
   switchTitleDark: { color: 'rgba(255,250,242,0.78)', fontSize: 13, fontWeight: '900' },
   switchSubDark: { marginTop: 2, color: 'rgba(255,250,242,0.34)', fontSize: 10, fontWeight: '700' },
-  previewBox: { flexDirection: 'row', gap: 12, borderRadius: 11, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.04)', padding: 12 },
-  previewCover: { width: 88, height: 88, borderRadius: 10, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.08)' },
+  previewBox: { flexDirection: 'row', gap: 12, borderRadius: 4, borderLeftWidth: 3, borderColor: '#D96D63', backgroundColor: 'rgba(255,255,255,0.04)', padding: 12 },
+  previewCover: { width: 88, height: 88, borderRadius: 4, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.08)' },
   previewTitle: { color: '#FFFAF2', fontSize: 18, lineHeight: 22, fontWeight: '900' },
   previewMeta: { marginTop: 5, color: 'rgba(255,250,242,0.46)', fontSize: 11, fontWeight: '800' },
   previewDesc: { marginTop: 8, color: 'rgba(255,250,242,0.34)', fontSize: 11, lineHeight: 16, fontWeight: '700' },
@@ -987,19 +986,19 @@ const styles = StyleSheet.create({
   progressValue: { color: 'rgba(255,250,242,0.56)', fontSize: 10, fontWeight: '900' },
   progressTrack: { height: 6, borderRadius: 999, backgroundColor: 'rgba(255,250,242,0.08)', overflow: 'hidden' },
   progressFill: { height: 6, borderRadius: 999, backgroundColor: '#FFFAF2' },
-  footerBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,250,242,0.08)', backgroundColor: 'rgba(23,19,19,0.96)' },
-  footerLeft: { flexDirection: 'row', gap: 8 },
+  footerBar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,250,242,0.08)', backgroundColor: 'rgba(23,19,19,0.96)' },
+  footerLeft: { flexDirection: 'row', flexShrink: 1, gap: 8 },
   backButton: { height: 40, borderRadius: 10, justifyContent: 'center', paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.07)' },
   backText: { color: 'rgba(255,250,242,0.62)', fontSize: 12, fontWeight: '900' },
   cancelButton: { height: 40, borderRadius: 10, justifyContent: 'center', paddingHorizontal: 14, backgroundColor: 'rgba(239,68,68,0.12)' },
   cancelText: { color: '#FECACA', fontSize: 12, fontWeight: '900' },
-  nextButton: { minWidth: 118, height: 44, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, backgroundColor: '#7357C6' },
+  nextButton: { minWidth: 118, minHeight: 44, borderRadius: 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, backgroundColor: '#7357C6', borderBottomWidth: 3, borderBottomColor: '#4A9EAA' },
   nextButtonDisabled: { opacity: 0.34 },
   nextText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   stepHint: { color: '#D96D63', fontSize: 11, fontWeight: '700', marginBottom: 8 },
-  checkPanel: { borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.82)', borderWidth: 1, borderColor: 'rgba(17,17,17,0.075)', padding: 14, gap: 9 },
+  checkPanel: { borderRadius: 0, backgroundColor: 'transparent', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.16)', paddingVertical: 14, gap: 0 },
   checkKicker: { color: 'rgba(23,19,19,0.38)', fontSize: 10, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
-  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 9, backgroundColor: 'rgba(17,17,17,0.04)', padding: 10 },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 0, backgroundColor: 'transparent', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(17,17,17,0.1)' },
   checkIcon: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },
   checkIconDone: { backgroundColor: 'rgba(16,185,129,0.14)' },
   checkText: { color: '#171313', fontSize: 12, fontWeight: '900' },

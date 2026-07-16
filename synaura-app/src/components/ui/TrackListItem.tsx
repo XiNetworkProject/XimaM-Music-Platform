@@ -50,14 +50,14 @@ export function TrackListItem({
 }
 
 const styles = StyleSheet.create({
-  root: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: 'transparent', backgroundColor: 'rgba(255,255,255,0.64)', padding: spacing.sm, overflow: 'hidden' },
-  active: { borderColor: 'rgba(115,87,198,0.22)', backgroundColor: 'rgba(115,87,198,0.08)' },
-  activeLine: { position: 'absolute', left: 0, top: 10, bottom: 10, width: 3, borderTopRightRadius: 2, borderBottomRightRadius: 2, backgroundColor: colors.violet },
-  cover: { width: 50, height: 50, borderRadius: radius.md },
+  root: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingVertical: 10, paddingHorizontal: 2, overflow: 'hidden' },
+  active: { backgroundColor: colors.violetSoft },
+  activeLine: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, backgroundColor: colors.violet },
+  cover: { width: 52, height: 52, borderRadius: radius.sm },
   copy: { flex: 1, minWidth: 0 },
   title: { color: colors.text, fontSize: 14, lineHeight: 18, fontWeight: '900' },
-  meta: { marginTop: 4, color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
+  meta: { marginTop: 4, color: colors.textSecondary, fontSize: 11, fontWeight: '600' },
   iconButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  play: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.055)' },
+  play: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface },
   playActive: { backgroundColor: colors.black },
 });

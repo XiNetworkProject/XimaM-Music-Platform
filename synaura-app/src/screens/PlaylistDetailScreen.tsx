@@ -200,16 +200,12 @@ export function PlaylistDetailScreen() {
   const extraDescription = collection?.description && collection.description !== collection.subtitle ? collection.description : null;
   const commentsEnabled = collection?.commentsEnabled !== false && playlist?.commentsEnabled !== false;
 
-  const c0 = colors[0] || '#8B5CF6';
-  const c2 = colors[2] || colors[1] || c0;
-
   return (
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Fond degrade sur toute la hauteur du contenu: sombre -> theme -> theme */}
         <View pointerEvents="none" style={styles.bgWrap}>
-          <LinearGradient colors={['#171313', c0, c2]} locations={[0, 0.5, 1]} start={{ x: 0.12, y: 0 }} end={{ x: 0.88, y: 1 }} style={StyleSheet.absoluteFill} />
-          <LinearGradient colors={['rgba(23,19,19,0.66)', 'rgba(23,19,19,0.40)', 'rgba(23,19,19,0.56)']} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+          <LinearGradient colors={['#111111', '#171716', '#211F1C']} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFill} />
         </View>
 
         <View style={[styles.content, responsive.pageContent, { paddingTop: insets.top + 10, paddingBottom: Math.max(insets.bottom + 132, responsive.miniPlayerClearance) }]}>
@@ -462,13 +458,13 @@ const styles = StyleSheet.create({
   sharePill: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
 
   // Hero
-  hero: { borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', shadowColor: '#000', shadowOpacity: 0.24, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 7 },
+  hero: { borderRadius: 4, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)' },
   heroBanner: { ...StyleSheet.absoluteFillObject, opacity: 0.48 },
   heroBody: { padding: 22 },
   heroBodyNarrow: { padding: 14 },
-  badgePill: { alignSelf: 'flex-start', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 12, paddingVertical: 6, marginBottom: 14 },
-  badgeText: { color: 'rgba(255,250,242,0.82)', fontSize: 10, fontWeight: '900', letterSpacing: 1.6, textTransform: 'uppercase' },
-  heroTitle: { color: CREAM, fontSize: 40, lineHeight: 44, fontWeight: '900' },
+  badgePill: { alignSelf: 'flex-start', borderLeftWidth: 3, borderLeftColor: '#4A9EAA', paddingLeft: 9, paddingVertical: 3, marginBottom: 14 },
+  badgeText: { color: 'rgba(255,250,242,0.82)', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  heroTitle: { color: CREAM, fontSize: 38, lineHeight: 42, fontWeight: '900' },
   heroTitleNarrow: { fontSize: 30, lineHeight: 34 },
   heroSubtitle: { color: 'rgba(255,250,242,0.78)', fontSize: 16, lineHeight: 24, fontWeight: '700', marginTop: 16 },
   heroDesc: { color: 'rgba(255,250,242,0.56)', fontSize: 13, lineHeight: 20, fontWeight: '600', marginTop: 8 },
@@ -479,34 +475,34 @@ const styles = StyleSheet.create({
   secondaryActionText: { color: CREAM, fontSize: 14, fontWeight: '900' },
 
   coverBlock: { width: '100%', maxWidth: 360, alignSelf: 'center', marginTop: 28 },
-  coverGlow: { position: 'absolute', top: -18, left: -18, right: -18, bottom: 18, borderRadius: 44, backgroundColor: 'rgba(255,255,255,0.18)' },
-  coverWrap: { width: '100%', aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
-  statsCard: { flexDirection: 'row', gap: 8, marginTop: -24, marginHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(23,19,19,0.86)', padding: 8 },
+  coverGlow: { display: 'none' },
+  coverWrap: { width: '100%', aspectRatio: 1, borderRadius: 4, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  statsCard: { flexDirection: 'row', marginTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.2)' },
 
   // Stat
-  stat: { flex: 1, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.10)', padding: 12 },
+  stat: { flex: 1, paddingHorizontal: 5, paddingVertical: 12 },
   statHalf: { flex: 0, flexGrow: 0, flexBasis: '48%' },
   statLabel: { color: 'rgba(255,250,242,0.42)', fontSize: 9, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
   statValue: { color: CREAM, fontSize: 14, fontWeight: '900', marginTop: 5 },
 
   // Filter bar
-  filterBar: { marginTop: 20, borderRadius: 28, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(23,19,19,0.70)', padding: 12, gap: 10 },
-  searchPill: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.10)', paddingHorizontal: 16 },
+  filterBar: { marginTop: 20, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)', paddingVertical: 12, gap: 10 },
+  searchPill: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 2 },
   searchInput: { flex: 1, color: CREAM, fontSize: 14, fontWeight: '700', padding: 0 },
   chipRow: { gap: 8, paddingRight: 4 },
-  chip: { height: 40, borderRadius: 999, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)' },
+  chip: { height: 38, borderRadius: 4, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.09)' },
   chipOn: { backgroundColor: CREAM, borderColor: CREAM },
   chipText: { color: 'rgba(255,250,242,0.58)', fontSize: 12, fontWeight: '900' },
   chipTextOn: { color: INK },
-  sortSelect: { height: 44, borderRadius: 999, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  sortSelect: { height: 44, paddingHorizontal: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.22)' },
   sortSelectText: { color: CREAM, fontSize: 13, fontWeight: '900' },
 
   // Tracks
-  list: { marginTop: 16, gap: 12 },
-  trackCard: { borderRadius: 25, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.09)', padding: 12 },
-  trackCardActive: { borderColor: 'rgba(255,255,255,0.38)', backgroundColor: 'rgba(255,255,255,0.20)' },
+  list: { marginTop: 16 },
+  trackCard: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.15)', paddingVertical: 12 },
+  trackCardActive: { borderLeftWidth: 3, borderLeftColor: '#4A9EAA', backgroundColor: 'rgba(255,255,255,0.06)', paddingLeft: 9 },
   trackMain: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  trackCoverBtn: { width: 64, height: 64, borderRadius: 20, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
+  trackCoverBtn: { width: 62, height: 62, borderRadius: 4, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
   playOverlay: { width: 36, height: 36, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.78)' },
   trackCopy: { flex: 1, minWidth: 0 },
   trackTitle: { color: CREAM, fontSize: 16, fontWeight: '900' },
@@ -523,13 +519,13 @@ const styles = StyleSheet.create({
   emptyText: { color: 'rgba(255,250,242,0.50)', fontSize: 13, fontWeight: '700', marginTop: 4, textAlign: 'center' },
 
   // Info cards
-  infoCard: { marginTop: 16, borderRadius: 28, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(23,19,19,0.58)', padding: 20 },
+  infoCard: { marginTop: 20, borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.2)', paddingTop: 18 },
   infoHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   infoTitle: { color: CREAM, fontSize: 18, fontWeight: '900' },
   infoParagraph: { color: 'rgba(255,250,242,0.62)', fontSize: 14, lineHeight: 22, fontWeight: '600' },
-  utilPrimary: { borderRadius: 16, backgroundColor: CREAM, paddingHorizontal: 16, paddingVertical: 14 },
+  utilPrimary: { borderRadius: 4, backgroundColor: CREAM, paddingHorizontal: 16, paddingVertical: 14 },
   utilPrimaryText: { color: INK, fontSize: 14, fontWeight: '900' },
-  utilBtn: { borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.10)', paddingHorizontal: 16, paddingVertical: 14 },
+  utilBtn: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 2, paddingVertical: 14 },
   utilBtnText: { color: 'rgba(255,250,242,0.78)', fontSize: 14, fontWeight: '900' },
   detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 

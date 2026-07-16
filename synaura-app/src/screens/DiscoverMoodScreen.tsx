@@ -67,6 +67,8 @@ export function DiscoverMoodScreen() {
         <AppHeader title="Découvrir" onBack={() => navigation.goBack()} />
 
         <LinearGradient colors={mood.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.banner}>
+          {playable[0]?.coverUrl ? <Image source={{ uri: playable[0].coverUrl }} blurRadius={4} style={StyleSheet.absoluteFillObject} /> : null}
+          <LinearGradient colors={['rgba(17,17,17,0.16)', 'rgba(17,17,17,0.82)']} style={StyleSheet.absoluteFillObject} />
           <Text style={styles.bannerTitle}>{mood.label}</Text>
           <Text style={styles.bannerPromise}>{mood.promise}</Text>
         </LinearGradient>
@@ -115,15 +117,15 @@ export function DiscoverMoodScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, gap: 10 },
-  banner: { marginTop: 4, borderRadius: 8, padding: 20, minHeight: 140, justifyContent: 'center' },
-  bannerTitle: { color: colors.paper, fontSize: 24, fontWeight: '900' },
+  banner: { marginTop: 4, overflow: 'hidden', borderRadius: 4, padding: 20, minHeight: 190, justifyContent: 'flex-end' },
+  bannerTitle: { color: colors.paper, fontSize: 29, lineHeight: 33, fontWeight: '900' },
   bannerPromise: { marginTop: 6, color: 'rgba(255,250,242,0.76)', fontSize: 12, lineHeight: 18, fontWeight: '700', maxWidth: '85%' },
   loader: { marginVertical: 60 },
   playAll: { marginTop: 14, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, backgroundColor: colors.black, paddingHorizontal: 16, paddingVertical: 11 },
   playAllText: { color: colors.paper, fontSize: 12, fontWeight: '900' },
   grid: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
   gridItem: { width: '31%' },
-  gridCoverWrap: { width: '100%', aspectRatio: 1, overflow: 'hidden', borderRadius: 8, backgroundColor: 'rgba(17,17,17,0.06)' },
+  gridCoverWrap: { width: '100%', aspectRatio: 1, overflow: 'hidden', borderRadius: 4, backgroundColor: 'rgba(17,17,17,0.06)' },
   gridCover: { width: '100%', height: '100%' },
   gridPlay: { position: 'absolute', right: 6, bottom: 6, width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.92)' },
   gridTitle: { marginTop: 7, color: colors.text, fontSize: 10, fontWeight: '900' },

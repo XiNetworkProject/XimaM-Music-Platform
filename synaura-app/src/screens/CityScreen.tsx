@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
-  Easing,
   FlatList,
   Image,
   Modal,
@@ -328,21 +327,11 @@ function LoadingEvents() {
 }
 
 function EventsHero({ city, onUpload, onCommunity }: { city: SynauraCityData; onUpload: () => void; onCommunity: () => void }) {
-  const pulse = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const animation = Animated.loop(Animated.sequence([
-      Animated.timing(pulse, { toValue: 1, duration: 1700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      Animated.timing(pulse, { toValue: 0, duration: 1700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-    ]));
-    animation.start();
-    return () => animation.stop();
-  }, [pulse]);
   const hot = city.pulse.filter((track) => track.pulse >= 78).length;
   const live = city.events.filter((event) => event.isLive).length;
   return (
     <View style={styles.hero}>
-      <LinearGradient colors={['#FFE1D8', '#F2EBFF', '#DDF8F5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <Animated.View style={[styles.heroPulse, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.22] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1.2] }) }] }]} />
+      <LinearGradient colors={['#151413', '#292423', '#31575A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       <View style={styles.heroBadge}><View style={styles.heroDot} /><Text style={styles.heroBadgeText}>LE PULSE EST EN LIVE</Text></View>
       <Text style={styles.heroTitle}>{city.cityMood.title}</Text>
       <Text style={styles.heroSubtitle}>{city.cityMood.subtitle}</Text>
@@ -353,7 +342,7 @@ function EventsHero({ city, onUpload, onCommunity }: { city: SynauraCityData; on
       </View>
       <View style={styles.heroActions}>
         <MotionPressable onPress={onUpload} style={styles.primaryButton}><Ionicons name="add" size={16} color={colors.paper} /><Text style={styles.primaryButtonText}>Participer</Text></MotionPressable>
-        <MotionPressable onPress={onCommunity} style={styles.secondaryButton}><Ionicons name="people" size={15} color={colors.text} /><Text style={styles.secondaryButtonText}>Communauté</Text></MotionPressable>
+        <MotionPressable onPress={onCommunity} style={styles.secondaryButton}><Ionicons name="people" size={15} color={colors.paper} /><Text style={styles.secondaryButtonText}>Communauté</Text></MotionPressable>
       </View>
     </View>
   );
@@ -665,10 +654,10 @@ function WinnerCelebration({ event, busy, onClose, onClaim }: { event: CityEvent
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 16, paddingBottom: 130, gap: 11 },
+  content: { paddingHorizontal: 16, paddingBottom: 130, gap: 18 },
   topbar: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10 },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  roundButton: { width: 42, height: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  roundButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   topCopy: { flex: 1 },
   topKicker: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
   topTitle: { marginTop: 1, color: colors.text, fontSize: 24, fontWeight: '900' },
@@ -678,27 +667,26 @@ const styles = StyleSheet.create({
   errorText: { flex: 1, color: colors.danger, fontSize: 10, fontWeight: '800' },
   toast: { position: 'absolute', alignSelf: 'center', maxWidth: '90%', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 22, backgroundColor: colors.text, paddingHorizontal: 16, paddingVertical: 11, elevation: 10 },
   toastText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
-  hero: { minHeight: 300, overflow: 'hidden', borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16 },
-  heroPulse: { position: 'absolute', right: -70, bottom: -90, width: 290, height: 290, borderRadius: 145, backgroundColor: colors.coral },
-  heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 14, backgroundColor: 'rgba(255,250,242,0.68)', paddingHorizontal: 10, paddingVertical: 7 },
+  hero: { minHeight: 320, overflow: 'hidden', borderRadius: 4, padding: 17 },
+  heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderLeftWidth: 3, borderLeftColor: colors.coral, paddingLeft: 8, paddingVertical: 4 },
   heroDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.coral },
-  heroBadgeText: { color: colors.text, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  heroTitle: { marginTop: 22, maxWidth: 310, color: colors.text, fontSize: 29, lineHeight: 32, fontWeight: '900' },
-  heroSubtitle: { marginTop: 10, maxWidth: 310, color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  heroBadgeText: { color: colors.paper, fontSize: 8, fontWeight: '900' },
+  heroTitle: { marginTop: 24, maxWidth: 360, color: colors.paper, fontSize: 32, lineHeight: 36, fontWeight: '900' },
+  heroSubtitle: { marginTop: 10, maxWidth: 340, color: 'rgba(247,246,243,0.66)', fontSize: 12, lineHeight: 18, fontWeight: '700' },
   heroStats: { marginTop: 18, flexDirection: 'row', gap: 8 },
-  heroStat: { flex: 1, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.7)', padding: 10 },
-  heroStatValue: { color: colors.text, fontSize: 19, fontWeight: '900' },
-  heroStatLabel: { marginTop: 2, color: colors.textTertiary, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
+  heroStat: { flex: 1, borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.22)', paddingVertical: 10 },
+  heroStatValue: { color: colors.paper, fontSize: 19, fontWeight: '900' },
+  heroStatLabel: { marginTop: 2, color: 'rgba(247,246,243,0.46)', fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
   heroActions: { marginTop: 18, flexDirection: 'row', gap: 8 },
   primaryButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 11, backgroundColor: colors.text, paddingHorizontal: 16 },
   primaryButtonText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
-  secondaryButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.7)', paddingHorizontal: 16 },
-  secondaryButtonText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  secondaryButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 21, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.34)', paddingHorizontal: 16 },
+  secondaryButtonText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
   doneButton: { opacity: 0.46 },
   iconAction: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },
-  stack: { gap: 10 },
+  stack: { gap: 0 },
   horizontalRail: { gap: 10, paddingRight: 14 },
-  showcase: { width: 210, height: 264, overflow: 'hidden', borderRadius: 14, backgroundColor: colors.text },
+  showcase: { width: 210, height: 274, overflow: 'hidden', borderRadius: 4, backgroundColor: colors.text },
   showcaseLabel: { position: 'absolute', left: 12, top: 12, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 13, backgroundColor: 'rgba(23,19,19,0.62)', paddingHorizontal: 8, paddingVertical: 6 },
   showcaseLabelText: { color: colors.paper, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
   showcasePlay: { position: 'absolute', right: 12, top: 12, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
@@ -708,14 +696,14 @@ const styles = StyleSheet.create({
   showcaseArtist: { marginTop: 3, color: 'rgba(255,250,242,0.54)', fontSize: 10, fontWeight: '800' },
   pulseCard: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 9, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 9 },
   pulseRank: { width: 22, color: colors.textTertiary, fontSize: 10, fontWeight: '900' },
-  pulseCover: { width: 58, height: 58, borderRadius: 16 },
+  pulseCover: { width: 58, height: 58, borderRadius: 4 },
   pulseCopy: { flex: 1, minWidth: 0, gap: 5 },
   pulseTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   pulseArtist: { color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
   pulseSide: { alignItems: 'flex-end', gap: 7 },
-  artistCard: { width: 228, overflow: 'hidden', borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  artistCard: { width: 228, overflow: 'hidden', borderTopWidth: 2, borderTopColor: colors.violet, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong },
   artistTop: { height: 86 },
-  artistAvatar: { width: 70, height: 70, marginTop: -38, marginLeft: 14, borderRadius: 22, borderWidth: 3, borderColor: colors.paper, backgroundColor: '#E8DCCA' },
+  artistAvatar: { width: 70, height: 70, marginTop: -38, marginLeft: 14, borderRadius: 35, borderWidth: 3, borderColor: colors.paper, backgroundColor: '#E8DCCA' },
   artistBody: { padding: 14 },
   artistBooster: { color: colors.violet, fontSize: 7, fontWeight: '900', letterSpacing: 1.1 },
   artistName: { marginTop: 6, color: colors.text, fontSize: 18, fontWeight: '900' },
@@ -725,18 +713,18 @@ const styles = StyleSheet.create({
   artistOpen: { flex: 1, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
   artistOpenText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
   artistPlay: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
-  premiere: { width: 210, height: 235, overflow: 'hidden', borderRadius: 25, backgroundColor: colors.text },
+  premiere: { width: 210, height: 245, overflow: 'hidden', borderRadius: 4, backgroundColor: colors.text },
   premiereBadge: { position: 'absolute', left: 12, top: 12, color: colors.paper, fontSize: 8, fontWeight: '900', letterSpacing: 1, backgroundColor: colors.coral, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 6 },
   premierePlay: { position: 'absolute', right: 12, top: 12, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
   premiereBottom: { position: 'absolute', left: 14, right: 14, bottom: 14 },
   premierePulse: { color: '#FFC6BC', fontSize: 7, fontWeight: '900', letterSpacing: 0.8 },
   premiereTitle: { marginTop: 5, color: colors.paper, fontSize: 17, fontWeight: '900' },
   premiereArtist: { marginTop: 3, color: 'rgba(255,250,242,0.5)', fontSize: 9, fontWeight: '800' },
-  liveEvent: { gap: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 10 },
+  liveEvent: { gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 12 },
   liveEventDescription: { color: colors.textSecondary, fontSize: 10, lineHeight: 15, fontWeight: '700', paddingHorizontal: 4 },
   activeBoostText: { color: colors.violet, fontSize: 9, lineHeight: 14, fontWeight: '900', paddingHorizontal: 4 },
   liveEventActions: { flexDirection: 'row', gap: 8, paddingHorizontal: 4, paddingBottom: 2 },
-  battle: { overflow: 'hidden', borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 12 },
+  battle: { overflow: 'hidden', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 14 },
   battleHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   battleHeaderCopy: { flex: 1 },
   battleKicker: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
@@ -746,9 +734,9 @@ const styles = StyleSheet.create({
   battleGrid: { marginTop: 13, flexDirection: 'row', gap: 8 },
   battleRewardButton: { minHeight: 42, marginTop: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 21, backgroundColor: colors.violet },
   battleRewardButtonText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
-  battleTrack: { flex: 1, minWidth: 0, borderRadius: 11, backgroundColor: colors.background, padding: 8, gap: 5 },
+  battleTrack: { flex: 1, minWidth: 0, borderRadius: 4, backgroundColor: colors.backgroundAlt, padding: 8, gap: 5 },
   battleTrackSelected: { borderWidth: 1, borderColor: colors.violet, backgroundColor: 'rgba(124,92,255,0.1)' },
-  battleCoverWrap: { aspectRatio: 1, overflow: 'hidden', borderRadius: 16 },
+  battleCoverWrap: { aspectRatio: 1, overflow: 'hidden', borderRadius: 4 },
   battlePlay: { position: 'absolute', right: 7, bottom: 7, width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
   battleTrackTitle: { color: colors.text, fontSize: 10, fontWeight: '900' },
   battleArtist: { color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
@@ -756,7 +744,7 @@ const styles = StyleSheet.create({
   voteButtonSelected: { backgroundColor: colors.violet },
   voteText: { color: colors.paper, fontSize: 8, fontWeight: '900' },
   winnerBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.74)', padding: 15 },
-  winnerCard: { width: '100%', maxWidth: 440, overflow: 'hidden', borderRadius: 31, padding: 18, elevation: 18 },
+  winnerCard: { width: '100%', maxWidth: 440, overflow: 'hidden', borderRadius: 10, padding: 18, elevation: 18 },
   winnerTrophy: { width: 54, height: 54, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFD667' },
   winnerKicker: { marginTop: 16, color: '#FF9A90', fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
   winnerTitle: { marginTop: 6, color: colors.paper, fontSize: 27, lineHeight: 30, fontWeight: '900' },
@@ -770,21 +758,21 @@ const styles = StyleSheet.create({
   winnerClaimText: { color: colors.text, fontSize: 10, fontWeight: '900' },
   winnerLater: { minHeight: 44, justifyContent: 'center', borderRadius: 22, backgroundColor: 'rgba(255,250,242,0.1)', paddingHorizontal: 15 },
   winnerLaterText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
-  radar: { overflow: 'hidden', borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(74,158,170,0.08)', padding: 13 },
-  radarRing: { position: 'absolute', right: -40, top: -40, width: 180, height: 180, borderRadius: 90, borderWidth: 2, borderColor: colors.cyan },
+  radar: { overflow: 'hidden', borderTopWidth: 2, borderTopColor: colors.cyan, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong, paddingVertical: 13 },
+  radarRing: { position: 'absolute', left: 0, right: 0, top: 0, height: 2, backgroundColor: colors.cyan },
   radarRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 8 },
-  radarCover: { width: 50, height: 50, borderRadius: 14 },
+  radarCover: { width: 50, height: 50, borderRadius: 4 },
   radarCopy: { flex: 1, minWidth: 0, gap: 5 },
   radarTrack: { color: colors.text, fontSize: 11, fontWeight: '900' },
   radarArtist: { color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
-  panel: { gap: 8, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 12 },
-  awardRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, backgroundColor: 'rgba(23,19,19,0.045)', padding: 9 },
+  panel: { gap: 0, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
+  awardRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingVertical: 9 },
   awardIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(124,92,255,0.12)' },
   awardIconFirst: { backgroundColor: colors.text },
   awardCopy: { flex: 1, minWidth: 0 },
   awardTitle: { color: colors.text, fontSize: 10, fontWeight: '900' },
   awardSubtitle: { marginTop: 3, color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
-  badgeRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 19, backgroundColor: 'rgba(23,19,19,0.04)', padding: 9, opacity: 0.68 },
+  badgeRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingVertical: 9, opacity: 0.68 },
   badgeRowUnlocked: { opacity: 1, backgroundColor: 'rgba(124,92,255,0.08)' },
   badgeIcon: { width: 39, height: 39, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.07)' },
   badgeIconUnlocked: { backgroundColor: colors.violet },
@@ -792,7 +780,7 @@ const styles = StyleSheet.create({
   badgeTitle: { color: colors.text, fontSize: 10, fontWeight: '900' },
   badgeDescription: { color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
   badgeProgress: { color: colors.textTertiary, fontSize: 8, fontWeight: '900' },
-  creatorProgress: { overflow: 'hidden', borderRadius: 14, padding: 14 },
+  creatorProgress: { overflow: 'hidden', borderRadius: 4, padding: 14 },
   creatorKicker: { color: '#C8B8FF', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
   creatorTitle: { marginTop: 6, color: colors.paper, fontSize: 20, fontWeight: '900' },
   creatorBody: { marginTop: 15, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },

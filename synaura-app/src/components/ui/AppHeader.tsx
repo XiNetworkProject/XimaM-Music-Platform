@@ -67,7 +67,12 @@ export function AppHeader({
           </MotionPressable>
         ) : null}
         <View style={styles.copy}>
-          {eyebrow ? <Text numberOfLines={1} style={[styles.eyebrow, { color: dark ? colors.cyan : colors.violet }]}>{eyebrow}</Text> : null}
+          {eyebrow ? (
+            <View style={styles.eyebrowRow}>
+              <View style={[styles.eyebrowSignal, { backgroundColor: dark ? colors.cyan : colors.violet }]} />
+              <Text numberOfLines={1} style={[styles.eyebrow, { color: muted }]}>{eyebrow}</Text>
+            </View>
+          ) : null}
           <Text maxFontSizeMultiplier={1.2} numberOfLines={1} style={[styles.title, layout.isNarrow && styles.titleNarrow, compact && styles.titleCompact, { color: foreground }]}>{title}</Text>
           {subtitle ? <Text maxFontSizeMultiplier={1.2} numberOfLines={layout.isNarrow ? 2 : 1} style={[styles.subtitle, { color: muted }]}>{subtitle}</Text> : null}
         </View>
@@ -91,29 +96,31 @@ export function AppHeader({
 }
 
 const styles = StyleSheet.create({
-  root: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
+  root: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   flush: { paddingHorizontal: 0 },
   compact: { paddingBottom: spacing.sm },
-  row: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  row: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   rowNarrow: { gap: spacing.sm },
   copy: { flex: 1, minWidth: 0 },
-  eyebrow: { marginBottom: 2, fontSize: 9, lineHeight: 11, fontWeight: '900', textTransform: 'uppercase' },
-  title: { fontSize: 23, lineHeight: 28, fontWeight: '900' },
-  titleNarrow: { fontSize: 21, lineHeight: 25 },
-  titleCompact: { fontSize: 19, lineHeight: 23 },
-  subtitle: { marginTop: 2, fontSize: 11, lineHeight: 15, fontWeight: '700' },
+  eyebrowRow: { marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  eyebrowSignal: { width: 18, height: 2 },
+  eyebrow: { flexShrink: 1, fontSize: 9, lineHeight: 12, fontWeight: '800', textTransform: 'uppercase' },
+  title: { fontSize: 27, lineHeight: 31, fontWeight: '900' },
+  titleNarrow: { fontSize: 24, lineHeight: 28 },
+  titleCompact: { fontSize: 21, lineHeight: 25 },
+  subtitle: { marginTop: 4, fontSize: 12, lineHeight: 17, fontWeight: '600' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   iconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    backgroundColor: 'rgba(255,255,255,0.56)',
   },
-  iconButtonDark: { borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.08)' },
+  iconButtonDark: { borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.07)' },
   badge: { position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, backgroundColor: colors.coral, borderWidth: 2, borderColor: colors.background },
   badgeText: { color: colors.paper, fontSize: 8, lineHeight: 10, fontWeight: '900' },
 });

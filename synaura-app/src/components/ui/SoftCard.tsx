@@ -8,10 +8,10 @@ export function SoftCard({ children, style, elevated = false }: { children: Reac
 
 const styles = StyleSheet.create({
   root: {
-    borderRadius: radius.md,
-    borderWidth: 1,
+    borderRadius: radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    backgroundColor: 'rgba(255,255,255,0.84)',
-    padding: spacing.md,
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
   },
 });

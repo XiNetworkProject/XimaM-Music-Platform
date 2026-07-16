@@ -48,7 +48,7 @@ export function TrackCard({ track, active, favorite, onPress, onToggleFavorite }
       </Pressable>
 
       <View style={[styles.play, active && styles.playActive]}>
-        <Ionicons name={active ? 'pause' : 'play'} size={16} color={colors.black} />
+        <Ionicons name={active ? 'pause' : 'play'} size={16} color={colors.white} />
       </View>
     </Pressable>
   );
@@ -59,26 +59,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    backgroundColor: 'transparent',
+    paddingVertical: spacing.md,
+    paddingHorizontal: 2,
   },
   active: {
-    borderColor: 'rgba(124,92,255,0.65)',
-    backgroundColor: 'rgba(124,92,255,0.16)',
+    backgroundColor: colors.violetSoft,
   },
   pressed: {
     transform: [{ scale: 0.99 }],
-    backgroundColor: colors.surfaceStrong,
+    opacity: 0.82,
   },
   coverWrap: {
     width: 56,
     height: 56,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     overflow: 'hidden',
-    backgroundColor: 'rgba(124,92,255,0.35)',
+    backgroundColor: colors.surfaceMuted,
   },
   coverFallback: {
     ...StyleSheet.absoluteFillObject,
@@ -96,7 +95,7 @@ const styles = StyleSheet.create({
   title: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   artist: {
     marginTop: 2,
@@ -125,10 +124,10 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.text,
   },
   playActive: {
-    backgroundColor: colors.accent2,
+    backgroundColor: colors.violet,
   },
   favorite: {
     width: 34,

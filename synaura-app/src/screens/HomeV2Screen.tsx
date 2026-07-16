@@ -133,7 +133,7 @@ export function HomeV2Screen() {
           <Pressable onPress={() => navigation.navigate('Swipe')} style={styles.resume}>
             <TrackCover track={player.current} active={player.isPlaying} style={styles.resumeCover} />
             <View style={styles.resumeCopy}>
-              <Text style={styles.resumeKicker}>REPRENDRE L'ECOUTE</Text>
+              <Text style={styles.resumeKicker}>REPRENDRE L'ÉCOUTE</Text>
               <Text numberOfLines={1} style={styles.resumeTitle}>{player.current.title}</Text>
               <Text numberOfLines={1} style={styles.resumeArtist}>{artistName(player.current)}</Text>
             </View>
@@ -154,7 +154,7 @@ export function HomeV2Screen() {
               <View style={styles.heroActions}>
                 <Pressable onPress={() => playFrom(recommendations.length ? recommendations : [hero], hero)} style={styles.heroPlay}>
                   <Ionicons name={player.current?._id === hero._id && player.isPlaying ? 'pause' : 'play'} size={18} color={colors.text} />
-                  <Text style={styles.heroPlayText}>{player.current?._id === hero._id && player.isPlaying ? 'En lecture' : 'Ecouter'}</Text>
+                  <Text style={styles.heroPlayText}>{player.current?._id === hero._id && player.isPlaying ? 'En lecture' : 'Écouter'}</Text>
                 </Pressable>
                 <Pressable onPress={() => navigation.navigate('Swipe')} style={styles.heroScroll}>
                   <Text style={styles.heroScrollLetter}>S</Text>
@@ -166,8 +166,8 @@ export function HomeV2Screen() {
         ) : loading ? <ActivityIndicator color={colors.text} style={styles.loader} /> : null}
 
         <View style={styles.shortcutRow}>
-          <Shortcut icon="musical-notes-outline" title="Scroll" subtitle="Decouvrir maintenant" onPress={() => navigation.navigate('Swipe')} />
-          <Shortcut icon="sparkles-outline" title="Studio" subtitle="Creer un morceau" onPress={() => navigation.navigate('AIStudio')} />
+          <Shortcut icon="musical-notes-outline" title="Scroll" subtitle="Découvrir maintenant" onPress={() => navigation.navigate('Swipe')} />
+          <Shortcut icon="sparkles-outline" title="Studio" subtitle="Créer un morceau" onPress={() => navigation.navigate('AIStudio')} />
         </View>
 
         <CommunityComposerCard
@@ -220,7 +220,7 @@ export function HomeV2Screen() {
 
         {data.posts.length ? (
           <>
-            <SectionHeader title="Dans la communaute" action="Ouvrir" onPress={() => navigation.navigate('Community')} />
+            <SectionHeader title="Dans la communauté" action="Ouvrir" onPress={() => navigation.navigate('Community')} />
             <View style={styles.postList}>
               {data.posts.slice(0, 5).map((post) => (
                 <PostPreviewCard
@@ -242,7 +242,7 @@ export function HomeV2Screen() {
 
         {recent.length ? (
           <>
-            <SectionHeader title="Fraichement publie" />
+            <SectionHeader title="Fraîchement publié" />
             <View style={styles.recentList}>
               {recent.map((track) => (
                 <Pressable key={track._id} onPress={() => playFrom(recent, track)} style={styles.recentRow}>
@@ -565,30 +565,30 @@ const styles = StyleSheet.create({
   brandName: { color: colors.text, fontSize: 17, fontWeight: '900' },
   brandLine: { marginTop: 1, color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  headerButton: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  headerButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
   unreadDot: { position: 'absolute', top: 7, right: 8, width: 6, height: 6, borderRadius: 3, backgroundColor: '#D46C78' },
-  resume: { marginTop: 12, minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 7 },
-  resumeCover: { width: 40, height: 40, borderRadius: 9 },
+  resume: { marginTop: 12, minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 4, backgroundColor: colors.black, borderLeftWidth: 3, borderLeftColor: colors.cyan, padding: 7 },
+  resumeCover: { width: 40, height: 40, borderRadius: 4 },
   resumeCopy: { flex: 1, minWidth: 0 },
-  resumeKicker: { color: colors.textTertiary, fontSize: 8, fontWeight: '900', letterSpacing: 0.9 },
-  resumeTitle: { marginTop: 3, color: colors.text, fontSize: 13, fontWeight: '900' },
-  resumeArtist: { marginTop: 2, color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
-  resumePlay: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
-  hero: { height: 224, marginTop: 12, overflow: 'hidden', justifyContent: 'flex-end', borderRadius: 16, backgroundColor: colors.black },
+  resumeKicker: { color: 'rgba(247,246,243,0.46)', fontSize: 8, fontWeight: '900', letterSpacing: 0.9 },
+  resumeTitle: { marginTop: 3, color: colors.paper, fontSize: 13, fontWeight: '900' },
+  resumeArtist: { marginTop: 2, color: 'rgba(247,246,243,0.56)', fontSize: 10, fontWeight: '700' },
+  resumePlay: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(247,246,243,0.13)' },
+  hero: { height: 232, marginTop: 12, overflow: 'hidden', justifyContent: 'flex-end', borderRadius: 4, backgroundColor: colors.black },
   heroContent: { padding: 16 },
   heroKicker: { color: 'rgba(255,249,239,0.62)', fontSize: 9, fontWeight: '900', letterSpacing: 1.3 },
   heroTitle: { marginTop: 5, maxWidth: '92%', color: colors.paper, fontSize: 22, lineHeight: 24, fontWeight: '900' },
   heroArtist: { marginTop: 5, color: 'rgba(255,249,239,0.7)', fontSize: 13, fontWeight: '800' },
   heroActions: { marginTop: 13, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  heroPlay: { height: 39, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 12, backgroundColor: colors.paper, paddingHorizontal: 13 },
+  heroPlay: { height: 39, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 4, backgroundColor: colors.paper, paddingHorizontal: 13 },
   heroPlayText: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  heroScroll: { height: 39, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 11 },
+  heroScroll: { height: 39, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.14)', borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 11 },
   heroScrollLetter: { color: colors.paper, fontSize: 18, fontWeight: '900' },
   heroScrollText: { color: colors.paper, fontSize: 10, fontWeight: '800' },
   loader: { marginVertical: 90 },
-  shortcutRow: { marginTop: 8, flexDirection: 'row', gap: 8 },
-  shortcut: { flex: 1, minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 11, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 9 },
-  shortcutIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(115,87,198,0.09)' },
+  shortcutRow: { marginTop: 8, flexDirection: 'row', gap: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong },
+  shortcut: { flex: 1, minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 0, backgroundColor: 'transparent', borderRightWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingHorizontal: 9 },
+  shortcutIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(115,87,198,0.09)' },
   shortcutCopy: { flex: 1 },
   shortcutTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   shortcutSubtitle: { display: 'none' },
@@ -598,9 +598,9 @@ const styles = StyleSheet.create({
   sectionAction: { color: colors.textSecondary, fontSize: 10, fontWeight: '800' },
   trackRail: { gap: 12, paddingRight: 18 },
   trackTile: { width: 118 },
-  trackTileCoverWrap: { width: 118, height: 118, overflow: 'hidden', borderRadius: 13, backgroundColor: 'rgba(17,17,17,0.06)' },
+  trackTileCoverWrap: { width: 118, height: 118, overflow: 'hidden', borderRadius: 4, backgroundColor: 'rgba(17,17,17,0.06)' },
   trackTileCover: { width: '100%', height: '100%' },
-  trackTilePlay: { position: 'absolute', right: 7, bottom: 7, width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.94)' },
+  trackTilePlay: { position: 'absolute', right: 7, bottom: 7, width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.94)' },
   trackTileTitle: { marginTop: 8, color: colors.text, fontSize: 12, fontWeight: '900' },
   trackTileArtist: { marginTop: 2, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
   creatorRail: { gap: 15, paddingRight: 18 },
@@ -611,12 +611,12 @@ const styles = StyleSheet.create({
   creatorTag: { marginTop: 1, width: 78, color: colors.textTertiary, fontSize: 8, fontWeight: '700', textAlign: 'center' },
   recentList: { gap: 7 },
   recentRow: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderColor: colors.border, paddingVertical: 7 },
-  recentCover: { width: 42, height: 42, borderRadius: 9 },
+  recentCover: { width: 42, height: 42, borderRadius: 4 },
   recentCopy: { flex: 1, minWidth: 0 },
   recentTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   recentArtist: { marginTop: 3, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
-  composerCard: { marginTop: 12, flexDirection: 'row', gap: 10, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(255,250,242,0.88)', padding: 12 },
-  composerAvatar: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  composerCard: { marginTop: 12, flexDirection: 'row', gap: 10, borderRadius: 4, borderLeftWidth: 3, borderColor: colors.violet, backgroundColor: colors.surface, padding: 12 },
+  composerAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
   composerAvatarText: { color: colors.paper, fontSize: 17, fontWeight: '900' },
   composerBody: { flex: 1, minWidth: 0 },
   composerKicker: { color: colors.accent, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
   pillActionActive: { backgroundColor: colors.text },
   pillActionText: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
   pillActionTextActive: { color: colors.paper },
-  pulseCard: { marginTop: 12, overflow: 'hidden', borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 14 },
+  pulseCard: { marginTop: 12, overflow: 'hidden', borderRadius: 4, borderTopWidth: 3, borderColor: colors.cyan, padding: 14 },
   pulseTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pulseKicker: { color: colors.accent, fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
   pulseTitle: { marginTop: 4, color: colors.text, fontSize: 18, fontWeight: '900' },
@@ -635,41 +635,41 @@ const styles = StyleSheet.create({
   coverStack: { flexDirection: 'row', alignItems: 'center', paddingRight: 4 },
   stackCover: { width: 42, height: 42, borderRadius: 13, borderWidth: 2, borderColor: colors.paper },
   pulseStats: { marginTop: 12, flexDirection: 'row', gap: 8 },
-  miniStat: { flex: 1, minHeight: 48, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.58)', alignItems: 'center', justifyContent: 'center' },
+  miniStat: { flex: 1, minHeight: 48, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.44)', borderBottomWidth: 1, borderBottomColor: 'rgba(17,17,17,0.12)', alignItems: 'center', justifyContent: 'center' },
   miniStatValue: { color: colors.text, fontSize: 16, fontWeight: '900' },
   miniStatLabel: { marginTop: 1, color: colors.textTertiary, fontSize: 8, fontWeight: '900' },
   pulseActions: { marginTop: 11, flexDirection: 'row', gap: 8 },
-  pulsePrimary: { flex: 1, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  pulsePrimary: { flex: 1, height: 38, borderRadius: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
   pulsePrimaryText: { color: colors.paper, fontSize: 11, fontWeight: '900' },
-  pulseSecondary: { flex: 1, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.58)' },
+  pulseSecondary: { flex: 1, height: 38, borderRadius: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.58)' },
   pulseSecondaryText: { color: colors.text, fontSize: 11, fontWeight: '900' },
   playlistRail: { gap: 12, paddingRight: 18 },
   playlistTile: { width: 126 },
-  playlistCover: { width: 126, height: 96, flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden', borderRadius: 14, backgroundColor: 'rgba(23,19,19,0.06)', alignItems: 'center', justifyContent: 'center' },
+  playlistCover: { width: 126, height: 96, flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden', borderRadius: 4, backgroundColor: 'rgba(23,19,19,0.06)', alignItems: 'center', justifyContent: 'center' },
   playlistCoverPart: { width: '50%', height: '50%' },
-  playlistBanner: { width: 126, height: 96, overflow: 'hidden', borderRadius: 14, backgroundColor: 'rgba(23,19,19,0.08)', justifyContent: 'flex-end', padding: 9 },
+  playlistBanner: { width: 126, height: 96, overflow: 'hidden', borderRadius: 4, backgroundColor: 'rgba(23,19,19,0.08)', justifyContent: 'flex-end', padding: 9 },
   playlistBadge: { color: colors.paper, fontSize: 9, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
   playlistTitle: { marginTop: 8, color: colors.text, fontSize: 12, fontWeight: '900' },
   playlistMeta: { marginTop: 2, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
-  collectionFeature: { minHeight: 310, borderRadius: 30, overflow: 'hidden', marginTop: 4, marginBottom: 6, backgroundColor: colors.text, shadowColor: colors.text, shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 5 },
+  collectionFeature: { minHeight: 310, borderRadius: 4, overflow: 'hidden', marginTop: 4, marginBottom: 6, backgroundColor: colors.text },
   collectionFeatureImage: { ...StyleSheet.absoluteFillObject, opacity: 0.48 },
   collectionFeatureBody: { flex: 1, justifyContent: 'flex-end', padding: 20 },
   collectionFeatureBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: 999, backgroundColor: 'rgba(255,249,239,0.18)', paddingHorizontal: 12, paddingVertical: 7, color: colors.paper, fontSize: 10, fontWeight: '900', letterSpacing: 1.3, textTransform: 'uppercase' },
   collectionFeatureTitle: { marginTop: 12, color: colors.paper, fontSize: 34, lineHeight: 34, fontWeight: '900' },
   collectionFeatureTitleNarrow: { fontSize: 27, lineHeight: 29 },
   collectionFeatureText: { marginTop: 10, color: 'rgba(255,249,239,0.78)', fontSize: 14, lineHeight: 20, fontWeight: '800' },
-  collectionFeatureAction: { alignSelf: 'flex-start', marginTop: 16, height: 48, borderRadius: 24, backgroundColor: colors.paper, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  collectionFeatureAction: { alignSelf: 'flex-start', marginTop: 16, height: 48, borderRadius: 4, backgroundColor: colors.paper, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 8 },
   collectionFeatureActionText: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  postList: { gap: 10 },
-  postCard: { borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(255,250,242,0.9)', padding: 12 },
+  postList: { gap: 0 },
+  postCard: { borderRadius: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: 'transparent', paddingVertical: 14 },
   postHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  postAvatar: { width: 36, height: 36, borderRadius: 13, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  postAvatar: { width: 36, height: 36, borderRadius: 18, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
   postAvatarText: { color: colors.paper, fontSize: 15, fontWeight: '900' },
   postAuthor: { flex: 1, minWidth: 0 },
   postName: { color: colors.text, fontSize: 12, fontWeight: '900' },
   postMeta: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
   postText: { marginTop: 12, color: colors.text, fontSize: 14, lineHeight: 20, fontWeight: '800' },
-  postImage: { marginTop: 10, width: '100%', height: 160, borderRadius: 16 },
+  postImage: { marginTop: 10, width: '100%', height: 160, borderRadius: 4 },
   postTrack: { marginTop: 10, minHeight: 74, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, backgroundColor: 'rgba(23,19,19,0.055)', padding: 9 },
   postTrackCover: { width: 56, height: 56, borderRadius: 13 },
   postTrackCopy: { flex: 1, minWidth: 0 },
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
   postActionActive: { backgroundColor: '#171313' },
   postActionText: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
   postActionTextActive: { color: colors.paper },
-  emptyCommunity: { marginTop: 16, minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 12 },
+  emptyCommunity: { marginTop: 16, minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 4, borderLeftWidth: 3, borderColor: colors.coral, backgroundColor: colors.surface, padding: 12 },
   emptyCommunityTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   emptyCommunityText: { marginTop: 3, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
   emptyCommunityButton: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },

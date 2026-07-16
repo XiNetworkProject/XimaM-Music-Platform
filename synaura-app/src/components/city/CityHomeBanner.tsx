@@ -79,16 +79,16 @@ export function CityHomeBanner({ onOpen }: { onOpen: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  card: { minHeight: 218, overflow: 'hidden', borderRadius: radius.lg, padding: 15, ...shadows.floating },
+  card: { minHeight: 228, overflow: 'hidden', borderRadius: radius.sm, padding: 15, ...shadows.floating },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9 },
-  brandBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 9, paddingVertical: 6 },
+  brandBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderLeftWidth: 3, borderLeftColor: colors.coral, paddingLeft: 8, paddingVertical: 3 },
   brandText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   status: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.coral },
   statusDotScheduled: { backgroundColor: colors.cyan },
   statusText: { color: 'rgba(255,255,255,0.68)', fontSize: 9, fontWeight: '800' },
   body: { marginTop: 17 },
-  title: { maxWidth: 540, color: '#FFFFFF', fontSize: 23, lineHeight: 27, fontWeight: '900' },
+  title: { maxWidth: 540, color: '#FFFFFF', fontSize: 26, lineHeight: 30, fontWeight: '900' },
   description: { maxWidth: 560, marginTop: 5, color: 'rgba(255,255,255,0.64)', fontSize: 11, lineHeight: 16, fontWeight: '700' },
   meta: { marginTop: 8, color: '#F5C5B8', fontSize: 9, fontWeight: '900' },
   pulseRow: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -98,5 +98,5 @@ const styles = StyleSheet.create({
   pulseBar: { width: 82 },
   footer: { marginTop: 14, minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.14)', paddingTop: 11 },
   footerText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
-  arrow: { width: 31, height: 31, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
+  arrow: { width: 31, height: 31, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
 });

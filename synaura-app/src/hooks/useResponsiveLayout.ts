@@ -36,7 +36,7 @@ export function useResponsiveLayout() {
   const pagePaddingLeft = gutter + insets.left;
   const pagePaddingRight = gutter + insets.right;
   const availableContentWidth = Math.max(1, Math.min(safeWidth, contentMaxWidth) - gutter * 2);
-  const dockHeight = compactControls ? 62 : 66;
+  const dockHeight = compactControls ? 66 : 70;
   const sheetMaxWidth = 680;
   const overlayWidth = Math.min(safeWidth, sheetMaxWidth);
   const overlaySideInset = Math.max(0, (safeWidth - overlayWidth) / 2);

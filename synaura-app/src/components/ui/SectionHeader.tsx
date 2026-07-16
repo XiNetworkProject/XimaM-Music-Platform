@@ -38,10 +38,10 @@ export function SectionHeader({
 }
 
 const styles = StyleSheet.create({
-  root: { minHeight: 44, flexDirection: 'row', alignItems: 'flex-end', gap: spacing.md },
+  root: { minHeight: 48, flexDirection: 'row', alignItems: 'flex-end', gap: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingBottom: 10 },
   copy: { flex: 1, minWidth: 0 },
-  title: { fontSize: 19, lineHeight: 24, fontWeight: '900' },
-  subtitle: { marginTop: 3, fontSize: 11, lineHeight: 16, fontWeight: '600' },
+  title: { fontSize: 21, lineHeight: 26, fontWeight: '900' },
+  subtitle: { marginTop: 3, fontSize: 12, lineHeight: 17, fontWeight: '500' },
   action: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 6 },
-  actionLabel: { fontSize: 11, fontWeight: '900' },
+  actionLabel: { fontSize: 12, fontWeight: '800' },
 });

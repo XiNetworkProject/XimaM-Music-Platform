@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -289,7 +290,8 @@ export function FullPlayerModal({ visible, onClose }: Props) {
           },
         ]}
       >
-        <SynauraBackground variant="warm" />
+        <StatusBar style="light" />
+        <SynauraBackground variant="dark" />
         <AuraVisual track={track} active={visible} playing={player.isPlaying} />
 
         <View
@@ -306,7 +308,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
             onPress={closeWithAnim}
             style={styles.headerButton}
           >
-            <Ionicons name="chevron-down" size={22} color="#171313" />
+            <Ionicons name="chevron-down" size={22} color="#F7F6F3" />
           </Pressable>
           <View style={styles.headerCenter}>
             <View style={styles.dragHandle} />
@@ -320,7 +322,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
             onPress={() => setQueueOpen(true)}
             style={styles.headerButton}
           >
-            <Ionicons name="albums-outline" size={20} color="#171313" />
+            <Ionicons name="albums-outline" size={20} color="#F7F6F3" />
             {player.queue.length > 1 ? (
               <View style={styles.headerBadge}>
                 <Text style={styles.headerBadgeText}>{player.queue.length}</Text>
@@ -454,7 +456,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
                     onPress={() => void toggleFollow()}
                     style={[styles.followBtn, following && styles.followBtnDone]}
                   >
-                    <Ionicons name={following ? 'checkmark' : 'add'} size={13} color={following ? '#FFFAF2' : '#171313'} />
+                    <Ionicons name={following ? 'checkmark' : 'add'} size={13} color={following ? '#111111' : '#F7F6F3'} />
                     <Text style={[styles.followText, following && styles.followTextDone]}>
                       {following ? 'Suivi' : 'Suivre'}
                     </Text>
@@ -471,10 +473,10 @@ export function FullPlayerModal({ visible, onClose }: Props) {
               onPress={() => void player.toggleShuffle()}
               style={[styles.smallBtn, layout.compactControls && styles.smallBtnCompact, player.shuffleEnabled && styles.smallBtnActive]}
             >
-              <Ionicons name="shuffle" size={layout.compactControls ? 16 : 18} color={player.shuffleEnabled ? '#FFFAF2' : '#171313'} />
+              <Ionicons name="shuffle" size={layout.compactControls ? 16 : 18} color={player.shuffleEnabled ? '#111111' : '#F7F6F3'} />
             </Pressable>
             <Pressable accessibilityLabel="Titre precedent" onPress={() => void player.previous()} style={[styles.controlBtn, layout.compactControls && styles.controlBtnCompact]}>
-              <Ionicons name="play-skip-back" size={transportIconSize} color="#171313" />
+              <Ionicons name="play-skip-back" size={transportIconSize} color="#F7F6F3" />
             </Pressable>
             <Pressable
               accessibilityLabel={player.isPlaying ? 'Mettre en pause' : 'Lire'}
@@ -484,12 +486,12 @@ export function FullPlayerModal({ visible, onClose }: Props) {
               <Ionicons
                 name={player.isPlaying ? 'pause' : 'play'}
                 size={layout.compactControls ? 28 : 32}
-                color="#FFFAF2"
+                color="#111111"
                 style={!player.isPlaying ? { marginLeft: 4 } : null}
               />
             </Pressable>
             <Pressable accessibilityLabel="Titre suivant" onPress={() => void player.next()} style={[styles.controlBtn, layout.compactControls && styles.controlBtnCompact]}>
-              <Ionicons name="play-skip-forward" size={transportIconSize} color="#171313" />
+              <Ionicons name="play-skip-forward" size={transportIconSize} color="#F7F6F3" />
             </Pressable>
             <Pressable
               accessibilityLabel="Changer le mode boucle"
@@ -499,7 +501,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
               <Ionicons
                 name={player.repeatMode === 'one' ? 'repeat' : 'repeat-outline'}
                 size={layout.compactControls ? 16 : 18}
-                color={player.repeatMode !== 'off' ? '#FFFAF2' : '#171313'}
+                color={player.repeatMode !== 'off' ? '#111111' : '#F7F6F3'}
               />
               {player.repeatMode === 'one' ? <Text style={styles.repeatBadge}>1</Text> : null}
             </Pressable>
@@ -632,7 +634,7 @@ function PlayerAction({
   disabled?: boolean;
   onPress: () => void;
 }) {
-  const color = active && activeColor ? activeColor : '#171313';
+  const color = active && activeColor ? activeColor : '#F7F6F3';
   return (
     <Pressable accessibilityLabel={label} disabled={disabled} onPress={onPress} style={styles.actionBtn}>
       <View
@@ -686,7 +688,7 @@ function MoreRow({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F4EFE6' },
+  root: { flex: 1, backgroundColor: '#0D0D0D' },
   header: {
     paddingHorizontal: 16,
     paddingBottom: 10,
@@ -703,26 +705,26 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,250,242,0.94)',
-    borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.16)',
   },
   headerCenter: { flex: 1, alignItems: 'center' },
   dragHandle: {
     width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(23,19,19,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.28)',
     marginBottom: 6,
   },
   headerKicker: {
-    color: 'rgba(23,19,19,0.45)',
+    color: 'rgba(255,255,255,0.46)',
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.6,
     textTransform: 'uppercase',
   },
-  headerSubtitle: { color: '#171313', fontSize: 13, fontWeight: '900', marginTop: 4 },
+  headerSubtitle: { color: '#F7F6F3', fontSize: 13, fontWeight: '900', marginTop: 4 },
   headerBadge: {
     position: 'absolute',
     top: -4,
@@ -731,11 +733,11 @@ const styles = StyleSheet.create({
     height: 18,
     paddingHorizontal: 5,
     borderRadius: 9,
-    backgroundColor: '#171313',
+    backgroundColor: '#F7F6F3',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerBadgeText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
+  headerBadgeText: { color: '#111111', fontSize: 10, fontWeight: '900' },
   bodyScroll: { flex: 1 },
   body: { flexGrow: 1, paddingHorizontal: 20 },
   bodyCompact: { paddingTop: 0 },
@@ -746,24 +748,24 @@ const styles = StyleSheet.create({
   },
   coverHalo: {
     position: 'absolute',
-    borderRadius: 22,
+    borderRadius: 18,
     overflow: 'hidden',
-    opacity: 0.34,
+    opacity: 0.24,
   },
   coverFrame: {
-    borderRadius: 16,
+    borderRadius: 10,
     overflow: 'hidden',
     backgroundColor: '#171313',
-    borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.08)',
-    shadowColor: '#1E1914',
-    shadowOpacity: 0.24,
-    shadowRadius: 28,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
+    shadowColor: '#000000',
+    shadowOpacity: 0.5,
+    shadowRadius: 32,
     shadowOffset: { width: 0, height: 14 },
     elevation: 14,
   },
   coverFallback: {
-    backgroundColor: 'rgba(23,19,19,0.04)',
+    backgroundColor: '#171716',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -809,9 +811,9 @@ const styles = StyleSheet.create({
   liveText: { color: 'rgba(255,250,242,0.85)', fontSize: 11, fontWeight: '900' },
   meta: { marginTop: 14 },
   title: {
-    color: '#171313',
-    fontSize: 21,
-    lineHeight: 25,
+    color: '#F7F6F3',
+    fontSize: 24,
+    lineHeight: 29,
     fontWeight: '900',
   },
   titleCompact: { fontSize: 19, lineHeight: 23 },
@@ -836,13 +838,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: 'rgba(23,19,19,0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.1)',
+    borderColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  artistInitial: { color: '#171313', fontSize: 13, fontWeight: '900' },
-  artist: { color: '#171313', fontSize: 13, fontWeight: '900' },
-  plays: { color: 'rgba(23,19,19,0.5)', fontSize: 10, fontWeight: '700', marginTop: 2 },
+  artistInitial: { color: '#F7F6F3', fontSize: 13, fontWeight: '900' },
+  artist: { color: '#F7F6F3', fontSize: 14, fontWeight: '900' },
+  plays: { color: 'rgba(255,255,255,0.48)', fontSize: 11, fontWeight: '600', marginTop: 2 },
   metaRight: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   followBtn: {
     flexDirection: 'row',
@@ -851,13 +853,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: '#FFFAF2',
-    borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
   },
-  followBtnDone: { backgroundColor: '#171313', borderColor: 'transparent' },
-  followText: { color: '#171313', fontSize: 11, fontWeight: '900', letterSpacing: 0.6 },
-  followTextDone: { color: '#FFFAF2' },
+  followBtnDone: { backgroundColor: '#F7F6F3', borderColor: 'transparent' },
+  followText: { color: '#F7F6F3', fontSize: 11, fontWeight: '900' },
+  followTextDone: { color: '#111111' },
   controls: {
     marginTop: 16,
     flexDirection: 'row',
@@ -872,9 +874,9 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFAF2',
-    borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   controlBtnCompact: { width: 46, height: 46, borderRadius: 23 },
   playBtn: {
@@ -883,9 +885,9 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#171313',
-    shadowColor: '#171313',
-    shadowOpacity: 0.32,
+    backgroundColor: '#F7F6F3',
+    shadowColor: '#000000',
+    shadowOpacity: 0.42,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 14 },
     elevation: 14,
@@ -898,17 +900,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFAF2',
-    borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   smallBtnCompact: { width: 36, height: 36, borderRadius: 18 },
-  smallBtnActive: { backgroundColor: '#171313', borderColor: 'transparent' },
+  smallBtnActive: { backgroundColor: '#F7F6F3', borderColor: 'transparent' },
   repeatBadge: {
     position: 'absolute',
     top: 5,
     right: 8,
-    color: '#FFFAF2',
+    color: '#111111',
     fontSize: 8,
     fontWeight: '900',
   },
@@ -926,16 +928,15 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFAF2',
-    borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   actionDisabled: { opacity: 0.32 },
   actionLabel: {
-    color: 'rgba(23,19,19,0.6)',
+    color: 'rgba(255,255,255,0.56)',
     fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 0.4,
   },
   moreOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.42)' },
   moreSheet: {

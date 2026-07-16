@@ -73,6 +73,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { MotionPressable } from '@/components/motion/Motion';
 import { MobileAnimatedLogo } from '@/components/mobile/MobileAnimatedLogo';
+import { colors } from '@/theme/tokens';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { ClipUploadIndicator } from '@/clips/ClipUploadIndicator';
@@ -1044,7 +1045,7 @@ export function SwipeScreen() {
     <View style={styles.root}>
       <LinearGradient
         pointerEvents="none"
-        colors={['#19161B', '#111111', '#102023']}
+        colors={['#0B0B0B', '#111111', '#181412']}
         locations={[0, 0.52, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -1054,7 +1055,7 @@ export function SwipeScreen() {
       <Animated.View style={[styles.header, headerStyle]} pointerEvents="box-none">
         <View style={[styles.headerInner, responsive.contentFrame]}>
           <View style={styles.scrollIdentity}>
-            <View style={styles.scrollMark}><Text style={styles.scrollMarkText}>S</Text></View>
+            <View style={styles.scrollMark}><Ionicons name="pulse" size={23} color="#F7F6F3" /></View>
             {!responsive.isNarrow ? (
               <View>
                 <Text style={styles.scrollName}>Flow</Text>
@@ -1201,7 +1202,7 @@ export function SwipeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#171313' },
+  root: { flex: 1, backgroundColor: '#0D0D0D' },
   headerGradient: {
     position: 'absolute',
     left: 0,
@@ -1216,7 +1217,7 @@ const styles = StyleSheet.create({
     top: 0,
     zIndex: 14,
     paddingHorizontal: 12,
-    paddingBottom: 8,
+    paddingBottom: 10,
   },
   headerInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -1226,23 +1227,22 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   scrollMark: {
-    width: 34,
+    width: 30,
     height: 34,
-    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFAF2',
+    borderLeftWidth: 2,
+    borderLeftColor: colors.cyan,
   },
-  scrollMarkText: { color: '#171313', fontSize: 17, fontWeight: '900' },
-  scrollName: { color: '#FFFAF2', fontSize: 11, lineHeight: 12, fontWeight: '900' },
-  scrollSubtitle: { marginTop: 1, color: 'rgba(255,250,242,0.5)', fontSize: 8, fontWeight: '800' },
+  scrollName: { color: '#F7F6F3', fontSize: 13, lineHeight: 15, fontWeight: '900' },
+  scrollSubtitle: { marginTop: 1, color: 'rgba(255,255,255,0.48)', fontSize: 9, fontWeight: '700' },
   modeWrap: {
     flex: 1,
     maxWidth: 220,
-    backgroundColor: 'rgba(15,12,14,0.24)',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,250,242,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.055)',
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.16)',
   },
   modeButton: {
     paddingHorizontal: 11,
@@ -1268,11 +1268,11 @@ const styles = StyleSheet.create({
   queueButton: {
     width: 36,
     height: 36,
-    borderRadius: 9,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,250,242,0.08)',
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,250,242,0.14)',
   },
   queueBadge: {

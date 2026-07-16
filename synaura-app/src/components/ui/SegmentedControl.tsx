@@ -91,8 +91,8 @@ function Segment({ label, icon, active, dark, compact, hideIcon, dense, scrollab
 }
 
 const styles = StyleSheet.create({
-  root: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.md, padding: 4, backgroundColor: 'rgba(17,17,17,0.055)', borderWidth: 1, borderColor: colors.border },
-  rootDark: { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.1)' },
+  root: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 4 },
+  rootDark: { borderColor: 'rgba(255,255,255,0.18)' },
   rootCompact: { minHeight: 40 },
   rootDense: { gap: 2, padding: 3 },
   rootScrollable: { padding: 0, overflow: 'hidden' },

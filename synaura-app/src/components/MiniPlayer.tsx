@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { BlurView } from 'expo-blur';
 import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
 import { trackArtistName } from '@/components/swipe/helpers';
 import { TrackCover } from '@/components/TrackCover';
@@ -15,7 +14,7 @@ type Props = {
   onOpen?: () => void;
 };
 
-const DOCK_ROUTES = new Set(['Swipe', 'Discover', 'Community', 'Profile']);
+const DOCK_ROUTES = new Set(['Swipe', 'Discover', 'Library', 'Profile']);
 const HIDDEN_ROUTES = new Set(['Swipe', 'AIStudio', 'Notifications', 'Upload', 'ClipComposer', 'CreateVariation', 'CreateHub', 'Welcome', 'Login', 'Register', 'ForgotPassword', 'Onboarding']);
 
 export function MiniPlayer({ activeRoute, onOpen }: Props) {
@@ -27,7 +26,7 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
   const routeName = activeRoute || '';
   const isVisible = !!player.current && !HIDDEN_ROUTES.has(routeName);
   const hasDock = DOCK_ROUTES.has(routeName);
-  const playerWidth = Math.min(layout.safeWidth - (layout.isNarrow ? 12 : 20), layout.isTablet ? 560 : 520);
+  const playerWidth = Math.min(layout.safeWidth, layout.isTablet ? 640 : 560);
 
   useEffect(() => {
     Animated.timing(slide, {
@@ -85,7 +84,7 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
           left: layout.insets.left + (layout.safeWidth - playerWidth) / 2,
           width: playerWidth,
           bottom: hasDock
-            ? layout.dockHeight + Math.max(layout.insets.bottom, 7) + 6
+            ? layout.dockHeight + Math.max(layout.insets.bottom, 7)
             : Math.max(10, layout.insets.bottom + 6),
           opacity,
           transform: [{ translateY }, { translateX: gestureX }],
@@ -93,14 +92,12 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
       ]}
     >
       <Pressable accessibilityLabel="Ouvrir le lecteur" onPress={onOpen} style={styles.card}>
-        <BlurView intensity={86} tint="light" style={StyleSheet.absoluteFill} />
-
         <View style={[styles.content, layout.compactControls && styles.contentCompact]}>
           <View style={[styles.coverWrap, layout.compactControls && styles.coverWrapCompact]}>
             {player.current.coverUrl || player.current.coverVideoUrl || player.current.coverVideoPosterUrl ? (
               <TrackCover track={player.current} active={isVisible} style={StyleSheet.absoluteFill} />
             ) : (
-              <Ionicons name="musical-note" size={18} color="rgba(23,19,19,0.5)" />
+              <Ionicons name="musical-note" size={18} color="rgba(255,255,255,0.5)" />
             )}
           </View>
           <View style={styles.meta}>
@@ -118,12 +115,12 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
             scaleTo={0.86}
           >
             {player.isLoading ? (
-              <Ionicons name="ellipsis-horizontal" size={18} color="#FFFAF2" />
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.black} />
             ) : (
               <Ionicons
                 name={player.isPlaying ? 'pause' : 'play'}
                 size={20}
-                color="#FFFAF2"
+                color={colors.black}
                 style={!player.isPlaying ? { marginLeft: 2 } : null}
               />
             )}
@@ -143,16 +140,15 @@ const styles = StyleSheet.create({
     zIndex: 30,
   },
   card: {
-    borderRadius: 14,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.08)',
-    backgroundColor: 'rgba(255,255,255,0.84)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: colors.night,
     shadowColor: '#111111',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: -5 },
+    elevation: 8,
   },
   progressTrack: { height: 2, backgroundColor: 'rgba(17,17,17,0.07)' },
   progressFill: {
@@ -160,50 +156,48 @@ const styles = StyleSheet.create({
     backgroundColor: colors.violet,
   },
   content: {
-    minHeight: 54,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingHorizontal: 9,
-    paddingVertical: 7,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
   },
-  contentCompact: { minHeight: 50, gap: 8, paddingHorizontal: 7, paddingVertical: 6 },
+  contentCompact: { minHeight: 54, gap: 8, paddingHorizontal: 8, paddingVertical: 7 },
   coverWrap: {
     width: 38,
     height: 38,
-    borderRadius: 8,
+    borderRadius: 5,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(23,19,19,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  coverWrapCompact: { width: 36, height: 36, borderRadius: 7 },
+  coverWrapCompact: { width: 36, height: 36, borderRadius: 4 },
   meta: { flex: 1, minWidth: 0 },
   title: {
-    color: '#171313',
-    fontSize: 12,
+    color: colors.white,
+    fontSize: 13,
     fontWeight: '900',
   },
   artistRow: { marginTop: 2, flexDirection: 'row', alignItems: 'center', gap: 5, minWidth: 0 },
   playingDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.cyan },
   artist: {
     flexShrink: 1,
-    color: 'rgba(23,19,19,0.5)',
+    color: 'rgba(255,255,255,0.58)',
     fontSize: 11,
     fontWeight: '700',
   },
   playButton: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.black,
-    shadowColor: '#171313',
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    backgroundColor: colors.white,
+    shadowColor: '#000000',
+    shadowOpacity: 0,
+    elevation: 0,
   },
-  playButtonCompact: { width: 34, height: 34, borderRadius: 9 },
+  playButtonCompact: { width: 34, height: 34, borderRadius: 17 },
 });

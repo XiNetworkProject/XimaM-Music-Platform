@@ -110,22 +110,36 @@ export function SynauraIntroStage({ scene, compact = false, style }: { scene: In
   )), [phase, scene, sceneConfig.accent, sceneConfig.secondary]);
 
   const floatY = phase.interpolate({ inputRange: [0, 1], outputRange: [4, -5] });
-  const tilt = phase.interpolate({ inputRange: [0, 1], outputRange: ['-2deg', '2deg'] });
+  const pulse = phase.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1.03] });
 
   return (
     <View style={[styles.stage, compact && styles.stageCompact, style]} accessible={false}>
       <View style={[styles.accentRail, { backgroundColor: sceneConfig.accent }]} />
       <View style={[styles.secondaryRail, { backgroundColor: sceneConfig.secondary }]} />
 
-      <Animated.View style={[styles.frameBack, compact && styles.frameBackCompact, { borderColor: `${sceneConfig.secondary}66`, transform: [{ translateY: floatY }, { rotate: tilt }] }]} />
-      <Animated.View style={[styles.frameFront, compact && styles.frameFrontCompact, { borderColor: `${sceneConfig.accent}88`, transform: [{ translateY: Animated.multiply(floatY, -0.55) }, { rotate: tilt }] }]} />
+      <View style={styles.gridLines}>
+        {[0, 1, 2, 3, 4].map((line) => <View key={line} style={styles.gridLine} />)}
+      </View>
 
-      <Animated.View style={[styles.core, compact && styles.coreCompact, { backgroundColor: sceneConfig.accent, transform: [{ translateY: floatY }] }]}>
-        {scene === 'synaura' ? (
-          <Image source={require('../../assets/synaura-symbol-2026.png')} style={styles.symbol} />
-        ) : (
-          <Ionicons name={sceneConfig.icon} size={compact ? 30 : 38} color="#FFFFFF" />
-        )}
+      <Animated.View style={[styles.signalFrame, compact && styles.signalFrameCompact, { transform: [{ translateY: floatY }] }]}>
+        <View style={styles.frameHeader}>
+          <View style={[styles.signalPip, { backgroundColor: sceneConfig.accent }]} />
+          <Text style={styles.frameKicker}>SIGNAL SYNAURA</Text>
+          <Text style={styles.frameIndex}>0{Object.keys(SCENES).indexOf(scene) + 1}</Text>
+        </View>
+        <View style={styles.frameBody}>
+          <Animated.View style={[styles.core, compact && styles.coreCompact, { backgroundColor: sceneConfig.accent, transform: [{ scale: pulse }] }]}>
+            {scene === 'synaura' ? (
+              <Image source={require('../../assets/synaura-symbol-2026.png')} style={styles.symbol} />
+            ) : (
+              <Ionicons name={sceneConfig.icon} size={compact ? 30 : 38} color="#FFFFFF" />
+            )}
+          </Animated.View>
+          <View style={styles.frameCopy}>
+            <Text style={styles.frameTitle}>{sceneConfig.label}</Text>
+            <View style={styles.miniSignal}>{waveBars.slice(0, 9)}</View>
+          </View>
+        </View>
       </Animated.View>
 
       <View style={styles.sceneLabel}>
@@ -158,21 +172,29 @@ const styles = StyleSheet.create({
   stageCompact: { minHeight: 0 },
   accentRail: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5 },
   secondaryRail: { position: 'absolute', right: 0, top: '18%', width: 3, height: '52%', opacity: 0.9 },
-  frameBack: { position: 'absolute', left: '20%', top: '17%', width: '60%', aspectRatio: 1, borderWidth: 1, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.025)' },
-  frameBackCompact: { top: '13%' },
-  frameFront: { position: 'absolute', left: '29%', top: '25%', width: '42%', aspectRatio: 1, borderWidth: 1, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.035)' },
-  frameFrontCompact: { top: '21%' },
-  core: { position: 'absolute', left: '39%', top: '31%', width: '22%', aspectRatio: 1, overflow: 'hidden', borderRadius: 18, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.32, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
-  coreCompact: { top: '27%', borderRadius: 14 },
+  gridLines: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-evenly', opacity: 0.07 },
+  gridLine: { height: 1, backgroundColor: '#F7F6F3' },
+  signalFrame: { position: 'absolute', left: '12%', right: '12%', top: '14%', minHeight: 154, borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(247,246,243,0.25)', paddingVertical: 10 },
+  signalFrameCompact: { top: '10%', minHeight: 126, paddingVertical: 7 },
+  frameHeader: { minHeight: 20, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  signalPip: { width: 6, height: 6, borderRadius: 3 },
+  frameKicker: { flex: 1, color: 'rgba(247,246,243,0.58)', fontSize: 8, fontWeight: '900' },
+  frameIndex: { color: 'rgba(247,246,243,0.38)', fontSize: 8, fontWeight: '900' },
+  frameBody: { flex: 1, minHeight: 112, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  core: { width: 88, height: 88, overflow: 'hidden', borderRadius: 6, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.32, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 10 },
+  coreCompact: { width: 70, height: 70, borderRadius: 5 },
   symbol: { width: '100%', height: '100%' },
+  frameCopy: { flex: 1, minWidth: 0 },
+  frameTitle: { color: '#F7F6F3', fontSize: 24, lineHeight: 28, fontWeight: '900' },
+  miniSignal: { height: 36, marginTop: 9, flexDirection: 'row', alignItems: 'center', gap: 3, overflow: 'hidden' },
   sceneLabel: { position: 'absolute', left: 18, top: 18, flexDirection: 'row', alignItems: 'center', gap: 7 },
   sceneDot: { width: 7, height: 7, borderRadius: 4 },
   sceneLabelText: { color: '#F7F6F3', fontSize: 11, fontWeight: '900' },
-  featureRow: { position: 'absolute', left: 14, right: 14, bottom: 88, flexDirection: 'row', justifyContent: 'center', gap: 6 },
-  featureRowCompact: { bottom: 60 },
-  feature: { minWidth: 0, flex: 1, minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderColor: 'rgba(247,246,243,0.12)', borderRadius: 7, paddingHorizontal: 6, backgroundColor: 'rgba(247,246,243,0.065)' },
+  featureRow: { position: 'absolute', left: 18, right: 18, bottom: 79, minHeight: 38, flexDirection: 'row', justifyContent: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(247,246,243,0.14)' },
+  featureRowCompact: { bottom: 55, minHeight: 30 },
+  feature: { minWidth: 0, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 4 },
   featureText: { flexShrink: 1, color: 'rgba(247,246,243,0.78)', fontSize: 8, fontWeight: '800' },
-  wave: { position: 'absolute', left: 18, right: 18, bottom: 18, height: 52, flexDirection: 'row', alignItems: 'center', gap: 3 },
+  wave: { position: 'absolute', left: 18, right: 18, bottom: 18, height: 42, flexDirection: 'row', alignItems: 'center', gap: 3 },
   waveCompact: { bottom: 12, height: 38 },
   waveBar: { flex: 1, minHeight: 5, borderRadius: 2 },
   momentMarker: { position: 'absolute', width: 24, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#171313' },

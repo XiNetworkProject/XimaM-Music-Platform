@@ -1,12 +1,14 @@
 {
-  "title": "Synaura mobile 0.16.2",
+  "title": "Synaura Signal 0.17.0",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Synaura Events est maintenant accessible depuis Discover, le profil et les reglages",
-    "Nouvelle page Stats createur complete avec tendances, audience et engagement",
-    "Analyse par morceau, comparaison, retention, sources et carte des heures d'ecoute",
-    "Classements reels des sons et des posts, sans statistiques simulees",
-    "Les notifications de jalons ouvrent directement les statistiques du bon morceau"
+    "Nouvelle identite Synaura Signal sur la navigation, Flow, Decouvrir et les profils",
+    "Lecteur plein ecran plus immersif avec Aura Visuals et waveform mise en avant",
+    "Studio repense en tiroir au-dessus de la bibliotheque, avec un mode simple recentre",
+    "Publication des morceaux et des Clips plus claire, continue et adaptee aux petits ecrans",
+    "Bibliotheque, Stats, notifications, reglages et abonnements harmonises",
+    "Posts attaches, communaute, Radar et Events integres au meme langage musical",
+    "Mise en page validee sur huit formats de telephones et tablettes"
   ]
 }

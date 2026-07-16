@@ -29,7 +29,7 @@ export function CreateMenuSheet({ visible, onClose, onCreateWithAI, onPublishTra
   const actions = { track: onPublishTrack, clip: onPublishClip, variation: onCreateVariation };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="Créer" subtitle="Choisis le meilleur point de départ pour ton idée." maxHeight="86%">
+    <BottomSheet visible={visible} onClose={onClose} title="Donne une forme à ton idée" subtitle="Studio, morceau, Clip ou variation." maxHeight="86%">
       <View style={styles.list}>
         <Reveal distance={7}>
           <MotionPressable accessibilityLabel="Créer avec l'IA" onPress={() => press(onCreateWithAI)} style={styles.primaryRow} scaleTo={0.98}>
@@ -60,16 +60,16 @@ export function CreateMenuSheet({ visible, onClose, onCreateWithAI, onPublishTra
 }
 
 const styles = StyleSheet.create({
-  list: { gap: 8, paddingHorizontal: 18, paddingBottom: 8 },
-  primaryRow: { minHeight: 86, flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: radius.lg, padding: 14, backgroundColor: colors.black },
-  primaryIcon: { width: 50, height: 50, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
-  primaryTitle: { color: colors.white, fontSize: 16, fontWeight: '900' },
-  primaryText: { marginTop: 3, color: 'rgba(255,255,255,0.58)', fontSize: 11, lineHeight: 15, fontWeight: '700' },
-  secondaryRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: radius.md, padding: 10, backgroundColor: 'rgba(255,255,255,0.82)', borderWidth: 1, borderColor: colors.border },
-  icon: { width: 46, height: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  list: { paddingHorizontal: 18, paddingBottom: 8 },
+  primaryRow: { minHeight: 98, flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: radius.md, padding: 16, marginBottom: 10, backgroundColor: colors.black },
+  primaryIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  primaryTitle: { color: colors.white, fontSize: 18, fontWeight: '900' },
+  primaryText: { marginTop: 4, color: 'rgba(255,255,255,0.62)', fontSize: 12, lineHeight: 17, fontWeight: '600' },
+  secondaryRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong },
+  icon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   rowCopy: { flex: 1, minWidth: 0 },
-  rowTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  rowText: { marginTop: 3, color: colors.textSecondary, fontSize: 10, lineHeight: 14, fontWeight: '700' },
+  rowTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  rowText: { marginTop: 3, color: colors.textSecondary, fontSize: 11, lineHeight: 16, fontWeight: '600' },
 });
 
 export default CreateMenuSheet;

@@ -3,7 +3,6 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import type { Track } from '@/api/types';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
-import { spacing } from '@/theme/tokens';
 import { EmptyState } from './ui/EmptyState';
 import { TrackActionsSheet } from './ui/TrackActionsSheet';
 import { TrackListItem } from './ui/TrackListItem';
@@ -57,7 +56,7 @@ export function TrackList({ tracks, emptyTitle, emptyText, header, refreshing, o
           onMore={() => setSelectedTrack(item)}
         />
       )}
-      ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+      ItemSeparatorComponent={() => <View style={{ height: 0 }} />}
       ListFooterComponent={<TrackActionsSheet track={selectedTrack} onClose={() => setSelectedTrack(null)} />}
     />
   );

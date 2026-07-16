@@ -56,7 +56,16 @@ export function LibraryScreen() {
         topInset={0}
         header={
           <View style={styles.header}>
-            <AppHeader flush title="Bibliothèque" subtitle="Tes favoris, écoutes et collections" onBack={() => navigation.goBack()} action={{ icon: 'compass-outline', label: 'Découvrir', onPress: () => navigation.navigate('Discover') }} />
+            <AppHeader
+              flush
+              eyebrow="Tout ce que tu gardes"
+              title="Bibliothèque"
+              subtitle="Favoris, historique, hors ligne et file d’attente"
+              actions={[
+                { icon: 'notifications-outline', label: 'Notifications', onPress: () => navigation.navigate('Notifications') },
+                { icon: 'compass-outline', label: 'Découvrir', onPress: () => navigation.navigate('Discover') },
+              ]}
+            />
             <View style={styles.search}>
               <Ionicons name="search" size={17} color={colors.textTertiary} />
               <TextInput value={query} onChangeText={setQuery} placeholder="Rechercher dans ta bibliothèque" placeholderTextColor={colors.textTertiary} style={styles.searchInput} />
@@ -130,24 +139,24 @@ function RailTitle({ title, subtitle }: { title: string; subtitle: string }) {
 
 const styles = StyleSheet.create({
   header: { marginBottom: spacing.lg },
-  search: { height: 48, marginHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.84)', paddingHorizontal: spacing.md },
-  searchInput: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '700' },
+  search: { height: 50, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.text, paddingHorizontal: 2 },
+  searchInput: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' },
   tabs: { marginTop: spacing.md, paddingHorizontal: spacing.lg },
-  resume: { minHeight: 74, marginHorizontal: spacing.lg, marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radius.md, backgroundColor: colors.black, padding: spacing.sm },
-  resumeCover: { width: 58, height: 58, borderRadius: radius.md },
+  resume: { minHeight: 86, marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radius.sm, backgroundColor: colors.black, padding: spacing.md },
+  resumeCover: { width: 62, height: 62, borderRadius: radius.sm },
   resumeCopy: { flex: 1, minWidth: 0 },
   resumeKicker: { color: '#BFB3E8', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
   resumeTitle: { marginTop: 4, color: colors.white, fontSize: 14, fontWeight: '900' },
   resumeMeta: { marginTop: 2, color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: '700' },
-  resumePlay: { width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
-  railTitle: { marginTop: spacing.xl, paddingHorizontal: spacing.lg },
+  resumePlay: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
+  railTitle: { marginTop: spacing.xl, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong },
   railSubtitle: { marginTop: 2, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
-  playlistRail: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  playlistRail: { gap: spacing.sm, paddingTop: spacing.md },
   playlist: { width: 126 },
-  playlistCover: { width: 126, height: 126, overflow: 'hidden', borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  playlistCover: { width: 126, height: 126, overflow: 'hidden', borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
   playlistTitle: { marginTop: spacing.sm, color: colors.text, fontSize: 11, fontWeight: '900' },
   playlistMeta: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
-  artistRail: { gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  artistRail: { gap: spacing.md, paddingTop: spacing.md },
   artist: { width: 76, alignItems: 'center' },
   artistAvatar: { width: 60, height: 60, overflow: 'hidden', borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
   artistInitial: { color: colors.white, fontSize: 22, fontWeight: '900' },
