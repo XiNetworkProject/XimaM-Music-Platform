@@ -15,6 +15,7 @@ import { recordClipFunnelEvent } from '@/lib/analyticsClient';
 import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
 import { useLibraryFavorites } from '@/hooks/useLibraryFavorites';
 import ClipUploadIndicator from '@/components/clips/ClipUploadIndicator';
+import ScrollPostSlide from '@/components/home/ScrollPostSlide';
 import {
   buildAnnouncementItem,
   buildArtistSpotlightItems,
@@ -24,6 +25,7 @@ import {
   buildCreatorsFilterFeed,
   buildMusicChallengeItem,
   composeScrollFeed,
+  trackFromScrollPost,
   type ScrollClip,
   type ScrollFeedItem,
   type ScrollTrack,
@@ -1023,6 +1025,30 @@ export default function SynauraScrollFeed() {
             </div>
           </div>
         </>
+      );
+    }
+
+    if (item.type === 'post') {
+      const attachedTrack = trackFromScrollPost(item.post);
+      return (
+        <ScrollPostSlide
+          post={item.post}
+          active={index === activeIndex}
+          playing={Boolean(attachedTrack && currentId === attachedTrack._id && audioState.isPlaying)}
+          onOpenPost={() => router.push(`/posts/${encodeURIComponent(item.post.id)}`, { scroll: false })}
+          onOpenProfile={() => router.push(item.post.creator.username ? `/profile/${encodeURIComponent(item.post.creator.username)}` : `/posts/${encodeURIComponent(item.post.id)}`)}
+          onPlayTrack={(track) => {
+            if (currentId === track._id) {
+              if (audioState.isPlaying) pause();
+              else void play();
+            } else playTrack(track as any);
+          }}
+          onShare={() => {
+            const url = `${window.location.origin}/posts/${encodeURIComponent(item.post.id)}`;
+            if ((navigator as any).share) void (navigator as any).share({ title: 'Publication Synaura', text: item.post.content || '', url }).catch(() => {});
+            else void navigator.clipboard.writeText(url).catch(() => {});
+          }}
+        />
       );
     }
 

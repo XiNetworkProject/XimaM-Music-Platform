@@ -31,12 +31,11 @@ import { CommentsSheet } from '@/components/swipe/CommentsSheet';
 import { LyricsSheet } from '@/components/swipe/LyricsSheet';
 import { QueueSheet } from '@/components/swipe/QueueSheet';
 import { ShareSheet } from '@/components/swipe/ShareSheet';
-import { SynauraBackground } from '@/components/SynauraBackground';
 import { TrackCover } from '@/components/TrackCover';
 import { AuraVisual } from '@/components/mobile/AuraVisual';
 import { MomentSheet } from '@/components/mobile/MomentSheet';
 import { WaveformSeekBar } from '@/components/swipe/WaveformSeekBar';
-import { fmtCount, fmtTime, trackArtistName } from '@/components/swipe/helpers';
+import { fmtCount, trackArtistName } from '@/components/swipe/helpers';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { colors } from '@/theme/tokens';
@@ -46,11 +45,8 @@ type Props = {
   onClose: () => void;
 };
 
-// Refonte "lecture en cours" : tout tient sur un seul écran (plus de scroll).
-// La waveform réelle vit DANS la cover (bandeau bas sur scrim sombre) au lieu
-// d'une grosse carte séparée ; réactions/commentaires de moment passent dans
-// une feuille dédiée ("Réagir à ce moment") ; les actions secondaires
-// (paroles, remix, téléchargement, timer, aura) dans une feuille "Plus".
+// The artwork remains central while every social and creation action stays
+// connected to the real, timestamp-aware waveform.
 export function FullPlayerModal({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const layout = useResponsiveLayout();
@@ -274,11 +270,14 @@ export function FullPlayerModal({ visible, onClose }: Props) {
     extrapolate: 'clamp',
   });
 
-  // La cover prend toute la place disponible entre le header et le bloc
-  // méta/contrôles, sans jamais déborder ni forcer de scroll : sa taille est
-  // le min entre la hauteur mesurée de la zone flexible et la largeur écran.
-  const coverSize = layout.mediaSize;
+  // Constrain the square against both the usable width and short displays.
+  const coverSize = Math.min(
+    layout.mediaSize,
+    layout.safeWidth - layout.pagePaddingLeft - layout.pagePaddingRight,
+    layout.isTablet ? 460 : 420,
+  );
   const transportIconSize = layout.compactControls ? 23 : 26;
+  const auraActive = track.auraVisualEnabled !== false && settings.dynamicBackground;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={closeWithAnim}>
@@ -292,8 +291,13 @@ export function FullPlayerModal({ visible, onClose }: Props) {
         ]}
       >
         <StatusBar style="light" />
-        <SynauraBackground variant="dark" />
         <AuraVisual track={track} active={visible} playing={player.isPlaying} />
+        <LinearGradient
+          pointerEvents="none"
+          colors={['rgba(5,5,5,0.12)', 'rgba(7,7,7,0.38)', 'rgba(8,8,8,0.72)']}
+          locations={[0, 0.48, 1]}
+          style={StyleSheet.absoluteFillObject}
+        />
 
         <View
           {...panResponder.panHandlers}
@@ -387,45 +391,37 @@ export function FullPlayerModal({ visible, onClose }: Props) {
 
               <View {...coverPanResponder.panHandlers} style={styles.coverGestureZone} />
 
-              {/* Waveform réelle intégrée dans la cover, sur scrim sombre */}
-              {!isRadio ? (
-                <View style={styles.waveOverlay}>
-                  <LinearGradient
-                    colors={['rgba(10,8,8,0)', 'rgba(10,8,8,0.58)', 'rgba(10,8,8,0.82)']}
-                    locations={[0, 0.4, 1]}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  <WaveformSeekBar
-                    trackId={trackId}
-                    position={progress.positionSec}
-                    duration={progress.durationSec || track.duration || 0}
-                    onSeek={(seconds) => void player.seekTo(seconds)}
-                    showMoments={canInteract}
-                    height={48}
-                    barCount={52}
-                    immersive
-                    onCreateMoment={canInteract ? openMomentSheet : undefined}
-                    style={styles.waveInner}
-                  />
-                </View>
-              ) : (
-                <View style={styles.liveOverlay}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.liveText}>EN DIRECT</Text>
-                </View>
-              )}
             </Animated.View>
           </View>
 
-          {/* Bloc méta compact */}
           <View style={styles.meta}>
-            <Text
-              maxFontSizeMultiplier={1.2}
-              style={[styles.title, layout.isNarrow && styles.titleCompact]}
-              numberOfLines={layout.hasLargeText ? 2 : 1}
-            >
-              {track.title}
-            </Text>
+            <View style={styles.titleRow}>
+              <Text
+                maxFontSizeMultiplier={1.2}
+                style={[styles.title, layout.isNarrow && styles.titleCompact]}
+                numberOfLines={2}
+              >
+                {track.title}
+              </Text>
+              <View style={styles.metaActions}>
+                <MetaAction
+                  icon={liked ? 'heart' : 'heart-outline'}
+                  label={liked ? "Retirer des J'aime" : "Ajouter aux J'aime"}
+                  value={likesCount > 0 ? fmtCount(likesCount) : undefined}
+                  active={liked}
+                  activeColor="#D96D63"
+                  disabled={!canInteract}
+                  onPress={() => void toggleLike()}
+                />
+                <MetaAction
+                  icon={isFavorite ? 'bookmark' : 'bookmark-outline'}
+                  label={isFavorite ? 'Retirer de la bibliotheque' : 'Ajouter a la bibliotheque'}
+                  active={isFavorite}
+                  activeColor="#A995E8"
+                  onPress={() => library.toggleFavorite(track)}
+                />
+              </View>
+            </View>
             <View style={styles.metaRow}>
               <Pressable
                 onPress={() => track.artist?.username && navigation.navigate('Tabs', {
@@ -465,6 +461,30 @@ export function FullPlayerModal({ visible, onClose }: Props) {
                 ) : null}
               </View>
             </View>
+          </View>
+
+          <View style={styles.timeline}>
+            {!isRadio ? (
+              <WaveformSeekBar
+                trackId={trackId}
+                position={progress.positionSec}
+                duration={progress.durationSec || track.duration || 0}
+                onSeek={(seconds) => void player.seekTo(seconds)}
+                showMoments={canInteract}
+                showTimes
+                height={layout.compactControls ? 48 : 56}
+                barCount={layout.isNarrow ? 44 : 58}
+                immersive
+                onCreateMoment={canInteract ? openMomentSheet : undefined}
+                style={styles.waveInner}
+              />
+            ) : (
+              <View style={styles.liveTimeline}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>EN DIRECT</Text>
+                <View style={styles.liveLine} />
+              </View>
+            )}
           </View>
 
           {/* Transport */}
@@ -508,16 +528,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
             </Pressable>
           </View>
 
-          {/* Une seule rangée d'actions : le reste vit dans "Plus" */}
           <View style={[styles.actionRow, layout.compactControls && styles.actionRowCompact]}>
-            <PlayerAction
-              icon={liked ? 'heart' : 'heart-outline'}
-              label={fmtCount(likesCount) || "J'aime"}
-              activeColor="#D96D63"
-              active={liked}
-              disabled={!canInteract}
-              onPress={() => void toggleLike()}
-            />
             <PlayerAction
               icon="chatbubble-ellipses-outline"
               label={fmtCount(commentsCount) || 'Commenter'}
@@ -525,16 +536,23 @@ export function FullPlayerModal({ visible, onClose }: Props) {
               onPress={() => setCommentsOpen(true)}
             />
             <PlayerAction
+              icon="pulse-outline"
+              label="Moment"
+              disabled={!canInteract}
+              onPress={() => openMomentSheet()}
+            />
+            <PlayerAction
               icon="share-social-outline"
               label="Partager"
               onPress={() => setShareOpen(true)}
             />
             <PlayerAction
-              icon={isFavorite ? 'bookmark' : 'bookmark-outline'}
-              label="Sauver"
-              activeColor="#7357C6"
-              active={isFavorite}
-              onPress={() => library.toggleFavorite(track)}
+              icon={auraActive ? 'sparkles' : 'sparkles-outline'}
+              label="Aura"
+              activeColor="#74C7CF"
+              active={auraActive}
+              disabled={track.auraVisualEnabled === false}
+              onPress={toggleAuraVisuals}
             />
             <PlayerAction
               icon="ellipsis-horizontal"
@@ -598,8 +616,9 @@ export function FullPlayerModal({ visible, onClose }: Props) {
               />
               <MoreRow
                 icon="sparkles-outline"
-                label={settings.dynamicBackground ? 'Aura visuals · activés' : 'Aura visuals'}
-                active={settings.dynamicBackground}
+                label={track.auraVisualEnabled === false ? 'Aura indisponible pour ce son' : auraActive ? 'Aura Visual · activé' : 'Aura Visual · désactivé'}
+                active={auraActive}
+                disabled={track.auraVisualEnabled === false}
                 onPress={toggleAuraVisuals}
               />
               {track.genre?.length ? (
@@ -617,6 +636,37 @@ export function FullPlayerModal({ visible, onClose }: Props) {
         </Modal>
       </Animated.View>
     </Modal>
+  );
+}
+
+function MetaAction({
+  icon,
+  label,
+  value,
+  active,
+  activeColor,
+  disabled,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  value?: string;
+  active?: boolean;
+  activeColor: string;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  const tint = active ? activeColor : '#F7F6F3';
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      disabled={disabled}
+      onPress={onPress}
+      style={[styles.metaAction, active && styles.metaActionActive, disabled && styles.actionDisabled]}
+    >
+      <Ionicons name={icon} size={22} color={tint} />
+      {value ? <Text style={[styles.metaActionValue, active && { color: activeColor }]}>{value}</Text> : null}
+    </Pressable>
   );
 }
 
@@ -680,19 +730,19 @@ function MoreRow({
       style={[styles.moreRow, disabled && { opacity: 0.35 }]}
     >
       <View style={[styles.moreIcon, active && styles.moreIconActive]}>
-        <Ionicons name={icon} size={18} color={active ? colors.white : colors.textSecondary} />
+        <Ionicons name={icon} size={18} color={active ? colors.white : '#F7F6F3'} />
       </View>
       <Text style={styles.moreLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={15} color={colors.textTertiary} />
+      <Ionicons name="chevron-forward" size={15} color="rgba(255,255,255,0.52)" />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0D0D0D' },
+  root: { flex: 1, backgroundColor: '#090909' },
   header: {
     paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -706,26 +756,26 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(8,8,8,0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   headerCenter: { flex: 1, alignItems: 'center' },
   dragHandle: {
     width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: 'rgba(255,255,255,0.5)',
     marginBottom: 6,
   },
   headerKicker: {
-    color: 'rgba(255,255,255,0.46)',
+    color: 'rgba(255,255,255,0.72)',
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.6,
     textTransform: 'uppercase',
   },
-  headerSubtitle: { color: '#F7F6F3', fontSize: 13, fontWeight: '900', marginTop: 4 },
+  headerSubtitle: { color: '#F7F6F3', fontSize: 13, fontWeight: '800', marginTop: 3 },
   headerBadge: {
     position: 'absolute',
     top: -4,
@@ -742,25 +792,26 @@ const styles = StyleSheet.create({
   },
   headerBadgeText: { color: colors.white, fontSize: 10, fontWeight: '900' },
   bodyScroll: { flex: 1 },
-  body: { flexGrow: 1, paddingHorizontal: 20 },
+  body: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 4 },
   bodyCompact: { paddingTop: 0 },
   coverZone: {
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 10,
   },
   coverHalo: {
     position: 'absolute',
-    borderRadius: 18,
+    borderRadius: 12,
     overflow: 'hidden',
-    opacity: 0.24,
+    opacity: 0.38,
   },
   coverFrame: {
     borderRadius: 10,
     overflow: 'hidden',
     backgroundColor: '#171313',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.3)',
     shadowColor: '#000000',
     shadowOpacity: 0.5,
     shadowRadius: 32,
@@ -789,39 +840,50 @@ const styles = StyleSheet.create({
   },
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFAF2' },
   statusText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
-  coverGestureZone: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 106, zIndex: 2 },
-  waveOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingTop: 52,
-  },
-  waveInner: { paddingHorizontal: 14, paddingBottom: 12 },
-  liveOverlay: {
-    position: 'absolute',
-    left: 14,
-    bottom: 12,
+  coverGestureZone: { ...StyleSheet.absoluteFillObject, zIndex: 2 },
+  waveInner: { paddingHorizontal: 2 },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
+  liveText: { color: '#F7F6F3', fontSize: 11, fontWeight: '900' },
+  liveTimeline: {
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 7,
-    backgroundColor: 'rgba(10,8,8,0.55)',
+    gap: 9,
   },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
-  liveText: { color: 'rgba(255,250,242,0.85)', fontSize: 11, fontWeight: '900' },
-  meta: { marginTop: 14 },
+  liveLine: { flex: 1, height: 2, backgroundColor: 'rgba(255,255,255,0.24)' },
+  timeline: {
+    marginTop: 14,
+    minHeight: 62,
+    justifyContent: 'center',
+  },
+  meta: { marginTop: 12 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: {
+    flex: 1,
     color: '#F7F6F3',
     fontSize: 24,
     lineHeight: 29,
     fontWeight: '900',
   },
   titleCompact: { fontSize: 19, lineHeight: 23 },
+  metaActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  metaAction: {
+    minWidth: 44,
+    height: 44,
+    paddingHorizontal: 9,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(8,8,8,0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+  },
+  metaActionActive: { backgroundColor: 'rgba(8,8,8,0.78)', borderColor: 'rgba(255,255,255,0.42)' },
+  metaActionValue: { color: '#F7F6F3', fontSize: 10, fontWeight: '900' },
   metaRow: {
-    marginTop: 8,
+    marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -847,7 +909,7 @@ const styles = StyleSheet.create({
   },
   artistInitial: { color: '#F7F6F3', fontSize: 13, fontWeight: '900' },
   artist: { color: '#F7F6F3', fontSize: 14, fontWeight: '900' },
-  plays: { color: 'rgba(255,255,255,0.48)', fontSize: 11, fontWeight: '600', marginTop: 2 },
+  plays: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '600', marginTop: 2 },
   metaRight: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   followBtn: {
     flexDirection: 'row',
@@ -855,16 +917,16 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 11,
     paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 8,
+    backgroundColor: 'rgba(8,8,8,0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   followBtnDone: { backgroundColor: '#F7F6F3', borderColor: 'transparent' },
   followText: { color: '#F7F6F3', fontSize: 11, fontWeight: '900' },
   followTextDone: { color: '#111111' },
   controls: {
-    marginTop: 16,
+    marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -877,9 +939,7 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(8,8,8,0.4)',
   },
   controlBtnCompact: { width: 46, height: 46, borderRadius: 23 },
   playBtn: {
@@ -894,6 +954,8 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 14 },
     elevation: 14,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
   },
   playBtnCompact: { width: 62, height: 62, borderRadius: 31 },
   smallBtn: {
@@ -903,9 +965,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(8,8,8,0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.26)',
   },
   smallBtnCompact: { width: 36, height: 36, borderRadius: 18 },
   smallBtnActive: { backgroundColor: '#F7F6F3', borderColor: 'transparent' },
@@ -918,44 +980,44 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   actionRow: {
-    marginTop: 14,
+    marginTop: 12,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
   actionRowCompact: { marginTop: 10 },
-  actionBtn: { flex: 1, alignItems: 'center', gap: 6 },
+  actionBtn: { flex: 1, minWidth: 0, alignItems: 'center', gap: 6 },
   actionCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(8,8,8,0.66)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   actionDisabled: { opacity: 0.32 },
   actionLabel: {
-    color: 'rgba(255,255,255,0.56)',
-    fontSize: 10,
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 9,
     fontWeight: '900',
   },
-  moreOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.42)' },
+  moreOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.7)' },
   moreSheet: {
     alignSelf: 'center',
     maxHeight: '90%',
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
-    backgroundColor: colors.background,
+    backgroundColor: '#151515',
     borderWidth: 1,
-    borderColor: colors.borderStrong,
+    borderColor: 'rgba(255,255,255,0.16)',
     paddingHorizontal: 18,
     paddingTop: 12,
     gap: 4,
   },
   moreContent: { gap: 4 },
-  moreHandle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: colors.textTertiary, marginBottom: 8 },
+  moreHandle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.4)', marginBottom: 8 },
   moreRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -968,12 +1030,12 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   moreIconActive: { backgroundColor: colors.violet, borderColor: 'transparent' },
-  moreLabel: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '900' },
+  moreLabel: { flex: 1, color: '#F7F6F3', fontSize: 14, fontWeight: '800' },
   genres: {
     marginTop: 10,
     flexDirection: 'row',
@@ -983,13 +1045,13 @@ const styles = StyleSheet.create({
   genreChip: {
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: colors.surfaceStrong,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   genreText: {
-    color: colors.textSecondary,
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.6,

@@ -22,6 +22,8 @@ import { type MomentReactionType } from '@/lib/momentReactions';
 import Waveform from '@/components/player/Waveform';
 import ReactionPicker from '@/components/player/ReactionPicker';
 import ClipUploadIndicator from '@/components/clips/ClipUploadIndicator';
+import HomeFlowPrelude from '@/components/home/HomeFlowPrelude';
+import ScrollPostSlide from '@/components/home/ScrollPostSlide';
 import {
   buildAnnouncementItem,
   buildArtistSpotlightItems,
@@ -31,8 +33,11 @@ import {
   buildCreatorsFilterFeed,
   buildMusicChallengeItem,
   composeScrollFeed,
+  normalizeScrollPosts,
+  trackFromScrollPost,
   type ScrollClip,
   type ScrollFeedItem,
+  type ScrollPost,
   type ScrollTrack,
 } from '@/lib/scrollFeed';
 import {
@@ -186,10 +191,11 @@ interface FeedScrollSnapOpts {
   ready: boolean;
   onNavigate: (index: number, source: string) => void;
   onTogglePlay: () => void;
+  onReturnHome?: () => void;
 }
 
 function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
-  const { itemCount, activeIndex, locked, ready, onNavigate, onTogglePlay } = opts;
+  const { itemCount, activeIndex, locked, ready, onNavigate, onTogglePlay, onReturnHome } = opts;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
@@ -232,6 +238,12 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
       if (wheelLockRef.current) return;
       if (Math.abs(e.deltaY) < 8) return;
       const dir = e.deltaY > 0 ? 1 : -1;
+      if (dir < 0 && activeIndex === 0 && onReturnHome) {
+        wheelLockRef.current = true;
+        onReturnHome();
+        setTimeout(() => { wheelLockRef.current = false; }, WHEEL_LOCK_MS);
+        return;
+      }
       const next = clamp(activeIndex + dir, 0, itemCount - 1);
       if (next === activeIndex) return;
       wheelLockRef.current = true;
@@ -241,7 +253,7 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
     };
     el.addEventListener('wheel', handler, { passive: false });
     return () => el.removeEventListener('wheel', handler);
-  }, [ready, activeIndex, itemCount, locked, scrollTo, onNavigate]);
+  }, [ready, activeIndex, itemCount, locked, scrollTo, onNavigate, onReturnHome]);
 
   // Clavier
   useEffect(() => {
@@ -261,6 +273,10 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
         case 'ArrowUp':
         case 'PageUp': {
           e.preventDefault();
+          if (activeIndex === 0 && onReturnHome) {
+            onReturnHome();
+            break;
+          }
           const prev = Math.max(0, activeIndex - 1);
           scrollTo(prev, 'smooth');
           onNavigate(prev, 'scroll-key');
@@ -275,7 +291,7 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [activeIndex, itemCount, locked, scrollTo, onNavigate, onTogglePlay]);
+  }, [activeIndex, itemCount, locked, scrollTo, onNavigate, onReturnHome, onTogglePlay]);
 
   const onTouchStart = useCallback(() => {
     isTouchingRef.current = true;
@@ -341,12 +357,18 @@ export default function SynauraScroll() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [homePreludeOpen, setHomePreludeOpen] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const params = new URLSearchParams(window.location.search);
+    return !params.get('sourceTrackId') && !params.get('clipId') && params.get('filter') !== 'clips';
+  });
 
   const [loading, setLoading] = useState(true);
   const [baseTracks, setBaseTracks] = useState<ScrollTrack[]>([]);
   const [trackCursor, setTrackCursor] = useState(0);
   const [trackHasMore, setTrackHasMore] = useState(true);
   const [baseClips, setBaseClips] = useState<ScrollClip[]>([]);
+  const [basePosts, setBasePosts] = useState<ScrollPost[]>([]);
   const [popularUsersRaw, setPopularUsersRaw] = useState<any[]>([]);
   const [collectionsRaw, setCollectionsRaw] = useState<any[]>([]);
   const [cityEventsRaw, setCityEventsRaw] = useState<any[]>([]);
@@ -369,6 +391,7 @@ export default function SynauraScroll() {
   // réponse réseau périmée écraser un chargement plus récent.
   const trackLoadRequestRef = useRef(0);
   const clipLoadRequestRef = useRef(0);
+  const postLoadRequestRef = useRef(0);
   const loadingMoreTracksRef = useRef(false);
   const impressionSeenRef = useRef<Set<string>>(new Set());
 
@@ -513,6 +536,27 @@ export default function SynauraScroll() {
     };
   }, [clipIdFilter, filter, reloadKey, sourceTrackFilter]);
 
+  useEffect(() => {
+    if (filter !== 'foryou') return;
+    let mounted = true;
+    const requestId = ++postLoadRequestRef.current;
+    const params = new URLSearchParams({ limit: '8', session: getRecommendationSessionId() });
+    fetch(`/api/recommendations/mixed?${params.toString()}`, { cache: 'no-store' })
+      .then((response) => response.json().then((json) => ({ ok: response.ok, json })))
+      .then(({ ok, json }) => {
+        if (!mounted || requestId !== postLoadRequestRef.current || !ok) return;
+        setBasePosts(normalizeScrollPosts(Array.isArray(json?.posts) ? json.posts : []));
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [filter, reloadKey]);
+
+  useEffect(() => {
+    if (filter !== 'foryou') setHomePreludeOpen(false);
+  }, [filter]);
+
   // Artistes populaires + collections éditoriales : chargés une fois, réutilisés pour
   // composer le feed mixte et pour le filtre Créateurs.
   useEffect(() => {
@@ -591,25 +635,26 @@ export default function SynauraScroll() {
     return composeScrollFeed({
       tracks: baseTracks,
       clips: baseClips,
+      posts: filter === 'foryou' ? basePosts : [],
       artistSpotlights: artistItems,
       collections: collectionItems,
       challenge: challenge?.item || null,
       announcement: announcement?.item || null,
     });
-  }, [filter, baseTracks, baseClips, popularUsersRaw, collectionsRaw, cityEventsRaw, musicChallengesRaw]);
+  }, [filter, baseTracks, baseClips, basePosts, popularUsersRaw, collectionsRaw, cityEventsRaw, musicChallengesRaw]);
 
   useEffect(() => {
     if (loading) return;
     const item = feedItems[activeIndex];
-    if (!item || (item.type !== 'track' && item.type !== 'clip')) return;
-    const contentType = item.type === 'clip' ? 'clip' : 'track';
-    const contentId = item.type === 'clip' ? item.clip.id : item.track._id;
+    if (!item || (item.type !== 'track' && item.type !== 'clip' && item.type !== 'post')) return;
+    const contentType = item.type === 'clip' ? 'clip' : item.type === 'post' ? 'post' : 'track';
+    const contentId = item.type === 'clip' ? item.clip.id : item.type === 'post' ? item.post.id : item.track._id;
     const key = `${contentType}:${contentId}`;
     if (!contentId || impressionSeenRef.current.has(key)) return;
     const timer = window.setTimeout(() => {
       if (impressionSeenRef.current.has(key)) return;
       impressionSeenRef.current.add(key);
-      const entity = item.type === 'clip' ? item.clip : item.track;
+      const entity = item.type === 'clip' ? item.clip : item.type === 'post' ? item.post : item.track;
       void fetch('/api/recommendations/impressions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -679,7 +724,13 @@ export default function SynauraScroll() {
   const queueByPositionRef = useRef<Array<ScrollTrack | null>>([]);
   const queueByPosition = useMemo(() => {
     const next = feedItems.map((item): ScrollTrack | null => {
-      const track = item.type === 'track' || item.type === 'clip' ? item.track : item.type === 'artist_spotlight' ? item.track : null;
+      const track = item.type === 'track' || item.type === 'clip'
+        ? item.track
+        : item.type === 'artist_spotlight'
+          ? item.track
+          : item.type === 'post'
+            ? trackFromScrollPost(item.post)
+            : null;
       if (!track) return null;
       return { ...track, coverUrl: track.coverUrl || FALLBACK_COVER };
     });
@@ -718,6 +769,11 @@ export default function SynauraScroll() {
     setActiveIndex((current) => (current === index ? current : index));
   }, []);
 
+  const returnToHome = useCallback(() => {
+    if (filter !== 'foryou') return;
+    setHomePreludeOpen(true);
+  }, [filter]);
+
   const scrollSnap = useFeedScrollSnap({
     itemCount: feedItems.length,
     activeIndex,
@@ -725,6 +781,7 @@ export default function SynauraScroll() {
     ready: !loading,
     onNavigate: navigateTo,
     onTogglePlay: useCallback(() => { audioState.isPlaying ? pause() : play(); }, [audioState.isPlaying, pause, play]),
+    onReturnHome: returnToHome,
   });
 
   const jump = useCallback((index: number) => {
@@ -732,6 +789,36 @@ export default function SynauraScroll() {
     scrollSnap.scrollTo(clamped, 'smooth');
     navigateTo(clamped);
   }, [feedItems.length, scrollSnap, navigateTo]);
+
+  const enterFlow = useCallback(() => {
+    setHomePreludeOpen(false);
+  }, []);
+
+  const playPreludeTrack = useCallback((track: ScrollTrack) => {
+    if (currentId === track._id) {
+      if (audioState.isPlaying) pause();
+      else void play();
+      return;
+    }
+    playTrack(track as any);
+  }, [audioState.isPlaying, currentId, pause, play, playTrack]);
+
+  const openPreludeTrack = useCallback((track: ScrollTrack) => {
+    const index = feedItems.findIndex((item) => {
+      if (item.type === 'track' || item.type === 'clip' || item.type === 'artist_spotlight') return item.track._id === track._id;
+      return item.type === 'post' && item.post.track?.id === track._id;
+    });
+    setHomePreludeOpen(false);
+    if (index < 0) {
+      playTrack(track as any);
+      return;
+    }
+    requestAnimationFrame(() => {
+      scrollSnap.scrollTo(index, 'auto');
+      navigateTo(index);
+      if (currentId !== track._id) playIndex(index);
+    });
+  }, [currentId, feedItems, navigateTo, playIndex, playTrack, scrollSnap]);
 
   // Déclenche la lecture quand l'item actif change (geste de scroll, clic sur une
   // carte, ou repositionnement après chargement/changement de filtre) : une seule
@@ -747,7 +834,7 @@ export default function SynauraScroll() {
   }, [activeIndex]);
   useEffect(() => {
     const track = queueByPosition[activeIndex];
-    if (!track || lyricsOpen) return;
+    if (!track || lyricsOpen || homePreludeOpen) return;
     const timer = window.setTimeout(() => {
       if (currentId === track._id) return;
       if (lastAutoplayRequestRef.current === track._id) return;
@@ -755,7 +842,7 @@ export default function SynauraScroll() {
       playIndex(activeIndex);
     }, AUTOPLAY_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [activeIndex, currentId, lyricsOpen, playIndex, queueByPosition]);
+  }, [activeIndex, currentId, homePreludeOpen, lyricsOpen, playIndex, queueByPosition]);
 
   // Un Clip a un point de départ choisi par son créateur à la publication
   // (sourceTrackOffsetSeconds) : une fois le son du morceau original chargé, on
@@ -796,6 +883,21 @@ export default function SynauraScroll() {
       }
     } catch {
       // ignore
+    }
+  }, []);
+
+  const sharePost = useCallback(async (post: ScrollPost) => {
+    const url = `${window.location.origin}/posts/${encodeURIComponent(post.id)}`;
+    const author = post.creator.name || post.creator.username || 'Membre Synaura';
+    try {
+      if ((navigator as any).share) {
+        await (navigator as any).share({ title: `Post de ${author}`, text: post.content || 'Publication Synaura', url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        notify.success('', 'Lien du post copié');
+      }
+    } catch {
+      // Le partage natif peut être annulé volontairement.
     }
   }, []);
 
@@ -988,6 +1090,41 @@ export default function SynauraScroll() {
             </div>
           </div>
         </>
+      );
+    }
+
+    if (item.type === 'post') {
+      const attachedTrack = trackFromScrollPost(item.post);
+      const isPlayingThis = Boolean(attachedTrack && currentId === attachedTrack._id && audioState.isPlaying);
+      return (
+        <ScrollPostSlide
+          post={item.post}
+          active={index === activeIndex}
+          playing={isPlayingThis}
+          onOpenPost={() => router.push(`/posts/${encodeURIComponent(item.post.id)}`, { scroll: false })}
+          onOpenProfile={() => {
+            if (item.post.creator.username) router.push(`/profile/${encodeURIComponent(item.post.creator.username)}`);
+            else router.push(`/posts/${encodeURIComponent(item.post.id)}`, { scroll: false });
+          }}
+          onPlayTrack={() => {
+            if (!attachedTrack) return;
+            if (currentId !== attachedTrack._id) playIndex(index);
+            else if (audioState.isPlaying) pause();
+            else void play();
+          }}
+          onOpenTrack={(track) => router.push(`/track/${encodeURIComponent(track._id)}`, { scroll: false })}
+          getAudioElement={getAudioElement}
+          onSeek={(seconds) => {
+            if (!attachedTrack) return;
+            if (currentId !== attachedTrack._id) {
+              playIndex(index);
+              window.setTimeout(() => seek(seconds), 120);
+            } else {
+              seek(seconds);
+            }
+          }}
+          onShare={() => void sharePost(item.post)}
+        />
       );
     }
 
@@ -1442,10 +1579,36 @@ export default function SynauraScroll() {
 
   return (
     <div className="fixed inset-0 z-[100] overflow-hidden bg-[#171313] text-white">
+      <HomeFlowPrelude
+        open={homePreludeOpen && filter === 'foryou'}
+        tracks={baseTracks}
+        posts={basePosts}
+        currentTrack={(currentTrack as ScrollTrack | undefined) || null}
+        currentPlaying={audioState.isPlaying}
+        userName={(session?.user as any)?.name || username || null}
+        onEnterFlow={enterFlow}
+        onPlayTrack={playPreludeTrack}
+        onOpenTrack={openPreludeTrack}
+        onOpenPost={(post) => router.push(`/posts/${encodeURIComponent(post.id)}`, { scroll: false })}
+        onSearch={() => router.push('/search')}
+        onNotifications={() => router.push('/notifications')}
+        onDiscover={() => router.push('/discover')}
+        onRadar={() => router.push('/radar')}
+        onStudio={() => router.push('/ai-generator')}
+        onEvents={() => router.push('/city')}
+      />
       <ClipUploadIndicator />
       <div className="absolute left-0 right-0 top-0 z-40 px-3 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-4">
         <div className="flex items-center justify-between gap-2">
-          <Link href="/" className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setFilter('foryou');
+              setHomePreludeOpen(true);
+            }}
+            className="flex min-w-0 items-center gap-2"
+            aria-label="Revenir à l'accueil Synaura"
+          >
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#fffaf2] shadow-[0_8px_20px_rgba(0,0,0,0.3)]">
               <Image
                 src="/brand/2026/synaura-symbol-2026.png"
@@ -1458,7 +1621,7 @@ export default function SynauraScroll() {
               />
             </span>
             <span className="hidden truncate text-sm font-black tracking-tight text-white sm:block">Synaura</span>
-          </Link>
+          </button>
 
           <div className="flex items-center gap-2">
             <button

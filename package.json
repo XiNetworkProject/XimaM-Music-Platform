@@ -13,6 +13,7 @@
     "type-check": "tsc --noEmit",
     "test:recommendation": "node --experimental-strip-types --test tests/recommendation-engine.test.mjs",
     "test:city": "node --experimental-strip-types --test tests/city-voting.test.mjs",
+    "test:scroll-feed": "node --experimental-strip-types --test tests/scroll-feed.test.mjs",
     "deploy": "node scripts/deploy-vercel.js",
     "migrate:supabase": "node scripts/migrate-to-supabase.js",
     "migrate:data": "node scripts/migrate-data-only.js",

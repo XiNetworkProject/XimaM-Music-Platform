@@ -1,14 +1,14 @@
 {
-  "title": "Synaura Resonance 0.18.0",
+  "title": "Synaura Aura Player 0.19.0",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Le Scroll devient l'accueil vivant de Synaura sans perdre son experience de swipe",
-    "Nouvelle direction visuelle sombre, premium et chaleureuse sur l'ensemble de l'app",
-    "Discover, profils, Studio, bibliotheque, statistiques et creation entierement harmonises",
-    "Lecteur, waveform, commentaires, file d'attente et partage reunis dans le meme langage visuel",
-    "Animations et effets conserves avec mise en pause automatique sur les ecrans masques",
-    "Contrastes, feuilles d'action et parcours d'authentification corriges",
+    "Nouveau lecteur plein ecran centre sur la pochette, la musique et des controles tres lisibles",
+    "Aura Visual repare avec couleurs de pochette, animations legeres et fonds video compatibles",
+    "Waveform interactive, commentaires et reactions de moment directement accessibles",
+    "Zone sous la navigation comblee sur les appareils Android avec barre de geste",
+    "Accueil Scroll enrichi de raccourcis, nouveaux sons, posts et profils a decouvrir",
+    "Posts musicaux integres au fil natif et au fil web avec les memes donnees",
     "Mise en page validee sur 31 ecrans natifs et huit formats de telephones et tablettes"
   ]
 }

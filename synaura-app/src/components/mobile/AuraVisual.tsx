@@ -50,9 +50,10 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
   const [videoFailed, setVideoFailed] = useState(false);
   const [useVideoFallback, setUseVideoFallback] = useState(false);
   const colors = useMemo(() => colorsForTrack(track), [track]);
-  const image = getTrackCoverImage(track);
+  const coverImage = getTrackCoverImage(track);
   const visual = visualSource(track);
   const visualType = track?.visualType || (isVideoUrl(visual) ? 'video' : 'image');
+  const image = visual && visualType !== 'video' && visualType !== 'none' ? visual : coverImage;
   const fallbackVideo = toCloudinaryVideoUrl(visual);
   const video = useVideoFallback && fallbackVideo ? fallbackVideo : visual;
   const auraEnabled = track?.auraVisualEnabled !== false && settings.dynamicBackground;
@@ -61,7 +62,7 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
     auraEnabled &&
     active &&
     visual &&
-    visualType === 'video' &&
+    (visualType === 'video' || (visualType !== 'none' && isVideoUrl(visual))) &&
     !videoFailed &&
     settings.coverVideos &&
     !settings.dataSaver &&
@@ -87,17 +88,19 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
     return () => loop.stop();
   }, [animate, motion]);
 
-  const driftA = motion.interpolate({ inputRange: [0, 1], outputRange: [-12, 18] });
-  const driftB = motion.interpolate({ inputRange: [0, 1], outputRange: [16, -14] });
-  const scaleA = motion.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] });
-  const scaleB = motion.interpolate({ inputRange: [0, 1], outputRange: [1.05, 0.96] });
-  const imageScale = motion.interpolate({ inputRange: [0, 1], outputRange: [1.08, 1.16] });
+  const driftA = motion.interpolate({ inputRange: [0, 1], outputRange: [-18, 22] });
+  const driftB = motion.interpolate({ inputRange: [0, 1], outputRange: [20, -18] });
+  const scaleA = motion.interpolate({ inputRange: [0, 1], outputRange: [1.04, 1.14] });
+  const scaleB = motion.interpolate({ inputRange: [0, 1], outputRange: [1.12, 1.02] });
+  const imageScale = motion.interpolate({ inputRange: [0, 1], outputRange: [1.12, 1.2] });
 
   return (
     <View pointerEvents="none" style={styles.root}>
       <LinearGradient
-        colors={['#12100f', colors[0] || '#7357C6', colors[1] || '#4A9EAA', '#12100f']}
-        locations={[0, 0.32, 0.68, 1]}
+        colors={auraEnabled
+          ? ['#080808', colors[0] || '#7357C6', colors[1] || '#4A9EAA', '#090909'] as const
+          : ['#111111', '#111111', '#090909', '#090909'] as const}
+        locations={[0, 0.3, 0.66, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFillObject}
@@ -122,8 +125,8 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
           playInBackground={false}
           playWhenInactive={false}
           ignoreSilentSwitch="ignore"
-          poster={image || undefined}
-          style={StyleSheet.absoluteFill}
+          poster={coverImage || undefined}
+          style={[StyleSheet.absoluteFill, styles.video]}
           onError={() => {
             if (!useVideoFallback && fallbackVideo && fallbackVideo !== visual) {
               setUseVideoFallback(true);
@@ -133,26 +136,26 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
           }}
         />
       ) : null}
-      <Animated.View style={[styles.colorWash, { opacity: 0.28, transform: [{ translateX: driftA }, { scale: scaleA }] }]}>
+      {auraEnabled ? <Animated.View style={[styles.colorWash, { opacity: 0.34, transform: [{ translateX: driftA }, { scale: scaleA }] }]}>
         <LinearGradient
-          colors={[colors[0] || '#7357C6', 'rgba(18,16,15,0)']}
+          colors={[colors[0] || '#7357C6', 'rgba(8,8,8,0)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFillObject}
         />
-      </Animated.View>
-      <Animated.View style={[styles.colorWash, { opacity: 0.22, transform: [{ translateY: driftB }, { scale: scaleB }] }]}>
+      </Animated.View> : null}
+      {auraEnabled ? <Animated.View style={[styles.colorWash, { opacity: 0.28, transform: [{ translateY: driftB }, { scale: scaleB }] }]}>
         <LinearGradient
-          colors={['rgba(18,16,15,0)', colors[1] || '#4A9EAA', colors[2] || '#D96D63']}
+          colors={['rgba(8,8,8,0)', colors[1] || '#4A9EAA', colors[2] || '#D96D63']}
           locations={[0, 0.55, 1]}
           start={{ x: 0.1, y: 1 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFillObject}
         />
-      </Animated.View>
+      </Animated.View> : null}
       <LinearGradient
-        colors={['rgba(18,16,15,0.34)', 'rgba(18,16,15,0.72)', 'rgba(244,239,230,0.92)', '#F4EFE6']}
-        locations={[0, 0.42, 0.78, 1]}
+        colors={['rgba(5,5,5,0.3)', 'rgba(7,7,7,0.52)', 'rgba(8,8,8,0.82)', '#090909']}
+        locations={[0, 0.4, 0.76, 1]}
         style={StyleSheet.absoluteFillObject}
       />
     </View>
@@ -160,8 +163,9 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', backgroundColor: '#12100f' },
-  coverGlow: { opacity: 0.42 },
+  root: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', backgroundColor: '#090909' },
+  coverGlow: { opacity: 0.52 },
+  video: { opacity: 0.3 },
   colorWash: { ...StyleSheet.absoluteFillObject },
 });
 

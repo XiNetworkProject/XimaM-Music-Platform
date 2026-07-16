@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, DeviceEventEmitter, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
@@ -160,8 +160,10 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
       style={[
         styles.dockWrap,
         {
-          left: layout.insets.left + (layout.safeWidth - dockWidth) / 2,
-          width: dockWidth,
+          left: 0,
+          right: 0,
+          paddingLeft: layout.insets.left,
+          paddingRight: layout.insets.right,
           paddingBottom: Math.max(layout.insets.bottom, 7),
         },
       ]}
@@ -169,7 +171,7 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
       <BlurView
         intensity={68}
         tint={dark ? 'dark' : 'light'}
-        style={[styles.dock, { height: layout.dockHeight }, dark ? styles.dockDark : styles.dockLight]}
+        style={[styles.dock, { width: dockWidth, height: layout.dockHeight }, dark ? styles.dockDark : styles.dockLight]}
       >
         {routes.map((route) => {
           const focused = state.routes[state.index]?.key === route.key;
@@ -178,6 +180,10 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
           const label = PRIMARY_LABELS[route.name as keyof typeof PRIMARY_LABELS];
           const onPress = () => {
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (focused && isScroll && !event.defaultPrevented) {
+              DeviceEventEmitter.emit('synaura:open-home-prelude');
+              return;
+            }
             if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
           };
           return (
@@ -322,9 +328,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     zIndex: 80,
-    backgroundColor: 'transparent',
+    backgroundColor: '#0D0D0D',
   },
   dock: {
+    alignSelf: 'center',
     height: 70,
     overflow: 'hidden',
     flexDirection: 'row',

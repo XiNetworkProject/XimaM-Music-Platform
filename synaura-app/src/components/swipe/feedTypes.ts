@@ -1,4 +1,4 @@
-import type { MusicClip, Track } from '@/api/types';
+import type { HomePost, MusicClip, Track } from '@/api/types';
 
 // Modèle de contenu commun du Scroll musical (miroir de lib/scrollFeed.ts côté web).
 // Règles : >=75% de morceaux, jamais deux cartes non musicales à la suite,
@@ -49,6 +49,7 @@ export type FeedAnnouncement = {
 export type ScrollFeedItem =
   | { id: string; kind: 'track'; track: Track }
   | { id: string; kind: 'clip'; clip: MusicClip; track: Track }
+  | { id: string; kind: 'post'; post: HomePost }
   | { id: string; kind: 'artist_spotlight'; artist: SpotlightArtist; track: Track }
   | { id: string; kind: 'collection'; collection: FeedCollection }
   | { id: string; kind: 'challenge'; challenge: FeedChallenge }
@@ -56,6 +57,7 @@ export type ScrollFeedItem =
 
 export const MIN_TRACK_RATIO = 0.75;
 export const MAX_CLIP_RATIO = 0.2;
+export const MAX_POST_RATIO = 0.12;
 const MIN_GAP_BETWEEN_NON_TRACK = 5;
 
 function eventToTracks(event: any): Track[] {
@@ -213,6 +215,7 @@ export function buildAnnouncementItem(cityEvents: any[] | null | undefined): { i
 export function composeScrollFeed(params: {
   tracks: Track[];
   clips?: MusicClip[];
+  posts?: HomePost[];
   artistSpotlights?: ScrollFeedItem[];
   collections?: ScrollFeedItem[];
   challenge?: ScrollFeedItem | null;
@@ -226,6 +229,12 @@ export function composeScrollFeed(params: {
 
   const artistPool = (params.artistSpotlights || []).slice(0, 3);
   const collectionPool = (params.collections || []).slice(0, 2);
+  const maxPostItems = Math.min(4, Math.max(1, Math.floor(trackItems.length * MAX_POST_RATIO)));
+  const postPool: ScrollFeedItem[] = (params.posts || [])
+    .filter((post) => post?.id && (post.text || post.imageUrl || post.track?._id))
+    .sort((left, right) => Number(Boolean(right.track?.audioUrl)) - Number(Boolean(left.track?.audioUrl)))
+    .slice(0, maxPostItems)
+    .map((post) => ({ id: `post-${post.id}`, kind: 'post' as const, post }));
   const maxClipItems = Math.max(0, Math.floor(trackItems.length * MAX_CLIP_RATIO));
   const clipPool: ScrollFeedItem[] = (params.clips || [])
     .filter((clip) => clip?.id && clip.videoUrl && clip.sourceTrack?.audioUrl)
@@ -237,16 +246,20 @@ export function composeScrollFeed(params: {
       track: clip.sourceTrack,
     }));
   const nonTrackCandidates: ScrollFeedItem[] = [];
-  if (clipPool[0]) nonTrackCandidates.push(clipPool[0]);
+  if (postPool[0]) nonTrackCandidates.push(postPool[0]);
   if (artistPool[0]) nonTrackCandidates.push(artistPool[0]);
+  if (clipPool[0]) nonTrackCandidates.push(clipPool[0]);
+  if (postPool[1]) nonTrackCandidates.push(postPool[1]);
   if (collectionPool[0]) nonTrackCandidates.push(collectionPool[0]);
-  if (clipPool[1]) nonTrackCandidates.push(clipPool[1]);
   if (params.challenge) nonTrackCandidates.push(params.challenge);
+  if (clipPool[1]) nonTrackCandidates.push(clipPool[1]);
   if (artistPool[1]) nonTrackCandidates.push(artistPool[1]);
+  if (postPool[2]) nonTrackCandidates.push(postPool[2]);
   if (clipPool[2]) nonTrackCandidates.push(clipPool[2]);
   if (params.announcement) nonTrackCandidates.push(params.announcement);
   if (collectionPool[1]) nonTrackCandidates.push(collectionPool[1]);
   if (artistPool[2]) nonTrackCandidates.push(artistPool[2]);
+  if (postPool[3]) nonTrackCandidates.push(postPool[3]);
   for (let i = 3; i < clipPool.length; i += 1) nonTrackCandidates.push(clipPool[i]);
 
   const maxNonTrack = Math.max(0, Math.floor((trackItems.length * (1 - MIN_TRACK_RATIO)) / MIN_TRACK_RATIO));

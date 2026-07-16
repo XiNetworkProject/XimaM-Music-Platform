@@ -84,9 +84,37 @@ export type ScrollClip = {
   sourceTrack: ScrollTrack & { trackUrl?: string };
 };
 
+export type ScrollPost = {
+  id: string;
+  type: 'text' | 'photo' | 'track_share' | 'repost';
+  content?: string | null;
+  image_url?: string | null;
+  likes_count: number;
+  comments_count: number;
+  created_at: string;
+  isLiked?: boolean;
+  creator: {
+    id: string;
+    username: string;
+    name?: string | null;
+    avatar?: string | null;
+    is_verified?: boolean;
+  };
+  track?: {
+    id: string;
+    title: string;
+    artist_name?: string | null;
+    cover_url?: string | null;
+    audio_url?: string | null;
+    duration?: number;
+    genre?: string[];
+  } | null;
+};
+
 export type ScrollFeedItem =
   | { id: string; type: 'track'; track: ScrollTrack }
   | { id: string; type: 'clip'; clip: ScrollClip; track: ScrollTrack }
+  | { id: string; type: 'post'; post: ScrollPost }
   | { id: string; type: 'artist_spotlight'; artist: ScrollSpotlightArtist; track: ScrollTrack }
   | { id: string; type: 'collection'; collection: ScrollCollection }
   | { id: string; type: 'challenge'; challenge: ScrollChallenge }
@@ -94,7 +122,79 @@ export type ScrollFeedItem =
 
 export const MIN_TRACK_RATIO = 0.75;
 export const MAX_CLIP_RATIO = 0.2;
+export const MAX_POST_RATIO = 0.12;
 const MIN_GAP_BETWEEN_NON_TRACK = 5;
+
+export function normalizeScrollPosts(rawPosts: any[] | null | undefined): ScrollPost[] {
+  const seen = new Set<string>();
+  return (rawPosts || []).flatMap((raw): ScrollPost[] => {
+    const id = String(raw?.id || raw?._id || '');
+    if (!id || seen.has(id)) return [];
+    const creatorRaw = Array.isArray(raw?.creator) ? raw.creator[0] : raw?.creator;
+    const creatorId = String(creatorRaw?.id || creatorRaw?._id || raw?.creator_id || '');
+    const username = String(creatorRaw?.username || '');
+    const name = String(creatorRaw?.name || username || 'Membre');
+    const trackRaw = raw?.track;
+    const trackId = String(trackRaw?.id || trackRaw?._id || '');
+    const content = typeof raw?.content === 'string' ? raw.content.trim() : '';
+    const imageUrl = typeof raw?.image_url === 'string' ? raw.image_url : typeof raw?.imageUrl === 'string' ? raw.imageUrl : null;
+    if (!creatorId || (!content && !imageUrl && !trackId)) return [];
+    seen.add(id);
+    return [{
+      id,
+      type: raw?.type === 'track_share' || raw?.post_type === 'track_share'
+        ? 'track_share'
+        : raw?.type === 'photo' || raw?.post_type === 'photo'
+          ? 'photo'
+          : raw?.type === 'repost' || raw?.post_type === 'repost'
+            ? 'repost'
+            : 'text',
+      content: content || null,
+      image_url: imageUrl,
+      likes_count: Number(raw?.likes_count ?? raw?.likesCount ?? 0),
+      comments_count: Number(raw?.comments_count ?? raw?.commentsCount ?? 0),
+      created_at: String(raw?.created_at || raw?.createdAt || ''),
+      isLiked: Boolean(raw?.isLiked),
+      creator: {
+        id: creatorId,
+        username,
+        name,
+        avatar: creatorRaw?.avatar || null,
+        is_verified: Boolean(creatorRaw?.is_verified || creatorRaw?.isVerified),
+      },
+      track: trackId ? {
+        id: trackId,
+        title: String(trackRaw?.title || 'Sans titre'),
+        artist_name: trackRaw?.artist_name || trackRaw?.artist?.name || null,
+        cover_url: trackRaw?.cover_url || trackRaw?.coverUrl || null,
+        audio_url: trackRaw?.audio_url || trackRaw?.audioUrl || null,
+        duration: Number(trackRaw?.duration || 0),
+        genre: Array.isArray(trackRaw?.genre) ? trackRaw.genre : undefined,
+      } : null,
+    }];
+  });
+}
+
+export function trackFromScrollPost(post: ScrollPost): ScrollTrack | null {
+  const track = post.track;
+  if (!track?.id || !track.audio_url) return null;
+  return {
+    _id: track.id,
+    title: track.title,
+    artist: {
+      _id: '',
+      name: track.artist_name || 'Artiste Synaura',
+      username: '',
+    },
+    audioUrl: track.audio_url,
+    coverUrl: track.cover_url || null,
+    duration: Number(track.duration || 0),
+    likes: 0,
+    comments: 0,
+    plays: 0,
+    genre: track.genre,
+  };
+}
 
 function eventToScrollTracks(event: any): ScrollTrack[] {
   return (Array.isArray(event?.tracks) ? event.tracks : [])
@@ -262,6 +362,7 @@ export function buildAnnouncementItem(cityEvents: any[] | null | undefined): { i
 export function composeScrollFeed(params: {
   tracks: ScrollTrack[];
   clips?: ScrollClip[];
+  posts?: ScrollPost[];
   artistSpotlights?: ScrollFeedItem[];
   collections?: ScrollFeedItem[];
   challenge?: ScrollFeedItem | null;
@@ -275,6 +376,12 @@ export function composeScrollFeed(params: {
 
   const artistPool = (params.artistSpotlights || []).slice(0, 3);
   const collectionPool = (params.collections || []).slice(0, 2);
+  const maxPostItems = Math.min(4, Math.max(1, Math.floor(trackItems.length * MAX_POST_RATIO)));
+  const postPool: ScrollFeedItem[] = (params.posts || [])
+    .filter((post) => post?.id && (post.content || post.image_url || post.track?.id))
+    .sort((left, right) => Number(Boolean(right.track?.audio_url)) - Number(Boolean(left.track?.audio_url)))
+    .slice(0, maxPostItems)
+    .map((post) => ({ id: `post-${post.id}`, type: 'post' as const, post }));
   const maxClipItems = Math.max(0, Math.floor(trackItems.length * MAX_CLIP_RATIO));
   const clipPool: ScrollFeedItem[] = (params.clips || [])
     .filter((clip) => clip?.id && clip?.videoUrl && clip.sourceTrack?.audioUrl)
@@ -286,16 +393,20 @@ export function composeScrollFeed(params: {
       track: clip.sourceTrack,
     }));
   const nonTrackCandidates: ScrollFeedItem[] = [];
-  if (clipPool[0]) nonTrackCandidates.push(clipPool[0]);
+  if (postPool[0]) nonTrackCandidates.push(postPool[0]);
   if (artistPool[0]) nonTrackCandidates.push(artistPool[0]);
+  if (clipPool[0]) nonTrackCandidates.push(clipPool[0]);
+  if (postPool[1]) nonTrackCandidates.push(postPool[1]);
   if (collectionPool[0]) nonTrackCandidates.push(collectionPool[0]);
-  if (clipPool[1]) nonTrackCandidates.push(clipPool[1]);
   if (params.challenge) nonTrackCandidates.push(params.challenge);
+  if (clipPool[1]) nonTrackCandidates.push(clipPool[1]);
   if (artistPool[1]) nonTrackCandidates.push(artistPool[1]);
+  if (postPool[2]) nonTrackCandidates.push(postPool[2]);
   if (clipPool[2]) nonTrackCandidates.push(clipPool[2]);
   if (params.announcement) nonTrackCandidates.push(params.announcement);
   if (collectionPool[1]) nonTrackCandidates.push(collectionPool[1]);
   if (artistPool[2]) nonTrackCandidates.push(artistPool[2]);
+  if (postPool[3]) nonTrackCandidates.push(postPool[3]);
   for (let i = 3; i < clipPool.length; i += 1) nonTrackCandidates.push(clipPool[i]);
 
   const maxNonTrack = Math.max(0, Math.floor((trackItems.length * (1 - MIN_TRACK_RATIO)) / MIN_TRACK_RATIO));

@@ -29,13 +29,14 @@ import {
   getPopularArtists,
   getSynauraCity,
   getTrackLikeStatus,
+  loadMixedPosts,
   recordClipFunnelEvent,
   sendRecommendationImpressions,
   setTrackLike,
   setMusicClipLike,
   toggleArtistFollow,
 } from '@/api/client';
-import type { MusicClip, Track } from '@/api/types';
+import type { HomePost, MusicClip, Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
@@ -58,9 +59,11 @@ import {
   type ScrollFeedItem,
 } from '@/components/swipe/feedTypes';
 import { HeartBurst } from '@/components/swipe/HeartBurst';
+import { HomeFlowPrelude } from '@/components/swipe/HomeFlowPrelude';
 import { LyricsSheet } from '@/components/swipe/LyricsSheet';
 import { QueueSheet } from '@/components/swipe/QueueSheet';
 import { ShareSheet } from '@/components/swipe/ShareSheet';
+import { PostSlide } from '@/components/swipe/PostSlide';
 import { ClipShareSheet } from '@/components/social/ClipShareSheet';
 import { SwipeSlide } from '@/components/swipe/SwipeSlide';
 import {
@@ -106,6 +109,7 @@ function trackOfItem(item: ScrollFeedItem | null | undefined): Track | null {
 function playableTrackOfItem(item: ScrollFeedItem | null | undefined): Track | null {
   if (!item) return null;
   if (item.kind === 'track' || item.kind === 'artist_spotlight') return item.track;
+  if (item.kind === 'post') return item.post.track || null;
   return null;
 }
 
@@ -132,6 +136,7 @@ export function SwipeScreen() {
   const [seedGenre, setSeedGenre] = useState<string | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [clips, setClips] = useState<MusicClip[]>([]);
+  const [posts, setPosts] = useState<HomePost[]>([]);
   const [popularUsers, setPopularUsers] = useState<any[]>([]);
   const [collectionsRaw, setCollectionsRaw] = useState<any[]>([]);
   const [cityEvents, setCityEvents] = useState<any[]>([]);
@@ -151,7 +156,7 @@ export function SwipeScreen() {
   const [shareOpen, setShareOpen] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
-  const [homeHubOpen, setHomeHubOpen] = useState(false);
+  const [homePreludeVisible, setHomePreludeVisible] = useState(() => route.params?.mode !== 'clips');
   const [remixTrack, setRemixTrack] = useState<Track | null>(null);
   const [burstKey, setBurstKey] = useState(0);
   const [burstVisible, setBurstVisible] = useState(false);
@@ -191,7 +196,10 @@ export function SwipeScreen() {
   }, [feedMode, navigation, route.params?.mode]);
 
   useEffect(() => {
-    if (route.params?.mode === 'clips' && feedMode !== 'clips') setFeedMode('clips');
+    if (route.params?.mode === 'clips') {
+      setHomePreludeVisible(false);
+      if (feedMode !== 'clips') setFeedMode('clips');
+    }
   }, [feedMode, route.params?.mode]);
 
   // Feed mixte : la trame reste les morceaux (>=75%), les cartes non musicales
@@ -210,15 +218,27 @@ export function SwipeScreen() {
     return composeScrollFeed({
       tracks,
       clips,
+      posts: feedMode === 'reco' ? posts : [],
       artistSpotlights: artistItems,
       collections: collectionItems,
       challenge: challenge?.item || null,
       announcement: announcement?.item || null,
     });
-  }, [feedMode, tracks, clips, popularUsers, collectionsRaw, cityEvents, musicChallenges]);
+  }, [feedMode, tracks, clips, posts, popularUsers, collectionsRaw, cityEvents, musicChallenges]);
 
   useEffect(() => {
+    const previousItems = feedItemsRef.current;
+    const previousActive = previousItems[activeIndexRef.current];
     feedItemsRef.current = feedItems;
+    if (!previousActive || !feedItems.length) return;
+    const nextIndex = feedItems.findIndex((item) => item.id === previousActive.id);
+    if (nextIndex < 0 || nextIndex === activeIndexRef.current) return;
+    activeIndexRef.current = nextIndex;
+    lastCommittedIndexRef.current = nextIndex;
+    setActiveIndex(nextIndex);
+    requestAnimationFrame(() => {
+      try { listRef.current?.scrollToIndex({ index: nextIndex, animated: false }); } catch { /* ignore */ }
+    });
   }, [feedItems]);
 
   const playableQueue = useMemo(() => {
@@ -241,10 +261,9 @@ export function SwipeScreen() {
   useEffect(() => {
     if (!isFocused || !appIsActive || loadState !== 'ready') return;
     const item = feedItems[activeIndex];
-    if (!item || (item.kind !== 'track' && item.kind !== 'clip')) return;
-    const kind = item.kind === 'clip' ? 'clip' as const : 'track' as const;
-    const entity = item.kind === 'clip' ? item.clip : item.track;
-    const id = item.kind === 'clip' ? item.clip.id : item.track._id;
+    if (!item || (item.kind !== 'track' && item.kind !== 'clip' && item.kind !== 'post')) return;
+    const kind = item.kind === 'clip' ? 'clip' as const : item.kind === 'post' ? 'post' as const : 'track' as const;
+    const id = item.kind === 'clip' ? item.clip.id : item.kind === 'post' ? item.post.id : item.track._id;
     const key = `${kind}:${id}`;
     if (!id || impressionSeenRef.current.has(key)) return;
     const timer = setTimeout(() => {
@@ -254,8 +273,12 @@ export function SwipeScreen() {
         id,
         kind,
         position: activeIndex,
-        score: Number(entity.recommendationScore || 0),
-        reasons: entity.recommendationReasons || [],
+        score: Number(item.kind === 'track'
+          ? item.track.recommendationScore || 0
+          : item.kind === 'clip' ? item.clip.recommendationScore || 0 : 0),
+        reasons: item.kind === 'track'
+          ? item.track.recommendationReasons || []
+          : item.kind === 'clip' ? item.clip.recommendationReasons || [] : [],
       }]);
     }, 650);
     return () => clearTimeout(timer);
@@ -281,7 +304,6 @@ export function SwipeScreen() {
     setShareOpen(false);
     setLyricsOpen(false);
     setQueueOpen(false);
-    setHomeHubOpen(false);
   }, [isFocused]);
 
   // Android peut detacher les surfaces video et les cellules plein ecran quand
@@ -309,6 +331,13 @@ export function SwipeScreen() {
     const subscription = DeviceEventEmitter.addListener('synaura:clip-upload-completed', () => {
       if (feedMode === 'clips') setReloadKey((value) => value + 1);
       else void getMusicClips({ limit: 8 }).then((chunk) => setClips(chunk.clips)).catch(() => {});
+    });
+    return () => subscription.remove();
+  }, [feedMode]);
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('synaura:open-home-prelude', () => {
+      if (feedMode === 'reco') setHomePreludeVisible(true);
     });
     return () => subscription.remove();
   }, [feedMode]);
@@ -408,6 +437,20 @@ export function SwipeScreen() {
     };
   }, [clipIdFilter, feedMode, reloadKey, sourceTrackFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (feedMode !== 'reco') return;
+    let cancelled = false;
+    void loadMixedPosts()
+      .then((result) => {
+        if (cancelled) return;
+        setPosts(result.items.flatMap((item) => item.kind === 'post' ? [item.post] : []));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.user?.id, feedMode, reloadKey]);
+
   // Artistes populaires + collections éditoriales + events Synaura Pulse : chargés une
   // fois, réutilisés pour composer le feed mixte (mêmes règles que le web).
   useEffect(() => {
@@ -460,12 +503,13 @@ export function SwipeScreen() {
         try { listRef.current?.scrollToIndex({ index: displayIndex, animated: false }); } catch { /* ignore */ }
       });
     } else if (!player.current || player.current._id.startsWith('radio-')) {
-      void player.setQueueAndPlay(playableQueue, 0);
+      if (homePreludeVisible) void player.setQueueOnly(playableQueue, 0);
+      else void player.setQueueAndPlay(playableQueue, 0);
       activeIndexRef.current = 0;
       lastCommittedIndexRef.current = 0;
       setActiveIndex(0);
     }
-  }, [feedItems, feedMode, loadState, player, playableQueue, tracks]);
+  }, [feedItems, feedMode, homePreludeVisible, loadState, player, playableQueue, tracks]);
 
   // (3) Synchro INVERSE : quand le player change naturellement de track
   // (auto-advance, lockscreen, mini-player), on scrolle vers la slide correspondante.
@@ -780,6 +824,40 @@ export function SwipeScreen() {
     }
   }, [player]);
 
+  const enterPreludeFlow = useCallback(() => {
+    setHomePreludeVisible(false);
+    const target = playableTrackOfItem(feedItems[activeIndexRef.current]) || playableQueue[0] || null;
+    if (!target?.audioUrl) return;
+    if (player.current?._id === target._id) {
+      if (!player.isPlaying) void player.play();
+    } else {
+      void player.playTrack(target);
+    }
+  }, [feedItems, playableQueue, player]);
+
+  const playPreludeTrack = useCallback((track: Track) => {
+    if (player.current?._id === track._id) void player.togglePlayPause();
+    else void player.playTrack(track);
+  }, [player]);
+
+  const openPreludeTrack = useCallback((track: Track) => {
+    const index = feedItems.findIndex((item) => playableTrackOfItem(item)?._id === track._id);
+    setHomePreludeVisible(false);
+    if (index >= 0) {
+      activeIndexRef.current = index;
+      lastCommittedIndexRef.current = index;
+      setActiveIndex(index);
+      requestAnimationFrame(() => {
+        try { listRef.current?.scrollToIndex({ index, animated: false }); } catch { /* ignore */ }
+      });
+    }
+    if (player.current?._id === track._id) {
+      if (!player.isPlaying) void player.play();
+    } else {
+      void player.playTrack(track);
+    }
+  }, [feedItems, player]);
+
   // Stratégie de swipe : le snap est entierement gere nativement via
   // snapToInterval + disableIntervalMomentum (une page max par geste, flick leger suffisant).
   // On ne commit la lecture qu'a la fin du snap pour eviter le play/pause spam.
@@ -910,6 +988,37 @@ export function SwipeScreen() {
             setShareOpen(true);
           }}
           onUseSound={() => useThisSound(item.track)}
+        />
+      );
+    }
+
+    if (item.kind === 'post') {
+      const attachedTrack = item.post.track || null;
+      const isPlayingThis = Boolean(
+        isActive
+        && attachedTrack
+        && player.current?._id === attachedTrack._id
+        && player.isPlaying,
+      );
+      const username = String(item.post.handle || '').replace(/^@/, '').trim();
+      return (
+        <PostSlide
+          post={item.post}
+          active={isActive}
+          playing={isPlayingThis}
+          height={itemHeight}
+          topPad={insets.top}
+          bottomPad={tabBarHeight}
+          onOpenPost={() => navigation.navigate('PostDetail', { postId: item.post.id })}
+          onOpenProfile={() => {
+            if (username) navigation.navigate('PublicProfile', { username });
+            else navigation.navigate('PostDetail', { postId: item.post.id });
+          }}
+          onOpenTrack={(track) => navigation.navigate('TrackDetail', { trackId: track._id, track })}
+          onPlayTrack={(track) => {
+            if (player.current?._id === track._id) void player.togglePlayPause();
+            else void player.playTrack(track);
+          }}
         />
       );
     }
@@ -1057,7 +1166,7 @@ export function SwipeScreen() {
 
       <Animated.View style={[styles.header, headerStyle]} pointerEvents="box-none">
         <View style={[styles.headerInner, responsive.contentFrame]}>
-          <MotionPressable accessibilityLabel="Ouvrir l'accueil Synaura" onPress={() => setHomeHubOpen(true)} style={styles.scrollIdentity} scaleTo={0.94}>
+          <MotionPressable accessibilityLabel="Ouvrir l'accueil Synaura" onPress={() => setHomePreludeVisible(true)} style={styles.scrollIdentity} scaleTo={0.94}>
             <View style={styles.scrollMark}><Ionicons name="pulse" size={23} color="#F7F6F3" /></View>
             {!responsive.isNarrow ? (
               <View>
@@ -1137,79 +1246,28 @@ export function SwipeScreen() {
         />
       )}
 
-      <HeartBurst visible={burstVisible} burstKey={burstKey} />
+      <HomeFlowPrelude
+        visible={homePreludeVisible && feedMode === 'reco'}
+        tracks={tracks}
+        posts={posts}
+        currentTrack={player.current}
+        currentPlaying={player.isPlaying}
+        userName={auth.user?.name || auth.user?.username}
+        topPad={insets.top}
+        bottomPad={tabBarHeight}
+        onEnterFlow={enterPreludeFlow}
+        onPlayTrack={playPreludeTrack}
+        onOpenTrack={openPreludeTrack}
+        onOpenPost={(post) => navigation.navigate('PostDetail', { postId: post.id })}
+        onSearch={() => navigation.navigate('Search')}
+        onNotifications={() => navigation.navigate(auth.requireAuth() ? 'Notifications' : 'Profile')}
+        onDiscover={() => navigation.navigate('Discover')}
+        onRadar={() => navigation.navigate('Radar')}
+        onStudio={() => navigation.navigate('AIStudio')}
+        onEvents={() => navigation.navigate('City')}
+      />
 
-      <BottomSheet
-        visible={homeHubOpen}
-        title="Accueil Synaura"
-        subtitle="Écouter, découvrir et créer sans perdre ton Flow."
-        onClose={() => setHomeHubOpen(false)}
-        maxHeight="78%"
-      >
-        <View style={styles.homeHub}>
-          {player.current ? (
-            <MotionPressable
-              accessibilityLabel="Ouvrir le morceau en lecture"
-              onPress={() => {
-                setHomeHubOpen(false);
-                DeviceEventEmitter.emit('synaura:open-full-player');
-              }}
-              style={styles.homeNowPlaying}
-              scaleTo={0.985}
-            >
-              <TrackCover track={player.current} active={player.isPlaying} style={styles.homeNowCover} />
-              <View style={styles.homeNowCopy}>
-                <Text style={styles.homeNowKicker}>EN CE MOMENT</Text>
-                <Text numberOfLines={1} style={styles.homeNowTitle}>{player.current.title}</Text>
-                <Text numberOfLines={1} style={styles.homeNowArtist}>{player.current.artist?.name || player.current.artist?.artistName || player.current.artist?.username || 'Artiste Synaura'}</Text>
-              </View>
-              <View style={styles.homeNowPulse}><Ionicons name={player.isPlaying ? 'pause' : 'play'} size={18} color={colors.paper} /></View>
-            </MotionPressable>
-          ) : null}
-          <View style={styles.homeDestinations}>
-            {([
-              { label: 'Rechercher', detail: 'Titres, artistes et playlists', icon: 'search-outline' as const, route: 'Search' },
-              { label: 'Découvrir', detail: 'Sélections et nouveautés', icon: 'compass-outline' as const, route: 'Discover' },
-              { label: 'Radar', detail: 'Les talents avant tout le monde', icon: 'radio-outline' as const, route: 'Radar' },
-              { label: 'Events', detail: 'Votes, challenges et moments forts', icon: 'calendar-outline' as const, route: 'City' },
-              { label: 'Communauté', detail: 'Histoires, avis et collaborations', icon: 'people-outline' as const, route: 'Community' },
-              { label: 'Studio', detail: 'Créer ou transformer un morceau', icon: 'sparkles-outline' as const, route: 'AIStudio' },
-            ]).map((destination) => (
-              <MotionPressable
-                key={destination.route}
-                onPress={() => {
-                  setHomeHubOpen(false);
-                  navigation.navigate(destination.route);
-                }}
-                style={styles.homeDestination}
-                scaleTo={0.985}
-              >
-                <View style={styles.homeDestinationIcon}><Ionicons name={destination.icon} size={20} color={colors.paper} /></View>
-                <View style={styles.homeDestinationCopy}>
-                  <Text style={styles.homeDestinationTitle}>{destination.label}</Text>
-                  <Text numberOfLines={1} style={styles.homeDestinationDetail}>{destination.detail}</Text>
-                </View>
-                <Ionicons name="arrow-forward" size={17} color={colors.textTertiary} />
-              </MotionPressable>
-            ))}
-            <MotionPressable
-              onPress={() => {
-                setHomeHubOpen(false);
-                setQueueOpen(true);
-              }}
-              style={styles.homeDestination}
-              scaleTo={0.985}
-            >
-              <View style={[styles.homeDestinationIcon, styles.homeQueueIcon]}><Ionicons name="albums-outline" size={20} color={colors.paper} /></View>
-              <View style={styles.homeDestinationCopy}>
-                <Text style={styles.homeDestinationTitle}>File d'attente</Text>
-                <Text numberOfLines={1} style={styles.homeDestinationDetail}>{player.queue.length ? `${player.queue.length} morceau${player.queue.length > 1 ? 'x' : ''}` : 'Aucun morceau en attente'}</Text>
-              </View>
-              <Ionicons name="arrow-forward" size={17} color={colors.textTertiary} />
-            </MotionPressable>
-          </View>
-        </View>
-      </BottomSheet>
+      <HeartBurst visible={burstVisible} burstKey={burstKey} />
 
       <CommentsSheet
         visible={commentsOpen}
@@ -1381,21 +1439,6 @@ const styles = StyleSheet.create({
   },
   retryText: { color: '#171313', fontSize: 12, fontWeight: '900' },
   footer: { paddingVertical: 28, alignItems: 'center', justifyContent: 'center' },
-  homeHub: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
-  homeNowPlaying: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 11, overflow: 'hidden', borderRadius: 10, padding: 9, backgroundColor: colors.surfaceStrong, borderWidth: 1, borderColor: colors.borderStrong },
-  homeNowCover: { width: 58, height: 58, borderRadius: 7 },
-  homeNowCopy: { flex: 1, minWidth: 0 },
-  homeNowKicker: { color: colors.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
-  homeNowTitle: { marginTop: 5, color: colors.text, fontSize: 14, fontWeight: '900' },
-  homeNowArtist: { marginTop: 3, color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
-  homeNowPulse: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
-  homeDestinations: { marginTop: 10 },
-  homeDestination: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong },
-  homeDestinationIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
-  homeQueueIcon: { backgroundColor: colors.cyan },
-  homeDestinationCopy: { flex: 1, minWidth: 0 },
-  homeDestinationTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  homeDestinationDetail: { marginTop: 3, color: colors.textSecondary, fontSize: 10, fontWeight: '600' },
   remixSheet: { paddingHorizontal: 18, paddingBottom: 10, gap: 12 },
   remixHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   remixCover: { width: 64, height: 64, borderRadius: 9, backgroundColor: 'rgba(17,17,17,0.08)' },
