@@ -1,14 +1,14 @@
 {
-  "title": "Synaura Hybrid Flow 0.19.2",
+  "title": "Synaura Hybrid Flow 0.19.3",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Nouvel accueil hybride inspire de la mise en scene editoriale du Flow",
-    "Direction entierement sombre, chaude et coherente avec l'identite Synaura",
-    "Vraie pochette au centre avec ambiance coloree issue du morceau selectionne",
-    "Actions Ecouter et Entrer dans le Flow immediatement accessibles",
-    "Pochette contenue sur ordinateur et mise en page adaptee aux petits ecrans",
-    "Un seul swipe ou geste de molette suffit pour entrer dans le fil",
+    "Accueil reproduit fidelement selon la composition du prototype Hybrid Flow",
+    "Colorimetrie sombre Synaura conservee sur toute la scene",
+    "Pochette transformee en ambiance de fond sans carte flottante ajoutee",
+    "Marque, grand hero, deux actions et deux raccourcis dans la hierarchie du prototype",
+    "Apercu du Flow visible sous l'accueil comme premier element du fil",
+    "Un seul swipe ou geste de molette suffit pour entrer dans le Flow",
     "Mise en page validee sur 31 ecrans natifs et huit formats de telephones et tablettes"
   ]
 }
