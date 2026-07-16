@@ -1,14 +1,14 @@
 {
-  "title": "Synaura Aura Player 0.19.0",
+  "title": "Synaura Flow 0.19.1",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Nouveau lecteur plein ecran centre sur la pochette, la musique et des controles tres lisibles",
-    "Aura Visual repare avec couleurs de pochette, animations legeres et fonds video compatibles",
-    "Waveform interactive, commentaires et reactions de moment directement accessibles",
-    "Zone sous la navigation comblee sur les appareils Android avec barre de geste",
-    "Accueil Scroll enrichi de raccourcis, nouveaux sons, posts et profils a decouvrir",
-    "Posts musicaux integres au fil natif et au fil web avec les memes donnees",
+    "Accueil Flow reconstruit dans une direction sombre coherente avec toute l'app",
+    "Scene Flow pleine largeur qui remplit tout l'espace restant jusqu'a la navigation",
+    "Suppression de la pochette geante et du faux ecran intermediaire",
+    "Un seul swipe ou geste de molette suffit maintenant pour entrer dans le fil",
+    "Pochettes utilisees comme ambiance visuelle avec une miniature nette et lisible",
+    "Raccourcis, lecture en cours, nouveaux sons et posts conserves sans faux contenu",
     "Mise en page validee sur 31 ecrans natifs et huit formats de telephones et tablettes"
   ]
 }
