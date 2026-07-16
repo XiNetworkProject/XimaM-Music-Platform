@@ -359,7 +359,7 @@ function ShowcaseCard({ item, index, playing, onPlay }: { item: CityShowcaseItem
         <TrackCover track={item.track} active style={StyleSheet.absoluteFill} />
         <LinearGradient colors={['rgba(23,19,19,0.02)', 'rgba(23,19,19,0.88)']} style={StyleSheet.absoluteFill} />
         <View style={styles.showcaseLabel}><Ionicons name={iconName(item.icon)} size={12} color={item.accent} /><Text style={styles.showcaseLabelText}>{item.label}</Text></View>
-        <View style={styles.showcasePlay}><Ionicons name={playing ? 'pause' : 'play'} size={15} color={colors.text} /></View>
+        <View style={styles.showcasePlay}><Ionicons name={playing ? 'pause' : 'play'} size={15} color={colors.black} /></View>
         <View style={styles.showcaseBottom}><Text style={[styles.showcaseCaption, { color: item.accent }]}>{item.caption}</Text><Text numberOfLines={2} style={styles.showcaseTitle}>{item.track.title}</Text><Text numberOfLines={1} style={styles.showcaseArtist}>{artistName(item.track)}</Text></View>
       </MotionPressable>
     </Reveal>
@@ -409,7 +409,7 @@ function PremiereCard({ track, index, playing, onPlay }: { track: CityPulseTrack
         <TrackCover track={track} active={playing} style={StyleSheet.absoluteFill} />
         <LinearGradient colors={['rgba(23,19,19,0.04)', 'rgba(23,19,19,0.88)']} style={StyleSheet.absoluteFill} />
         <Text style={styles.premiereBadge}>NOUVEAU DROP</Text>
-        <View style={styles.premierePlay}><Ionicons name={playing ? 'pause' : 'play'} size={15} color={colors.text} /></View>
+        <View style={styles.premierePlay}><Ionicons name={playing ? 'pause' : 'play'} size={15} color={colors.black} /></View>
         <View style={styles.premiereBottom}><Text style={styles.premierePulse}>PREMIÈRES 24H · PULSE {track.pulse}%</Text><Text numberOfLines={1} style={styles.premiereTitle}>{track.title}</Text><Text numberOfLines={1} style={styles.premiereArtist}>{artistName(track)}</Text></View>
       </MotionPressable>
     </Reveal>
@@ -456,7 +456,7 @@ function BattleCard({ event, voting, player, onPlay, onVote, onDetails, onClaim 
           const playing = player.current?._id === track._id && player.isPlaying;
           return (
             <View key={track._id} style={[styles.battleTrack, selected && styles.battleTrackSelected]}>
-              <MotionPressable onPress={() => onPlay(track)} style={styles.battleCoverWrap}><TrackCover track={track} active={playing} style={StyleSheet.absoluteFill} /><View style={styles.battlePlay}><Ionicons name={playing ? 'pause' : 'play'} size={15} color={colors.text} /></View></MotionPressable>
+              <MotionPressable onPress={() => onPlay(track)} style={styles.battleCoverWrap}><TrackCover track={track} active={playing} style={StyleSheet.absoluteFill} /><View style={styles.battlePlay}><Ionicons name={playing ? 'pause' : 'play'} size={15} color={colors.black} /></View></MotionPressable>
               <Text numberOfLines={1} style={styles.battleTrackTitle}>{track.title}</Text>
               <Text numberOfLines={1} style={styles.battleArtist}>{artistName(track)}</Text>
               <PulseBar value={percent} height={5} />
@@ -574,7 +574,7 @@ function EventDetailSheet({
               const playing = player.current?._id === track._id && player.isPlaying;
               return (
                 <View key={participant.id} style={[styles.eventParticipant, selected && styles.eventParticipantSelected]}>
-                  <MotionPressable onPress={() => onPlay(track)} style={styles.eventParticipantCover}><TrackCover track={track} active={playing} style={StyleSheet.absoluteFill} /><View style={styles.eventParticipantPlay}><Ionicons name={playing ? 'pause' : 'play'} size={13} color={colors.text} /></View></MotionPressable>
+                  <MotionPressable onPress={() => onPlay(track)} style={styles.eventParticipantCover}><TrackCover track={track} active={playing} style={StyleSheet.absoluteFill} /><View style={styles.eventParticipantPlay}><Ionicons name={playing ? 'pause' : 'play'} size={13} color={colors.black} /></View></MotionPressable>
                   <View style={styles.eventParticipantCopy}><Text numberOfLines={1} style={styles.eventParticipantTrack}>{track.title}</Text><Text numberOfLines={1} style={styles.eventParticipantArtist}>{participant.name}{participant.username ? ` · @${participant.username}` : ''}</Text></View>
                   {event?.kind === 'battle' ? <MotionPressable disabled={!event.isLive || voting} onPress={() => onVote(event.id, track._id)} style={[styles.eventParticipantVote, selected && styles.eventParticipantVoteSelected, (!event.isLive || voting) && styles.eventParticipantVoteDisabled]}><Ionicons name={selected ? 'checkmark' : 'flash'} size={13} color={colors.paper} /><Text style={styles.eventParticipantVoteText}>{selected ? 'Voté' : 'Voter'}</Text></MotionPressable> : null}
                 </View>
@@ -643,7 +643,7 @@ function WinnerCelebration({ event, busy, onClose, onClaim }: { event: CityEvent
             <Text style={styles.winnerRewardText}>{event?.reward?.description || 'Ton titre passe sous les projecteurs pendant 24 h.'}</Text>
           </View>
           <View style={styles.winnerActions}>
-            <MotionPressable disabled={busy} onPress={onClaim} style={styles.winnerClaim}><Ionicons name="sparkles" size={16} color={colors.text} /><Text style={styles.winnerClaimText}>{busy ? 'Activation...' : 'Activer mon gain'}</Text></MotionPressable>
+            <MotionPressable disabled={busy} onPress={onClaim} style={styles.winnerClaim}><Ionicons name="sparkles" size={16} color={colors.black} /><Text style={styles.winnerClaimText}>{busy ? 'Activation...' : 'Activer mon gain'}</Text></MotionPressable>
             <MotionPressable onPress={onClose} style={styles.winnerLater}><Text style={styles.winnerLaterText}>Plus tard</Text></MotionPressable>
           </View>
         </View>
@@ -657,7 +657,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingBottom: 130, gap: 18 },
   topbar: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10 },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  roundButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  roundButton: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   topCopy: { flex: 1 },
   topKicker: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
   topTitle: { marginTop: 1, color: colors.text, fontSize: 24, fontWeight: '900' },
@@ -665,9 +665,9 @@ const styles = StyleSheet.create({
   loadingText: { marginTop: 12, color: colors.textTertiary, fontSize: 11, fontWeight: '900' },
   error: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(217,45,32,0.2)', backgroundColor: 'rgba(217,45,32,0.07)', padding: 12 },
   errorText: { flex: 1, color: colors.danger, fontSize: 10, fontWeight: '800' },
-  toast: { position: 'absolute', alignSelf: 'center', maxWidth: '90%', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 22, backgroundColor: colors.text, paddingHorizontal: 16, paddingVertical: 11, elevation: 10 },
+  toast: { position: 'absolute', alignSelf: 'center', maxWidth: '90%', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 22, backgroundColor: '#090909', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingHorizontal: 16, paddingVertical: 11, elevation: 10 },
   toastText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
-  hero: { minHeight: 320, overflow: 'hidden', borderRadius: 4, padding: 17 },
+  hero: { minHeight: 320, overflow: 'hidden', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)', padding: 17 },
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderLeftWidth: 3, borderLeftColor: colors.coral, paddingLeft: 8, paddingVertical: 4 },
   heroDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.coral },
   heroBadgeText: { color: colors.paper, fontSize: 8, fontWeight: '900' },
@@ -678,15 +678,15 @@ const styles = StyleSheet.create({
   heroStatValue: { color: colors.paper, fontSize: 19, fontWeight: '900' },
   heroStatLabel: { marginTop: 2, color: 'rgba(247,246,243,0.46)', fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
   heroActions: { marginTop: 18, flexDirection: 'row', gap: 8 },
-  primaryButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 11, backgroundColor: colors.text, paddingHorizontal: 16 },
+  primaryButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 11, backgroundColor: colors.violet, paddingHorizontal: 16 },
   primaryButtonText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
   secondaryButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 21, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.34)', paddingHorizontal: 16 },
   secondaryButtonText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
   doneButton: { opacity: 0.46 },
-  iconAction: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },
+  iconAction: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong },
   stack: { gap: 0 },
   horizontalRail: { gap: 10, paddingRight: 14 },
-  showcase: { width: 210, height: 274, overflow: 'hidden', borderRadius: 4, backgroundColor: colors.text },
+  showcase: { width: 210, height: 274, overflow: 'hidden', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.black },
   showcaseLabel: { position: 'absolute', left: 12, top: 12, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 13, backgroundColor: 'rgba(23,19,19,0.62)', paddingHorizontal: 8, paddingVertical: 6 },
   showcaseLabelText: { color: colors.paper, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
   showcasePlay: { position: 'absolute', right: 12, top: 12, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
   pulseTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   pulseArtist: { color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
   pulseSide: { alignItems: 'flex-end', gap: 7 },
-  artistCard: { width: 228, overflow: 'hidden', borderTopWidth: 2, borderTopColor: colors.violet, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong },
+  artistCard: { width: 228, overflow: 'hidden', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderTopWidth: 2, borderTopColor: colors.violet, backgroundColor: colors.surface },
   artistTop: { height: 86 },
   artistAvatar: { width: 70, height: 70, marginTop: -38, marginLeft: 14, borderRadius: 35, borderWidth: 3, borderColor: colors.paper, backgroundColor: '#E8DCCA' },
   artistBody: { padding: 14 },
@@ -710,10 +710,10 @@ const styles = StyleSheet.create({
   artistHandle: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
   artistStats: { marginTop: 8, color: colors.textSecondary, fontSize: 9, fontWeight: '800' },
   artistActions: { marginTop: 12, flexDirection: 'row', gap: 7 },
-  artistOpen: { flex: 1, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  artistOpen: { flex: 1, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   artistOpenText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
   artistPlay: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
-  premiere: { width: 210, height: 245, overflow: 'hidden', borderRadius: 4, backgroundColor: colors.text },
+  premiere: { width: 210, height: 245, overflow: 'hidden', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.black },
   premiereBadge: { position: 'absolute', left: 12, top: 12, color: colors.paper, fontSize: 8, fontWeight: '900', letterSpacing: 1, backgroundColor: colors.coral, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 6 },
   premierePlay: { position: 'absolute', right: 12, top: 12, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
   premiereBottom: { position: 'absolute', left: 14, right: 14, bottom: 14 },
@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
   liveEventDescription: { color: colors.textSecondary, fontSize: 10, lineHeight: 15, fontWeight: '700', paddingHorizontal: 4 },
   activeBoostText: { color: colors.violet, fontSize: 9, lineHeight: 14, fontWeight: '900', paddingHorizontal: 4 },
   liveEventActions: { flexDirection: 'row', gap: 8, paddingHorizontal: 4, paddingBottom: 2 },
-  battle: { overflow: 'hidden', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 14 },
+  battle: { overflow: 'hidden', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, padding: 14 },
   battleHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   battleHeaderCopy: { flex: 1 },
   battleKicker: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
@@ -734,13 +734,13 @@ const styles = StyleSheet.create({
   battleGrid: { marginTop: 13, flexDirection: 'row', gap: 8 },
   battleRewardButton: { minHeight: 42, marginTop: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 21, backgroundColor: colors.violet },
   battleRewardButtonText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
-  battleTrack: { flex: 1, minWidth: 0, borderRadius: 4, backgroundColor: colors.backgroundAlt, padding: 8, gap: 5 },
+  battleTrack: { flex: 1, minWidth: 0, borderRadius: 9, backgroundColor: colors.surfaceStrong, padding: 8, gap: 5 },
   battleTrackSelected: { borderWidth: 1, borderColor: colors.violet, backgroundColor: 'rgba(124,92,255,0.1)' },
   battleCoverWrap: { aspectRatio: 1, overflow: 'hidden', borderRadius: 4 },
   battlePlay: { position: 'absolute', right: 7, bottom: 7, width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
   battleTrackTitle: { color: colors.text, fontSize: 10, fontWeight: '900' },
   battleArtist: { color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
-  voteButton: { height: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 16, backgroundColor: colors.text },
+  voteButton: { height: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 16, backgroundColor: colors.violet },
   voteButtonSelected: { backgroundColor: colors.violet },
   voteText: { color: colors.paper, fontSize: 8, fontWeight: '900' },
   winnerBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.74)', padding: 15 },
@@ -755,7 +755,7 @@ const styles = StyleSheet.create({
   winnerRewardText: { marginTop: 4, color: 'rgba(255,250,242,0.48)', fontSize: 9, lineHeight: 14, fontWeight: '700' },
   winnerActions: { marginTop: 13, flexDirection: 'row', gap: 8 },
   winnerClaim: { minHeight: 44, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 22, backgroundColor: colors.paper },
-  winnerClaimText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  winnerClaimText: { color: colors.black, fontSize: 10, fontWeight: '900' },
   winnerLater: { minHeight: 44, justifyContent: 'center', borderRadius: 22, backgroundColor: 'rgba(255,250,242,0.1)', paddingHorizontal: 15 },
   winnerLaterText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
   radar: { overflow: 'hidden', borderTopWidth: 2, borderTopColor: colors.cyan, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong, paddingVertical: 13 },
@@ -768,7 +768,7 @@ const styles = StyleSheet.create({
   panel: { gap: 0, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   awardRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingVertical: 9 },
   awardIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(124,92,255,0.12)' },
-  awardIconFirst: { backgroundColor: colors.text },
+  awardIconFirst: { backgroundColor: colors.violet },
   awardCopy: { flex: 1, minWidth: 0 },
   awardTitle: { color: colors.text, fontSize: 10, fontWeight: '900' },
   awardSubtitle: { marginTop: 3, color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
@@ -795,9 +795,9 @@ const styles = StyleSheet.create({
   creatorEmpty: { marginTop: 15, gap: 12 },
   creatorEmptyText: { color: 'rgba(255,250,242,0.6)', fontSize: 10, fontWeight: '700' },
   creatorButton: { alignSelf: 'flex-start', minHeight: 39, justifyContent: 'center', borderRadius: 20, backgroundColor: colors.paper, paddingHorizontal: 15 },
-  creatorButtonText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  creatorButtonText: { color: colors.black, fontSize: 10, fontWeight: '900' },
   sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(23,19,19,0.38)' },
-  eventDetailSheet: { alignSelf: 'center', width: '100%', maxWidth: 680, maxHeight: '88%', overflow: 'hidden', borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: colors.paper },
+  eventDetailSheet: { alignSelf: 'center', width: '100%', maxWidth: 680, maxHeight: '88%', overflow: 'hidden', borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: colors.surface },
   eventDetailHero: { minHeight: 238, justifyContent: 'space-between', overflow: 'hidden', padding: 16 },
   eventDetailTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   eventDetailStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 14, backgroundColor: 'rgba(255,250,242,0.16)', paddingHorizontal: 9, paddingVertical: 7 },
@@ -810,23 +810,23 @@ const styles = StyleSheet.create({
   eventDetailMeta: { color: '#FFB2A7', fontSize: 9, fontWeight: '900' },
   eventDetailList: { maxHeight: 355 },
   eventDetailListContent: { gap: 8, padding: 12 },
-  eventParticipant: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 21, backgroundColor: 'rgba(23,19,19,0.045)', padding: 9 },
+  eventParticipant: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 11, backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, padding: 9 },
   eventParticipantSelected: { borderWidth: 1, borderColor: colors.violet, backgroundColor: 'rgba(124,92,255,0.1)' },
   eventParticipantCover: { width: 58, height: 58, overflow: 'hidden', borderRadius: 16 },
   eventParticipantPlay: { position: 'absolute', right: 5, bottom: 5, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
   eventParticipantCopy: { flex: 1, minWidth: 0 },
   eventParticipantTrack: { color: colors.text, fontSize: 11, fontWeight: '900' },
   eventParticipantArtist: { marginTop: 4, color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
-  eventParticipantVote: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 18, backgroundColor: colors.text, paddingHorizontal: 11 },
+  eventParticipantVote: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 18, backgroundColor: colors.violet, paddingHorizontal: 11 },
   eventParticipantVoteSelected: { backgroundColor: colors.violet },
   eventParticipantVoteDisabled: { opacity: 0.38 },
   eventParticipantVoteText: { color: colors.paper, fontSize: 8, fontWeight: '900' },
-  eventDetailEmpty: { minHeight: 150, alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 22, backgroundColor: 'rgba(23,19,19,0.035)', padding: 18 },
+  eventDetailEmpty: { minHeight: 150, alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 12, backgroundColor: colors.surfaceStrong, padding: 18 },
   eventDetailEmptyText: { color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
-  eventDetailAction: { minHeight: 48, marginHorizontal: 12, marginTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 24, backgroundColor: colors.text },
+  eventDetailAction: { minHeight: 48, marginHorizontal: 12, marginTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 12, backgroundColor: colors.violet },
   eventDetailActionText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
-  sheet: { alignSelf: 'center', width: '100%', maxWidth: 680, maxHeight: '78%', borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: colors.paper, padding: 16 },
-  sheetHandle: { alignSelf: 'center', width: 48, height: 5, borderRadius: 3, backgroundColor: 'rgba(23,19,19,0.16)' },
+  sheet: { alignSelf: 'center', width: '100%', maxWidth: 680, maxHeight: '78%', borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: colors.surface, padding: 16 },
+  sheetHandle: { alignSelf: 'center', width: 48, height: 5, borderRadius: 3, backgroundColor: colors.textTertiary },
   sheetKicker: { marginTop: 14, color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
   sheetTitle: { marginTop: 5, color: colors.text, fontSize: 21, lineHeight: 25, fontWeight: '900' },
   sheetError: { marginTop: 12, color: colors.danger, fontSize: 10, fontWeight: '800' },
@@ -834,7 +834,7 @@ const styles = StyleSheet.create({
   sheetEmpty: { minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: 12 },
   sheetEmptyText: { color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
   sheetList: { marginTop: 12 },
-  sheetTrack: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 20, backgroundColor: 'rgba(23,19,19,0.045)', padding: 9, marginBottom: 8 },
+  sheetTrack: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 11, backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, padding: 9, marginBottom: 8 },
   sheetTrackSelected: { backgroundColor: 'rgba(124,92,255,0.1)', borderWidth: 1, borderColor: colors.violet },
   sheetCover: { width: 52, height: 52, borderRadius: 15 },
   sheetTrackCopy: { flex: 1, minWidth: 0 },
@@ -842,7 +842,7 @@ const styles = StyleSheet.create({
   sheetTrackDate: { marginTop: 3, color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
   sheetCheck: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center' },
   sheetCheckSelected: { borderColor: colors.violet, backgroundColor: colors.violet },
-  sheetSubmit: { marginTop: 10, minHeight: 45, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 23, backgroundColor: colors.text },
+  sheetSubmit: { marginTop: 10, minHeight: 45, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 11, backgroundColor: colors.violet },
   sheetSubmitDisabled: { opacity: 0.3 },
   sheetSubmitText: { color: colors.paper, fontSize: 11, fontWeight: '900' },
 });

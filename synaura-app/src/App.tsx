@@ -177,7 +177,7 @@ export default function App() {
                   setActiveRoute(getActiveRouteName(state));
                 }}
               >
-                <StatusBar style={activeRoute === 'Swipe' ? 'light' : 'dark'} />
+                <StatusBar style="light" />
                 <RootStackNavigator />
                 <MiniPlayer activeRoute={activeRoute} onOpen={() => setPlayerOpen(true)} />
                 <FullPlayerModal visible={playerOpen} onClose={() => setPlayerOpen(false)} />

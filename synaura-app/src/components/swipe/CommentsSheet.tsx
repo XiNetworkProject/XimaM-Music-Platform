@@ -18,6 +18,7 @@ import type { HomeComment, MusicClip, Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { colors } from '@/theme/tokens';
 import { fmtCount, fmtTime } from './helpers';
 
 type Props = {
@@ -184,7 +185,7 @@ export function CommentsSheet({ visible, track, clip = null, commentCount, onClo
             </Text>
           </View>
           <Pressable accessibilityLabel="Fermer" onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={20} color="#171313" />
+            <Ionicons name="close" size={20} color={colors.text} />
           </Pressable>
         </View>
 
@@ -201,19 +202,19 @@ export function CommentsSheet({ visible, track, clip = null, commentCount, onClo
             </View>
           ) : disabled ? (
             <View style={styles.empty}>
-              <Ionicons name="information-circle-outline" size={28} color="rgba(23,19,19,0.45)" />
+              <Ionicons name="information-circle-outline" size={28} color={colors.textTertiary} />
               <Text style={styles.emptyText}>Les commentaires ne sont pas disponibles sur cette source.</Text>
             </View>
           ) : loading ? (
             <View style={styles.empty}>
-              <ActivityIndicator color="#171313" />
+              <ActivityIndicator color={colors.cyan} />
               <Text style={styles.emptyText}>Chargement…</Text>
             </View>
           ) : comments.length ? (
             <View style={{ gap: 18 }}>{comments.map((comment) => renderComment(comment))}</View>
           ) : (
             <View style={styles.empty}>
-              <Ionicons name="chatbubbles-outline" size={28} color="rgba(23,19,19,0.45)" />
+              <Ionicons name="chatbubbles-outline" size={28} color={colors.textTertiary} />
               <Text style={styles.emptyText}>Aucun commentaire pour le moment.</Text>
             </View>
           )}
@@ -231,7 +232,7 @@ export function CommentsSheet({ visible, track, clip = null, commentCount, onClo
               value={text}
               onChangeText={setText}
               placeholder={user ? 'Écris ton commentaire…' : 'Connecte-toi pour commenter'}
-              placeholderTextColor="rgba(23,19,19,0.36)"
+              placeholderTextColor={colors.textTertiary}
               editable={!!user}
               multiline
               style={styles.input}
@@ -265,9 +266,9 @@ const styles = StyleSheet.create({
     minHeight: '60%',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    backgroundColor: '#FFFAF2',
+    backgroundColor: colors.background,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(23,19,19,0.06)',
+    borderTopColor: colors.borderStrong,
     shadowColor: '#000',
     shadowOpacity: 0.18,
     shadowRadius: 36,
@@ -275,7 +276,7 @@ const styles = StyleSheet.create({
     elevation: 24,
   },
   handleArea: { alignItems: 'center', paddingTop: 8, paddingBottom: 6 },
-  handleBar: { width: 44, height: 4, borderRadius: 2, backgroundColor: 'rgba(23,19,19,0.18)' },
+  handleBar: { width: 44, height: 4, borderRadius: 2, backgroundColor: colors.textTertiary },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -283,19 +284,19 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(23,19,19,0.08)',
+    borderBottomColor: colors.border,
     gap: 12,
   },
-  kicker: { color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '900', letterSpacing: 1.5, textTransform: 'uppercase' },
-  title: { color: '#171313', fontSize: 18, fontWeight: '900', marginTop: 4 },
-  subtitle: { color: 'rgba(23,19,19,0.5)', fontSize: 12, marginTop: 4, fontWeight: '700' },
+  kicker: { color: colors.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 1.5, textTransform: 'uppercase' },
+  title: { color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 4 },
+  subtitle: { color: colors.textSecondary, fontSize: 12, marginTop: 4, fontWeight: '700' },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(23,19,19,0.06)',
+    backgroundColor: colors.surfaceMuted,
   },
   scroll: { paddingHorizontal: 18, paddingVertical: 14, paddingBottom: 24 },
   row: { flexDirection: 'row', gap: 12 },
@@ -307,17 +308,17 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(23,19,19,0.06)',
+    backgroundColor: colors.surfaceStrong,
   },
-  avatarText: { color: '#171313', fontSize: 13, fontWeight: '900' },
+  avatarText: { color: colors.text, fontSize: 13, fontWeight: '900' },
   body: { flex: 1, minWidth: 0 },
   metaLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 6, rowGap: 2 },
-  author: { color: '#171313', fontSize: 13, fontWeight: '900' },
-  handle: { color: 'rgba(23,19,19,0.42)', fontSize: 11, fontWeight: '700' },
-  time: { color: 'rgba(23,19,19,0.32)', fontSize: 11, fontWeight: '700' },
+  author: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  handle: { color: colors.textTertiary, fontSize: 11, fontWeight: '700' },
+  time: { color: colors.textTertiary, fontSize: 11, fontWeight: '700' },
   timestampPill: { marginTop: 5, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, backgroundColor: 'rgba(74,158,170,0.12)', paddingHorizontal: 8, paddingVertical: 4 },
   timestampText: { color: '#4A9EAA', fontSize: 10, fontWeight: '900', fontVariant: ['tabular-nums'] },
-  content: { color: 'rgba(23,19,19,0.82)', fontSize: 14, lineHeight: 20, marginTop: 4 },
+  content: { color: colors.textSecondary, fontSize: 14, lineHeight: 20, marginTop: 4 },
   replies: { marginTop: 8, gap: 8 },
   empty: {
     paddingVertical: 36,
@@ -326,10 +327,10 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 24,
   },
-  emptyText: { textAlign: 'center', color: 'rgba(23,19,19,0.55)', fontSize: 13, lineHeight: 19 },
+  emptyText: { textAlign: 'center', color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
   errorBox: { marginVertical: 12, alignItems: 'center', gap: 8, borderRadius: 12, padding: 18, backgroundColor: 'rgba(217,109,99,0.1)' },
   errorText: { color: '#8F352E', fontSize: 12, lineHeight: 18, fontWeight: '700', textAlign: 'center' },
-  retryButton: { borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#171313' },
+  retryButton: { borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: colors.violet },
   retryText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900' },
   moreButton: {
     marginTop: 14,
@@ -338,10 +339,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.12)',
-    backgroundColor: 'rgba(23,19,19,0.04)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  moreButtonText: { color: 'rgba(23,19,19,0.7)', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
+  moreButtonText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -350,8 +351,8 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(23,19,19,0.08)',
-    backgroundColor: '#FFFAF2',
+    borderTopColor: colors.border,
+    backgroundColor: colors.backgroundAlt,
   },
   input: {
     flex: 1,
@@ -361,12 +362,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 11,
     paddingBottom: 11,
-    color: '#171313',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
-    backgroundColor: 'rgba(23,19,19,0.04)',
+    backgroundColor: colors.surfaceStrong,
     borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.08)',
+    borderColor: colors.border,
   },
   submitButton: {
     width: 44,
@@ -374,7 +375,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#171313',
+    backgroundColor: colors.violet,
   },
   submitButtonDisabled: { opacity: 0.36 },
 });

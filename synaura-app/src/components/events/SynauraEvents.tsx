@@ -95,7 +95,7 @@ export function VoteCountdownBanner({
       {session.tracks?.[0] ? <TrackCover track={session.tracks[0]} style={StyleSheet.absoluteFill} /> : null}
       <LinearGradient colors={['rgba(23,19,19,0.50)', 'rgba(23,19,19,0.78)', 'rgba(23,19,19,0.97)']} locations={[0, 0.48, 1]} style={StyleSheet.absoluteFill} />
       <View style={styles.countdownTop}>
-        <View style={styles.countdownLogo}><Ionicons name={current ? 'flash' : 'time'} size={18} color={colors.text} /></View>
+        <View style={styles.countdownLogo}><Ionicons name={current ? 'flash' : 'time'} size={18} color={colors.white} /></View>
         <View style={styles.countdownCopy}><Text style={styles.countdownKicker}>{current ? 'VOTE EN COURS' : 'PROCHAIN VOTE DANS'}</Text><Text style={styles.countdownTitle}>{session.title}</Text></View>
         <View style={styles.countdownLive}><View style={styles.countdownLiveDot} /><Text style={styles.countdownLiveText}>{current ? 'LIVE' : 'À VENIR'}</Text></View>
       </View>
@@ -109,7 +109,7 @@ export function VoteCountdownBanner({
         <Text style={styles.countdownParticipantsText}>{session.participants?.length || session.tracks?.length || 0} participants · {session.totalVotes || 0} votes</Text>
       </View>
       <View style={styles.countdownActions}>
-        <Pressable onPress={onOpen} style={styles.countdownPrimary}><Ionicons name={current ? 'flash' : 'headset'} size={15} color={colors.text} /><Text style={styles.countdownPrimaryText}>{current ? 'Ouvrir le vote' : 'Voir les participants'}</Text></Pressable>
+        <Pressable onPress={onOpen} style={styles.countdownPrimary}><Ionicons name={current ? 'flash' : 'headset'} size={15} color={colors.white} /><Text style={styles.countdownPrimaryText}>{current ? 'Ouvrir le vote' : 'Voir les participants'}</Text></Pressable>
         {!current && onNotify ? <Pressable onPress={onNotify} style={styles.countdownNotify}><Ionicons name="notifications-outline" size={16} color={colors.paper} /></Pressable> : null}
       </View>
     </View>
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   tickerText: { flex: 1, fontSize: 11, lineHeight: 16, fontWeight: '900' },
   countdown: { minHeight: 220, overflow: 'hidden', justifyContent: 'flex-end', gap: 8, borderRadius: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, padding: 14 },
   countdownTop: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  countdownLogo: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
+  countdownLogo: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   countdownCopy: { flex: 1, minWidth: 0 },
   countdownKicker: { color: '#FFB2A7', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
   countdownTitle: { marginTop: 3, color: colors.paper, fontSize: 15, fontWeight: '900' },
@@ -370,12 +370,12 @@ const styles = StyleSheet.create({
   countdownParticipants: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   countdownParticipantsText: { flex: 1, color: 'rgba(255,250,242,0.66)', fontSize: 9, fontWeight: '900' },
   countdownActions: { marginTop: 2, flexDirection: 'row', gap: 8 },
-  countdownPrimary: { minHeight: 42, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 11, backgroundColor: colors.paper, paddingHorizontal: 13 },
-  countdownPrimaryText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  countdownPrimary: { minHeight: 42, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 11, backgroundColor: colors.violet, paddingHorizontal: 13 },
+  countdownPrimaryText: { color: colors.white, fontSize: 10, fontWeight: '900' },
   countdownNotify: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.12)' },
   duel: { minHeight: 180, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 8 },
   duelCompact: { minHeight: 105, gap: 5, paddingVertical: 2 },
-  duelCard: { width: '42%', aspectRatio: 0.88, overflow: 'hidden', borderRadius: 4, borderWidth: 2, borderColor: 'rgba(255,255,255,0.26)', backgroundColor: colors.text },
+  duelCard: { width: '42%', aspectRatio: 0.88, overflow: 'hidden', borderRadius: 4, borderWidth: 2, borderColor: 'rgba(255,255,255,0.26)', backgroundColor: colors.surfaceStrong },
   duelCardCompact: { maxWidth: 105, borderRadius: 4 },
   duelCover: { width: '100%', height: '100%' },
   duelLabel: { position: 'absolute', left: 5, right: 5, bottom: 5, borderRadius: 12, backgroundColor: 'rgba(23,19,19,0.82)', paddingHorizontal: 7, paddingVertical: 6 },
@@ -388,13 +388,13 @@ const styles = StyleSheet.create({
   sectionEyebrow: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.3 },
   sectionTitle: { marginTop: 3, color: colors.text, fontSize: 21, fontWeight: '900' },
   sectionSubtitle: { marginTop: 3, color: colors.textTertiary, fontSize: 10, lineHeight: 14, fontWeight: '700' },
-  sectionAction: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 17, backgroundColor: 'rgba(23,19,19,0.06)', paddingHorizontal: 11 },
+  sectionAction: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 17, backgroundColor: colors.surfaceMuted, paddingHorizontal: 11 },
   sectionActionText: { color: colors.text, fontSize: 9, fontWeight: '900' },
   pulseBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 14, paddingHorizontal: 8, paddingVertical: 6 },
   pulseBadgeCompact: { borderRadius: 11, paddingHorizontal: 6, paddingVertical: 4 },
   pulseBadgeText: { fontSize: 9, fontWeight: '900' },
   pulseBadgeTextCompact: { fontSize: 8 },
-  pulseBar: { overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.08)' },
+  pulseBar: { overflow: 'hidden', backgroundColor: colors.surfaceMuted },
   pulseBarFill: { height: '100%' },
   eventCard: { minHeight: 120, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 4, borderWidth: 1, borderColor: colors.border, padding: 12 },
   eventCardCompact: { minHeight: 116 },

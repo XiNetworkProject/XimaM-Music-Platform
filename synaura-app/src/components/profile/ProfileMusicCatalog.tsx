@@ -131,7 +131,7 @@ function CatalogTrackCard({
           </Pressable>
         ) : null}
         <Pressable accessibilityLabel={playing ? 'Mettre en pause' : 'Lire'} onPress={handlePlay} style={styles.playButton}>
-          <Ionicons name={playing ? 'pause' : 'play'} size={17} color={colors.text} />
+          <Ionicons name={playing ? 'pause' : 'play'} size={17} color={colors.black} />
         </Pressable>
       </View>
       <View style={[styles.trackBody, horizontal && styles.trackBodyHorizontal]}>
@@ -174,9 +174,9 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: 3, color: colors.textTertiary, fontSize: 11, fontWeight: '700' },
   sortControl: { maxWidth: 430 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 10, alignItems: 'stretch' },
-  trackCard: { width: '100%', overflow: 'hidden', borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, backgroundColor: colors.surface },
+  trackCard: { width: '100%', overflow: 'hidden', borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, shadowColor: colors.black, shadowOpacity: 0.18, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   trackCardPlaying: { borderColor: 'rgba(115,87,198,0.58)', backgroundColor: colors.violetSoft },
-  trackCardHorizontal: { minHeight: 96, flexDirection: 'row', borderWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderRadius: 0, backgroundColor: 'transparent' },
+  trackCardHorizontal: { minHeight: 96, flexDirection: 'row', borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, backgroundColor: colors.surface },
   coverWrap: { width: '100%', aspectRatio: 1, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
   coverWrapHorizontal: { width: 84, height: 84, marginVertical: 6, aspectRatio: undefined, borderRadius: radius.sm },
   cover: { width: '100%', height: '100%' },
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   duration: { marginLeft: 'auto', color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
   openRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 7 },
   openText: { flex: 1, color: colors.text, fontSize: 9, fontWeight: '900' },
-  empty: { minHeight: 160, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: colors.borderStrong, borderRadius: radius.lg, backgroundColor: 'rgba(255,255,255,0.62)', padding: 20 },
+  empty: { minHeight: 160, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderStyle: 'dashed', borderColor: colors.borderStrong, borderRadius: radius.lg, backgroundColor: colors.surface, padding: 20 },
   emptyIcon: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violetSoft },
   emptyTitle: { marginTop: 11, color: colors.text, fontSize: 15, fontWeight: '900' },
   emptyText: { marginTop: 5, maxWidth: 300, color: colors.textSecondary, textAlign: 'center', fontSize: 11, lineHeight: 17, fontWeight: '700' },

@@ -49,6 +49,6 @@ const styles = StyleSheet.create({
   title: { fontSize: typography.display, lineHeight: 39, fontWeight: '900' },
   titleNarrow: { fontSize: 29, lineHeight: 34 },
   description: { marginTop: 8, maxWidth: 560, fontSize: 14, lineHeight: 21, fontWeight: '500' },
-  action: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.58)', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
+  action: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, shadowColor: colors.black, shadowOpacity: 0.24, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   actionDark: { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.12)' },
 });

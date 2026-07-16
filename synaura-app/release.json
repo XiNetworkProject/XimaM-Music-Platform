@@ -1,14 +1,14 @@
 {
-  "title": "Synaura Signal 0.17.0",
+  "title": "Synaura Resonance 0.18.0",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Nouvelle identite Synaura Signal sur la navigation, Flow, Decouvrir et les profils",
-    "Lecteur plein ecran plus immersif avec Aura Visuals et waveform mise en avant",
-    "Studio repense en tiroir au-dessus de la bibliotheque, avec un mode simple recentre",
-    "Publication des morceaux et des Clips plus claire, continue et adaptee aux petits ecrans",
-    "Bibliotheque, Stats, notifications, reglages et abonnements harmonises",
-    "Posts attaches, communaute, Radar et Events integres au meme langage musical",
-    "Mise en page validee sur huit formats de telephones et tablettes"
+    "Le Scroll devient l'accueil vivant de Synaura sans perdre son experience de swipe",
+    "Nouvelle direction visuelle sombre, premium et chaleureuse sur l'ensemble de l'app",
+    "Discover, profils, Studio, bibliotheque, statistiques et creation entierement harmonises",
+    "Lecteur, waveform, commentaires, file d'attente et partage reunis dans le meme langage visuel",
+    "Animations et effets conserves avec mise en pause automatique sur les ecrans masques",
+    "Contrastes, feuilles d'action et parcours d'authentification corriges",
+    "Mise en page validee sur 31 ecrans natifs et huit formats de telephones et tablettes"
   ]
 }

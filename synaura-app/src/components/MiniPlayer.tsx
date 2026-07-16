@@ -26,7 +26,7 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
   const routeName = activeRoute || '';
   const isVisible = !!player.current && !HIDDEN_ROUTES.has(routeName);
   const hasDock = DOCK_ROUTES.has(routeName);
-  const playerWidth = Math.min(layout.safeWidth, layout.isTablet ? 640 : 560);
+  const playerWidth = Math.min(layout.safeWidth - 12, layout.isTablet ? 628 : 548);
 
   useEffect(() => {
     Animated.timing(slide, {
@@ -141,16 +141,17 @@ const styles = StyleSheet.create({
   },
   card: {
     overflow: 'hidden',
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderRadius: 7,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: colors.night,
+    backgroundColor: colors.darkSurfaceRaised,
     shadowColor: '#111111',
     shadowOpacity: 0.18,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: -5 },
     elevation: 8,
   },
-  progressTrack: { height: 2, backgroundColor: 'rgba(17,17,17,0.07)' },
+  progressTrack: { height: 2, backgroundColor: 'rgba(255,255,255,0.12)' },
   progressFill: {
     height: 2,
     backgroundColor: colors.violet,

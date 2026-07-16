@@ -392,7 +392,7 @@ function EmergingArtists({ tracks }: { tracks: Track[] }) {
 const styles = StyleSheet.create({
   section: {
     overflow: 'hidden',
-    borderRadius: 4,
+    borderRadius: 14,
     backgroundColor: '#111111',
     shadowColor: '#111111',
     shadowOpacity: 0.22,
@@ -463,12 +463,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
     paddingVertical: 12,
   },
-  cardCompact: { width: 246, borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.045)', padding: 10 },
+  cardCompact: { width: 246, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.045)', padding: 10 },
   cardFeatured: { padding: 12 },
   coverWrap: {
     height: 154,
     overflow: 'hidden',
-    borderRadius: 4,
+    borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.07)',
   },
   coverCompact: { height: 154 },

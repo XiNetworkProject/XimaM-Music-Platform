@@ -525,7 +525,7 @@ export function ProfileScreen() {
               <Text style={styles.resumeKicker}>Continuer à écouter</Text>
               <Text numberOfLines={1} style={styles.resumeTitle}>{lastPlayed.title}</Text>
             </View>
-            <Ionicons name="play" size={16} color="#171313" />
+            <Ionicons name="play" size={16} color={colors.text} />
           </Pressable>
         ) : null}
 
@@ -610,7 +610,7 @@ export function ProfileScreen() {
                 {v.status === 'rejected' ? <Text style={[styles.variationStatus, { color: '#9b352e' }]}>Refusée</Text> : null}
                 {v.status === 'published' ? <Text style={[styles.variationStatus, { color: '#1f6e48' }]}>Publiée</Text> : null}
               </View>
-              <Ionicons name="play" size={16} color="#171313" />
+              <Ionicons name="play" size={16} color={colors.text} />
             </Pressable>
           )) : <Empty text="Tu n'as pas encore publié de variation." />}
         </View>
@@ -636,9 +636,9 @@ export function ProfileScreen() {
                 ) : null}
               </View>
               <Pressable accessibilityLabel={post.isPinned ? 'Désépingler' : 'Épingler'} onPress={(event) => { event.stopPropagation(); void togglePinnedPost(post.id); }} style={styles.miniIcon}>
-                <Ionicons name={post.isPinned ? 'pin' : 'pin-outline'} size={15} color={post.isPinned ? '#7C5CFF' : '#171313'} />
+                <Ionicons name={post.isPinned ? 'pin' : 'pin-outline'} size={15} color={post.isPinned ? colors.violet : colors.textSecondary} />
               </Pressable>
-              <Ionicons name="chevron-forward" size={16} color="rgba(23,19,19,0.35)" />
+              <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
             </Pressable>
           )) : <Pressable onPress={() => navigation.navigate('CreatePost')} style={styles.emptyAction}><Ionicons name="add-circle-outline" size={18} color="#7C5CFF" /><Text style={styles.emptyActionText}>Créer mon premier post</Text></Pressable>}
           {postsHasMore ? (
@@ -655,7 +655,7 @@ export function ProfileScreen() {
           <SectionTitle title="Playlists" action={`${profile?.playlists.length || 0}`} />
           {profile?.playlists.length ? profile.playlists.map((playlist) => (
             <Pressable key={playlist.id} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.id })} style={styles.playlistRow}>
-              <View style={styles.playlistCover}>{playlist.coverUrl ? <Image source={{ uri: playlist.coverUrl }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={20} color="rgba(23,19,19,0.42)" />}</View>
+              <View style={styles.playlistCover}>{playlist.coverUrl ? <Image source={{ uri: playlist.coverUrl }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={20} color={colors.textTertiary} />}</View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.playlistTitle}>{playlist.title}</Text>
                 <Text style={styles.playlistMeta}>{playlist.tracksCount} sons {playlist.isAlbum ? '· Album' : ''}</Text>
@@ -773,9 +773,9 @@ function Empty({ text }: { text: string }) {
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 18, paddingBottom: 160, gap: 14 },
   ownerDashboard: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
-  ownerDashboardItem: { minHeight: 86, flexBasis: 220, flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 4, padding: 12 },
-  ownerDashboardStats: { backgroundColor: '#171313' },
-  ownerDashboardEvents: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  ownerDashboardItem: { minHeight: 90, flexBasis: 220, flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 13 },
+  ownerDashboardStats: { borderColor: 'rgba(115,87,198,0.46)', backgroundColor: '#191621', shadowColor: colors.violet, shadowOpacity: 0.16, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  ownerDashboardEvents: { borderColor: 'rgba(74,158,170,0.34)', backgroundColor: colors.surfaceStrong },
   ownerDashboardIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
   ownerDashboardIconLight: { backgroundColor: colors.violetSoft },
   ownerDashboardCopy: { flex: 1, minWidth: 0 },
@@ -785,54 +785,54 @@ const styles = StyleSheet.create({
   ownerDashboardTitleDark: { color: colors.text },
   ownerDashboardText: { marginTop: 3, color: 'rgba(255,255,255,0.58)', fontSize: 9, fontWeight: '700' },
   ownerDashboardTextDark: { color: colors.textSecondary },
-  loginHero: { borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.86)', padding: 20, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
-  loginIcon: { width: 74, height: 74, borderRadius: 8, backgroundColor: '#171313', alignItems: 'center', justifyContent: 'center' },
-  loginTitle: { marginTop: 16, color: '#171313', fontSize: 28, fontWeight: '900' },
-  loginText: { marginTop: 8, color: 'rgba(23,19,19,0.56)', textAlign: 'center', fontSize: 13, lineHeight: 20, fontWeight: '700' },
+  loginHero: { borderRadius: 14, backgroundColor: colors.surface, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: colors.borderStrong, shadowColor: colors.black, shadowOpacity: 0.26, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
+  loginIcon: { width: 74, height: 74, borderRadius: 22, backgroundColor: colors.violet, alignItems: 'center', justifyContent: 'center' },
+  loginTitle: { marginTop: 16, color: colors.text, fontSize: 28, fontWeight: '900' },
+  loginText: { marginTop: 8, color: colors.textSecondary, textAlign: 'center', fontSize: 13, lineHeight: 20, fontWeight: '700' },
   guestHighlights: { alignSelf: 'stretch', marginTop: 18, gap: 8 },
-  guestHighlight: { minHeight: 44, borderRadius: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: 'rgba(23,19,19,0.045)' },
-  guestHighlightText: { flex: 1, color: 'rgba(23,19,19,0.58)', fontSize: 12, fontWeight: '800' },
+  guestHighlight: { minHeight: 44, borderRadius: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: colors.surfaceStrong },
+  guestHighlightText: { flex: 1, color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
   guestActions: { alignSelf: 'stretch', marginTop: 17, gap: 9 },
-  primaryButton: { height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
+  primaryButton: { height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   primaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
-  registerButton: { height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: '#FFFFFF' },
+  registerButton: { height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong },
   registerText: { color: '#7C5CFF', fontSize: 13, fontWeight: '900' },
   badgesPanel: { gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 12 },
   featuredCover: { width: 60, height: 60, borderRadius: 4 },
   quickGrid: { gap: 8, paddingRight: 18 },
-  quickAction: { width: 150, minHeight: 104, borderRadius: 8, padding: 12, backgroundColor: 'rgba(255,255,255,0.78)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.08)' },
+  quickAction: { width: 150, minHeight: 108, borderRadius: 10, padding: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong },
   quickIcon: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(124,92,255,0.1)' },
-  quickTitle: { marginTop: 10, color: '#171313', fontSize: 14, fontWeight: '900' },
-  quickText: { marginTop: 3, color: 'rgba(23,19,19,0.48)', fontSize: 11, lineHeight: 16, fontWeight: '700' },
+  quickTitle: { marginTop: 10, color: colors.text, fontSize: 14, fontWeight: '900' },
+  quickText: { marginTop: 3, color: colors.textSecondary, fontSize: 11, lineHeight: 16, fontWeight: '700' },
   card: { gap: 9, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 12 },
   planLink: { minHeight: 38, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 11, backgroundColor: 'rgba(124,92,255,0.08)' },
   planLinkText: { color: '#7C5CFF', fontSize: 10, fontWeight: '900' },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: '#171313', fontSize: 17, fontWeight: '900' },
-  sectionAction: { color: 'rgba(23,19,19,0.42)', fontSize: 11, fontWeight: '900' },
+  sectionTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
+  sectionAction: { color: colors.textTertiary, fontSize: 11, fontWeight: '900' },
   usageRow: { gap: 6 },
   usageTop: { flexDirection: 'row', justifyContent: 'space-between' },
-  usageLabel: { color: '#171313', fontSize: 12, fontWeight: '900' },
-  usageMeta: { color: 'rgba(23,19,19,0.45)', fontSize: 11, fontWeight: '800' },
-  usageTrack: { height: 6, borderRadius: 999, backgroundColor: 'rgba(23,19,19,0.08)', overflow: 'hidden' },
+  usageLabel: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  usageMeta: { color: colors.textTertiary, fontSize: 11, fontWeight: '800' },
+  usageTrack: { height: 6, borderRadius: 999, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
   usageFill: { height: 6, borderRadius: 999, backgroundColor: '#7C5CFF' },
   trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingVertical: 9 },
   trackCover: { width: 50, height: 50, borderRadius: 4 },
-  trackTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
-  trackMeta: { marginTop: 3, color: 'rgba(23,19,19,0.45)', fontSize: 10, fontWeight: '800' },
+  trackTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  trackMeta: { marginTop: 3, color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
   variationStatus: { marginTop: 2, fontSize: 10, fontWeight: '900' },
-  miniIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.055)' },
+  miniIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
   playlistRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingVertical: 9 },
-  playlistCover: { width: 48, height: 48, borderRadius: 4, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.07)' },
-  playlistTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
-  playlistMeta: { marginTop: 3, color: 'rgba(23,19,19,0.45)', fontSize: 10, fontWeight: '800' },
+  playlistCover: { width: 48, height: 48, borderRadius: 7, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  playlistTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  playlistMeta: { marginTop: 3, color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
   postRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingVertical: 11 },
-  postText: { color: '#171313', fontSize: 12, lineHeight: 17, fontWeight: '800' },
+  postText: { color: colors.text, fontSize: 12, lineHeight: 17, fontWeight: '800' },
   postPinned: { marginBottom: 4, color: '#7C5CFF', fontSize: 8, fontWeight: '900' },
-  postMeta: { marginTop: 5, color: 'rgba(23,19,19,0.42)', fontSize: 9, fontWeight: '800' },
+  postMeta: { marginTop: 5, color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
   emptyAction: { minHeight: 50, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: 'rgba(124,92,255,0.08)' },
   emptyActionText: { color: '#5B3FD6', fontSize: 11, fontWeight: '900' },
-  empty: { borderRadius: 8, padding: 14, backgroundColor: 'rgba(23,19,19,0.045)', color: 'rgba(23,19,19,0.48)', fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  empty: { borderRadius: 8, padding: 14, backgroundColor: colors.surface, color: colors.textSecondary, fontSize: 12, fontWeight: '800', textAlign: 'center' },
   error: { overflow: 'hidden', borderRadius: 8, padding: 12, backgroundColor: 'rgba(239,68,68,0.1)', color: colors.danger, fontSize: 12, fontWeight: '800', textAlign: 'center' },
   identityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   identityPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1 },
@@ -841,9 +841,9 @@ const styles = StyleSheet.create({
   identityPillText: { fontSize: 10, fontWeight: '900' },
   resumeCard: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 9 },
   resumeKicker: { color: '#7357C6', fontSize: 9, fontWeight: '900' },
-  resumeTitle: { marginTop: 3, color: '#171313', fontSize: 13, fontWeight: '900' },
+  resumeTitle: { marginTop: 3, color: colors.text, fontSize: 13, fontWeight: '900' },
   clipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  clipTile: { width: '31%', aspectRatio: 9 / 16, borderRadius: 4, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.08)' },
+  clipTile: { width: '31%', aspectRatio: 9 / 16, borderRadius: 9, overflow: 'hidden', backgroundColor: colors.surfaceMuted, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   clipStatus: { position: 'absolute', left: 6, top: 6, overflow: 'hidden', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 4, color: '#FFFFFF', backgroundColor: 'rgba(17,17,17,0.76)', fontSize: 8, fontWeight: '900' },
   clipTileOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 6, backgroundColor: 'rgba(23,19,19,0.55)' },
   clipTileTitle: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },

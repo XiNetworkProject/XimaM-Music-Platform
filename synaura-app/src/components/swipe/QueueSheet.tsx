@@ -6,6 +6,7 @@ import { usePlayer } from '@/player/PlayerProvider';
 import { TrackCover } from '@/components/TrackCover';
 import { trackArtistName } from './helpers';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { colors } from '@/theme/tokens';
 
 type Props = {
   visible: boolean;
@@ -45,17 +46,17 @@ export function QueueSheet({ visible, onClose }: Props) {
               onPress={() => void player.toggleShuffle()}
               style={[styles.toggle, player.shuffleEnabled && styles.toggleActive]}
             >
-              <Ionicons name="shuffle" size={16} color={player.shuffleEnabled ? '#FFFAF2' : '#171313'} />
+              <Ionicons name="shuffle" size={16} color={player.shuffleEnabled ? colors.white : colors.textSecondary} />
             </Pressable>
             <Pressable
               accessibilityLabel="Changer le mode boucle"
               onPress={() => void player.cycleRepeatMode()}
               style={[styles.toggle, player.repeatMode !== 'off' && styles.toggleActive]}
             >
-              <Ionicons name={player.repeatMode === 'one' ? 'repeat' : 'repeat-outline'} size={16} color={player.repeatMode !== 'off' ? '#FFFAF2' : '#171313'} />
+              <Ionicons name={player.repeatMode === 'one' ? 'repeat' : 'repeat-outline'} size={16} color={player.repeatMode !== 'off' ? colors.white : colors.textSecondary} />
             </Pressable>
             <Pressable accessibilityLabel="Fermer" onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={20} color="#171313" />
+              <Ionicons name="close" size={20} color={colors.text} />
             </Pressable>
           </View>
         </View>
@@ -89,7 +90,7 @@ export function QueueSheet({ visible, onClose }: Props) {
                       onPress={() => void player.moveInQueue(index, index - 1)}
                       style={styles.icon}
                     >
-                      <Ionicons name="chevron-up" size={16} color="rgba(23,19,19,0.55)" />
+                      <Ionicons name="chevron-up" size={16} color={colors.textSecondary} />
                     </Pressable>
                     <Pressable
                       accessibilityLabel="Descendre dans la file"
@@ -97,7 +98,7 @@ export function QueueSheet({ visible, onClose }: Props) {
                       onPress={() => void player.moveInQueue(index, index + 1)}
                       style={styles.icon}
                     >
-                      <Ionicons name="chevron-down" size={16} color="rgba(23,19,19,0.55)" />
+                      <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
                     </Pressable>
                     <Pressable
                       accessibilityLabel="Retirer de la file"
@@ -113,7 +114,7 @@ export function QueueSheet({ visible, onClose }: Props) {
           })}
           {!player.queue.length ? (
             <View style={styles.empty}>
-              <Ionicons name="albums-outline" size={32} color="rgba(23,19,19,0.4)" />
+              <Ionicons name="albums-outline" size={32} color={colors.textTertiary} />
               <Text style={styles.emptyText}>Aucun titre dans la file pour le moment.</Text>
             </View>
           ) : null}
@@ -133,7 +134,7 @@ const styles = StyleSheet.create({
     minHeight: '50%',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    backgroundColor: '#FFFAF2',
+    backgroundColor: colors.background,
     shadowColor: '#000',
     shadowOpacity: 0.18,
     shadowRadius: 36,
@@ -141,7 +142,7 @@ const styles = StyleSheet.create({
     elevation: 24,
   },
   handleArea: { alignItems: 'center', paddingTop: 8, paddingBottom: 6 },
-  handleBar: { width: 44, height: 4, borderRadius: 2, backgroundColor: 'rgba(23,19,19,0.18)' },
+  handleBar: { width: 44, height: 4, borderRadius: 2, backgroundColor: colors.textTertiary },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -149,11 +150,11 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(23,19,19,0.08)',
+    borderBottomColor: colors.border,
     gap: 12,
   },
-  kicker: { color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
-  title: { color: '#171313', fontSize: 17, fontWeight: '900', marginTop: 4 },
+  kicker: { color: colors.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
+  title: { color: colors.text, fontSize: 17, fontWeight: '900', marginTop: 4 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   toggle: {
     width: 36,
@@ -161,16 +162,16 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(23,19,19,0.06)',
+    backgroundColor: colors.surfaceMuted,
   },
-  toggleActive: { backgroundColor: '#171313' },
+  toggleActive: { backgroundColor: colors.violet },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(23,19,19,0.06)',
+    backgroundColor: colors.surfaceMuted,
   },
   list: { padding: 14, paddingBottom: 30, gap: 8 },
   row: {
@@ -180,27 +181,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 16,
-    backgroundColor: 'rgba(23,19,19,0.03)',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.05)',
+    borderColor: colors.border,
   },
   rowActive: {
-    backgroundColor: 'rgba(124,92,255,0.10)',
-    borderColor: 'rgba(124,92,255,0.30)',
+    backgroundColor: colors.violetSoft,
+    borderColor: 'rgba(115,87,198,0.48)',
   },
   coverWrap: {
     width: 46,
     height: 46,
     borderRadius: 13,
     overflow: 'hidden',
-    backgroundColor: 'rgba(23,19,19,0.06)',
+    backgroundColor: colors.surfaceStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
   meta: { flex: 1, minWidth: 0 },
-  itemTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
-  itemTitleActive: { color: '#171313' },
-  itemArtist: { color: 'rgba(23,19,19,0.5)', fontSize: 11, fontWeight: '700', marginTop: 3 },
+  itemTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  itemTitleActive: { color: colors.white },
+  itemArtist: { color: colors.textSecondary, fontSize: 11, fontWeight: '700', marginTop: 3 },
   playingBadge: {
     width: 32,
     height: 32,
@@ -212,7 +213,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   icon: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', gap: 12, paddingVertical: 50 },
-  emptyText: { color: 'rgba(23,19,19,0.5)', fontSize: 13, textAlign: 'center', paddingHorizontal: 28 },
+  emptyText: { color: colors.textSecondary, fontSize: 13, textAlign: 'center', paddingHorizontal: 28 },
 });
 
 export default QueueSheet;

@@ -39,6 +39,7 @@ import { WaveformSeekBar } from '@/components/swipe/WaveformSeekBar';
 import { fmtCount, fmtTime, trackArtistName } from '@/components/swipe/helpers';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { colors } from '@/theme/tokens';
 
 type Props = {
   visible: boolean;
@@ -359,7 +360,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
                 <TrackCover track={track} active={visible && player.isPlaying} autoPlayVideo={visible && player.isPlaying} style={StyleSheet.absoluteFill} />
               ) : (
                 <View style={[StyleSheet.absoluteFill, styles.coverFallback]}>
-                  <Ionicons name="musical-notes" size={68} color="rgba(23,19,19,0.32)" />
+                  <Ionicons name="musical-notes" size={68} color="rgba(247,246,243,0.32)" />
                 </View>
               )}
 
@@ -679,10 +680,10 @@ function MoreRow({
       style={[styles.moreRow, disabled && { opacity: 0.35 }]}
     >
       <View style={[styles.moreIcon, active && styles.moreIconActive]}>
-        <Ionicons name={icon} size={18} color={active ? '#FFFAF2' : '#171313'} />
+        <Ionicons name={icon} size={18} color={active ? colors.white : colors.textSecondary} />
       </View>
       <Text style={styles.moreLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={15} color="rgba(23,19,19,0.3)" />
+      <Ionicons name="chevron-forward" size={15} color={colors.textTertiary} />
     </Pressable>
   );
 }
@@ -733,11 +734,13 @@ const styles = StyleSheet.create({
     height: 18,
     paddingHorizontal: 5,
     borderRadius: 9,
-    backgroundColor: '#F7F6F3',
+    backgroundColor: colors.violet,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerBadgeText: { color: '#111111', fontSize: 10, fontWeight: '900' },
+  headerBadgeText: { color: colors.white, fontSize: 10, fontWeight: '900' },
   bodyScroll: { flex: 1 },
   body: { flexGrow: 1, paddingHorizontal: 20 },
   bodyCompact: { paddingTop: 0 },
@@ -944,13 +947,15 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
-    backgroundColor: '#F7F6F3',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
     paddingHorizontal: 18,
     paddingTop: 12,
     gap: 4,
   },
   moreContent: { gap: 4 },
-  moreHandle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: 'rgba(17,17,17,0.18)', marginBottom: 8 },
+  moreHandle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: colors.textTertiary, marginBottom: 8 },
   moreRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -963,12 +968,12 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.08)',
+    borderColor: colors.border,
   },
-  moreIconActive: { backgroundColor: '#171313', borderColor: 'transparent' },
-  moreLabel: { flex: 1, color: '#171313', fontSize: 14, fontWeight: '900' },
+  moreIconActive: { backgroundColor: colors.violet, borderColor: 'transparent' },
+  moreLabel: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '900' },
   genres: {
     marginTop: 10,
     flexDirection: 'row',
@@ -979,12 +984,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surfaceStrong,
     borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.08)',
+    borderColor: colors.border,
   },
   genreText: {
-    color: 'rgba(23,19,19,0.78)',
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.6,

@@ -100,7 +100,7 @@ export function ProfileIdentityHero({
               <Text numberOfLines={1} style={styles.spotlightMeta}>{compact(spotlightTrack.plays || 0)} écoute{Number(spotlightTrack.plays || 0) > 1 ? 's' : ''}</Text>
             </View>
             <View style={[styles.spotlightPlay, responsive.isNarrow && styles.spotlightPlayNarrow]}>
-              <Ionicons name="play" size={16} color={colors.text} />
+              <Ionicons name="play" size={16} color={colors.black} />
             </View>
           </MotionPressable>
         ) : null}
@@ -203,7 +203,7 @@ function compact(value: number) {
 
 const styles = StyleSheet.create({
   hero: { overflow: 'visible' },
-  visual: { overflow: 'hidden', borderRadius: radius.sm, backgroundColor: colors.black },
+  visual: { overflow: 'hidden', borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: colors.black, shadowColor: colors.black, shadowOpacity: 0.34, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
   coverBackdrop: { transform: [{ scale: 1.08 }], opacity: 0.88 },
   fallback: { overflow: 'hidden', backgroundColor: '#171313' },
   fallbackRailViolet: { position: 'absolute', left: '9%', top: '-12%', width: '26%', height: '130%', backgroundColor: '#7357C6', opacity: 0.46, transform: [{ rotate: '14deg' }] },
@@ -231,17 +231,17 @@ const styles = StyleSheet.create({
   identityRow: { minHeight: 66, flexDirection: 'row', alignItems: 'flex-start' },
   avatar: { width: 96, height: 96, marginTop: -48, marginLeft: 10, overflow: 'hidden', borderRadius: 48, borderWidth: 4, borderColor: colors.background, backgroundColor: '#E7DED2', alignItems: 'center', justifyContent: 'center' },
   avatarNarrow: { width: 84, height: 84, marginTop: -42, borderRadius: 42 },
-  avatarText: { color: colors.text, fontSize: 32, fontWeight: '900' },
+  avatarText: { color: colors.black, fontSize: 32, fontWeight: '900' },
   nameBlock: { flex: 1, minWidth: 0, paddingLeft: 12, paddingTop: 9, paddingRight: 4 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   name: { flexShrink: 1, color: colors.text, fontSize: 25, lineHeight: 29, fontWeight: '900' },
   nameNarrow: { fontSize: 21, lineHeight: 25 },
   handle: { marginTop: 3, color: colors.textTertiary, fontSize: 11, fontWeight: '800' },
   actions: { marginTop: 10, flexDirection: 'row', gap: 8 },
-  primaryAction: { flex: 1, minWidth: 0, height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: radius.sm, backgroundColor: colors.black, paddingHorizontal: 12 },
-  primaryActionActive: { backgroundColor: colors.violet },
+  primaryAction: { flex: 1, minWidth: 0, height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: radius.md, backgroundColor: colors.violet, paddingHorizontal: 12, shadowColor: colors.violet, shadowOpacity: 0.28, shadowRadius: 11, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
+  primaryActionActive: { backgroundColor: colors.cyan },
   primaryActionText: { flexShrink: 1, color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
-  iconAction: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface },
+  iconAction: { width: 46, height: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong },
   bio: { marginTop: 14, maxWidth: 680, color: colors.textSecondary, fontSize: 13, lineHeight: 20, fontWeight: '600' },
   completeProfile: { marginTop: 13, minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.sm, paddingHorizontal: 11, backgroundColor: colors.violetSoft },
   completeProfileText: { flex: 1, color: colors.violet, fontSize: 11, lineHeight: 16, fontWeight: '800' },
@@ -251,16 +251,16 @@ const styles = StyleSheet.create({
   locationPill: { maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 6, backgroundColor: colors.surfaceMuted },
   locationText: { flexShrink: 1, color: colors.textSecondary, fontSize: 9, fontWeight: '900' },
   socialLinks: { marginTop: 12 },
-  stats: { marginTop: 15, flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  stats: { marginTop: 15, flexDirection: 'row', overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.04)' },
   statsCompact: { flexWrap: 'wrap' },
-  stat: { flex: 1, minWidth: 0, alignItems: 'flex-start', paddingHorizontal: 3, paddingVertical: 12 },
+  stat: { flex: 1, minWidth: 0, alignItems: 'flex-start', paddingHorizontal: 10, paddingVertical: 13, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colors.border },
   statCompact: { flex: 0, width: '50%', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   statValue: { maxWidth: '100%', color: colors.text, fontSize: 18, fontWeight: '900' },
   statLabel: { maxWidth: '100%', marginTop: 3, color: colors.textTertiary, fontSize: 8, fontWeight: '800' },
   skeleton: { overflow: 'hidden', borderRadius: radius.sm },
-  skeletonVisual: { height: 220, backgroundColor: '#DEDAD4' },
+  skeletonVisual: { height: 220, backgroundColor: colors.surfaceStrong },
   skeletonBody: { minHeight: 132, paddingHorizontal: 10 },
-  skeletonAvatar: { width: 96, height: 96, marginTop: -48, borderRadius: 48, borderWidth: 4, borderColor: colors.background, backgroundColor: '#CAC5BE' },
-  skeletonLineWide: { width: '56%', height: 14, marginTop: 12, borderRadius: radius.sm, backgroundColor: '#DEDAD4' },
-  skeletonLine: { width: '34%', height: 9, marginTop: 8, borderRadius: radius.sm, backgroundColor: '#E8E4DE' },
+  skeletonAvatar: { width: 96, height: 96, marginTop: -48, borderRadius: 48, borderWidth: 4, borderColor: colors.background, backgroundColor: colors.surfaceMuted },
+  skeletonLineWide: { width: '56%', height: 14, marginTop: 12, borderRadius: radius.sm, backgroundColor: colors.surfaceStrong },
+  skeletonLine: { width: '34%', height: 9, marginTop: 8, borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
 });

@@ -91,7 +91,7 @@ export function DiscoverMoodScreen() {
                   <View style={styles.gridCoverWrap}>
                     <TrackCover track={track} active={player.current?._id === track._id && player.isPlaying} style={styles.gridCover} />
                     <View style={styles.gridPlay}>
-                      <Ionicons name={player.current?._id === track._id && player.isPlaying ? 'pause' : 'play'} size={14} color={colors.text} />
+                      <Ionicons name={player.current?._id === track._id && player.isPlaying ? 'pause' : 'play'} size={14} color={colors.black} />
                     </View>
                   </View>
                   <Text numberOfLines={1} style={styles.gridTitle}>{track.title}</Text>
@@ -117,15 +117,15 @@ export function DiscoverMoodScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, gap: 10 },
-  banner: { marginTop: 4, overflow: 'hidden', borderRadius: 4, padding: 20, minHeight: 190, justifyContent: 'flex-end' },
+  banner: { marginTop: 4, overflow: 'hidden', borderRadius: 14, padding: 20, minHeight: 190, justifyContent: 'flex-end', borderWidth: 1, borderColor: colors.borderStrong },
   bannerTitle: { color: colors.paper, fontSize: 29, lineHeight: 33, fontWeight: '900' },
   bannerPromise: { marginTop: 6, color: 'rgba(255,250,242,0.76)', fontSize: 12, lineHeight: 18, fontWeight: '700', maxWidth: '85%' },
   loader: { marginVertical: 60 },
-  playAll: { marginTop: 14, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, backgroundColor: colors.black, paddingHorizontal: 16, paddingVertical: 11 },
+  playAll: { marginTop: 14, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, backgroundColor: colors.violet, paddingHorizontal: 16, paddingVertical: 11 },
   playAllText: { color: colors.paper, fontSize: 12, fontWeight: '900' },
   grid: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
-  gridItem: { width: '31%' },
-  gridCoverWrap: { width: '100%', aspectRatio: 1, overflow: 'hidden', borderRadius: 4, backgroundColor: 'rgba(17,17,17,0.06)' },
+  gridItem: { width: '31%', borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 7 },
+  gridCoverWrap: { width: '100%', aspectRatio: 1, overflow: 'hidden', borderRadius: 8, backgroundColor: colors.surfaceMuted },
   gridCover: { width: '100%', height: '100%' },
   gridPlay: { position: 'absolute', right: 6, bottom: 6, width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.92)' },
   gridTitle: { marginTop: 7, color: colors.text, fontSize: 10, fontWeight: '900' },
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   emptyState: { minHeight: 260, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 20 },
   emptyTitle: { color: colors.text, fontSize: 15, fontWeight: '900', textAlign: 'center' },
   emptyText: { color: colors.textTertiary, fontSize: 12, lineHeight: 18, fontWeight: '700', textAlign: 'center' },
-  emptyButton: { marginTop: 6, borderRadius: 999, backgroundColor: colors.black, paddingHorizontal: 16, paddingVertical: 11 },
+  emptyButton: { marginTop: 6, borderRadius: 999, backgroundColor: colors.violet, paddingHorizontal: 16, paddingVertical: 11 },
   emptyButtonText: { color: colors.paper, fontSize: 12, fontWeight: '900' },
 });
 

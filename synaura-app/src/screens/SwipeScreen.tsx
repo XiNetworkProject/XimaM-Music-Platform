@@ -73,6 +73,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { MotionPressable } from '@/components/motion/Motion';
 import { MobileAnimatedLogo } from '@/components/mobile/MobileAnimatedLogo';
+import { TrackCover } from '@/components/TrackCover';
 import { colors } from '@/theme/tokens';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
@@ -150,6 +151,7 @@ export function SwipeScreen() {
   const [shareOpen, setShareOpen] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  const [homeHubOpen, setHomeHubOpen] = useState(false);
   const [remixTrack, setRemixTrack] = useState<Track | null>(null);
   const [burstKey, setBurstKey] = useState(0);
   const [burstVisible, setBurstVisible] = useState(false);
@@ -279,6 +281,7 @@ export function SwipeScreen() {
     setShareOpen(false);
     setLyricsOpen(false);
     setQueueOpen(false);
+    setHomeHubOpen(false);
   }, [isFocused]);
 
   // Android peut detacher les surfaces video et les cellules plein ecran quand
@@ -1054,15 +1057,15 @@ export function SwipeScreen() {
 
       <Animated.View style={[styles.header, headerStyle]} pointerEvents="box-none">
         <View style={[styles.headerInner, responsive.contentFrame]}>
-          <View style={styles.scrollIdentity}>
+          <MotionPressable accessibilityLabel="Ouvrir l'accueil Synaura" onPress={() => setHomeHubOpen(true)} style={styles.scrollIdentity} scaleTo={0.94}>
             <View style={styles.scrollMark}><Ionicons name="pulse" size={23} color="#F7F6F3" /></View>
             {!responsive.isNarrow ? (
               <View>
-                <Text style={styles.scrollName}>Flow</Text>
-                <Text style={styles.scrollSubtitle}>Synaura</Text>
+                <Text style={styles.scrollName}>Synaura</Text>
+                <Text style={styles.scrollSubtitle}>Accueil</Text>
               </View>
             ) : null}
-          </View>
+          </MotionPressable>
           <SegmentedControl
             value={feedMode}
             dark
@@ -1072,11 +1075,10 @@ export function SwipeScreen() {
             onChange={switchFeedMode}
           />
           <View style={styles.headerActions}>
-            <NotificationBellButton dark compact />
-            <MotionPressable accessibilityLabel="Voir la file d'attente" onPress={() => setQueueOpen(true)} style={styles.queueButton} scaleTo={0.9}>
-              <Ionicons name="albums-outline" size={20} color="#FFFAF2" />
-              {player.queue.length ? <View style={styles.queueBadge}><Text style={styles.queueBadgeText}>{player.queue.length}</Text></View> : null}
+            <MotionPressable accessibilityLabel="Rechercher" onPress={() => navigation.navigate('Search')} style={styles.queueButton} scaleTo={0.9}>
+              <Ionicons name="search" size={19} color="#FFFAF2" />
             </MotionPressable>
+            <NotificationBellButton dark compact />
           </View>
         </View>
         <View style={styles.feedProgressTrack}><Animated.View style={[styles.feedProgressFill, { width: feedProgress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} /></View>
@@ -1136,6 +1138,78 @@ export function SwipeScreen() {
       )}
 
       <HeartBurst visible={burstVisible} burstKey={burstKey} />
+
+      <BottomSheet
+        visible={homeHubOpen}
+        title="Accueil Synaura"
+        subtitle="Écouter, découvrir et créer sans perdre ton Flow."
+        onClose={() => setHomeHubOpen(false)}
+        maxHeight="78%"
+      >
+        <View style={styles.homeHub}>
+          {player.current ? (
+            <MotionPressable
+              accessibilityLabel="Ouvrir le morceau en lecture"
+              onPress={() => {
+                setHomeHubOpen(false);
+                DeviceEventEmitter.emit('synaura:open-full-player');
+              }}
+              style={styles.homeNowPlaying}
+              scaleTo={0.985}
+            >
+              <TrackCover track={player.current} active={player.isPlaying} style={styles.homeNowCover} />
+              <View style={styles.homeNowCopy}>
+                <Text style={styles.homeNowKicker}>EN CE MOMENT</Text>
+                <Text numberOfLines={1} style={styles.homeNowTitle}>{player.current.title}</Text>
+                <Text numberOfLines={1} style={styles.homeNowArtist}>{player.current.artist?.name || player.current.artist?.artistName || player.current.artist?.username || 'Artiste Synaura'}</Text>
+              </View>
+              <View style={styles.homeNowPulse}><Ionicons name={player.isPlaying ? 'pause' : 'play'} size={18} color={colors.paper} /></View>
+            </MotionPressable>
+          ) : null}
+          <View style={styles.homeDestinations}>
+            {([
+              { label: 'Rechercher', detail: 'Titres, artistes et playlists', icon: 'search-outline' as const, route: 'Search' },
+              { label: 'Découvrir', detail: 'Sélections et nouveautés', icon: 'compass-outline' as const, route: 'Discover' },
+              { label: 'Radar', detail: 'Les talents avant tout le monde', icon: 'radio-outline' as const, route: 'Radar' },
+              { label: 'Events', detail: 'Votes, challenges et moments forts', icon: 'calendar-outline' as const, route: 'City' },
+              { label: 'Communauté', detail: 'Histoires, avis et collaborations', icon: 'people-outline' as const, route: 'Community' },
+              { label: 'Studio', detail: 'Créer ou transformer un morceau', icon: 'sparkles-outline' as const, route: 'AIStudio' },
+            ]).map((destination) => (
+              <MotionPressable
+                key={destination.route}
+                onPress={() => {
+                  setHomeHubOpen(false);
+                  navigation.navigate(destination.route);
+                }}
+                style={styles.homeDestination}
+                scaleTo={0.985}
+              >
+                <View style={styles.homeDestinationIcon}><Ionicons name={destination.icon} size={20} color={colors.paper} /></View>
+                <View style={styles.homeDestinationCopy}>
+                  <Text style={styles.homeDestinationTitle}>{destination.label}</Text>
+                  <Text numberOfLines={1} style={styles.homeDestinationDetail}>{destination.detail}</Text>
+                </View>
+                <Ionicons name="arrow-forward" size={17} color={colors.textTertiary} />
+              </MotionPressable>
+            ))}
+            <MotionPressable
+              onPress={() => {
+                setHomeHubOpen(false);
+                setQueueOpen(true);
+              }}
+              style={styles.homeDestination}
+              scaleTo={0.985}
+            >
+              <View style={[styles.homeDestinationIcon, styles.homeQueueIcon]}><Ionicons name="albums-outline" size={20} color={colors.paper} /></View>
+              <View style={styles.homeDestinationCopy}>
+                <Text style={styles.homeDestinationTitle}>File d'attente</Text>
+                <Text numberOfLines={1} style={styles.homeDestinationDetail}>{player.queue.length ? `${player.queue.length} morceau${player.queue.length > 1 ? 'x' : ''}` : 'Aucun morceau en attente'}</Text>
+              </View>
+              <Ionicons name="arrow-forward" size={17} color={colors.textTertiary} />
+            </MotionPressable>
+          </View>
+        </View>
+      </BottomSheet>
 
       <CommentsSheet
         visible={commentsOpen}
@@ -1307,6 +1381,21 @@ const styles = StyleSheet.create({
   },
   retryText: { color: '#171313', fontSize: 12, fontWeight: '900' },
   footer: { paddingVertical: 28, alignItems: 'center', justifyContent: 'center' },
+  homeHub: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
+  homeNowPlaying: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 11, overflow: 'hidden', borderRadius: 10, padding: 9, backgroundColor: colors.surfaceStrong, borderWidth: 1, borderColor: colors.borderStrong },
+  homeNowCover: { width: 58, height: 58, borderRadius: 7 },
+  homeNowCopy: { flex: 1, minWidth: 0 },
+  homeNowKicker: { color: colors.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
+  homeNowTitle: { marginTop: 5, color: colors.text, fontSize: 14, fontWeight: '900' },
+  homeNowArtist: { marginTop: 3, color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
+  homeNowPulse: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  homeDestinations: { marginTop: 10 },
+  homeDestination: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong },
+  homeDestinationIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  homeQueueIcon: { backgroundColor: colors.cyan },
+  homeDestinationCopy: { flex: 1, minWidth: 0 },
+  homeDestinationTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  homeDestinationDetail: { marginTop: 3, color: colors.textSecondary, fontSize: 10, fontWeight: '600' },
   remixSheet: { paddingHorizontal: 18, paddingBottom: 10, gap: 12 },
   remixHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   remixCover: { width: 64, height: 64, borderRadius: 9, backgroundColor: 'rgba(17,17,17,0.08)' },

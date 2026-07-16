@@ -133,7 +133,7 @@ export function ProfileShareSheet({
                 <Ionicons name="cloud-offline-outline" size={24} color={colors.warmWhite} />
                 <Text style={styles.previewStateText}>L’aperçu n’a pas chargé.</Text>
                 <Pressable onPress={() => setPreviewRevision((value) => value + 1)} style={styles.retryButton}>
-                  <Ionicons name="refresh" size={14} color={colors.text} />
+                  <Ionicons name="refresh" size={14} color={colors.black} />
                   <Text style={styles.retryText}>Réessayer</Text>
                 </Pressable>
               </View>
@@ -146,7 +146,7 @@ export function ProfileShareSheet({
             onPress={() => void shareCard()}
             style={[styles.primaryButton, (sharingCard || previewStatus === 'error') && styles.buttonDisabled]}
           >
-            {sharingCard ? <ActivityIndicator color={colors.text} /> : <Ionicons name="image-outline" size={18} color={colors.text} />}
+            {sharingCard ? <ActivityIndicator color={colors.black} /> : <Ionicons name="image-outline" size={18} color={colors.black} />}
             <Text style={styles.primaryButtonText}>{sharingCard ? `Préparation ${Math.round(progress * 100)}%` : 'Partager la carte'}</Text>
           </Pressable>
           {sharingCard ? <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.max(8, progress * 100)}%` as `${number}%` }]} /></View> : null}
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   previewPanel: { gap: spacing.md, borderRadius: radius.lg, padding: spacing.md, backgroundColor: colors.dark, borderWidth: 1, borderColor: 'rgba(247,246,243,0.12)' },
   previewHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   previewMark: { width: 34, height: 34, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.warmWhite },
-  previewMarkText: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  previewMarkText: { color: colors.black, fontSize: 16, fontWeight: '900' },
   previewHeaderCopy: { flex: 1, minWidth: 0 },
   previewKicker: { color: colors.warmWhite, fontSize: 12, fontWeight: '900' },
   previewHint: { marginTop: 2, color: 'rgba(247,246,243,0.52)', fontSize: 10, fontWeight: '700' },
@@ -194,9 +194,9 @@ const styles = StyleSheet.create({
   previewState: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.md, backgroundColor: 'rgba(17,17,17,0.8)' },
   previewStateText: { color: colors.warmWhite, textAlign: 'center', fontSize: 11, fontWeight: '800' },
   retryButton: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.pill, paddingHorizontal: 14, backgroundColor: colors.warmWhite },
-  retryText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  retryText: { color: colors.black, fontSize: 10, fontWeight: '900' },
   primaryButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.warmWhite },
-  primaryButtonText: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  primaryButtonText: { color: colors.black, fontSize: 13, fontWeight: '900' },
   buttonDisabled: { opacity: 0.48 },
   progressTrack: { height: 4, overflow: 'hidden', borderRadius: 2, backgroundColor: 'rgba(247,246,243,0.13)' },
   progressFill: { height: '100%', borderRadius: 2, backgroundColor: colors.cyan },
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   linkTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   linkValue: { color: colors.textSecondary, fontSize: 10, lineHeight: 15, fontWeight: '600' },
   actionsRow: { flexDirection: 'row', gap: spacing.sm },
-  linkButton: { flex: 1.2, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: radius.pill, backgroundColor: colors.text },
+  linkButton: { flex: 1.2, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: radius.pill, backgroundColor: colors.violet },
   linkButtonText: { color: colors.warmWhite, fontSize: 11, fontWeight: '900' },
   copyButton: { flex: 0.8, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: radius.pill, backgroundColor: colors.surfaceMuted },
   copyButtonText: { color: colors.text, fontSize: 11, fontWeight: '900' },

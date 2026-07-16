@@ -78,7 +78,7 @@ function Segment({ label, icon, active, dark, compact, hideIcon, dense, scrollab
       Animated.spring(scale, { toValue: 1, speed: 26, bounciness: 5, useNativeDriver: true }),
     ]).start();
   }, [active, scale]);
-  const activeForeground = dark ? colors.text : colors.white;
+  const activeForeground = colors.white;
   const inactiveForeground = dark ? 'rgba(255,255,255,0.62)' : colors.textSecondary;
   return (
     <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={onPress} style={[styles.pressable, scrollable && styles.pressableScrollable]}>
@@ -91,7 +91,7 @@ function Segment({ label, icon, active, dark, compact, hideIcon, dense, scrollab
 }
 
 const styles = StyleSheet.create({
-  root: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 4 },
+  root: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: radius.md, padding: 4, backgroundColor: 'rgba(255,255,255,0.035)' },
   rootDark: { borderColor: 'rgba(255,255,255,0.18)' },
   rootCompact: { minHeight: 40 },
   rootDense: { gap: 2, padding: 3 },
@@ -102,8 +102,8 @@ const styles = StyleSheet.create({
   segment: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: radius.sm, paddingHorizontal: 7 },
   segmentCompact: { minHeight: 30 },
   segmentDense: { gap: 2, paddingHorizontal: 3 },
-  segmentActive: { backgroundColor: colors.black },
-  segmentActiveDark: { backgroundColor: colors.white },
+  segmentActive: { backgroundColor: colors.violet },
+  segmentActiveDark: { backgroundColor: 'rgba(115,87,198,0.92)' },
   label: { maxWidth: '100%', fontSize: 11, fontWeight: '900' },
   labelCompact: { fontSize: 10 },
   labelDense: { fontSize: 9 },

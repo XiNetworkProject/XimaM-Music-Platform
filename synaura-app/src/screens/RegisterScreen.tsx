@@ -19,6 +19,7 @@ import {
   authStyles,
 } from '@/components/auth/AuthUI';
 import { Reveal } from '@/components/motion/Motion';
+import { colors } from '@/theme/tokens';
 
 type FormData = {
   name: string;
@@ -245,7 +246,7 @@ export function RegisterScreen() {
 
           {userCount && userCount.remainingSlots > 0 && userCount.canRegister ? (
             <View style={styles.slots}>
-              <Ionicons name="people" size={15} color="rgba(23,19,19,0.48)" />
+              <Ionicons name="people" size={15} color={colors.textSecondary} />
               <Text style={styles.slotsText}>{userCount.remainingSlots} places restantes sur {userCount.maxUsers}</Text>
             </View>
           ) : null}
@@ -288,12 +289,12 @@ export function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  progressTrack: { height: 7, marginBottom: 17, borderRadius: 999, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.10)' },
-  progressFill: { height: 7, borderRadius: 999, backgroundColor: '#171313' },
+  progressTrack: { height: 7, marginBottom: 17, borderRadius: 999, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
+  progressFill: { height: 7, borderRadius: 999, backgroundColor: colors.violet },
   scoreRow: { flexDirection: 'row', gap: 6 },
-  score: { flex: 1, height: 7, borderRadius: 999, backgroundColor: 'rgba(23,19,19,0.10)' },
-  scoreActive: { backgroundColor: '#171313' },
-  slots: { minHeight: 38, borderRadius: 8, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(23,19,19,0.045)' },
-  slotsText: { color: 'rgba(23,19,19,0.48)', fontSize: 11, fontWeight: '800' },
+  score: { flex: 1, height: 7, borderRadius: 999, backgroundColor: colors.surfaceMuted },
+  scoreActive: { backgroundColor: colors.cyan },
+  slots: { minHeight: 38, borderRadius: 8, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: colors.surfaceMuted },
+  slotsText: { color: colors.textSecondary, fontSize: 11, fontWeight: '800' },
   disabled: { opacity: 0.35 },
 });

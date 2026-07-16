@@ -101,12 +101,12 @@ export function EntityShareSheet({
               <View style={styles.previewState}>
                 <Ionicons name="image-outline" size={24} color={colors.warmWhite} />
                 <Text style={styles.previewStateText}>Aperçu indisponible. Le lien fonctionne toujours.</Text>
-                {resolvedImageUrl ? <Pressable onPress={() => setRevision((value) => value + 1)} style={styles.retry}><Ionicons name="refresh" size={14} color={colors.text} /><Text style={styles.retryText}>Réessayer</Text></Pressable> : null}
+                {resolvedImageUrl ? <Pressable onPress={() => setRevision((value) => value + 1)} style={styles.retry}><Ionicons name="refresh" size={14} color={colors.black} /><Text style={styles.retryText}>Réessayer</Text></Pressable> : null}
               </View>
             ) : null}
           </View>
           <Pressable disabled={preview !== 'ready' || sharingImage} onPress={() => void shareImage()} style={[styles.primary, (preview !== 'ready' || sharingImage) && styles.disabled]}>
-            {sharingImage ? <ActivityIndicator color={colors.text} /> : <Ionicons name="image-outline" size={18} color={colors.text} />}
+            {sharingImage ? <ActivityIndicator color={colors.black} /> : <Ionicons name="image-outline" size={18} color={colors.black} />}
             <Text style={styles.primaryText}>{sharingImage ? `Préparation ${Math.round(progress * 100)}%` : 'Partager la carte'}</Text>
           </Pressable>
           {sharingImage ? <View style={styles.progress}><View style={[styles.progressFill, { width: `${Math.max(8, progress * 100)}%` as `${number}%` }]} /></View> : null}
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   previewPanel: { gap: spacing.md, borderRadius: radius.lg, padding: spacing.md, backgroundColor: colors.dark, borderWidth: 1, borderColor: 'rgba(247,246,243,0.12)' },
   previewHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   mark: { width: 34, height: 34, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.warmWhite },
-  markText: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  markText: { color: colors.black, fontSize: 16, fontWeight: '900' },
   previewCopy: { flex: 1, minWidth: 0 },
   previewTitle: { color: colors.warmWhite, fontSize: 12, fontWeight: '900' },
   previewSubtitle: { marginTop: 2, color: 'rgba(247,246,243,0.52)', fontSize: 10, fontWeight: '700' },
@@ -138,16 +138,16 @@ const styles = StyleSheet.create({
   previewState: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.md, backgroundColor: 'rgba(17,17,17,0.88)' },
   previewStateText: { maxWidth: 280, color: colors.warmWhite, textAlign: 'center', fontSize: 11, lineHeight: 16, fontWeight: '800' },
   retry: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.md, paddingHorizontal: 14, backgroundColor: colors.warmWhite },
-  retryText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  retryText: { color: colors.black, fontSize: 10, fontWeight: '900' },
   primary: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, borderRadius: radius.md, backgroundColor: colors.warmWhite },
-  primaryText: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  primaryText: { color: colors.black, fontSize: 13, fontWeight: '900' },
   disabled: { opacity: 0.48 },
   progress: { height: 4, overflow: 'hidden', borderRadius: 2, backgroundColor: 'rgba(247,246,243,0.13)' },
   progressFill: { height: '100%', backgroundColor: colors.cyan },
   linkPanel: { gap: spacing.md, borderRadius: radius.lg, padding: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   link: { color: colors.textSecondary, fontSize: 10, lineHeight: 15, fontWeight: '700' },
   actions: { flexDirection: 'row', gap: spacing.sm },
-  shareButton: { flex: 1.2, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: radius.md, backgroundColor: colors.text },
+  shareButton: { flex: 1.2, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: radius.md, backgroundColor: colors.violet },
   shareText: { color: colors.warmWhite, fontSize: 11, fontWeight: '900' },
   copyButton: { flex: 0.8, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
   copyText: { color: colors.text, fontSize: 11, fontWeight: '900' },

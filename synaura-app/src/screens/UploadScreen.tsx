@@ -41,6 +41,7 @@ import { AppHeader } from '@/components/ui/AppHeader';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { colors } from '@/theme/tokens';
 
 type ReleaseType = 'single' | 'ep' | 'album';
 type Step = 1 | 2 | 3;
@@ -806,7 +807,7 @@ function Field({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={dark ? 'rgba(255,250,242,0.24)' : 'rgba(23,19,19,0.36)'}
+        placeholderTextColor={dark ? 'rgba(255,250,242,0.24)' : colors.textTertiary}
         multiline={multiline}
         textAlignVertical={multiline ? 'top' : 'center'}
         style={[styles.input, dark && styles.inputDark, multiline && styles.inputMulti, tall && styles.inputTall]}
@@ -859,16 +860,16 @@ function Progress({ label, value }: { label: string; value: number }) {
 function CheckRow({ label, done }: { label: string; done: boolean }) {
   return (
     <View style={styles.checkRow}>
-      <View style={[styles.checkIcon, done && styles.checkIconDone]}><Ionicons name={done ? 'checkmark' : 'ellipse-outline'} size={14} color={done ? '#047857' : 'rgba(23,19,19,0.42)'} /></View>
+      <View style={[styles.checkIcon, done && styles.checkIconDone]}><Ionicons name={done ? 'checkmark' : 'ellipse-outline'} size={14} color={done ? '#66D6A2' : colors.textTertiary} /></View>
       <Text style={styles.checkText}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F7F6F3' },
+  root: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: 18, gap: 13 },
-  hero: { borderRadius: 4, backgroundColor: '#171313', padding: 16, borderLeftWidth: 4, borderLeftColor: '#D96D63' },
+  hero: { borderRadius: 12, backgroundColor: '#151316', padding: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(217,109,99,0.34)', borderLeftWidth: 4, borderLeftColor: '#D96D63' },
   heroPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   pill: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, backgroundColor: 'rgba(255,250,242,0.08)', color: 'rgba(255,250,242,0.62)', fontSize: 9, fontWeight: '900', letterSpacing: 1.3, textTransform: 'uppercase' },
   pillActive: { backgroundColor: '#FFFAF2', color: '#171313' },
@@ -890,20 +891,20 @@ const styles = StyleSheet.create({
   statusValue: { marginTop: 7, color: '#FFFAF2', fontSize: 14, fontWeight: '900' },
   statusValueActive: { color: '#171313' },
   contextGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  contextBox: { flex: 1, minWidth: 96, borderRadius: 0, paddingVertical: 10, paddingHorizontal: 4, backgroundColor: 'transparent', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.16)' },
-  contextLabel: { color: 'rgba(23,19,19,0.38)', fontSize: 9, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
-  contextValue: { marginTop: 5, color: '#171313', fontSize: 13, fontWeight: '900' },
-  stepNav: { flexDirection: 'row', gap: 0, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.15)' },
-  stepButton: { flex: 1, minHeight: 56, borderRadius: 0, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', borderRightWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.12)' },
-  stepButtonActive: { backgroundColor: '#171313', borderColor: '#171313' },
+  contextBox: { flex: 1, minWidth: 96, borderRadius: 9, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
+  contextLabel: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
+  contextValue: { marginTop: 5, color: colors.text, fontSize: 13, fontWeight: '900' },
+  stepNav: { flexDirection: 'row', gap: 4, borderRadius: 10, padding: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface },
+  stepButton: { flex: 1, minHeight: 56, borderRadius: 7, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  stepButtonActive: { backgroundColor: colors.violet },
   stepButtonDisabled: { opacity: 0.42 },
-  stepNumber: { color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '900' },
+  stepNumber: { color: colors.textTertiary, fontSize: 10, fontWeight: '900' },
   stepNumberActive: { color: 'rgba(255,250,242,0.6)' },
-  stepLabel: { marginTop: 2, color: '#171313', fontSize: 12, fontWeight: '900' },
+  stepLabel: { marginTop: 2, color: colors.text, fontSize: 12, fontWeight: '900' },
   stepLabelActive: { color: '#FFFAF2' },
-  progressOuter: { height: 4, borderRadius: 999, backgroundColor: 'rgba(23,19,19,0.09)', overflow: 'hidden' },
-  progressInner: { height: 4, borderRadius: 999, backgroundColor: '#171313' },
-  studioPanel: { overflow: 'hidden', borderRadius: 4, backgroundColor: '#171313', borderTopWidth: 3, borderTopColor: '#7357C6' },
+  progressOuter: { height: 4, borderRadius: 999, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
+  progressInner: { height: 4, borderRadius: 999, backgroundColor: colors.cyan },
+  studioPanel: { overflow: 'hidden', borderRadius: 12, backgroundColor: '#151316', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderTopWidth: 3, borderTopColor: '#7357C6' },
   panelHeader: { padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,250,242,0.08)', backgroundColor: '#1D1717', gap: 12 },
   panelKicker: { color: 'rgba(255,250,242,0.34)', fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
   panelTitle: { marginTop: 2, color: '#FFFFFF', fontSize: 21, fontWeight: '900' },
@@ -943,9 +944,9 @@ const styles = StyleSheet.create({
   artistField: { gap: 7 },
   artistValue: { minHeight: 46, borderRadius: 4, paddingHorizontal: 13, paddingVertical: 14, backgroundColor: 'rgba(255,255,255,0.035)', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.16)', color: 'rgba(255,255,255,0.44)', fontSize: 13, fontWeight: '800' },
   field: { gap: 7 },
-  label: { color: 'rgba(23,19,19,0.55)', fontSize: 11, fontWeight: '900', letterSpacing: 0.7, textTransform: 'uppercase' },
+  label: { color: colors.textSecondary, fontSize: 11, fontWeight: '900', letterSpacing: 0.7, textTransform: 'uppercase' },
   darkLabel: { color: 'rgba(255,250,242,0.36)', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
-  input: { minHeight: 46, borderRadius: 4, backgroundColor: 'rgba(17,17,17,0.055)', paddingHorizontal: 13, color: '#171313', fontSize: 14, fontWeight: '700', borderBottomWidth: 1, borderBottomColor: 'rgba(17,17,17,0.14)' },
+  input: { minHeight: 46, borderRadius: 8, backgroundColor: colors.surfaceStrong, paddingHorizontal: 13, color: colors.text, fontSize: 14, fontWeight: '700', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   inputDark: { backgroundColor: 'rgba(255,250,242,0.04)', borderBottomColor: 'rgba(255,250,242,0.18)', color: '#FFFAF2' },
   inputMulti: { minHeight: 86, paddingTop: 12, paddingBottom: 12 },
   inputTall: { minHeight: 150 },
@@ -955,11 +956,11 @@ const styles = StyleSheet.create({
   collapsibleTitle: { flex: 1, color: 'rgba(255,250,242,0.86)', fontSize: 13, fontWeight: '900' },
   collapsibleBody: { gap: 12, paddingHorizontal: 12, paddingBottom: 12 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: 'rgba(23,19,19,0.055)', borderWidth: 1, borderColor: 'rgba(23,19,19,0.06)' },
+  chip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.surfaceStrong, borderWidth: 1, borderColor: colors.border },
   chipDark: { backgroundColor: 'rgba(255,250,242,0.06)', borderColor: 'rgba(255,250,242,0.08)' },
-  chipActive: { backgroundColor: '#171313', borderColor: '#171313' },
+  chipActive: { backgroundColor: colors.violet, borderColor: colors.violet },
   chipActiveDark: { backgroundColor: '#FFFAF2', borderColor: '#FFFAF2' },
-  chipText: { color: 'rgba(23,19,19,0.7)', fontSize: 11, fontWeight: '900' },
+  chipText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
   chipTextDark: { color: 'rgba(255,250,242,0.54)' },
   chipTextActive: { color: '#171313' },
   visibilityGrid: { flexDirection: 'row', gap: 4 },
@@ -992,20 +993,20 @@ const styles = StyleSheet.create({
   backText: { color: 'rgba(255,250,242,0.62)', fontSize: 12, fontWeight: '900' },
   cancelButton: { height: 40, borderRadius: 10, justifyContent: 'center', paddingHorizontal: 14, backgroundColor: 'rgba(239,68,68,0.12)' },
   cancelText: { color: '#FECACA', fontSize: 12, fontWeight: '900' },
-  nextButton: { minWidth: 118, minHeight: 44, borderRadius: 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, backgroundColor: '#7357C6', borderBottomWidth: 3, borderBottomColor: '#4A9EAA' },
+  nextButton: { minWidth: 118, minHeight: 46, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, backgroundColor: '#7357C6', borderBottomWidth: 3, borderBottomColor: '#4A9EAA' },
   nextButtonDisabled: { opacity: 0.34 },
   nextText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   stepHint: { color: '#D96D63', fontSize: 11, fontWeight: '700', marginBottom: 8 },
-  checkPanel: { borderRadius: 0, backgroundColor: 'transparent', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.16)', paddingVertical: 14, gap: 0 },
-  checkKicker: { color: 'rgba(23,19,19,0.38)', fontSize: 10, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
-  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 0, backgroundColor: 'transparent', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(17,17,17,0.1)' },
-  checkIcon: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },
+  checkPanel: { borderRadius: 10, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, padding: 14, gap: 0 },
+  checkKicker: { color: colors.textTertiary, fontSize: 10, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  checkIcon: { width: 26, height: 26, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
   checkIconDone: { backgroundColor: 'rgba(16,185,129,0.14)' },
-  checkText: { color: '#171313', fontSize: 12, fontWeight: '900' },
+  checkText: { color: colors.text, fontSize: 12, fontWeight: '900' },
   error: { overflow: 'hidden', borderRadius: 16, padding: 12, backgroundColor: 'rgba(239,68,68,0.1)', color: '#B91C1C', fontSize: 12, fontWeight: '800' },
   success: { overflow: 'hidden', borderRadius: 16, padding: 12, backgroundColor: 'rgba(16,185,129,0.12)', color: '#047857', fontSize: 12, fontWeight: '900' },
   authGate: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, gap: 14 },
-  authIcon: { width: 72, height: 72, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
-  authTitle: { color: '#171313', fontSize: 24, fontWeight: '900', textAlign: 'center' },
-  authText: { color: 'rgba(23,19,19,0.56)', fontSize: 13, fontWeight: '700', textAlign: 'center', lineHeight: 20 },
+  authIcon: { width: 72, height: 72, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  authTitle: { color: colors.text, fontSize: 24, fontWeight: '900', textAlign: 'center' },
+  authText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', textAlign: 'center', lineHeight: 20 },
 });

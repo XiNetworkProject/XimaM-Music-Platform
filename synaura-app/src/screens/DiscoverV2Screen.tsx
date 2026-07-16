@@ -361,7 +361,7 @@ export function DiscoverV2Screen() {
         <MotionPressable onPress={() => setSearchOpen(true)} style={styles.search} scaleTo={0.98}>
           <Ionicons name="search" size={19} color={colors.textSecondary} />
           <Text style={styles.searchText}>Sons, artistes, playlists, clubs...</Text>
-          <View style={styles.searchArrow}><Ionicons name="arrow-forward" size={15} color={colors.text} /></View>
+          <View style={styles.searchArrow}><Ionicons name="arrow-forward" size={15} color={colors.white} /></View>
         </MotionPressable>
 
         <CityHomeBanner onOpen={() => navigation.navigate('City')} />
@@ -544,7 +544,7 @@ function DiscoverLeadCard({ track, label, totalTracks, playing, tablet, onPlay, 
           {track.genre?.[0] ? <Text numberOfLines={1} style={styles.leadGenre}>{track.genre[0]}</Text> : null}
         </View>
         <Pressable onPress={(event) => { event.stopPropagation(); onPlay(); }} style={styles.leadPlay}>
-          <Ionicons name={playing ? 'pause' : 'play'} size={18} color={colors.text} />
+          <Ionicons name={playing ? 'pause' : 'play'} size={18} color={colors.black} />
           <Text style={styles.leadPlayText}>{playing ? 'Pause' : 'Écouter'}</Text>
         </Pressable>
       </View>
@@ -645,7 +645,7 @@ function DiscoverTrackCard({ track, tablet, playing, onPlay, onOpen }: { track: 
         <TrackCover track={track} active={playing} autoPlayVideo={playing} style={styles.trackCover} />
         <LinearGradient colors={['transparent', 'rgba(17,17,17,0.5)']} style={StyleSheet.absoluteFillObject} />
         <Pressable accessibilityLabel={playing ? 'Mettre en pause' : 'Lire'} onPress={handlePlay} style={styles.trackPlay}>
-          <Ionicons name={playing ? 'pause' : 'play'} size={16} color={colors.text} />
+          <Ionicons name={playing ? 'pause' : 'play'} size={16} color={colors.black} />
         </Pressable>
       </View>
       <View style={styles.trackBody}>
@@ -683,7 +683,7 @@ function CollectionFeatureCard({ collection, tablet, onPress }: { collection: Ed
         {collection.subtitle || collection.description ? <Text numberOfLines={2} style={styles.collectionText}>{collection.subtitle || collection.description}</Text> : null}
         <View style={styles.collectionFooter}>
           {Number(collection.trackCount || 0) > 0 ? <Text style={styles.collectionCount}>{collection.trackCount} sons</Text> : <View />}
-          <View style={styles.collectionOpen}><Text style={styles.collectionOpenText}>Explorer</Text><Ionicons name="arrow-forward" size={13} color={colors.text} /></View>
+          <View style={styles.collectionOpen}><Text style={styles.collectionOpenText}>Explorer</Text><Ionicons name="arrow-forward" size={13} color={colors.black} /></View>
         </View>
       </View>
     </MotionPressable>
@@ -733,10 +733,10 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: 18, paddingBottom: 160, gap: 30 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  search: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 9, borderBottomWidth: 1, borderColor: colors.borderStrong, paddingHorizontal: 2 },
+  search: { height: 52, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.055)', paddingHorizontal: 14 },
   searchText: { flex: 1, minWidth: 0, color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
-  searchArrow: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
-  leadCard: { height: 330, overflow: 'hidden', borderRadius: radius.sm, backgroundColor: colors.black, ...shadows.floating },
+  searchArrow: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  leadCard: { height: 330, overflow: 'hidden', borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: colors.black, ...shadows.floating },
   leadCardTablet: { height: 360 },
   leadTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9, padding: 14 },
   leadBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.sm, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(17,17,17,0.5)' },
@@ -750,15 +750,15 @@ const styles = StyleSheet.create({
   leadMetaText: { color: 'rgba(255,255,255,0.72)', fontSize: 10, fontWeight: '800' },
   leadGenre: { maxWidth: 170, overflow: 'hidden', borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 4, color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.14)', fontSize: 9, fontWeight: '900' },
   leadPlay: { alignSelf: 'flex-start', marginTop: 13, minWidth: 112, height: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 21, backgroundColor: '#FFFFFF', paddingHorizontal: 14 },
-  leadPlayText: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  leadSkeleton: { backgroundColor: '#DCD8D2' },
+  leadPlayText: { color: colors.black, fontSize: 12, fontWeight: '900' },
+  leadSkeleton: { backgroundColor: colors.surfaceStrong },
   skeletonBadge: { width: 120, height: 26, margin: 14, borderRadius: radius.sm, backgroundColor: 'rgba(255,255,255,0.44)' },
   skeletonCopy: { position: 'absolute', left: 15, right: 15, bottom: 15 },
   skeletonTitle: { width: '72%', height: 26, borderRadius: radius.sm, backgroundColor: 'rgba(255,255,255,0.68)' },
   skeletonLine: { width: '42%', height: 11, marginTop: 9, borderRadius: radius.sm, backgroundColor: 'rgba(255,255,255,0.48)' },
   skeletonButton: { width: 112, height: 42, marginTop: 14, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.72)' },
   moodGrid: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  moodCard: { width: '100%', minHeight: 184, overflow: 'hidden', borderRadius: radius.sm, backgroundColor: colors.black, ...shadows.soft },
+  moodCard: { width: '100%', minHeight: 184, overflow: 'hidden', borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.13)', backgroundColor: colors.black, ...shadows.soft },
   moodCardHighlighted: { borderWidth: 2, borderColor: colors.violet },
   mosaic: { ...StyleSheet.absoluteFillObject, flexDirection: 'row', flexWrap: 'wrap', opacity: 0.65 },
   mosaicImage: { width: '50%', height: '50%' },
@@ -771,20 +771,20 @@ const styles = StyleSheet.create({
   moodAction: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 5 },
   moodActionText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   trackRail: { gap: 10, paddingTop: 12, paddingRight: 18 },
-  trackCard: { width: 156, overflow: 'hidden', borderRadius: radius.sm, backgroundColor: 'transparent' },
+  trackCard: { width: 156, overflow: 'hidden', borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   trackCardTablet: { width: 190 },
-  trackCoverWrap: { width: '100%', aspectRatio: 1, overflow: 'hidden', borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
+  trackCoverWrap: { width: '100%', aspectRatio: 1, overflow: 'hidden', borderTopLeftRadius: radius.md, borderTopRightRadius: radius.md, backgroundColor: colors.surfaceMuted },
   trackCover: { width: '100%', height: '100%' },
   trackPlay: { position: 'absolute', right: 8, bottom: 8, width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
-  trackBody: { paddingTop: 9, paddingHorizontal: 1, paddingBottom: 3 },
+  trackBody: { minHeight: 74, paddingTop: 10, paddingHorizontal: 10, paddingBottom: 9 },
   trackTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   trackArtist: { marginTop: 3, color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
   trackStats: { marginTop: 8, flexDirection: 'row', gap: 9 },
   trackStat: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   trackStatText: { color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
   loadingRail: { flexDirection: 'row', gap: 10, paddingTop: 12 },
-  loadingTrack: { width: 156, height: 222, borderRadius: radius.md, backgroundColor: '#E1DDD7' },
-  collectionFeature: { minHeight: 290, marginTop: 12, overflow: 'hidden', borderRadius: radius.sm, backgroundColor: colors.black, ...shadows.floating },
+  loadingTrack: { width: 156, height: 230, borderRadius: radius.md, backgroundColor: colors.surfaceStrong },
+  collectionFeature: { minHeight: 290, marginTop: 12, overflow: 'hidden', borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)', backgroundColor: colors.black, ...shadows.floating },
   collectionFeatureTablet: { minHeight: 330 },
   collectionFeatureBody: { flex: 1, justifyContent: 'flex-end', padding: 16 },
   collectionBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: radius.sm, paddingHorizontal: 9, paddingVertical: 6, color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.16)', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
   collectionFooter: { marginTop: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9 },
   collectionCount: { color: 'rgba(255,255,255,0.68)', fontSize: 10, fontWeight: '800' },
   collectionOpen: { height: 38, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 19, paddingHorizontal: 12, backgroundColor: '#FFFFFF' },
-  collectionOpenText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  collectionOpenText: { color: colors.black, fontSize: 10, fontWeight: '900' },
   collectionRail: { gap: 10, paddingTop: 12, paddingRight: 18 },
   collectionTile: { width: 150 },
   collectionTileTablet: { width: 190 },
@@ -801,7 +801,7 @@ const styles = StyleSheet.create({
   collectionTileTitle: { marginTop: 7, color: colors.text, fontSize: 11, lineHeight: 15, fontWeight: '900' },
   collectionTileMeta: { marginTop: 3, color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
   artistRail: { gap: 10, paddingTop: 12, paddingRight: 18 },
-  artistCard: { width: 210, borderTopWidth: 2, borderTopColor: colors.cyan, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong, paddingVertical: 10, gap: 9 },
+  artistCard: { width: 210, overflow: 'hidden', borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderTopWidth: 2, borderTopColor: colors.cyan, backgroundColor: colors.surface, padding: 11, gap: 9 },
   artistCardTablet: { width: 240 },
   artistIdentity: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   artistAvatar: { width: 48, height: 48, overflow: 'hidden', borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
@@ -814,7 +814,7 @@ const styles = StyleSheet.create({
   artistTrackCopy: { flex: 1, minWidth: 0 },
   artistTrackTitle: { color: colors.text, fontSize: 10, fontWeight: '900' },
   artistTrackGenre: { marginTop: 2, color: colors.violet, fontSize: 8, fontWeight: '800' },
-  artistPlay: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  artistPlay: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   artistOpen: { height: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderBottomWidth: 1, borderBottomColor: colors.violet },
   artistOpenText: { color: colors.text, fontSize: 10, fontWeight: '900' },
   clubsSection: { gap: 2 },
@@ -825,7 +825,7 @@ const styles = StyleSheet.create({
   clubChipText: { flex: 1, minWidth: 0, color: colors.text, fontSize: 10, fontWeight: '900' },
   errorState: { minHeight: 150, alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface, padding: 18 },
   errorTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  retryButton: { minWidth: 104, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.text },
+  retryButton: { minWidth: 104, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.violet },
   retryText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
 });
 

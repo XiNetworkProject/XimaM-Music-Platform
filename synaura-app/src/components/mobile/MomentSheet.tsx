@@ -133,7 +133,7 @@ export function MomentSheet({ visible, track, timestampSeconds, onClose, onComme
                 value={commentText}
                 onChangeText={setCommentText}
                 placeholder={`Que se passe-t-il à ${fmtTime(timestampSeconds)} ?`}
-                placeholderTextColor="rgba(17,17,17,0.38)"
+                placeholderTextColor={colors.textTertiary}
                 multiline
                 style={styles.input}
               />
@@ -169,12 +169,14 @@ const styles = StyleSheet.create({
     maxWidth: 680,
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
-    backgroundColor: '#F7F6F3',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     gap: spacing.md,
   },
-  handle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: 'rgba(17,17,17,0.18)' },
+  handle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: colors.textTertiary },
   head: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   timeChip: {
     flexDirection: 'row',
@@ -183,7 +185,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 7,
     borderRadius: radius.pill,
-    backgroundColor: colors.black,
+    backgroundColor: colors.violet,
   },
   timeChipText: { color: colors.paper, fontSize: 12, fontWeight: '900', fontVariant: ['tabular-nums'] },
   kicker: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
@@ -199,7 +201,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderWidth: 1,
-    backgroundColor: colors.paper,
+    backgroundColor: colors.surfaceStrong,
     paddingHorizontal: spacing.sm,
   },
   reactionLabel: { color: colors.text, fontSize: 11, fontWeight: '900' },
@@ -211,7 +213,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.paper,
+    backgroundColor: colors.surfaceStrong,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     color: colors.text,
@@ -224,7 +226,7 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.black,
+    backgroundColor: colors.violet,
   },
   sendButtonDisabled: { opacity: 0.38 },
   confirmation: { flexDirection: 'row', alignItems: 'center', gap: 6 },

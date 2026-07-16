@@ -22,6 +22,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { cacheRemoteShareImage, shareCachedImage } from '@/sharing/shareAsset';
+import { colors } from '@/theme/tokens';
 
 type Props = {
   visible: boolean;
@@ -207,7 +208,7 @@ export function ShareSheet({ visible, track, onClose, onShared, onPostCreated }:
             <Text style={styles.subtitle}>Choisis ton canal favori sans quitter le player.</Text>
           </View>
           <Pressable accessibilityLabel="Fermer" onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={20} color="#171313" />
+            <Ionicons name="close" size={20} color={colors.text} />
           </Pressable>
         </View>
 
@@ -304,7 +305,7 @@ export function ShareSheet({ visible, track, onClose, onShared, onPostCreated }:
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="share-social" size={16} color="rgba(23,19,19,0.5)" />
+              <Ionicons name="share-social" size={16} color={colors.textSecondary} />
               <Text style={styles.sectionTitle}>Partage rapide</Text>
             </View>
             <Pressable accessibilityLabel="Partager via le menu système" onPress={() => void nativeShare()} style={styles.primaryAction}>
@@ -313,11 +314,11 @@ export function ShareSheet({ visible, track, onClose, onShared, onPostCreated }:
             </Pressable>
             <View style={styles.linkRow}>
               <Pressable accessibilityLabel="Copier le lien" onPress={() => void copyValue(trackUrl, 'Lien')} style={styles.copyButton}>
-                <Ionicons name="link" size={15} color="#171313" />
+                <Ionicons name="link" size={15} color={colors.text} />
                 <Text style={styles.copyButtonText}>Copier le lien</Text>
               </Pressable>
               <Pressable accessibilityLabel="Copier le texte" onPress={() => void copyValue(cardShareText || shareText, 'Texte')} style={styles.copyButton}>
-                <Ionicons name="document-text-outline" size={15} color="#171313" />
+                <Ionicons name="document-text-outline" size={15} color={colors.text} />
                 <Text style={styles.copyButtonText}>Copier le texte</Text>
               </Pressable>
             </View>
@@ -325,7 +326,7 @@ export function ShareSheet({ visible, track, onClose, onShared, onPostCreated }:
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="megaphone-outline" size={16} color="rgba(23,19,19,0.5)" />
+              <Ionicons name="megaphone-outline" size={16} color={colors.textSecondary} />
               <Text style={styles.sectionTitle}>Republier dans le feed Synaura</Text>
             </View>
             {canInternal ? (
@@ -336,13 +337,13 @@ export function ShareSheet({ visible, track, onClose, onShared, onPostCreated }:
                     <Text style={styles.communityTitle}>Demander un avis</Text>
                     <Text style={styles.communityText}>Attache ce son à une discussion Communauté.</Text>
                   </View>
-                  <Ionicons name="arrow-forward" size={16} color="#171313" />
+                  <Ionicons name="arrow-forward" size={16} color={colors.text} />
                 </Pressable>
                 <TextInput
                   value={caption}
                   onChangeText={(value) => setCaption(value.slice(0, 220))}
                   placeholder="Ajoute une phrase pour ton feed…"
-                  placeholderTextColor="rgba(23,19,19,0.36)"
+                  placeholderTextColor={colors.textTertiary}
                   multiline
                   style={styles.input}
                 />
@@ -410,9 +411,9 @@ const styles = StyleSheet.create({
     maxHeight: '94%',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    backgroundColor: '#FFFAF2',
+    backgroundColor: colors.background,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(23,19,19,0.06)',
+    borderTopColor: colors.borderStrong,
     shadowColor: '#000',
     shadowOpacity: 0.18,
     shadowRadius: 36,
@@ -420,7 +421,7 @@ const styles = StyleSheet.create({
     elevation: 24,
   },
   handleArea: { alignItems: 'center', paddingTop: 8, paddingBottom: 6 },
-  handleBar: { width: 44, height: 4, borderRadius: 2, backgroundColor: 'rgba(23,19,19,0.18)' },
+  handleBar: { width: 44, height: 4, borderRadius: 2, backgroundColor: colors.textTertiary },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -428,19 +429,19 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(23,19,19,0.08)',
+    borderBottomColor: colors.border,
     gap: 12,
   },
-  kicker: { color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '900', letterSpacing: 1.5, textTransform: 'uppercase' },
-  title: { color: '#171313', fontSize: 18, fontWeight: '900', marginTop: 4 },
-  subtitle: { color: 'rgba(23,19,19,0.5)', fontSize: 12, marginTop: 4, fontWeight: '700' },
+  kicker: { color: colors.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 1.5, textTransform: 'uppercase' },
+  title: { color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 4 },
+  subtitle: { color: colors.textSecondary, fontSize: 12, marginTop: 4, fontWeight: '700' },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(23,19,19,0.06)',
+    backgroundColor: colors.surfaceMuted,
   },
   scroll: { paddingHorizontal: 18, paddingVertical: 16, gap: 14 },
   darkSection: {
@@ -537,14 +538,14 @@ const styles = StyleSheet.create({
   section: {
     padding: 14,
     borderRadius: 18,
-    backgroundColor: 'rgba(23,19,19,0.03)',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.06)',
+    borderColor: colors.border,
     gap: 12,
     marginBottom: 12,
   },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sectionTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
+  sectionTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   primaryAction: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -552,7 +553,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 13,
     borderRadius: 999,
-    backgroundColor: '#171313',
+    backgroundColor: colors.violet,
   },
   primaryActionText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   linkRow: { flexDirection: 'row', gap: 8 },
@@ -565,37 +566,37 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.1)',
-    backgroundColor: '#FFFAF2',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
   },
-  copyButtonText: { color: '#171313', fontSize: 12, fontWeight: '900' },
+  copyButtonText: { color: colors.text, fontSize: 12, fontWeight: '900' },
   input: {
     minHeight: 76,
     maxHeight: 130,
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#171313',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
-    backgroundColor: '#FFFAF2',
+    backgroundColor: colors.surfaceStrong,
     borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.1)',
+    borderColor: colors.border,
   },
   captionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   communityAction: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 11, borderRadius: 17, backgroundColor: 'rgba(124,92,255,0.11)', borderWidth: 1, borderColor: 'rgba(124,92,255,0.2)' },
   communityIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7C5CFF' },
-  communityTitle: { color: '#171313', fontSize: 12, fontWeight: '900' },
-  communityText: { color: 'rgba(23,19,19,0.5)', fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 2 },
+  communityTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  communityText: { color: colors.textSecondary, fontSize: 9, lineHeight: 13, fontWeight: '700', marginTop: 2 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: 'rgba(23,19,19,0.06)',
+    backgroundColor: colors.surfaceMuted,
   },
-  chipText: { color: 'rgba(23,19,19,0.78)', fontSize: 11, fontWeight: '900' },
+  chipText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
   publishRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  counter: { color: 'rgba(23,19,19,0.42)', fontSize: 11, fontWeight: '700' },
+  counter: { color: colors.textTertiary, fontSize: 11, fontWeight: '700' },
   publishButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -603,27 +604,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#171313',
+    backgroundColor: colors.violet,
   },
   publishButtonDisabled: { opacity: 0.36 },
   publishButtonText: { color: '#FFFAF2', fontSize: 12, fontWeight: '900' },
   notice: {
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#FFFAF2',
+    backgroundColor: colors.surfaceStrong,
     borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.08)',
+    borderColor: colors.border,
   },
-  noticeText: { color: 'rgba(23,19,19,0.55)', fontSize: 12, lineHeight: 18 },
+  noticeText: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   urlBox: {
     padding: 14,
     borderRadius: 16,
-    backgroundColor: '#FFFAF2',
+    backgroundColor: colors.surfaceStrong,
     borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.08)',
+    borderColor: colors.border,
   },
-  urlAuthor: { color: '#171313', fontSize: 13, fontWeight: '900' },
-  urlText: { color: 'rgba(23,19,19,0.45)', fontSize: 11, marginTop: 6, lineHeight: 16 },
+  urlAuthor: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  urlText: { color: colors.textTertiary, fontSize: 11, marginTop: 6, lineHeight: 16 },
   toast: {
     position: 'absolute',
     top: 10,
@@ -634,7 +635,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#171313',
+    backgroundColor: colors.surfaceMuted,
     shadowColor: '#000',
     shadowOpacity: 0.24,
     shadowRadius: 16,

@@ -13,6 +13,7 @@ import { AppHeader } from '@/components/ui/AppHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { PostShareSheet } from '@/components/social/PostShareSheet';
+import { colors, radius, spacing } from '@/theme/tokens';
 
 export function PostDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -47,7 +48,7 @@ export function PostDetailScreen() {
     <SynauraBackground variant="warm">
       <ScrollView contentContainerStyle={[styles.content, responsive.pageContent, { paddingTop: 0, paddingBottom: responsive.miniPlayerClearance }]}>
         <AppHeader flush title="Publication" subtitle={post?.author || 'Communauté Synaura'} onBack={() => navigation.goBack()} action={{ icon: 'share-outline', label: 'Partager', onPress: () => setShareOpen(true) }} />
-        {loading ? <ActivityIndicator color="#8B5CF6" style={{ marginTop: 60 }} /> : null}
+        {loading ? <ActivityIndicator color={colors.violet} style={{ marginTop: 60 }} /> : null}
         {post ? (
           <View style={styles.card}>
             <Pressable onPress={() => username && navigation.navigate('PublicProfile', { username })} style={styles.authorRow}>
@@ -68,16 +69,16 @@ export function PostDetailScreen() {
               />
             ) : null}
             <View style={styles.actions}>
-              <Pressable onPress={like} style={styles.action}><Ionicons name={post.isLiked ? 'heart' : 'heart-outline'} size={19} color={post.isLiked ? '#EF4444' : '#171313'} /><Text style={styles.actionText}>{post.likesCount}</Text></Pressable>
-              <Pressable onPress={() => setCommentsOpen(true)} style={styles.action}><Ionicons name="chatbubble-outline" size={18} color="#171313" /><Text style={styles.actionText}>{post.commentsCount}</Text></Pressable>
+              <Pressable onPress={like} style={[styles.action, post.isLiked && styles.actionLiked]}><Ionicons name={post.isLiked ? 'heart' : 'heart-outline'} size={19} color={post.isLiked ? colors.coral : colors.textSecondary} /><Text style={styles.actionText}>{post.likesCount}</Text></Pressable>
+              <Pressable onPress={() => setCommentsOpen(true)} style={styles.action}><Ionicons name="chatbubble-outline" size={18} color={colors.textSecondary} /><Text style={styles.actionText}>{post.commentsCount}</Text></Pressable>
             </View>
             <Pressable onPress={() => setCommentsOpen(true)} style={styles.commentPreview}>
-              <Ionicons name="chatbubbles-outline" size={18} color="#8B5CF6" />
+              <Ionicons name="chatbubbles-outline" size={18} color={colors.violet} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.commentPreviewTitle}>Commentaires</Text>
                 <Text style={styles.commentPreviewText}>Lire, ajouter ou supprimer un commentaire sans quitter la page.</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="rgba(23,19,19,0.42)" />
+              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
             </Pressable>
           </View>
         ) : !loading ? <EmptyState icon="document-text-outline" title="Publication introuvable" text="Ce contenu a peut-être été retiré." actionLabel="Revenir" onAction={() => navigation.goBack()} /> : null}
@@ -93,23 +94,24 @@ const styles = StyleSheet.create({
   topbar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   iconBtn: { width: 40, height: 40, borderRadius: 11, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   title: { color: '#171313', fontSize: 24, fontWeight: '900' },
-  card: { borderRadius: 0, backgroundColor: 'transparent', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.16)', paddingVertical: 16 },
+  card: { borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#171313', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.violet, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarText: { color: '#FFF7ED', fontWeight: '900', fontSize: 16 },
-  author: { color: '#171313', fontWeight: '900', fontSize: 16 },
-  handle: { color: '#7C6F68', fontWeight: '700', marginTop: 2 },
-  text: { color: '#2B2420', fontSize: 16, lineHeight: 24, fontWeight: '600' },
-  image: { width: '100%', aspectRatio: 4 / 3, borderRadius: 4, marginTop: 14, backgroundColor: '#E7DDD4' },
+  author: { color: colors.text, fontWeight: '900', fontSize: 16 },
+  handle: { color: colors.textTertiary, fontWeight: '700', marginTop: 2 },
+  text: { color: colors.text, fontSize: 16, lineHeight: 24, fontWeight: '600' },
+  image: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.md, marginTop: 14, backgroundColor: colors.surfaceMuted },
   track: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 10, backgroundColor: '#F7F6F3', padding: 10 },
   cover: { width: 58, height: 58, borderRadius: 16 },
   trackTitle: { color: '#171313', fontWeight: '900', fontSize: 15 },
   trackMeta: { color: '#6B5F5A', fontWeight: '700', marginTop: 3 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  action: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: 'rgba(23,19,19,0.06)', paddingHorizontal: 12, paddingVertical: 9 },
-  actionText: { color: '#171313', fontWeight: '900' },
-  commentPreview: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 4, backgroundColor: 'rgba(115,87,198,0.08)', borderLeftWidth: 3, borderLeftColor: '#7357C6', padding: 12 },
-  commentPreviewTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
-  commentPreviewText: { color: '#6B5F5A', fontSize: 12, fontWeight: '700', marginTop: 2 },
+  action: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: colors.surfaceMuted, paddingHorizontal: 12, paddingVertical: 9 },
+  actionLiked: { backgroundColor: 'rgba(217,109,99,0.16)' },
+  actionText: { color: colors.text, fontWeight: '900' },
+  commentPreview: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: radius.md, backgroundColor: 'rgba(115,87,198,0.15)', borderWidth: 1, borderColor: 'rgba(115,87,198,0.38)', padding: 12 },
+  commentPreviewTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  commentPreviewText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', marginTop: 2 },
   empty: { textAlign: 'center', color: '#6B5F5A', fontWeight: '800', marginTop: 60 },
 });

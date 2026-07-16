@@ -58,7 +58,7 @@ export function BottomSheet({
   return (
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={keyboard && Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
-        <Animated.View style={[StyleSheet.absoluteFill, styles.dim, { opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [0, 0.46] }) }]} />
+        <Animated.View style={[StyleSheet.absoluteFill, styles.dim, { opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [0, 0.66] }) }]} />
         <Pressable accessibilityLabel="Fermer" onPress={onClose} style={StyleSheet.absoluteFill} />
         <Animated.View
           style={[
@@ -103,15 +103,15 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 12,
     borderTopWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     ...shadows.floating,
   },
   sheetWide: { borderTopLeftRadius: 12, borderTopRightRadius: 12 },
   handleZone: { height: 28, alignItems: 'center', justifyContent: 'center' },
-  handle: { width: 48, height: 3, borderRadius: radius.pill, backgroundColor: colors.text },
+  handle: { width: 48, height: 3, borderRadius: radius.pill, backgroundColor: colors.textTertiary },
   header: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   copy: { flex: 1, minWidth: 0 },
   title: { color: colors.text, fontSize: 21, lineHeight: 25, fontWeight: '900' },
   subtitle: { marginTop: 4, color: colors.textSecondary, fontSize: 12, lineHeight: 17, fontWeight: '500' },
-  close: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  close: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
 });

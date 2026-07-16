@@ -17,6 +17,7 @@ import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { ProfileIdentityHero } from '@/components/profile/ProfileIdentityHero';
 import { ProfileMusicCatalog } from '@/components/profile/ProfileMusicCatalog';
 import { ProfileShareSheet } from '@/components/profile/ProfileShareSheet';
+import { colors } from '@/theme/tokens';
 
 type Tab = 'sons' | 'clips' | 'variations' | 'playlists' | 'posts';
 
@@ -204,7 +205,7 @@ export function PublicProfileScreen() {
   if (loading) {
     return (
       <SynauraBackground variant="warm">
-        <View style={styles.center}><ActivityIndicator color="#171313" /></View>
+        <View style={styles.center}><ActivityIndicator color={colors.violet} /></View>
       </SynauraBackground>
     );
   }
@@ -256,7 +257,7 @@ export function PublicProfileScreen() {
               {clips.length ? <Pressable onPress={() => setTab('clips')}><Text style={styles.sectionLink}>Tout voir ({clips.length})</Text></Pressable> : null}
             </View>
             {clipsLoading ? (
-              <ActivityIndicator color="#171313" style={{ marginVertical: 20 }} />
+              <ActivityIndicator color={colors.violet} style={{ marginVertical: 20 }} />
             ) : clipsError ? (
               <Pressable onPress={() => void loadClips(0, profile?.id)} style={styles.retryButton}>
                 <Ionicons name="refresh" size={17} color="#5B3FD6" />
@@ -323,7 +324,7 @@ export function PublicProfileScreen() {
         {tab === 'clips' ? (
           <View style={styles.card}>
             {clipsLoading ? (
-              <ActivityIndicator color="#171313" style={{ marginVertical: 20 }} />
+              <ActivityIndicator color={colors.violet} style={{ marginVertical: 20 }} />
             ) : clipsError ? (
               <Pressable onPress={() => void loadClips(0, profile.id)} style={styles.retryButton}>
                 <Ionicons name="refresh" size={17} color="#5B3FD6" />
@@ -351,7 +352,7 @@ export function PublicProfileScreen() {
         {tab === 'variations' ? (
           <View style={styles.card}>
             {variationsLoading ? (
-              <ActivityIndicator color="#171313" style={{ marginVertical: 20 }} />
+              <ActivityIndicator color={colors.violet} style={{ marginVertical: 20 }} />
             ) : variations.length ? variations.map((v) => (
               <Pressable key={v.id} onPress={() => navigation.navigate('TrackDetail', { trackId: v.id })} style={styles.trackRow}>
                 {v.coverUrl ? <Image source={{ uri: v.coverUrl }} style={styles.trackCover} /> : <View style={styles.trackCover} />}
@@ -359,7 +360,7 @@ export function PublicProfileScreen() {
                   <Text numberOfLines={1} style={styles.trackTitle}>{v.title}</Text>
                   <Text style={styles.trackMeta}>IA · {compact(v.plays || 0)} écoutes</Text>
                 </View>
-                <Ionicons name="play" size={16} color="#171313" />
+                <Ionicons name="play" size={16} color={colors.text} />
               </Pressable>
             )) : <Text style={styles.empty}>Aucune variation publiée.</Text>}
           </View>
@@ -369,12 +370,12 @@ export function PublicProfileScreen() {
           <View style={styles.card}>
             {profile.playlists.length ? profile.playlists.map((playlist) => (
               <Pressable key={playlist.id} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.id })} style={styles.albumRow}>
-                <View style={styles.albumCover}>{playlist.coverUrl ? <Image source={{ uri: playlist.coverUrl }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={20} color="rgba(23,19,19,0.4)" />}</View>
+                <View style={styles.albumCover}>{playlist.coverUrl ? <Image source={{ uri: playlist.coverUrl }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={20} color={colors.textTertiary} />}</View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.trackTitle}>{playlist.title}</Text>
                   <Text style={styles.trackMeta}>{playlist.tracksCount} sons</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color="rgba(23,19,19,0.34)" />
+                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
               </Pressable>
             )) : <Text style={styles.empty}>Aucune playlist publique.</Text>}
           </View>
@@ -387,7 +388,7 @@ export function PublicProfileScreen() {
                 <View style={styles.postHead}>
                   <View style={styles.postAvatar}><Text style={styles.postAvatarText}>{profile.name.slice(0, 1).toUpperCase()}</Text></View>
                   <View style={{ flex: 1 }}><Text style={styles.trackTitle}>{profile.name}</Text><Text style={styles.trackMeta}>{post.time} · {post.mood}</Text></View>
-                  <Ionicons name="chevron-forward" size={16} color="rgba(23,19,19,0.35)" />
+                  <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
                 </View>
                 <Text style={styles.postText}>{post.text}</Text>
                 {post.isPinned ? <Text style={styles.pinned}>Épinglé</Text> : null}
@@ -420,24 +421,24 @@ export function PublicProfileScreen() {
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 18, paddingBottom: 130, gap: 14 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  title: { color: '#171313', fontSize: 24, fontWeight: '900' },
-  badgePanel: { gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.16)', paddingVertical: 13 },
-  badgePanelTitle: { color: '#171313', fontSize: 17, fontWeight: '900' },
-  card: { gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.16)', paddingVertical: 12 },
-  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(17,17,17,0.06)', paddingVertical: 9 },
+  title: { color: colors.text, fontSize: 24, fontWeight: '900' },
+  badgePanel: { gap: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: 10, backgroundColor: colors.surface, padding: 13 },
+  badgePanelTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
+  card: { gap: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: 10, backgroundColor: colors.surface, padding: 12 },
+  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 9 },
   trackCover: { width: 52, height: 52, borderRadius: 4 },
-  trackTitle: { color: '#171313', fontSize: 13, fontWeight: '900' },
-  trackMeta: { marginTop: 3, color: 'rgba(23,19,19,0.45)', fontSize: 10, fontWeight: '800' },
-  albumRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(17,17,17,0.06)', paddingVertical: 9 },
-  post: { gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.12)', paddingVertical: 11 },
+  trackTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  trackMeta: { marginTop: 3, color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
+  albumRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 9 },
+  post: { gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingVertical: 11 },
   postHead: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  postAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
+  postAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   postAvatarText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
-  postText: { color: '#171313', fontSize: 13, lineHeight: 19, fontWeight: '700' },
+  postText: { color: colors.text, fontSize: 13, lineHeight: 19, fontWeight: '700' },
   pinned: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, color: '#5B3FD6', backgroundColor: 'rgba(124,92,255,0.12)', fontSize: 8, fontWeight: '900' },
-  postMeta: { color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '800' },
-  albumCover: { width: 52, height: 52, borderRadius: 4, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.07)' },
-  empty: { color: 'rgba(23,19,19,0.5)', fontSize: 12, fontWeight: '800', textAlign: 'center', padding: 14 },
+  postMeta: { color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
+  albumCover: { width: 52, height: 52, borderRadius: 8, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: colors.surfaceMuted },
+  empty: { color: colors.textSecondary, fontSize: 12, fontWeight: '800', textAlign: 'center', padding: 14 },
   identityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   identityPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1 },
   identityPillCyan: { backgroundColor: 'rgba(0,194,203,0.10)', borderColor: 'rgba(0,194,203,0.25)' },
@@ -445,11 +446,11 @@ const styles = StyleSheet.create({
   identityPillText: { fontSize: 10, fontWeight: '900' },
   clipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   sectionHead: { minHeight: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  sectionTitle: { flex: 1, color: '#171313', fontSize: 16, fontWeight: '900' },
+  sectionTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '900' },
   sectionLink: { color: '#5B3FD6', fontSize: 11, fontWeight: '900' },
   retryButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 8, backgroundColor: 'rgba(115,87,198,0.1)' },
   retryText: { color: '#5B3FD6', fontSize: 11, fontWeight: '900' },
-  clipTile: { width: '31%', aspectRatio: 9 / 16, borderRadius: 4, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.08)' },
+  clipTile: { width: '31%', aspectRatio: 9 / 16, borderRadius: 9, overflow: 'hidden', backgroundColor: colors.surfaceMuted, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   clipTileOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 6, backgroundColor: 'rgba(23,19,19,0.55)' },
   clipTileTitle: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
 });

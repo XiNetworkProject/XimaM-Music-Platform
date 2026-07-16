@@ -3,7 +3,7 @@
     "name": "Synaura",
     "slug": "synaura",
     "scheme": "synaura",
-    "version": "0.17.0",
+    "version": "0.18.0",
     "icon": "./src/assets/synaura-symbol-2026.png",
     "orientation": "default",
     "userInterfaceStyle": "dark",
@@ -22,7 +22,7 @@
     "android": {
       "package": "com.synaura.music",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 52,
+      "versionCode": 53,
       "newArchEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
@@ -41,7 +41,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F4EFE6",
+          "backgroundColor": "#121212",
           "image": "./src/assets/synaura-symbol-2026.png",
           "imageWidth": 170,
           "resizeMode": "contain"
@@ -56,6 +56,15 @@
         }
       ]
     ],
+    "androidStatusBar": {
+      "backgroundColor": "#121212",
+      "barStyle": "light-content",
+      "translucent": false
+    },
+    "androidNavigationBar": {
+      "backgroundColor": "#0B0B0B",
+      "barStyle": "light-content"
+    },
     "extra": {
       "apiBaseUrl": "https://xima-m-music-platform.vercel.app",
       "mobileReleaseManifestUrl": "https://ekddunxvtatdvxbszcsh.supabase.co/storage/v1/object/public/mobile-releases/latest.json",

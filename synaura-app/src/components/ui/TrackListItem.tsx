@@ -59,5 +59,5 @@ const styles = StyleSheet.create({
   meta: { marginTop: 4, color: colors.textSecondary, fontSize: 11, fontWeight: '600' },
   iconButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   play: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface },
-  playActive: { backgroundColor: colors.black },
+  playActive: { backgroundColor: colors.violet, borderColor: colors.violet },
 });

@@ -225,7 +225,7 @@ function FaqModal({ visible, faqs, onClose }: { visible: boolean; faqs: Communit
             <MotionPressable key={faq.id} onPress={() => setOpenId((current) => current === faq.id ? '' : faq.id)} style={styles.faqItem} scaleTo={0.99}>
               <View style={styles.faqQuestionRow}>
                 <Text style={styles.faqQuestion}>{faq.question}</Text>
-                <Ionicons name={openId === faq.id ? 'chevron-up' : 'chevron-down'} size={18} color="#171313" />
+                <Ionicons name={openId === faq.id ? 'chevron-up' : 'chevron-down'} size={18} color={colors.text} />
               </View>
               {openId === faq.id ? <Text style={styles.faqAnswer}>{faq.answer}</Text> : null}
             </MotionPressable>
@@ -241,30 +241,30 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', gap: 7 },
   circleButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
   loadingState: { minHeight: 240, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  loadingText: { color: 'rgba(23,19,19,0.5)', fontSize: 12, fontWeight: '700' },
-  clubGrid: { gap: 0 },
-  clubCard: { position: 'relative', overflow: 'hidden', minHeight: 188, borderRadius: 0, backgroundColor: 'transparent', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 18, paddingHorizontal: 12 },
+  loadingText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
+  clubGrid: { gap: 10 },
+  clubCard: { position: 'relative', overflow: 'hidden', minHeight: 188, borderRadius: 12, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 18, paddingHorizontal: 14 },
   clubCardHighlighted: { borderColor: colors.violet, borderWidth: 1.5 },
   clubBadge: { position: 'absolute', right: 14, top: 14, zIndex: 1, borderRadius: 999, backgroundColor: colors.violet, paddingHorizontal: 9, paddingVertical: 4 },
   clubBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
   clubAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
   clubIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
-  clubName: { marginTop: 12, color: '#171313', fontSize: 20, fontWeight: '900' },
-  clubPromise: { marginTop: 4, color: 'rgba(23,19,19,0.5)', fontSize: 12, lineHeight: 17, fontWeight: '700', maxWidth: '92%' },
-  clubLatest: { marginTop: 12, borderRadius: 4, backgroundColor: 'rgba(23,19,19,0.035)', borderLeftWidth: 3, borderLeftColor: colors.borderStrong, padding: 10 },
-  clubLatestTitle: { color: '#171313', fontSize: 12, fontWeight: '900' },
-  clubLatestMeta: { marginTop: 2, color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '700' },
-  clubLatestEmpty: { color: 'rgba(23,19,19,0.38)', fontSize: 11, fontWeight: '700' },
+  clubName: { marginTop: 12, color: colors.text, fontSize: 20, fontWeight: '900' },
+  clubPromise: { marginTop: 4, color: colors.textSecondary, fontSize: 12, lineHeight: 17, fontWeight: '700', maxWidth: '92%' },
+  clubLatest: { marginTop: 12, borderRadius: 8, backgroundColor: colors.surfaceStrong, borderLeftWidth: 3, borderLeftColor: colors.borderStrong, padding: 10 },
+  clubLatestTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  clubLatestMeta: { marginTop: 2, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
+  clubLatestEmpty: { color: colors.textTertiary, fontSize: 11, fontWeight: '700' },
   clubFooter: { marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  clubCount: { color: 'rgba(23,19,19,0.4)', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
+  clubCount: { color: colors.textTertiary, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
   enterButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 4, paddingHorizontal: 14, paddingVertical: 9 },
   enterButtonText: { color: '#FFFAF2', fontSize: 12, fontWeight: '900' },
   modalContent: { paddingHorizontal: 18, paddingBottom: 12, gap: 10 },
-  faqItem: { paddingVertical: 14, borderRadius: 0, backgroundColor: 'transparent', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(23,19,19,0.14)' },
+  faqItem: { paddingVertical: 14, borderRadius: 0, backgroundColor: 'transparent', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   faqQuestionRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  faqQuestion: { flex: 1, color: '#171313', fontSize: 14, fontWeight: '900' },
-  faqAnswer: { color: 'rgba(23,19,19,0.62)', fontSize: 12, lineHeight: 19, fontWeight: '600', marginTop: 12 },
-  faqEmpty: { color: 'rgba(23,19,19,0.52)', fontSize: 12, lineHeight: 18, fontWeight: '700', textAlign: 'center' },
+  faqQuestion: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '900' },
+  faqAnswer: { color: colors.textSecondary, fontSize: 12, lineHeight: 19, fontWeight: '600', marginTop: 12 },
+  faqEmpty: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700', textAlign: 'center' },
 });
 
 export default CommunityScreen;

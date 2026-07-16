@@ -10,7 +10,7 @@ import { AppHeader } from '@/components/ui/AppHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { SoftCard } from '@/components/ui/SoftCard';
-import { colors, spacing } from '@/theme/tokens';
+import { colors, radius, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 const CONTENT_TYPE_LABEL: Record<MusicChallengeContentType, string> = {
@@ -199,9 +199,9 @@ function EntryRow({ entry, navigation }: { entry: MusicChallengeEntry; navigatio
 const styles = StyleSheet.create({
   content: { paddingBottom: 170, gap: spacing.lg, paddingHorizontal: spacing.lg },
   loading: { paddingHorizontal: spacing.lg },
-  hero: { gap: spacing.sm, borderWidth: 0, borderTopWidth: 3, borderBottomWidth: StyleSheet.hairlineWidth, borderRadius: 0, backgroundColor: 'transparent', paddingVertical: spacing.lg },
+  hero: { gap: spacing.sm, borderWidth: 1, borderTopWidth: 3, borderColor: colors.border, borderTopColor: colors.violet, borderRadius: radius.lg, backgroundColor: colors.surface, padding: spacing.lg },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  heroIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
+  heroIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   statusPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4, paddingVertical: 6 },
   statusPillActive: { backgroundColor: 'rgba(43,201,111,0.14)' },
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(17,17,17,0.3)' },
@@ -214,15 +214,15 @@ const styles = StyleSheet.create({
   metaPill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 6 },
   metaText: { fontSize: 11, fontWeight: '800', color: colors.textSecondary },
   dates: { marginTop: spacing.xs, fontSize: 11, fontWeight: '700', color: colors.textTertiary },
-  cta: { marginTop: spacing.md, height: 48, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.black },
+  cta: { marginTop: spacing.md, height: 48, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.violet },
   ctaDisabled: { opacity: 0.5 },
   ctaText: { color: colors.paper, fontSize: 14, fontWeight: '900' },
   userEntryNote: { marginTop: spacing.sm, fontSize: 11, fontWeight: '800', color: '#168746' },
   sectionTitle: { marginBottom: spacing.sm, fontSize: 17, fontWeight: '900', color: colors.text },
   emptyText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  entries: { gap: 0 },
-  entryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
-  entryCover: { width: 48, height: 48, borderRadius: 4, backgroundColor: 'rgba(17,17,17,0.08)' },
+  entries: { gap: spacing.sm },
+  entryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  entryCover: { width: 48, height: 48, borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
   entryTitle: { fontSize: 13, fontWeight: '900', color: colors.text },
   entrySubtitle: { marginTop: 2, fontSize: 11, fontWeight: '700', color: colors.textSecondary },
   error: { color: colors.danger, textAlign: 'center', fontSize: 11, fontWeight: '700' },

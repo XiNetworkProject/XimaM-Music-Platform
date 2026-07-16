@@ -6,6 +6,7 @@ import type { Track } from '@/api/types';
 import { TrackCover } from '@/components/TrackCover';
 import { trackArtistName } from './helpers';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { colors } from '@/theme/tokens';
 
 type Props = {
   visible: boolean;
@@ -41,7 +42,7 @@ export function LyricsSheet({ visible, track, onClose }: Props) {
             <Text style={styles.artist} numberOfLines={1}>{trackArtistName(track || ({} as Track))}</Text>
           </View>
           <Pressable accessibilityLabel="Fermer" onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={20} color="#171313" />
+            <Ionicons name="close" size={20} color={colors.text} />
           </Pressable>
         </View>
         <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
@@ -61,7 +62,9 @@ const styles = StyleSheet.create({
     top: 64,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
-    backgroundColor: '#FFFAF2',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
     shadowColor: '#000',
     shadowOpacity: 0.18,
     shadowRadius: 36,
@@ -75,31 +78,31 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     gap: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(23,19,19,0.08)',
+    borderBottomColor: colors.border,
   },
   coverThumb: {
     width: 44,
     height: 44,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: 'rgba(23,19,19,0.06)',
+    backgroundColor: colors.surfaceStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  kicker: { color: 'rgba(23,19,19,0.42)', fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
-  title: { color: '#171313', fontSize: 18, fontWeight: '900', marginTop: 4 },
-  artist: { color: 'rgba(23,19,19,0.55)', fontSize: 12, marginTop: 3, fontWeight: '700' },
+  kicker: { color: colors.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
+  title: { color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 4 },
+  artist: { color: colors.textSecondary, fontSize: 12, marginTop: 3, fontWeight: '700' },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(23,19,19,0.06)',
+    backgroundColor: colors.surfaceMuted,
   },
   body: { padding: 22, paddingBottom: 80 },
   lyricsText: {
-    color: 'rgba(23,19,19,0.85)',
+    color: colors.text,
     fontSize: 15,
     lineHeight: 26,
     fontWeight: '500',

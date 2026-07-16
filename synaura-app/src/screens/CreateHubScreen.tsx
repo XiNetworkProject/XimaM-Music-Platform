@@ -130,7 +130,7 @@ export function CreateHubScreen() {
             <Text style={styles.studioText}>Imagine un morceau à partir d'une idée.</Text>
             <View style={styles.studioButton}>
               <Text style={styles.studioButtonText}>Entrer dans le Studio</Text>
-              <Ionicons name="arrow-forward" size={18} color={colors.text} />
+              <Ionicons name="arrow-forward" size={18} color={colors.black} />
             </View>
           </LinearGradient>
         </MotionPressable>
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   studioTitle: { maxWidth: 310, color: colors.paper, fontSize: 24, lineHeight: 27, fontWeight: '900' },
   studioText: { marginTop: 9, maxWidth: 310, color: 'rgba(255,250,242,0.56)', fontSize: 12, lineHeight: 18, fontWeight: '700' },
   studioButton: { marginTop: 14, minHeight: 46, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 4, paddingHorizontal: 17, backgroundColor: colors.paper },
-  studioButtonText: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  studioButtonText: { color: colors.black, fontSize: 12, fontWeight: '900' },
   sectionTitle: { marginTop: 13, marginBottom: 2 },
   sectionEyebrow: { color: colors.coral, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
   sectionHeading: { marginTop: 4, color: colors.text, fontSize: 22, lineHeight: 25, fontWeight: '900' },
@@ -220,5 +220,5 @@ const styles = StyleSheet.create({
   actionCopy: { flex: 1, minWidth: 0 },
   actionTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
   actionText: { marginTop: 3, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
-  actionArrow: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.055)' },
+  actionArrow: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
 });

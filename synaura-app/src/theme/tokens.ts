@@ -1,15 +1,15 @@
 export const colors = {
-  background: '#F7F6F3',
-  backgroundAlt: '#F1EFEA',
-  surface: '#FCFBF9',
-  surfaceStrong: '#FFFFFF',
-  surfaceMuted: '#EAE7E1',
-  elevatedSurface: '#FFFFFF',
-  border: 'rgba(17,17,17,0.09)',
-  borderStrong: 'rgba(17,17,17,0.18)',
-  text: '#111111',
-  textSecondary: '#625F5B',
-  textTertiary: '#8C8882',
+  background: '#121212',
+  backgroundAlt: '#0B0B0B',
+  surface: '#181818',
+  surfaceStrong: '#202020',
+  surfaceMuted: '#2A2A2A',
+  elevatedSurface: '#242424',
+  border: 'rgba(255,255,255,0.08)',
+  borderStrong: 'rgba(255,255,255,0.16)',
+  text: '#FFFFFF',
+  textSecondary: '#B3B3B3',
+  textTertiary: '#7E7E7E',
   accent: '#7357C6',
   accent2: '#4A9EAA',
   accentPink: '#C85D82',
@@ -17,7 +17,7 @@ export const colors = {
   danger: '#D92D20',
   destructive: '#C94F4F',
   success: '#2E8C62',
-  black: '#111111',
+  black: '#000000',
   white: '#FFFFFF',
   paper: '#F7F6F3',
   coral: '#D96D63',
@@ -35,7 +35,7 @@ export const colors = {
   violetSoft: 'rgba(115,87,198,0.12)',
   cyanSoft: 'rgba(74,158,170,0.13)',
   coralSoft: 'rgba(217,109,99,0.13)',
-  glassLight: 'rgba(247,246,243,0.93)',
+  glassLight: 'rgba(18,18,18,0.96)',
   glassDark: 'rgba(13,13,13,0.92)',
 };
 
@@ -50,24 +50,24 @@ export const spacing = {
 };
 
 export const radius = {
-  sm: 4,
-  md: 7,
-  lg: 10,
-  xl: 14,
+  sm: 6,
+  md: 8,
+  lg: 12,
+  xl: 16,
   pill: 999,
 };
 
 export const shadows = {
   soft: {
-    shadowColor: '#111111',
-    shadowOpacity: 0.055,
+    shadowColor: '#000000',
+    shadowOpacity: 0.2,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
   floating: {
-    shadowColor: '#111111',
-    shadowOpacity: 0.14,
+    shadowColor: '#000000',
+    shadowOpacity: 0.32,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,

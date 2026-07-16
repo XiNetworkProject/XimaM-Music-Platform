@@ -133,7 +133,7 @@ function SynauraScrollIcon({ focused, dark }: { focused: boolean; dark: boolean 
 
 const PRIMARY_ROUTES = ['Swipe', 'Discover', 'Create', 'Library', 'Profile'] as const;
 const PRIMARY_LABELS: Record<(typeof PRIMARY_ROUTES)[number], string> = {
-  Swipe: 'Flow',
+  Swipe: 'Accueil',
   Discover: 'Découvrir',
   Create: 'Créer',
   Library: 'Bibliothèque',
@@ -141,6 +141,7 @@ const PRIMARY_LABELS: Record<(typeof PRIMARY_ROUTES)[number], string> = {
 };
 function primaryIcon(routeName: (typeof PRIMARY_ROUTES)[number], focused: boolean): keyof typeof Ionicons.glyphMap {
   if (routeName === 'Discover') return focused ? 'compass' : 'compass-outline';
+  if (routeName === 'Create') return focused ? 'add-circle' : 'add-circle-outline';
   if (routeName === 'Library') return focused ? 'library' : 'library-outline';
   return focused ? 'person' : 'person-outline';
 }
@@ -149,7 +150,7 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
   const layout = useResponsiveLayout();
   const activeRoute = state.routes[state.index]?.name as keyof RootTabsParamList | undefined;
   if (activeRoute && HIDDEN_ROUTES.has(activeRoute)) return null;
-  const dark = activeRoute === 'Swipe';
+  const dark = true;
   const routes = state.routes.filter((route) => PRIMARY_ROUTES.includes(route.name as any));
   const dockWidth = Math.min(layout.safeWidth, layout.isTablet ? 640 : 560);
 
@@ -193,21 +194,21 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
                 <SynauraScrollIcon focused={focused} dark={dark} />
               ) : isCreate ? (
                 <View style={[styles.createDock, layout.compactControls && styles.createDockCompact, dark && styles.createDockDark]}>
-                  <Ionicons name="add" size={layout.compactControls ? 23 : 25} color={dark ? colors.black : colors.white} />
+                  <Ionicons name="add" size={layout.compactControls ? 23 : 25} color={colors.black} />
                 </View>
               ) : (
                 <View style={[styles.iconDock, focused && styles.iconDockActive, dark && focused && styles.iconDockActiveDark]}>
                   <Ionicons
                     name={primaryIcon(route.name as (typeof PRIMARY_ROUTES)[number], focused)}
                     size={21}
-                    color={focused ? (dark ? colors.white : colors.black) : (dark ? 'rgba(255,255,255,0.48)' : colors.textTertiary)}
+                    color={focused ? colors.white : colors.textTertiary}
                   />
                 </View>
               )}
               <Text maxFontSizeMultiplier={1.1} numberOfLines={1} adjustsFontSizeToFit style={[styles.dockLabel, layout.isNarrow && styles.dockLabelNarrow, dark && styles.dockLabelDark, focused && styles.dockLabelActive, dark && focused && styles.dockLabelActiveDark, isCreate && styles.dockLabelCreate]}>
                 {label}
               </Text>
-              {focused && !isCreate ? <View style={[styles.activeIndicator, dark && styles.activeIndicatorDark]} /> : null}
+              {focused && !isCreate ? <View style={styles.activeIndicator} /> : null}
             </AnimatedTabButton>
           );
         })}
@@ -224,6 +225,7 @@ export function Tabs() {
   return (
     <>
       <Tab.Navigator
+        initialRouteName="Swipe"
         backBehavior="history"
         tabBar={(props) => <SynauraTabBar {...props} />}
         screenOptions={() => ({
@@ -330,8 +332,8 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 4,
   },
-  dockLight: { borderColor: colors.borderStrong, backgroundColor: colors.glassLight },
-  dockDark: { borderColor: 'rgba(255,255,255,0.15)', backgroundColor: colors.glassDark },
+  dockLight: { borderColor: colors.border, backgroundColor: colors.glassDark },
+  dockDark: { borderColor: colors.border, backgroundColor: '#0D0D0D' },
   dockItem: {
     flex: 1,
     height: 68,
@@ -340,9 +342,9 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   dockItemCreate: { paddingBottom: 1 },
-  createDock: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black, borderWidth: 3, borderColor: colors.background, shadowColor: colors.black, shadowOpacity: 0.24, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 7, transform: [{ translateY: -8 }] },
-  createDockCompact: { width: 44, height: 44, borderRadius: 22 },
-  createDockDark: { backgroundColor: colors.white, shadowOpacity: 0.12 },
+  createDock: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper, borderWidth: 3, borderColor: '#0D0D0D', shadowColor: colors.violet, shadowOpacity: 0.34, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 8, transform: [{ translateY: -7 }] },
+  createDockCompact: { width: 42, height: 42, borderRadius: 21 },
+  createDockDark: { backgroundColor: colors.paper },
   dockLabel: {
     maxWidth: '100%',
     color: colors.textTertiary,
@@ -353,7 +355,7 @@ const styles = StyleSheet.create({
   dockLabelNarrow: { fontSize: 9 },
   dockLabelActive: { color: colors.black },
   dockLabelActiveDark: { color: colors.white },
-  dockLabelCreate: { marginTop: -8 },
-  activeIndicator: { position: 'absolute', top: 0, width: 24, height: 2, backgroundColor: colors.violet },
-  activeIndicatorDark: { backgroundColor: colors.cyan },
+  dockLabelCreate: { marginTop: -7 },
+  activeIndicator: { position: 'absolute', top: 0, width: 22, height: 2, borderRadius: 1, backgroundColor: colors.cyan },
+  activeIndicatorDark: {},
 });

@@ -3,6 +3,7 @@ import { Image, StyleSheet, View, type ImageStyle, type StyleProp, type ViewStyl
 import Video from 'react-native-video';
 import type { Track } from '@/api/types';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
+import { colors } from '@/theme/tokens';
 
 type Props = {
   track?: Track | null;
@@ -163,9 +164,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     overflow: 'hidden',
-    backgroundColor: 'rgba(23,19,19,0.08)',
+    backgroundColor: colors.surfaceMuted,
   },
   fallback: {
-    backgroundColor: '#FFFAF2',
+    backgroundColor: colors.surfaceStrong,
   },
 });

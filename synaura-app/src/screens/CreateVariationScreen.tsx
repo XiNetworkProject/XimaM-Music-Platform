@@ -76,12 +76,12 @@ export function CreateVariationScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
-  hint: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700', paddingBottom: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong },
+  hint: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700', padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.violetSoft },
   error: { marginTop: spacing.md, color: colors.danger, fontSize: 13, fontWeight: '800' },
-  list: { marginTop: spacing.sm, gap: 0 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 0, paddingVertical: 10, backgroundColor: 'transparent', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
+  list: { marginTop: spacing.sm, gap: spacing.sm },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: radius.md, padding: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   rowPressed: { opacity: 0.7, transform: [{ scale: 0.99 }] },
-  cover: { width: 58, height: 58, borderRadius: radius.sm, backgroundColor: 'rgba(17,17,17,0.08)' },
+  cover: { width: 58, height: 58, borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
   copy: { flex: 1, minWidth: 0 },
   title: { color: colors.text, fontSize: 14, fontWeight: '900' },
   artist: { marginTop: 2, color: colors.textTertiary, fontSize: 11, fontWeight: '700' },

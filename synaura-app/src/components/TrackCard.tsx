@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.text,
+    backgroundColor: colors.violet,
   },
   playActive: {
     backgroundColor: colors.violet,
