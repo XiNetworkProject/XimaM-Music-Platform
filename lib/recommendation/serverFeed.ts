@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
-import { buildAnonymousRecommendationSignals, buildUserRecommendationSignals } from './signals';
+import { buildRecommendationSignals } from './signals';
 import { loadGlobalTrackCandidates } from './candidates';
 import { rerankTracks } from './engine';
 import { sortTracksNewest } from './chronological';
@@ -34,14 +34,12 @@ export async function legacyDiscoveryFeed(request: NextRequest, options: Discove
     const day = new Date().toISOString().slice(0, 10);
     const sessionSeed = requestedSessionId || `${userId || 'anonymous'}:${day}:compat:${options.strategy}`;
     const candidates = await loadGlobalTrackCandidates(options.includeAi ?? false);
-    const signals = userId
-      ? await buildUserRecommendationSignals({
-          supabase: supabaseAdmin,
-          userId,
-          candidateTracks: candidates,
-          sessionId: requestedSessionId,
-        })
-      : buildAnonymousRecommendationSignals();
+    const signals = await buildRecommendationSignals({
+      supabase: supabaseAdmin,
+      userId,
+      candidateTracks: candidates,
+      sessionId: requestedSessionId,
+    });
 
     let source = candidates;
     if (options.mode === 'following') {
@@ -74,7 +72,7 @@ export async function legacyDiscoveryFeed(request: NextRequest, options: Discove
       sessionId: sessionSeed,
     }, {
       headers: {
-        'Cache-Control': userId ? 'private, no-store' : 'public, s-maxage=30, stale-while-revalidate=90',
+        'Cache-Control': userId || requestedSessionId ? 'private, no-store' : 'public, s-maxage=30, stale-while-revalidate=90',
       },
     });
   } catch (error) {

@@ -97,7 +97,15 @@ function addReason(reasons: RecommendationReason[], condition: boolean, reason: 
   if (condition && !reasons.includes(reason)) reasons.push(reason);
 }
 
-function impressionPenalty(id: string, signals: UserRecommendationSignals, now: number) {
+function impressionPenalty(id: string, signals: UserRecommendationSignals, now: number, kind: 'track' | 'post' = 'track') {
+  const sessionSeen = kind === 'post'
+    ? signals.currentSessionRecommendedPostIds.has(id)
+    : signals.currentSessionRecommendedTrackIds.has(id);
+  const sessionCount = signals.currentSessionRecommendationCounts.get(id) || 0;
+  if (sessionSeen || sessionCount > 0) {
+    const base = kind === 'post' ? 0.07 : 0.09;
+    return Math.max(0.012, base * Math.pow(0.48, Math.max(0, sessionCount - 1)));
+  }
   const last = signals.lastRecommendedAt.get(id) || 0;
   const count = signals.recommendationCounts.get(id) || 0;
   if (!last) return 1;
@@ -139,6 +147,17 @@ export function scoreTrackCandidate(
   const collaborative = signals.collaborativeTrackIds.has(id) ? 3.2 : 0;
   const obsessionBoost = isObsessed ? Math.min(5.5, 1.8 + repeat72 * 0.65 + completes72 * 0.95) : 0;
   const promotion = track.isBoosted ? Math.min(1.2, Math.max(0.35, Number(track.boostMultiplier || 1) - 0.7)) : 0;
+  const sessionArtistExposure = signals.currentSessionArtistCounts.get(String(track.artist?._id || '')) || 0;
+  const sessionGenreExposure = trackGenres.reduce(
+    (highest, genreId) => Math.max(highest, signals.currentSessionGenreCounts.get(genreId) || 0),
+    0,
+  );
+  const sessionArtistPenalty = sessionArtistExposure > 0
+    ? Math.max(0.34, Math.pow(0.72, sessionArtistExposure))
+    : 1;
+  const sessionGenrePenalty = sessionGenreExposure > 0
+    ? Math.max(0.58, Math.pow(0.91, sessionGenreExposure))
+    : 1;
 
   let score: number;
   switch (context.strategy) {
@@ -180,7 +199,14 @@ export function scoreTrackCandidate(
   const seenPenalty = impressionPenalty(id, signals, now);
   const repeatPenalty = repeat24 >= 5 && !isObsessed ? 0.5 : repeat24 >= 3 && !isObsessed ? 0.72 : 1;
   const jitter = (deterministicUnit(context.sessionSeed || 'synaura', id) - 0.5) * 0.24;
-  score = score * recentPlayPenalty * skipPenalty * seenPenalty * repeatPenalty + jitter;
+  score = score
+    * recentPlayPenalty
+    * skipPenalty
+    * seenPenalty
+    * repeatPenalty
+    * sessionArtistPenalty
+    * sessionGenrePenalty
+    + jitter;
 
   addReason(reasons, metrics.qualityScore >= 3.2, 'quality_signal');
   addReason(reasons, metrics.momentumScore >= 2.8, 'momentum');
@@ -194,6 +220,7 @@ export function scoreTrackCandidate(
   addReason(reasons, repeat72 > 0, 'recent_repeat');
   addReason(reasons, isObsessed, 'current_obsession');
   addReason(reasons, recentlyPlayedIndex >= 0, 'fatigue');
+  addReason(reasons, sessionArtistPenalty < 1 || sessionGenrePenalty < 1, 'fatigue');
   addReason(reasons, seenPenalty < 1, 'already_seen');
   addReason(reasons, skipPenalty < 1, 'skip_penalty');
   addReason(reasons, Number(track.rankingScore || 0) > 0, 'global_performance');
@@ -222,6 +249,10 @@ export function scoreTrackCandidate(
       repeat72,
       recentPlayPenalty: Number(recentPlayPenalty.toFixed(3)),
       seenPenalty: Number(seenPenalty.toFixed(3)),
+      sessionArtistExposure,
+      sessionGenreExposure,
+      sessionArtistPenalty: Number(sessionArtistPenalty.toFixed(3)),
+      sessionGenrePenalty: Number(sessionGenrePenalty.toFixed(3)),
       skipPenalty,
       signalStrength: signals.signalStrength,
     };
@@ -359,7 +390,7 @@ export function scorePostCandidate(
     reasons.push('genre_affinity');
   }
   if (fresh > 4.8) reasons.push('fresh');
-  const seenPenalty = impressionPenalty(String(post.id || ''), signals, now);
+  const seenPenalty = impressionPenalty(String(post.id || ''), signals, now, 'post');
   if (seenPenalty < 1) {
     score *= seenPenalty;
     reasons.push('already_seen');

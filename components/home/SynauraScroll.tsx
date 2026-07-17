@@ -394,6 +394,8 @@ export default function SynauraScroll() {
   const postLoadRequestRef = useRef(0);
   const loadingMoreTracksRef = useRef(false);
   const impressionSeenRef = useRef<Set<string>>(new Set());
+  const liveRerankTimerRef = useRef<number | null>(null);
+  const liveRerankCountRef = useRef(0);
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const currentId = currentTrack?._id;
@@ -677,6 +679,47 @@ export default function SynauraScroll() {
     return () => window.clearTimeout(timer);
   }, [activeIndex, feedItems, loading]);
 
+  // Le contenu deja parcouru reste immobile. Toutes les trois impressions,
+  // seule la suite encore invisible est regeneree avec les signaux tout juste
+  // enregistres (ecoute, skip, completion, like et exposition de session).
+  useEffect(() => {
+    if (filter !== 'foryou' || loading || loadingMoreTracksRef.current) return;
+    const seenCount = impressionSeenRef.current.size;
+    if (seenCount - liveRerankCountRef.current < 3) return;
+    const activeItem = feedItems[activeIndex];
+    if (!activeItem || activeItem.type !== 'track') return;
+    const activeTrackIndex = baseTracks.findIndex((track) => track._id === activeItem.track._id);
+    if (activeTrackIndex < 0) return;
+    liveRerankCountRef.current = seenCount;
+    if (liveRerankTimerRef.current) window.clearTimeout(liveRerankTimerRef.current);
+    liveRerankTimerRef.current = window.setTimeout(() => {
+      const params = new URLSearchParams({
+        limit: String(MORE_TRACK_LIMIT),
+        ai: '1',
+        strategy: 'reco',
+        cursor: '0',
+        session: getRecommendationSessionId(),
+      });
+      const excluded = baseTracks.map((track) => track._id).filter(Boolean).slice(-120);
+      if (excluded.length) params.set('exclude', excluded.join(','));
+      void fetch(`/api/ranking/feed?${params.toString()}`, { cache: 'no-store' })
+        .then((response) => response.ok ? response.json() : null)
+        .then((json) => {
+          if (!json) return;
+          const incoming = applyCdnToTracks((Array.isArray(json?.tracks) ? json.tracks : []) as any) as ScrollTrack[];
+          const preserved = baseTracks.slice(0, activeTrackIndex + 1);
+          const seen = new Set(preserved.map((track) => track._id));
+          setBaseTracks([...preserved, ...incoming.filter((track) => !seen.has(track._id))]);
+          setTrackCursor(typeof json?.nextCursor === 'number' ? json.nextCursor : incoming.length);
+          setTrackHasMore(Boolean(json?.hasMore));
+        })
+        .catch(() => {});
+    }, 1400);
+    return () => {
+      if (liveRerankTimerRef.current) window.clearTimeout(liveRerankTimerRef.current);
+    };
+  }, [activeIndex, baseTracks, feedItems, filter, loading]);
+
   // Le premier rendu reste petit et rapide; la suite arrive avant que l'auditeur
   // atteigne la fin, sans reconstruire les cartes deja visibles.
   useEffect(() => {
@@ -689,9 +732,11 @@ export default function SynauraScroll() {
       limit: String(MORE_TRACK_LIMIT),
       ai: '1',
       strategy,
-      cursor: String(trackCursor),
+      cursor: '0',
       session: getRecommendationSessionId(),
     });
+    const excluded = baseTracks.map((track) => track._id).filter(Boolean).slice(-120);
+    if (excluded.length) params.set('exclude', excluded.join(','));
     fetch(`/api/ranking/feed?${params.toString()}`, { cache: 'no-store' })
       .then((response) => response.json().then((json) => ({ ok: response.ok, json })))
       .then(({ ok, json }) => {
@@ -711,7 +756,7 @@ export default function SynauraScroll() {
     return () => {
       mounted = false;
     };
-  }, [activeIndex, feedItems.length, filter, loading, needsTrackFetch, trackCursor, trackHasMore]);
+  }, [activeIndex, baseTracks, feedItems.length, filter, loading, needsTrackFetch, trackCursor, trackHasMore]);
 
   // File de lecture : uniquement les entrées réellement jouables (morceau ou artiste en vedette),
   // dans le même ordre que le feed affiché, pour que suivant/précédent restent cohérents.

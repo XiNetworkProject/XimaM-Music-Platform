@@ -16,8 +16,14 @@ function emptySignals(userId: string | null): UserRecommendationSignals {
     recentlyRecommendedTrackIds: new Set(),
     recentlyRecommendedPostIds: new Set(),
     recentlyRecommendedClipIds: new Set(),
+    currentSessionRecommendedTrackIds: new Set(),
+    currentSessionRecommendedPostIds: new Set(),
+    currentSessionRecommendedClipIds: new Set(),
     recommendationCounts: new Map(),
+    currentSessionRecommendationCounts: new Map(),
     lastRecommendedAt: new Map(),
+    currentSessionArtistCounts: new Map(),
+    currentSessionGenreCounts: new Map(),
     followedPostCreatorIds: new Set(),
     preferredGenres: new Map(),
     avoidedGenres: new Map(),
@@ -41,6 +47,48 @@ function normalizeGenres(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((item) => String(item || '').trim().toLowerCase()).filter(Boolean);
   if (typeof value === 'string') return value.split(',').map((item) => item.trim().toLowerCase()).filter(Boolean);
   return [];
+}
+
+type RecommendationImpression = {
+  content_type?: string | null;
+  content_id?: string | null;
+  created_at?: string | null;
+  session_id?: string | null;
+};
+
+function applyRecommendationImpression(
+  signals: UserRecommendationSignals,
+  impression: RecommendationImpression,
+  currentSessionId: string | null,
+) {
+  const contentId = String(impression.content_id || '');
+  if (!contentId) return;
+  const type = String(impression.content_type || '');
+  if (type === 'track') signals.recentlyRecommendedTrackIds.add(contentId);
+  if (type === 'post') signals.recentlyRecommendedPostIds.add(contentId);
+  if (type === 'clip') signals.recentlyRecommendedClipIds.add(contentId);
+  inc(signals.recommendationCounts, contentId);
+  const created = impression.created_at ? new Date(impression.created_at).getTime() : 0;
+  if (created > (signals.lastRecommendedAt.get(contentId) || 0)) signals.lastRecommendedAt.set(contentId, created);
+
+  if (!currentSessionId || impression.session_id !== currentSessionId) return;
+  if (type === 'track') signals.currentSessionRecommendedTrackIds.add(contentId);
+  if (type === 'post') signals.currentSessionRecommendedPostIds.add(contentId);
+  if (type === 'clip') signals.currentSessionRecommendedClipIds.add(contentId);
+  inc(signals.currentSessionRecommendationCounts, contentId);
+}
+
+function hydrateSessionCatalogExposure(signals: UserRecommendationSignals, trackById: Map<string, any>) {
+  for (const trackId of Array.from(signals.currentSessionRecommendedTrackIds)) {
+    const track = trackById.get(trackId);
+    if (!track) continue;
+    const count = Math.max(1, signals.currentSessionRecommendationCounts.get(trackId) || 1);
+    const artistId = String(track.artist?._id || track.creator_id || track.artist_id || '');
+    if (artistId) inc(signals.currentSessionArtistCounts, artistId, count);
+    for (const genre of normalizeGenres(track.genre || track.tags)) {
+      inc(signals.currentSessionGenreCounts, genre, count);
+    }
+  }
 }
 
 function eventProgress(event: any) {
@@ -125,15 +173,7 @@ export async function buildUserRecommendationSignals({
   }
 
   for (const impression of impressionsRes.data || []) {
-    if (sessionId && impression.session_id === sessionId) continue;
-    const contentId = String(impression.content_id || '');
-    if (!contentId) continue;
-    if (impression.content_type === 'track') signals.recentlyRecommendedTrackIds.add(contentId);
-    if (impression.content_type === 'post') signals.recentlyRecommendedPostIds.add(contentId);
-    if (impression.content_type === 'clip') signals.recentlyRecommendedClipIds.add(contentId);
-    inc(signals.recommendationCounts, contentId);
-    const created = impression.created_at ? new Date(impression.created_at).getTime() : 0;
-    if (created > (signals.lastRecommendedAt.get(contentId) || 0)) signals.lastRecommendedAt.set(contentId, created);
+    applyRecommendationImpression(signals, impression, sessionId);
   }
 
   const recentEvents = recentEventsRes.data || [];
@@ -234,6 +274,8 @@ export async function buildUserRecommendationSignals({
     });
   }
 
+  hydrateSessionCatalogExposure(signals, trackById);
+
   tasteByTrack.forEach((taste, trackId) => {
     const track = trackById.get(trackId);
     if (!track) return;
@@ -315,4 +357,61 @@ export async function buildUserRecommendationSignals({
 
 export function buildAnonymousRecommendationSignals(): UserRecommendationSignals {
   return emptySignals(null);
+}
+
+export async function buildSessionRecommendationSignals({
+  supabase,
+  sessionId,
+  candidateTracks = [],
+}: {
+  supabase: any;
+  sessionId: string | null;
+  candidateTracks?: any[];
+}): Promise<UserRecommendationSignals> {
+  const signals = emptySignals(null);
+  const normalizedSessionId = String(sessionId || '').trim();
+  if (!normalizedSessionId) return signals;
+
+  const since = new Date(Date.now() - 7 * DAY).toISOString();
+  try {
+    const { data } = await supabase
+      .from('recommendation_impressions')
+      .select('content_type, content_id, created_at, session_id')
+      .eq('session_id', normalizedSessionId)
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(1000);
+    for (const impression of data || []) {
+      applyRecommendationImpression(signals, impression, normalizedSessionId);
+    }
+  } catch {}
+
+  const trackById = new Map<string, any>();
+  for (const track of candidateTracks || []) {
+    const id = String(track?._id || track?.id || '');
+    if (id) trackById.set(id, track);
+  }
+  hydrateSessionCatalogExposure(signals, trackById);
+  signals.signalStrength = Math.min(20, signals.currentSessionRecommendationCounts.size * 0.35);
+  return signals;
+}
+
+export async function buildRecommendationSignals({
+  supabase,
+  userId,
+  candidateTracks = [],
+  sessionId = null,
+}: {
+  supabase: any;
+  userId: string | null;
+  candidateTracks?: any[];
+  sessionId?: string | null;
+}) {
+  if (userId) {
+    return buildUserRecommendationSignals({ supabase, userId, candidateTracks, sessionId });
+  }
+  if (sessionId) {
+    return buildSessionRecommendationSignals({ supabase, sessionId, candidateTracks });
+  }
+  return buildAnonymousRecommendationSignals();
 }

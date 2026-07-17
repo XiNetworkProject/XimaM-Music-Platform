@@ -188,6 +188,13 @@ export function SwipeScreen() {
   const feedItemsRef = useRef<ScrollFeedItem[]>([]);
   const lastAutoStartedClipRef = useRef<string | null>(null);
   const impressionSeenRef = useRef<Set<string>>(new Set());
+  const viewedTrackIdsRef = useRef<Set<string>>(new Set());
+  const viewedPostIdsRef = useRef<Set<string>>(new Set());
+  const viewedClipIdsRef = useRef<Set<string>>(new Set());
+  const liveRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const liveRefreshInFlightRef = useRef(false);
+  const lastLiveRefreshAtRef = useRef(0);
+  const pendingLiveSignalsRef = useRef(0);
   const switchFeedMode = useCallback((nextMode: FeedMode) => {
     if (nextMode === feedMode) return;
     if (nextMode !== 'clips' && route.params?.mode === 'clips') {
@@ -256,6 +263,81 @@ export function SwipeScreen() {
 
   const currentSeedGenre = useMemo(() => seedGenre || topGenre(activeTrack), [activeTrack, seedGenre]);
 
+  const refreshUpcomingRecommendations = useCallback(async () => {
+    if (liveRefreshInFlightRef.current || loadState !== 'ready') return;
+    if (Date.now() - lastLiveRefreshAtRef.current < 3500) return;
+    liveRefreshInFlightRef.current = true;
+    lastLiveRefreshAtRef.current = Date.now();
+    try {
+      if (feedMode === 'clips') {
+        if (sourceTrackFilter || clipIdFilter) return;
+        const excluded = Array.from(new Set([
+          ...viewedClipIdsRef.current,
+          ...feedItemsRef.current.slice(0, activeIndexRef.current + 1).flatMap((item) => item.kind === 'clip' ? [item.clip.id] : []),
+        ]));
+        const chunk = await getMusicClips({ limit: 18, excludeIds: excluded });
+        setClips((current) => {
+          const preserved = current.filter((clip) => excluded.includes(clip.id));
+          const seen = new Set(preserved.map((clip) => clip.id));
+          return [...preserved, ...chunk.clips.filter((clip) => !seen.has(clip.id))];
+        });
+        setCursor(chunk.nextCursor);
+        setHasMore(chunk.hasMore);
+        return;
+      }
+
+      const consumedItems = feedItemsRef.current.slice(0, activeIndexRef.current + 1);
+      const preservedTrackIds = new Set([
+        ...viewedTrackIdsRef.current,
+        ...consumedItems.flatMap((item) => {
+          const track = playableTrackOfItem(item);
+          return track?._id ? [track._id] : [];
+        }),
+        ...(player.current?._id ? [player.current._id] : []),
+      ]);
+      const preservedPostIds = new Set([
+        ...viewedPostIdsRef.current,
+        ...consumedItems.flatMap((item) => item.kind === 'post' ? [item.post.id] : []),
+      ]);
+      const seedForReco = feedMode === 'reco' ? currentSeedGenre : null;
+      const [trackChunk, postChunk] = await Promise.all([
+        fetchRankingFeedChunk(feedMode, 0, seedForReco, { excludeIds: Array.from(preservedTrackIds), limit: 24 }),
+        feedMode === 'reco'
+          ? loadMixedPosts(null, Array.from(preservedPostIds))
+          : Promise.resolve(null),
+      ]);
+
+      setTracks((current) => {
+        const preserved = current.filter((track) => preservedTrackIds.has(track._id));
+        return uniqueTracks([...preserved, ...withoutObsoleteRadios(trackChunk.tracks)]);
+      });
+      if (postChunk) {
+        const freshPosts = postChunk.items.flatMap((item) => item.kind === 'post' ? [item.post] : []);
+        setPosts((current) => {
+          const preserved = current.filter((post) => preservedPostIds.has(post.id));
+          const seen = new Set(preserved.map((post) => post.id));
+          return [...preserved, ...freshPosts.filter((post) => !seen.has(post.id))];
+        });
+      }
+      setCursor(trackChunk.nextCursor);
+      setHasMore(trackChunk.hasMore);
+    } catch {
+      // Le fil actuel reste intact si le rafraichissement adaptatif echoue.
+    } finally {
+      liveRefreshInFlightRef.current = false;
+    }
+  }, [clipIdFilter, currentSeedGenre, feedMode, loadState, player.current?._id, sourceTrackFilter]);
+
+  const scheduleLiveRefresh = useCallback((weight = 1) => {
+    pendingLiveSignalsRef.current += Math.max(1, weight);
+    if (pendingLiveSignalsRef.current < 3) return;
+    pendingLiveSignalsRef.current = 0;
+    clearTimeout(liveRefreshTimerRef.current);
+    liveRefreshTimerRef.current = setTimeout(() => {
+      void refreshUpcomingRecommendations();
+    }, weight >= 3 ? 900 : 1450);
+  }, [refreshUpcomingRecommendations]);
+
   useEffect(() => {
     activeIndexRef.current = activeIndex;
   }, [activeIndex]);
@@ -271,6 +353,9 @@ export function SwipeScreen() {
     const timer = setTimeout(() => {
       if (impressionSeenRef.current.has(key)) return;
       impressionSeenRef.current.add(key);
+      if (kind === 'track') viewedTrackIdsRef.current.add(id);
+      if (kind === 'post') viewedPostIdsRef.current.add(id);
+      if (kind === 'clip') viewedClipIdsRef.current.add(id);
       void sendRecommendationImpressions([{
         id,
         kind,
@@ -282,9 +367,17 @@ export function SwipeScreen() {
           ? item.track.recommendationReasons || []
           : item.kind === 'clip' ? item.clip.recommendationReasons || [] : [],
       }]);
+      scheduleLiveRefresh(1);
     }, 650);
     return () => clearTimeout(timer);
-  }, [activeIndex, appIsActive, feedItems, isFocused, loadState]);
+  }, [activeIndex, appIsActive, feedItems, isFocused, loadState, scheduleLiveRefresh]);
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('synaura:recommendation-signal', (signal: { weight?: number }) => {
+      scheduleLiveRefresh(Number(signal?.weight || 1));
+    });
+    return () => subscription.remove();
+  }, [scheduleLiveRefresh]);
 
   useEffect(() => {
     fetchedLikeIdsRef.current.clear();
@@ -481,7 +574,7 @@ export function SwipeScreen() {
   // (2) Synchronise la queue du player une fois le feed pret (premier bind, ou changement de mode).
   // On NE re-bind PAS au simple focus de l'ecran : on garde la lecture en cours stable.
   useEffect(() => {
-    if (loadState !== 'ready' || !playableQueue.length) return;
+    if (!player.isReady || loadState !== 'ready' || !playableQueue.length) return;
     const key = `${feedMode}:${playableQueue[0]?._id}:${playableQueue.at(-1)?._id}:${playableQueue.length}`;
     if (queueBoundRef.current === key) return;
     queueBoundRef.current = key;
@@ -505,7 +598,7 @@ export function SwipeScreen() {
         try { listRef.current?.scrollToIndex({ index: displayIndex, animated: false }); } catch { /* ignore */ }
       });
     } else if (!player.current || player.current._id.startsWith('radio-')) {
-      if (homePreludeVisible) void player.setQueueOnly(playableQueue, 0);
+      if (feedMode === 'clips' || homePreludeVisible) void player.setQueueOnly(playableQueue, 0);
       else void player.setQueueAndPlay(playableQueue, 0);
       activeIndexRef.current = 0;
       lastCommittedIndexRef.current = 0;
@@ -559,7 +652,7 @@ export function SwipeScreen() {
     const token = `${feedMode}:${activeIndex}:${item.clip.id}`;
     if (lastAutoStartedClipRef.current === token) return;
     lastAutoStartedClipRef.current = token;
-    if (player.isPlaying) void player.pause();
+    if (player.current) void player.pause();
     setPlayingClipId(item.clip.id);
   }, [activeIndex, appIsActive, feedItems, feedMode, isFocused, player]);
 
@@ -647,7 +740,14 @@ export function SwipeScreen() {
     setLoadingMore(true);
     try {
       if (feedMode === 'clips') {
-        const chunk = await getMusicClips({ limit: 12, cursor, sourceTrackId: sourceTrackFilter || undefined, clipId: clipIdFilter || undefined });
+        const generalClipFeed = !sourceTrackFilter && !clipIdFilter;
+        const chunk = await getMusicClips({
+          limit: 12,
+          cursor: generalClipFeed ? 0 : cursor,
+          sourceTrackId: sourceTrackFilter || undefined,
+          clipId: clipIdFilter || undefined,
+          excludeIds: generalClipFeed ? clips.map((clip) => clip.id) : undefined,
+        });
         const seen = new Set(clips.map((clip) => clip.id));
         const fresh = chunk.clips.filter((clip) => !seen.has(clip.id));
         setClips([...clips, ...fresh]);
@@ -656,7 +756,10 @@ export function SwipeScreen() {
         return;
       }
       const seedForReco = feedMode === 'reco' ? currentSeedGenre : null;
-      const chunk = await fetchRankingFeedChunk(feedMode, cursor, seedForReco);
+      const [chunk, postChunk] = await Promise.all([
+        fetchRankingFeedChunk(feedMode, 0, seedForReco, { excludeIds: tracks.map((track) => track._id), limit: 24 }),
+        feedMode === 'reco' ? loadMixedPosts(null, posts.map((post) => post.id)) : Promise.resolve(null),
+      ]);
       const seen = new Set(tracks.map((t) => t._id));
       const fresh = withoutObsoleteRadios(chunk.tracks).filter((t) => !seen.has(t._id));
       if (!fresh.length) {
@@ -666,12 +769,17 @@ export function SwipeScreen() {
         setCursor(chunk.nextCursor);
         setHasMore(chunk.hasMore);
       }
+      if (postChunk) {
+        const seenPosts = new Set(posts.map((post) => post.id));
+        const freshPosts = postChunk.items.flatMap((item) => item.kind === 'post' && !seenPosts.has(item.post.id) ? [item.post] : []);
+        if (freshPosts.length) setPosts((current) => [...current, ...freshPosts]);
+      }
     } catch {
       // ignore
     } finally {
       setLoadingMore(false);
     }
-  }, [clipIdFilter, clips, cursor, currentSeedGenre, feedMode, hasMore, loadingMore, sourceTrackFilter, tracks]);
+  }, [clipIdFilter, clips, cursor, currentSeedGenre, feedMode, hasMore, loadingMore, posts, sourceTrackFilter, tracks]);
 
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const triggerBurst = useCallback(() => {
@@ -685,6 +793,7 @@ export function SwipeScreen() {
     clearTimeout(burstTimerRef.current);
     clearTimeout(playbackCommitRef.current);
     clearTimeout(pendingSwipeReleaseRef.current);
+    clearTimeout(liveRefreshTimerRef.current);
   }, []);
 
   const handleToggleLike = useCallback(async () => {
@@ -714,11 +823,12 @@ export function SwipeScreen() {
       if (!result) throw new Error('Interaction non enregistree');
       setLikedMap((current) => ({ ...current, [key]: result.liked }));
       setLikesMap((current) => ({ ...current, [key]: result.likesCount }));
+      scheduleLiveRefresh(willLike ? 4 : 2);
     } catch {
       setLikedMap((current) => ({ ...current, [key]: wasLiked }));
       setLikesMap((current) => ({ ...current, [key]: previousCount }));
     }
-  }, [activeItem, activeTrack, auth.user, likedMap, likesMap, navigation, triggerBurst]);
+  }, [activeItem, activeTrack, auth.user, likedMap, likesMap, navigation, scheduleLiveRefresh, triggerBurst]);
 
   const handleDoubleTapLike = useCallback(() => {
     if (!activeTrack) return;

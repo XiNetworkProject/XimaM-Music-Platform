@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
-import { getRecommendationSessionId } from '@/feed/recommendationSession';
+import { getRecommendationSeenIds, getRecommendationSessionId, rememberRecommendationImpressions } from '@/feed/recommendationSession';
 import type {
   Creator,
   CityEventDetail,
@@ -770,7 +770,7 @@ export async function getTrackById(trackId: string): Promise<Track | null> {
   return json ? normalizeTrack(json?.track || json) : null;
 }
 
-export async function getMusicClips(input: { limit?: number; cursor?: number; sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; creatorId?: string; creatorUsername?: string; clipId?: string } = {}): Promise<{ clips: MusicClip[]; nextCursor: number; hasMore: boolean }> {
+export async function getMusicClips(input: { limit?: number; cursor?: number; sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; creatorId?: string; creatorUsername?: string; clipId?: string; excludeIds?: string[] } = {}): Promise<{ clips: MusicClip[]; nextCursor: number; hasMore: boolean }> {
   const params = new URLSearchParams();
   params.set('limit', String(input.limit || 20));
   if (input.cursor) params.set('cursor', String(input.cursor));
@@ -779,6 +779,10 @@ export async function getMusicClips(input: { limit?: number; cursor?: number; so
   if (input.creatorId) params.set('creatorId', input.creatorId);
   if (input.creatorUsername) params.set('creatorUsername', input.creatorUsername);
   if (input.clipId) params.set('clipId', input.clipId);
+  if (!input.sourceTrackId && !input.creatorId && !input.creatorUsername && !input.clipId) {
+    const excluded = new Set([...(await getRecommendationSeenIds('clip')), ...(input.excludeIds || [])]);
+    if (excluded.size) params.set('exclude', Array.from(excluded).slice(-120).join(','));
+  }
   params.set('session', await getRecommendationSessionId());
   params.set('_fresh', String(Date.now()));
   const json = await request<any>(`/api/music-clips?${params.toString()}`);
@@ -1163,11 +1167,17 @@ export type FeedLoadMoreResult = {
   hasMore: boolean;
 };
 
-export async function loadUnifiedFeed(cursor?: string | null): Promise<FeedLoadMoreResult> {
-  const path = cursor
-    ? `/api/recommendations/feed?limit=22&cursor=${encodeURIComponent(cursor)}`
-    : '/api/recommendations/feed?limit=22';
-  const json = await request<any>(path);
+export async function loadUnifiedFeed(
+  cursor?: string | null,
+  exclusions: { trackIds?: string[]; postIds?: string[] } = {},
+): Promise<FeedLoadMoreResult> {
+  const params = new URLSearchParams({ limit: '22', session: await getRecommendationSessionId() });
+  if (cursor) params.set('cursor', cursor);
+  const excludedTracks = new Set([...(await getRecommendationSeenIds('track')), ...(exclusions.trackIds || [])]);
+  const excludedPosts = new Set([...(await getRecommendationSeenIds('post')), ...(exclusions.postIds || [])]);
+  if (excludedTracks.size) params.set('excludeTracks', Array.from(excludedTracks).slice(-120).join(','));
+  if (excludedPosts.size) params.set('excludePosts', Array.from(excludedPosts).slice(-120).join(','));
+  const json = await request<any>(`/api/recommendations/feed?${params.toString()}`);
   const items = Array.isArray(json?.items)
     ? json.items.flatMap((item: any) => {
         const type = item?.type || item?.kind;
@@ -1186,12 +1196,13 @@ export async function loadUnifiedFeed(cursor?: string | null): Promise<FeedLoadM
   };
 }
 
-export async function loadMixedPosts(cursor?: string | null): Promise<FeedLoadMoreResult> {
+export async function loadMixedPosts(cursor?: string | null, excludeIds: string[] = []): Promise<FeedLoadMoreResult> {
   const sessionId = await getRecommendationSessionId();
-  const path = cursor
-    ? `/api/recommendations/mixed?limit=6&cursor=${encodeURIComponent(cursor)}&session=${encodeURIComponent(sessionId)}`
-    : `/api/recommendations/mixed?limit=6&session=${encodeURIComponent(sessionId)}`;
-  const json = await request<any>(path);
+  const params = new URLSearchParams({ limit: '6', session: sessionId });
+  if (cursor) params.set('cursor', cursor);
+  const excluded = new Set([...(await getRecommendationSeenIds('post')), ...excludeIds]);
+  if (excluded.size) params.set('exclude', Array.from(excluded).slice(-120).join(','));
+  const json = await request<any>(`/api/recommendations/mixed?${params.toString()}`);
   const posts = (Array.isArray(json?.posts) ? json.posts : []).map(normalizePost).filter((post: HomePost | null): post is HomePost => Boolean(post));
   return {
     items: posts.map((post: HomePost) => ({ kind: 'post' as const, post })),
@@ -1214,6 +1225,7 @@ export async function loadRankingTracks(strategy: 'reco' | 'trending', cursor = 
 
 export async function sendRecommendationImpressions(impressions: Array<{ id: string; kind: 'track' | 'post' | 'clip'; position?: number; score?: number; reasons?: string[] }>) {
   if (!impressions.length) return;
+  await rememberRecommendationImpressions(impressions);
   const sessionId = await getRecommendationSessionId();
   await optionalRequest('/api/recommendations/impressions', {
     method: 'POST',
@@ -1255,6 +1267,7 @@ export async function recordTrackEvent(
   telemetry: TrackEventTelemetry = {},
 ) {
   if (!trackId || trackId.startsWith('radio-')) return;
+  const sessionId = await getRecommendationSessionId();
   const positionMs = Number.isFinite(telemetry.positionSeconds) ? Math.max(0, Math.round(Number(telemetry.positionSeconds) * 1000)) : null;
   const durationMs = Number.isFinite(telemetry.durationSeconds) ? Math.max(0, Math.round(Number(telemetry.durationSeconds) * 1000)) : null;
   const derivedProgress = durationMs && positionMs != null ? (positionMs / durationMs) * 100 : null;
@@ -1267,6 +1280,7 @@ export async function recordTrackEvent(
       progress_pct: Number.isFinite(telemetry.progressPct) ? telemetry.progressPct : derivedProgress,
       source: telemetry.source || 'mobile-player',
       platform: 'mobile',
+      session_id: sessionId,
       is_ai_track: trackId.startsWith('ai-'),
       extra,
     }),
@@ -2149,10 +2163,13 @@ export async function fetchRankingFeedChunk(
   strategy: FeedStrategy,
   cursor = 0,
   seedGenre: string | null = null,
+  options: { excludeIds?: string[]; limit?: number } = {},
 ): Promise<RankingFeedChunk> {
   const initial = cursor === 0;
-  const params = new URLSearchParams({ limit: initial ? '12' : '24', ai: '1', cursor: String(Math.max(0, cursor)) });
+  const params = new URLSearchParams({ limit: String(options.limit || (initial ? 12 : 24)), ai: '1', cursor: String(Math.max(0, cursor)) });
   params.set('session', await getRecommendationSessionId());
+  const excluded = new Set([...(await getRecommendationSeenIds('track')), ...(options.excludeIds || [])]);
+  if (excluded.size) params.set('exclude', Array.from(excluded).slice(-120).join(','));
   if (strategy === 'trending') {
     params.set('strategy', 'trending');
   } else if (strategy === 'boost') {

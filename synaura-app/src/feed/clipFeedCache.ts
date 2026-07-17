@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { MusicClip } from '@/api/types';
+import { getRecommendationSeenIds } from '@/feed/recommendationSession';
 
 const CACHE_PREFIX = 'synaura.clip-feed.v1';
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -21,7 +22,10 @@ export async function readClipFeedCache(userId?: string | null, sourceTrackId?: 
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ClipFeedCache;
     if (!Array.isArray(parsed.clips) || Date.now() - Number(parsed.savedAt || 0) > MAX_AGE_MS) return null;
-    return parsed;
+    if (sourceTrackId || clipId) return parsed;
+    const seen = new Set(await getRecommendationSeenIds('clip'));
+    const clips = parsed.clips.filter((clip) => !seen.has(clip.id));
+    return clips.length ? { ...parsed, clips } : null;
   } catch {
     return null;
   }

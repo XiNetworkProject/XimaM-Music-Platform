@@ -3,9 +3,9 @@ import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
 import {
-  buildAnonymousRecommendationSignals,
-  buildUserRecommendationSignals,
+  buildRecommendationSignals,
   loadGlobalTrackCandidates,
+  parseRecommendationExclusions,
   rerankPosts,
   rerankTracks,
   type RecommendedPost,
@@ -121,6 +121,8 @@ export async function GET(request: NextRequest) {
     const cursor = Math.max(parseInt(searchParams.get('cursor') || '0', 10) || 0, 0);
     const debug = searchParams.get('debug') === '1';
     const recommendationSessionId = searchParams.get('session')?.slice(0, 120) || null;
+    const excludedTrackIds = parseRecommendationExclusions(searchParams.get('excludeTracks'));
+    const excludedPostIds = parseRecommendationExclusions(searchParams.get('excludePosts'));
     const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || searchParams.get('userId') || null;
 
@@ -129,18 +131,27 @@ export async function GET(request: NextRequest) {
       loadPostCandidates(limit, userId),
     ]);
 
-    const signals = userId
-      ? await buildUserRecommendationSignals({ supabase: supabaseAdmin, userId, candidateTracks: trackCandidates, sessionId: recommendationSessionId })
-      : buildAnonymousRecommendationSignals();
+    const signals = await buildRecommendationSignals({
+      supabase: supabaseAdmin,
+      userId,
+      candidateTracks: trackCandidates,
+      sessionId: recommendationSessionId,
+    });
 
-    const tracks = rerankTracks(trackCandidates, signals, {
+    const allRankedTracks = rerankTracks(trackCandidates, signals, {
       strategy: 'reco',
       debug,
       maxConsecutiveArtists: 1,
       sessionSeed: recommendationSessionId || `${userId || 'anonymous'}:${new Date().toISOString().slice(0, 10)}:home`,
     });
-    const posts = rerankPosts(postCandidates, signals, { debug });
-    const dailyMix = tracks.slice(0, 12);
+    const allRankedPosts = rerankPosts(postCandidates, signals, { debug });
+    const tracks = excludedTrackIds.size
+      ? allRankedTracks.filter((track) => !excludedTrackIds.has(String(track._id)))
+      : allRankedTracks;
+    const posts = excludedPostIds.size
+      ? allRankedPosts.filter((post) => !excludedPostIds.has(String(post.id)))
+      : allRankedPosts;
+    const dailyMix = allRankedTracks.slice(0, 12);
     const weeklyTop = [...trackCandidates]
       .sort((a: any, b: any) => (b.rankingScore || 0) - (a.rankingScore || 0))
       .slice(0, 12);
@@ -173,6 +184,7 @@ export async function GET(request: NextRequest) {
         weeklyTop,
         nextCursor: nextCursor < mixed.length ? String(nextCursor) : null,
         hasMore: nextCursor < mixed.length,
+        engineVersion: 'discovery-v3',
       },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } },
     );

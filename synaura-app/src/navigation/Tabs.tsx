@@ -284,6 +284,10 @@ export function Tabs() {
       <CreateMenuSheet
         visible={createMenuOpen}
         onClose={() => setCreateMenuOpen(false)}
+        onCreatePost={() => {
+          setCreateMenuOpen(false);
+          tabNavigationRef.current?.navigate('CreatePost');
+        }}
         onCreateWithAI={() => {
           setCreateMenuOpen(false);
           tabNavigationRef.current?.navigate('AIStudio');

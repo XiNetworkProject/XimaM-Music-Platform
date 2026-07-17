@@ -147,8 +147,14 @@ export type UserRecommendationSignals = {
   recentlyRecommendedTrackIds: Set<string>;
   recentlyRecommendedPostIds: Set<string>;
   recentlyRecommendedClipIds: Set<string>;
+  currentSessionRecommendedTrackIds: Set<string>;
+  currentSessionRecommendedPostIds: Set<string>;
+  currentSessionRecommendedClipIds: Set<string>;
   recommendationCounts: Map<string, number>;
+  currentSessionRecommendationCounts: Map<string, number>;
   lastRecommendedAt: Map<string, number>;
+  currentSessionArtistCounts: Map<string, number>;
+  currentSessionGenreCounts: Map<string, number>;
   followedPostCreatorIds: Set<string>;
   preferredGenres: Map<string, number>;
   avoidedGenres: Map<string, number>;

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getApiSession } from '@/lib/getApiSession';
 import {
-  buildAnonymousRecommendationSignals,
-  buildUserRecommendationSignals,
+  buildRecommendationSignals,
   loadGlobalTrackCandidates,
   rerankTracks,
   sortTracksNewest,
@@ -107,9 +106,7 @@ export async function GET(request: NextRequest) {
       if (!categoryFilter) return true;
       return normalizeGenres(track.genre).some((genre) => genre.includes(categoryFilter));
     });
-    const signals = userId
-      ? await buildUserRecommendationSignals({ supabase: supabaseAdmin, userId, candidateTracks: candidates, sessionId })
-      : buildAnonymousRecommendationSignals();
+    const signals = await buildRecommendationSignals({ supabase: supabaseAdmin, userId, candidateTracks: candidates, sessionId });
     const strategy = strategyForSort(sort);
     let source = candidates;
 
@@ -160,7 +157,7 @@ export async function GET(request: NextRequest) {
       category,
       sort,
       engineVersion: 'discovery-v2',
-    }, { headers: { 'Cache-Control': userId ? 'private, no-store' : 'public, s-maxage=30, stale-while-revalidate=90' } });
+    }, { headers: { 'Cache-Control': userId || sessionId ? 'private, no-store' : 'public, s-maxage=30, stale-while-revalidate=90' } });
   } catch (error: any) {
     console.error('Discover API error:', error);
     return NextResponse.json({ error: error?.message || 'Erreur interne du serveur' }, { status: 500 });

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import {
-  buildAnonymousRecommendationSignals,
-  buildUserRecommendationSignals,
+  buildRecommendationSignals,
   loadGlobalTrackCandidates,
+  parseRecommendationExclusions,
   rerankTracks,
   type RecommendationStrategy,
 } from '@/lib/recommendation';
@@ -81,17 +81,16 @@ export async function GET(request: NextRequest) {
     const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id ? String((session?.user as any).id) : null;
     const requestedSessionId = searchParams.get('session');
+    const excludedTrackIds = parseRecommendationExclusions(searchParams.get('exclude'));
     const rankingSeed = sessionSeed({ requested: requestedSessionId, userId, strategy, genre: seedGenre || genreFilter });
 
     const candidates = await loadGlobalTrackCandidates(includeAi);
-    const signals = userId
-      ? await buildUserRecommendationSignals({
-          supabase: supabaseAdmin,
-          userId,
-          candidateTracks: candidates,
-          sessionId: requestedSessionId,
-        })
-      : buildAnonymousRecommendationSignals();
+    const signals = await buildRecommendationSignals({
+      supabase: supabaseAdmin,
+      userId,
+      candidateTracks: candidates,
+      sessionId: requestedSessionId,
+    });
 
     const ranked = rerankTracks(candidates, signals, {
       strategy,
@@ -106,7 +105,10 @@ export async function GET(request: NextRequest) {
       isLiked: signals.likedTrackIds.has(String(track._id)),
     }));
 
-    const page = ranked.slice(cursor, cursor + limit);
+    const available = excludedTrackIds.size
+      ? ranked.filter((track) => !excludedTrackIds.has(String(track._id)))
+      : ranked;
+    const page = available.slice(cursor, cursor + limit);
     let tracks = page;
     try {
       tracks = await enrichRemixFeedFields(page, userId);
@@ -118,12 +120,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       tracks,
       nextCursor,
-      hasMore: nextCursor < ranked.length,
-      engineVersion: 'discovery-v2',
+      hasMore: nextCursor < available.length,
+      engineVersion: 'discovery-v3',
       sessionId: rankingSeed,
     }, {
       headers: {
-        'Cache-Control': userId ? 'private, no-store' : 'public, s-maxage=30, stale-while-revalidate=90',
+        'Cache-Control': userId || requestedSessionId ? 'private, no-store' : 'public, s-maxage=30, stale-while-revalidate=90',
       },
     });
   } catch (error) {

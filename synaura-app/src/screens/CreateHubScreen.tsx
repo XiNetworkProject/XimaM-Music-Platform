@@ -28,6 +28,7 @@ const INTENTION_SUGGESTIONS: Record<string, IntentionSuggestion> = {
 const INTENTION_PRIORITY = ['create_ai', 'publish', 'clips', 'remix'];
 
 const secondaryActions = [
+  { title: 'Créer un post', text: 'Partage un texte, une image ou un son.', icon: 'create-outline', tint: colors.violet, route: 'CreatePost' },
   { title: 'Publier un morceau', text: 'Partage un titre que tu as déjà créé.', icon: 'cloud-upload-outline', tint: colors.gold, route: 'Upload' },
   { title: 'Publier un Clip', text: 'Fais vivre un son avec une vidéo verticale.', icon: 'film-outline', tint: colors.coral, route: 'ClipComposer' },
   { title: 'Créer une variation', text: 'Transforme un morceau Synaura autorisé.', icon: 'color-wand-outline', tint: colors.cyan, route: 'CreateVariation' },

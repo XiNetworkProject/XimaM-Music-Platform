@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { computeTrackDiscoveryMetrics, globalDiscoveryScore } from '../lib/ranking.ts';
-import { rerankTracks, scoreTrackCandidate } from '../lib/recommendation/engine.ts';
+import { rerankTracks, scorePostCandidate, scoreTrackCandidate } from '../lib/recommendation/engine.ts';
 import { sortTracksNewest } from '../lib/recommendation/chronological.ts';
 
 function signals() {
@@ -17,8 +17,14 @@ function signals() {
     recentlyRecommendedTrackIds: new Set(),
     recentlyRecommendedPostIds: new Set(),
     recentlyRecommendedClipIds: new Set(),
+    currentSessionRecommendedTrackIds: new Set(),
+    currentSessionRecommendedPostIds: new Set(),
+    currentSessionRecommendedClipIds: new Set(),
     recommendationCounts: new Map(),
+    currentSessionRecommendationCounts: new Map(),
     lastRecommendedAt: new Map(),
+    currentSessionArtistCounts: new Map(),
+    currentSessionGenreCounts: new Map(),
     followedPostCreatorIds: new Set(),
     preferredGenres: new Map(),
     avoidedGenres: new Map(),
@@ -112,6 +118,38 @@ test('session ranking is stable and protects artist diversity', () => {
   }
   assert.ok(firstTwelve.filter((item) => item.artist?._id === 'artist-a').length <= 3);
   assert.ok(firstTwelve.filter((item) => item.recommendationBucket === 'emerging').length >= 2);
+});
+
+test('a track already shown in the active session falls behind an unseen equivalent', () => {
+  const userSignals = signals();
+  userSignals.currentSessionRecommendedTrackIds.add('seen-now');
+  userSignals.currentSessionRecommendationCounts.set('seen-now', 1);
+  userSignals.lastRecommendedAt.set('seen-now', Date.now());
+  const sharedMetrics = metrics();
+  const seen = scoreTrackCandidate(track('seen-now', 'artist-a', 8, sharedMetrics), userSignals, { sessionSeed: 'live-session' });
+  const unseen = scoreTrackCandidate(track('unseen-now', 'artist-b', 8, sharedMetrics), userSignals, { sessionSeed: 'live-session' });
+  assert.ok(Number(unseen.recommendationScore) > Number(seen.recommendationScore) * 5);
+});
+
+test('session-level artist and genre exposure opens room for discovery', () => {
+  const userSignals = signals();
+  userSignals.currentSessionArtistCounts.set('artist-overexposed', 4);
+  userSignals.currentSessionGenreCounts.set('rap', 5);
+  const sharedMetrics = metrics();
+  const fatigued = scoreTrackCandidate(track('fatigued', 'artist-overexposed', 8, sharedMetrics, 'rap'), userSignals, { sessionSeed: 'live-session' });
+  const fresh = scoreTrackCandidate(track('fresh-space', 'artist-new', 8, sharedMetrics, 'ambient'), userSignals, { sessionSeed: 'live-session' });
+  assert.ok(Number(fresh.recommendationScore) > Number(fatigued.recommendationScore) * 2);
+});
+
+test('posts already viewed in the active session are not immediately recycled', () => {
+  const userSignals = signals();
+  userSignals.currentSessionRecommendedPostIds.add('post-seen');
+  userSignals.currentSessionRecommendationCounts.set('post-seen', 1);
+  userSignals.lastRecommendedAt.set('post-seen', Date.now());
+  const createdAt = new Date().toISOString();
+  const seen = scorePostCandidate({ id: 'post-seen', created_at: createdAt, likes_count: 3, comments_count: 1 }, userSignals, { sessionSeed: 'live-session' });
+  const unseen = scorePostCandidate({ id: 'post-new', created_at: createdAt, likes_count: 3, comments_count: 1 }, userSignals, { sessionSeed: 'live-session' });
+  assert.ok(Number(unseen.recommendationScore) > Number(seen.recommendationScore) * 5);
 });
 
 test('newest sorting is strictly chronological and does not use recommendation scores', () => {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
-import { buildAnonymousRecommendationSignals, buildUserRecommendationSignals, rerankPosts } from '@/lib/recommendation';
+import { buildRecommendationSignals, parseRecommendationExclusions, rerankPosts } from '@/lib/recommendation';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export const runtime = 'nodejs';
@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
     const cursor = Math.max(parseInt(searchParams.get('cursor') || '0', 10) || 0, 0);
     const debug = searchParams.get('debug') === '1';
     const recommendationSessionId = searchParams.get('session')?.slice(0, 120) || null;
+    const excludedPostIds = parseRecommendationExclusions(searchParams.get('exclude'));
 
     const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || searchParams.get('userId') || null;
@@ -98,9 +99,12 @@ export async function GET(request: NextRequest) {
       genre: track.genre,
       creator_id: track.creator_id,
     }));
-    const signals = userId
-      ? await buildUserRecommendationSignals({ supabase: supabaseAdmin, userId, candidateTracks, sessionId: recommendationSessionId })
-      : buildAnonymousRecommendationSignals();
+    const signals = await buildRecommendationSignals({
+      supabase: supabaseAdmin,
+      userId,
+      candidateTracks,
+      sessionId: recommendationSessionId,
+    });
 
     const posts = (rawPosts || []).map((post: any) => ({
       ...post,
@@ -111,7 +115,10 @@ export async function GET(request: NextRequest) {
       isLiked: liked.has(String(post.id)),
     }));
 
-    const ranked = rerankPosts(posts, signals, { debug, sessionSeed: recommendationSessionId || undefined });
+    const allRanked = rerankPosts(posts, signals, { debug, sessionSeed: recommendationSessionId || undefined });
+    const ranked = excludedPostIds.size
+      ? allRanked.filter((post) => !excludedPostIds.has(String(post.id)))
+      : allRanked;
     const page = ranked.slice(cursor, cursor + limit);
     const nextCursor = cursor + page.length;
 
@@ -120,7 +127,7 @@ export async function GET(request: NextRequest) {
         posts: page,
         nextCursor: nextCursor < ranked.length ? String(nextCursor) : null,
         hasMore: nextCursor < ranked.length,
-        engineVersion: 'discovery-v2',
+        engineVersion: 'discovery-v3',
       },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } },
     );

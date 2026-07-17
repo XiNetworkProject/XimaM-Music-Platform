@@ -8,6 +8,10 @@ function genres(value: unknown) {
 }
 
 function seenPenalty(clipId: string, signals: UserRecommendationSignals, now: number) {
+  const sessionCount = signals.currentSessionRecommendationCounts.get(clipId) || 0;
+  if (signals.currentSessionRecommendedClipIds.has(clipId) || sessionCount > 0) {
+    return Math.max(0.012, 0.07 * Math.pow(0.48, Math.max(0, sessionCount - 1)));
+  }
   const last = signals.lastRecommendedAt.get(clipId) || 0;
   if (!last) return 1;
   const hours = Math.max(0, (now - last) / 3_600_000);

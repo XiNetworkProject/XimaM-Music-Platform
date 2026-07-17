@@ -2827,6 +2827,7 @@ export default function SynauraWarmFeed() {
   const [loadingMoreFeed, setLoadingMoreFeed] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const seenTrackIdsRef = useRef<Set<string>>(new Set());
+  const seenPostIdsRef = useRef<Set<string>>(new Set());
   const impressionSeenRef = useRef<Set<string>>(new Set());
 
   const refreshRadio = useCallback(async () => {
@@ -2972,6 +2973,7 @@ export default function SynauraWarmFeed() {
         .map((track) => track.id)
         .filter(Boolean),
     );
+    seenPostIdsRef.current = new Set(nextPosts.map((post: PostItem) => post.id).filter(Boolean));
 
     if (userId) {
       setLibraryStats({
@@ -3012,9 +3014,16 @@ export default function SynauraWarmFeed() {
 
       if (filter === 'Pour toi') {
         const recommendationSessionId = getRecommendationSessionId();
-        const feedUrl = postCursor
-          ? `/api/recommendations/feed?limit=${MUSIC_BATCH_SIZE + POST_BATCH_SIZE}&cursor=${encodeURIComponent(postCursor)}&session=${encodeURIComponent(recommendationSessionId)}`
-          : `/api/recommendations/feed?limit=${MUSIC_BATCH_SIZE + POST_BATCH_SIZE}&session=${encodeURIComponent(recommendationSessionId)}`;
+        const feedParams = new URLSearchParams({
+          limit: String(MUSIC_BATCH_SIZE + POST_BATCH_SIZE),
+          cursor: '0',
+          session: recommendationSessionId,
+        });
+        const excludedTracks = Array.from(seenTrackIdsRef.current).slice(-120);
+        const excludedPosts = Array.from(seenPostIdsRef.current).slice(-120);
+        if (excludedTracks.length) feedParams.set('excludeTracks', excludedTracks.join(','));
+        if (excludedPosts.length) feedParams.set('excludePosts', excludedPosts.join(','));
+        const feedUrl = `/api/recommendations/feed?${feedParams.toString()}`;
         const feedJson = await fetchJson(feedUrl);
         nextItems = normalizeUnifiedFeedItems(Array.isArray(feedJson?.items) ? feedJson.items : [], seenTrackIdsRef.current.size);
         setPostCursor(typeof feedJson?.nextCursor === 'string' ? feedJson.nextCursor : null);
@@ -3024,6 +3033,7 @@ export default function SynauraWarmFeed() {
 
         nextItems.forEach((item) => {
           if (item.kind === 'track') seenTrackIdsRef.current.add(item.track.id);
+          if (item.kind === 'post') seenPostIdsRef.current.add(item.id);
         });
         if (nextItems.length) {
           setExtraFeedItems((current) => [...current, ...nextItems]);
@@ -3033,13 +3043,15 @@ export default function SynauraWarmFeed() {
 
       if (canLoadPosts) {
         const recommendationSessionId = getRecommendationSessionId();
-        const postsUrl = postCursor
-          ? `/api/recommendations/mixed?limit=${POST_BATCH_SIZE}&cursor=${encodeURIComponent(postCursor)}&session=${encodeURIComponent(recommendationSessionId)}`
-          : `/api/recommendations/mixed?limit=${POST_BATCH_SIZE}&session=${encodeURIComponent(recommendationSessionId)}`;
+        const postsParams = new URLSearchParams({ limit: String(POST_BATCH_SIZE), cursor: '0', session: recommendationSessionId });
+        const excludedPosts = Array.from(seenPostIdsRef.current).slice(-120);
+        if (excludedPosts.length) postsParams.set('exclude', excludedPosts.join(','));
+        const postsUrl = `/api/recommendations/mixed?${postsParams.toString()}`;
         const postsJson = await fetchJson(postsUrl);
         nextPosts = (Array.isArray(postsJson?.posts) ? postsJson.posts : [])
           .map(normalizePost)
           .filter((post: PostItem | null): post is PostItem => Boolean(post));
+        nextPosts.forEach((post) => seenPostIdsRef.current.add(post.id));
 
         setPostCursor(typeof postsJson?.nextCursor === 'string' ? postsJson.nextCursor : null);
         setHasMorePosts(Boolean(postsJson?.hasMore));
@@ -3048,8 +3060,17 @@ export default function SynauraWarmFeed() {
       if (canLoadMusic) {
         const activeStrategy = musicStrategy;
         const recommendationSessionId = getRecommendationSessionId();
+        const musicParams = new URLSearchParams({
+          limit: String(MUSIC_BATCH_SIZE),
+          ai: '1',
+          strategy: activeStrategy,
+          cursor: '0',
+          session: recommendationSessionId,
+        });
+        const excludedTracks = Array.from(seenTrackIdsRef.current).slice(-120);
+        if (excludedTracks.length) musicParams.set('exclude', excludedTracks.join(','));
         const musicJson = await fetchJson(
-          `/api/ranking/feed?limit=${MUSIC_BATCH_SIZE}&ai=1&strategy=${activeStrategy}&cursor=${musicCursor}&session=${encodeURIComponent(recommendationSessionId)}`,
+          `/api/ranking/feed?${musicParams.toString()}`,
         );
         const rawTracks = Array.isArray(musicJson?.tracks) ? musicJson.tracks : [];
         const normalizedTracks = uniqueTracks(rawTracks.map(normalizeTrack));

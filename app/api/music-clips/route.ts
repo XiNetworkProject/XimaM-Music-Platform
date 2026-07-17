@@ -3,7 +3,7 @@ import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { assertCanCreateClip, formatMusicClips } from '@/lib/musicClips';
 import { normalizeRemixTrackRef } from '@/lib/remixServer';
-import { buildAnonymousRecommendationSignals, buildUserRecommendationSignals, rankMusicClips } from '@/lib/recommendation';
+import { buildRecommendationSignals, parseRecommendationExclusions, rankMusicClips } from '@/lib/recommendation';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     const creatorUsername = params.get('creatorUsername');
     const clipId = params.get('clipId');
     const recommendationSessionId = params.get('session')?.slice(0, 120) || null;
+    const excludedClipIds = parseRecommendationExclusions(params.get('exclude'));
     const session = await getApiSession(request).catch(() => null);
     const viewerId = session?.user?.id || null;
 
@@ -89,16 +90,18 @@ export async function GET(request: NextRequest) {
         genre: clip.sourceTrack.genre || [],
         createdAt: clip.createdAt,
       }));
-      const signals = viewerId
-        ? await buildUserRecommendationSignals({
-            supabase: supabaseAdmin,
-            userId: viewerId,
-            candidateTracks: sourceCandidates,
-            sessionId: recommendationSessionId,
-          })
-        : buildAnonymousRecommendationSignals();
+      const signals = await buildRecommendationSignals({
+        supabase: supabaseAdmin,
+        userId: viewerId,
+        candidateTracks: sourceCandidates,
+        sessionId: recommendationSessionId,
+      });
       const seed = recommendationSessionId || `${viewerId || 'anonymous'}:${new Date().toISOString().slice(0, 10)}:clips`;
-      clips = rankMusicClips(formatted, signals, { sessionSeed: seed }).slice(cursor, cursor + limit);
+      const ranked = rankMusicClips(formatted, signals, { sessionSeed: seed });
+      const available = excludedClipIds.size
+        ? ranked.filter((clip) => !excludedClipIds.has(String(clip.id)))
+        : ranked;
+      clips = available.slice(cursor, cursor + limit);
     }
     const nextCursor = cursor + clips.length;
     return NextResponse.json(
@@ -106,7 +109,7 @@ export async function GET(request: NextRequest) {
         clips,
         nextCursor,
         hasMore: isGeneralFeed ? nextCursor < formatted.length : rows.length > limit,
-        engineVersion: isGeneralFeed ? 'discovery-v2' : undefined,
+        engineVersion: isGeneralFeed ? 'discovery-v3' : undefined,
       },
       { headers: { 'Cache-Control': 'no-store, max-age=0' } },
     );
