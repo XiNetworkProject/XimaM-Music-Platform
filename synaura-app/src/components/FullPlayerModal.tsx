@@ -272,12 +272,15 @@ export function FullPlayerModal({ visible, onClose }: Props) {
 
   // Constrain the square against both the usable width and short displays.
   const coverSize = Math.min(
-    layout.mediaSize,
+    layout.usableHeight * (layout.isVeryShort ? 0.32 : layout.isShort ? 0.35 : 0.39),
     layout.safeWidth - layout.pagePaddingLeft - layout.pagePaddingRight,
-    layout.isTablet ? 460 : 420,
+    layout.isTablet ? 430 : 380,
   );
   const transportIconSize = layout.compactControls ? 23 : 26;
   const auraActive = track.auraVisualEnabled !== false && settings.dynamicBackground;
+  const lyricPreview = typeof track.lyrics === 'string'
+    ? track.lyrics.split(/\r?\n/).map((line) => line.trim()).find(Boolean) || ''
+    : '';
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={closeWithAnim}>
@@ -338,6 +341,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
 
         <ScrollView
           bounces={false}
+          scrollEnabled={layout.isVeryShort || layout.hasVeryLargeText || layout.isPhoneLandscape}
           showsVerticalScrollIndicator={false}
           style={styles.bodyScroll}
           contentContainerStyle={[
@@ -390,6 +394,12 @@ export function FullPlayerModal({ visible, onClose }: Props) {
               </View>
 
               <View {...coverPanResponder.panHandlers} style={styles.coverGestureZone} />
+
+              {lyricPreview ? (
+                <View pointerEvents="none" style={[styles.coverLyric, layout.compactControls && styles.coverLyricCompact]}>
+                  <Text numberOfLines={layout.isVeryShort ? 1 : 2} style={styles.coverLyricText}>« {lyricPreview} »</Text>
+                </View>
+              ) : null}
 
             </Animated.View>
           </View>
@@ -472,7 +482,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
                 onSeek={(seconds) => void player.seekTo(seconds)}
                 showMoments={canInteract}
                 showTimes
-                height={layout.compactControls ? 48 : 56}
+                height={layout.compactControls ? 40 : 46}
                 barCount={layout.isNarrow ? 44 : 58}
                 immersive
                 onCreateMoment={canInteract ? openMomentSheet : undefined}
@@ -547,12 +557,10 @@ export function FullPlayerModal({ visible, onClose }: Props) {
               onPress={() => setShareOpen(true)}
             />
             <PlayerAction
-              icon={auraActive ? 'sparkles' : 'sparkles-outline'}
-              label="Aura"
-              activeColor="#74C7CF"
-              active={auraActive}
-              disabled={track.auraVisualEnabled === false}
-              onPress={toggleAuraVisuals}
+              icon="document-text-outline"
+              label="Paroles"
+              disabled={!track.lyrics}
+              onPress={() => setLyricsOpen(true)}
             />
             <PlayerAction
               icon="ellipsis-horizontal"
@@ -753,7 +761,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(8,8,8,0.58)',
@@ -792,22 +800,22 @@ const styles = StyleSheet.create({
   },
   headerBadgeText: { color: colors.white, fontSize: 10, fontWeight: '900' },
   bodyScroll: { flex: 1 },
-  body: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 4 },
+  body: { flexGrow: 1, justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 4 },
   bodyCompact: { paddingTop: 0 },
   coverZone: {
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 7,
   },
   coverHalo: {
     position: 'absolute',
-    borderRadius: 12,
+    borderRadius: 24,
     overflow: 'hidden',
     opacity: 0.38,
   },
   coverFrame: {
-    borderRadius: 10,
+    borderRadius: 22,
     overflow: 'hidden',
     backgroundColor: '#171313',
     borderWidth: StyleSheet.hairlineWidth,
@@ -841,6 +849,9 @@ const styles = StyleSheet.create({
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFAF2' },
   statusText: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
   coverGestureZone: { ...StyleSheet.absoluteFillObject, zIndex: 2 },
+  coverLyric: { position: 'absolute', left: 12, right: 12, bottom: 12, zIndex: 3, minHeight: 48, justifyContent: 'center', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: colors.cyan, backgroundColor: 'rgba(8,8,8,0.78)', paddingHorizontal: 12, paddingVertical: 8 },
+  coverLyricCompact: { minHeight: 38, paddingVertical: 6 },
+  coverLyricText: { color: colors.paper, fontSize: 13, lineHeight: 18, fontWeight: '800' },
   waveInner: { paddingHorizontal: 2 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
   liveText: { color: '#F7F6F3', fontSize: 11, fontWeight: '900' },
@@ -852,11 +863,11 @@ const styles = StyleSheet.create({
   },
   liveLine: { flex: 1, height: 2, backgroundColor: 'rgba(255,255,255,0.24)' },
   timeline: {
-    marginTop: 14,
-    minHeight: 62,
+    marginTop: 8,
+    minHeight: 52,
     justifyContent: 'center',
   },
-  meta: { marginTop: 12 },
+  meta: { marginTop: 8 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: {
     flex: 1,
@@ -926,7 +937,7 @@ const styles = StyleSheet.create({
   followText: { color: '#F7F6F3', fontSize: 11, fontWeight: '900' },
   followTextDone: { color: '#111111' },
   controls: {
-    marginTop: 8,
+    marginTop: 5,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -934,18 +945,18 @@ const styles = StyleSheet.create({
   },
   controlsCompact: { marginTop: 10, gap: 5 },
   controlBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(8,8,8,0.4)',
   },
-  controlBtnCompact: { width: 46, height: 46, borderRadius: 23 },
+  controlBtnCompact: { width: 42, height: 42, borderRadius: 21 },
   playBtn: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F7F6F3',
@@ -957,12 +968,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFFFFF',
   },
-  playBtnCompact: { width: 62, height: 62, borderRadius: 31 },
+  playBtnCompact: { width: 56, height: 56, borderRadius: 28 },
   smallBtn: {
     position: 'relative',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(8,8,8,0.5)',
@@ -988,9 +999,9 @@ const styles = StyleSheet.create({
   actionRowCompact: { marginTop: 10 },
   actionBtn: { flex: 1, minWidth: 0, alignItems: 'center', gap: 6 },
   actionCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(8,8,8,0.66)',
@@ -1027,7 +1038,7 @@ const styles = StyleSheet.create({
   moreIcon: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.08)',

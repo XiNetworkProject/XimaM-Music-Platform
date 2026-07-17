@@ -28,6 +28,7 @@ type Props = {
   commentCount: number;
   onClose: () => void;
   onCountChange?: (trackId: string, nextCount: number) => void;
+  initialTimestamp?: number | null;
 };
 
 function relativeTime(value: string) {
@@ -43,7 +44,7 @@ function relativeTime(value: string) {
   return new Date(value).toLocaleDateString('fr-FR');
 }
 
-export function CommentsSheet({ visible, track, clip = null, commentCount, onClose, onCountChange }: Props) {
+export function CommentsSheet({ visible, track, clip = null, commentCount, onClose, onCountChange, initialTimestamp = null }: Props) {
   const insets = useSafeAreaInsets();
   const responsive = useResponsiveLayout();
   const keyboardHeight = useKeyboardHeight();
@@ -109,7 +110,12 @@ export function CommentsSheet({ visible, track, clip = null, commentCount, onClo
     setSubmitting(true);
     setError(null);
     try {
-      const next = await createComment(targetKind, targetId, value);
+      const next = await createComment(
+        targetKind,
+        targetId,
+        value,
+        targetKind === 'track' && initialTimestamp != null ? { timestampSeconds: initialTimestamp } : undefined,
+      );
       setComments((current) => [next, ...current]);
       setText('');
       onCountChange?.(targetId, commentCount + 1);
@@ -118,7 +124,7 @@ export function CommentsSheet({ visible, track, clip = null, commentCount, onClo
     } finally {
       setSubmitting(false);
     }
-  }, [commentCount, disabled, onCountChange, targetId, targetKind, text, user]);
+  }, [commentCount, disabled, initialTimestamp, onCountChange, targetId, targetKind, text, user]);
 
   const renderComment = (comment: HomeComment, nested = false) => {
     const initial = (comment.user.name || comment.user.username || '?').slice(0, 1).toUpperCase();
@@ -194,6 +200,15 @@ export function CommentsSheet({ visible, track, clip = null, commentCount, onClo
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {initialTimestamp != null && targetKind === 'track' ? (
+            <View style={styles.momentComposerNotice}>
+              <View style={styles.momentComposerIcon}><Ionicons name="pulse" size={14} color="#F7F6F3" /></View>
+              <View style={styles.momentComposerCopy}>
+                <Text style={styles.momentComposerTitle}>Moment à {fmtTime(initialTimestamp)}</Text>
+                <Text style={styles.momentComposerText}>Ton commentaire sera attaché à ce passage précis.</Text>
+              </View>
+            </View>
+          ) : null}
           {error ? (
             <View style={styles.errorBox}>
               <Ionicons name="alert-circle-outline" size={22} color="#B8463C" />
@@ -318,6 +333,11 @@ const styles = StyleSheet.create({
   time: { color: colors.textTertiary, fontSize: 11, fontWeight: '700' },
   timestampPill: { marginTop: 5, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, backgroundColor: 'rgba(74,158,170,0.12)', paddingHorizontal: 8, paddingVertical: 4 },
   timestampText: { color: '#4A9EAA', fontSize: 10, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  momentComposerNotice: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,158,170,0.34)', backgroundColor: 'rgba(74,158,170,0.1)', padding: 10 },
+  momentComposerIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#4A9EAA' },
+  momentComposerCopy: { flex: 1, minWidth: 0 },
+  momentComposerTitle: { color: '#F7F6F3', fontSize: 12, fontWeight: '900' },
+  momentComposerText: { marginTop: 2, color: 'rgba(247,246,243,0.58)', fontSize: 10, lineHeight: 14, fontWeight: '600' },
   content: { color: colors.textSecondary, fontSize: 14, lineHeight: 20, marginTop: 4 },
   replies: { marginTop: 8, gap: 8 },
   empty: {

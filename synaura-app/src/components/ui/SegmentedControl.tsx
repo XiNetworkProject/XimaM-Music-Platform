@@ -91,7 +91,7 @@ function Segment({ label, icon, active, dark, compact, hideIcon, dense, scrollab
 }
 
 const styles = StyleSheet.create({
-  root: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: radius.md, padding: 4, backgroundColor: 'rgba(255,255,255,0.035)' },
+  root: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: radius.md, padding: 4, backgroundColor: colors.surface },
   rootDark: { borderColor: 'rgba(255,255,255,0.18)' },
   rootCompact: { minHeight: 40 },
   rootDense: { gap: 2, padding: 3 },
@@ -102,8 +102,8 @@ const styles = StyleSheet.create({
   segment: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: radius.sm, paddingHorizontal: 7 },
   segmentCompact: { minHeight: 30 },
   segmentDense: { gap: 2, paddingHorizontal: 3 },
-  segmentActive: { backgroundColor: colors.violet },
-  segmentActiveDark: { backgroundColor: 'rgba(115,87,198,0.92)' },
+  segmentActive: { backgroundColor: colors.surfaceMuted, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(247,246,243,0.14)' },
+  segmentActiveDark: { backgroundColor: colors.surfaceMuted },
   label: { maxWidth: '100%', fontSize: 11, fontWeight: '900' },
   labelCompact: { fontSize: 10 },
   labelDense: { fontSize: 9 },

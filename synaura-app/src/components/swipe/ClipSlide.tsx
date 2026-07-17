@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,250,242,0.25)',
   },
-  cover: { width: 44, height: 44, borderRadius: 4, backgroundColor: 'rgba(255,250,242,0.1)' },
+  cover: { width: 44, height: 44, borderRadius: 8, backgroundColor: 'rgba(255,250,242,0.1)' },
   trackCopy: { flex: 1, minWidth: 0 },
   kicker: { color: '#8fd3dc', fontSize: 8, fontWeight: '900' },
   trackTitle: { marginTop: 2, color: '#FFFAF2', fontSize: 13, fontWeight: '900' },

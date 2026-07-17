@@ -15,9 +15,9 @@ type Props = {
 };
 
 const BASES: Record<Variant, [string, string, string]> = {
-  warm: ['#121212', '#121212', '#0B0B0B'],
-  feed: ['#121212', '#121212', '#0E0E0E'],
-  dark: ['#090909', '#0D0D0D', '#121212'],
+  warm: ['#0D0D0D', '#101010', '#090909'],
+  feed: ['#090909', '#0D0D0D', '#090909'],
+  dark: ['#080909', '#0D0D0D', '#101010'],
 };
 
 const TRACK_TONES = ['#7357C6', '#4A9EAA', '#D96D63', '#B88B3B', '#C85D82'];
@@ -33,7 +33,7 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
   const activeTone = TRACK_TONES[Array.from(activeKey).reduce((sum, char) => sum + char.charCodeAt(0), 0) % TRACK_TONES.length];
   const dynamic = Boolean(player.current && settings.dynamicBackground);
   const base = BASES[variant];
-  const toneOpacity = variant === 'dark' ? '2D' : '24';
+  const toneOpacity = variant === 'dark' ? '1F' : '1A';
 
   useEffect(() => {
     if (!navigation) {
@@ -79,7 +79,7 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
       <LinearGradient colors={base} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFillObject} />
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(115,87,198,0.20)', 'rgba(115,87,198,0.02)', 'transparent']}
+        colors={['rgba(115,87,198,0.11)', 'rgba(115,87,198,0.025)', 'transparent']}
         locations={[0, 0.45, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0.86 }}
@@ -87,7 +87,7 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
       />
       <LinearGradient
         pointerEvents="none"
-        colors={['transparent', 'rgba(74,158,170,0.025)', 'rgba(74,158,170,0.14)']}
+        colors={['transparent', 'rgba(74,158,170,0.018)', 'rgba(74,158,170,0.075)']}
         locations={[0, 0.58, 1]}
         start={{ x: 0.1, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -98,7 +98,7 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
         style={[
           styles.movingField,
           {
-            opacity: dynamic ? 1 : 0.58,
+            opacity: dynamic ? 0.72 : 0.35,
             transform: [
               { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [-34, 22] }) },
               { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [-10, 18] }) },
@@ -107,7 +107,7 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
         ]}
       >
         <LinearGradient
-          colors={[dynamic ? `${activeTone}${toneOpacity}` : 'rgba(217,109,99,0.12)', 'rgba(217,109,99,0.025)', 'transparent']}
+          colors={[dynamic ? `${activeTone}${toneOpacity}` : 'rgba(217,109,99,0.065)', 'rgba(217,109,99,0.018)', 'transparent']}
           locations={[0, 0.42, 1]}
           start={{ x: 0, y: 0.1 }}
           end={{ x: 1, y: 0.76 }}
@@ -119,13 +119,13 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
         style={[
           styles.signalField,
           {
-            opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.5] }),
+            opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.2] }),
             transform: [{ translateX: shimmer.interpolate({ inputRange: [0, 1], outputRange: [-18, 18] }) }],
           },
         ]}
       >
-        <LinearGradient colors={['transparent', 'rgba(115,87,198,0.34)', 'rgba(74,158,170,0.22)', 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.signalLine} />
-        <LinearGradient colors={['transparent', 'rgba(217,109,99,0.18)', 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.signalLine, styles.signalLineSecondary]} />
+        <LinearGradient colors={['transparent', 'rgba(115,87,198,0.18)', 'rgba(74,158,170,0.12)', 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.signalLine} />
+        <LinearGradient colors={['transparent', 'rgba(217,109,99,0.1)', 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.signalLine, styles.signalLineSecondary]} />
       </Animated.View>
       {showGrid ? <View pointerEvents="none" style={styles.grid}>{[0, 1, 2, 3].map((index) => <View key={index} style={styles.rule} />)}</View> : null}
       {children}

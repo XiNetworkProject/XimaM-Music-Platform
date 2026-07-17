@@ -90,9 +90,9 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
 
   const driftA = motion.interpolate({ inputRange: [0, 1], outputRange: [-18, 22] });
   const driftB = motion.interpolate({ inputRange: [0, 1], outputRange: [20, -18] });
-  const scaleA = motion.interpolate({ inputRange: [0, 1], outputRange: [1.04, 1.14] });
-  const scaleB = motion.interpolate({ inputRange: [0, 1], outputRange: [1.12, 1.02] });
-  const imageScale = motion.interpolate({ inputRange: [0, 1], outputRange: [1.12, 1.2] });
+  const scaleA = motion.interpolate({ inputRange: [0, 1], outputRange: [1.02, 1.08] });
+  const scaleB = motion.interpolate({ inputRange: [0, 1], outputRange: [1.08, 1.02] });
+  const imageScale = motion.interpolate({ inputRange: [0, 1], outputRange: [1.08, 1.14] });
 
   return (
     <View pointerEvents="none" style={styles.root}>
@@ -136,7 +136,7 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
           }}
         />
       ) : null}
-      {auraEnabled ? <Animated.View style={[styles.colorWash, { opacity: 0.34, transform: [{ translateX: driftA }, { scale: scaleA }] }]}>
+      {auraEnabled ? <Animated.View style={[styles.colorWash, { opacity: 0.24, transform: [{ translateX: driftA }, { scale: scaleA }] }]}>
         <LinearGradient
           colors={[colors[0] || '#7357C6', 'rgba(8,8,8,0)']}
           start={{ x: 0, y: 0 }}
@@ -144,7 +144,7 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
           style={StyleSheet.absoluteFillObject}
         />
       </Animated.View> : null}
-      {auraEnabled ? <Animated.View style={[styles.colorWash, { opacity: 0.28, transform: [{ translateY: driftB }, { scale: scaleB }] }]}>
+      {auraEnabled ? <Animated.View style={[styles.colorWash, { opacity: 0.2, transform: [{ translateY: driftB }, { scale: scaleB }] }]}>
         <LinearGradient
           colors={['rgba(8,8,8,0)', colors[1] || '#4A9EAA', colors[2] || '#D96D63']}
           locations={[0, 0.55, 1]}
@@ -164,8 +164,8 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
 
 const styles = StyleSheet.create({
   root: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', backgroundColor: '#090909' },
-  coverGlow: { opacity: 0.52 },
-  video: { opacity: 0.3 },
+  coverGlow: { opacity: 0.4 },
+  video: { opacity: 0.22 },
   colorWash: { ...StyleSheet.absoluteFillObject },
 });
 

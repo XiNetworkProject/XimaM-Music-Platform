@@ -263,12 +263,14 @@ export function DiscoverV2Screen() {
     [hiddenTracks, newestTracks, popularTracks, radar],
   );
 
-  const leadTrack = newestTracks[0] || radar[0] || popularTracks[0] || hiddenTracks[0] || null;
-  const leadLabel = leadTrack && newestTracks.some((track) => track._id === leadTrack._id)
-    ? 'Nouveau sur Synaura'
-    : leadTrack && radar.some((track) => track._id === leadTrack._id)
-      ? 'Signal Radar'
+  const leadTrack = radar[0] || newestTracks[0] || hiddenTracks[0] || popularTracks[0] || null;
+  const leadIsRadar = Boolean(leadTrack && radar.some((track) => track._id === leadTrack._id));
+  const leadLabel = leadIsRadar
+    ? 'Signal Radar'
+    : leadTrack && newestTracks.some((track) => track._id === leadTrack._id)
+      ? 'Nouveau sur Synaura'
       : 'À découvrir';
+  const leadQueue = leadIsRadar ? radar : newestTracks.length ? newestTracks : trackPool;
 
   const moodCovers = useMemo(() => {
     const result = new Map<string, string[]>();
@@ -349,7 +351,7 @@ export function DiscoverV2Screen() {
         <ScreenIntro
           eyebrow="Explorer"
           title="Découvrir"
-          description="Des portes d'entrée visuelles vers toute la musique publiée sur Synaura."
+          description="Les signaux qui montent, les nouvelles voix et tous les univers de Synaura."
           trailing={(
             <View style={styles.headerActions}>
               <NotificationBellButton />
@@ -364,8 +366,6 @@ export function DiscoverV2Screen() {
           <View style={styles.searchArrow}><Ionicons name="arrow-forward" size={15} color={colors.white} /></View>
         </MotionPressable>
 
-        <CityHomeBanner onOpen={() => navigation.navigate('City')} />
-
         {leadTrack ? (
           <DiscoverLeadCard
             track={leadTrack}
@@ -373,7 +373,7 @@ export function DiscoverV2Screen() {
             totalTracks={totalTracks}
             playing={player.current?._id === leadTrack._id && player.isPlaying}
             tablet={responsive.isTablet}
-            onPlay={() => void playFrom(newestTracks.length ? newestTracks : trackPool, leadTrack)}
+            onPlay={() => void playFrom(leadQueue, leadTrack)}
             onOpen={() => openTrack(leadTrack)}
           />
         ) : loading ? <DiscoverLeadSkeleton tablet={responsive.isTablet} /> : null}
@@ -400,9 +400,11 @@ export function DiscoverV2Screen() {
           </View>
         </View>
 
+        <RadarMobileSection tracks={radar} loading={radarLoading} compact onViewAll={() => navigation.navigate('Radar')} />
+
         <DiscoverTrackRail
           title="Tout juste publiés"
-          subtitle="Les dernières sorties publiques, sans attendre qu'elles deviennent populaires."
+          subtitle="Les dernières sorties publiques, dans leur ordre réel de publication."
           tracks={newestRailTracks}
           loading={loading}
           tablet={responsive.isTablet}
@@ -411,8 +413,6 @@ export function DiscoverV2Screen() {
           onOpen={openTrack}
           onPlay={(track) => void playFrom(newestRailTracks, track)}
         />
-
-        <RadarMobileSection tracks={radar} loading={radarLoading} compact onViewAll={() => navigation.navigate('Radar')} />
 
         <DiscoverTrackRail
           title="Pépites à découvrir"
@@ -503,6 +503,11 @@ export function DiscoverV2Screen() {
               );
             })}
           </View>
+        </View>
+
+        <View>
+          <SectionHeader title="Événements Synaura" subtitle="Les rendez-vous, défis et scènes ouverts en ce moment." />
+          <CityHomeBanner onOpen={() => navigation.navigate('City')} />
         </View>
 
         {loadError && !trackPool.length ? (
@@ -731,19 +736,19 @@ function ArtistDiscoverCard({ artist, tablet, playing, onPlay, onOpen }: { artis
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 18, paddingBottom: 160, gap: 30 },
+  content: { paddingHorizontal: 18, paddingBottom: 160, gap: 26 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  search: { height: 52, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.055)', paddingHorizontal: 14 },
+  search: { height: 52, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: radius.md, backgroundColor: colors.surface, paddingHorizontal: 14 },
   searchText: { flex: 1, minWidth: 0, color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   searchArrow: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
-  leadCard: { height: 330, overflow: 'hidden', borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: colors.black, ...shadows.floating },
-  leadCardTablet: { height: 360 },
+  leadCard: { height: 252, overflow: 'hidden', borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: colors.black, ...shadows.floating },
+  leadCardTablet: { height: 300 },
   leadTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9, padding: 14 },
   leadBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.sm, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(17,17,17,0.5)' },
   leadBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   leadTotal: { flexShrink: 1, color: 'rgba(255,255,255,0.72)', fontSize: 9, fontWeight: '800' },
   leadBody: { position: 'absolute', left: 15, right: 15, bottom: 15 },
-  leadTitle: { maxWidth: 620, color: '#FFFFFF', fontSize: 32, lineHeight: 36, fontWeight: '900' },
+  leadTitle: { maxWidth: 620, color: '#FFFFFF', fontSize: 27, lineHeight: 31, fontWeight: '900' },
   leadArtist: { marginTop: 4, color: 'rgba(255,255,255,0.78)', fontSize: 13, fontWeight: '800' },
   leadMetaRow: { marginTop: 9, flexDirection: 'row', alignItems: 'center', gap: 8 },
   leadMeta: { flexDirection: 'row', alignItems: 'center', gap: 5 },
@@ -758,7 +763,7 @@ const styles = StyleSheet.create({
   skeletonLine: { width: '42%', height: 11, marginTop: 9, borderRadius: radius.sm, backgroundColor: 'rgba(255,255,255,0.48)' },
   skeletonButton: { width: 112, height: 42, marginTop: 14, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.72)' },
   moodGrid: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  moodCard: { width: '100%', minHeight: 184, overflow: 'hidden', borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.13)', backgroundColor: colors.black, ...shadows.soft },
+  moodCard: { width: '100%', minHeight: 142, overflow: 'hidden', borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.13)', backgroundColor: colors.black, ...shadows.soft },
   moodCardHighlighted: { borderWidth: 2, borderColor: colors.violet },
   mosaic: { ...StyleSheet.absoluteFillObject, flexDirection: 'row', flexWrap: 'wrap', opacity: 0.65 },
   mosaicImage: { width: '50%', height: '50%' },

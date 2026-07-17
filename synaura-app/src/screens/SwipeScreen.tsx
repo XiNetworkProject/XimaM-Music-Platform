@@ -36,7 +36,7 @@ import {
   setMusicClipLike,
   toggleArtistFollow,
 } from '@/api/client';
-import type { HomePost, MusicClip, Track } from '@/api/types';
+import { canOpenAiVariation, canUseSoundClientSide, type HomePost, type MusicClip, type Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
@@ -156,7 +156,9 @@ export function SwipeScreen() {
   const [shareOpen, setShareOpen] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
-  const [homePreludeVisible, setHomePreludeVisible] = useState(() => route.params?.mode !== 'clips');
+  const [homePreludeVisible, setHomePreludeVisible] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [commentTimestamp, setCommentTimestamp] = useState<number | null>(null);
   const [remixTrack, setRemixTrack] = useState<Track | null>(null);
   const [burstKey, setBurstKey] = useState(0);
   const [burstVisible, setBurstVisible] = useState(false);
@@ -735,8 +737,15 @@ export function SwipeScreen() {
     openClipComposerForSound(navigation, Boolean(auth.user), track._id, sourceTrackType);
   }, [auth.user, navigation]);
 
-  const handleSlideAction = useCallback((action: 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save' | 'remix' | 'useSound') => {
+  const handleSlideAction = useCallback((action: 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save' | 'remix' | 'useSound' | 'more') => {
     if (!activeTrack) return;
+    if (action === 'more') {
+      setCommentsOpen(false);
+      setShareOpen(false);
+      setLyricsOpen(false);
+      setMoreOpen(true);
+      return;
+    }
     if (action === 'remix') {
       Haptics.selectionAsync().catch(() => {});
       navigation.navigate('AIStudio', {
@@ -757,6 +766,7 @@ export function SwipeScreen() {
     }
     if (action === 'comment') {
       Haptics.selectionAsync().catch(() => {});
+      setCommentTimestamp(null);
       setShareOpen(false);
       setLyricsOpen(false);
       setCommentsOpen(true);
@@ -1118,6 +1128,12 @@ export function SwipeScreen() {
         onPress={() => void player.togglePlayPause()}
         onAction={handleSlideAction}
         onSeek={handleSeek}
+        onCreateMoment={(seconds) => {
+          setShareOpen(false);
+          setLyricsOpen(false);
+          setCommentTimestamp(seconds);
+          setCommentsOpen(true);
+        }}
         onToggleFollow={() => void handleToggleFollow()}
         onOpenArtist={() => track.artist?.username && navigation.navigate('PublicProfile', { username: track.artist.username })}
       />
@@ -1277,6 +1293,7 @@ export function SwipeScreen() {
           ? commentsCounts[clipInteractionKey(activeClip.id)] ?? activeClip.commentsCount
           : activeTrack ? commentsCounts[activeTrack._id] ?? activeTrack.commentsCount ?? 0 : 0}
         onClose={() => setCommentsOpen(false)}
+        initialTimestamp={commentTimestamp}
         onCountChange={(id, next) => setCommentsCounts((current) => ({
           ...current,
           [activeClip ? clipInteractionKey(id) : id]: next,
@@ -1299,6 +1316,25 @@ export function SwipeScreen() {
         visible={queueOpen}
         onClose={() => setQueueOpen(false)}
       />
+      <BottomSheet visible={moreOpen} onClose={() => setMoreOpen(false)} title={activeTrack?.title || 'Actions'} subtitle="La musique reste au centre.">
+        <View style={styles.moreSheet}>
+          <FlowMoreAction
+            icon={activeTrack && library.isFavorite(activeTrack._id) ? 'bookmark' : 'bookmark-outline'}
+            color={colors.violet}
+            label={activeTrack && library.isFavorite(activeTrack._id) ? 'Retirer de la bibliothèque' : 'Sauver dans la bibliothèque'}
+            onPress={() => { handleSlideAction('save'); setMoreOpen(false); }}
+          />
+          {activeTrack?.lyrics ? <FlowMoreAction icon="document-text-outline" color={colors.cyan} label="Paroles" onPress={() => { setMoreOpen(false); handleSlideAction('lyrics'); }} /> : null}
+          <FlowMoreAction icon="list-outline" label="File d'attente" onPress={() => { setMoreOpen(false); handleSlideAction('queue'); }} />
+          {activeTrack && canOpenAiVariation(activeTrack) ? <FlowMoreAction icon="color-wand-outline" color={colors.violet} label="Remixer ce son" onPress={() => { setMoreOpen(false); handleSlideAction('remix'); }} /> : null}
+          {activeTrack && canUseSoundClientSide({
+            isOwner: Boolean(auth.user?.id && activeTrack.artist?._id === auth.user.id),
+            allowClips: Boolean(activeTrack.allowClips),
+            remixVisibility: activeTrack.remixVisibility || 'disabled',
+          }) ? <FlowMoreAction icon="film-outline" color={colors.coral} label="Utiliser ce son dans un Clip" onPress={() => { setMoreOpen(false); handleSlideAction('useSound'); }} /> : null}
+          {activeTrack ? <FlowMoreAction icon="open-outline" label="Ouvrir le morceau" onPress={() => { setMoreOpen(false); navigation.navigate('TrackDetail', { trackId: activeTrack._id, track: activeTrack }); }} /> : null}
+        </View>
+      </BottomSheet>
       <BottomSheet visible={Boolean(remixTrack)} onClose={() => setRemixTrack(null)} title="Remixer ce son" subtitle="Le morceau original restera toujours crédité.">
         {remixTrack ? (
           <View style={styles.remixSheet}>
@@ -1320,7 +1356,7 @@ export function SwipeScreen() {
               style={styles.remixPrimary}
               scaleTo={0.97}
             >
-              <Ionicons name="color-wand-outline" size={18} color="#F7F6F3" />
+              <Ionicons name="color-wand-outline" size={18} color="#111111" />
               <Text style={styles.remixPrimaryText}>Ouvrir dans Studio</Text>
             </MotionPressable>
             <MotionPressable onPress={() => setRemixTrack(null)} style={styles.remixSecondary} scaleTo={0.97}>
@@ -1333,8 +1369,22 @@ export function SwipeScreen() {
   );
 }
 
+function FlowMoreAction({ icon, label, color = colors.text, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; color?: string; onPress: () => void }) {
+  return (
+    <MotionPressable accessibilityLabel={label} onPress={onPress} style={styles.moreRow} scaleTo={0.98}>
+      <View style={[styles.moreIcon, { backgroundColor: `${color}1F` }]}><Ionicons name={icon} size={19} color={color} /></View>
+      <Text style={styles.moreLabel}>{label}</Text>
+      <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+    </MotionPressable>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0D0D0D' },
+  moreSheet: { paddingHorizontal: 14, paddingBottom: 8 },
+  moreRow: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingVertical: 6 },
+  moreIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  moreLabel: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '800' },
   headerGradient: {
     position: 'absolute',
     left: 0,
@@ -1442,12 +1492,12 @@ const styles = StyleSheet.create({
   remixSheet: { paddingHorizontal: 18, paddingBottom: 10, gap: 12 },
   remixHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   remixCover: { width: 64, height: 64, borderRadius: 9, backgroundColor: 'rgba(17,17,17,0.08)' },
-  remixTitle: { color: '#111111', fontSize: 18, fontWeight: '900' },
-  remixArtist: { marginTop: 2, color: 'rgba(17,17,17,0.52)', fontSize: 13, fontWeight: '800' },
-  remixText: { color: '#111111', fontSize: 14, lineHeight: 20, fontWeight: '900' },
-  remixCredit: { color: 'rgba(17,17,17,0.5)', fontSize: 12, fontWeight: '700' },
-  remixPrimary: { height: 50, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#111111' },
-  remixPrimaryText: { color: '#F7F6F3', fontSize: 14, fontWeight: '900' },
-  remixSecondary: { height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.08)' },
-  remixSecondaryText: { color: 'rgba(17,17,17,0.62)', fontSize: 13, fontWeight: '900' },
+  remixTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
+  remixArtist: { marginTop: 2, color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
+  remixText: { color: colors.text, fontSize: 14, lineHeight: 20, fontWeight: '900' },
+  remixCredit: { color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
+  remixPrimary: { height: 50, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.paper },
+  remixPrimaryText: { color: colors.black, fontSize: 14, fontWeight: '900' },
+  remixSecondary: { height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+  remixSecondaryText: { color: colors.textSecondary, fontSize: 13, fontWeight: '900' },
 });

@@ -45,7 +45,7 @@ export function MobileHeader({
 
   return (
     <Animated.View style={[styles.shell, { height }]}>
-      <BlurView intensity={46} tint="light" style={StyleSheet.absoluteFill} />
+      <BlurView intensity={56} tint="dark" style={StyleSheet.absoluteFill} />
       <Animated.View pointerEvents={compact ? 'none' : 'auto'} style={[styles.large, { paddingTop: insets.top + 7, opacity: progress.interpolate({ inputRange: [0, 0.64], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -14] }) }] }]}>
         <View style={styles.brandRow}>
           <MobileAnimatedLogo playing={player.isPlaying} loading={player.isLoading} size={46} />
@@ -87,16 +87,16 @@ const styles = StyleSheet.create({
   shell: {
     position: 'absolute',
     zIndex: 50,
-    left: 10,
-    right: 10,
+    left: 0,
+    right: 0,
     top: 0,
     overflow: 'hidden',
-    borderBottomLeftRadius: 26,
-    borderBottomRightRadius: 26,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
     borderWidth: 1,
     borderTopWidth: 0,
     borderColor: colors.border,
-    backgroundColor: 'rgba(255,249,239,0.78)',
+    backgroundColor: 'rgba(13,13,13,0.9)',
     ...shadows.soft,
   },
   large: { ...StyleSheet.absoluteFillObject, paddingHorizontal: 9, paddingBottom: 8 },
@@ -106,13 +106,13 @@ const styles = StyleSheet.create({
   signature: { marginTop: 1, color: colors.textTertiary, fontSize: 7, fontWeight: '900', letterSpacing: 1.05 },
   publish: { height: 38, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 19, backgroundColor: colors.text, paddingHorizontal: 11 },
   publishText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
-  largeSearch: { height: 42, marginTop: 5, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 21, backgroundColor: 'rgba(23,19,19,0.055)', paddingHorizontal: 12 },
+  largeSearch: { height: 42, marginTop: 5, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingHorizontal: 12 },
   searchText: { flex: 1, minWidth: 0, color: colors.textTertiary, fontSize: 11, fontWeight: '800' },
   compact: { ...StyleSheet.absoluteFillObject, flexDirection: 'row', alignItems: 'flex-start', gap: 7, paddingHorizontal: 9 },
-  compactSearch: { flex: 1, height: 39, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 20, backgroundColor: 'rgba(23,19,19,0.055)', paddingHorizontal: 11 },
-  iconButton: { position: 'relative', width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.055)' },
-  iconButtonCompact: { width: 39, height: 39, borderRadius: 20 },
+  compactSearch: { flex: 1, height: 39, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 12, backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingHorizontal: 11 },
+  iconButton: { position: 'relative', width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  iconButtonCompact: { width: 39, height: 39, borderRadius: 11 },
   badge: { position: 'absolute', right: -2, top: -2, minWidth: 17, height: 17, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.coral, paddingHorizontal: 3 },
   badgeText: { color: colors.paper, fontSize: 7, fontWeight: '900' },
-  add: { width: 39, height: 39, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  add: { width: 39, height: 39, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
 });

@@ -20,7 +20,7 @@ export function PremiumButton({
   loading?: boolean;
   disabled?: boolean;
 }) {
-  const foreground = variant === 'primary' ? colors.white : variant === 'danger' ? colors.danger : colors.text;
+  const foreground = variant === 'primary' ? colors.black : variant === 'danger' ? colors.coral : colors.text;
   return (
     <MotionPressable
       accessibilityLabel={label}
@@ -48,8 +48,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.lg,
   },
-  primary: { backgroundColor: colors.black, borderWidth: 1, borderColor: colors.black },
+  primary: { backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.paper },
   secondary: { borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface },
-  danger: { borderWidth: 1, borderColor: 'rgba(217,45,32,0.14)', backgroundColor: 'rgba(217,45,32,0.08)' },
+  danger: { borderWidth: 1, borderColor: 'rgba(217,109,99,0.24)', backgroundColor: 'rgba(217,109,99,0.08)' },
   label: { fontSize: 13, lineHeight: 17, fontWeight: '900' },
 });

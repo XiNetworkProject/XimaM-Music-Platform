@@ -282,7 +282,7 @@ export function TrackDetailScreen() {
               }}
               style={styles.remixPrimary}
             >
-              <Ionicons name="color-wand-outline" size={18} color={colors.paper} />
+              <Ionicons name="color-wand-outline" size={18} color={colors.black} />
               <Text style={styles.remixPrimaryText}>Ouvrir dans Studio</Text>
             </Pressable>
             <Pressable onPress={() => setRemixOpen(false)} style={styles.remixSecondary}><Text style={styles.remixSecondaryText}>Annuler</Text></Pressable>
@@ -392,7 +392,7 @@ function TrackPostCard({
 const styles = StyleSheet.create({
   content: { paddingBottom: 170, gap: spacing.lg },
   loading: { paddingHorizontal: spacing.lg },
-  hero: { minHeight: 410, marginHorizontal: spacing.lg, overflow: 'hidden', borderRadius: radius.lg, justifyContent: 'flex-end', padding: spacing.lg, backgroundColor: colors.black, borderWidth: 1, borderColor: colors.borderStrong, shadowColor: colors.violet, shadowOpacity: 0.18, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 8 },
+  hero: { minHeight: 410, marginHorizontal: spacing.lg, overflow: 'hidden', borderRadius: radius.xl, justifyContent: 'flex-end', padding: spacing.lg, backgroundColor: colors.black, borderWidth: 1, borderColor: colors.borderStrong },
   cover: { width: 190, height: 190, maxWidth: '58%', aspectRatio: 1, alignSelf: 'center', marginBottom: spacing.xl, borderRadius: radius.sm },
   heroCopy: { paddingRight: 64 },
   title: { color: colors.white, fontSize: 30, lineHeight: 35, fontWeight: '900' },
@@ -400,10 +400,10 @@ const styles = StyleSheet.create({
   play: { position: 'absolute', right: spacing.lg, bottom: spacing.lg, width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
   actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.md, paddingHorizontal: spacing.lg },
   action: { width: 54, alignItems: 'center', gap: spacing.xs },
-  actionIcon: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  actionIcon: { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   actionIconActive: { backgroundColor: colors.black },
   actionLabel: { color: colors.textSecondary, fontSize: 9, lineHeight: 12, fontWeight: '800', textAlign: 'center' },
-  stats: { marginHorizontal: spacing.lg, flexDirection: 'row', borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surface },
+  stats: { marginHorizontal: spacing.lg, flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.borderStrong },
   stat: { flex: 1, alignItems: 'flex-start', padding: spacing.md },
   statValue: { color: colors.text, fontSize: 19, fontWeight: '900' },
   statLabel: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   emptyPosts: { alignItems: 'center', gap: 6, paddingVertical: spacing.xl },
   emptyPostsTitle: { color: colors.text, fontSize: 14, fontWeight: '900', textAlign: 'center' },
   emptyPostsText: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700', textAlign: 'center' },
-  trackPostCard: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surface, padding: spacing.md, marginBottom: spacing.sm },
+  trackPostCard: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: spacing.md, marginBottom: spacing.sm },
   trackPostHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   trackPostAvatar: { width: 38, height: 38, borderRadius: 19, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
   trackPostAvatarText: { color: colors.paper, fontSize: 14, fontWeight: '900' },
@@ -441,15 +441,15 @@ const styles = StyleSheet.create({
   similar: { paddingHorizontal: spacing.lg },
   error: { color: colors.danger, textAlign: 'center', fontSize: 11, fontWeight: '700' },
   remixOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.42)' },
-  remixSheet: { borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, backgroundColor: '#F7F6F3', padding: 18, gap: 12 },
+  remixSheet: { borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.borderStrong, padding: 18, gap: 12 },
   remixHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   remixCover: { width: 64, height: 64, borderRadius: radius.sm, backgroundColor: 'rgba(17,17,17,0.08)' },
-  remixTitle: { color: '#111111', fontSize: 18, fontWeight: '900' },
-  remixArtist: { color: 'rgba(17,17,17,0.52)', fontSize: 13, fontWeight: '800' },
-  remixText: { color: '#111111', fontSize: 14, lineHeight: 20, fontWeight: '900' },
-  remixCredit: { color: 'rgba(17,17,17,0.5)', fontSize: 12, fontWeight: '700' },
-  remixPrimary: { height: 50, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#111111' },
-  remixPrimaryText: { color: colors.paper, fontSize: 14, fontWeight: '900' },
-  remixSecondary: { height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(17,17,17,0.08)' },
-  remixSecondaryText: { color: 'rgba(17,17,17,0.62)', fontSize: 13, fontWeight: '900' },
+  remixTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
+  remixArtist: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
+  remixText: { color: colors.text, fontSize: 14, lineHeight: 20, fontWeight: '900' },
+  remixCredit: { color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
+  remixPrimary: { height: 50, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.paper },
+  remixPrimaryText: { color: colors.black, fontSize: 14, fontWeight: '900' },
+  remixSecondary: { height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+  remixSecondaryText: { color: colors.textSecondary, fontSize: 13, fontWeight: '900' },
 });

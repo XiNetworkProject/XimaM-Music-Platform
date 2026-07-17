@@ -3,7 +3,7 @@
     "name": "Synaura",
     "slug": "synaura",
     "scheme": "synaura",
-    "version": "0.19.3",
+    "version": "0.20.0",
     "icon": "./src/assets/synaura-symbol-2026.png",
     "orientation": "default",
     "userInterfaceStyle": "dark",
@@ -22,7 +22,7 @@
     "android": {
       "package": "com.synaura.music",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 57,
+      "versionCode": 58,
       "newArchEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
@@ -41,7 +41,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#121212",
+          "backgroundColor": "#0D0D0D",
           "image": "./src/assets/synaura-symbol-2026.png",
           "imageWidth": 170,
           "resizeMode": "contain"
@@ -57,12 +57,12 @@
       ]
     ],
     "androidStatusBar": {
-      "backgroundColor": "#121212",
+      "backgroundColor": "#0D0D0D",
       "barStyle": "light-content",
       "translucent": false
     },
     "androidNavigationBar": {
-      "backgroundColor": "#0B0B0B",
+      "backgroundColor": "#0D0D0D",
       "barStyle": "light-content"
     },
     "extra": {

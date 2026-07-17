@@ -15,7 +15,7 @@ type Props = {
 };
 
 const DOCK_ROUTES = new Set(['Swipe', 'Discover', 'Library', 'Profile']);
-const HIDDEN_ROUTES = new Set(['Swipe', 'AIStudio', 'Notifications', 'Upload', 'ClipComposer', 'CreateVariation', 'CreateHub', 'Welcome', 'Login', 'Register', 'ForgotPassword', 'Onboarding']);
+const HIDDEN_ROUTES = new Set(['Swipe', 'Notifications', 'Upload', 'ClipComposer', 'CreateVariation', 'CreateHub', 'Welcome', 'Login', 'Register', 'ForgotPassword', 'Onboarding']);
 
 export function MiniPlayer({ activeRoute, onOpen }: Props) {
   const layout = useResponsiveLayout();
@@ -26,7 +26,7 @@ export function MiniPlayer({ activeRoute, onOpen }: Props) {
   const routeName = activeRoute || '';
   const isVisible = !!player.current && !HIDDEN_ROUTES.has(routeName);
   const hasDock = DOCK_ROUTES.has(routeName);
-  const playerWidth = Math.min(layout.safeWidth - 12, layout.isTablet ? 628 : 548);
+  const playerWidth = Math.min(layout.safeWidth, layout.isTablet ? 640 : 560);
 
   useEffect(() => {
     Animated.timing(slide, {
@@ -141,10 +141,14 @@ const styles = StyleSheet.create({
   },
   card: {
     overflow: 'hidden',
-    borderRadius: 7,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     borderWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 0,
     borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: colors.darkSurfaceRaised,
+    backgroundColor: 'rgba(28,28,28,0.98)',
     shadowColor: '#111111',
     shadowOpacity: 0.18,
     shadowRadius: 18,
@@ -154,10 +158,10 @@ const styles = StyleSheet.create({
   progressTrack: { height: 2, backgroundColor: 'rgba(255,255,255,0.12)' },
   progressFill: {
     height: 2,
-    backgroundColor: colors.violet,
+    backgroundColor: colors.cyan,
   },
   content: {
-    minHeight: 58,
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -166,18 +170,18 @@ const styles = StyleSheet.create({
   },
   contentCompact: { minHeight: 54, gap: 8, paddingHorizontal: 8, paddingVertical: 7 },
   coverWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 5,
+    width: 42,
+    height: 42,
+    borderRadius: 8,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  coverWrapCompact: { width: 36, height: 36, borderRadius: 4 },
+  coverWrapCompact: { width: 38, height: 38, borderRadius: 7 },
   meta: { flex: 1, minWidth: 0 },
   title: {
-    color: colors.white,
+    color: colors.paper,
     fontSize: 13,
     fontWeight: '900',
   },
@@ -195,7 +199,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.paper,
     shadowColor: '#000000',
     shadowOpacity: 0,
     elevation: 0,

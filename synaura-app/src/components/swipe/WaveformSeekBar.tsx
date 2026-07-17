@@ -397,9 +397,9 @@ export function WaveformSeekBar({
           <Svg pointerEvents="none" width={width} height={height} style={StyleSheet.absoluteFill}>
             <Defs>
               <LinearGradient id={`${clipId}-gradient`} x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0" stopColor={immersive ? '#7357C6' : '#FFFFFF'} />
-                <Stop offset="0.58" stopColor={immersive ? '#4A9EAA' : '#D7D0EA'} />
-                <Stop offset="1" stopColor={immersive ? '#D96D63' : '#FFFFFF'} />
+                <Stop offset="0" stopColor={immersive ? '#7357C6' : '#4A9EAA'} />
+                <Stop offset="0.58" stopColor="#4A9EAA" />
+                <Stop offset="1" stopColor={immersive ? '#D96D63' : '#69B7C1'} />
               </LinearGradient>
               <ClipPath id={`${clipId}-progress`}>
                 <Rect x={0} y={0} width={Math.max(0, width * progress)} height={height} />
@@ -416,7 +416,7 @@ export function WaveformSeekBar({
           const total = cluster.comments.length + cluster.reactions.length;
           const hasBoth = cluster.comments.length > 0 && cluster.reactions.length > 0;
           const meta = reactionMeta(cluster.topType);
-          const backgroundColor = hasBoth ? '#7357C6' : cluster.comments.length ? '#4A9EAA' : meta.color;
+          const backgroundColor = hasBoth ? '#4A9EAA' : cluster.comments.length ? '#7357C6' : '#D96D63';
           const icon = hasBoth ? 'pulse' : cluster.comments.length ? 'chatbubble' : meta.icon;
           return (
             <View
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
   markerActive: { transform: [{ scale: 1.28 }] },
   markerCount: { color: '#FFFFFF', fontSize: 7, fontWeight: '900', fontVariant: ['tabular-nums'] },
   playhead: { position: 'absolute', top: -3, bottom: -3, width: 2, marginLeft: -1, borderRadius: 2, backgroundColor: '#FFFFFF', shadowColor: '#111111', shadowOpacity: 0.35, shadowRadius: 4, elevation: 4 },
-  playheadCompact: { top: 1, bottom: 1, backgroundColor: 'rgba(255,255,255,0.9)' },
+  playheadCompact: { top: 2, bottom: 2, width: 1, marginLeft: 0, backgroundColor: 'rgba(247,246,243,0.82)' },
   playheadCap: { position: 'absolute', top: -2, left: -3, width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFFFFF' },
   scrubBubble: { position: 'absolute', top: -32, width: 58, paddingVertical: 5, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(17,17,17,0.9)' },
   scrubBubbleText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900', fontVariant: ['tabular-nums'] },

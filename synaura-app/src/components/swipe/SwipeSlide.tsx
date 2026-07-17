@@ -2,16 +2,15 @@
 import { Animated, Easing, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { canOpenAiVariation, canUseSoundClientSide, type Track } from '@/api/types';
+import type { Track } from '@/api/types';
 import { fmtCount, trackArtistName } from './helpers';
 import { WaveformSeekBar } from './WaveformSeekBar';
 import { TrackCover } from '@/components/TrackCover';
 import { usePlayerProgress } from '@/player/PlayerProvider';
-import { useAuth } from '@/auth/AuthProvider';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
-type ActionLabel = 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save' | 'remix' | 'useSound';
+type ActionLabel = 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save' | 'remix' | 'useSound' | 'more';
 
 type Props = {
   track: Track;
@@ -33,6 +32,7 @@ type Props = {
   onPress: () => void;
   onAction: (action: ActionLabel) => void;
   onSeek: (seconds: number) => void;
+  onCreateMoment: (seconds: number) => void;
   onToggleFollow: () => void;
   onOpenArtist: () => void;
 };
@@ -185,7 +185,6 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
     isActive,
     isPlaying,
     isLoading,
-    isFavorite,
     isLiked,
     likesCount,
     commentsCount,
@@ -199,21 +198,15 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
     onPress,
     onAction,
     onSeek,
+    onCreateMoment,
     onToggleFollow,
     onOpenArtist,
   } = props;
 
   const isAi = !!track.isAI || track._id.startsWith('ai-');
   const genres = (track.genre || []).filter((genre) => Boolean(genre) && genre.length <= 20).slice(0, 1);
-  const auth = useAuth();
   const { settings } = useMobileSettings();
   const responsive = useResponsiveLayout();
-  const isOwnTrack = Boolean(auth.user?.id) && track.artist?._id === auth.user?.id;
-  const canUseSound = canUseSoundClientSide({
-    isOwner: isOwnTrack,
-    allowClips: Boolean(track.allowClips),
-    remixVisibility: track.remixVisibility || 'disabled',
-  });
   const lastTapRef = useRef(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playButtonOpacity = useRef(new Animated.Value(isPlaying ? 0 : 1)).current;
@@ -283,6 +276,9 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
 
   const displayTitle = track.title;
   const displayArtist = trackArtistName(track);
+  const lyricPreview = typeof track.lyrics === 'string'
+    ? track.lyrics.split(/\r?\n/).map((line) => line.trim()).find(Boolean) || ''
+    : '';
 
   return (
     <View style={[styles.page, { height }]}>
@@ -400,25 +396,10 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
           onPress={() => onAction('share')}
         />
         <ActionButton
-          icon="bookmark-outline"
-          iconActive="bookmark"
-          active={isFavorite}
-          label={isFavorite ? 'Retirer des favoris' : 'Sauver dans la bibliotheque'}
-          highlightColor="#7357C6"
-          onPress={() => onAction('save')}
+          icon="ellipsis-horizontal"
+          label="Plus d'actions"
+          onPress={() => onAction('more')}
         />
-        {canOpenAiVariation(track) ? (
-          <ActionButton
-            icon="color-wand-outline"
-            label="Remixer"
-            onPress={() => onAction('remix')}
-          />) : null}
-        {canUseSound ? (
-          <ActionButton
-            icon="film-outline"
-            label={isOwnTrack ? 'Créer un clip officiel' : 'Utiliser ce son'}
-            onPress={() => onAction('useSound')}
-          />) : null}
       </Animated.View>
 
       <Animated.View
@@ -438,6 +419,11 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
             <Text style={styles.nowText}>{isAi ? 'CRÉATION IA' : isPlaying ? 'EN LECTURE' : 'EN PAUSE'}</Text>
           </View>
         </View>
+        {lyricPreview ? (
+          <Pressable accessibilityLabel="Voir les paroles" onPress={() => onAction('lyrics')} style={styles.lyricPreview}>
+            <Text numberOfLines={2} style={styles.lyricPreviewText}>« {lyricPreview} »</Text>
+          </Pressable>
+        ) : null}
         <Text maxFontSizeMultiplier={1.15} numberOfLines={2} style={[styles.title, responsive.compactControls && styles.titleCompact]}>{displayTitle}</Text>
         <View style={styles.artistRow}>
           <Pressable accessibilityLabel="Ouvrir le profil artiste" disabled={!track.artist?.username} onPress={onOpenArtist} style={styles.artistNameButton}>
@@ -472,7 +458,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
           </Pressable>
         ) : null}
         <View style={styles.seekWrap}>
-          {isActive ? <ActiveSeekBar track={track} onSeek={onSeek} /> : <View style={styles.seekPlaceholder} />}
+          {isActive ? <ActiveSeekBar track={track} onSeek={onSeek} onCreateMoment={onCreateMoment} /> : <View style={styles.seekPlaceholder} />}
         </View>
       </Animated.View>
 
@@ -483,7 +469,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
 // Waveform réelle (cache serveur) avec marqueurs de moments quand elle existe ;
 // barre de progression classique sinon. Montée uniquement sur la slide active
 // pour ne pas multiplier les requêtes pendant le scroll.
-function ActiveSeekBar({ track, onSeek }: { track: Track; onSeek: (seconds: number) => void }) {
+function ActiveSeekBar({ track, onSeek, onCreateMoment }: { track: Track; onSeek: (seconds: number) => void; onCreateMoment: (seconds: number) => void }) {
   const responsive = useResponsiveLayout();
   const progress = usePlayerProgress(120);
   const isAi = !!track.isAI || track._id.startsWith('ai-');
@@ -493,6 +479,7 @@ function ActiveSeekBar({ track, onSeek }: { track: Track; onSeek: (seconds: numb
       position={progress.positionSec}
       duration={progress.durationSec || track.duration || 0}
       onSeek={onSeek}
+      onCreateMoment={onCreateMoment}
       showMoments={!isAi}
       height={responsive.compactControls ? 36 : 42}
       barCount={responsive.isNarrow ? 52 : 68}
@@ -547,7 +534,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 9,
     alignItems: 'center',
-    gap: 10,
+    gap: 9,
   },
   actionsColumnCompact: { gap: 5 },
   profileCluster: { alignItems: 'center', justifyContent: 'center', width: 50, height: 60, marginBottom: 4 },
@@ -594,12 +581,12 @@ const styles = StyleSheet.create({
   actionButtonCompact: { width: 42, gap: 2 },
   actionButtonDisabled: { opacity: 0.38 },
   actionCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(15,12,14,0.24)',
+    backgroundColor: 'rgba(13,13,13,0.38)',
     borderWidth: 1,
     borderColor: 'rgba(255,250,242,0.18)',
     shadowColor: '#000',
@@ -631,8 +618,10 @@ const styles = StyleSheet.create({
   nowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,250,242,0.36)' },
   nowDotActive: { backgroundColor: '#22C55E' },
   nowText: { color: 'rgba(255,250,242,0.76)', fontSize: 8, fontWeight: '900' },
-  title: { marginTop: 8, color: '#FFFAF2', fontSize: 30, lineHeight: 34, fontWeight: '900' },
-  titleCompact: { marginTop: 5, fontSize: 24, lineHeight: 28 },
+  lyricPreview: { alignSelf: 'flex-start', maxWidth: '95%', marginTop: 7, borderLeftWidth: 2, borderLeftColor: '#4A9EAA', paddingLeft: 9, paddingVertical: 3 },
+  lyricPreviewText: { color: 'rgba(247,246,243,0.78)', fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  title: { marginTop: 8, color: '#FFFAF2', fontSize: 27, lineHeight: 31, fontWeight: '900' },
+  titleCompact: { marginTop: 5, fontSize: 23, lineHeight: 27 },
   artistRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   artistNameButton: { maxWidth: '72%' },
   artist: { color: 'rgba(255,250,242,0.86)', fontSize: 13, fontWeight: '900' },

@@ -44,7 +44,7 @@ export function ProfileIdentityHero({
   const backdropIsCover = !profile.banner && Boolean(spotlightTrack?.coverUrl);
   const hasSocialLinks = Object.values(profile.socialLinks || {}).some(Boolean);
   const compactStats = responsive.isTiny || responsive.hasVeryLargeText;
-  const visualHeight = responsive.isTablet ? 286 : responsive.isNarrow ? 214 : 238;
+  const visualHeight = responsive.isTablet ? 270 : responsive.isNarrow ? 202 : 224;
   const stats = own
     ? [
         { label: 'Abonnés', value: compact(profile.followerCount) },
@@ -131,8 +131,8 @@ export function ProfileIdentityHero({
             style={[styles.primaryAction, primaryAction.active && styles.primaryActionActive]}
             scaleTo={0.97}
           >
-            <Ionicons name={primaryAction.loading ? 'ellipsis-horizontal' : primaryAction.icon} size={17} color="#FFFFFF" />
-            <Text numberOfLines={1} style={styles.primaryActionText}>{primaryAction.label}</Text>
+            <Ionicons name={primaryAction.loading ? 'ellipsis-horizontal' : primaryAction.icon} size={17} color={primaryAction.active ? colors.white : colors.black} />
+            <Text numberOfLines={1} style={[styles.primaryActionText, primaryAction.active && styles.primaryActionTextActive]}>{primaryAction.label}</Text>
           </MotionPressable>
           <MotionPressable accessibilityLabel="Partager le profil" onPress={onShare} style={styles.iconAction} scaleTo={0.92}>
             <Ionicons name="share-outline" size={18} color={colors.text} />
@@ -238,9 +238,10 @@ const styles = StyleSheet.create({
   nameNarrow: { fontSize: 21, lineHeight: 25 },
   handle: { marginTop: 3, color: colors.textTertiary, fontSize: 11, fontWeight: '800' },
   actions: { marginTop: 10, flexDirection: 'row', gap: 8 },
-  primaryAction: { flex: 1, minWidth: 0, height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: radius.md, backgroundColor: colors.violet, paddingHorizontal: 12, shadowColor: colors.violet, shadowOpacity: 0.28, shadowRadius: 11, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
+  primaryAction: { flex: 1, minWidth: 0, height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: radius.md, backgroundColor: colors.paper, paddingHorizontal: 12 },
   primaryActionActive: { backgroundColor: colors.cyan },
-  primaryActionText: { flexShrink: 1, color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
+  primaryActionText: { flexShrink: 1, color: colors.black, fontSize: 12, fontWeight: '900' },
+  primaryActionTextActive: { color: colors.white },
   iconAction: { width: 46, height: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong },
   bio: { marginTop: 14, maxWidth: 680, color: colors.textSecondary, fontSize: 13, lineHeight: 20, fontWeight: '600' },
   completeProfile: { marginTop: 13, minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.sm, paddingHorizontal: 11, backgroundColor: colors.violetSoft },

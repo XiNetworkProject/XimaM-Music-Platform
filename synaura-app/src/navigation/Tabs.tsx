@@ -126,7 +126,7 @@ function AnimatedTabButton({ children, accessibilityState, onPress, style, ...pr
 function SynauraScrollIcon({ focused, dark }: { focused: boolean; dark: boolean }) {
   return (
     <View style={[styles.scrollTab, dark && styles.scrollTabDark, focused && styles.scrollTabActive, dark && focused && styles.scrollTabActiveDark]}>
-      <Ionicons name={focused ? 'pulse' : 'pulse-outline'} size={22} color={focused ? (dark ? colors.white : colors.black) : (dark ? 'rgba(255,255,255,0.56)' : colors.textTertiary)} />
+      <Ionicons name={focused ? 'pulse' : 'pulse-outline'} size={22} color={focused ? colors.cyan : colors.textTertiary} />
     </View>
   );
 }
@@ -207,7 +207,7 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
                   <Ionicons
                     name={primaryIcon(route.name as (typeof PRIMARY_ROUTES)[number], focused)}
                     size={21}
-                    color={focused ? colors.white : colors.textTertiary}
+                    color={focused ? colors.cyan : colors.textTertiary}
                   />
                 </View>
               )}
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     zIndex: 80,
-    backgroundColor: '#0D0D0D',
+    backgroundColor: colors.background,
   },
   dock: {
     alignSelf: 'center',
@@ -337,10 +337,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
     paddingHorizontal: 4,
   },
   dockLight: { borderColor: colors.border, backgroundColor: colors.glassDark },
-  dockDark: { borderColor: colors.border, backgroundColor: '#0D0D0D' },
+  dockDark: { borderColor: colors.borderStrong, backgroundColor: 'rgba(13,13,13,0.97)' },
   dockItem: {
     flex: 1,
     height: 68,
@@ -349,7 +350,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   dockItemCreate: { paddingBottom: 1 },
-  createDock: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper, borderWidth: 3, borderColor: '#0D0D0D', shadowColor: colors.violet, shadowOpacity: 0.34, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 8, transform: [{ translateY: -7 }] },
+  createDock: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper, borderWidth: 3, borderColor: colors.background, shadowColor: colors.black, shadowOpacity: 0.34, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 8, transform: [{ translateY: -7 }] },
   createDockCompact: { width: 42, height: 42, borderRadius: 21 },
   createDockDark: { backgroundColor: colors.paper },
   dockLabel: {
@@ -361,8 +362,8 @@ const styles = StyleSheet.create({
   dockLabelDark: { color: 'rgba(255,255,255,0.48)' },
   dockLabelNarrow: { fontSize: 9 },
   dockLabelActive: { color: colors.black },
-  dockLabelActiveDark: { color: colors.white },
+  dockLabelActiveDark: { color: colors.cyan },
   dockLabelCreate: { marginTop: -7 },
-  activeIndicator: { position: 'absolute', top: 0, width: 22, height: 2, borderRadius: 1, backgroundColor: colors.cyan },
+  activeIndicator: { position: 'absolute', top: 0, width: 22, height: 2, borderRadius: 1, backgroundColor: colors.cyan, opacity: 0 },
   activeIndicatorDark: {},
 });

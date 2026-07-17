@@ -407,35 +407,30 @@ export function ProfileScreen() {
           />
         ) : <ProfileIdentityHeroSkeleton />}
 
-        <View style={styles.ownerDashboard}>
-          <MotionPressable onPress={() => navigation.navigate('Stats')} style={[styles.ownerDashboardItem, styles.ownerDashboardStats]} scaleTo={0.975}>
-            <View style={styles.ownerDashboardIcon}><Ionicons name="analytics-outline" size={20} color="#FFFFFF" /></View>
-            <View style={styles.ownerDashboardCopy}>
-              <Text style={styles.ownerDashboardKicker}>Tableau de bord</Text>
-              <Text style={styles.ownerDashboardTitle}>Mes statistiques</Text>
-              <Text numberOfLines={1} style={styles.ownerDashboardText}>Écoutes, audience et rétention</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-          </MotionPressable>
-          <MotionPressable onPress={() => navigation.navigate('City')} style={[styles.ownerDashboardItem, styles.ownerDashboardEvents]} scaleTo={0.975}>
-            <View style={[styles.ownerDashboardIcon, styles.ownerDashboardIconLight]}><Ionicons name="flash-outline" size={20} color={colors.violet} /></View>
-            <View style={styles.ownerDashboardCopy}>
-              <Text style={[styles.ownerDashboardKicker, styles.ownerDashboardKickerDark]}>Synaura Events</Text>
-              <Text style={[styles.ownerDashboardTitle, styles.ownerDashboardTitleDark]}>Votes et challenges</Text>
-              <Text numberOfLines={1} style={[styles.ownerDashboardText, styles.ownerDashboardTextDark]}>Entre dans la scène du moment</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={16} color={colors.text} />
-          </MotionPressable>
-        </View>
-
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <SegmentedControl
           value={profileTab}
           compact
-          options={(Object.keys(PROFILE_TAB_LABELS) as ProfileTab[]).map((item) => ({ value: item, label: PROFILE_TAB_LABELS[item] }))}
+          options={(['sons', 'clips', 'posts', 'playlists', 'variations'] as ProfileTab[]).map((item) => ({ value: item, label: PROFILE_TAB_LABELS[item] }))}
           onChange={setProfileTab}
         />
+
+        {profileTab === 'sons' ? (
+          <ProfileMusicCatalog
+            tracks={profile?.tracks || []}
+            currentTrackId={player.current?._id}
+            isPlaying={player.isPlaying}
+            defaultSort="recent"
+            emptyText="Publie ton premier morceau pour commencer ta discographie."
+            onPlay={(track) => {
+              if (player.current?._id === track._id) void player.togglePlayPause();
+              else void player.playTrack(track);
+            }}
+            onOpen={(track) => navigation.navigate('TrackDetail', { trackId: track._id, track })}
+            onManage={openTrackMenu}
+          />
+        ) : null}
 
         {profileTab === 'sons' && (clipsLoading || Boolean(clipsError) || clips.length > 0) ? (
           <View style={styles.card}>
@@ -466,26 +461,33 @@ export function ProfileScreen() {
         ) : null}
 
         {profileTab === 'sons' ? <>
-        <ProfileMusicCatalog
-          tracks={profile?.tracks || []}
-          currentTrackId={player.current?._id}
-          isPlaying={player.isPlaying}
-          defaultSort="recent"
-          emptyText="Publie ton premier morceau pour commencer ta discographie."
-          onPlay={(track) => {
-            if (player.current?._id === track._id) void player.togglePlayPause();
-            else void player.playTrack(track);
-          }}
-          onOpen={(track) => navigation.navigate('TrackDetail', { trackId: track._id, track })}
-          onManage={openTrackMenu}
-        />
-
         <CreatorLevelCard
           tracks={profile?.tracksCount || 0}
           plays={profile?.totalPlays || 0}
           likes={(profile?.tracks || []).reduce((sum, track) => sum + Number(track.likesCount || 0), 0)}
           onOpen={() => navigation.navigate('City')}
         />
+
+        <View style={styles.ownerDashboard}>
+          <MotionPressable onPress={() => navigation.navigate('Stats')} style={[styles.ownerDashboardItem, styles.ownerDashboardStats]} scaleTo={0.975}>
+            <View style={styles.ownerDashboardIcon}><Ionicons name="analytics-outline" size={20} color={colors.cyan} /></View>
+            <View style={styles.ownerDashboardCopy}>
+              <Text style={styles.ownerDashboardKicker}>Espace créateur</Text>
+              <Text style={styles.ownerDashboardTitle}>Mes statistiques</Text>
+              <Text numberOfLines={1} style={styles.ownerDashboardText}>Écoutes, audience et rétention</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={16} color={colors.text} />
+          </MotionPressable>
+          <MotionPressable onPress={() => navigation.navigate('City')} style={[styles.ownerDashboardItem, styles.ownerDashboardEvents]} scaleTo={0.975}>
+            <View style={[styles.ownerDashboardIcon, styles.ownerDashboardIconLight]}><Ionicons name="flash-outline" size={20} color={colors.coral} /></View>
+            <View style={styles.ownerDashboardCopy}>
+              <Text style={[styles.ownerDashboardKicker, styles.ownerDashboardKickerDark]}>Synaura Events</Text>
+              <Text style={[styles.ownerDashboardTitle, styles.ownerDashboardTitleDark]}>Votes et challenges</Text>
+              <Text numberOfLines={1} style={[styles.ownerDashboardText, styles.ownerDashboardTextDark]}>Entre dans la scène du moment</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={16} color={colors.text} />
+          </MotionPressable>
+        </View>
 
         {profile?.badges.length ? (
           <View style={styles.badgesPanel}>
@@ -773,10 +775,10 @@ function Empty({ text }: { text: string }) {
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 18, paddingBottom: 160, gap: 14 },
   ownerDashboard: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
-  ownerDashboardItem: { minHeight: 90, flexBasis: 220, flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 13 },
-  ownerDashboardStats: { borderColor: 'rgba(115,87,198,0.46)', backgroundColor: '#191621', shadowColor: colors.violet, shadowOpacity: 0.16, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  ownerDashboardItem: { minHeight: 82, flexBasis: 220, flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 13 },
+  ownerDashboardStats: { borderColor: 'rgba(74,158,170,0.3)', backgroundColor: colors.surfaceStrong },
   ownerDashboardEvents: { borderColor: 'rgba(74,158,170,0.34)', backgroundColor: colors.surfaceStrong },
-  ownerDashboardIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
+  ownerDashboardIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(74,158,170,0.12)' },
   ownerDashboardIconLight: { backgroundColor: colors.violetSoft },
   ownerDashboardCopy: { flex: 1, minWidth: 0 },
   ownerDashboardKicker: { color: 'rgba(255,255,255,0.52)', fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
@@ -798,7 +800,7 @@ const styles = StyleSheet.create({
   registerButton: { height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong },
   registerText: { color: '#7C5CFF', fontSize: 13, fontWeight: '900' },
   badgesPanel: { gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 12 },
-  featuredCover: { width: 60, height: 60, borderRadius: 4 },
+  featuredCover: { width: 60, height: 60, borderRadius: 8 },
   quickGrid: { gap: 8, paddingRight: 18 },
   quickAction: { width: 150, minHeight: 108, borderRadius: 10, padding: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong },
   quickIcon: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(124,92,255,0.1)' },
@@ -817,7 +819,7 @@ const styles = StyleSheet.create({
   usageTrack: { height: 6, borderRadius: 999, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
   usageFill: { height: 6, borderRadius: 999, backgroundColor: '#7C5CFF' },
   trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingVertical: 9 },
-  trackCover: { width: 50, height: 50, borderRadius: 4 },
+  trackCover: { width: 50, height: 50, borderRadius: 8 },
   trackTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   trackMeta: { marginTop: 3, color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
   variationStatus: { marginTop: 2, fontSize: 10, fontWeight: '900' },

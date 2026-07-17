@@ -93,7 +93,7 @@ export function LibraryScreen() {
                   <Text numberOfLines={1} style={styles.resumeTitle}>{library.recent[0].title}</Text>
                   <Text numberOfLines={1} style={styles.resumeMeta}>{library.recent[0].artist?.name || library.recent[0].artist?.username || 'Artiste Synaura'}</Text>
                 </View>
-                <View style={styles.resumePlay}><Ionicons name={player.current?._id === library.recent[0]._id && player.isPlaying ? 'pause' : 'play'} size={17} color={colors.white} /></View>
+                <View style={styles.resumePlay}><Ionicons name={player.current?._id === library.recent[0]._id && player.isPlaying ? 'pause' : 'play'} size={17} color={colors.black} /></View>
               </MotionPressable>
             ) : null}
 
@@ -139,16 +139,16 @@ function RailTitle({ title, subtitle }: { title: string; subtitle: string }) {
 
 const styles = StyleSheet.create({
   header: { marginBottom: spacing.lg },
-  search: { height: 50, marginHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: radius.md, backgroundColor: colors.surface, paddingHorizontal: 13 },
+  search: { height: 50, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: radius.md, backgroundColor: colors.surface, paddingHorizontal: 13 },
   searchInput: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' },
-  tabs: { marginTop: spacing.md, paddingHorizontal: spacing.lg },
-  resume: { minHeight: 88, marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(115,87,198,0.45)', backgroundColor: '#17141F', padding: spacing.md, shadowColor: colors.violet, shadowOpacity: 0.16, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  tabs: { marginTop: spacing.md },
+  resume: { minHeight: 88, marginTop: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderLeftWidth: 3, borderLeftColor: colors.cyan, backgroundColor: colors.surfaceStrong, padding: spacing.md },
   resumeCover: { width: 62, height: 62, borderRadius: radius.sm },
   resumeCopy: { flex: 1, minWidth: 0 },
-  resumeKicker: { color: '#BFB3E8', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
+  resumeKicker: { color: colors.cyan, fontSize: 8, fontWeight: '900' },
   resumeTitle: { marginTop: 4, color: colors.white, fontSize: 14, fontWeight: '900' },
   resumeMeta: { marginTop: 2, color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: '700' },
-  resumePlay: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  resumePlay: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
   railTitle: { marginTop: spacing.xl, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong },
   railSubtitle: { marginTop: 2, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
   playlistRail: { gap: spacing.sm, paddingTop: spacing.md },

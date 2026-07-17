@@ -1,14 +1,15 @@
 {
-  "title": "Synaura Hybrid Flow 0.19.3",
+  "title": "Synaura Aura Flow 0.20.0",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Accueil reproduit fidelement selon la composition du prototype Hybrid Flow",
-    "Colorimetrie sombre Synaura conservee sur toute la scene",
-    "Pochette transformee en ambiance de fond sans carte flottante ajoutee",
-    "Marque, grand hero, deux actions et deux raccourcis dans la hierarchie du prototype",
-    "Apercu du Flow visible sous l'accueil comme premier element du fil",
-    "Un seul swipe ou geste de molette suffit pour entrer dans le Flow",
+    "Refonte visuelle complete Aura Flow, sombre, immersive et coherente sur toute l'application",
+    "Flow recentre sur un morceau, sa pochette, sa waveform et ses interactions essentielles",
+    "Waveform interactive avec progression cyan et creation de commentaires horodates par appui long",
+    "Lecteur plein ecran repense avec Aura Visual, paroles, Moments et controles toujours accessibles",
+    "Decouvrir, Radar, profils, bibliotheque et Studio reorganises selon le dossier Aura Flow",
+    "Studio conserve comme bibliotheque avec tiroir de creation et mode simple en un seul prompt",
+    "Creation de Clips, upload, posts musicaux, partage et notifications harmonises sans retirer leurs fonctions",
     "Mise en page validee sur 31 ecrans natifs et huit formats de telephones et tablettes"
   ]
 }

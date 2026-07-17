@@ -248,7 +248,21 @@ export function PublicProfileScreen() {
           }}
         />
 
-        <SegmentedControl value={tab} compact options={(Object.keys(TAB_LABELS) as Tab[]).map((item) => ({ value: item, label: TAB_LABELS[item] }))} onChange={setTab} />
+        <SegmentedControl value={tab} compact options={(['sons', 'clips', 'posts', 'playlists', 'variations'] as Tab[]).map((item) => ({ value: item, label: TAB_LABELS[item] }))} onChange={setTab} />
+
+        {tab === 'sons' ? (
+          <ProfileMusicCatalog
+            tracks={profile.tracks}
+            currentTrackId={player.current?._id}
+            isPlaying={player.isPlaying}
+            defaultSort="plays"
+            onPlay={(track) => {
+              if (player.current?._id === track._id) void player.togglePlayPause();
+              else void player.playTrack(track);
+            }}
+            onOpen={(track) => navigation.navigate('TrackDetail', { trackId: track._id, track })}
+          />
+        ) : null}
 
         {tab === 'sons' && (clipsLoading || Boolean(clipsError) || clips.length > 0) ? (
           <View style={styles.card}>
@@ -277,18 +291,6 @@ export function PublicProfileScreen() {
         ) : null}
 
         {tab === 'sons' ? <>
-        <ProfileMusicCatalog
-          tracks={profile.tracks}
-          currentTrackId={player.current?._id}
-          isPlaying={player.isPlaying}
-          defaultSort="plays"
-          onPlay={(track) => {
-            if (player.current?._id === track._id) void player.togglePlayPause();
-            else void player.playTrack(track);
-          }}
-          onOpen={(track) => navigation.navigate('TrackDetail', { trackId: track._id, track })}
-        />
-
         <CreatorLevelCard
           tracks={profile.tracksCount}
           plays={profile.totalPlays}
@@ -426,7 +428,7 @@ const styles = StyleSheet.create({
   badgePanelTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
   card: { gap: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: 10, backgroundColor: colors.surface, padding: 12 },
   trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 9 },
-  trackCover: { width: 52, height: 52, borderRadius: 4 },
+  trackCover: { width: 52, height: 52, borderRadius: 8 },
   trackTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   trackMeta: { marginTop: 3, color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
   albumRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 9 },

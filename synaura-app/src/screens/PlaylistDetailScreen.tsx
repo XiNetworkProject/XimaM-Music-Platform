@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
   sharePill: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
 
   // Hero
-  hero: { borderRadius: 4, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)' },
+  hero: { borderRadius: 20, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)' },
   heroBanner: { ...StyleSheet.absoluteFillObject, opacity: 0.48 },
   heroBody: { padding: 22 },
   heroBodyNarrow: { padding: 14 },
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
 
   coverBlock: { width: '100%', maxWidth: 360, alignSelf: 'center', marginTop: 28 },
   coverGlow: { display: 'none' },
-  coverWrap: { width: '100%', aspectRatio: 1, borderRadius: 4, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  coverWrap: { width: '100%', aspectRatio: 1, borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   statsCard: { flexDirection: 'row', marginTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.2)' },
 
   // Stat
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   searchPill: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 2 },
   searchInput: { flex: 1, color: CREAM, fontSize: 14, fontWeight: '700', padding: 0 },
   chipRow: { gap: 8, paddingRight: 4 },
-  chip: { height: 38, borderRadius: 4, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.09)' },
+  chip: { height: 38, borderRadius: 12, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.09)' },
   chipOn: { backgroundColor: CREAM, borderColor: CREAM },
   chipText: { color: 'rgba(255,250,242,0.58)', fontSize: 12, fontWeight: '900' },
   chipTextOn: { color: INK },
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   trackCard: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.15)', paddingVertical: 12 },
   trackCardActive: { borderLeftWidth: 3, borderLeftColor: '#4A9EAA', backgroundColor: 'rgba(255,255,255,0.06)', paddingLeft: 9 },
   trackMain: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  trackCoverBtn: { width: 62, height: 62, borderRadius: 4, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
+  trackCoverBtn: { width: 62, height: 62, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
   playOverlay: { width: 36, height: 36, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.78)' },
   trackCopy: { flex: 1, minWidth: 0 },
   trackTitle: { color: CREAM, fontSize: 16, fontWeight: '900' },
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
   infoHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   infoTitle: { color: CREAM, fontSize: 18, fontWeight: '900' },
   infoParagraph: { color: 'rgba(255,250,242,0.62)', fontSize: 14, lineHeight: 22, fontWeight: '600' },
-  utilPrimary: { borderRadius: 4, backgroundColor: CREAM, paddingHorizontal: 16, paddingVertical: 14 },
+  utilPrimary: { borderRadius: 12, backgroundColor: CREAM, paddingHorizontal: 16, paddingVertical: 14 },
   utilPrimaryText: { color: INK, fontSize: 14, fontWeight: '900' },
   utilBtn: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 2, paddingVertical: 14 },
   utilBtnText: { color: 'rgba(255,250,242,0.78)', fontSize: 14, fontWeight: '900' },
