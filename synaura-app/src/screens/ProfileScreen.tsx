@@ -34,7 +34,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { ProfileIdentityHero, ProfileIdentityHeroSkeleton } from '@/components/profile/ProfileIdentityHero';
 import { ClipEditBottomSheet, type ClipEditForm } from '@/components/profile/ClipEditBottomSheet';
 import { ProfileClipActionsSheet } from '@/components/profile/ProfileClipActionsSheet';
-import { ProfileClipCard } from '@/components/profile/ProfileClipCard';
+import { ProfileClipGrid } from '@/components/profile/ProfileClipGrid';
 import { ProfileMusicCatalog } from '@/components/profile/ProfileMusicCatalog';
 import { ProfileShareSheet } from '@/components/profile/ProfileShareSheet';
 import { ProfileTrackActionsSheet } from '@/components/profile/ProfileTrackActionsSheet';
@@ -522,18 +522,7 @@ export function ProfileScreen() {
               </Pressable>
             ) : (
               <>
-                <View style={styles.clipsGrid}>
-                  {clips.slice(0, responsive.isTablet ? 4 : 3).map((clip) => (
-                    <ProfileClipCard
-                      key={`preview-${clip.id}`}
-                      clip={clip}
-                      owner
-                      style={{ width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }}
-                      onPress={() => openProfileClip(clip)}
-                      onManage={() => openClipMenu(clip)}
-                    />
-                  ))}
-                </View>
+                <ProfileClipGrid clips={clips} maxItems={responsive.isTablet ? 4 : 2} owner onOpen={openProfileClip} onManage={openClipMenu} />
                 <Pressable onPress={() => setProfileTab('clips')} style={styles.emptyAction}>
                   <Ionicons name="film-outline" size={18} color="#7C5CFF" />
                   <Text style={styles.emptyActionText}>Voir tous les clips</Text>
@@ -663,18 +652,7 @@ export function ProfileScreen() {
               <Text style={styles.emptyActionText}>Recharger les clips</Text>
             </Pressable>
           ) : clips.length ? (
-            <View style={styles.clipsGrid}>
-              {clips.map((clip) => (
-                <ProfileClipCard
-                  key={clip.id}
-                  clip={clip}
-                  owner
-                  style={{ width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }}
-                  onPress={() => openProfileClip(clip)}
-                  onManage={() => openClipMenu(clip)}
-                />
-              ))}
-            </View>
+            <ProfileClipGrid clips={clips} owner onOpen={openProfileClip} onManage={openClipMenu} />
           ) : <Empty text="Tu n'as pas encore publié de clip." />}
           {clipsHasMore ? (
             <Pressable disabled={clipsLoadingMore} onPress={() => void loadClips(clipsCursor, { creatorId: profile?.id, creatorUsername: profile?.username })} style={styles.emptyAction}>
@@ -975,5 +953,4 @@ const styles = StyleSheet.create({
   resumeCard: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 9 },
   resumeKicker: { color: '#7357C6', fontSize: 9, fontWeight: '900' },
   resumeTitle: { marginTop: 3, color: colors.text, fontSize: 13, fontWeight: '900' },
-  clipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });

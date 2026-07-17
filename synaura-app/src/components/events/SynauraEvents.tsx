@@ -7,11 +7,12 @@ import { colors, spacing } from '@/theme/tokens';
 import { TrackCover } from '@/components/TrackCover';
 
 type Tone = 'violet' | 'coral' | 'cyan' | 'ink';
+const LIGHT_INK = '#111111';
 
 const tones: Record<Tone, { background: readonly [string, string]; accent: string; ink: string }> = {
-  violet: { background: ['#EEE9FF', '#FFF8F4'], accent: colors.violet, ink: colors.text },
-  coral: { background: ['#FFE5DD', '#FFF9F1'], accent: colors.coral, ink: colors.text },
-  cyan: { background: ['#DDF8F5', '#FFF9F1'], accent: '#008D96', ink: colors.text },
+  violet: { background: ['#EEE9FF', '#FFF8F4'], accent: colors.violet, ink: LIGHT_INK },
+  coral: { background: ['#FFE5DD', '#FFF9F1'], accent: colors.coral, ink: LIGHT_INK },
+  cyan: { background: ['#DDF8F5', '#FFF9F1'], accent: '#008D96', ink: LIGHT_INK },
   ink: { background: ['#231D1D', '#171313'], accent: '#FFB2A7', ink: colors.paper },
 };
 
@@ -243,7 +244,7 @@ export function EventCard({
         </Text>
       </View>
       <View style={[styles.eventArrow, { backgroundColor: palette.ink }]}>
-        <Ionicons name="arrow-forward" size={14} color={tone === 'ink' ? colors.text : colors.paper} />
+        <Ionicons name="arrow-forward" size={14} color={tone === 'ink' ? colors.black : colors.paper} />
       </View>
     </Pressable>
   );

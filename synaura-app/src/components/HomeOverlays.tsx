@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -9,6 +9,7 @@ import { TrackCover } from '@/components/TrackCover';
 import { openInternalLink } from '@/navigation/internalLinks';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors, spacing } from '@/theme/tokens';
+import { SynauraSearchField } from '@/components/search/SynauraSearchField';
 
 const emptyResults: SearchResults = { tracks: [], posts: [], artists: [], playlists: [] };
 const notificationCategories = ['all', 'social', 'music', 'system'] as const;
@@ -89,10 +90,15 @@ export function UniversalSearchModal({ visible, onClose }: { visible: boolean; o
       <View style={styles.scrim}>
         <View style={[styles.sheet, styles.searchModalSheet, { marginTop: insets.top + 8 }]}>
           <SheetHeader title="Recherche Synaura" subtitle={loading ? 'Recherche...' : total ? `${total} resultats` : 'sons, posts, playlists et createurs'} onClose={onClose} />
-          <View style={styles.searchInputWrap}>
-            <Ionicons name="search" size={19} color={colors.textTertiary} />
-            <TextInput autoFocus value={query} onChangeText={setQuery} placeholder="Rechercher sur Synaura..." placeholderTextColor={colors.textTertiary} style={styles.searchInput} />
-            {query ? <Pressable onPress={() => setQuery('')}><Ionicons name="close-circle" size={20} color={colors.textTertiary} /></Pressable> : null}
+          <View style={styles.searchFieldWrap}>
+            <SynauraSearchField
+              autoFocus
+              value={query}
+              onChangeText={setQuery}
+              onClear={() => setQuery('')}
+              loading={loading}
+              placeholder="Titre, artiste, playlist, club..."
+            />
           </View>
           <ScrollView contentContainerStyle={styles.results} keyboardShouldPersistTaps="handled">
             {query.trim().length < 2 ? (
@@ -194,7 +200,7 @@ export function NotificationModal({ visible, onClose, onUnreadChange }: { visibl
             {notificationCategories.map((item) => <Pressable key={item} onPress={() => setCategory(item)} style={[styles.category, category === item && styles.categoryActive]}><Text style={[styles.categoryText, category === item && styles.categoryTextActive]}>{item === 'all' ? 'Toutes' : item}</Text></Pressable>)}
           </ScrollView>
           <ScrollView contentContainerStyle={styles.results}>
-            {loading ? <ActivityIndicator color={colors.black} style={{ marginTop: 40 }} /> : null}
+            {loading ? <ActivityIndicator color={colors.violet} style={{ marginTop: 40 }} /> : null}
             {!loading && !items.length ? <Empty icon="notifications-outline" title="Aucune notification" text="Les nouvelles activites apparaitront ici." /> : null}
             {items.map((item) => (
               <Pressable key={item.id} onPress={() => openNotification(item)} style={[styles.notification, !item.isRead && styles.notificationUnread]}>
@@ -223,39 +229,38 @@ function Empty({ icon, title, text }: { icon: keyof typeof Ionicons.glyphMap; ti
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(23,19,19,0.34)', justifyContent: 'flex-start', padding: spacing.md },
-  sheet: { maxHeight: '88%', overflow: 'hidden', borderRadius: 26, borderWidth: 1, borderColor: '#D8CBB8', backgroundColor: '#FFF7EC', shadowColor: '#1E1914', shadowOpacity: 0.28, shadowRadius: 35, elevation: 14 },
+  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-start', padding: spacing.md },
+  sheet: { maxHeight: '88%', overflow: 'hidden', borderRadius: 22, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface, shadowColor: '#000000', shadowOpacity: 0.42, shadowRadius: 35, elevation: 14 },
   searchModalSheet: { width: '100%', maxWidth: 680, maxHeight: '76%', alignSelf: 'center' },
   notificationSheet: { width: '100%', maxWidth: 680, maxHeight: '68%', alignSelf: 'center' },
-  sheetHeader: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderColor: '#E2D6C4', backgroundColor: '#FFFAF2' },
+  sheetHeader: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, borderBottomWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong },
   sheetTitleWrap: { flex: 1 }, sheetTitle: { color: colors.text, fontSize: 17, fontWeight: '900' }, sheetSubtitle: { marginTop: 2, color: colors.textTertiary, fontSize: 11, fontWeight: '800' },
-  iconButton: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.055)' },
-  searchInputWrap: { margin: spacing.md, height: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 24, backgroundColor: '#EFE4D4', paddingHorizontal: spacing.md },
-  searchInput: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '800' },
+  iconButton: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  searchFieldWrap: { margin: spacing.md },
   results: { padding: spacing.md, paddingBottom: 50, gap: spacing.sm },
   discovery: { paddingTop: spacing.sm },
   discoveryKicker: { color: colors.violet, fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
   suggestionRow: { marginTop: spacing.md, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   suggestion: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 19, borderWidth: 1, paddingHorizontal: 12 },
   suggestionText: { color: colors.text, fontSize: 11, fontWeight: '900' },
-  fullSearch: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.sm },
-  fullSearchIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
+  fullSearch: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 14, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong, padding: spacing.sm },
+  fullSearchIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   fullSearchTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   fullSearchText: { marginTop: 2, color: colors.textTertiary, fontSize: 9, lineHeight: 13, fontWeight: '700' },
   resultSectionTitle: { marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
   resultSectionText: { color: colors.textTertiary, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
-  resultRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 17, backgroundColor: '#EFE4D4', padding: spacing.sm },
+  resultRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceStrong, padding: spacing.sm },
   resultImage: { width: 46, height: 46, borderRadius: 13, backgroundColor: 'rgba(23,19,19,0.08)' },
   avatar: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' }, avatarText: { color: colors.paper, fontSize: 15, fontWeight: '900' },
   resultCopy: { flex: 1, minWidth: 0 }, resultTitle: { color: colors.text, fontSize: 13, fontWeight: '900' }, resultMeta: { marginTop: 3, color: colors.textSecondary, fontSize: 11, fontWeight: '700', lineHeight: 16 },
   playCircle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
   empty: { alignItems: 'center', paddingVertical: 50 }, emptyTitle: { marginTop: spacing.sm, color: colors.textSecondary, fontSize: 14, fontWeight: '900' }, emptyText: { marginTop: 4, color: colors.textTertiary, fontSize: 11, fontWeight: '700' },
-  categories: { gap: spacing.sm, padding: spacing.md, borderBottomWidth: 1, borderColor: '#E2D6C4' },
-  category: { height: 34, justifyContent: 'center', borderRadius: 17, backgroundColor: '#EFE4D4', paddingHorizontal: 14 }, categoryActive: { backgroundColor: colors.black },
+  categories: { gap: spacing.sm, padding: spacing.md, borderBottomWidth: 1, borderColor: colors.borderStrong },
+  category: { height: 34, justifyContent: 'center', borderRadius: 17, backgroundColor: colors.surfaceMuted, paddingHorizontal: 14 }, categoryActive: { backgroundColor: colors.violet },
   categoryText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900', textTransform: 'capitalize' }, categoryTextActive: { color: colors.paper },
-  notification: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, borderRadius: 17, borderWidth: 1, borderColor: '#DCCFBB', backgroundColor: '#FFF8EE', padding: spacing.md },
-  notificationUnread: { borderColor: 'rgba(124,92,255,0.18)', backgroundColor: 'rgba(124,92,255,0.08)' },
-  notificationIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.055)' },
+  notification: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceStrong, padding: spacing.md },
+  notificationUnread: { borderColor: 'rgba(115,87,198,0.45)', backgroundColor: colors.violetSoft },
+  notificationIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
   notificationTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 }, unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.violet },
   notificationTime: { marginTop: 5, color: colors.textTertiary, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   deleteButton: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },

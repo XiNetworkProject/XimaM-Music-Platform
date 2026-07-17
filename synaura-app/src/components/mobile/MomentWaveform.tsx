@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   reactionChip: { minHeight: 36, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, backgroundColor: 'rgba(255,255,255,0.07)', paddingHorizontal: 9 },
   reactionText: { color: colors.white, fontSize: 10, fontWeight: '900' },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm },
-  input: { flex: 1, minHeight: 48, maxHeight: 92, borderRadius: 8, backgroundColor: colors.white, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, color: colors.text, fontSize: 13, fontWeight: '700' },
+  input: { flex: 1, minHeight: 48, maxHeight: 92, borderRadius: 8, backgroundColor: colors.white, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, color: colors.black, fontSize: 13, fontWeight: '700' },
   sendButton: { width: 44, height: 44, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   disabledBox: { marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.06)', padding: spacing.sm },
   disabledText: { flex: 1, color: 'rgba(255,255,255,0.48)', fontSize: 10, lineHeight: 15, fontWeight: '800' },

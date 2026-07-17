@@ -573,7 +573,7 @@ export function UploadScreen() {
               <View style={styles.releaseGrid}>
                 {RELEASES.map((item) => (
                   <Pressable key={item.key} onPress={() => selectRelease(item.key)} style={[styles.releaseCard, releaseType === item.key && styles.releaseCardActive]}>
-                    <Ionicons name={item.icon} size={24} color={releaseType === item.key ? '#171313' : 'rgba(255,250,242,0.52)'} />
+                    <Ionicons name={item.icon} size={24} color={releaseType === item.key ? '#171313' : 'rgba(255,250,242,0.72)'} />
                     <Text style={[styles.releaseTitle, releaseType === item.key && styles.releaseTitleActive]}>{item.title}</Text>
                     <Text style={[styles.releaseSub, releaseType === item.key && styles.releaseSubActive]}>{item.subtitle}</Text>
                   </Pressable>
@@ -581,7 +581,7 @@ export function UploadScreen() {
               </View>
 
               <Pressable onPress={pickAudio} style={styles.dropZone}>
-                <Ionicons name="cloud-upload-outline" size={34} color="rgba(255,250,242,0.38)" />
+                <Ionicons name="cloud-upload-outline" size={34} color="rgba(255,250,242,0.66)" />
                 <Text style={styles.dropZoneTitle}>{releaseType === 'single' ? (audio ? audio.name : 'Ajoute ton morceau principal') : 'Ajouter les pistes'}</Text>
                 <Text style={styles.dropZoneText}>
                   {releaseType === 'single'
@@ -600,7 +600,7 @@ export function UploadScreen() {
                     <View key={`${track.uri}-${index}`} style={styles.trackRow}>
                       <View style={styles.trackIndex}><Text style={styles.trackIndexText}>{index + 1}</Text></View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <TextInput value={track.title} onChangeText={(value) => updateTrack(index, { title: value })} placeholder="Titre piste" placeholderTextColor="rgba(255,250,242,0.25)" style={styles.trackInput} />
+                        <TextInput value={track.title} onChangeText={(value) => updateTrack(index, { title: value })} placeholder="Titre piste" placeholderTextColor="rgba(255,250,242,0.52)" style={styles.trackInput} />
                         <Text style={styles.trackFile} numberOfLines={1}>{track.name} - {formatBytes(track.size)}</Text>
                       </View>
                       <Pressable onPress={() => removeTrack(index)} style={styles.iconButton}><Ionicons name="close" size={16} color="rgba(255,250,242,0.62)" /></Pressable>
@@ -617,7 +617,7 @@ export function UploadScreen() {
                 <Pressable onPress={pickCover} style={styles.coverPicker}>
                   {previewTrack ? <TrackCover track={previewTrack} active autoPlayVideo style={StyleSheet.absoluteFill} /> : (
                     <View style={styles.coverEmpty}>
-                      <Ionicons name="image-outline" size={28} color="rgba(255,250,242,0.34)" />
+                      <Ionicons name="image-outline" size={28} color="rgba(255,250,242,0.62)" />
                       <Text style={styles.coverEmptyText}>Cover image ou video</Text>
                       <Text style={styles.coverEmptySub}>Video 7s max</Text>
                     </View>
@@ -807,7 +807,7 @@ function Field({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={dark ? 'rgba(255,250,242,0.24)' : colors.textTertiary}
+        placeholderTextColor={dark ? 'rgba(255,250,242,0.54)' : colors.textTertiary}
         multiline={multiline}
         textAlignVertical={multiline ? 'top' : 'center'}
         style={[styles.input, dark && styles.inputDark, multiline && styles.inputMulti, tall && styles.inputTall]}
@@ -823,7 +823,7 @@ function Collapsible({ title, icon, children, defaultOpen = false }: { title: st
       <Pressable onPress={() => setOpen(!open)} style={styles.collapsibleHead}>
         <View style={styles.collapsibleIcon}><Ionicons name={icon} size={16} color="#C7B8FF" /></View>
         <Text style={styles.collapsibleTitle}>{title}</Text>
-        <Ionicons name={open ? 'chevron-down' : 'chevron-forward'} size={16} color="rgba(255,250,242,0.34)" />
+        <Ionicons name={open ? 'chevron-down' : 'chevron-forward'} size={16} color="rgba(255,250,242,0.64)" />
       </Pressable>
       {open ? <View style={styles.collapsibleBody}>{children}</View> : null}
     </View>
@@ -884,7 +884,7 @@ const styles = StyleSheet.create({
   statusCardActive: { backgroundColor: '#FFFAF2', borderColor: '#FFFAF2' },
   statusCardDone: { backgroundColor: 'rgba(16,185,129,0.12)', borderColor: 'rgba(167,243,208,0.22)' },
   statusTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  statusLabel: { color: 'rgba(255,250,242,0.38)', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
+  statusLabel: { color: 'rgba(255,250,242,0.64)', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
   statusLabelActive: { color: 'rgba(23,19,19,0.45)' },
   statusIcon: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.08)' },
   statusIconActive: { backgroundColor: '#171313' },
@@ -906,12 +906,12 @@ const styles = StyleSheet.create({
   progressInner: { height: 4, borderRadius: 999, backgroundColor: colors.cyan },
   studioPanel: { overflow: 'hidden', borderRadius: 20, backgroundColor: '#151316', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderTopWidth: 3, borderTopColor: '#7357C6' },
   panelHeader: { padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,250,242,0.08)', backgroundColor: '#1D1717', gap: 12 },
-  panelKicker: { color: 'rgba(255,250,242,0.34)', fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
+  panelKicker: { color: 'rgba(255,250,242,0.64)', fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
   panelTitle: { marginTop: 2, color: '#FFFFFF', fontSize: 21, fontWeight: '900' },
   segment: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.06)', padding: 3, borderRadius: 10 },
   segmentItem: { flex: 1, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   segmentItemActive: { backgroundColor: '#FFFAF2' },
-  segmentText: { color: 'rgba(255,250,242,0.46)', fontSize: 11, fontWeight: '900', textTransform: 'capitalize' },
+  segmentText: { color: 'rgba(255,250,242,0.68)', fontSize: 11, fontWeight: '900', textTransform: 'capitalize' },
   segmentTextActive: { color: '#171313' },
   panelBody: { padding: 14, gap: 14 },
   releaseGrid: { gap: 0 },
@@ -919,33 +919,33 @@ const styles = StyleSheet.create({
   releaseCardActive: { backgroundColor: '#FFFAF2', borderColor: '#FFFAF2' },
   releaseTitle: { marginTop: 7, color: '#FFFAF2', fontSize: 15, fontWeight: '900' },
   releaseTitleActive: { color: '#171313' },
-  releaseSub: { marginTop: 2, color: 'rgba(255,250,242,0.38)', fontSize: 11, fontWeight: '700' },
+  releaseSub: { marginTop: 2, color: 'rgba(255,250,242,0.64)', fontSize: 11, fontWeight: '700' },
   releaseSubActive: { color: 'rgba(23,19,19,0.5)' },
   dropZone: { minHeight: 156, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.25)', backgroundColor: 'rgba(255,255,255,0.035)', alignItems: 'center', justifyContent: 'center', padding: 18 },
   dropZoneTitle: { marginTop: 10, color: '#FFFAF2', textAlign: 'center', fontSize: 16, fontWeight: '900' },
-  dropZoneText: { marginTop: 5, color: 'rgba(255,250,242,0.38)', textAlign: 'center', fontSize: 11, fontWeight: '700' },
+  dropZoneText: { marginTop: 5, color: 'rgba(255,250,242,0.64)', textAlign: 'center', fontSize: 11, fontWeight: '700' },
   trackList: { gap: 9 },
   trackListHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionLabel: { color: 'rgba(255,250,242,0.48)', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
+  sectionLabel: { color: 'rgba(255,250,242,0.70)', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
   warnText: { color: '#D96D63', fontSize: 11, fontWeight: '900' },
   trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 0, backgroundColor: 'transparent', paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.12)' },
   trackIndex: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.08)' },
   trackIndexText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900' },
   trackInput: { minHeight: 38, color: '#FFFAF2', fontSize: 14, fontWeight: '900', padding: 0 },
-  trackFile: { color: 'rgba(255,250,242,0.34)', fontSize: 10, fontWeight: '700' },
+  trackFile: { color: 'rgba(255,250,242,0.58)', fontSize: 10, fontWeight: '700' },
   iconButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.07)' },
   coverTitleRow: { flexDirection: 'row', gap: 12 },
   coverPicker: { width: 120, height: 120, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.035)' },
   coverTitleRowStack: { flexDirection: 'column', alignItems: 'stretch' },
   coverEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 8 },
-  coverEmptyText: { marginTop: 8, color: 'rgba(255,250,242,0.48)', fontSize: 11, fontWeight: '900', textAlign: 'center' },
-  coverEmptySub: { marginTop: 3, color: 'rgba(255,250,242,0.28)', fontSize: 9, fontWeight: '800' },
+  coverEmptyText: { marginTop: 8, color: 'rgba(255,250,242,0.70)', fontSize: 11, fontWeight: '900', textAlign: 'center' },
+  coverEmptySub: { marginTop: 3, color: 'rgba(255,250,242,0.54)', fontSize: 9, fontWeight: '800' },
   coverInfo: { color: 'rgba(167,243,208,0.85)', fontSize: 11, fontWeight: '800' },
   artistField: { gap: 7 },
-  artistValue: { minHeight: 46, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 14, backgroundColor: 'rgba(255,255,255,0.035)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.44)', fontSize: 13, fontWeight: '800' },
+  artistValue: { minHeight: 46, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 14, backgroundColor: 'rgba(255,255,255,0.035)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.72)', fontSize: 13, fontWeight: '800' },
   field: { gap: 7 },
   label: { color: colors.textSecondary, fontSize: 11, fontWeight: '900', letterSpacing: 0.7, textTransform: 'uppercase' },
-  darkLabel: { color: 'rgba(255,250,242,0.36)', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
+  darkLabel: { color: 'rgba(255,250,242,0.64)', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
   input: { minHeight: 46, borderRadius: 8, backgroundColor: colors.surfaceStrong, paddingHorizontal: 13, color: colors.text, fontSize: 14, fontWeight: '700', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   inputDark: { backgroundColor: 'rgba(255,250,242,0.04)', borderBottomColor: 'rgba(255,250,242,0.18)', color: '#FFFAF2' },
   inputMulti: { minHeight: 86, paddingTop: 12, paddingBottom: 12 },
@@ -961,30 +961,30 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: colors.violet, borderColor: colors.violet },
   chipActiveDark: { backgroundColor: '#FFFAF2', borderColor: '#FFFAF2' },
   chipText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
-  chipTextDark: { color: 'rgba(255,250,242,0.54)' },
+  chipTextDark: { color: 'rgba(255,250,242,0.74)' },
   chipTextActive: { color: '#171313' },
   visibilityGrid: { flexDirection: 'row', gap: 4 },
   visibilityItem: { flex: 1, minHeight: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, backgroundColor: 'rgba(255,255,255,0.06)' },
   visibilityItemActive: { backgroundColor: '#FFFAF2' },
-  visibilityText: { color: 'rgba(255,250,242,0.48)', fontSize: 13, fontWeight: '900' },
+  visibilityText: { color: 'rgba(255,250,242,0.70)', fontSize: 13, fontWeight: '900' },
   visibilityTextActive: { color: '#171313' },
   switchRowDark: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 0, backgroundColor: 'transparent', paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.13)' },
   remixPermissionsBox: { borderRadius: 14, backgroundColor: 'rgba(74,158,170,0.08)', borderLeftWidth: 3, borderColor: '#4A9EAA', padding: 13 },
   remixPermissionsHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   remixPermissionsIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(74,158,170,0.16)' },
   remixPermissionsTitle: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
-  remixPermissionsSub: { marginTop: 1, color: 'rgba(255,250,242,0.4)', fontSize: 10, fontWeight: '700' },
+  remixPermissionsSub: { marginTop: 1, color: 'rgba(255,250,242,0.66)', fontSize: 10, fontWeight: '700' },
   switchTitleDark: { color: 'rgba(255,250,242,0.78)', fontSize: 13, fontWeight: '900' },
-  switchSubDark: { marginTop: 2, color: 'rgba(255,250,242,0.34)', fontSize: 10, fontWeight: '700' },
+  switchSubDark: { marginTop: 2, color: 'rgba(255,250,242,0.60)', fontSize: 10, fontWeight: '700' },
   previewBox: { flexDirection: 'row', gap: 12, borderRadius: 14, borderLeftWidth: 3, borderColor: '#D96D63', backgroundColor: 'rgba(255,255,255,0.04)', padding: 12 },
   previewCover: { width: 88, height: 88, borderRadius: 10, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.08)' },
   previewTitle: { color: '#FFFAF2', fontSize: 18, lineHeight: 22, fontWeight: '900' },
-  previewMeta: { marginTop: 5, color: 'rgba(255,250,242,0.46)', fontSize: 11, fontWeight: '800' },
-  previewDesc: { marginTop: 8, color: 'rgba(255,250,242,0.34)', fontSize: 11, lineHeight: 16, fontWeight: '700' },
+  previewMeta: { marginTop: 5, color: 'rgba(255,250,242,0.68)', fontSize: 11, fontWeight: '800' },
+  previewDesc: { marginTop: 8, color: 'rgba(255,250,242,0.60)', fontSize: 11, lineHeight: 16, fontWeight: '700' },
   progressBox: { gap: 10, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.04)', padding: 12 },
   progressHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-  progressLabel: { color: 'rgba(255,250,242,0.38)', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
-  progressValue: { color: 'rgba(255,250,242,0.56)', fontSize: 10, fontWeight: '900' },
+  progressLabel: { color: 'rgba(255,250,242,0.64)', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
+  progressValue: { color: 'rgba(255,250,242,0.74)', fontSize: 10, fontWeight: '900' },
   progressTrack: { height: 6, borderRadius: 999, backgroundColor: 'rgba(255,250,242,0.08)', overflow: 'hidden' },
   progressFill: { height: 6, borderRadius: 999, backgroundColor: '#FFFAF2' },
   footerBar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,250,242,0.08)', backgroundColor: 'rgba(23,19,19,0.96)' },
@@ -1003,8 +1003,8 @@ const styles = StyleSheet.create({
   checkIcon: { width: 26, height: 26, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
   checkIconDone: { backgroundColor: 'rgba(16,185,129,0.14)' },
   checkText: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  error: { overflow: 'hidden', borderRadius: 16, padding: 12, backgroundColor: 'rgba(239,68,68,0.1)', color: '#B91C1C', fontSize: 12, fontWeight: '800' },
-  success: { overflow: 'hidden', borderRadius: 16, padding: 12, backgroundColor: 'rgba(16,185,129,0.12)', color: '#047857', fontSize: 12, fontWeight: '900' },
+  error: { overflow: 'hidden', borderRadius: 16, padding: 12, backgroundColor: 'rgba(239,68,68,0.12)', color: '#FF9A90', fontSize: 12, fontWeight: '800' },
+  success: { overflow: 'hidden', borderRadius: 16, padding: 12, backgroundColor: 'rgba(16,185,129,0.12)', color: '#66D6A2', fontSize: 12, fontWeight: '900' },
   authGate: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, gap: 14 },
   authIcon: { width: 72, height: 72, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   authTitle: { color: colors.text, fontSize: 24, fontWeight: '900', textAlign: 'center' },

@@ -15,7 +15,7 @@ import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { ProfileIdentityHero } from '@/components/profile/ProfileIdentityHero';
-import { ProfileClipCard } from '@/components/profile/ProfileClipCard';
+import { ProfileClipGrid } from '@/components/profile/ProfileClipGrid';
 import { ProfileMusicCatalog } from '@/components/profile/ProfileMusicCatalog';
 import { ProfileShareSheet } from '@/components/profile/ProfileShareSheet';
 import { colors } from '@/theme/tokens';
@@ -288,16 +288,7 @@ export function PublicProfileScreen() {
                 <Text style={styles.retryText}>Recharger les clips</Text>
               </Pressable>
             ) : (
-              <View style={styles.clipsGrid}>
-                {clips.slice(0, responsive.isTablet ? 4 : 3).map((clip) => (
-                  <ProfileClipCard
-                    key={`preview-${clip.id}`}
-                    clip={clip}
-                    style={{ width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }}
-                    onPress={() => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })}
-                  />
-                ))}
-              </View>
+              <ProfileClipGrid clips={clips} maxItems={responsive.isTablet ? 4 : 2} onOpen={(clip) => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })} />
             )}
           </View>
         ) : null}
@@ -345,16 +336,7 @@ export function PublicProfileScreen() {
                 <Text style={styles.retryText}>Recharger les clips</Text>
               </Pressable>
             ) : clips.length ? (
-              <View style={styles.clipsGrid}>
-                {clips.map((clip) => (
-                  <ProfileClipCard
-                    key={clip.id}
-                    clip={clip}
-                    style={{ width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }}
-                    onPress={() => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })}
-                  />
-                ))}
-              </View>
+              <ProfileClipGrid clips={clips} onOpen={(clip) => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })} />
             ) : <Text style={styles.empty}>{profile.username === username ? "Tu n'as pas encore publié de clip." : 'Aucun clip publié.'}</Text>}
             {clipsHasMore ? (
               <Pressable disabled={clipsLoadingMore} onPress={() => void loadClips(clipsCursor, { creatorId: profile.id, creatorUsername: profile.username })} style={styles.retryButton}>
@@ -460,7 +442,6 @@ const styles = StyleSheet.create({
   identityPillCyan: { backgroundColor: 'rgba(0,194,203,0.10)', borderColor: 'rgba(0,194,203,0.25)' },
   identityPillCoral: { backgroundColor: 'rgba(255,111,97,0.10)', borderColor: 'rgba(255,111,97,0.25)' },
   identityPillText: { fontSize: 10, fontWeight: '900' },
-  clipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   sectionHead: { minHeight: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   sectionTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '900' },
   sectionLink: { color: '#5B3FD6', fontSize: 11, fontWeight: '900' },

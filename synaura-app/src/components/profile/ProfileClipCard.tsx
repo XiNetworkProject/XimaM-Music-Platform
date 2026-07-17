@@ -88,7 +88,6 @@ const styles = StyleSheet.create({
   card: {
     position: 'relative',
     minWidth: 0,
-    aspectRatio: 9 / 15,
     overflow: 'hidden',
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,

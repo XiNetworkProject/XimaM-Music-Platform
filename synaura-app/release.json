@@ -1,13 +1,13 @@
 {
-  "title": "Synaura Profils Clips 0.20.1",
+  "title": "Synaura Lisibilite et Clips 0.20.2",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Affichage fiable des Clips publies sur les profils publics et de tous les Clips sur le profil proprietaire",
-    "Nouvelles cartes Clips immersives avec miniature, morceau associe, duree et interactions reelles",
-    "Menu de gestion natif pour ouvrir, modifier, partager, publier, rendre prive ou supprimer un Clip",
-    "Edition de la legende, des tags et de la visibilite sans reenvoyer la video",
-    "Suppression confirmee dans une feuille Synaura, sans dialogue Android brut",
-    "Chargement de profil protege contre les reponses reseau concurrentes et les identifiants de createur divergents"
+    "Grille Clips des profils mesuree en pixels pour supprimer les cartes ecrasees sur certains appareils",
+    "Cartes Clips verticales completes sur les profils publics et prives, avec leurs actions de gestion existantes",
+    "Contrastes corriges dans Events, Publier, les battles, les notifications et les commentaires de moments",
+    "Recherche native refondue avec un champ Synaura coherent dans Decouvrir, l accueil et la page complete",
+    "Etats, libelles et aides de publication renforces pour rester lisibles sur le fond sombre",
+    "Correctifs complementaires des boutons clairs de l accueil et des cartes Pulse"
   ]
 }

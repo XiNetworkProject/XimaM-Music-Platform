@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { getPopularTracks, searchEverything } from '@/api/client';
@@ -16,6 +16,7 @@ import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { SynauraSearchField } from '@/components/search/SynauraSearchField';
 
 const RECENT_KEY = 'synaura.search.recent.v2';
 const EMPTY_RESULTS: SearchResults = { tracks: [], artists: [], playlists: [], posts: [] };
@@ -86,19 +87,17 @@ export function SearchScreen() {
         showsVerticalScrollIndicator={false}
       >
         <AppHeader title="Recherche" subtitle="Sons, artistes, playlists et communauté" onBack={() => navigation.goBack()} />
-        <View style={styles.search}>
-          <Ionicons name="search" size={19} color={colors.textTertiary} />
-          <TextInput
+        <View style={styles.searchStage}>
+          <Text style={styles.searchKicker}>TOUT SYNAURA</Text>
+          <SynauraSearchField
             autoFocus
             value={query}
             onChangeText={setQuery}
-            onSubmitEditing={() => submitRecent()}
-            placeholder="Que veux-tu écouter ?"
-            placeholderTextColor={colors.textTertiary}
-            returnKeyType="search"
-            style={styles.input}
+            onSubmit={() => submitRecent()}
+            onClear={() => setQuery('')}
+            loading={loading}
+            placeholder="Titre, artiste, playlist, club..."
           />
-          {query ? <Pressable onPress={() => setQuery('')} style={styles.clear}><Ionicons name="close" size={17} color={colors.textSecondary} /></Pressable> : null}
         </View>
 
         {loading ? <LoadingSkeleton rows={4} /> : null}
@@ -149,9 +148,8 @@ function ArtistCard({ artist, onPress }: { artist: Creator; onPress: () => void 
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 170, gap: spacing.xl },
-  search: { height: 54, marginHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surfaceStrong, paddingHorizontal: spacing.md },
-  input: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '700' },
-  clear: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  searchStage: { marginHorizontal: spacing.lg, gap: 8 },
+  searchKicker: { color: colors.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 0 },
   section: { gap: spacing.md },
   sectionHeader: { minHeight: 35, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, marginHorizontal: spacing.lg },
   sectionTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },

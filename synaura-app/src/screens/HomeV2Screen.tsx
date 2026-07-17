@@ -153,7 +153,7 @@ export function HomeV2Screen() {
               <Text numberOfLines={1} style={styles.heroArtist}>{artistName(hero)}</Text>
               <View style={styles.heroActions}>
                 <Pressable onPress={() => playFrom(recommendations.length ? recommendations : [hero], hero)} style={styles.heroPlay}>
-                  <Ionicons name={player.current?._id === hero._id && player.isPlaying ? 'pause' : 'play'} size={18} color={colors.text} />
+                  <Ionicons name={player.current?._id === hero._id && player.isPlaying ? 'pause' : 'play'} size={18} color={colors.black} />
                   <Text style={styles.heroPlayText}>{player.current?._id === hero._id && player.isPlaying ? 'En lecture' : 'Écouter'}</Text>
                 </Pressable>
                 <Pressable onPress={() => navigation.navigate('Swipe')} style={styles.heroScroll}>
@@ -405,7 +405,7 @@ function TrackTile({ track, playing, onPress }: { track: Track; playing: boolean
     <Pressable onPress={onPress} style={styles.trackTile}>
       <View style={styles.trackTileCoverWrap}>
         <TrackCover track={track} active={playing} style={styles.trackTileCover} />
-        <View style={styles.trackTilePlay}><Ionicons name={playing ? 'pause' : 'play'} size={15} color={colors.text} /></View>
+        <View style={styles.trackTilePlay}><Ionicons name={playing ? 'pause' : 'play'} size={15} color={colors.black} /></View>
       </View>
       <Text numberOfLines={1} style={styles.trackTileTitle}>{track.title}</Text>
       <Text numberOfLines={1} style={styles.trackTileArtist}>{artistName(track)}</Text>
@@ -466,7 +466,7 @@ function CollectionFeatureCard({ playlist, onPress }: { playlist: Playlist; onPr
         <Text numberOfLines={2} style={[styles.collectionFeatureTitle, responsive.isNarrow && styles.collectionFeatureTitleNarrow]}>{collection?.title || playlist.title}</Text>
         <Text numberOfLines={2} style={styles.collectionFeatureText}>{collection?.subtitle || playlist.vibe}</Text>
         <View style={styles.collectionFeatureAction}>
-          <Ionicons name="play" size={17} color={colors.text} />
+          <Ionicons name="play" size={17} color={colors.black} />
           <Text style={styles.collectionFeatureActionText}>Ouvrir la collection</Text>
         </View>
       </View>
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   heroArtist: { marginTop: 5, color: 'rgba(255,249,239,0.7)', fontSize: 13, fontWeight: '800' },
   heroActions: { marginTop: 13, flexDirection: 'row', alignItems: 'center', gap: 7 },
   heroPlay: { height: 39, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 4, backgroundColor: colors.paper, paddingHorizontal: 13 },
-  heroPlayText: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  heroPlayText: { color: colors.black, fontSize: 12, fontWeight: '900' },
   heroScroll: { height: 39, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.14)', borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 11 },
   heroScrollLetter: { color: colors.paper, fontSize: 18, fontWeight: '900' },
   heroScrollText: { color: colors.paper, fontSize: 10, fontWeight: '800' },
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
   recentTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   recentArtist: { marginTop: 3, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
   composerCard: { marginTop: 12, flexDirection: 'row', gap: 10, borderRadius: 4, borderLeftWidth: 3, borderColor: colors.violet, backgroundColor: colors.surface, padding: 12 },
-  composerAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  composerAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
   composerAvatarText: { color: colors.paper, fontSize: 17, fontWeight: '900' },
   composerBody: { flex: 1, minWidth: 0 },
   composerKicker: { color: colors.accent, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
@@ -624,25 +624,25 @@ const styles = StyleSheet.create({
   composerText: { marginTop: 4, color: colors.textSecondary, fontSize: 11, lineHeight: 16, fontWeight: '700' },
   composerActions: { marginTop: 11, flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   pillAction: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 16, backgroundColor: 'rgba(23,19,19,0.06)', paddingHorizontal: 10 },
-  pillActionActive: { backgroundColor: colors.text },
+  pillActionActive: { backgroundColor: colors.violet },
   pillActionText: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
   pillActionTextActive: { color: colors.paper },
   pulseCard: { marginTop: 12, overflow: 'hidden', borderRadius: 4, borderTopWidth: 3, borderColor: colors.cyan, padding: 14 },
   pulseTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pulseKicker: { color: colors.accent, fontSize: 8, fontWeight: '900', letterSpacing: 1.1 },
-  pulseTitle: { marginTop: 4, color: colors.text, fontSize: 18, fontWeight: '900' },
+  pulseTitle: { marginTop: 4, color: colors.black, fontSize: 18, fontWeight: '900' },
   pulseText: { marginTop: 7, color: colors.textSecondary, fontSize: 11, lineHeight: 16, fontWeight: '700' },
   coverStack: { flexDirection: 'row', alignItems: 'center', paddingRight: 4 },
   stackCover: { width: 42, height: 42, borderRadius: 13, borderWidth: 2, borderColor: colors.paper },
   pulseStats: { marginTop: 12, flexDirection: 'row', gap: 8 },
   miniStat: { flex: 1, minHeight: 48, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.44)', borderBottomWidth: 1, borderBottomColor: 'rgba(17,17,17,0.12)', alignItems: 'center', justifyContent: 'center' },
-  miniStatValue: { color: colors.text, fontSize: 16, fontWeight: '900' },
-  miniStatLabel: { marginTop: 1, color: colors.textTertiary, fontSize: 8, fontWeight: '900' },
+  miniStatValue: { color: colors.black, fontSize: 16, fontWeight: '900' },
+  miniStatLabel: { marginTop: 1, color: 'rgba(17,17,17,0.58)', fontSize: 8, fontWeight: '900' },
   pulseActions: { marginTop: 11, flexDirection: 'row', gap: 8 },
-  pulsePrimary: { flex: 1, height: 38, borderRadius: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  pulsePrimary: { flex: 1, height: 38, borderRadius: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
   pulsePrimaryText: { color: colors.paper, fontSize: 11, fontWeight: '900' },
   pulseSecondary: { flex: 1, height: 38, borderRadius: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.58)' },
-  pulseSecondaryText: { color: colors.text, fontSize: 11, fontWeight: '900' },
+  pulseSecondaryText: { color: colors.black, fontSize: 11, fontWeight: '900' },
   playlistRail: { gap: 12, paddingRight: 18 },
   playlistTile: { width: 126 },
   playlistCover: { width: 126, height: 96, flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden', borderRadius: 4, backgroundColor: 'rgba(23,19,19,0.06)', alignItems: 'center', justifyContent: 'center' },
@@ -651,7 +651,7 @@ const styles = StyleSheet.create({
   playlistBadge: { color: colors.paper, fontSize: 9, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
   playlistTitle: { marginTop: 8, color: colors.text, fontSize: 12, fontWeight: '900' },
   playlistMeta: { marginTop: 2, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
-  collectionFeature: { minHeight: 310, borderRadius: 4, overflow: 'hidden', marginTop: 4, marginBottom: 6, backgroundColor: colors.text },
+  collectionFeature: { minHeight: 310, borderRadius: 4, overflow: 'hidden', marginTop: 4, marginBottom: 6, backgroundColor: colors.black },
   collectionFeatureImage: { ...StyleSheet.absoluteFillObject, opacity: 0.48 },
   collectionFeatureBody: { flex: 1, justifyContent: 'flex-end', padding: 20 },
   collectionFeatureBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: 999, backgroundColor: 'rgba(255,249,239,0.18)', paddingHorizontal: 12, paddingVertical: 7, color: colors.paper, fontSize: 10, fontWeight: '900', letterSpacing: 1.3, textTransform: 'uppercase' },
@@ -659,11 +659,11 @@ const styles = StyleSheet.create({
   collectionFeatureTitleNarrow: { fontSize: 27, lineHeight: 29 },
   collectionFeatureText: { marginTop: 10, color: 'rgba(255,249,239,0.78)', fontSize: 14, lineHeight: 20, fontWeight: '800' },
   collectionFeatureAction: { alignSelf: 'flex-start', marginTop: 16, height: 48, borderRadius: 4, backgroundColor: colors.paper, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  collectionFeatureActionText: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  collectionFeatureActionText: { color: colors.black, fontSize: 13, fontWeight: '900' },
   postList: { gap: 0 },
   postCard: { borderRadius: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: 'transparent', paddingVertical: 14 },
   postHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  postAvatar: { width: 36, height: 36, borderRadius: 18, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  postAvatar: { width: 36, height: 36, borderRadius: 18, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
   postAvatarText: { color: colors.paper, fontSize: 15, fontWeight: '900' },
   postAuthor: { flex: 1, minWidth: 0 },
   postName: { color: colors.text, fontSize: 12, fontWeight: '900' },
@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
   postTrackCopy: { flex: 1, minWidth: 0 },
   postTrackTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   postTrackArtist: { marginTop: 3, color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
-  postPlay: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  postPlay: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
   wave: { marginTop: 7, flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 18 },
   waveBar: { width: 5, borderRadius: 3, backgroundColor: 'rgba(115,87,198,0.42)' },
   postActions: { marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
@@ -686,5 +686,5 @@ const styles = StyleSheet.create({
   emptyCommunity: { marginTop: 16, minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 4, borderLeftWidth: 3, borderColor: colors.coral, backgroundColor: colors.surface, padding: 12 },
   emptyCommunityTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   emptyCommunityText: { marginTop: 3, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
-  emptyCommunityButton: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  emptyCommunityButton: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
 });

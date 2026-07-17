@@ -38,6 +38,7 @@ import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { readDiscoverVisualCache, writeDiscoverVisualCache } from '@/discover/discoverCache';
 import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
 import { CityHomeBanner } from '@/components/city/CityHomeBanner';
+import { SynauraSearchField } from '@/components/search/SynauraSearchField';
 
 const INTENTION_TO_CLUB_SLUG: Record<string, string> = {
   remix: 'remix',
@@ -360,11 +361,11 @@ export function DiscoverV2Screen() {
           )}
         />
 
-        <MotionPressable onPress={() => setSearchOpen(true)} style={styles.search} scaleTo={0.98}>
-          <Ionicons name="search" size={19} color={colors.textSecondary} />
-          <Text style={styles.searchText}>Sons, artistes, playlists, clubs...</Text>
-          <View style={styles.searchArrow}><Ionicons name="arrow-forward" size={15} color={colors.white} /></View>
-        </MotionPressable>
+        <SynauraSearchField
+          onPress={() => setSearchOpen(true)}
+          placeholder="Rechercher sur Synaura"
+          scope="Sons, artistes, playlists et clubs"
+        />
 
         {leadTrack ? (
           <DiscoverLeadCard
@@ -738,9 +739,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: 18, paddingBottom: 160, gap: 26 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  search: { height: 52, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: radius.md, backgroundColor: colors.surface, paddingHorizontal: 14 },
-  searchText: { flex: 1, minWidth: 0, color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
-  searchArrow: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   leadCard: { height: 252, overflow: 'hidden', borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: colors.black, ...shadows.floating },
   leadCardTablet: { height: 300 },
   leadTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9, padding: 14 },
