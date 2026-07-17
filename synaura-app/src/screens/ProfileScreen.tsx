@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { deleteTrack, getMusicClips, getMyProfile, getNotifications, getPendingApprovals, getSubscriptionUsage, getUserPostsPage, getUserVariations, pinPost, unpinPost, updateTrackMetadata, type MobileProfile, type MobileProfileTrack, type SubscriptionUsage } from '@/api/client';
+import { deleteMusicClip, deleteTrack, getMyProfile, getNotifications, getPendingApprovals, getProfileMusicClips, getSubscriptionUsage, getUserPostsPage, getUserVariations, pinPost, unpinPost, updateMusicClip, updateTrackMetadata, type MobileProfile, type MobileProfileTrack, type SubscriptionUsage } from '@/api/client';
 import type { HomePost, MusicClip, PendingVariation, UserVariation } from '@/api/types';
 import { DEFAULT_REMIX_PERMISSIONS } from '@/api/types';
 import { PendingApprovalsModal } from '@/components/variations/PendingApprovalsModal';
@@ -32,9 +32,13 @@ import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard
 import { MotionPressable } from '@/components/motion/Motion';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { ProfileIdentityHero, ProfileIdentityHeroSkeleton } from '@/components/profile/ProfileIdentityHero';
+import { ClipEditBottomSheet, type ClipEditForm } from '@/components/profile/ClipEditBottomSheet';
+import { ProfileClipActionsSheet } from '@/components/profile/ProfileClipActionsSheet';
+import { ProfileClipCard } from '@/components/profile/ProfileClipCard';
 import { ProfileMusicCatalog } from '@/components/profile/ProfileMusicCatalog';
 import { ProfileShareSheet } from '@/components/profile/ProfileShareSheet';
 import { ProfileTrackActionsSheet } from '@/components/profile/ProfileTrackActionsSheet';
+import { ClipShareSheet } from '@/components/social/ClipShareSheet';
 import { ShareSheet } from '@/components/swipe/ShareSheet';
 
 type ProfileTab = 'sons' | 'clips' | 'variations' | 'playlists' | 'posts';
@@ -85,6 +89,13 @@ export function ProfileScreen() {
   const [clipsCursor, setClipsCursor] = useState(0);
   const [clipsHasMore, setClipsHasMore] = useState(false);
   const [clipsError, setClipsError] = useState<string | null>(null);
+  const [managedClip, setManagedClip] = useState<MusicClip | null>(null);
+  const [editingClip, setEditingClip] = useState<MusicClip | null>(null);
+  const [shareClipTarget, setShareClipTarget] = useState<MusicClip | null>(null);
+  const [clipDeleteConfirmOpen, setClipDeleteConfirmOpen] = useState(false);
+  const [clipMutationBusy, setClipMutationBusy] = useState(false);
+  const [clipMutationError, setClipMutationError] = useState<string | null>(null);
+  const clipsRequestRef = useRef(0);
   const [variations, setVariations] = useState<UserVariation[]>([]);
   const [variationsLoading, setVariationsLoading] = useState(false);
   const [variationsLoaded, setVariationsLoaded] = useState(false);
@@ -144,17 +155,21 @@ export function ProfileScreen() {
     }
   }, [auth.user?.username]);
 
-  const loadClips = useCallback(async (cursor = 0, creatorId?: string) => {
-    if (!auth.user?.username) return;
+  const loadClips = useCallback(async (cursor = 0, target?: { creatorId?: string; creatorUsername?: string }) => {
+    const creatorUsername = target?.creatorUsername || auth.user?.username;
+    if (!creatorUsername) return;
+    const requestId = ++clipsRequestRef.current;
     if (cursor > 0) setClipsLoadingMore(true);
     else setClipsLoading(true);
     setClipsError(null);
     try {
-      const result = await getMusicClips({
-        ...(creatorId ? { creatorId } : { creatorUsername: auth.user.username }),
+      const result = await getProfileMusicClips({
+        creatorUsername,
+        creatorId: target?.creatorId,
         limit: 24,
         cursor,
       });
+      if (requestId !== clipsRequestRef.current) return;
       setClips((current) => {
         if (!cursor) return result.clips;
         const byId = new Map(current.map((clip) => [clip.id, clip]));
@@ -164,22 +179,27 @@ export function ProfileScreen() {
       setClipsCursor(result.nextCursor);
       setClipsHasMore(result.hasMore);
     } catch (clipError) {
-      setClipsError(clipError instanceof Error ? clipError.message : 'Impossible de charger les clips.');
+      if (requestId === clipsRequestRef.current) {
+        setClipsError(clipError instanceof Error ? clipError.message : 'Impossible de charger les clips.');
+      }
     } finally {
-      setClipsLoading(false);
-      setClipsLoadingMore(false);
+      if (requestId === clipsRequestRef.current) {
+        setClipsLoading(false);
+        setClipsLoadingMore(false);
+      }
     }
   }, [auth.user?.username]);
 
-  const refreshProfile = useCallback(() => {
-    void loadProfile().then((nextProfile) => {
-      void loadClips(0, nextProfile?.id);
-    });
+  const refreshProfile = useCallback(async () => {
+    const nextProfile = await loadProfile();
+    if (nextProfile) {
+      await loadClips(0, { creatorId: nextProfile.id, creatorUsername: nextProfile.username });
+    }
     void getSubscriptionUsage().then(setUsage).catch(() => {});
   }, [loadClips, loadProfile]);
 
   useFocusEffect(useCallback(() => {
-    refreshProfile();
+    void refreshProfile();
   }, [refreshProfile]));
 
   // Destination d'une notification ("Mes variations" / "Variations a valider") :
@@ -348,6 +368,66 @@ export function ProfileScreen() {
     navigation.navigate('TrackDetail', { trackId: clip.sourceTrack._id, track: clip.sourceTrack });
   };
 
+  const replaceClip = (updated: MusicClip) => {
+    setClips((current) => current.map((clip) => clip.id === updated.id ? updated : clip));
+    setManagedClip((current) => current?.id === updated.id ? updated : current);
+    setEditingClip((current) => current?.id === updated.id ? updated : current);
+  };
+
+  const openClipMenu = (clip: MusicClip) => {
+    setClipMutationError(null);
+    setClipDeleteConfirmOpen(false);
+    setManagedClip(clip);
+  };
+
+  const changeClipVisibility = async (clip: MusicClip, visibility: MusicClip['visibility']) => {
+    if (clipMutationBusy || clip.visibility === visibility) return;
+    setClipMutationBusy(true);
+    setClipMutationError(null);
+    try {
+      const updated = await updateMusicClip(clip.id, { visibility });
+      replaceClip(updated);
+    } catch (mutationError) {
+      setClipMutationError(mutationError instanceof Error ? mutationError.message : 'La visibilité du Clip n’a pas pu être modifiée.');
+    } finally {
+      setClipMutationBusy(false);
+    }
+  };
+
+  const saveClipEdit = async (form: ClipEditForm) => {
+    if (!editingClip || clipMutationBusy) return;
+    setClipMutationBusy(true);
+    setClipMutationError(null);
+    try {
+      const updated = await updateMusicClip(editingClip.id, form);
+      replaceClip(updated);
+      setEditingClip(null);
+    } catch (mutationError) {
+      setClipMutationError(mutationError instanceof Error ? mutationError.message : 'Le Clip n’a pas pu être enregistré.');
+    } finally {
+      setClipMutationBusy(false);
+    }
+  };
+
+  const deleteManagedClip = async () => {
+    if (!managedClip || clipMutationBusy) return;
+    const clipId = managedClip.id;
+    setClipMutationBusy(true);
+    setClipMutationError(null);
+    try {
+      await deleteMusicClip(clipId);
+      setClips((current) => current.filter((clip) => clip.id !== clipId));
+      setManagedClip(null);
+      setEditingClip((current) => current?.id === clipId ? null : current);
+      setShareClipTarget((current) => current?.id === clipId ? null : current);
+      setClipDeleteConfirmOpen(false);
+    } catch (mutationError) {
+      setClipMutationError(mutationError instanceof Error ? mutationError.message : 'La suppression du Clip a échoué.');
+    } finally {
+      setClipMutationBusy(false);
+    }
+  };
+
   if (!auth.user) {
     return (
       <SynauraBackground variant="warm">
@@ -436,7 +516,7 @@ export function ProfileScreen() {
           <View style={styles.card}>
             <SectionTitle title="Clips recents" action={clips.length ? `${clips.length}` : undefined} />
             {clipsLoading ? <Empty text="Chargement des clips..." /> : clipsError ? (
-              <Pressable onPress={() => void loadClips(0, profile?.id)} style={styles.emptyAction}>
+              <Pressable onPress={() => void loadClips(0, { creatorId: profile?.id, creatorUsername: profile?.username })} style={styles.emptyAction}>
                 <Ionicons name="refresh" size={18} color="#7C5CFF" />
                 <Text style={styles.emptyActionText}>Recharger les clips</Text>
               </Pressable>
@@ -444,11 +524,14 @@ export function ProfileScreen() {
               <>
                 <View style={styles.clipsGrid}>
                   {clips.slice(0, responsive.isTablet ? 4 : 3).map((clip) => (
-                    <Pressable key={`preview-${clip.id}`} onPress={() => openProfileClip(clip)} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
-                      {clip.posterUrl ? <Image source={{ uri: clip.posterUrl }} style={StyleSheet.absoluteFillObject} /> : null}
-                      {clip.visibility !== 'published' ? <Text style={styles.clipStatus}>{clip.visibility === 'draft' ? 'Brouillon' : 'Masqué'}</Text> : null}
-                      <View style={styles.clipTileOverlay}><Text numberOfLines={1} style={styles.clipTileTitle}>{clip.sourceTrack?.title || 'Clip'}</Text></View>
-                    </Pressable>
+                    <ProfileClipCard
+                      key={`preview-${clip.id}`}
+                      clip={clip}
+                      owner
+                      style={{ width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }}
+                      onPress={() => openProfileClip(clip)}
+                      onManage={() => openClipMenu(clip)}
+                    />
                   ))}
                 </View>
                 <Pressable onPress={() => setProfileTab('clips')} style={styles.emptyAction}>
@@ -575,23 +658,26 @@ export function ProfileScreen() {
         <View style={styles.card}>
           <SectionTitle title="Clips" action={clips.length ? `${clips.length}` : undefined} />
           {clipsLoading ? <Empty text="Chargement…" /> : clipsError ? (
-            <Pressable onPress={() => void loadClips(0, profile?.id)} style={styles.emptyAction}>
+            <Pressable onPress={() => void loadClips(0, { creatorId: profile?.id, creatorUsername: profile?.username })} style={styles.emptyAction}>
               <Ionicons name="refresh" size={18} color="#7C5CFF" />
               <Text style={styles.emptyActionText}>Recharger les clips</Text>
             </Pressable>
           ) : clips.length ? (
             <View style={styles.clipsGrid}>
               {clips.map((clip) => (
-                <Pressable key={clip.id} onPress={() => openProfileClip(clip)} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
-                  {clip.posterUrl ? <Image source={{ uri: clip.posterUrl }} style={StyleSheet.absoluteFillObject} /> : null}
-                  {clip.visibility !== 'published' ? <Text style={styles.clipStatus}>{clip.visibility === 'draft' ? 'Brouillon' : 'Masqué'}</Text> : null}
-                  <View style={styles.clipTileOverlay}><Text numberOfLines={1} style={styles.clipTileTitle}>{clip.sourceTrack?.title || 'Clip'}</Text></View>
-                </Pressable>
+                <ProfileClipCard
+                  key={clip.id}
+                  clip={clip}
+                  owner
+                  style={{ width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }}
+                  onPress={() => openProfileClip(clip)}
+                  onManage={() => openClipMenu(clip)}
+                />
               ))}
             </View>
           ) : <Empty text="Tu n'as pas encore publié de clip." />}
           {clipsHasMore ? (
-            <Pressable disabled={clipsLoadingMore} onPress={() => void loadClips(clipsCursor, profile?.id)} style={styles.emptyAction}>
+            <Pressable disabled={clipsLoadingMore} onPress={() => void loadClips(clipsCursor, { creatorId: profile?.id, creatorUsername: profile?.username })} style={styles.emptyAction}>
               {clipsLoadingMore ? <ActivityIndicator size="small" color="#7C5CFF" /> : <Ionicons name="chevron-down" size={18} color="#7C5CFF" />}
               <Text style={styles.emptyActionText}>Charger plus de clips</Text>
             </Pressable>
@@ -715,6 +801,51 @@ export function ProfileScreen() {
         }}
         onConfirmDelete={() => void deleteManagedTrack()}
       />
+      <ProfileClipActionsSheet
+        clip={managedClip}
+        confirmDelete={clipDeleteConfirmOpen}
+        busy={clipMutationBusy}
+        error={clipMutationError}
+        onClose={() => {
+          setManagedClip(null);
+          setClipDeleteConfirmOpen(false);
+          setClipMutationError(null);
+        }}
+        onOpen={(clip) => {
+          setManagedClip(null);
+          openProfileClip(clip);
+        }}
+        onEdit={(clip) => {
+          setManagedClip(null);
+          setClipMutationError(null);
+          requestAnimationFrame(() => setEditingClip(clip));
+        }}
+        onShare={(clip) => {
+          setManagedClip(null);
+          requestAnimationFrame(() => setShareClipTarget(clip));
+        }}
+        onChangeVisibility={(clip, visibility) => void changeClipVisibility(clip, visibility)}
+        onRequestDelete={() => {
+          setClipMutationError(null);
+          setClipDeleteConfirmOpen(true);
+        }}
+        onCancelDelete={() => {
+          setClipMutationError(null);
+          setClipDeleteConfirmOpen(false);
+        }}
+        onConfirmDelete={() => void deleteManagedClip()}
+      />
+      <ClipEditBottomSheet
+        clip={editingClip}
+        saving={clipMutationBusy}
+        error={clipMutationError}
+        onClose={() => {
+          setEditingClip(null);
+          setClipMutationError(null);
+        }}
+        onSave={(form) => void saveClipEdit(form)}
+      />
+      <ClipShareSheet visible={Boolean(shareClipTarget)} clip={shareClipTarget} onClose={() => setShareClipTarget(null)} />
       <ShareSheet visible={Boolean(shareTrackTarget)} track={shareTrackTarget} onClose={() => setShareTrackTarget(null)} />
       <ProfileShareSheet visible={shareProfileOpen} profile={profile} onClose={() => setShareProfileOpen(false)} />
       <PendingApprovalsModal
@@ -845,8 +976,4 @@ const styles = StyleSheet.create({
   resumeKicker: { color: '#7357C6', fontSize: 9, fontWeight: '900' },
   resumeTitle: { marginTop: 3, color: colors.text, fontSize: 13, fontWeight: '900' },
   clipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  clipTile: { width: '31%', aspectRatio: 9 / 16, borderRadius: 9, overflow: 'hidden', backgroundColor: colors.surfaceMuted, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
-  clipStatus: { position: 'absolute', left: 6, top: 6, overflow: 'hidden', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 4, color: '#FFFFFF', backgroundColor: 'rgba(17,17,17,0.76)', fontSize: 8, fontWeight: '900' },
-  clipTileOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 6, backgroundColor: 'rgba(23,19,19,0.55)' },
-  clipTileTitle: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
 });

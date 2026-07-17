@@ -1,15 +1,13 @@
 {
-  "title": "Synaura Aura Flow 0.20.0",
+  "title": "Synaura Profils Clips 0.20.1",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Refonte visuelle complete Aura Flow, sombre, immersive et coherente sur toute l'application",
-    "Flow recentre sur un morceau, sa pochette, sa waveform et ses interactions essentielles",
-    "Waveform interactive avec progression cyan et creation de commentaires horodates par appui long",
-    "Lecteur plein ecran repense avec Aura Visual, paroles, Moments et controles toujours accessibles",
-    "Decouvrir, Radar, profils, bibliotheque et Studio reorganises selon le dossier Aura Flow",
-    "Studio conserve comme bibliotheque avec tiroir de creation et mode simple en un seul prompt",
-    "Creation de Clips, upload, posts musicaux, partage et notifications harmonises sans retirer leurs fonctions",
-    "Mise en page validee sur 31 ecrans natifs et huit formats de telephones et tablettes"
+    "Affichage fiable des Clips publies sur les profils publics et de tous les Clips sur le profil proprietaire",
+    "Nouvelles cartes Clips immersives avec miniature, morceau associe, duree et interactions reelles",
+    "Menu de gestion natif pour ouvrir, modifier, partager, publier, rendre prive ou supprimer un Clip",
+    "Edition de la legende, des tags et de la visibilite sans reenvoyer la video",
+    "Suppression confirmee dans une feuille Synaura, sans dialogue Android brut",
+    "Chargement de profil protege contre les reponses reseau concurrentes et les identifiants de createur divergents"
   ]
 }

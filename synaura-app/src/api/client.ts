@@ -286,7 +286,7 @@ function normalizeClipSource(raw: any): MusicClipSource | null {
     ...raw,
     _id: raw?._id || raw?.id || raw?.sourceTrackId,
     id: raw?._id || raw?.id || raw?.sourceTrackId,
-    audioUrl: raw?.audioUrl || raw?.audio_url,
+    audioUrl: raw?.audioUrl || raw?.audio_url || raw?.trackUrl || raw?.track_url,
     coverUrl: raw?.coverUrl || raw?.cover_url,
   });
   if (!track) return null;
@@ -787,6 +787,40 @@ export async function getMusicClips(input: { limit?: number; cursor?: number; so
     nextCursor: Number(json?.nextCursor || 0),
     hasMore: Boolean(json?.hasMore),
   };
+}
+
+export async function getProfileMusicClips(input: {
+  creatorUsername: string;
+  creatorId?: string;
+  limit?: number;
+  cursor?: number;
+}): Promise<{ clips: MusicClip[]; nextCursor: number; hasMore: boolean }> {
+  const creatorUsername = input.creatorUsername.trim().replace(/^@/, '');
+  let usernameError: unknown = null;
+
+  if (creatorUsername) {
+    try {
+      const byUsername = await getMusicClips({
+        creatorUsername,
+        limit: input.limit,
+        cursor: input.cursor,
+      });
+      if (byUsername.clips.length > 0 || input.cursor || !input.creatorId) return byUsername;
+    } catch (error) {
+      usernameError = error;
+    }
+  }
+
+  if (input.creatorId) {
+    return getMusicClips({
+      creatorId: input.creatorId,
+      limit: input.limit,
+      cursor: input.cursor,
+    });
+  }
+
+  if (usernameError) throw usernameError;
+  return { clips: [], nextCursor: 0, hasMore: false };
 }
 
 export async function getMusicClipLikeStatus(clipId: string): Promise<{ liked: boolean; likesCount: number }> {

@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import { followUser, getMusicClips, getPublicProfile, getUserPostsPage, getUserVariations, type MobileProfile } from '@/api/client';
+import { followUser, getProfileMusicClips, getPublicProfile, getUserPostsPage, getUserVariations, type MobileProfile } from '@/api/client';
 import type { HomePost, MusicClip, UserVariation } from '@/api/types';
 import type { RootTabsParamList } from '@/navigation/Tabs';
 import { SynauraBackground } from '@/components/SynauraBackground';
@@ -15,6 +15,7 @@ import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { ProfileIdentityHero } from '@/components/profile/ProfileIdentityHero';
+import { ProfileClipCard } from '@/components/profile/ProfileClipCard';
 import { ProfileMusicCatalog } from '@/components/profile/ProfileMusicCatalog';
 import { ProfileShareSheet } from '@/components/profile/ProfileShareSheet';
 import { colors } from '@/theme/tokens';
@@ -54,6 +55,7 @@ export function PublicProfileScreen() {
   const [clipsCursor, setClipsCursor] = useState(0);
   const [clipsHasMore, setClipsHasMore] = useState(false);
   const [clipsError, setClipsError] = useState<string | null>(null);
+  const clipsRequestRef = useRef(0);
   const [variations, setVariations] = useState<UserVariation[]>([]);
   const [variationsLoading, setVariationsLoading] = useState(false);
   const [variationsLoaded, setVariationsLoaded] = useState(false);
@@ -85,17 +87,21 @@ export function PublicProfileScreen() {
     }
   }, [username]);
 
-  const loadClips = useCallback(async (cursor = 0, creatorId?: string) => {
-    if (!username) return;
+  const loadClips = useCallback(async (cursor = 0, target?: { creatorId?: string; creatorUsername?: string }) => {
+    const creatorUsername = target?.creatorUsername || username;
+    if (!creatorUsername) return;
+    const requestId = ++clipsRequestRef.current;
     if (cursor > 0) setClipsLoadingMore(true);
     else setClipsLoading(true);
     setClipsError(null);
     try {
-      const result = await getMusicClips({
-        ...(creatorId ? { creatorId } : { creatorUsername: username }),
+      const result = await getProfileMusicClips({
+        creatorUsername,
+        creatorId: target?.creatorId,
         limit: 24,
         cursor,
       });
+      if (requestId !== clipsRequestRef.current) return;
       setClips((current) => {
         if (!cursor) return result.clips;
         const byId = new Map(current.map((clip) => [clip.id, clip]));
@@ -105,16 +111,20 @@ export function PublicProfileScreen() {
       setClipsCursor(result.nextCursor);
       setClipsHasMore(result.hasMore);
     } catch (clipError) {
-      setClipsError(clipError instanceof Error ? clipError.message : 'Impossible de charger les clips.');
+      if (requestId === clipsRequestRef.current) {
+        setClipsError(clipError instanceof Error ? clipError.message : 'Impossible de charger les clips.');
+      }
     } finally {
-      setClipsLoading(false);
-      setClipsLoadingMore(false);
+      if (requestId === clipsRequestRef.current) {
+        setClipsLoading(false);
+        setClipsLoadingMore(false);
+      }
     }
   }, [username]);
 
   useFocusEffect(useCallback(() => {
     void load().then((nextProfile) => {
-      void loadClips(0, nextProfile?.id);
+      if (nextProfile) void loadClips(0, { creatorId: nextProfile.id, creatorUsername: nextProfile.username });
     });
   }, [load, loadClips]));
 
@@ -273,17 +283,19 @@ export function PublicProfileScreen() {
             {clipsLoading ? (
               <ActivityIndicator color={colors.violet} style={{ marginVertical: 20 }} />
             ) : clipsError ? (
-              <Pressable onPress={() => void loadClips(0, profile?.id)} style={styles.retryButton}>
+              <Pressable onPress={() => void loadClips(0, { creatorId: profile.id, creatorUsername: profile.username })} style={styles.retryButton}>
                 <Ionicons name="refresh" size={17} color="#5B3FD6" />
                 <Text style={styles.retryText}>Recharger les clips</Text>
               </Pressable>
             ) : (
               <View style={styles.clipsGrid}>
                 {clips.slice(0, responsive.isTablet ? 4 : 3).map((clip) => (
-                  <Pressable key={`preview-${clip.id}`} onPress={() => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
-                    {clip.posterUrl ? <Image source={{ uri: clip.posterUrl }} style={StyleSheet.absoluteFillObject} /> : null}
-                    <View style={styles.clipTileOverlay}><Text numberOfLines={1} style={styles.clipTileTitle}>{clip.sourceTrack?.title || 'Clip'}</Text></View>
-                  </Pressable>
+                  <ProfileClipCard
+                    key={`preview-${clip.id}`}
+                    clip={clip}
+                    style={{ width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }}
+                    onPress={() => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })}
+                  />
                 ))}
               </View>
             )}
@@ -328,22 +340,24 @@ export function PublicProfileScreen() {
             {clipsLoading ? (
               <ActivityIndicator color={colors.violet} style={{ marginVertical: 20 }} />
             ) : clipsError ? (
-              <Pressable onPress={() => void loadClips(0, profile.id)} style={styles.retryButton}>
+              <Pressable onPress={() => void loadClips(0, { creatorId: profile.id, creatorUsername: profile.username })} style={styles.retryButton}>
                 <Ionicons name="refresh" size={17} color="#5B3FD6" />
                 <Text style={styles.retryText}>Recharger les clips</Text>
               </Pressable>
             ) : clips.length ? (
               <View style={styles.clipsGrid}>
                 {clips.map((clip) => (
-                  <Pressable key={clip.id} onPress={() => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })} style={[styles.clipTile, { width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }]}>
-                    {clip.posterUrl ? <Image source={{ uri: clip.posterUrl }} style={StyleSheet.absoluteFillObject} /> : null}
-                    <View style={styles.clipTileOverlay}><Text numberOfLines={1} style={styles.clipTileTitle}>{clip.sourceTrack?.title || 'Clip'}</Text></View>
-                  </Pressable>
+                  <ProfileClipCard
+                    key={clip.id}
+                    clip={clip}
+                    style={{ width: responsive.isTablet ? '23.5%' : responsive.isNarrow ? '47.5%' : '31%' }}
+                    onPress={() => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })}
+                  />
                 ))}
               </View>
             ) : <Text style={styles.empty}>{profile.username === username ? "Tu n'as pas encore publié de clip." : 'Aucun clip publié.'}</Text>}
             {clipsHasMore ? (
-              <Pressable disabled={clipsLoadingMore} onPress={() => void loadClips(clipsCursor, profile.id)} style={styles.retryButton}>
+              <Pressable disabled={clipsLoadingMore} onPress={() => void loadClips(clipsCursor, { creatorId: profile.id, creatorUsername: profile.username })} style={styles.retryButton}>
                 {clipsLoadingMore ? <ActivityIndicator size="small" color="#5B3FD6" /> : <Ionicons name="chevron-down" size={17} color="#5B3FD6" />}
                 <Text style={styles.retryText}>Charger plus de clips</Text>
               </Pressable>
@@ -452,7 +466,4 @@ const styles = StyleSheet.create({
   sectionLink: { color: '#5B3FD6', fontSize: 11, fontWeight: '900' },
   retryButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 8, backgroundColor: 'rgba(115,87,198,0.1)' },
   retryText: { color: '#5B3FD6', fontSize: 11, fontWeight: '900' },
-  clipTile: { width: '31%', aspectRatio: 9 / 16, borderRadius: 9, overflow: 'hidden', backgroundColor: colors.surfaceMuted, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
-  clipTileOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 6, backgroundColor: 'rgba(23,19,19,0.55)' },
-  clipTileTitle: { color: '#FFFAF2', fontSize: 10, fontWeight: '900' },
 });
