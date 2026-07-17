@@ -152,7 +152,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       'Téléchargement de musique',
     ],
     limits: {
-      maxTracks: 100,
+      maxTracks: -1,
       maxStorageGb: 5,
       maxPlaylists: -1,
       maxFileMb: 500,
