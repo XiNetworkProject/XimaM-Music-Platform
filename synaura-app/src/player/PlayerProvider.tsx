@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { AppState, DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import TrackPlayer, {
+  AndroidAudioContentType,
   AppKilledPlaybackBehavior,
   Capability,
   Event,
@@ -14,7 +15,7 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 import type { Track } from '@/api/types';
 import { useLibrary } from '@/library/LibraryProvider';
-import { recordTrackEvent } from '@/api/client';
+import { getSimilarTracks, recordTrackEvent } from '@/api/client';
 
 export type PlayerRepeatMode = 'off' | 'one' | 'all';
 
@@ -100,10 +101,13 @@ async function setupPlayer() {
   try {
     await TrackPlayer.setupPlayer({
       autoHandleInterruptions: true,
-      minBuffer: 8,
-      maxBuffer: 28,
+      androidAudioContentType: AndroidAudioContentType.Music,
+      autoUpdateMetadata: true,
+      waitForBuffer: true,
+      minBuffer: 14,
+      maxBuffer: 70,
       playBuffer: 0.8,
-      backBuffer: 12,
+      backBuffer: 20,
       maxCacheSize: 128 * 1024,
     });
   } catch (error) {
@@ -112,6 +116,8 @@ async function setupPlayer() {
   await TrackPlayer.updateOptions({
     android: {
       appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
+      alwaysPauseOnInterruption: false,
+      stopForegroundGracePeriod: 60,
     },
     capabilities: [
       Capability.Play,
@@ -129,7 +135,7 @@ async function setupPlayer() {
       Capability.SkipToPrevious,
       Capability.SeekTo,
     ],
-    progressUpdateEventInterval: 1,
+    progressUpdateEventInterval: 2,
   });
   await TrackPlayer.setRepeatMode(RepeatMode.Off);
   playerReady = true;
@@ -328,11 +334,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (nextIndex >= 0) setCurrentIndex(nextIndex);
   }, [activeTrack?.id, addRecent, queue]);
 
-  // Auto-advance & evenements: react-native-track-player gere deja l'enchainement
-  // mais on s'assure que le PlaybackQueueEnded ne laisse pas le state en pause "fantome"
-  // et que les erreurs de lecture sautent au titre suivant.
+  // Auto-advance et telemetrie restent synchronises avec la queue native.
+  // La reprise sur erreur vit dans playbackService afin de fonctionner aussi
+  // lorsque l'interface React est suspendue ou que l'ecran est eteint.
   useTrackPlayerEvents(
-    [Event.PlaybackQueueEnded, Event.PlaybackError, Event.PlaybackActiveTrackChanged, Event.PlaybackProgressUpdated],
+    [Event.PlaybackQueueEnded, Event.PlaybackActiveTrackChanged, Event.PlaybackProgressUpdated],
     async (event) => {
       try {
         if (event.type === Event.PlaybackProgressUpdated) {
@@ -373,10 +379,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (event.type === Event.PlaybackQueueEnded) {
           // En mode repeat 'all', on revient au debut. Sinon on stoppe proprement.
           if (currentRef.current) void recordTrackEvent(currentRef.current._id, 'queue_end');
-          return;
-        }
-        if (event.type === Event.PlaybackError) {
-          await TrackPlayer.skipToNext().catch(() => {});
           return;
         }
         if (event.type === Event.PlaybackActiveTrackChanged) {
@@ -560,9 +562,39 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }), [runPlayerCommand]);
 
+  const hydrateRelatedQueue = useCallback(async (sourceTrack: Track, activationEpoch: number) => {
+    if (!isPlayableTrack(sourceTrack) || sourceTrack._id.startsWith('ai-') || sourceTrack._id.startsWith('gen-')) return;
+    const result = await getSimilarTracks(sourceTrack._id, 12).catch(() => ({ tracks: [], contextLabel: '' }));
+    if (activationEpoch !== activationEpochRef.current) return;
+    const related = result.tracks
+      .filter(isPlayableTrack)
+      .filter((track, index, tracks) => track._id !== sourceTrack._id && tracks.findIndex((item) => item._id === track._id) === index)
+      .slice(0, 12);
+    if (!related.length) return;
+
+    await runPlayerCommand(async () => {
+      if (activationEpoch !== activationEpochRef.current || currentRef.current?._id !== sourceTrack._id) return;
+      const logicalQueue = queueRef.current;
+      if (logicalQueue.length !== 1 || logicalQueue[0]?._id !== sourceTrack._id) return;
+      await setupPlayer();
+      const nativeQueue = await TrackPlayer.getQueue().catch(() => []);
+      const nativeIds = new Set(nativeQueue.map((track) => String(track.id || '')));
+      const additions = related.filter((track) => !nativeIds.has(track._id));
+      if (additions.length) await TrackPlayer.add(additions.map(toNativeTrack));
+      if (activationEpoch !== activationEpochRef.current || currentRef.current?._id !== sourceTrack._id) return;
+
+      const hydratedQueue = [sourceTrack, ...related];
+      hydratedQueue.forEach((track) => byIdRef.current.set(track._id, track));
+      queueRef.current = hydratedQueue;
+      currentIndexRef.current = 0;
+      setQueue(hydratedQueue);
+      setCurrentIndex(0);
+    });
+  }, [runPlayerCommand]);
+
   const playTrack = useCallback((track: Track) => {
     const activationEpoch = ++activationEpochRef.current;
-    return runPlayerCommand(async () => {
+    const command = runPlayerCommand(async () => {
       if (!isPlayableTrack(track) || activationEpoch !== activationEpochRef.current) return;
       await setupPlayer();
       if (activationEpoch !== activationEpochRef.current) return;
@@ -624,7 +656,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
       }
     });
-  }, [addRecent, runPlayerCommand]);
+    void command.then(() => hydrateRelatedQueue(track, activationEpoch)).catch(() => {});
+    return command;
+  }, [addRecent, hydrateRelatedQueue, runPlayerCommand]);
 
   const addNext = useCallback(async (track: Track) => {
     if (!isPlayableTrack(track)) return;

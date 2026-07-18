@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, type 
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { SynauraBackground } from '@/components/SynauraBackground';
+import { StatusBar } from 'expo-status-bar';
 import { SynauraIntroStage } from '@/components/onboarding/SynauraIntroStage';
 import { colors } from '@/theme/tokens';
 import { getUserPreferences, updateUserPreferences } from '@/api/client';
@@ -145,17 +145,19 @@ export function OnboardingScreen() {
 
   if (!ready) {
     return (
-      <SynauraBackground variant="warm">
+      <View style={styles.screen}>
+        <StatusBar style="dark" backgroundColor="#F7F6F3" />
         <View style={styles.loadingFill}>
           <View style={styles.loadingMark}><Ionicons name="musical-notes" size={22} color="#FFFFFF" /></View>
           <ActivityIndicator color={colors.violet} />
         </View>
-      </SynauraBackground>
+      </View>
     );
   }
 
   return (
-    <SynauraBackground variant="warm">
+    <View style={styles.screen}>
+      <StatusBar style="dark" backgroundColor="#F7F6F3" />
       <ScrollView
         contentInsetAdjustmentBehavior="never"
         keyboardShouldPersistTaps="handled"
@@ -180,7 +182,7 @@ export function OnboardingScreen() {
           </View>
           {isEdit ? (
             <Pressable accessibilityLabel="Fermer" onPress={() => navigation.goBack()} style={styles.closeButton}>
-              <Ionicons name="close" size={19} color={colors.text} />
+              <Ionicons name="close" size={19} color="#111111" />
             </Pressable>
           ) : (
             <Pressable disabled={saving} onPress={() => void savePreferences(true)} style={styles.topSkip}>
@@ -189,12 +191,11 @@ export function OnboardingScreen() {
           )}
         </View>
 
-        <View style={styles.progressHead}>
-          <Text style={styles.progressLabel}>{step === 1 ? 'Bienvenue' : step === 2 ? 'Univers' : step === 3 ? 'Envies' : 'Terminé'}</Text>
-          <Text style={styles.progressCount}>{step} / 4</Text>
-        </View>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${step * 25}%` }]} />
+        <View style={styles.progressRow}>
+          {[1, 2, 3, 4].map((value) => (
+            <View key={value} style={[styles.progressSegment, value <= step && styles.progressSegmentDone, value === step && styles.progressSegmentCurrent]} />
+          ))}
+          <Text style={styles.progressCount}>{String(step).padStart(2, '0')} / 04</Text>
         </View>
 
         <Reveal key={step} distance={8} scaleFrom={0.994} duration={320} style={styles.step}>
@@ -202,22 +203,17 @@ export function OnboardingScreen() {
             <View>
               <View style={[styles.introStage, {
                 height: layout.isPhoneLandscape
-                  ? Math.max(176, Math.min(220, layout.usableHeight * 0.56))
+                  ? Math.max(232, Math.min(260, layout.usableHeight * 0.72))
                   : layout.isVeryShort
-                    ? 210
-                    : Math.min(360, Math.max(250, layout.availableContentWidth * 0.72)),
+                    ? 232
+                    : Math.min(370, Math.max(270, layout.availableContentWidth * 0.78)),
               }]}>
-                <SynauraIntroStage scene="synaura" compact={layout.isShort} style={styles.stageFill} />
+                <SynauraIntroStage scene="synaura" compact={layout.isShort || layout.availableContentWidth < 380} style={styles.stageFill} />
               </View>
               <View style={styles.introCopy}>
-                <Text style={styles.eyebrow}>Ton Synaura commence ici</Text>
-                <Text maxFontSizeMultiplier={1.18} style={[styles.introTitle, layout.isNarrow && styles.introTitleNarrow]}>Fais de l’app un univers qui te ressemble.</Text>
-                <Text style={styles.introText}>Quelques choix suffisent pour mieux organiser Découvrir, le Radar et tes raccourcis de création. Tu pourras tout modifier ensuite.</Text>
-                <View style={styles.introSignals}>
-                  <IntroSignal icon="compass-outline" text="Des découvertes plus proches de tes goûts" />
-                  <IntroSignal icon="radio-outline" text="Un Radar qui garde sa place aux nouveaux sons" />
-                  <IntroSignal icon="sparkles-outline" text="Des accès rapides adaptés à ce que tu veux faire" />
-                </View>
+                <Text style={styles.eyebrow}>Bienvenue sur Synaura</Text>
+                <Text maxFontSizeMultiplier={1.18} style={[styles.introTitle, layout.isNarrow && styles.introTitleNarrow]}>Entre dans ton univers musical.</Text>
+                <Text style={styles.introText}>Choisis ce que tu veux écouter, créer et faire évoluer sur Synaura.</Text>
                 <MotionPressable style={styles.primaryButton} onPress={() => setStep(2)} scaleTo={0.97}>
                   <Text style={styles.primaryText}>Personnaliser mon expérience</Text>
                   <Ionicons name="arrow-forward" size={17} color="#F7F6F3" />
@@ -230,9 +226,9 @@ export function OnboardingScreen() {
             <View>
               <StepHeader
                 onBack={isEdit ? undefined : () => setStep(1)}
-                eyebrow="Tes univers musicaux"
-                title="Qu’est-ce qui t’attire en premier ?"
-                subtitle="Choisis librement. Il n’y a ni minimum ni mauvais choix."
+                eyebrow="Étape 1 sur 2"
+                title="Tes univers"
+                subtitle="Choisis un ou plusieurs univers. Ça reste modifiable à tout moment."
                 selected={universes.length}
               />
               <View style={[styles.grid, layout.compactControls && styles.gridCompact]}>
@@ -248,7 +244,7 @@ export function OnboardingScreen() {
                       scaleTo={0.97}
                     >
                       <View style={[styles.tileIcon, active && styles.tileIconActive]}>
-                        <Ionicons name={UNIVERSE_ICON[option.id]} size={19} color={active ? '#FFFFFF' : colors.text} />
+                        <Ionicons name={UNIVERSE_ICON[option.id]} size={19} color={active ? '#FFFFFF' : '#111111'} />
                       </View>
                       <Text numberOfLines={2} style={styles.tileLabel}>{option.label}</Text>
                       <View style={[styles.check, active && styles.checkActive]}>
@@ -266,9 +262,9 @@ export function OnboardingScreen() {
             <View>
               <StepHeader
                 onBack={() => setStep(2)}
-                eyebrow="Ton usage"
-                title="Que veux-tu faire sur Synaura ?"
-                subtitle="Ces choix mettent les bons chemins à portée de main sans masquer le reste."
+                eyebrow="Étape 2 sur 2"
+                title="Ce que tu veux faire"
+                subtitle="Ça personnalise tes raccourcis. Rien n’est jamais caché définitivement."
                 selected={intentions.length}
               />
               <View style={styles.intentions}>
@@ -284,10 +280,10 @@ export function OnboardingScreen() {
                       scaleTo={0.985}
                     >
                       <View style={[styles.intentionIcon, active && styles.intentionIconActive]}>
-                        <Ionicons name={INTENTION_ICON[option.id]} size={17} color={active ? '#FFFFFF' : colors.text} />
+                        <Ionicons name={INTENTION_ICON[option.id]} size={17} color={active ? '#FFFFFF' : '#111111'} />
                       </View>
                       <Text style={styles.intentionLabel}>{option.label}</Text>
-                      <Ionicons name={active ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={active ? colors.violet : colors.borderStrong} />
+                      <Ionicons name={active ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={active ? colors.violet : 'rgba(17,17,17,0.22)'} />
                     </MotionPressable>
                   );
                 })}
@@ -300,9 +296,9 @@ export function OnboardingScreen() {
             <View>
               <StepHeader
                 onBack={() => setStep(3)}
-                eyebrow="Ton expérience"
-                title="Synaura est prêt pour toi."
-                subtitle="Tes choix restent privés et modifiables depuis ton profil."
+                eyebrow="Résumé"
+                title="C’est prêt"
+                subtitle="Tu peux modifier ces choix à tout moment depuis ton profil."
               />
               <View style={styles.summaryHero}>
                 <View style={styles.summaryIcon}><Ionicons name="checkmark" size={26} color="#FFFFFF" /></View>
@@ -324,14 +320,14 @@ export function OnboardingScreen() {
                 </View>
                 {nativeNotifications.status !== 'ready' ? (
                   <Pressable disabled={nativeNotifications.status === 'requesting'} onPress={() => void activateNotifications()} style={[styles.notificationAction, (layout.isTiny || layout.hasLargeText) && styles.notificationActionStacked]}>
-                    {nativeNotifications.status === 'requesting' ? <ActivityIndicator size="small" color={colors.text} /> : <Text style={styles.notificationActionText}>Activer</Text>}
+                    {nativeNotifications.status === 'requesting' ? <ActivityIndicator size="small" color="#111111" /> : <Text style={styles.notificationActionText}>Activer</Text>}
                   </Pressable>
                 ) : null}
               </View>
               <MotionPressable style={styles.primaryButton} onPress={() => void savePreferences(false)} disabled={saving} scaleTo={0.97}>
                 {saving ? <ActivityIndicator color="#F7F6F3" /> : (
                   <>
-                    <Text style={styles.primaryText}>{isEdit ? 'Enregistrer mes choix' : 'Entrer dans Synaura'}</Text>
+                    <Text style={styles.primaryText}>{isEdit ? 'Enregistrer mes choix' : 'Ouvrir Pour toi'}</Text>
                     <Ionicons name="arrow-forward" size={17} color="#F7F6F3" />
                   </>
                 )}
@@ -340,15 +336,6 @@ export function OnboardingScreen() {
           ) : null}
         </Reveal>
       </ScrollView>
-    </SynauraBackground>
-  );
-}
-
-function IntroSignal({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
-  return (
-    <View style={styles.introSignal}>
-      <View style={styles.introSignalIcon}><Ionicons name={icon} size={15} color={colors.violet} /></View>
-      <Text style={styles.introSignalText}>{text}</Text>
     </View>
   );
 }
@@ -358,7 +345,7 @@ function StepHeader({ onBack, eyebrow, title, subtitle, selected }: { onBack?: (
     <View style={styles.stepHeader}>
       {onBack ? (
         <Pressable accessibilityLabel="Retour" onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={17} color={colors.text} />
+          <Ionicons name="arrow-back" size={17} color="#111111" />
         </Pressable>
       ) : null}
       <View style={styles.stepEyebrowRow}>
@@ -379,7 +366,7 @@ function StepFooter({ onContinue, onSkip }: { onContinue: () => void; onSkip: ()
         <Ionicons name="arrow-forward" size={17} color="#F7F6F3" />
       </MotionPressable>
       <Pressable onPress={onSkip} style={styles.skipStep}>
-        <Text style={styles.skipStepText}>Continuer sans sélectionner</Text>
+        <Text style={styles.skipStepText}>Passer cette étape</Text>
       </Pressable>
     </View>
   );
@@ -398,82 +385,79 @@ function SummaryBlock({ icon, label, value }: { icon: keyof typeof Ionicons.glyp
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: '#F7F6F3' },
   loadingFill: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
-  loadingMark: { width: 48, height: 48, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
+  loadingMark: { width: 48, height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#111111' },
   content: { flexGrow: 1 },
   topBar: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  brandMark: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.black },
-  brandName: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  brandContext: { marginTop: 1, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
-  closeButton: { width: 40, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  brandMark: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#111111' },
+  brandName: { color: '#111111', fontSize: 14, fontWeight: '900' },
+  brandContext: { marginTop: 1, color: 'rgba(17,17,17,0.46)', fontSize: 9, fontWeight: '700' },
+  closeButton: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(17,17,17,0.1)', backgroundColor: '#FFFFFF' },
   topSkip: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 8 },
-  topSkipText: { color: colors.textSecondary, fontSize: 11, fontWeight: '800' },
-  progressHead: { marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  progressLabel: { color: colors.text, fontSize: 10, fontWeight: '900' },
-  progressCount: { color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
-  progressTrack: { height: 4, marginTop: 8, overflow: 'hidden', borderRadius: 2, backgroundColor: colors.surfaceMuted },
-  progressFill: { height: '100%', borderRadius: 2, backgroundColor: colors.violet },
-  step: { marginTop: 18 },
-  introStage: { overflow: 'hidden', borderRadius: 20, backgroundColor: colors.black },
+  topSkipText: { color: 'rgba(17,17,17,0.54)', fontSize: 11, fontWeight: '800' },
+  progressRow: { minHeight: 28, marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  progressSegment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(17,17,17,0.1)' },
+  progressSegmentDone: { backgroundColor: 'rgba(115,87,198,0.42)' },
+  progressSegmentCurrent: { flex: 1.65, backgroundColor: '#7357C6' },
+  progressCount: { width: 39, marginLeft: 4, color: 'rgba(17,17,17,0.4)', fontSize: 8, fontWeight: '900', textAlign: 'right' },
+  step: { marginTop: 16 },
+  introStage: { overflow: 'hidden', borderRadius: 8, backgroundColor: '#111111', shadowColor: '#111111', shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 5 },
   stageFill: { flex: 1, minHeight: 0 },
-  introCopy: { paddingTop: 22 },
-  eyebrow: { color: colors.violet, fontSize: 10, fontWeight: '900' },
-  introTitle: { marginTop: 7, maxWidth: 560, color: colors.text, fontSize: 29, lineHeight: 34, fontWeight: '900' },
-  introTitleNarrow: { fontSize: 25, lineHeight: 30 },
-  introText: { marginTop: 10, maxWidth: 580, color: colors.textSecondary, fontSize: 13, lineHeight: 20, fontWeight: '600' },
-  introSignals: { marginTop: 18, gap: 8 },
-  introSignal: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  introSignalIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violetSoft },
-  introSignalText: { flex: 1, color: colors.text, fontSize: 11, lineHeight: 16, fontWeight: '800' },
-  primaryButton: { width: '100%', minHeight: 54, marginTop: 22, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 16, backgroundColor: colors.violet },
+  introCopy: { paddingTop: 24 },
+  eyebrow: { color: '#7357C6', fontSize: 10, fontWeight: '900' },
+  introTitle: { marginTop: 8, maxWidth: 560, color: '#111111', fontSize: 31, lineHeight: 36, fontWeight: '900' },
+  introTitleNarrow: { fontSize: 27, lineHeight: 32 },
+  introText: { marginTop: 11, maxWidth: 520, color: 'rgba(17,17,17,0.58)', fontSize: 14, lineHeight: 21, fontWeight: '600' },
+  primaryButton: { width: '100%', minHeight: 54, marginTop: 24, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 16, backgroundColor: '#111111' },
   primaryText: { flexShrink: 1, color: '#F7F6F3', fontSize: 13, fontWeight: '900', textAlign: 'center' },
-  stepHeader: { marginBottom: 20 },
-  backButton: { width: 42, height: 42, marginBottom: 16, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  stepHeader: { marginBottom: 22 },
+  backButton: { width: 42, height: 42, marginBottom: 17, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(17,17,17,0.1)', backgroundColor: '#FFFFFF' },
   stepEyebrowRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  selectedCount: { color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
-  stepTitle: { marginTop: 7, maxWidth: 590, color: colors.text, fontSize: 27, lineHeight: 32, fontWeight: '900' },
-  stepSubtitle: { marginTop: 8, maxWidth: 560, color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '600' },
+  selectedCount: { color: 'rgba(17,17,17,0.42)', fontSize: 9, fontWeight: '800' },
+  stepTitle: { marginTop: 7, maxWidth: 590, color: '#111111', fontSize: 29, lineHeight: 34, fontWeight: '900' },
+  stepSubtitle: { marginTop: 9, maxWidth: 560, color: 'rgba(17,17,17,0.54)', fontSize: 13, lineHeight: 19, fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   gridCompact: { gap: 8 },
-  tile: { minHeight: 112, position: 'relative', alignItems: 'flex-start', justifyContent: 'space-between', borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 12, backgroundColor: colors.surface },
+  tile: { minHeight: 112, position: 'relative', alignItems: 'flex-start', justifyContent: 'space-between', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(17,17,17,0.09)', padding: 12, backgroundColor: '#FFFFFF' },
   tileCompact: { minHeight: 92, padding: 10 },
-  tileActive: { borderColor: colors.violet, backgroundColor: colors.violetSoft },
-  tileIcon: { width: 38, height: 38, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
-  tileIconActive: { backgroundColor: colors.violet },
-  tileLabel: { maxWidth: '88%', color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: '900' },
-  check: { position: 'absolute', right: 10, top: 10, width: 20, height: 20, borderRadius: 6, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong },
-  checkActive: { borderColor: colors.violet, backgroundColor: colors.violet },
+  tileActive: { borderColor: '#7357C6', backgroundColor: 'rgba(115,87,198,0.08)' },
+  tileIcon: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.055)' },
+  tileIconActive: { backgroundColor: '#7357C6' },
+  tileLabel: { maxWidth: '88%', color: '#111111', fontSize: 12, lineHeight: 16, fontWeight: '900' },
+  check: { position: 'absolute', right: 10, top: 10, width: 20, height: 20, borderRadius: 6, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(17,17,17,0.16)' },
+  checkActive: { borderColor: '#7357C6', backgroundColor: '#7357C6' },
   intentions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  intention: { width: '100%', minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 11, backgroundColor: colors.surface },
+  intention: { width: '100%', minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(17,17,17,0.09)', paddingHorizontal: 11, backgroundColor: '#FFFFFF' },
   intentionCompact: { minHeight: 52 },
   intentionTablet: { width: '49%' },
-  intentionActive: { borderColor: colors.violet, backgroundColor: colors.violetSoft },
-  intentionIcon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
-  intentionIconActive: { backgroundColor: colors.violet },
-  intentionLabel: { flex: 1, minWidth: 0, color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: '800' },
+  intentionActive: { borderColor: '#7357C6', backgroundColor: 'rgba(115,87,198,0.08)' },
+  intentionIcon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.055)' },
+  intentionIconActive: { backgroundColor: '#7357C6' },
+  intentionLabel: { flex: 1, minWidth: 0, color: '#111111', fontSize: 12, lineHeight: 16, fontWeight: '800' },
   stepFooter: { marginTop: 2 },
   skipStep: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  skipStepText: { color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
-  summaryHero: { minHeight: 92, flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: 20, padding: 14, backgroundColor: colors.black },
-  summaryIcon: { width: 50, height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  skipStepText: { color: 'rgba(17,17,17,0.42)', fontSize: 10, fontWeight: '800' },
+  summaryHero: { minHeight: 92, flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: 8, padding: 14, backgroundColor: '#111111' },
+  summaryIcon: { width: 50, height: 50, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7357C6' },
   summaryHeroCopy: { flex: 1, minWidth: 0 },
   summaryHeroTitle: { color: '#F7F6F3', fontSize: 17, fontWeight: '900' },
   summaryHeroText: { marginTop: 4, color: 'rgba(247,246,243,0.62)', fontSize: 11, lineHeight: 16, fontWeight: '700' },
-  summaryBlock: { minHeight: 68, marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  summaryBlockIcon: { width: 38, height: 38, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violetSoft },
+  summaryBlock: { minHeight: 68, marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(17,17,17,0.1)' },
+  summaryBlockIcon: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(115,87,198,0.1)' },
   summaryBlockCopy: { flex: 1, minWidth: 0 },
-  summaryLabel: { color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
-  summaryValue: { marginTop: 4, color: colors.text, fontSize: 12, lineHeight: 17, fontWeight: '800' },
-  notificationCard: { minHeight: 78, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 11, backgroundColor: colors.surface },
+  summaryLabel: { color: 'rgba(17,17,17,0.42)', fontSize: 9, fontWeight: '800' },
+  summaryValue: { marginTop: 4, color: '#111111', fontSize: 12, lineHeight: 17, fontWeight: '800' },
+  notificationCard: { minHeight: 78, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(17,17,17,0.09)', padding: 11, backgroundColor: '#FFFFFF' },
   notificationCardStacked: { flexWrap: 'wrap', alignItems: 'flex-start' },
-  notificationIcon: { width: 40, height: 40, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
-  notificationIconReady: { backgroundColor: colors.cyan },
+  notificationIcon: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7357C6' },
+  notificationIconReady: { backgroundColor: '#4A9EAA' },
   notificationCopy: { flex: 1, minWidth: 0 },
-  notificationTitle: { color: colors.text, fontSize: 11, lineHeight: 15, fontWeight: '900' },
-  notificationText: { marginTop: 3, color: colors.textSecondary, fontSize: 9, lineHeight: 13, fontWeight: '700' },
-  notificationError: { marginTop: 4, color: colors.coral, fontSize: 8, lineHeight: 12, fontWeight: '800' },
-  notificationAction: { minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingHorizontal: 11, backgroundColor: colors.violetSoft },
+  notificationTitle: { color: '#111111', fontSize: 11, lineHeight: 15, fontWeight: '900' },
+  notificationText: { marginTop: 3, color: 'rgba(17,17,17,0.54)', fontSize: 9, lineHeight: 13, fontWeight: '700' },
+  notificationError: { marginTop: 4, color: '#D96D63', fontSize: 8, lineHeight: 12, fontWeight: '800' },
+  notificationAction: { minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 8, paddingHorizontal: 11, backgroundColor: 'rgba(115,87,198,0.1)' },
   notificationActionStacked: { width: '100%', marginTop: 2 },
-  notificationActionText: { color: colors.text, fontSize: 9, fontWeight: '900' },
+  notificationActionText: { color: '#111111', fontSize: 9, fontWeight: '900' },
 });

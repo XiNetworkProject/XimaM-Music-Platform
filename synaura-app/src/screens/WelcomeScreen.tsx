@@ -6,7 +6,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { completeWelcome } from '@/onboarding/welcomeState';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
-import { colors } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { SynauraIntroStage, type IntroScene } from '@/components/onboarding/SynauraIntroStage';
 
@@ -71,8 +70,8 @@ export function WelcomeScreen() {
   const last = step === SLIDES.length - 1;
   const splitLayout = layout.isLandscape && layout.safeWidth >= 620;
   const visualHeight = Math.max(
-    layout.isVeryShort ? 220 : 270,
-    Math.min(layout.isTall ? 470 : 410, layout.usableHeight * 0.48, layout.safeWidth * 1.02),
+    layout.isVeryShort ? 300 : layout.isShort ? 340 : 390,
+    Math.min(layout.isTall ? 470 : 420, layout.usableHeight * 0.52, layout.safeWidth * 1.15),
   );
 
   const changeStep = useCallback((next: number) => {
@@ -130,7 +129,7 @@ export function WelcomeScreen() {
         ) : null}
       </View>
       <Animated.View style={[styles.stageWrap, { opacity: transition, transform: [{ translateX: gestureX }] }]}>
-        <SynauraIntroStage scene={slide.scene} compact={layout.isVeryShort || splitLayout} style={styles.stageFill} />
+        <SynauraIntroStage scene={slide.scene} compact={layout.isShort || splitLayout} showBrand={false} style={styles.stageFill} />
       </Animated.View>
     </View>
   );
@@ -193,7 +192,7 @@ export function WelcomeScreen() {
           <View style={styles.navigationRow}>
             {step > 0 ? (
               <Pressable accessibilityLabel="Étape précédente" onPress={() => changeStep(step - 1)} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={18} color={colors.text} />
+                <Ionicons name="arrow-back" size={18} color="#111111" />
               </Pressable>
             ) : <View style={styles.backButtonPlaceholder} />}
             <Pressable onPress={() => changeStep(step + 1)} style={styles.continueButton}>
@@ -227,9 +226,9 @@ export function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  split: { flex: 1, flexDirection: 'row', backgroundColor: colors.background },
-  portraitContent: { flexGrow: 1 },
+  root: { flex: 1, backgroundColor: '#F7F6F3' },
+  split: { flex: 1, flexDirection: 'row', backgroundColor: '#F7F6F3' },
+  portraitContent: { flexGrow: 1, backgroundColor: '#F7F6F3' },
   visualPane: { overflow: 'hidden', backgroundColor: '#171313' },
   visualTop: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 3 },
   brandMark: { flexDirection: 'row', alignItems: 'center', gap: 9 },
@@ -239,33 +238,33 @@ const styles = StyleSheet.create({
   skipText: { color: 'rgba(247,246,243,0.62)', fontSize: 12, fontWeight: '800' },
   stageWrap: { flex: 1, marginTop: 4 },
   stageFill: { flex: 1, minHeight: 0 },
-  copyScroll: { flex: 1, backgroundColor: colors.background },
+  copyScroll: { flex: 1, backgroundColor: '#F7F6F3' },
   copyScrollContent: { flexGrow: 1 },
-  copy: { flexGrow: 1, justifyContent: 'space-between', backgroundColor: colors.background },
+  copy: { flexGrow: 1, justifyContent: 'space-between', backgroundColor: '#F7F6F3' },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   eyebrowLine: { width: 22, height: 2, borderRadius: 1 },
   eyebrow: { fontSize: 10, fontWeight: '900' },
-  title: { marginTop: 11, color: colors.text, fontSize: 31, lineHeight: 36, fontWeight: '900' },
+  title: { marginTop: 11, color: '#111111', fontSize: 31, lineHeight: 36, fontWeight: '900' },
   titleNarrow: { fontSize: 27, lineHeight: 32 },
   titleShort: { fontSize: 25, lineHeight: 30 },
-  body: { marginTop: 12, maxWidth: 500, color: colors.textSecondary, fontSize: 14, lineHeight: 21, fontWeight: '600' },
-  promiseRow: { marginTop: 16, minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 9, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-  promise: { flex: 1, color: colors.text, fontSize: 11, lineHeight: 16, fontWeight: '800' },
+  body: { marginTop: 12, maxWidth: 500, color: 'rgba(17,17,17,0.58)', fontSize: 14, lineHeight: 21, fontWeight: '600' },
+  promiseRow: { marginTop: 16, minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 9, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,17,0.11)' },
+  promise: { flex: 1, color: '#111111', fontSize: 11, lineHeight: 16, fontWeight: '800' },
   footer: { marginTop: 24 },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 18 },
-  progressIndex: { width: 18, color: colors.textTertiary, fontSize: 9, fontWeight: '900' },
+  progressIndex: { width: 18, color: 'rgba(17,17,17,0.4)', fontSize: 9, fontWeight: '900' },
   progressTrack: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
   progressTouch: { flex: 1, minHeight: 18, justifyContent: 'center' },
-  progressSegment: { width: '100%', height: 3, borderRadius: 2, backgroundColor: colors.surfaceMuted },
+  progressSegment: { width: '100%', height: 3, borderRadius: 2, backgroundColor: 'rgba(17,17,17,0.1)' },
   navigationRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  backButton: { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface },
+  backButton: { width: 52, height: 52, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(17,17,17,0.1)', backgroundColor: '#FFFFFF' },
   backButtonPlaceholder: { width: 52, height: 52 },
-  continueButton: { flex: 1, height: 54, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: colors.violet },
-  primaryButton: { minHeight: 54, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 16, backgroundColor: colors.violet },
+  continueButton: { flex: 1, height: 54, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: '#111111' },
+  primaryButton: { minHeight: 54, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 16, backgroundColor: '#111111' },
   primaryText: { flexShrink: 1, color: '#F7F6F3', fontSize: 13, fontWeight: '900', textAlign: 'center' },
   authActions: { gap: 9 },
-  secondaryButton: { minHeight: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface },
-  secondaryText: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  secondaryButton: { minHeight: 50, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(17,17,17,0.11)', backgroundColor: '#FFFFFF' },
+  secondaryText: { color: '#111111', fontSize: 12, fontWeight: '900' },
   exploreButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
-  exploreText: { color: colors.textSecondary, fontSize: 11, fontWeight: '800' },
+  exploreText: { color: 'rgba(17,17,17,0.54)', fontSize: 11, fontWeight: '800' },
 });

@@ -1,14 +1,13 @@
 {
-  "title": "Synaura Flow precis 0.20.5",
+  "title": "Synaura immersion 0.20.6",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Un geste fait defiler exactement une carte, meme avec un swipe rapide",
-    "Rendu du Flow allege sans animation supplementaire",
-    "Le morceau choisi demarre avant le chargement du reste de la playlist",
-    "Buffer et cache audio optimises depuis les profils, playlists et collections",
-    "Dans la meme aura recommande des titres lies a la collection, playlist, album, ambiance ou au createur",
-    "Recommandations identiques dans le lecteur web et l'app native",
-    "Affichage des pistes de collections corrige sans exposer les morceaux prives"
+    "Lecture continue lorsque l'ecran est eteint ou que l'app passe en arriere-plan",
+    "Reprise automatique apres une coupure reseau temporaire, sans perdre la file",
+    "Une lecture lancee seule se prolonge avec des morceaux lies de la meme aura",
+    "Bienvenue et onboarding entierement repenses, plus clairs et immersifs",
+    "Cinq scenes Synaura presentent Flow, Moments, Radar, Studio et les profils",
+    "Mise en page adaptee aux petits ecrans, au paysage et aux grandes polices"
   ]
 }
