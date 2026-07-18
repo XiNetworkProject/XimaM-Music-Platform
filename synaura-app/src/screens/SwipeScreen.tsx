@@ -1562,6 +1562,7 @@ export function SwipeScreen() {
           renderItem={renderItem}
           snapToInterval={itemHeight}
           snapToAlignment="start"
+          disableIntervalMomentum
           decelerationRate="fast"
           bounces={false}
           overScrollMode="never"
@@ -1574,10 +1575,10 @@ export function SwipeScreen() {
           onMomentumScrollEnd={handleMomentumScrollEnd}
           getItemLayout={(_, index) => ({ length: itemHeight, offset: itemHeight * index, index })}
           initialScrollIndex={Math.max(0, Math.min(activeIndex, feedItems.length - 1))}
-          initialNumToRender={3}
-          windowSize={5}
-          maxToRenderPerBatch={3}
-          updateCellsBatchingPeriod={16}
+          initialNumToRender={2}
+          windowSize={3}
+          maxToRenderPerBatch={2}
+          updateCellsBatchingPeriod={32}
           onScrollToIndexFailed={(info) => listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false })}
           removeClippedSubviews={false}
           onEndReached={handleEndReached}

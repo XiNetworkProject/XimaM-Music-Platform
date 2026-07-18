@@ -49,7 +49,7 @@ export async function GET(
           track_id,
           position,
           tracks(
-            id, title, creator_id, created_at, cover_url, audio_url, duration, genre, album,
+            id, title, creator_id, created_at, cover_url, audio_url, duration, genre, album, is_public,
             profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name )
           )
         )

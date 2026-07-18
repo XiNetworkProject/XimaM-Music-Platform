@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { getCommentsCount, getPopularTracks, getTrackById, getTrackLikeStatus, getTrackPosts, recordClipFunnelEvent, setTrackLike, togglePostLike } from '@/api/client';
+import { getCommentsCount, getSimilarTracks, getTrackById, getTrackLikeStatus, getTrackPosts, recordClipFunnelEvent, setTrackLike, togglePostLike } from '@/api/client';
 import { canOpenAiVariation, canUseSoundClientSide, type HomePost, type Track } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
 import { openClipComposerForSound } from '@/navigation/clipEntry';
@@ -53,15 +53,15 @@ export function TrackDetailScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [next, popular, likeState, commentCounts] = await Promise.all([
+      const [next, related, likeState, commentCounts] = await Promise.all([
         getTrackById(trackId),
-        getPopularTracks().catch(() => []),
+        getSimilarTracks(trackId, 8).catch(() => ({ tracks: [], contextLabel: '' })),
         getTrackLikeStatus(trackId).catch(() => null),
         getCommentsCount([trackId]).catch(() => ({} as Record<string, number>)),
       ]);
       if (!next && !initial) throw new Error('Morceau introuvable');
       setTrack(mergeTrackDetail(next, initial));
-      setSimilar(popular.filter((item) => item._id !== trackId).slice(0, 6));
+      setSimilar(related.tracks.filter((item) => item._id !== trackId).slice(0, 8));
       void getTrackPosts(trackId, 12).then(setTrackPosts).catch(() => setTrackPosts([]));
       if (likeState) {
         setLiked(likeState.liked);

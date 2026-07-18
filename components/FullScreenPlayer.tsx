@@ -26,6 +26,7 @@ function QueueMiniRow({
   track,
   index,
   editable,
+  onPlay,
   onRemove,
   onMoveUp,
   onMoveDown,
@@ -33,12 +34,24 @@ function QueueMiniRow({
   track: any;
   index?: number;
   editable?: boolean;
+  onPlay?: () => void;
   onRemove?: () => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-[1rem] bg-black/[0.04] p-2">
+    <div
+      role={onPlay ? 'button' : undefined}
+      tabIndex={onPlay ? 0 : undefined}
+      onClick={onPlay}
+      onKeyDown={onPlay ? (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onPlay();
+        }
+      } : undefined}
+      className={`flex items-center gap-2 rounded-[1rem] bg-black/[0.04] p-2 ${onPlay ? 'cursor-pointer transition hover:bg-black/[0.08] focus:outline-none focus:ring-2 focus:ring-[#4A9EAA]/45' : ''}`}
+    >
       {typeof index === 'number' ? <span className="w-5 text-center text-[10px] font-black text-black/32">{index + 1}</span> : null}
       <TrackCover
         trackId={track?._id || track?.id || null}
@@ -75,21 +88,27 @@ function QueuePanel({
   currentTrack,
   queueTracks,
   upNextTracks,
+  relatedTracks,
+  relatedLabel,
   upNextEnabled,
   onToggleEnabled,
   onRemove,
   onClear,
   onMove,
+  onPlayRelated,
   onClose,
 }: {
   currentTrack: any;
   queueTracks: any[];
   upNextTracks: any[];
+  relatedTracks: any[];
+  relatedLabel: string;
   upNextEnabled: boolean;
   onToggleEnabled: () => void;
   onRemove: (trackId: string) => void;
   onClear: () => void;
   onMove: (trackId: string, direction: 'up' | 'down') => void;
+  onPlayRelated: (track: any) => void;
   onClose: () => void;
 }) {
   return (
@@ -154,6 +173,27 @@ function QueuePanel({
               </Link>
             </div>
           )}
+          {relatedTracks.length ? (
+            <div className="mt-3 border-t border-black/[0.08] pt-3">
+              <div className="mb-2 flex items-end justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#4A9EAA]">Dans la même aura</p>
+                  <p className="truncate text-[10px] font-semibold text-black/38">{relatedLabel || 'Sélection liée à ce morceau'}</p>
+                </div>
+                <Sparkles className="h-4 w-4 shrink-0 text-[#4A9EAA]" />
+              </div>
+              <div className="max-h-[180px] space-y-1.5 overflow-y-auto pr-1">
+                {relatedTracks.map((track, index) => (
+                  <QueueMiniRow
+                    key={`${track?._id || track?.id}-${index}`}
+                    track={track}
+                    index={index}
+                    onPlay={() => onPlayRelated(track)}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
@@ -164,6 +204,7 @@ export default function SynauraMiniPlayer() {
   const {
     audioState,
     albumContext,
+    playTrack,
     play,
     pause,
     nextTrack,
@@ -183,8 +224,11 @@ export default function SynauraMiniPlayer() {
   const [showTikTok, setShowTikTok] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [relatedTracks, setRelatedTracks] = useState<any[]>([]);
+  const [relatedLabel, setRelatedLabel] = useState('');
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex] || null;
+  const currentTrackId = String(currentTrack?._id || (currentTrack as any)?.id || '');
   const track = useMemo(
     () => ({
       id: currentTrack?._id || '',
@@ -208,6 +252,32 @@ export default function SynauraMiniPlayer() {
   const progressPct = duration ? ((currentTime || 0) / duration) * 100 : 0;
   const artistUsername = (currentTrack as any)?.artist?.username;
   const nextQueueTracks = audioState.tracks.slice(Math.max(0, audioState.currentTrackIndex + 1), audioState.currentTrackIndex + 6);
+
+  useEffect(() => {
+    const id = currentTrackId;
+    if (!id || id.startsWith('radio-') || id.startsWith('ai-') || id.startsWith('gen-')) {
+      setRelatedTracks([]);
+      setRelatedLabel('');
+      return;
+    }
+    const controller = new AbortController();
+    fetch(`/api/tracks/similar?trackId=${encodeURIComponent(id)}&limit=10`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (!payload) return;
+        setRelatedTracks((Array.isArray(payload.tracks) ? payload.tracks : []).filter((item: any) => String(item?._id || item?.id || '') !== id));
+        setRelatedLabel(typeof payload.contextLabel === 'string' ? payload.contextLabel : '');
+      })
+      .catch((error) => {
+        if (error?.name === 'AbortError') return;
+        setRelatedTracks([]);
+        setRelatedLabel('');
+      });
+    return () => controller.abort();
+  }, [currentTrackId]);
 
   const togglePlay = async () => {
     if (audioState.isPlaying) pause();
@@ -288,11 +358,14 @@ export default function SynauraMiniPlayer() {
                   currentTrack={currentTrack as any}
                   queueTracks={nextQueueTracks as any[]}
                   upNextTracks={upNextTracks as any[]}
+                  relatedTracks={relatedTracks}
+                  relatedLabel={relatedLabel}
                   upNextEnabled={upNextEnabled}
                   onToggleEnabled={() => setUpNextEnabled(!upNextEnabled)}
                   onRemove={removeFromUpNext}
                   onClear={clearUpNext}
                   onMove={moveUpNext}
+                  onPlayRelated={(nextRelatedTrack) => void playTrack(nextRelatedTrack)}
                   onClose={() => setShowQueue(false)}
                 />
               ) : null}

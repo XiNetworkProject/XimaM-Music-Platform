@@ -100,6 +100,11 @@ async function setupPlayer() {
   try {
     await TrackPlayer.setupPlayer({
       autoHandleInterruptions: true,
+      minBuffer: 8,
+      maxBuffer: 28,
+      playBuffer: 0.8,
+      backBuffer: 12,
+      maxCacheSize: 128 * 1024,
     });
   } catch (error) {
     if (!/already|initialized/i.test(String(error))) throw error;
@@ -225,9 +230,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setShuffleEnabled(Boolean(saved.shuffleEnabled));
 
         if (matchingNativeIndex < 0) {
-          await TrackPlayer.reset();
-          await TrackPlayer.add(savedQueue.map(toNativeTrack));
-          await TrackPlayer.skip(savedIndex);
+          await TrackPlayer.setQueue(savedQueue.map(toNativeTrack));
+          if (savedIndex > 0) await TrackPlayer.skip(savedIndex);
           if (Number(saved.position || 0) > 0) await TrackPlayer.seekTo(Number(saved.position)).catch(() => {});
         }
         await TrackPlayer.setRepeatMode(saved.repeatMode === 'one' ? RepeatMode.Track : saved.repeatMode === 'all' ? RepeatMode.Queue : RepeatMode.Off);
@@ -399,9 +403,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             }
           }
           playbackTelemetryRef.current = emptyPlaybackTelemetry(nextTrackId, Number(payload.track?.duration || 0));
-          const trackIndex = payload.index;
-          if (typeof trackIndex === 'number' && trackIndex >= 0) {
-            setCurrentIndex(trackIndex);
+          const logicalIndex = queueRef.current.findIndex((track) => track._id === nextTrackId);
+          if (logicalIndex >= 0) {
+            currentIndexRef.current = logicalIndex;
+            setCurrentIndex(logicalIndex);
           }
         }
       } catch {
@@ -427,14 +432,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setCurrent(playable[index]);
       currentRef.current = playable[index];
       addRecent(playable[index]);
+      lastActivationRef.current = { trackId: playable[index]._id, at: Date.now() };
 
-      await TrackPlayer.reset();
-      if (activationEpoch !== activationEpochRef.current) return;
-      await TrackPlayer.add(playable.map(toNativeTrack));
-      await TrackPlayer.skip(index);
+      const target = playable[index];
+      await TrackPlayer.setQueue([toNativeTrack(target)]);
       if (activationEpoch !== activationEpochRef.current) return;
       await TrackPlayer.play();
-      lastActivationRef.current = { trackId: playable[index]._id, at: Date.now() };
+      lastActivationRef.current = { trackId: target._id, at: Date.now() };
+
+      // The selected song starts before the rest of a potentially large
+      // playlist is attached. Inserting tracks around the active item keeps
+      // playback uninterrupted while restoring the complete logical order.
+      if (activationEpoch !== activationEpochRef.current) return;
+      const following = playable.slice(index + 1);
+      if (following.length) await TrackPlayer.add(following.map(toNativeTrack));
+      if (activationEpoch !== activationEpochRef.current) return;
+      const preceding = playable.slice(0, index);
+      if (preceding.length) await TrackPlayer.add(preceding.map(toNativeTrack), 0);
     });
   }, [addRecent, runPlayerCommand]);
 
@@ -503,9 +517,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    await TrackPlayer.reset();
-    await TrackPlayer.add(playable.map(toNativeTrack));
-    await TrackPlayer.skip(index);
+    await TrackPlayer.setQueue(playable.map(toNativeTrack));
+    if (index > 0) await TrackPlayer.skip(index);
     if (previousId && previousId === playable[index]._id) {
       if (previousPosition > 0) await TrackPlayer.seekTo(previousPosition).catch(() => {});
       if (shouldResumePlayback) await TrackPlayer.play().catch(() => {});
@@ -556,19 +569,27 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const nativeQueue = await TrackPlayer.getQueue().catch(() => []);
       const nativeIndex = nativeQueue.findIndex((item) => String(item.id) === track._id);
       if (currentRef.current?._id === track._id && nativeIndex >= 0) {
-        await TrackPlayer.play();
         lastActivationRef.current = { trackId: track._id, at: Date.now() };
+        await TrackPlayer.play();
         return;
       }
 
       const logicalQueue = queueRef.current;
       const logicalIndex = logicalQueue.findIndex((item) => item._id === track._id);
-      if (nativeIndex >= 0 && logicalIndex >= 0) {
+      if (nativeIndex >= 0) {
+        const nextLogicalQueue = logicalIndex >= 0
+          ? logicalQueue
+          : [track, ...logicalQueue.filter((item) => item._id !== track._id)];
+        const nextLogicalIndex = Math.max(0, nextLogicalQueue.findIndex((item) => item._id === track._id));
+        byIdRef.current.set(track._id, track);
+        queueRef.current = nextLogicalQueue;
         currentRef.current = track;
-        currentIndexRef.current = logicalIndex;
+        currentIndexRef.current = nextLogicalIndex;
+        setQueue(nextLogicalQueue);
         setCurrent(track);
-        setCurrentIndex(logicalIndex);
+        setCurrentIndex(nextLogicalIndex);
         addRecent(track);
+        lastActivationRef.current = { trackId: track._id, at: Date.now() };
         await TrackPlayer.skip(nativeIndex);
         if (activationEpoch !== activationEpochRef.current) return;
         await TrackPlayer.play();
@@ -585,12 +606,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setCurrent(track);
       setCurrentIndex(0);
       addRecent(track);
-      await TrackPlayer.reset();
-      if (activationEpoch !== activationEpochRef.current) return;
-      await TrackPlayer.add(toNativeTrack(track));
+      lastActivationRef.current = { trackId: track._id, at: Date.now() };
+      await TrackPlayer.load(toNativeTrack(track));
       if (activationEpoch !== activationEpochRef.current) return;
       await TrackPlayer.play();
       lastActivationRef.current = { trackId: track._id, at: Date.now() };
+      if (activationEpoch !== activationEpochRef.current) return;
+
+      const activeNativeIndex = await TrackPlayer.getActiveTrackIndex().catch(() => undefined);
+      const loadedQueue = await TrackPlayer.getQueue().catch(() => []);
+      if (typeof activeNativeIndex === 'number' && loadedQueue.length > 1) {
+        const obsoleteIndexes = loadedQueue
+          .map((_item, index) => index)
+          .filter((index) => index !== activeNativeIndex);
+        if (obsoleteIndexes.length && activationEpoch === activationEpochRef.current) {
+          await TrackPlayer.remove(obsoleteIndexes).catch(() => {});
+        }
+      }
     });
   }, [addRecent, runPlayerCommand]);
 

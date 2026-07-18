@@ -1,15 +1,14 @@
 {
-  "title": "Synaura Flow stable 0.20.4",
+  "title": "Synaura Flow precis 0.20.5",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Scroll plein ecran stabilise, y compris pendant les gestes rapides",
-    "Les cartes deja vues ne reculent plus lors du renouvellement du Flow",
-    "Les posts avec un son restent visibles et leur lecture devient entierement manuelle",
-    "Demarrage audio protege contre les courses play pause play",
-    "Defilement plus fluide sans reconstruction de la file audio",
-    "Reprise du Flow a la derniere carte apres avoir quitte l'app",
-    "Recommandations actualisees selon les ecoutes, completions, skips et likes de la session",
-    "Diversite renforcee entre artistes, genres, posts et sons attaches"
+    "Un geste fait defiler exactement une carte, meme avec un swipe rapide",
+    "Rendu du Flow allege sans animation supplementaire",
+    "Le morceau choisi demarre avant le chargement du reste de la playlist",
+    "Buffer et cache audio optimises depuis les profils, playlists et collections",
+    "Dans la meme aura recommande des titres lies a la collection, playlist, album, ambiance ou au createur",
+    "Recommandations identiques dans le lecteur web et l'app native",
+    "Affichage des pistes de collections corrige sans exposer les morceaux prives"
   ]
 }

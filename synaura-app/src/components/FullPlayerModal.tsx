@@ -20,11 +20,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getArtistFollowState,
   getCommentsCount,
+  getSimilarTracks,
   getTrackLikeStatus,
   setTrackLike,
   toggleArtistFollow,
 } from '@/api/client';
-import { canOpenAiVariation } from '@/api/types';
+import { canOpenAiVariation, type Track } from '@/api/types';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
 import { CommentsSheet } from '@/components/swipe/CommentsSheet';
@@ -70,11 +71,14 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const [commentsCount, setCommentsCount] = useState<number>(0);
   const [following, setFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
+  const [relatedTracks, setRelatedTracks] = useState<Track[]>([]);
+  const [relatedContext, setRelatedContext] = useState('');
 
   const dragY = useRef(new Animated.Value(0)).current;
   const coverX = useRef(new Animated.Value(0)).current;
   const coverPulse = useRef(new Animated.Value(0)).current;
   const dragStartedRef = useRef(false);
+  const relatedRequestRef = useRef(0);
 
   const trackId = track?._id || '';
   const isRadio = trackId.startsWith('radio-');
@@ -107,6 +111,26 @@ export function FullPlayerModal({ visible, onClose }: Props) {
     if (!visible || !track?.artist?.username || isRadio) return;
     void getArtistFollowState(track.artist.username).then(setFollowing);
   }, [isRadio, track?.artist?.username, visible]);
+
+  useEffect(() => {
+    const requestId = ++relatedRequestRef.current;
+    if (!visible || !trackId || isRadio || isAi) {
+      setRelatedTracks([]);
+      setRelatedContext('');
+      return;
+    }
+    void getSimilarTracks(trackId, 10)
+      .then((result) => {
+        if (requestId !== relatedRequestRef.current) return;
+        setRelatedTracks(result.tracks.filter((item) => item._id !== trackId));
+        setRelatedContext(result.contextLabel);
+      })
+      .catch(() => {
+        if (requestId !== relatedRequestRef.current) return;
+        setRelatedTracks([]);
+        setRelatedContext('');
+      });
+  }, [isAi, isRadio, trackId, visible]);
 
   // Subtle cover pulse only when playing.
   useEffect(() => {
@@ -341,7 +365,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
 
         <ScrollView
           bounces={false}
-          scrollEnabled={layout.isVeryShort || layout.hasVeryLargeText || layout.isPhoneLandscape}
+          scrollEnabled
           showsVerticalScrollIndicator={false}
           style={styles.bodyScroll}
           contentContainerStyle={[
@@ -568,6 +592,18 @@ export function FullPlayerModal({ visible, onClose }: Props) {
               onPress={() => setMoreOpen(true)}
             />
           </View>
+
+          {relatedTracks.length ? (
+            <RelatedTracksRail
+              tracks={relatedTracks}
+              contextLabel={relatedContext}
+              currentTrackId={trackId}
+              onPlay={(nextTrack) => {
+                Haptics.selectionAsync().catch(() => {});
+                void player.playTrack(nextTrack);
+              }}
+            />
+          ) : null}
         </ScrollView>
 
         <CommentsSheet
@@ -644,6 +680,52 @@ export function FullPlayerModal({ visible, onClose }: Props) {
         </Modal>
       </Animated.View>
     </Modal>
+  );
+}
+
+function RelatedTracksRail({
+  tracks,
+  contextLabel,
+  currentTrackId,
+  onPlay,
+}: {
+  tracks: Track[];
+  contextLabel: string;
+  currentTrackId: string;
+  onPlay: (track: Track) => void;
+}) {
+  return (
+    <View style={styles.relatedSection}>
+      <View style={styles.relatedHeader}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.relatedKicker}>Dans la même aura</Text>
+          <Text numberOfLines={1} style={styles.relatedContext}>{contextLabel || 'Sélection liée à ce morceau'}</Text>
+        </View>
+        <Ionicons name="sparkles-outline" size={17} color={colors.cyan} />
+      </View>
+      <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relatedRail}>
+        {tracks.filter((track) => track._id !== currentTrackId).map((track) => (
+          <Pressable
+            key={track._id}
+            accessibilityLabel={`Lire ${track.title}`}
+            onPress={() => onPlay(track)}
+            style={styles.relatedCard}
+          >
+            <View style={styles.relatedCover}>
+              <TrackCover track={track} active={false} style={StyleSheet.absoluteFill} />
+              <View style={styles.relatedPlay}>
+                <Ionicons name="play" size={15} color="#111111" style={{ marginLeft: 2 }} />
+              </View>
+            </View>
+            <Text numberOfLines={1} style={styles.relatedTitle}>{track.title}</Text>
+            <Text numberOfLines={1} style={styles.relatedArtist}>{trackArtistName(track)}</Text>
+            {track.recommendationReasons?.[0] ? (
+              <Text numberOfLines={1} style={styles.relatedReason}>{track.recommendationReasons[0]}</Text>
+            ) : null}
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -1014,6 +1096,40 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '900',
   },
+  relatedSection: {
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.18)',
+  },
+  relatedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 11 },
+  relatedKicker: { color: '#F7F6F3', fontSize: 14, fontWeight: '900' },
+  relatedContext: { marginTop: 3, color: 'rgba(255,255,255,0.58)', fontSize: 10, fontWeight: '700' },
+  relatedRail: { gap: 10, paddingRight: 18 },
+  relatedCard: { width: 104 },
+  relatedCover: {
+    width: 104,
+    height: 104,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#171313',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  relatedPlay: {
+    position: 'absolute',
+    right: 7,
+    bottom: 7,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F7F6F3',
+  },
+  relatedTitle: { marginTop: 7, color: '#F7F6F3', fontSize: 11, fontWeight: '900' },
+  relatedArtist: { marginTop: 2, color: 'rgba(255,255,255,0.62)', fontSize: 9, fontWeight: '700' },
+  relatedReason: { marginTop: 3, color: colors.cyan, fontSize: 8, fontWeight: '800' },
   moreOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.7)' },
   moreSheet: {
     alignSelf: 'center',

@@ -278,6 +278,10 @@ function normalizeTrack(raw: any): Track | null {
     remixAttribution: raw?.remixAttribution || raw?.remix_attribution || null,
     variationsCount: Number(raw?.variationsCount ?? raw?.variations_count ?? 0),
     musicClipsCount: Number(raw?.musicClipsCount ?? raw?.music_clips_count ?? 0),
+    recommendationScore: Number(raw?.recommendationScore ?? raw?.recommendation_score ?? 0),
+    recommendationReasons: Array.isArray(raw?.recommendationReasons ?? raw?.recommendation_reasons)
+      ? (raw?.recommendationReasons ?? raw?.recommendation_reasons).map((reason: unknown) => String(reason || '').trim()).filter(Boolean)
+      : [],
   };
 }
 
@@ -768,6 +772,18 @@ export async function searchEverything(query: string): Promise<SearchResults> {
 export async function getTrackById(trackId: string): Promise<Track | null> {
   const json = await optionalRequest<any>(`/api/tracks/${encodeURIComponent(trackId)}`);
   return json ? normalizeTrack(json?.track || json) : null;
+}
+
+export async function getSimilarTracks(trackId: string, limit = 8): Promise<{ tracks: Track[]; contextLabel: string }> {
+  if (!trackId || trackId.startsWith('ai-') || trackId.startsWith('radio-')) return { tracks: [], contextLabel: '' };
+  const json = await optionalRequest<any>(`/api/tracks/similar?trackId=${encodeURIComponent(trackId)}&limit=${Math.max(1, Math.min(20, limit))}`);
+  const tracks = (Array.isArray(json?.tracks) ? json.tracks : [])
+    .map(normalizeTrack)
+    .filter((track: Track | null): track is Track => Boolean(track) && track!._id !== trackId);
+  return {
+    tracks,
+    contextLabel: typeof json?.contextLabel === 'string' ? json.contextLabel : '',
+  };
 }
 
 export async function getMusicClips(input: { limit?: number; cursor?: number; sourceTrackId?: string; sourceTrackType?: 'track' | 'ai_track'; creatorId?: string; creatorUsername?: string; clipId?: string; excludeIds?: string[] } = {}): Promise<{ clips: MusicClip[]; nextCursor: number; hasMore: boolean }> {
