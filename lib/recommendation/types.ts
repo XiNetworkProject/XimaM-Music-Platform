@@ -150,11 +150,17 @@ export type UserRecommendationSignals = {
   currentSessionRecommendedTrackIds: Set<string>;
   currentSessionRecommendedPostIds: Set<string>;
   currentSessionRecommendedClipIds: Set<string>;
+  currentSessionCompletedTrackIds: Set<string>;
+  currentSessionSkippedTrackIds: Set<string>;
   recommendationCounts: Map<string, number>;
   currentSessionRecommendationCounts: Map<string, number>;
   lastRecommendedAt: Map<string, number>;
   currentSessionArtistCounts: Map<string, number>;
   currentSessionGenreCounts: Map<string, number>;
+  currentSessionPreferredGenres: Map<string, number>;
+  currentSessionAvoidedGenres: Map<string, number>;
+  currentSessionArtistAffinity: Map<string, number>;
+  currentSessionArtistAversion: Map<string, number>;
   followedPostCreatorIds: Set<string>;
   preferredGenres: Map<string, number>;
   avoidedGenres: Map<string, number>;

@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = 'synaura.recommendation.session.v2';
 const SEEN_KEY_PREFIX = 'synaura.recommendation.seen.v1';
-const SESSION_TTL_MS = 6 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 18 * 60 * 60 * 1000;
 const MAX_SEEN_PER_KIND = 240;
 let sessionPromise: Promise<string> | null = null;
 let seenPromise: Promise<RecommendationSeenState> | null = null;

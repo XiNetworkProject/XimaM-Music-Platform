@@ -1,14 +1,15 @@
 {
-  "title": "Synaura Pour toi vivant 0.20.3",
+  "title": "Synaura Flow stable 0.20.4",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Creation de post accessible directement depuis le bouton +",
-    "Compositeur complet avec posts texte, image ou son attache et recherche dans ses morceaux",
-    "Pour toi memorise les morceaux, posts et Clips deja vus pendant la session",
-    "Recommandations renouvelees en direct selon les ecoutes, skips, completions et likes",
-    "Diversite renforcee pour eviter les repetitions du meme artiste ou du meme genre",
-    "Demarrage audio stabilise pour supprimer les bascules play pause play",
-    "Caches du Flow filtres pour ne plus resservir en boucle les contenus deja parcourus"
+    "Scroll plein ecran stabilise, y compris pendant les gestes rapides",
+    "Les cartes deja vues ne reculent plus lors du renouvellement du Flow",
+    "Les posts avec un son restent visibles et leur lecture devient entierement manuelle",
+    "Demarrage audio protege contre les courses play pause play",
+    "Defilement plus fluide sans reconstruction de la file audio",
+    "Reprise du Flow a la derniere carte apres avoir quitte l'app",
+    "Recommandations actualisees selon les ecoutes, completions, skips et likes de la session",
+    "Diversite renforcee entre artistes, genres, posts et sons attaches"
   ]
 }

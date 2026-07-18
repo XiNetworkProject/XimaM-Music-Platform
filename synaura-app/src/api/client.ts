@@ -2213,8 +2213,10 @@ export async function getTrackLikeStatus(trackId: string): Promise<{ liked: bool
 }
 
 export async function setTrackLike(trackId: string, like: boolean): Promise<{ liked: boolean; likesCount: number } | null> {
+  const sessionId = await getRecommendationSessionId();
   const json = await optionalRequest<any>(`/api/tracks/${encodeURIComponent(trackId)}/like`, {
     method: like ? 'POST' : 'DELETE',
+    headers: { 'X-Synaura-Session': sessionId },
   });
   if (!json) return null;
   return {

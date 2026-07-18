@@ -55,6 +55,28 @@ export type ScrollFeedItem =
   | { id: string; kind: 'challenge'; challenge: FeedChallenge }
   | { id: string; kind: 'announcement'; announcement: FeedAnnouncement };
 
+export function reconcileScrollFeedItems(
+  previous: ScrollFeedItem[],
+  candidates: ScrollFeedItem[],
+  committedIndex: number,
+) {
+  if (!candidates.length) return previous;
+  if (!previous.length) return dedupeScrollItems(candidates);
+  const anchor = Math.max(0, Math.min(previous.length - 1, committedIndex));
+  const stablePrefix = previous.slice(0, anchor + 1);
+  const stableIds = new Set(stablePrefix.map((item) => item.id));
+  return dedupeScrollItems([...stablePrefix, ...candidates.filter((item) => !stableIds.has(item.id))]);
+}
+
+function dedupeScrollItems(items: ScrollFeedItem[]) {
+  const ids = new Set<string>();
+  return items.filter((item) => {
+    if (!item?.id || ids.has(item.id)) return false;
+    ids.add(item.id);
+    return true;
+  });
+}
+
 export const MIN_TRACK_RATIO = 0.75;
 export const MAX_CLIP_RATIO = 0.2;
 export const MAX_POST_RATIO = 0.12;

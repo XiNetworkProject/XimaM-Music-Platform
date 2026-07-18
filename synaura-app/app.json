@@ -3,7 +3,7 @@
     "name": "Synaura",
     "slug": "synaura",
     "scheme": "synaura",
-    "version": "0.20.3",
+    "version": "0.20.4",
     "icon": "./src/assets/synaura-symbol-2026.png",
     "orientation": "default",
     "userInterfaceStyle": "dark",
@@ -22,7 +22,7 @@
     "android": {
       "package": "com.synaura.music",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 61,
+      "versionCode": 62,
       "newArchEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {

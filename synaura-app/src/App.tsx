@@ -4,6 +4,7 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
 import { PlayerProvider } from '@/player/PlayerProvider';
 import { LibraryProvider } from '@/library/LibraryProvider';
@@ -157,6 +158,7 @@ export default function App() {
   }, []);
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <UpdateProvider>
         <MobileSettingsProvider>
@@ -193,5 +195,6 @@ export default function App() {
         </MobileSettingsProvider>
       </UpdateProvider>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

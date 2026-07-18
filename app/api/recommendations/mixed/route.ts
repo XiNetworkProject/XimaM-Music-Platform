@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
         posts: page,
         nextCursor: nextCursor < ranked.length ? String(nextCursor) : null,
         hasMore: nextCursor < ranked.length,
-        engineVersion: 'discovery-v3',
+        engineVersion: 'discovery-v4',
       },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } },
     );

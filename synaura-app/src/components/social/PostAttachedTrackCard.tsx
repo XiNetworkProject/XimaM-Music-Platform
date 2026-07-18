@@ -36,7 +36,7 @@ export function PostAttachedTrackCard({
   const isCurrent = player.current?._id === track._id;
 
   const openFullPlayer = () => {
-    onPlay();
+    if (!isCurrent || !playing) onPlay();
     setTimeout(() => DeviceEventEmitter.emit('synaura:open-full-player'), 80);
   };
 

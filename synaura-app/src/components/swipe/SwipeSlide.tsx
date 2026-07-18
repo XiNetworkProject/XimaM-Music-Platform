@@ -1,6 +1,7 @@
 ﻿import React, { memo, useEffect, useRef } from 'react';
 import { Animated, Easing, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { Track } from '@/api/types';
 import { fmtCount, trackArtistName } from './helpers';
@@ -207,8 +208,6 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
   const genres = (track.genre || []).filter((genre) => Boolean(genre) && genre.length <= 20).slice(0, 1);
   const { settings } = useMobileSettings();
   const responsive = useResponsiveLayout();
-  const lastTapRef = useRef(0);
-  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playButtonOpacity = useRef(new Animated.Value(isPlaying ? 0 : 1)).current;
   const slideReveal = useRef(new Animated.Value(isActive ? 1 : 0)).current;
   const coverScale = useRef(new Animated.Value(1)).current;
@@ -240,11 +239,6 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
   }, [breath, isActive, isPlaying, settings.reducedMotion]);
 
   useEffect(() => {
-    if (!isActive && tapTimerRef.current) {
-      clearTimeout(tapTimerRef.current);
-      tapTimerRef.current = null;
-      lastTapRef.current = 0;
-    }
     Animated.spring(slideReveal, {
       toValue: isActive ? 1 : 0,
       speed: 16,
@@ -253,26 +247,21 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
     }).start();
   }, [isActive, slideReveal]);
 
-  useEffect(() => () => {
-    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-  }, []);
-
-  const handleTap = () => {
-    if (!isActive) return;
-    const now = Date.now();
-    if (now - lastTapRef.current < 260) {
-      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-      tapTimerRef.current = null;
-      lastTapRef.current = 0;
-      onDoubleTapLike();
-      return;
-    }
-    lastTapRef.current = now;
-    tapTimerRef.current = setTimeout(() => {
-      if (lastTapRef.current === now) onPress();
-      tapTimerRef.current = null;
-    }, 270);
-  };
+  const coverGesture = React.useMemo(() => Gesture.Exclusive(
+    Gesture.Tap()
+      .enabled(isActive)
+      .numberOfTaps(2)
+      .maxDelay(240)
+      .maxDistance(12)
+      .runOnJS(true)
+      .onEnd((_event, success) => { if (success) onDoubleTapLike(); }),
+    Gesture.Tap()
+      .enabled(isActive)
+      .numberOfTaps(1)
+      .maxDistance(12)
+      .runOnJS(true)
+      .onEnd((_event, success) => { if (success) onPress(); }),
+  ), [isActive, onDoubleTapLike, onPress]);
 
   const displayTitle = track.title;
   const displayArtist = trackArtistName(track);
@@ -282,7 +271,14 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
 
   return (
     <View style={[styles.page, { height }]}>
-      <Pressable accessibilityLabel={isPlaying ? 'Mettre en pause' : 'Lire'} onPress={handleTap} style={styles.pressArea}>
+      <GestureDetector gesture={coverGesture}>
+        <View
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={isPlaying ? 'Mettre en pause' : 'Lire'}
+          onAccessibilityTap={onPress}
+          style={styles.pressArea}
+        >
         <Animated.View
           style={[
             styles.coverShell,
@@ -340,7 +336,8 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
             </View>
           </View>
         </Animated.View>
-      </Pressable>
+        </View>
+      </GestureDetector>
 
       <Animated.View
         style={[

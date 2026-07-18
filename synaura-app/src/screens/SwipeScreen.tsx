@@ -42,6 +42,22 @@ import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
 import { readRankingFeedCache, writeRankingFeedCache } from '@/feed/rankingFeedCache';
 import { readClipFeedCache, writeClipFeedCache } from '@/feed/clipFeedCache';
+import {
+  buildFlowResumeSnapshot,
+  extractFlowSources,
+  readFlowResumeSnapshot,
+  writeFlowResumeSnapshot,
+  type FlowResumeSnapshot,
+} from '@/feed/scrollFeedSession';
+import {
+  applyLiveTasteSignal,
+  emptyLiveTasteProfile,
+  readLiveTasteProfile,
+  rerankTracksWithLiveTaste,
+  writeLiveTasteProfile,
+  type LiveTasteProfile,
+  type LiveTasteSignal,
+} from '@/feed/liveTasteProfile';
 import { openClipComposerForSound } from '@/navigation/clipEntry';
 import { AnnouncementSlide } from '@/components/swipe/AnnouncementSlide';
 import { ArtistSpotlightSlide } from '@/components/swipe/ArtistSpotlightSlide';
@@ -56,6 +72,7 @@ import {
   buildCollectionItems,
   buildMusicChallengeItem,
   composeScrollFeed,
+  reconcileScrollFeedItems,
   type ScrollFeedItem,
 } from '@/components/swipe/feedTypes';
 import { HeartBurst } from '@/components/swipe/HeartBurst';
@@ -83,9 +100,8 @@ import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { ClipUploadIndicator } from '@/clips/ClipUploadIndicator';
 import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
 
-const PRELOAD_RANGE = 1;
+const PRELOAD_RANGE = 2;
 const COMMENTS_POLL_DELAY_MS = 900;
-const SWIPE_TRIGGER_DISTANCE = 48;
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 function withoutObsoleteRadios(tracks: Track[]) {
@@ -109,8 +125,11 @@ function trackOfItem(item: ScrollFeedItem | null | undefined): Track | null {
 function playableTrackOfItem(item: ScrollFeedItem | null | undefined): Track | null {
   if (!item) return null;
   if (item.kind === 'track' || item.kind === 'artist_spotlight') return item.track;
-  if (item.kind === 'post') return item.post.track || null;
   return null;
+}
+
+function anyTrackOfItem(item: ScrollFeedItem | null | undefined): Track | null {
+  return playableTrackOfItem(item) || (item?.kind === 'post' ? item.post.track || null : null);
 }
 
 function clipInteractionKey(clipId: string) {
@@ -124,7 +143,8 @@ export function SwipeScreen() {
   const insets = useSafeAreaInsets();
   const responsive = useResponsiveLayout();
   const tabBarHeight = responsive.dockHeight + Math.max(insets.bottom, 7) + 10;
-  const itemHeight = Math.max(420, responsive.height);
+  const [viewportHeight, setViewportHeight] = useState(() => Math.max(420, responsive.height));
+  const itemHeight = viewportHeight;
 
   const player = usePlayer();
   const library = useLibrary();
@@ -141,6 +161,7 @@ export function SwipeScreen() {
   const [collectionsRaw, setCollectionsRaw] = useState<any[]>([]);
   const [cityEvents, setCityEvents] = useState<any[]>([]);
   const [musicChallenges, setMusicChallenges] = useState<any[]>([]);
+  const [feedItems, setFeedItems] = useState<ScrollFeedItem[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [cursor, setCursor] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -174,6 +195,9 @@ export function SwipeScreen() {
   const burstTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const playbackCommitRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pendingSwipeReleaseRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const settleCommitRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const resumePersistTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const liveTastePersistTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pendingSwipeTrackRef = useRef<string | null>(null);
   const fetchedCommentIdsRef = useRef<Set<string>>(new Set());
   const fetchedLikeIdsRef = useRef<Set<string>>(new Set());
@@ -183,9 +207,18 @@ export function SwipeScreen() {
   const feedProgress = useRef(new Animated.Value(0)).current;
   const lastCommittedIndexRef = useRef(0);
   const activeIndexRef = useRef(0);
-  const dragStartOffsetRef = useRef(0);
   const appStateRef = useRef(AppState.currentState);
   const feedItemsRef = useRef<ScrollFeedItem[]>([]);
+  const stableFeedModeRef = useRef<FeedMode>(feedMode);
+  const pendingCandidateFeedRef = useRef<ScrollFeedItem[] | null>(null);
+  const scrollInProgressRef = useRef(false);
+  const momentumInProgressRef = useRef(false);
+  const playbackIntentRef = useRef(0);
+  const flowOwnsPlaybackRef = useRef(false);
+  const loadingMoreRef = useRef(false);
+  const refreshDeferredRef = useRef(false);
+  const persistFlowRef = useRef<() => Promise<void>>(async () => {});
+  const liveTasteRef = useRef<LiveTasteProfile>(emptyLiveTasteProfile());
   const lastAutoStartedClipRef = useRef<string | null>(null);
   const impressionSeenRef = useRef<Set<string>>(new Set());
   const viewedTrackIdsRef = useRef<Set<string>>(new Set());
@@ -211,10 +244,10 @@ export function SwipeScreen() {
     }
   }, [feedMode, route.params?.mode]);
 
-  // Feed mixte : la trame reste les morceaux (>=75%), les cartes non musicales
+  // Feed mixte candidat : la trame reste les morceaux (>=75%), les cartes non musicales
   // (artiste, collection, défi, annonce) sont réparties avec parcimonie. Aucune
   // promotion Premium n'est injectée.
-  const feedItems = useMemo<ScrollFeedItem[]>(() => {
+  const candidateFeedItems = useMemo<ScrollFeedItem[]>(() => {
     if (feedMode === 'clips') {
       return clips
         .filter((clip) => clip?.id && clip.videoUrl && clip.sourceTrack?.audioUrl)
@@ -235,20 +268,26 @@ export function SwipeScreen() {
     });
   }, [feedMode, tracks, clips, posts, popularUsers, collectionsRaw, cityEvents, musicChallenges]);
 
-  useEffect(() => {
-    const previousItems = feedItemsRef.current;
-    const previousActive = previousItems[activeIndexRef.current];
-    feedItemsRef.current = feedItems;
-    if (!previousActive || !feedItems.length) return;
-    const nextIndex = feedItems.findIndex((item) => item.id === previousActive.id);
-    if (nextIndex < 0 || nextIndex === activeIndexRef.current) return;
-    activeIndexRef.current = nextIndex;
-    lastCommittedIndexRef.current = nextIndex;
-    setActiveIndex(nextIndex);
-    requestAnimationFrame(() => {
-      try { listRef.current?.scrollToIndex({ index: nextIndex, animated: false }); } catch { /* ignore */ }
+  const applyCandidateFeed = useCallback((candidates: ScrollFeedItem[]) => {
+    if (!candidates.length) return;
+    setFeedItems((previous) => {
+      const next = stableFeedModeRef.current === feedMode
+        ? reconcileScrollFeedItems(previous, candidates, activeIndexRef.current)
+        : candidates;
+      stableFeedModeRef.current = feedMode;
+      feedItemsRef.current = next;
+      return next;
     });
-  }, [feedItems]);
+  }, [feedMode]);
+
+  useEffect(() => {
+    if (!candidateFeedItems.length) return;
+    if (scrollInProgressRef.current) {
+      pendingCandidateFeedRef.current = candidateFeedItems;
+      return;
+    }
+    applyCandidateFeed(candidateFeedItems);
+  }, [applyCandidateFeed, candidateFeedItems]);
 
   const playableQueue = useMemo(() => {
     return uniqueTracks(feedItems
@@ -263,7 +302,79 @@ export function SwipeScreen() {
 
   const currentSeedGenre = useMemo(() => seedGenre || topGenre(activeTrack), [activeTrack, seedGenre]);
 
+  const rerankFutureTracks = useCallback((current: Track[], profile = liveTasteRef.current) => {
+    const fixedIds = new Set(viewedTrackIdsRef.current);
+    const active = playableTrackOfItem(feedItemsRef.current[activeIndexRef.current]);
+    if (active?._id) fixedIds.add(active._id);
+    const fixed = current.filter((track) => fixedIds.has(track._id));
+    const future = current.filter((track) => !fixedIds.has(track._id));
+    return uniqueTracks([...fixed, ...rerankTracksWithLiveTaste(future, profile, fixed)]);
+  }, []);
+
+  const rememberLiveTaste = useCallback((track: Track | null | undefined, type: LiveTasteSignal, weight = 1) => {
+    if (!track?._id || track._id.startsWith('radio-')) return;
+    const next = applyLiveTasteSignal(liveTasteRef.current, track, type, weight);
+    liveTasteRef.current = next;
+    clearTimeout(liveTastePersistTimerRef.current);
+    liveTastePersistTimerRef.current = setTimeout(() => {
+      void writeLiveTasteProfile(auth.user?.id, liveTasteRef.current);
+    }, 700);
+    if (type !== 'play_start') setTracks((current) => rerankFutureTracks(current, next));
+  }, [auth.user?.id, rerankFutureTracks]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void readLiveTasteProfile(auth.user?.id).then((profile) => {
+      if (cancelled) return;
+      liveTasteRef.current = profile;
+      setTracks((current) => rerankFutureTracks(current, profile));
+    });
+    return () => { cancelled = true; };
+  }, [auth.user?.id, rerankFutureTracks]);
+
+  const showResumeSnapshot = useCallback((snapshot: FlowResumeSnapshot) => {
+    const sources = extractFlowSources(snapshot.items);
+    stableFeedModeRef.current = snapshot.mode;
+    feedItemsRef.current = snapshot.items;
+    setFeedItems(snapshot.items);
+    setTracks(sources.tracks);
+    setClips(sources.clips);
+    setPosts(sources.posts);
+    activeIndexRef.current = snapshot.activeIndex;
+    lastCommittedIndexRef.current = snapshot.activeIndex;
+    setActiveIndex(snapshot.activeIndex);
+    setLoadState('ready');
+  }, []);
+
+  const persistCurrentFlow = useCallback(async () => {
+    const snapshot = buildFlowResumeSnapshot(feedMode, feedItemsRef.current, activeIndexRef.current);
+    if (!snapshot) return;
+    await writeFlowResumeSnapshot({
+      ownerId: auth.user?.id,
+      sourceTrackId: sourceTrackFilter,
+      clipId: clipIdFilter,
+      snapshot,
+    });
+  }, [auth.user?.id, clipIdFilter, feedMode, sourceTrackFilter]);
+
+  useEffect(() => {
+    persistFlowRef.current = persistCurrentFlow;
+  }, [persistCurrentFlow]);
+
+  useEffect(() => {
+    if (loadState !== 'ready' || !feedItems.length) return;
+    clearTimeout(resumePersistTimerRef.current);
+    resumePersistTimerRef.current = setTimeout(() => {
+      void persistCurrentFlow();
+    }, 420);
+    return () => clearTimeout(resumePersistTimerRef.current);
+  }, [activeIndex, feedItems.length, loadState, persistCurrentFlow]);
+
   const refreshUpcomingRecommendations = useCallback(async () => {
+    if (scrollInProgressRef.current) {
+      refreshDeferredRef.current = true;
+      return;
+    }
     if (liveRefreshInFlightRef.current || loadState !== 'ready') return;
     if (Date.now() - lastLiveRefreshAtRef.current < 3500) return;
     liveRefreshInFlightRef.current = true;
@@ -309,7 +420,8 @@ export function SwipeScreen() {
 
       setTracks((current) => {
         const preserved = current.filter((track) => preservedTrackIds.has(track._id));
-        return uniqueTracks([...preserved, ...withoutObsoleteRadios(trackChunk.tracks)]);
+        const fresh = withoutObsoleteRadios(trackChunk.tracks).filter((track) => !preservedTrackIds.has(track._id));
+        return uniqueTracks([...preserved, ...rerankTracksWithLiveTaste(fresh, liveTasteRef.current, preserved)]);
       });
       if (postChunk) {
         const freshPosts = postChunk.items.flatMap((item) => item.kind === 'post' ? [item.post] : []);
@@ -343,6 +455,10 @@ export function SwipeScreen() {
   }, [activeIndex]);
 
   useEffect(() => {
+    feedItemsRef.current = feedItems;
+  }, [feedItems]);
+
+  useEffect(() => {
     if (!isFocused || !appIsActive || loadState !== 'ready') return;
     const item = feedItems[activeIndex];
     if (!item || (item.kind !== 'track' && item.kind !== 'clip' && item.kind !== 'post')) return;
@@ -373,11 +489,28 @@ export function SwipeScreen() {
   }, [activeIndex, appIsActive, feedItems, isFocused, loadState, scheduleLiveRefresh]);
 
   useEffect(() => {
-    const subscription = DeviceEventEmitter.addListener('synaura:recommendation-signal', (signal: { weight?: number }) => {
-      scheduleLiveRefresh(Number(signal?.weight || 1));
+    const supported = new Set<LiveTasteSignal>([
+      'play_start',
+      'play_progress_25',
+      'play_progress_65',
+      'play_complete',
+      'skip',
+      'next',
+      'prev',
+    ]);
+    const subscription = DeviceEventEmitter.addListener('synaura:recommendation-signal', (signal: { trackId?: string; type?: string; weight?: number }) => {
+      const weight = Number(signal?.weight || 1);
+      const type = signal?.type as LiveTasteSignal;
+      if (signal?.trackId && supported.has(type)) {
+        const track = feedItemsRef.current
+          .map((item) => anyTrackOfItem(item))
+          .find((candidate) => candidate?._id === signal.trackId) || (player.current?._id === signal.trackId ? player.current : null);
+        rememberLiveTaste(track, type, weight);
+      }
+      scheduleLiveRefresh(weight);
     });
     return () => subscription.remove();
-  }, [scheduleLiveRefresh]);
+  }, [player.current, rememberLiveTaste, scheduleLiveRefresh]);
 
   useEffect(() => {
     fetchedLikeIdsRef.current.clear();
@@ -394,6 +527,7 @@ export function SwipeScreen() {
 
   useEffect(() => {
     if (isFocused) return;
+    void persistFlowRef.current();
     setPlayingClipId(null);
     setCommentsOpen(false);
     setShareOpen(false);
@@ -412,6 +546,7 @@ export function SwipeScreen() {
       setAppIsActive(isActive);
       if (!isActive) {
         setPlayingClipId(null);
+        void persistFlowRef.current();
         return;
       }
       if (previousState === 'background' || previousState === 'inactive') {
@@ -443,10 +578,15 @@ export function SwipeScreen() {
     const reqId = ++lastRequestRef.current;
     setLoadState('loading');
     setLoadingMore(false);
+    loadingMoreRef.current = false;
     setTracks([]);
     setClips([]);
+    setPosts([]);
+    setFeedItems([]);
+    feedItemsRef.current = [];
     setPlayingClipId(null);
     setActiveIndex(0);
+    activeIndexRef.current = 0;
     lastCommittedIndexRef.current = 0;
     setCursor(0);
     setHasMore(true);
@@ -455,6 +595,16 @@ export function SwipeScreen() {
     if (feedMode === 'clips') {
       void (async () => {
         let cacheWasShown = false;
+        const resume = await readFlowResumeSnapshot({
+          ownerId: auth.user?.id,
+          mode: feedMode,
+          sourceTrackId: sourceTrackFilter,
+          clipId: clipIdFilter,
+        });
+        if (!cancelled && reqId === lastRequestRef.current && resume?.items.length) {
+          showResumeSnapshot(resume);
+          cacheWasShown = true;
+        }
         const cached = await readClipFeedCache(auth.user?.id, sourceTrackFilter, clipIdFilter);
         if (!cancelled && reqId === lastRequestRef.current && cached?.clips.length) {
           setClips(cached.clips);
@@ -469,7 +619,7 @@ export function SwipeScreen() {
           setClips(chunk.clips);
           setCursor(chunk.nextCursor);
           setHasMore(chunk.hasMore);
-          setLoadState(chunk.clips.length ? 'ready' : 'error');
+          setLoadState(chunk.clips.length || cacheWasShown ? 'ready' : 'error');
           void writeClipFeedCache(chunk, auth.user?.id, sourceTrackFilter, clipIdFilter);
         } catch {
           if (cancelled || reqId !== lastRequestRef.current || cacheWasShown) return;
@@ -496,12 +646,20 @@ export function SwipeScreen() {
 
     void (async () => {
       let cacheWasShown = false;
+      const resume = await readFlowResumeSnapshot({
+        ownerId: userId,
+        mode: feedMode,
+        sourceTrackId: sourceTrackFilter,
+        clipId: clipIdFilter,
+      });
+      if (!cancelled && reqId === lastRequestRef.current && resume?.items.length) {
+        showResumeSnapshot(resume);
+        cacheWasShown = true;
+      }
       const cached = await readRankingFeedCache(feedMode, seedForReco, userId);
       if (!cancelled && reqId === lastRequestRef.current && cached?.tracks.length) {
-        const cachedTracks = withoutObsoleteRadios(cached.tracks);
-        const merged = uniqueTracks(player.current?.audioUrl
-          ? [...(player.current._id.startsWith('radio-') ? [] : [player.current]), ...cachedTracks]
-          : cachedTracks);
+        const cachedTracks = rerankTracksWithLiveTaste(withoutObsoleteRadios(cached.tracks), liveTasteRef.current);
+        const merged = uniqueTracks(cachedTracks);
         setTracks(merged);
         setCursor(cached.nextCursor);
         setHasMore(cached.hasMore);
@@ -510,12 +668,10 @@ export function SwipeScreen() {
       }
 
       try {
-        const chunk = await fetchRankingFeedChunk(feedMode, 0, seedForReco);
+        const chunk = await fetchRankingFeedChunk(feedMode, 0, seedForReco, { limit: 24 });
         if (cancelled || reqId !== lastRequestRef.current) return;
-        const feedTracks = withoutObsoleteRadios(chunk.tracks);
-        const merged = uniqueTracks(player.current?.audioUrl
-          ? [...(player.current._id.startsWith('radio-') ? [] : [player.current]), ...feedTracks]
-          : feedTracks);
+        const feedTracks = rerankTracksWithLiveTaste(withoutObsoleteRadios(chunk.tracks), liveTasteRef.current);
+        const merged = uniqueTracks(feedTracks);
         setTracks(merged);
         setCursor(chunk.nextCursor);
         setHasMore(chunk.hasMore);
@@ -530,7 +686,7 @@ export function SwipeScreen() {
       cancelled = true;
       clipHydrationTask.cancel();
     };
-  }, [clipIdFilter, feedMode, reloadKey, sourceTrackFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [auth.user?.id, clipIdFilter, feedMode, reloadKey, sourceTrackFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (feedMode !== 'reco') return;
@@ -562,54 +718,33 @@ export function SwipeScreen() {
     };
   }, []);
 
-  // Un titre lance depuis le mini-player, le Studio ou la bibliotheque reste la
-  // premiere slide de Swipe au lieu d'etre remplace par le feed.
-  useEffect(() => {
-    if (loadState !== 'ready' || !player.current?.audioUrl) return;
-    if (tracks.some((track) => track._id === player.current?._id)) return;
-    queueBoundRef.current = '';
-    setTracks((current) => uniqueTracks([player.current!, ...current]));
-  }, [loadState, player.current?._id, player.current?.audioUrl, tracks]);
-
-  // (2) Synchronise la queue du player une fois le feed pret (premier bind, ou changement de mode).
-  // On NE re-bind PAS au simple focus de l'ecran : on garde la lecture en cours stable.
+  // (2) Enrichit la file sans la reconstruire. Les rerankings du futur ne
+  // provoquent donc plus de pause/play ni de déplacement de la slide courante.
   useEffect(() => {
     if (!player.isReady || loadState !== 'ready' || !playableQueue.length) return;
-    const key = `${feedMode}:${playableQueue[0]?._id}:${playableQueue.at(-1)?._id}:${playableQueue.length}`;
+    const key = `${feedMode}:${playableQueue.map((track) => track._id).join('|')}`;
     if (queueBoundRef.current === key) return;
     queueBoundRef.current = key;
-
-    // Si le track courant fait deja partie du nouveau feed, on enrichit la queue native
-    // autour de lui sans reset audio. Sinon, on lance le feed depuis le debut.
-    const currentId = player.current?._id;
-    const idxInFeed = currentId ? feedItems.findIndex((it) => playableTrackOfItem(it)?._id === currentId) : -1;
-    if (idxInFeed >= 0) {
-      const queueIndex = playableQueue.findIndex((track) => track._id === currentId);
-      void player.setQueueOnly(playableQueue, Math.max(0, queueIndex));
-      const pendingIndex = pendingSwipeTrackRef.current
-        ? feedItems.findIndex((it) => playableTrackOfItem(it)?._id === pendingSwipeTrackRef.current)
+    if (!player.current || player.current._id.startsWith('radio-')) {
+      const visibleTrack = playableTrackOfItem(feedItemsRef.current[activeIndexRef.current]);
+      const visibleQueueIndex = visibleTrack
+        ? playableQueue.findIndex((track) => track._id === visibleTrack._id)
         : -1;
-      const displayIndex = pendingIndex >= 0 ? pendingIndex : idxInFeed;
-      activeIndexRef.current = displayIndex;
-      lastCommittedIndexRef.current = displayIndex;
-      setActiveIndex(displayIndex);
-      // On scrolle a la slide correspondante des que la liste est montee.
-      requestAnimationFrame(() => {
-        try { listRef.current?.scrollToIndex({ index: displayIndex, animated: false }); } catch { /* ignore */ }
-      });
-    } else if (!player.current || player.current._id.startsWith('radio-')) {
-      if (feedMode === 'clips' || homePreludeVisible) void player.setQueueOnly(playableQueue, 0);
-      else void player.setQueueAndPlay(playableQueue, 0);
-      activeIndexRef.current = 0;
-      lastCommittedIndexRef.current = 0;
-      setActiveIndex(0);
+      if (homePreludeVisible || visibleQueueIndex < 0) void player.mergeQueue(playableQueue);
+      else {
+        flowOwnsPlaybackRef.current = true;
+        void player.setQueueAndPlay(playableQueue, visibleQueueIndex);
+      }
+      return;
     }
-  }, [feedItems, feedMode, homePreludeVisible, loadState, player, playableQueue, tracks]);
+    void player.mergeQueue(playableQueue);
+  }, [feedMode, homePreludeVisible, loadState, player.current?._id, player.isReady, player.mergeQueue, player.setQueueAndPlay, playableQueue]);
 
   // (3) Synchro INVERSE : quand le player change naturellement de track
   // (auto-advance, lockscreen, mini-player), on scrolle vers la slide correspondante.
   // Pas de boucle car scrollToIndex(animated:false) ne declenche pas onMomentumScrollEnd.
   useEffect(() => {
+    if (!flowOwnsPlaybackRef.current || scrollInProgressRef.current) return;
     if (loadState !== 'ready' || !feedItems.length || !player.current) return;
     if (pendingSwipeTrackRef.current) {
       // TrackPlayer peut émettre brièvement l'ancien index juste après le nouveau.
@@ -652,9 +787,11 @@ export function SwipeScreen() {
     const token = `${feedMode}:${activeIndex}:${item.clip.id}`;
     if (lastAutoStartedClipRef.current === token) return;
     lastAutoStartedClipRef.current = token;
+    flowOwnsPlaybackRef.current = false;
+    playbackIntentRef.current += 1;
     if (player.current) void player.pause();
     setPlayingClipId(item.clip.id);
-  }, [activeIndex, appIsActive, feedItems, feedMode, isFocused, player]);
+  }, [activeIndex, appIsActive, feedItems, feedMode, isFocused, player.current, player.pause]);
 
   // (4) Recuperer batch des compteurs commentaires
   useEffect(() => {
@@ -736,7 +873,8 @@ export function SwipeScreen() {
 
   // (9) Infinite scroll
   const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
+    if (loadingMoreRef.current || !hasMore) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
       if (feedMode === 'clips') {
@@ -750,7 +888,10 @@ export function SwipeScreen() {
         });
         const seen = new Set(clips.map((clip) => clip.id));
         const fresh = chunk.clips.filter((clip) => !seen.has(clip.id));
-        setClips([...clips, ...fresh]);
+        setClips((current) => {
+          const currentIds = new Set(current.map((clip) => clip.id));
+          return [...current, ...fresh.filter((clip) => !currentIds.has(clip.id))];
+        });
         setCursor(chunk.nextCursor);
         setHasMore(chunk.hasMore && fresh.length > 0);
         return;
@@ -761,9 +902,13 @@ export function SwipeScreen() {
         feedMode === 'reco' ? loadMixedPosts(null, posts.map((post) => post.id)) : Promise.resolve(null),
       ]);
       const seen = new Set(tracks.map((t) => t._id));
-      const fresh = withoutObsoleteRadios(chunk.tracks).filter((t) => !seen.has(t._id));
+      const fresh = rerankTracksWithLiveTaste(
+        withoutObsoleteRadios(chunk.tracks).filter((t) => !seen.has(t._id)),
+        liveTasteRef.current,
+        tracks.filter((track) => viewedTrackIdsRef.current.has(track._id)),
+      );
       if (!fresh.length) {
-        setHasMore(false);
+        setHasMore(Boolean(postChunk?.hasMore));
       } else {
         setTracks(uniqueTracks([...tracks, ...fresh]));
         setCursor(chunk.nextCursor);
@@ -777,6 +922,7 @@ export function SwipeScreen() {
     } catch {
       // ignore
     } finally {
+      loadingMoreRef.current = false;
       setLoadingMore(false);
     }
   }, [clipIdFilter, clips, cursor, currentSeedGenre, feedMode, hasMore, loadingMore, posts, sourceTrackFilter, tracks]);
@@ -793,7 +939,11 @@ export function SwipeScreen() {
     clearTimeout(burstTimerRef.current);
     clearTimeout(playbackCommitRef.current);
     clearTimeout(pendingSwipeReleaseRef.current);
+    clearTimeout(settleCommitRef.current);
+    clearTimeout(resumePersistTimerRef.current);
+    clearTimeout(liveTastePersistTimerRef.current);
     clearTimeout(liveRefreshTimerRef.current);
+    void persistFlowRef.current();
   }, []);
 
   const handleToggleLike = useCallback(async () => {
@@ -823,12 +973,13 @@ export function SwipeScreen() {
       if (!result) throw new Error('Interaction non enregistree');
       setLikedMap((current) => ({ ...current, [key]: result.liked }));
       setLikesMap((current) => ({ ...current, [key]: result.likesCount }));
+      if (!isClip) rememberLiveTaste(activeTrack, result.liked ? 'like' : 'unlike', result.liked ? 4 : 2);
       scheduleLiveRefresh(willLike ? 4 : 2);
     } catch {
       setLikedMap((current) => ({ ...current, [key]: wasLiked }));
       setLikesMap((current) => ({ ...current, [key]: previousCount }));
     }
-  }, [activeItem, activeTrack, auth.user, likedMap, likesMap, navigation, scheduleLiveRefresh, triggerBurst]);
+  }, [activeItem, activeTrack, auth.user, likedMap, likesMap, navigation, rememberLiveTaste, scheduleLiveRefresh, triggerBurst]);
 
   const handleDoubleTapLike = useCallback(() => {
     if (!activeTrack) return;
@@ -978,12 +1129,12 @@ export function SwipeScreen() {
     }
   }, [feedItems, player]);
 
-  // Stratégie de swipe : le snap est entierement gere nativement via
-  // snapToInterval + disableIntervalMomentum (une page max par geste, flick leger suffisant).
-  // On ne commit la lecture qu'a la fin du snap pour eviter le play/pause spam.
+  // Le snap est entierement natif. La lecture ne change qu'une fois la page
+  // stabilisee et chaque geste invalide les commandes audio plus anciennes.
   const commitIndex = useCallback((idx: number) => {
     const nextIndex = Math.max(0, Math.min(feedItems.length - 1, idx));
     if (nextIndex === lastCommittedIndexRef.current) return;
+    const playbackIntent = ++playbackIntentRef.current;
     lastCommittedIndexRef.current = nextIndex;
     activeIndexRef.current = nextIndex;
     setActiveIndex(nextIndex);
@@ -993,16 +1144,24 @@ export function SwipeScreen() {
     if (nextItem?.kind === 'clip') {
       clearTimeout(playbackCommitRef.current);
       pendingSwipeTrackRef.current = null;
-      if (player.isPlaying) void player.pause();
+      flowOwnsPlaybackRef.current = false;
+      if (player.current) void player.pause();
       lastAutoStartedClipRef.current = `${feedMode}:${nextIndex}:${nextItem.clip.id}`;
       setPlayingClipId(nextItem.clip.id);
       return;
     }
     setPlayingClipId(null);
 
-    // Lance la lecture de la slide stable si elle contient un morceau. Idempotent.
+    // Les sons attaches aux posts restent manuels : voir un post ne change ni
+    // la slide ni le morceau en cours.
     const target = playableTrackOfItem(nextItem);
-    if (!target?.audioUrl) return;
+    if (!target?.audioUrl) {
+      flowOwnsPlaybackRef.current = false;
+      pendingSwipeTrackRef.current = null;
+      clearTimeout(playbackCommitRef.current);
+      return;
+    }
+    flowOwnsPlaybackRef.current = true;
     if (player.current?._id === target._id) {
       if (!player.isPlaying) void player.play();
       return;
@@ -1015,40 +1174,64 @@ export function SwipeScreen() {
     clearTimeout(playbackCommitRef.current);
     playbackCommitRef.current = setTimeout(() => {
       InteractionManager.runAfterInteractions(() => {
+        if (playbackIntent !== playbackIntentRef.current) return;
+        if (activeIndexRef.current !== nextIndex) return;
+        if (playableTrackOfItem(feedItemsRef.current[nextIndex])?._id !== target._id) return;
         const queueIndex = player.queue.findIndex((item) => item._id === target._id);
         if (queueIndex >= 0) void player.playQueueIndex(queueIndex);
         else void player.playTrack(target);
       });
-    }, 90);
+    }, 120);
   }, [feedItems, feedMode, player]);
 
   const commitVisibleTrack = useCallback((offsetY: number) => {
     commitIndex(Math.round(offsetY / itemHeight));
   }, [commitIndex, itemHeight]);
 
-  const handleScrollBeginDrag = useCallback((event: any) => {
-    dragStartOffsetRef.current = event.nativeEvent.contentOffset.y || 0;
+  const flushStableFeed = useCallback(() => {
+    scrollInProgressRef.current = false;
+    momentumInProgressRef.current = false;
+    const pending = pendingCandidateFeedRef.current;
+    pendingCandidateFeedRef.current = null;
+    if (pending?.length) requestAnimationFrame(() => applyCandidateFeed(pending));
+    if (refreshDeferredRef.current) {
+      refreshDeferredRef.current = false;
+      setTimeout(() => void refreshUpcomingRecommendations(), 260);
+    }
+  }, [applyCandidateFeed, refreshUpcomingRecommendations]);
+
+  const handleScrollBeginDrag = useCallback(() => {
+    scrollInProgressRef.current = true;
+    momentumInProgressRef.current = false;
+    playbackIntentRef.current += 1;
+    pendingSwipeTrackRef.current = null;
+    clearTimeout(playbackCommitRef.current);
+    clearTimeout(pendingSwipeReleaseRef.current);
+    clearTimeout(settleCommitRef.current);
   }, []);
 
-  // Filet de securite : un drag lent mais franc (> SWIPE_TRIGGER_DISTANCE) sans flick
-  // doit quand meme avancer d'une page au lieu de revenir en arriere.
   const handleScrollEndDrag = useCallback((event: any) => {
     if (!feedItems.length) return;
     const velocityY = Math.abs(Number(event.nativeEvent.velocity?.y || 0));
-    if (velocityY > 0.08) return; // le snap natif s'en occupe
-    const endY = event.nativeEvent.contentOffset.y || 0;
-    const delta = endY - dragStartOffsetRef.current;
-    if (Math.abs(delta) < SWIPE_TRIGGER_DISTANCE) return;
-    const startIndex = Math.max(0, Math.min(feedItems.length - 1, Math.round(dragStartOffsetRef.current / itemHeight)));
-    const nextIndex = Math.max(0, Math.min(feedItems.length - 1, startIndex + (delta > 0 ? 1 : -1)));
-    requestAnimationFrame(() => {
-      try { listRef.current?.scrollToIndex({ index: nextIndex, animated: true }); } catch { /* ignore */ }
-    });
-  }, [itemHeight, feedItems.length]);
+    const targetY = Number(event.nativeEvent.targetContentOffset?.y ?? event.nativeEvent.contentOffset.y ?? 0);
+    clearTimeout(settleCommitRef.current);
+    settleCommitRef.current = setTimeout(() => {
+      if (momentumInProgressRef.current) return;
+      commitVisibleTrack(targetY);
+      flushStableFeed();
+    }, velocityY > 0.05 ? 240 : 90);
+  }, [commitVisibleTrack, feedItems.length, flushStableFeed]);
+
+  const handleMomentumScrollBegin = useCallback(() => {
+    scrollInProgressRef.current = true;
+    momentumInProgressRef.current = true;
+    clearTimeout(settleCommitRef.current);
+  }, []);
 
   const handleMomentumScrollEnd = useCallback((event: any) => {
     commitVisibleTrack(event.nativeEvent.contentOffset.y);
-  }, [commitVisibleTrack]);
+    flushStableFeed();
+  }, [commitVisibleTrack, flushStableFeed]);
 
   const handleEndReached = useCallback(() => {
     void loadMore();
@@ -1080,7 +1263,9 @@ export function SwipeScreen() {
             if (playingClipId === item.clip.id) {
               setPlayingClipId(null);
             } else {
-              if (player.isPlaying) void player.pause();
+              flowOwnsPlaybackRef.current = false;
+              playbackIntentRef.current += 1;
+              if (player.current) void player.pause();
               setPlayingClipId(item.clip.id);
             }
           }}
@@ -1136,8 +1321,16 @@ export function SwipeScreen() {
           }}
           onOpenTrack={(track) => navigation.navigate('TrackDetail', { trackId: track._id, track })}
           onPlayTrack={(track) => {
+            flowOwnsPlaybackRef.current = false;
+            playbackIntentRef.current += 1;
+            pendingSwipeTrackRef.current = null;
+            clearTimeout(playbackCommitRef.current);
             if (player.current?._id === track._id) void player.togglePlayPause();
             else void player.playTrack(track);
+          }}
+          onLikeChange={(liked) => {
+            if (attachedTrack) rememberLiveTaste(attachedTrack, liked ? 'post_like' : 'unlike', liked ? 2 : 1);
+            scheduleLiveRefresh(liked ? 3 : 1);
           }}
         />
       );
@@ -1157,7 +1350,12 @@ export function SwipeScreen() {
           isPlaying={isPlayingThis}
           isFollowing={!!followingMap[artistKey]}
           followLoading={!!followLoading[artistKey]}
-          onPress={() => void player.togglePlayPause()}
+          onPress={() => {
+            flowOwnsPlaybackRef.current = true;
+            playbackIntentRef.current += 1;
+            if (player.current?._id === item.track._id) void player.togglePlayPause();
+            else void player.playTrack(item.track);
+          }}
           onToggleFollow={() => void handleToggleFollow()}
           onOpenArtist={() => item.artist.username && navigation.navigate('PublicProfile', { username: item.artist.username })}
         />
@@ -1235,7 +1433,12 @@ export function SwipeScreen() {
         topPad={insets.top}
         bottomPad={tabBarHeight}
         onDoubleTapLike={handleDoubleTapLike}
-        onPress={() => void player.togglePlayPause()}
+        onPress={() => {
+          flowOwnsPlaybackRef.current = true;
+          playbackIntentRef.current += 1;
+          if (player.current?._id === track._id) void player.togglePlayPause();
+          else void player.playTrack(track);
+        }}
         onAction={handleSlideAction}
         onSeek={handleSeek}
         onCreateMoment={(seconds) => {
@@ -1270,6 +1473,8 @@ export function SwipeScreen() {
     likesMap,
     player,
     playingClipId,
+    rememberLiveTaste,
+    scheduleLiveRefresh,
     tabBarHeight,
     useThisSound,
   ]);
@@ -1279,8 +1484,21 @@ export function SwipeScreen() {
     opacity: headerOpacity,
   }), [headerOpacity, insets.top]);
 
+  const handleViewportLayout = useCallback((event: any) => {
+    const measured = Math.round(Number(event.nativeEvent.layout?.height || 0));
+    if (measured < 420) return;
+    setViewportHeight((current) => Math.abs(current - measured) < 2 ? current : measured);
+  }, []);
+
+  useEffect(() => {
+    if (!feedItems.length || scrollInProgressRef.current) return;
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToOffset({ offset: activeIndexRef.current * itemHeight, animated: false });
+    });
+  }, [itemHeight]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <View style={styles.root}>
+    <View style={styles.root} onLayout={handleViewportLayout}>
       <LinearGradient
         pointerEvents="none"
         colors={['#0B0B0B', '#111111', '#181412']}
@@ -1339,12 +1557,11 @@ export function SwipeScreen() {
           key={`flow-${feedMode}-${resumeGeneration}`}
           ref={listRef}
           data={feedItems}
-          extraData={`${activeIndex}:${playingClipId || ''}:${appIsActive ? 'active' : 'paused'}`}
+          extraData={`${activeIndex}:${playingClipId || ''}:${appIsActive ? 'active' : 'paused'}:${itemHeight}`}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           snapToInterval={itemHeight}
           snapToAlignment="start"
-          disableIntervalMomentum
           decelerationRate="fast"
           bounces={false}
           overScrollMode="never"
@@ -1353,24 +1570,26 @@ export function SwipeScreen() {
           showsVerticalScrollIndicator={false}
           onScrollBeginDrag={handleScrollBeginDrag}
           onScrollEndDrag={handleScrollEndDrag}
+          onMomentumScrollBegin={handleMomentumScrollBegin}
           onMomentumScrollEnd={handleMomentumScrollEnd}
           getItemLayout={(_, index) => ({ length: itemHeight, offset: itemHeight * index, index })}
           initialScrollIndex={Math.max(0, Math.min(activeIndex, feedItems.length - 1))}
-          initialNumToRender={1}
-          windowSize={3}
-          maxToRenderPerBatch={1}
-          updateCellsBatchingPeriod={48}
+          initialNumToRender={3}
+          windowSize={5}
+          maxToRenderPerBatch={3}
+          updateCellsBatchingPeriod={16}
           onScrollToIndexFailed={(info) => listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false })}
           removeClippedSubviews={false}
           onEndReached={handleEndReached}
-          onEndReachedThreshold={0.45}
-          ListFooterComponent={loadingMore ? (
-            <View style={styles.footer}>
-              <ActivityIndicator color="rgba(255,250,242,0.62)" />
-            </View>
-          ) : null}
+          onEndReachedThreshold={1.25}
         />
       )}
+
+      {loadingMore && loadState === 'ready' ? (
+        <View pointerEvents="none" style={[styles.loadingMoreOverlay, { bottom: tabBarHeight + 16 }]}>
+          <ActivityIndicator size="small" color="rgba(255,250,242,0.78)" />
+        </View>
+      ) : null}
 
       <HomeFlowPrelude
         visible={homePreludeVisible && feedMode === 'reco'}
@@ -1598,7 +1817,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFAF2',
   },
   retryText: { color: '#171313', fontSize: 12, fontWeight: '900' },
-  footer: { paddingVertical: 28, alignItems: 'center', justifyContent: 'center' },
+  loadingMoreOverlay: {
+    position: 'absolute',
+    alignSelf: 'center',
+    zIndex: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(17,17,17,0.82)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.16)',
+  },
   remixSheet: { paddingHorizontal: 18, paddingBottom: 10, gap: 12 },
   remixHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   remixCover: { width: 64, height: 64, borderRadius: 9, backgroundColor: 'rgba(17,17,17,0.08)' },

@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
         weeklyTop,
         nextCursor: nextCursor < mixed.length ? String(nextCursor) : null,
         hasMore: nextCursor < mixed.length,
-        engineVersion: 'discovery-v3',
+        engineVersion: 'discovery-v4',
       },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } },
     );

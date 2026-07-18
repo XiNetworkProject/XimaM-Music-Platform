@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
       tracks,
       nextCursor,
       hasMore: nextCursor < available.length,
-      engineVersion: 'discovery-v3',
+      engineVersion: 'discovery-v4',
       sessionId: rankingSeed,
     }, {
       headers: {

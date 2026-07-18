@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import Video from 'react-native-video';
 import { Ionicons } from '@expo/vector-icons';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { MusicClip } from '@/api/types';
 import { canUseSoundClientSide } from '@/api/types';
@@ -128,8 +129,6 @@ export function ClipSlide({
     remixVisibility: track.remixVisibility || 'disabled',
   });
 
-  const lastTapRef = useRef(0);
-  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playButtonOpacity = useRef(new Animated.Value(isPlaying ? 0 : 1)).current;
   const videoRef = useRef<any>(null);
   const audioRef = useRef<any>(null);
@@ -151,10 +150,6 @@ export function ClipSlide({
   useEffect(() => {
     Animated.timing(playButtonOpacity, { toValue: isPlaying ? 0 : 1, duration: settings.reducedMotion ? 0 : 220, useNativeDriver: true }).start();
   }, [isPlaying, playButtonOpacity, settings.reducedMotion]);
-
-  useEffect(() => () => {
-    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-  }, []);
 
   useEffect(() => {
     setVideoFailed(false);
@@ -204,26 +199,32 @@ export function ClipSlide({
   }, [clipStart, isActive, isPlaying]);
 
   // Mêmes gestes que SwipeSlide : tap = lecture/pause, double-tap = like.
-  const handleTap = () => {
-    if (!isActive) return;
-    const now = Date.now();
-    if (now - lastTapRef.current < 260) {
-      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-      tapTimerRef.current = null;
-      lastTapRef.current = 0;
-      onDoubleTapLike();
-      return;
-    }
-    lastTapRef.current = now;
-    tapTimerRef.current = setTimeout(() => {
-      if (lastTapRef.current === now) onPressAudio();
-      tapTimerRef.current = null;
-    }, 270);
-  };
+  const mediaGesture = React.useMemo(() => Gesture.Exclusive(
+    Gesture.Tap()
+      .enabled(isActive)
+      .numberOfTaps(2)
+      .maxDelay(240)
+      .maxDistance(12)
+      .runOnJS(true)
+      .onEnd((_event, success) => { if (success) onDoubleTapLike(); }),
+    Gesture.Tap()
+      .enabled(isActive)
+      .numberOfTaps(1)
+      .maxDistance(12)
+      .runOnJS(true)
+      .onEnd((_event, success) => { if (success) onPressAudio(); }),
+  ), [isActive, onDoubleTapLike, onPressAudio]);
 
   return (
     <View style={[styles.page, { height }]}>
-      <Pressable accessibilityLabel={isPlaying ? 'Mettre en pause' : 'Lire'} onPress={handleTap} style={styles.pressArea}>
+      <GestureDetector gesture={mediaGesture}>
+        <View
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={isPlaying ? 'Mettre en pause' : 'Lire'}
+          onAccessibilityTap={onPressAudio}
+          style={styles.pressArea}
+        >
         {shouldLoadMedia && clip.videoUrl && !videoFailed ? (
           <Video
             ref={videoRef}
@@ -340,7 +341,8 @@ export function ClipSlide({
             </View>
           ) : null}
         </View>
-      </Pressable>
+        </View>
+      </GestureDetector>
 
       <View style={[styles.actionsColumn, responsive.compactControls && styles.actionsColumnCompact, { bottom: bottomPad + (responsive.compactControls ? 72 : 92) }]}>
         {clip.creator?.username ? (

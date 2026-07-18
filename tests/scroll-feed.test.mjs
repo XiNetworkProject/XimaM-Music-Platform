@@ -8,6 +8,7 @@ import {
 import {
   MIN_TRACK_RATIO as NATIVE_MIN_TRACK_RATIO,
   composeScrollFeed as composeNativeFeed,
+  reconcileScrollFeedItems,
 } from '../synaura-app/src/components/swipe/feedTypes.ts';
 
 function webTrack(index) {
@@ -137,4 +138,23 @@ test('post normalization keeps only real, renderable records', () => {
 
   assert.equal(posts.length, 1);
   assert.equal(posts[0].id, 'valid');
+});
+
+test('live reranking never moves the consumed prefix or the active card', () => {
+  const previous = Array.from({ length: 8 }, (_, index) => ({
+    id: `track-${index}`,
+    kind: 'track',
+    track: nativeTrack(index),
+  }));
+  const candidates = [7, 6, 5, 8, 9, 4, 3].map((index) => ({
+    id: `track-${index}`,
+    kind: 'track',
+    track: nativeTrack(index),
+  }));
+  const next = reconcileScrollFeedItems(previous, candidates, 4);
+
+  assert.deepEqual(next.slice(0, 5).map((item) => item.id), previous.slice(0, 5).map((item) => item.id));
+  assert.equal(next[4].id, 'track-4');
+  assert.equal(new Set(next.map((item) => item.id)).size, next.length);
+  assert.deepEqual(next.slice(5).map((item) => item.id), ['track-7', 'track-6', 'track-5', 'track-8', 'track-9']);
 });

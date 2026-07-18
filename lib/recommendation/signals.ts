@@ -19,11 +19,17 @@ function emptySignals(userId: string | null): UserRecommendationSignals {
     currentSessionRecommendedTrackIds: new Set(),
     currentSessionRecommendedPostIds: new Set(),
     currentSessionRecommendedClipIds: new Set(),
+    currentSessionCompletedTrackIds: new Set(),
+    currentSessionSkippedTrackIds: new Set(),
     recommendationCounts: new Map(),
     currentSessionRecommendationCounts: new Map(),
     lastRecommendedAt: new Map(),
     currentSessionArtistCounts: new Map(),
     currentSessionGenreCounts: new Map(),
+    currentSessionPreferredGenres: new Map(),
+    currentSessionAvoidedGenres: new Map(),
+    currentSessionArtistAffinity: new Map(),
+    currentSessionArtistAversion: new Map(),
     followedPostCreatorIds: new Set(),
     preferredGenres: new Map(),
     avoidedGenres: new Map(),
@@ -117,6 +123,84 @@ function tasteSignal(map: Map<string, TasteSignal>, trackId: string) {
   return current;
 }
 
+function applySessionTrackEvent(
+  signals: UserRecommendationSignals,
+  tasteByTrack: Map<string, TasteSignal>,
+  event: any,
+  now: number,
+  includeGlobalCounters = true,
+) {
+  const trackId = eventTrackId(event);
+  if (!trackId) return;
+  const created = event.created_at ? new Date(event.created_at).getTime() : now;
+  const ageHours = Math.max(0, (now - created) / 3_600_000);
+  const recency = Math.exp(-ageHours * Math.LN2 / 18);
+  const progress = eventProgress(event);
+  const taste = tasteSignal(tasteByTrack, trackId);
+  const type = String(event.event_type || '');
+
+  if (type === 'play_start') {
+    taste.positive += 0.12 * recency;
+    if (includeGlobalCounters) {
+      inc(signals.trackRepeatCounts24h, trackId);
+      inc(signals.trackRepeatCounts72h, trackId);
+    }
+  }
+  if (type === 'play_complete') {
+    taste.positive += 3.4 * recency;
+    taste.lastPositive = Math.max(taste.lastPositive, created);
+    if (includeGlobalCounters) signals.completedTrackIds.add(trackId);
+    signals.currentSessionCompletedTrackIds.add(trackId);
+    if (includeGlobalCounters) inc(signals.trackRecentCompletes72h, trackId);
+  }
+  if (type === 'like' || type === 'favorite') {
+    taste.positive += 4.2 * recency;
+    taste.lastPositive = Math.max(taste.lastPositive, created);
+    if (includeGlobalCounters) signals.likedTrackIds.add(trackId);
+  }
+  if (type === 'unlike' || type === 'unfavorite') {
+    taste.negative += 1.8 * recency;
+    taste.lastNegative = Math.max(taste.lastNegative, created);
+  }
+  if (type === 'play_progress' && progress >= 25) {
+    taste.positive += (progress >= 65 ? 1.65 : 0.5) * recency;
+    taste.lastPositive = Math.max(taste.lastPositive, created);
+  }
+  if (type === 'skip' || ((type === 'next' || type === 'prev') && progress < 35)) {
+    taste.negative += (type === 'skip' || progress < 20 ? 4.2 : 2.4) * recency;
+    taste.lastNegative = Math.max(taste.lastNegative, created);
+    if (includeGlobalCounters) signals.skippedTrackIds.add(trackId);
+    signals.currentSessionSkippedTrackIds.add(trackId);
+  }
+}
+
+function hydrateTasteAffinities(
+  signals: UserRecommendationSignals,
+  tasteByTrack: Map<string, TasteSignal>,
+  trackById: Map<string, any>,
+  sessionScoped = false,
+) {
+  const artistPositive = sessionScoped ? signals.currentSessionArtistAffinity : signals.artistAffinity;
+  const artistNegative = sessionScoped ? signals.currentSessionArtistAversion : signals.artistAversion;
+  const genrePositive = sessionScoped ? signals.currentSessionPreferredGenres : signals.preferredGenres;
+  const genreNegative = sessionScoped ? signals.currentSessionAvoidedGenres : signals.avoidedGenres;
+  tasteByTrack.forEach((taste, trackId) => {
+    const track = trackById.get(trackId);
+    if (!track) return;
+    const artistId = String(track.artist?._id || track.creator_id || '');
+    const positive = Math.min(sessionScoped ? 10 : 8, taste.positive);
+    const negative = Math.min(sessionScoped ? 9 : 6, taste.negative);
+    if (positive > 0.1) {
+      inc(artistPositive, artistId, positive);
+      for (const genre of normalizeGenres(track.genre || track.tags)) inc(genrePositive, genre, positive);
+    }
+    if (negative > 0.2 && taste.lastNegative >= taste.lastPositive) {
+      inc(artistNegative, artistId, negative);
+      for (const genre of normalizeGenres(track.genre || track.tags)) inc(genreNegative, genre, negative);
+    }
+  });
+}
+
 export async function buildUserRecommendationSignals({
   supabase,
   userId,
@@ -140,10 +224,10 @@ export async function buildUserRecommendationSignals({
     supabase.from('user_follows').select('following_id').eq('follower_id', userId).limit(1000),
     supabase
       .from('track_events')
-      .select('track_id, event_type, created_at, progress_pct, position_ms, duration_ms, is_ai_track')
+      .select('track_id, event_type, created_at, progress_pct, position_ms, duration_ms, is_ai_track, session_id')
       .eq('user_id', userId)
       .gte('created_at', since30)
-      .in('event_type', ['play_start', 'play_complete', 'play_progress', 'favorite', 'like', 'skip', 'next', 'prev'])
+      .in('event_type', ['play_start', 'play_complete', 'play_progress', 'favorite', 'unfavorite', 'like', 'unlike', 'skip', 'next', 'prev'])
       .order('created_at', { ascending: false })
       .limit(1600),
     supabase.from('track_likes').select('track_id').eq('user_id', userId).limit(500),
@@ -180,6 +264,7 @@ export async function buildUserRecommendationSignals({
   const startedCounts = new Map<string, number>();
   const completeCounts = new Map<string, number>();
   const tasteByTrack = new Map<string, TasteSignal>();
+  const sessionTasteByTrack = new Map<string, TasteSignal>();
   const recentTrackOrder: string[] = [];
 
   for (const event of recentEvents) {
@@ -213,6 +298,10 @@ export async function buildUserRecommendationSignals({
       taste.positive += 3.6 * Math.exp(-ageDays * Math.LN2 / 24);
       taste.lastPositive = Math.max(taste.lastPositive, created);
     }
+    if (event.event_type === 'unlike' || event.event_type === 'unfavorite') {
+      taste.negative += 1.8 * Math.exp(-ageDays * Math.LN2 / 10);
+      taste.lastNegative = Math.max(taste.lastNegative, created);
+    }
     if (event.event_type === 'play_progress' && progress >= 45) {
       taste.positive += (progress >= 75 ? 1.2 : 0.45) * Math.exp(-ageDays * Math.LN2 / 12);
       taste.lastPositive = Math.max(taste.lastPositive, created);
@@ -221,6 +310,9 @@ export async function buildUserRecommendationSignals({
       const severity = event.event_type === 'skip' || progress < 20 ? 2.8 : 1.2;
       taste.negative += severity * Math.exp(-ageDays * Math.LN2 / 5);
       taste.lastNegative = Math.max(taste.lastNegative, created);
+    }
+    if (sessionId && event.session_id === sessionId) {
+      applySessionTrackEvent(signals, sessionTasteByTrack, event, now, false);
     }
   }
 
@@ -276,21 +368,8 @@ export async function buildUserRecommendationSignals({
 
   hydrateSessionCatalogExposure(signals, trackById);
 
-  tasteByTrack.forEach((taste, trackId) => {
-    const track = trackById.get(trackId);
-    if (!track) return;
-    const artistId = String(track.artist?._id || track.creator_id || '');
-    const positive = Math.min(8, taste.positive);
-    const negative = Math.min(6, taste.negative);
-    if (positive > 0.1) {
-      inc(signals.artistAffinity, artistId, positive);
-      for (const genre of normalizeGenres(track.genre || track.tags)) inc(signals.preferredGenres, genre, positive);
-    }
-    if (negative > 0.2 && taste.lastNegative >= taste.lastPositive) {
-      inc(signals.artistAversion, artistId, negative);
-      for (const genre of normalizeGenres(track.genre || track.tags)) inc(signals.avoidedGenres, genre, negative);
-    }
-  });
+  hydrateTasteAffinities(signals, tasteByTrack, trackById);
+  hydrateTasteAffinities(signals, sessionTasteByTrack, trackById, true);
 
   try {
     const userLikedIds = Array.from(signals.likedTrackIds).filter((id) => !id.startsWith('ai-')).slice(0, 40);
@@ -349,6 +428,8 @@ export async function buildUserRecommendationSignals({
     signals.completedTrackIds.size * 1.5 +
     signals.skippedTrackIds.size * 1.25 +
     signals.followedArtistIds.size * 2 +
+    signals.currentSessionCompletedTrackIds.size * 2 +
+    signals.currentSessionSkippedTrackIds.size * 1.5 +
     Math.min(20, recentEvents.length * 0.08)
   ).toFixed(2)));
 
@@ -373,16 +454,34 @@ export async function buildSessionRecommendationSignals({
   if (!normalizedSessionId) return signals;
 
   const since = new Date(Date.now() - 7 * DAY).toISOString();
+  const now = Date.now();
+  const sessionTasteByTrack = new Map<string, TasteSignal>();
+  const recentTrackIds: string[] = [];
   try {
-    const { data } = await supabase
-      .from('recommendation_impressions')
-      .select('content_type, content_id, created_at, session_id')
-      .eq('session_id', normalizedSessionId)
-      .gte('created_at', since)
-      .order('created_at', { ascending: false })
-      .limit(1000);
-    for (const impression of data || []) {
+    const [impressionsRes, eventsRes] = await Promise.all([
+      supabase
+        .from('recommendation_impressions')
+        .select('content_type, content_id, created_at, session_id')
+        .eq('session_id', normalizedSessionId)
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(1000),
+      supabase
+        .from('track_events')
+        .select('track_id, event_type, created_at, progress_pct, position_ms, duration_ms, is_ai_track, session_id')
+        .eq('session_id', normalizedSessionId)
+        .gte('created_at', since)
+        .in('event_type', ['play_start', 'play_complete', 'play_progress', 'favorite', 'unfavorite', 'like', 'unlike', 'skip', 'next', 'prev'])
+        .order('created_at', { ascending: false })
+        .limit(1200),
+    ]);
+    for (const impression of impressionsRes.data || []) {
       applyRecommendationImpression(signals, impression, normalizedSessionId);
+    }
+    for (const event of eventsRes.data || []) {
+      applySessionTrackEvent(signals, sessionTasteByTrack, event, now);
+      const trackId = eventTrackId(event);
+      if (trackId && !recentTrackIds.includes(trackId)) recentTrackIds.push(trackId);
     }
   } catch {}
 
@@ -392,7 +491,17 @@ export async function buildSessionRecommendationSignals({
     if (id) trackById.set(id, track);
   }
   hydrateSessionCatalogExposure(signals, trackById);
-  signals.signalStrength = Math.min(20, signals.currentSessionRecommendationCounts.size * 0.35);
+  hydrateTasteAffinities(signals, sessionTasteByTrack, trackById, true);
+  signals.recentlyPlayedTrackIds = recentTrackIds.slice(0, 24);
+  signals.trackRepeatCounts72h.forEach((count, trackId) => {
+    const completes = signals.trackRecentCompletes72h.get(trackId) || 0;
+    if ((count >= 3 && completes >= 1) || completes >= 2) signals.currentObsessionTrackIds.add(trackId);
+  });
+  signals.signalStrength = Math.min(40, Number((
+    signals.currentSessionRecommendationCounts.size * 0.35
+    + signals.currentSessionCompletedTrackIds.size * 3
+    + signals.currentSessionSkippedTrackIds.size * 2
+  ).toFixed(2)));
   return signals;
 }
 

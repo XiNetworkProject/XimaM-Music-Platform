@@ -21,6 +21,7 @@ type Props = {
   onOpenProfile: () => void;
   onOpenTrack: (track: Track) => void;
   onPlayTrack: (track: Track) => void;
+  onLikeChange?: (liked: boolean) => void;
 };
 
 function formatCount(value: number) {
@@ -30,7 +31,7 @@ function formatCount(value: number) {
 }
 
 export const PostSlide = memo(function PostSlide(props: Props) {
-  const { post, active, playing, height, topPad, bottomPad, onOpenPost, onOpenProfile, onOpenTrack, onPlayTrack } = props;
+  const { post, active, playing, height, topPad, bottomPad, onOpenPost, onOpenProfile, onOpenTrack, onPlayTrack, onLikeChange } = props;
   const responsive = useResponsiveLayout();
   const [liked, setLiked] = useState(post.isLiked);
   const [likesCount, setLikesCount] = useState(post.likesCount);
@@ -54,6 +55,7 @@ export const PostSlide = memo(function PostSlide(props: Props) {
       const result = await togglePostLike(post.id);
       if (typeof result?.liked === 'boolean') setLiked(result.liked);
       if (Number.isFinite(Number(result?.likesCount))) setLikesCount(Number(result.likesCount));
+      onLikeChange?.(typeof result?.liked === 'boolean' ? result.liked : next);
     } catch {
       setLiked(!next);
       setLikesCount((current) => Math.max(0, current + (next ? -1 : 1)));

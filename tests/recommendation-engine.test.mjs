@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { computeTrackDiscoveryMetrics, globalDiscoveryScore } from '../lib/ranking.ts';
-import { rerankTracks, scorePostCandidate, scoreTrackCandidate } from '../lib/recommendation/engine.ts';
+import { rerankPosts, rerankTracks, scorePostCandidate, scoreTrackCandidate } from '../lib/recommendation/engine.ts';
 import { sortTracksNewest } from '../lib/recommendation/chronological.ts';
 
 function signals() {
@@ -20,11 +20,17 @@ function signals() {
     currentSessionRecommendedTrackIds: new Set(),
     currentSessionRecommendedPostIds: new Set(),
     currentSessionRecommendedClipIds: new Set(),
+    currentSessionCompletedTrackIds: new Set(),
+    currentSessionSkippedTrackIds: new Set(),
     recommendationCounts: new Map(),
     currentSessionRecommendationCounts: new Map(),
     lastRecommendedAt: new Map(),
     currentSessionArtistCounts: new Map(),
     currentSessionGenreCounts: new Map(),
+    currentSessionPreferredGenres: new Map(),
+    currentSessionAvoidedGenres: new Map(),
+    currentSessionArtistAffinity: new Map(),
+    currentSessionArtistAversion: new Map(),
     followedPostCreatorIds: new Set(),
     preferredGenres: new Map(),
     avoidedGenres: new Map(),
@@ -141,6 +147,27 @@ test('session-level artist and genre exposure opens room for discovery', () => {
   assert.ok(Number(fresh.recommendationScore) > Number(fatigued.recommendationScore) * 2);
 });
 
+test('live session taste reacts more strongly than long-term taste', () => {
+  const userSignals = signals();
+  userSignals.currentSessionArtistAffinity.set('artist-now', 6);
+  userSignals.currentSessionPreferredGenres.set('soul', 5);
+  userSignals.currentSessionArtistAversion.set('artist-skip', 6);
+  userSignals.currentSessionAvoidedGenres.set('metal', 5);
+  const sharedMetrics = metrics();
+  const wanted = scoreTrackCandidate(track('wanted-now', 'artist-now', 7, sharedMetrics, 'soul'), userSignals, { sessionSeed: 'live-taste' });
+  const rejected = scoreTrackCandidate(track('rejected-now', 'artist-skip', 7, sharedMetrics, 'metal'), userSignals, { sessionSeed: 'live-taste' });
+  assert.ok(Number(wanted.recommendationScore) > Number(rejected.recommendationScore) * 3);
+});
+
+test('a skip in the current session almost removes the same track', () => {
+  const userSignals = signals();
+  userSignals.currentSessionSkippedTrackIds.add('session-skip');
+  const sharedMetrics = metrics();
+  const skipped = scoreTrackCandidate(track('session-skip', 'artist-a', 9, sharedMetrics), userSignals, { sessionSeed: 'live-skip' });
+  const unseen = scoreTrackCandidate(track('session-unseen', 'artist-b', 9, sharedMetrics), userSignals, { sessionSeed: 'live-skip' });
+  assert.ok(Number(unseen.recommendationScore) > Number(skipped.recommendationScore) * 10);
+});
+
 test('posts already viewed in the active session are not immediately recycled', () => {
   const userSignals = signals();
   userSignals.currentSessionRecommendedPostIds.add('post-seen');
@@ -150,6 +177,20 @@ test('posts already viewed in the active session are not immediately recycled', 
   const seen = scorePostCandidate({ id: 'post-seen', created_at: createdAt, likes_count: 3, comments_count: 1 }, userSignals, { sessionSeed: 'live-session' });
   const unseen = scorePostCandidate({ id: 'post-new', created_at: createdAt, likes_count: 3, comments_count: 1 }, userSignals, { sessionSeed: 'live-session' });
   assert.ok(Number(unseen.recommendationScore) > Number(seen.recommendationScore) * 5);
+});
+
+test('post ranking prevents one creator and one attached track from filling the feed', () => {
+  const createdAt = new Date().toISOString();
+  const posts = [
+    { id: 'a1', creator_id: 'creator-a', track_id: 'track-a', created_at: createdAt, likes_count: 30 },
+    { id: 'a2', creator_id: 'creator-a', track_id: 'track-a', created_at: createdAt, likes_count: 29 },
+    { id: 'a3', creator_id: 'creator-a', track_id: 'track-b', created_at: createdAt, likes_count: 28 },
+    { id: 'b1', creator_id: 'creator-b', created_at: createdAt, likes_count: 10 },
+    { id: 'c1', creator_id: 'creator-c', created_at: createdAt, likes_count: 9 },
+  ];
+  const ranked = rerankPosts(posts, signals(), { sessionSeed: 'post-diversity' });
+  assert.notEqual(ranked[0].creator_id, ranked[1].creator_id);
+  assert.equal(ranked.slice(0, 4).filter((post) => post.track_id === 'track-a').length, 1);
 });
 
 test('newest sorting is strictly chronological and does not use recommendation scores', () => {

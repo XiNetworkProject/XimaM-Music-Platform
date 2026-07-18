@@ -72,23 +72,31 @@ function genreAffinity(track: RecommendedTrack, signals: UserRecommendationSigna
   const genres = toArray(track.genre).map(norm);
   let positive = 0;
   let negative = 0;
+  let sessionPositive = 0;
+  let sessionNegative = 0;
   for (const genre of genres) {
     positive += signals.preferredGenres.get(genre) || 0;
     negative += signals.avoidedGenres.get(genre) || 0;
+    sessionPositive += signals.currentSessionPreferredGenres.get(genre) || 0;
+    sessionNegative += signals.currentSessionAvoidedGenres.get(genre) || 0;
   }
   return {
     positive: 6 * saturating(positive, 8),
     negative: 4.5 * saturating(negative, 5),
+    sessionPositive: 5.5 * saturating(sessionPositive, 4.5),
+    sessionNegative: 7 * saturating(sessionNegative, 3.5),
   };
 }
 
 function artistAffinity(track: RecommendedTrack, signals: UserRecommendationSignals) {
   const artistId = String(track.artist?._id || '');
-  if (!artistId) return { positive: 0, negative: 0, followed: false };
+  if (!artistId) return { positive: 0, negative: 0, sessionPositive: 0, sessionNegative: 0, followed: false };
   const followed = signals.followedArtistIds.has(artistId);
   return {
     positive: 6.5 * saturating(signals.artistAffinity.get(artistId) || 0, 7) + (followed ? 4.5 : 0),
     negative: 5 * saturating(signals.artistAversion.get(artistId) || 0, 5),
+    sessionPositive: 6 * saturating(signals.currentSessionArtistAffinity.get(artistId) || 0, 4),
+    sessionNegative: 8 * saturating(signals.currentSessionArtistAversion.get(artistId) || 0, 3.5),
     followed,
   };
 }
@@ -181,12 +189,16 @@ export function scoreTrackCandidate(
         metrics.emergingScore * 0.28 +
         artist.positive +
         genre.positive +
+        artist.sessionPositive +
+        genre.sessionPositive +
         seedAffinity +
         collaborative +
         obsessionBoost +
         promotion -
         artist.negative -
-        genre.negative;
+        genre.negative -
+        artist.sessionNegative -
+        genre.sessionNegative;
       break;
   }
 
@@ -195,7 +207,9 @@ export function scoreTrackCandidate(
     recentPlayPenalty = Math.min(0.82, 0.16 + recentlyPlayedIndex * 0.045);
     if (isObsessed) recentPlayPenalty = Math.max(0.58, recentPlayPenalty);
   }
-  const skipPenalty = signals.skippedTrackIds.has(id) ? 0.22 : 1;
+  const skipPenalty = signals.currentSessionSkippedTrackIds.has(id)
+    ? 0.045
+    : signals.skippedTrackIds.has(id) ? 0.22 : 1;
   const seenPenalty = impressionPenalty(id, signals, now);
   const repeatPenalty = repeat24 >= 5 && !isObsessed ? 0.5 : repeat24 >= 3 && !isObsessed ? 0.72 : 1;
   const jitter = (deterministicUnit(context.sessionSeed || 'synaura', id) - 0.5) * 0.24;
@@ -214,8 +228,8 @@ export function scoreTrackCandidate(
   addReason(reasons, metrics.freshnessScore >= 4.8 || Boolean(track.isFresh), 'fresh');
   addReason(reasons, metrics.catalogScore >= 3.5 && metrics.ageHours >= 24 * 30, 'catalog_rediscovery');
   addReason(reasons, artist.followed, 'followed_artist');
-  addReason(reasons, !artist.followed && artist.positive > 0.25, 'artist_affinity');
-  addReason(reasons, genre.positive > 0.25 || seedAffinity > 0, 'genre_affinity');
+  addReason(reasons, !artist.followed && artist.positive + artist.sessionPositive > 0.25, 'artist_affinity');
+  addReason(reasons, genre.positive + genre.sessionPositive > 0.25 || seedAffinity > 0, 'genre_affinity');
   addReason(reasons, collaborative > 0, 'collaborative');
   addReason(reasons, repeat72 > 0, 'recent_repeat');
   addReason(reasons, isObsessed, 'current_obsession');
@@ -244,7 +258,10 @@ export function scoreTrackCandidate(
       emerging: metrics.emergingScore,
       artistAffinity: Number(artist.positive.toFixed(3)),
       genreAffinity: Number(genre.positive.toFixed(3)),
+      sessionArtistAffinity: Number(artist.sessionPositive.toFixed(3)),
+      sessionGenreAffinity: Number(genre.sessionPositive.toFixed(3)),
       negativeAffinity: Number((artist.negative + genre.negative).toFixed(3)),
+      sessionNegativeAffinity: Number((artist.sessionNegative + genre.sessionNegative).toFixed(3)),
       repeat24,
       repeat72,
       recentPlayPenalty: Number(recentPlayPenalty.toFixed(3)),
@@ -269,6 +286,18 @@ const SCHEDULES: Record<string, DiscoveryBucket[]> = {
   boosted: ['boosted', 'quality', 'boosted', 'fresh', 'boosted', 'emerging', 'quality', 'momentum'],
   mixed: ['affinity', 'emerging', 'quality', 'fresh', 'momentum', 'catalog'],
 };
+
+function scheduleForSession(strategy: string, signals: UserRecommendationSignals) {
+  if (strategy !== 'reco') return SCHEDULES[strategy] || SCHEDULES.reco;
+  if (signals.signalStrength < 8) {
+    return ['fresh', 'emerging', 'quality', 'momentum', 'catalog', 'emerging', 'fresh', 'quality', 'momentum', 'catalog'] satisfies DiscoveryBucket[];
+  }
+  const hasLiveTaste = signals.currentSessionArtistAffinity.size > 0 || signals.currentSessionPreferredGenres.size > 0;
+  if (hasLiveTaste) {
+    return ['affinity', 'emerging', 'quality', 'affinity', 'fresh', 'momentum', 'affinity', 'catalog', 'emerging', 'quality', 'fresh', 'affinity'] satisfies DiscoveryBucket[];
+  }
+  return SCHEDULES.reco;
+}
 
 function matchesBucket(track: RecommendedTrack, bucket: DiscoveryBucket) {
   const metrics = track.discoveryMetrics;
@@ -302,7 +331,8 @@ export function rerankTracks(
   const artistCounts = new Map<string, number>();
   const bucketCounts = new Map<DiscoveryBucket, number>();
   let aiCount = 0;
-  const schedule = SCHEDULES[strategy] || SCHEDULES.reco;
+  const schedule = scheduleForSession(strategy, signals);
+  const explorationPressure = Math.max(0.16, Math.min(0.46, 0.46 - signals.signalStrength * 0.004));
 
   const allowed = (track: RecommendedTrack, position: number, strict: boolean) => {
     const artistId = String(track.artist?._id || '');
@@ -329,7 +359,14 @@ export function rerankTracks(
       const adjusted = (track: RecommendedTrack) => {
         const artistId = String(track.artist?._id || '');
         const genre = primaryGenre(track);
+        const metrics = track.discoveryMetrics;
+        const discoveryLift = desired === 'emerging' || desired === 'fresh' || desired === 'catalog'
+          ? ((metrics?.emergingScore || 0) * 0.38
+            + (metrics?.freshnessScore || 0) * 0.22
+            + (1 - Math.max(0, Math.min(1, metrics?.confidence || 0))) * 1.4) * explorationPressure
+          : 0;
         return Number(track.recommendationScore || 0)
+          + discoveryLift
           - (artistCounts.get(artistId) || 0) * 1.05
           - recentGenres.filter((value) => value && value === genre).length * 0.28
           - (bucketCounts.get(desired) || 0) * 0.08;
@@ -408,7 +445,54 @@ export function scorePostCandidate(
 }
 
 export function rerankPosts(posts: RecommendedPost[], signals: UserRecommendationSignals, context: RecommendationContext = {}) {
-  return posts
+  const scored = posts
     .map((post) => scorePostCandidate(post, signals, context))
     .sort((a, b) => (b.recommendationScore || 0) - (a.recommendationScore || 0));
+  const result: RecommendedPost[] = [];
+  const deferred: RecommendedPost[] = [];
+  const creatorCounts = new Map<string, number>();
+  const attachedTrackIds = new Set<string>();
+  let trackShareCount = 0;
+  for (const post of scored) {
+    const creatorId = String(post.creator?.id || post.creator_id || '');
+    const trackId = String(post.track_id || post.track?.id || '');
+    const creatorCount = creatorCounts.get(creatorId) || 0;
+    const previousCreatorId = String(result[result.length - 1]?.creator?.id || result[result.length - 1]?.creator_id || '');
+    const isTrackShare = Boolean(trackId);
+    const trackShareRatio = trackShareCount / Math.max(1, result.length);
+    const shouldDefer = Boolean(
+      (creatorId && (creatorId === previousCreatorId || creatorCount >= 2))
+      || (trackId && attachedTrackIds.has(trackId))
+      || (isTrackShare && result.length >= 4 && trackShareRatio >= 0.55),
+    );
+    if (shouldDefer) {
+      deferred.push(post);
+      continue;
+    }
+    result.push(post);
+    if (creatorId) creatorCounts.set(creatorId, creatorCount + 1);
+    if (trackId) attachedTrackIds.add(trackId);
+    if (isTrackShare) trackShareCount += 1;
+  }
+  while (deferred.length) {
+    const previousCreatorId = String(result[result.length - 1]?.creator?.id || result[result.length - 1]?.creator_id || '');
+    deferred.sort((left, right) => {
+      const adjusted = (post: RecommendedPost) => {
+        const creatorId = String(post.creator?.id || post.creator_id || '');
+        const trackId = String(post.track_id || post.track?.id || '');
+        return Number(post.recommendationScore || 0)
+          - (creatorId && creatorId === previousCreatorId ? 50 : 0)
+          - (creatorCounts.get(creatorId) || 0) * 8
+          - (trackId && attachedTrackIds.has(trackId) ? 100 : 0);
+      };
+      return adjusted(right) - adjusted(left);
+    });
+    const selected = deferred.shift()!;
+    result.push(selected);
+    const creatorId = String(selected.creator?.id || selected.creator_id || '');
+    const trackId = String(selected.track_id || selected.track?.id || '');
+    if (creatorId) creatorCounts.set(creatorId, (creatorCounts.get(creatorId) || 0) + 1);
+    if (trackId) attachedTrackIds.add(trackId);
+  }
+  return result;
 }

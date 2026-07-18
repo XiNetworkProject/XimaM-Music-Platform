@@ -82,6 +82,7 @@ export async function POST(
   try {
     const session = await getApiSession(request);
     const userId = (session?.user as any)?.id || null;
+    const recommendationSessionId = request.headers.get('x-synaura-session')?.trim().slice(0, 120) || null;
     
     console.log('POST like - Session:', { hasSession: !!session, userId, trackId: params.id });
     
@@ -128,6 +129,7 @@ export async function POST(
     const { error: evErr } = await supabaseAdmin.from('track_events').insert({
       track_id: trackId,
       user_id: userId,
+      session_id: recommendationSessionId,
       event_type: 'like',
       platform: request.headers.get('authorization')?.startsWith('Bearer ') ? 'mobile' : 'web',
       is_ai_track: trackId?.startsWith('ai-') || false,
@@ -217,6 +219,7 @@ export async function DELETE(
   try {
     const session = await getApiSession(request);
     const userId = (session?.user as any)?.id || null;
+    const recommendationSessionId = request.headers.get('x-synaura-session')?.trim().slice(0, 120) || null;
     
     console.log('DELETE like - Session:', { hasSession: !!session, userId, trackId: params.id });
     
@@ -260,6 +263,7 @@ export async function DELETE(
     const { error: evErr } = await supabaseAdmin.from('track_events').insert({
       track_id: trackId,
       user_id: userId,
+      session_id: recommendationSessionId,
       event_type: 'unlike',
       platform: request.headers.get('authorization')?.startsWith('Bearer ') ? 'mobile' : 'web',
       is_ai_track: trackId?.startsWith('ai-') || false,
