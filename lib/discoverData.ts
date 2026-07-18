@@ -252,10 +252,7 @@ export async function getRadarTracks(limit = 16): Promise<PublicTrackRow[]> {
       genre: Array.isArray(candidate.genre) ? candidate.genre : candidate.genre ? [candidate.genre] : [],
       isAI: false as const,
     } as PublicTrackRow;
-    return {
-      ...withRadarSignals(base, input),
-      radarScore: Math.round(metrics.emergingScore * 10),
-    };
+    return withRadarSignals(base, input);
   });
 
   const eligible = scored.filter((track) => {

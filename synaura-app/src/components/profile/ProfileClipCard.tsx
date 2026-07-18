@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { MusicClip } from '@/api/types';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 const VISIBILITY_LABELS: Record<MusicClip['visibility'], string> = {
   published: 'Public',
@@ -39,7 +40,7 @@ export function ProfileClipCard({
       onPress={onPress}
       style={({ pressed }) => [styles.card, style, pressed && styles.cardPressed]}
     >
-      {artwork ? <Image source={{ uri: artwork }} resizeMode="cover" onError={() => setArtwork(artwork === fallbackArtwork ? null : fallbackArtwork)} style={StyleSheet.absoluteFillObject} /> : (
+      {artwork ? <SynauraImage source={{ uri: artwork }} lowPriority onError={() => setArtwork(artwork === fallbackArtwork ? null : fallbackArtwork)} style={StyleSheet.absoluteFillObject} /> : (
         <View style={styles.fallback}><Ionicons name="film-outline" size={30} color={colors.textTertiary} /></View>
       )}
       <LinearGradient

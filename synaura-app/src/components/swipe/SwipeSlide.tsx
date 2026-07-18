@@ -1,5 +1,5 @@
 ﻿import React, { memo, useEffect, useRef } from 'react';
-import { Animated, Easing, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,6 +10,7 @@ import { TrackCover } from '@/components/TrackCover';
 import { usePlayerProgress } from '@/player/PlayerProvider';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 type ActionLabel = 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save' | 'remix' | 'useSound' | 'more';
 
@@ -354,7 +355,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
           <View style={styles.profileCluster}>
             <Pressable accessibilityLabel="Ouvrir le profil artiste" onPress={onOpenArtist} style={styles.profileAvatar}>
               {track.artist.avatar ? (
-                <ImageBackground source={{ uri: track.artist.avatar }} style={StyleSheet.absoluteFill} />
+                <SynauraImage source={{ uri: track.artist.avatar }} lowPriority={!isActive} style={StyleSheet.absoluteFill} />
               ) : (
                 <Text style={styles.profileInitial}>
                   {(track.artist.name || track.artist.username || '?').slice(0, 1).toUpperCase()}

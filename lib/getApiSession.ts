@@ -24,9 +24,15 @@ export async function getSessionFromToken(token: string | null | undefined): Pro
   const t = token.trim();
   if (!t) return null;
   try {
-    const secret = process.env.NEXTAUTH_SECRET || 'your-secret-key';
-    const payload = jwt.verify(t, secret) as { id?: string; email?: string };
-    const userId = payload?.id;
+    let userId = '';
+    const { data: supabaseAuth } = await supabaseAdmin.auth.getClaims(t);
+    if (supabaseAuth?.claims?.sub) {
+      userId = String(supabaseAuth.claims.sub);
+    } else if (process.env.NEXTAUTH_SECRET) {
+      // Temporary compatibility for installed app versions carrying the former JWT.
+      const payload = jwt.verify(t, process.env.NEXTAUTH_SECRET) as { id?: string };
+      userId = payload?.id || '';
+    }
     if (!userId) return null;
     const { data: profile, error } = await supabaseAdmin
       .from('profiles')
@@ -50,12 +56,11 @@ export async function getSessionFromToken(token: string | null | undefined): Pro
 }
 
 export async function getApiSession(req: NextRequest): Promise<ApiSession> {
-  // Token : Authorization > X-Auth-Token > query access_token (fallback)
+  // Tokens in URLs leak through logs and browser history; only headers are accepted.
   let token: string | null = null;
   const auth = req.headers.get('authorization');
   if (auth?.startsWith('Bearer ')) token = auth.slice(7).trim();
   if (!token) token = req.headers.get('x-auth-token');
-  if (!token && req.nextUrl?.searchParams) token = req.nextUrl.searchParams.get('access_token');
   if (token) {
     const session = await getSessionFromToken(token);
     if (session && process.env.NODE_ENV === 'development') {

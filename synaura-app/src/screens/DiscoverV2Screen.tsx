@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Image,
-  InteractionManager,
+  FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,9 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  getDiscoverPage,
-  getDiscoverRadar,
-  getEditorialCollections,
+  getDiscoverOverview,
   getUserPreferences,
 } from '@/api/client';
 import type { Track } from '@/api/types';
@@ -39,6 +36,7 @@ import { readDiscoverVisualCache, writeDiscoverVisualCache } from '@/discover/di
 import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
 import { CityHomeBanner } from '@/components/city/CityHomeBanner';
 import { SynauraSearchField } from '@/components/search/SynauraSearchField';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 const INTENTION_TO_CLUB_SLUG: Record<string, string> = {
   remix: 'remix',
@@ -107,7 +105,6 @@ export function DiscoverV2Screen() {
   const player = usePlayer();
   const auth = useAuth();
   const requestId = useRef(0);
-  const backgroundTask = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
   const [newestTracks, setNewestTracks] = useState<Track[]>([]);
   const [popularTracks, setPopularTracks] = useState<Track[]>([]);
   const [hiddenTracks, setHiddenTracks] = useState<Track[]>([]);
@@ -123,7 +120,11 @@ export function DiscoverV2Screen() {
   const [highlightedClubSlugs, setHighlightedClubSlugs] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!auth.user) return;
+    if (!auth.user) {
+      setFavoriteMoodIds([]);
+      setHighlightedClubSlugs([]);
+      return;
+    }
     let mounted = true;
     getUserPreferences()
       .then((preferences) => {
@@ -138,8 +139,7 @@ export function DiscoverV2Screen() {
     return () => {
       mounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [auth.user?.id]);
 
   const orderedMoods = useMemo(() => {
     if (!favoriteMoodIds.length) return DISCOVER_MOODS;
@@ -153,7 +153,6 @@ export function DiscoverV2Screen() {
 
   const load = useCallback(async (showInitialLoader = true) => {
     const currentRequest = ++requestId.current;
-    backgroundTask.current?.cancel();
     if (showInitialLoader) setLoading(true);
     else setRefreshing(true);
     setRadarLoading(true);
@@ -180,81 +179,36 @@ export function DiscoverV2Screen() {
       setRadarLoading(false);
     }
 
-    let contentRevealed = false;
-    const revealContent = () => {
-      if (contentRevealed || currentRequest !== requestId.current) return;
-      contentRevealed = true;
-      setLoading(false);
-    };
-
-    const persistSnapshot = () => writeDiscoverVisualCache<EditorialCollection>(snapshot);
-    const newestRequest = getDiscoverPage({ sort: 'newest', limit: 20, profileLimit: 4 })
-      .then((page) => {
-        if (currentRequest !== requestId.current) return;
-        snapshot.newest = sortNewest(page.tracks);
-        snapshot.totalTracks = page.total;
-        setNewestTracks(snapshot.newest);
-        setTotalTracks(page.total);
-        revealContent();
-      });
-    const radarRequest = getDiscoverRadar(12)
-      .then((tracks) => {
-        if (currentRequest === requestId.current) {
-          snapshot.radar = tracks;
-          setRadar(tracks);
-        }
-      })
-      .finally(() => {
-        if (currentRequest === requestId.current) setRadarLoading(false);
-      });
-    const collectionsRequest = getEditorialCollections().then((items) => {
-      if (currentRequest === requestId.current) {
-        snapshot.collections = items as EditorialCollection[];
-        setCollections(snapshot.collections);
-      }
-    });
-
-    const primaryResults = await Promise.allSettled([
-      newestRequest,
-      radarRequest,
-      collectionsRequest,
-    ]);
-    if (currentRequest !== requestId.current) return;
-    setLoading(false);
-    setLoadError(!cached && primaryResults.every((result) => result.status === 'rejected'));
-    void persistSnapshot();
-
-    const loadSecondary = async () => {
-      const [popularResult, hiddenResult] = await Promise.allSettled([
-        getDiscoverPage({ sort: 'popular', limit: 20, profileLimit: 4 }),
-        getDiscoverPage({ sort: 'hidden', limit: 20, profileLimit: 4 }),
-      ]);
+    try {
+      const overview = await getDiscoverOverview();
       if (currentRequest !== requestId.current) return;
-      if (popularResult.status === 'fulfilled') {
-        snapshot.popular = popularResult.value.tracks;
-        setPopularTracks(snapshot.popular);
-      }
-      if (hiddenResult.status === 'fulfilled') {
-        snapshot.hidden = hiddenResult.value.tracks;
-        setHiddenTracks(snapshot.hidden);
-      }
+      snapshot.newest = sortNewest(overview.newest);
+      snapshot.popular = overview.popular;
+      snapshot.hidden = overview.hidden;
+      snapshot.radar = overview.radar;
+      snapshot.collections = overview.collections;
+      snapshot.totalTracks = overview.totalTracks;
+      setNewestTracks(snapshot.newest);
+      setPopularTracks(snapshot.popular);
+      setHiddenTracks(snapshot.hidden);
+      setRadar(snapshot.radar);
+      setCollections(snapshot.collections);
+      setTotalTracks(snapshot.totalTracks);
+      setLoadError(false);
+      await writeDiscoverVisualCache<EditorialCollection>(snapshot);
+    } catch {
+      if (currentRequest === requestId.current) setLoadError(!cached);
+    } finally {
+      if (currentRequest !== requestId.current) return;
+      setLoading(false);
+      setRadarLoading(false);
       setRefreshing(false);
-      await persistSnapshot();
-    };
-
-    if (showInitialLoader) {
-      backgroundTask.current = InteractionManager.runAfterInteractions(() => {
-        void loadSecondary();
-      });
-    } else {
-      await loadSecondary();
     }
   }, []);
 
   useEffect(() => {
     void load(true);
     return () => {
-      backgroundTask.current?.cancel();
       requestId.current += 1;
     };
   }, [load]);
@@ -440,16 +394,24 @@ export function DiscoverV2Screen() {
         {collectionRail.length ? (
           <View>
             <SectionHeader title="Collections éditoriales" subtitle="Des sélections publiées autour d'une histoire musicale." />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.collectionRail}>
-              {collectionRail.map((collection) => (
+            <FlatList
+              horizontal
+              data={collectionRail}
+              keyExtractor={(collection) => String(collection.id || collection.playlistId)}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.collectionRail}
+              initialNumToRender={4}
+              maxToRenderPerBatch={4}
+              windowSize={5}
+              removeClippedSubviews
+              renderItem={({ item: collection }) => (
                 <CollectionTile
-                  key={collection.id || collection.playlistId}
                   collection={collection}
                   tablet={responsive.isTablet}
                   onPress={() => navigation.navigate('PlaylistDetail', { playlistId: collection.slug || collection.playlistId })}
                 />
-              ))}
-            </ScrollView>
+              )}
+            />
           </View>
         ) : null}
 
@@ -467,18 +429,26 @@ export function DiscoverV2Screen() {
         {artistPairings.length ? (
           <View>
             <SectionHeader title="Artistes à découvrir" subtitle="Chaque profil est présenté avec un morceau réel pour entrer directement dans son univers." />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.artistRail}>
-              {artistPairings.map((artist) => (
+            <FlatList
+              horizontal
+              data={artistPairings}
+              keyExtractor={(artist) => artist.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.artistRail}
+              initialNumToRender={4}
+              maxToRenderPerBatch={4}
+              windowSize={5}
+              removeClippedSubviews
+              renderItem={({ item: artist }) => (
                 <ArtistDiscoverCard
-                  key={artist.id}
                   artist={artist}
                   tablet={responsive.isTablet}
                   playing={player.current?._id === artist.track._id && player.isPlaying}
                   onPlay={() => void playFrom([artist.track], artist.track)}
                   onOpen={() => navigation.navigate('PublicProfile', { username: artist.username })}
                 />
-              ))}
-            </ScrollView>
+              )}
+            />
           </View>
         ) : null}
 
@@ -536,7 +506,7 @@ function DiscoverLeadCard({ track, label, totalTracks, playing, tablet, onPlay, 
   const image = trackImage(track);
   return (
     <MotionPressable onPress={onOpen} style={[styles.leadCard, tablet && styles.leadCardTablet]} scaleTo={0.99}>
-      {image ? <Image source={{ uri: image }} resizeMode="cover" style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#111111', '#7357C6']} style={StyleSheet.absoluteFillObject} />}
+      {image ? <SynauraImage source={{ uri: image }} style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#111111', '#7357C6']} style={StyleSheet.absoluteFillObject} />}
       <LinearGradient colors={['rgba(17,17,17,0.05)', 'rgba(17,17,17,0.9)']} locations={[0.12, 0.9]} style={StyleSheet.absoluteFillObject} />
       <View style={styles.leadTop}>
         <View style={styles.leadBadge}><Ionicons name="sparkles-outline" size={12} color="#FFFFFF" /><Text style={styles.leadBadgeText}>{label}</Text></View>
@@ -592,10 +562,10 @@ function CoverMosaic({ covers }: { covers: string[] }) {
   return (
     <View style={styles.mosaic}>
       {covers.slice(0, count).map((cover, index) => (
-        <Image
+        <SynauraImage
           key={`${cover}-${index}`}
           source={{ uri: cover }}
-          resizeMode="cover"
+          lowPriority
           style={[
             styles.mosaicImage,
             count === 1 && styles.mosaicImageSingle,
@@ -623,18 +593,26 @@ function DiscoverTrackRail({ title, subtitle, tracks, loading = false, tablet, c
     <View>
       <SectionHeader title={title} subtitle={subtitle} />
       {tracks.length ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trackRail}>
-          {tracks.slice(0, 20).map((track) => (
+        <FlatList
+          horizontal
+          data={tracks.slice(0, 20)}
+          keyExtractor={(track) => track._id}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.trackRail}
+          initialNumToRender={4}
+          maxToRenderPerBatch={4}
+          windowSize={5}
+          removeClippedSubviews
+          renderItem={({ item: track }) => (
             <DiscoverTrackCard
-              key={track._id}
               track={track}
               tablet={tablet}
               playing={currentTrackId === track._id && isPlaying}
               onPlay={() => onPlay(track)}
               onOpen={() => onOpen(track)}
             />
-          ))}
-        </ScrollView>
+          )}
+        />
       ) : <LoadingTrackRail tablet={tablet} />}
     </View>
   );
@@ -681,7 +659,7 @@ function CollectionFeatureCard({ collection, tablet, onPress }: { collection: Ed
   return (
     <MotionPressable onPress={onPress} style={[styles.collectionFeature, tablet && styles.collectionFeatureTablet]} scaleTo={0.99}>
       <LinearGradient colors={gradient as [string, string, ...string[]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
-      {banner ? <Image source={{ uri: banner }} resizeMode="cover" style={StyleSheet.absoluteFillObject} /> : null}
+      {banner ? <SynauraImage source={{ uri: banner }} lowPriority style={StyleSheet.absoluteFillObject} /> : null}
       <LinearGradient colors={['rgba(17,17,17,0.1)', 'rgba(17,17,17,0.88)']} style={StyleSheet.absoluteFillObject} />
       <View style={styles.collectionFeatureBody}>
         <Text style={styles.collectionBadge}>{collection.badge || 'Collection Synaura'}</Text>
@@ -701,7 +679,7 @@ function CollectionTile({ collection, tablet, onPress }: { collection: Editorial
   return (
     <MotionPressable onPress={onPress} style={[styles.collectionTile, tablet && styles.collectionTileTablet]} scaleTo={0.97}>
       <View style={styles.collectionTileImage}>
-        {image ? <Image source={{ uri: image }} resizeMode="cover" style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#7357C6', '#4A9EAA']} style={StyleSheet.absoluteFillObject} />}
+        {image ? <SynauraImage source={{ uri: image }} lowPriority style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#7357C6', '#4A9EAA']} style={StyleSheet.absoluteFillObject} />}
       </View>
       <Text numberOfLines={2} style={styles.collectionTileTitle}>{collection.title}</Text>
       {Number(collection.trackCount || 0) > 0 ? <Text style={styles.collectionTileMeta}>{collection.trackCount} sons</Text> : null}
@@ -714,7 +692,7 @@ function ArtistDiscoverCard({ artist, tablet, playing, onPlay, onOpen }: { artis
     <View style={[styles.artistCard, tablet && styles.artistCardTablet]}>
       <Pressable onPress={onOpen} style={styles.artistIdentity}>
         <View style={styles.artistAvatar}>
-          {artist.avatar ? <Image source={{ uri: artist.avatar }} style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#7357C6', '#D96D63']} style={StyleSheet.absoluteFillObject} />}
+          {artist.avatar ? <SynauraImage source={{ uri: artist.avatar }} lowPriority style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#7357C6', '#D96D63']} style={StyleSheet.absoluteFillObject} />}
           {!artist.avatar ? <Text style={styles.artistInitial}>{artist.name.slice(0, 1).toUpperCase()}</Text> : null}
         </View>
         <View style={styles.artistCopy}>

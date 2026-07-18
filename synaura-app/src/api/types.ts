@@ -336,6 +336,31 @@ export type DiscoverPage = {
   totalArtists: number;
 };
 
+export type EditorialCollectionSummary = {
+  id?: string;
+  playlistId: string;
+  slug?: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  bannerUrl?: string | null;
+  coverUrl?: string | null;
+  themeColors?: string[];
+  badge?: string;
+  trackCount?: number;
+  isFeatured?: boolean;
+};
+
+export type DiscoverOverview = {
+  newest: Track[];
+  popular: Track[];
+  hidden: Track[];
+  radar: Track[];
+  collections: EditorialCollectionSummary[];
+  totalTracks: number;
+  generatedAt?: string;
+};
+
 export type FeedResponse = {
   tracks?: Track[];
   items?: Array<{ type?: string; kind?: string; track?: Track; post?: unknown; data?: unknown }>;

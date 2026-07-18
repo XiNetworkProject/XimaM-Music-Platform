@@ -5,7 +5,6 @@ import {
   AppState,
   DeviceEventEmitter,
   FlatList,
-  Image,
   InteractionManager,
   Pressable,
   StyleSheet,
@@ -14,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +32,7 @@ import {
   loadMixedPosts,
   recordClipFunnelEvent,
   sendRecommendationImpressions,
+  setRecommendationTaste,
   setTrackLike,
   setMusicClipLike,
   toggleArtistFollow,
@@ -42,6 +43,7 @@ import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
 import { readRankingFeedCache, writeRankingFeedCache } from '@/feed/rankingFeedCache';
 import { readClipFeedCache, writeClipFeedCache } from '@/feed/clipFeedCache';
+import { resolveFlowPage } from '@/feed/flowPaging';
 import {
   buildFlowResumeSnapshot,
   extractFlowSources,
@@ -99,6 +101,8 @@ import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { ClipUploadIndicator } from '@/clips/ClipUploadIndicator';
 import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
+import { SynauraImage } from '@/components/ui/SynauraImage';
+import { recommendationReasonLabel } from '@/feed/recommendationReasons';
 
 const PRELOAD_RANGE = 2;
 const COMMENTS_POLL_DELAY_MS = 900;
@@ -183,6 +187,8 @@ export function SwipeScreen() {
   const [remixTrack, setRemixTrack] = useState<Track | null>(null);
   const [burstKey, setBurstKey] = useState(0);
   const [burstVisible, setBurstVisible] = useState(false);
+  const [tasteBusy, setTasteBusy] = useState<'more' | 'less' | 'hide_artist' | null>(null);
+  const [tasteFeedback, setTasteFeedback] = useState('');
 
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
   const [likesMap, setLikesMap] = useState<Record<string, number>>({});
@@ -193,12 +199,9 @@ export function SwipeScreen() {
   const queueBoundRef = useRef('');
   const lastRequestRef = useRef(0);
   const burstTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const playbackCommitRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const pendingSwipeReleaseRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const settleCommitRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const resumePersistTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const liveTastePersistTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const pendingSwipeTrackRef = useRef<string | null>(null);
   const fetchedCommentIdsRef = useRef<Set<string>>(new Set());
   const fetchedLikeIdsRef = useRef<Set<string>>(new Set());
   const fetchedFollowIdsRef = useRef<Set<string>>(new Set());
@@ -206,6 +209,9 @@ export function SwipeScreen() {
   const headerOpacity = useRef(new Animated.Value(1)).current;
   const feedProgress = useRef(new Animated.Value(0)).current;
   const lastCommittedIndexRef = useRef(0);
+  const gestureStartIndexRef = useRef(0);
+  const lastFlowCommitAtRef = useRef(0);
+  const lastFlowRequestedTrackRef = useRef<string | null>(null);
   const activeIndexRef = useRef(0);
   const appStateRef = useRef(AppState.currentState);
   const feedItemsRef = useRef<ScrollFeedItem[]>([]);
@@ -299,6 +305,7 @@ export function SwipeScreen() {
   const activeTrack = trackOfItem(activeItem);
   const activeClip = activeItem?.kind === 'clip' ? activeItem.clip : null;
   const activeId = activeItem?.kind === 'clip' ? '' : activeTrack?._id || '';
+  const recommendationExplanation = recommendationReasonLabel(activeTrack?.recommendationReasons);
 
   const currentSeedGenre = useMemo(() => seedGenre || topGenre(activeTrack), [activeTrack, seedGenre]);
 
@@ -342,6 +349,7 @@ export function SwipeScreen() {
     setPosts(sources.posts);
     activeIndexRef.current = snapshot.activeIndex;
     lastCommittedIndexRef.current = snapshot.activeIndex;
+    gestureStartIndexRef.current = snapshot.activeIndex;
     setActiveIndex(snapshot.activeIndex);
     setLoadState('ready');
   }, []);
@@ -588,6 +596,7 @@ export function SwipeScreen() {
     setActiveIndex(0);
     activeIndexRef.current = 0;
     lastCommittedIndexRef.current = 0;
+    gestureStartIndexRef.current = 0;
     setCursor(0);
     setHasMore(true);
     queueBoundRef.current = '';
@@ -740,23 +749,33 @@ export function SwipeScreen() {
     void player.mergeQueue(playableQueue);
   }, [feedMode, homePreludeVisible, loadState, player.current?._id, player.isReady, player.mergeQueue, player.setQueueAndPlay, playableQueue]);
 
-  // (3) Synchro INVERSE : quand le player change naturellement de track
-  // (auto-advance, lockscreen, mini-player), on scrolle vers la slide correspondante.
-  // Pas de boucle car scrollToIndex(animated:false) ne declenche pas onMomentumScrollEnd.
+  // Le Flow est la source de verite pendant un geste. Une transition native ne
+  // peut avancer l'ecran que vers le morceau immediatement suivant, une fois la
+  // commande du swipe stabilisee. Elle ne peut jamais faire rebondir en arriere.
   useEffect(() => {
     if (!flowOwnsPlaybackRef.current || scrollInProgressRef.current) return;
     if (loadState !== 'ready' || !feedItems.length || !player.current) return;
-    if (pendingSwipeTrackRef.current) {
-      // TrackPlayer peut émettre brièvement l'ancien index juste après le nouveau.
-      // Pendant cette fenêtre de stabilisation, la slide choisie par le geste reste
-      // la source de vérité afin d'éviter le rebond 62 -> 63 -> 62 -> 63.
+    if (lastFlowRequestedTrackRef.current === player.current._id) {
+      lastFlowRequestedTrackRef.current = null;
       return;
     }
     if (playableTrackOfItem(feedItems[activeIndexRef.current])?._id === player.current._id) return;
     const idx = feedItems.findIndex((it) => playableTrackOfItem(it)?._id === player.current?._id);
-    if (idx < 0 || idx === activeIndexRef.current) return;
+    const currentIndex = activeIndexRef.current;
+    if (idx <= currentIndex || Date.now() - lastFlowCommitAtRef.current < 1400) return;
+
+    const nextPlayableIndex = feedItems.findIndex((item, index) => (
+      index > currentIndex && Boolean(playableTrackOfItem(item))
+    ));
+    if (idx !== nextPlayableIndex) return;
+    const hasContextCardBetween = feedItems
+      .slice(currentIndex + 1, idx)
+      .some((item) => !playableTrackOfItem(item));
+    if (hasContextCardBetween) return;
+
     activeIndexRef.current = idx;
     lastCommittedIndexRef.current = idx;
+    gestureStartIndexRef.current = idx;
     setActiveIndex(idx);
     requestAnimationFrame(() => {
       try {
@@ -867,7 +886,7 @@ export function SwipeScreen() {
     for (let i = lo; i <= hi; i++) {
       const it = feedItems[i];
       const url = it?.kind === 'collection' ? (it.collection.coverUrl || it.collection.bannerUrl) : trackOfItem(it)?.coverUrl;
-      if (url) Image.prefetch(url).catch(() => {});
+      if (url) ExpoImage.prefetch(url, { cachePolicy: 'memory-disk' }).catch(() => {});
     }
   }, [activeIndex, loadState, feedItems]);
 
@@ -937,8 +956,6 @@ export function SwipeScreen() {
 
   useEffect(() => () => {
     clearTimeout(burstTimerRef.current);
-    clearTimeout(playbackCommitRef.current);
-    clearTimeout(pendingSwipeReleaseRef.current);
     clearTimeout(settleCommitRef.current);
     clearTimeout(resumePersistTimerRef.current);
     clearTimeout(liveTastePersistTimerRef.current);
@@ -1117,6 +1134,7 @@ export function SwipeScreen() {
     if (index >= 0) {
       activeIndexRef.current = index;
       lastCommittedIndexRef.current = index;
+      gestureStartIndexRef.current = index;
       setActiveIndex(index);
       requestAnimationFrame(() => {
         try { listRef.current?.scrollToIndex({ index, animated: false }); } catch { /* ignore */ }
@@ -1129,21 +1147,21 @@ export function SwipeScreen() {
     }
   }, [feedItems, player]);
 
-  // Le snap est entierement natif. La lecture ne change qu'une fois la page
-  // stabilisee et chaque geste invalide les commandes audio plus anciennes.
+  // La lecture change une seule fois, apres stabilisation de la page native.
   const commitIndex = useCallback((idx: number) => {
     const nextIndex = Math.max(0, Math.min(feedItems.length - 1, idx));
     if (nextIndex === lastCommittedIndexRef.current) return;
-    const playbackIntent = ++playbackIntentRef.current;
+    playbackIntentRef.current += 1;
     lastCommittedIndexRef.current = nextIndex;
+    gestureStartIndexRef.current = nextIndex;
     activeIndexRef.current = nextIndex;
+    lastFlowCommitAtRef.current = Date.now();
     setActiveIndex(nextIndex);
     Haptics.selectionAsync().catch(() => {});
 
     const nextItem = feedItems[nextIndex];
     if (nextItem?.kind === 'clip') {
-      clearTimeout(playbackCommitRef.current);
-      pendingSwipeTrackRef.current = null;
+      lastFlowRequestedTrackRef.current = null;
       flowOwnsPlaybackRef.current = false;
       if (player.current) void player.pause();
       lastAutoStartedClipRef.current = `${feedMode}:${nextIndex}:${nextItem.clip.id}`;
@@ -1157,36 +1175,81 @@ export function SwipeScreen() {
     const target = playableTrackOfItem(nextItem);
     if (!target?.audioUrl) {
       flowOwnsPlaybackRef.current = false;
-      pendingSwipeTrackRef.current = null;
-      clearTimeout(playbackCommitRef.current);
+      lastFlowRequestedTrackRef.current = null;
       return;
     }
     flowOwnsPlaybackRef.current = true;
+    lastFlowRequestedTrackRef.current = target._id;
     if (player.current?._id === target._id) {
       if (!player.isPlaying) void player.play();
+      lastFlowRequestedTrackRef.current = null;
       return;
     }
-    pendingSwipeTrackRef.current = target._id;
-    clearTimeout(pendingSwipeReleaseRef.current);
-    pendingSwipeReleaseRef.current = setTimeout(() => {
-      pendingSwipeTrackRef.current = null;
-    }, 1400);
-    clearTimeout(playbackCommitRef.current);
-    playbackCommitRef.current = setTimeout(() => {
-      InteractionManager.runAfterInteractions(() => {
-        if (playbackIntent !== playbackIntentRef.current) return;
-        if (activeIndexRef.current !== nextIndex) return;
-        if (playableTrackOfItem(feedItemsRef.current[nextIndex])?._id !== target._id) return;
-        const queueIndex = player.queue.findIndex((item) => item._id === target._id);
-        if (queueIndex >= 0) void player.playQueueIndex(queueIndex);
-        else void player.playTrack(target);
-      });
-    }, 120);
+    const queueIndex = player.queue.findIndex((item) => item._id === target._id);
+    if (queueIndex >= 0) void player.playQueueIndex(queueIndex);
+    else void player.playTrack(target);
   }, [feedItems, feedMode, player]);
 
   const commitVisibleTrack = useCallback((offsetY: number) => {
-    commitIndex(Math.round(offsetY / itemHeight));
-  }, [commitIndex, itemHeight]);
+    const resolution = resolveFlowPage({
+      currentIndex: gestureStartIndexRef.current,
+      offsetY,
+      pageHeight: itemHeight,
+      itemCount: feedItems.length,
+    });
+    if (resolution.corrected) {
+      listRef.current?.scrollToOffset({ offset: resolution.index * itemHeight, animated: false });
+    }
+    commitIndex(resolution.index);
+  }, [commitIndex, feedItems.length, itemHeight]);
+
+  const handleExplicitTaste = useCallback(async (action: 'more' | 'less' | 'hide_artist') => {
+    if (!activeTrack || tasteBusy) return;
+    if (!auth.user) {
+      setMoreOpen(false);
+      navigation.getParent()?.navigate('Login', { returnTo: { screen: 'Tabs', params: { screen: 'Swipe' } } });
+      return;
+    }
+    const artistId = String(activeTrack.artist?._id || '');
+    if (action === 'hide_artist' && !artistId) return;
+    setTasteBusy(action);
+    setTasteFeedback('');
+
+    if (action === 'more') rememberLiveTaste(activeTrack, 'like', 1.5);
+    else rememberLiveTaste(activeTrack, 'skip', action === 'hide_artist' ? 2.2 : 1.5);
+
+    if (action !== 'more') {
+      setMoreOpen(false);
+      const nextIndex = Math.min(feedItemsRef.current.length - 1, activeIndexRef.current + 1);
+      if (nextIndex > activeIndexRef.current) {
+        listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+        commitIndex(nextIndex);
+      }
+      if (action === 'hide_artist') {
+        const protectedIds = new Set([
+          ...viewedTrackIdsRef.current,
+          activeTrack._id,
+          playableTrackOfItem(feedItemsRef.current[nextIndex])?._id || '',
+        ]);
+        setTracks((current) => current.filter((item) => String(item.artist?._id || '') !== artistId || protectedIds.has(item._id)));
+      }
+    }
+
+    try {
+      await setRecommendationTaste({ action, trackId: activeTrack._id, artistId: artistId || undefined, source: 'mobile-flow' });
+      setTasteFeedback(action === 'more'
+        ? 'Compris, Synaura cherchera davantage cette aura.'
+        : action === 'less'
+          ? 'Compris, ce type de son sera moins présent.'
+          : 'Cet artiste ne sera plus proposé dans ton Flow.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch {
+      setTasteFeedback('Impossible de sauvegarder ce choix pour le moment.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+    } finally {
+      setTasteBusy(null);
+    }
+  }, [activeTrack, auth.user, commitIndex, navigation, rememberLiveTaste, tasteBusy]);
 
   const flushStableFeed = useCallback(() => {
     scrollInProgressRef.current = false;
@@ -1203,23 +1266,21 @@ export function SwipeScreen() {
   const handleScrollBeginDrag = useCallback(() => {
     scrollInProgressRef.current = true;
     momentumInProgressRef.current = false;
+    gestureStartIndexRef.current = lastCommittedIndexRef.current;
     playbackIntentRef.current += 1;
-    pendingSwipeTrackRef.current = null;
-    clearTimeout(playbackCommitRef.current);
-    clearTimeout(pendingSwipeReleaseRef.current);
+    lastFlowRequestedTrackRef.current = null;
     clearTimeout(settleCommitRef.current);
   }, []);
 
   const handleScrollEndDrag = useCallback((event: any) => {
     if (!feedItems.length) return;
-    const velocityY = Math.abs(Number(event.nativeEvent.velocity?.y || 0));
     const targetY = Number(event.nativeEvent.targetContentOffset?.y ?? event.nativeEvent.contentOffset.y ?? 0);
     clearTimeout(settleCommitRef.current);
     settleCommitRef.current = setTimeout(() => {
       if (momentumInProgressRef.current) return;
       commitVisibleTrack(targetY);
       flushStableFeed();
-    }, velocityY > 0.05 ? 240 : 90);
+    }, 64);
   }, [commitVisibleTrack, feedItems.length, flushStableFeed]);
 
   const handleMomentumScrollBegin = useCallback(() => {
@@ -1323,8 +1384,7 @@ export function SwipeScreen() {
           onPlayTrack={(track) => {
             flowOwnsPlaybackRef.current = false;
             playbackIntentRef.current += 1;
-            pendingSwipeTrackRef.current = null;
-            clearTimeout(playbackCommitRef.current);
+            lastFlowRequestedTrackRef.current = null;
             if (player.current?._id === track._id) void player.togglePlayPause();
             else void player.playTrack(track);
           }}
@@ -1648,6 +1708,19 @@ export function SwipeScreen() {
       />
       <BottomSheet visible={moreOpen} onClose={() => setMoreOpen(false)} title={activeTrack?.title || 'Actions'} subtitle="La musique reste au centre.">
         <View style={styles.moreSheet}>
+          {recommendationExplanation ? (
+            <View style={styles.whyCard}>
+              <View style={styles.whyIcon}><Ionicons name="information" size={16} color="#111111" /></View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.whyTitle}>Pourquoi ce morceau ?</Text>
+                <Text style={styles.whyText}>{recommendationExplanation}</Text>
+              </View>
+            </View>
+          ) : null}
+          <FlowMoreAction icon="thumbs-up-outline" color={colors.cyan} label={tasteBusy === 'more' ? 'Enregistrement...' : 'Plus comme ça'} onPress={() => void handleExplicitTaste('more')} />
+          <FlowMoreAction icon="thumbs-down-outline" color={colors.coral} label={tasteBusy === 'less' ? 'Enregistrement...' : 'Moins comme ça'} onPress={() => void handleExplicitTaste('less')} />
+          {activeTrack?.artist?._id ? <FlowMoreAction icon="eye-off-outline" label={tasteBusy === 'hide_artist' ? 'Enregistrement...' : 'Masquer cet artiste'} onPress={() => void handleExplicitTaste('hide_artist')} /> : null}
+          {tasteFeedback ? <Text style={styles.tasteFeedback}>{tasteFeedback}</Text> : null}
           <FlowMoreAction
             icon={activeTrack && library.isFavorite(activeTrack._id) ? 'bookmark' : 'bookmark-outline'}
             color={colors.violet}
@@ -1669,7 +1742,7 @@ export function SwipeScreen() {
         {remixTrack ? (
           <View style={styles.remixSheet}>
             <View style={styles.remixHead}>
-              <Image source={{ uri: remixTrack.coverUrl || undefined }} style={styles.remixCover} />
+              <SynauraImage source={remixTrack.coverUrl || null} style={styles.remixCover} />
               <View style={{ flex: 1 }}>
                 <Text numberOfLines={1} style={styles.remixTitle}>{remixTrack.title}</Text>
                 <Text numberOfLines={1} style={styles.remixArtist}>{remixTrack.artist?.name || remixTrack.artist?.username || 'Artiste Synaura'}</Text>
@@ -1712,6 +1785,11 @@ function FlowMoreAction({ icon, label, color = colors.text, onPress }: { icon: k
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0D0D0D' },
   moreSheet: { paddingHorizontal: 14, paddingBottom: 8 },
+  whyCard: { minHeight: 62, marginBottom: 6, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(74,158,170,0.32)', backgroundColor: colors.cyanSoft, padding: 11 },
+  whyIcon: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cyan },
+  whyTitle: { color: colors.text, fontSize: 11, fontWeight: '900' },
+  whyText: { marginTop: 3, color: colors.textSecondary, fontSize: 10, lineHeight: 14, fontWeight: '700' },
+  tasteFeedback: { paddingHorizontal: 8, paddingVertical: 6, color: colors.cyan, fontSize: 10, lineHeight: 14, fontWeight: '800' },
   moreRow: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingVertical: 6 },
   moreIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   moreLabel: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '800' },

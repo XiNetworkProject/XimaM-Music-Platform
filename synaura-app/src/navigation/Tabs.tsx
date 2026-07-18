@@ -5,32 +5,11 @@ import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigat
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { CreateMenuSheet } from '@/components/create/CreateMenuSheet';
-import { HomeV2Screen } from '@/screens/HomeV2Screen';
 import { DiscoverV2Screen } from '@/screens/DiscoverV2Screen';
-import { RadarScreen } from '@/screens/RadarScreen';
-import { DiscoverMoodScreen } from '@/screens/DiscoverMoodScreen';
 import { LibraryScreen } from '@/screens/LibraryScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
 import { SwipeScreen } from '@/screens/SwipeScreen';
-import { UploadScreen } from '@/screens/UploadScreen';
-import { SettingsScreen } from '@/screens/SettingsScreen';
-import { PublicProfileScreen } from '@/screens/PublicProfileScreen';
-import { NotificationsScreen } from '@/screens/NotificationsScreen';
-import { PostDetailScreen } from '@/screens/PostDetailScreen';
-import { PlaylistDetailScreen } from '@/screens/PlaylistDetailScreen';
-import { CommunityScreen } from '@/screens/CommunityScreen';
-import { ClubDetailScreen } from '@/screens/ClubDetailScreen';
 import { CreateHubScreen } from '@/screens/CreateHubScreen';
-import { CreateVariationScreen } from '@/screens/CreateVariationScreen';
-import { ClipComposerScreen } from '@/screens/ClipComposerScreen';
-import { AIStudioScreen } from '@/screens/AIStudioScreen';
-import { CreatePostScreen } from '@/screens/CreatePostScreen';
-import { SubscriptionsScreen } from '@/screens/SubscriptionsScreen';
-import { CityScreen } from '@/screens/CityScreen';
-import { TrackDetailScreen } from '@/screens/TrackDetailScreen';
-import { SearchScreen } from '@/screens/SearchScreen';
-import { ChallengeDetailScreen } from '@/screens/ChallengeDetailScreen';
-import { StatsScreen } from '@/screens/StatsScreen';
 import { colors } from '@/theme/tokens';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import type { MusicChallenge, Track } from '@/api/types';
@@ -66,31 +45,8 @@ export type RootTabsParamList = {
   ChallengeDetail: { challengeId: string; challenge?: MusicChallenge } | undefined;
 };
 
-const Tab = createBottomTabNavigator<RootTabsParamList>();
-const HIDDEN_ROUTES = new Set<keyof RootTabsParamList>([
-  'Home',
-  'Radar',
-  'AIStudio',
-  'Upload',
-  'CreateHub',
-  'CreateVariation',
-  'ClipComposer',
-  'ClubDetail',
-  'DiscoverMood',
-  'CreatePost',
-  'Settings',
-  'Subscriptions',
-  'City',
-  'Stats',
-  'PublicProfile',
-  'PostDetail',
-  'PlaylistDetail',
-  'TrackDetail',
-  'Search',
-  'ChallengeDetail',
-  'Notifications',
-  'Community',
-]);
+type PrimaryTabParamList = Pick<RootTabsParamList, 'Swipe' | 'Discover' | 'Create' | 'Library' | 'Profile'>;
+const Tab = createBottomTabNavigator<PrimaryTabParamList>();
 
 function AnimatedTabButton({ children, accessibilityState, onPress, style, ...props }: any) {
   const scale = useRef(new Animated.Value(1)).current;
@@ -148,8 +104,6 @@ function primaryIcon(routeName: (typeof PRIMARY_ROUTES)[number], focused: boolea
 
 function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
   const layout = useResponsiveLayout();
-  const activeRoute = state.routes[state.index]?.name as keyof RootTabsParamList | undefined;
-  if (activeRoute && HIDDEN_ROUTES.has(activeRoute)) return null;
   const dark = true;
   const routes = state.routes.filter((route) => PRIMARY_ROUTES.includes(route.name as any));
   const dockWidth = Math.min(layout.safeWidth, layout.isTablet ? 640 : 560);
@@ -227,6 +181,11 @@ export function Tabs() {
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const tabNavigationRef = useRef<any>(null);
   const { settings } = useMobileSettings();
+  const navigateRoot = (name: keyof RootTabsParamList, params?: Record<string, unknown>) => {
+    const tabNavigation = tabNavigationRef.current;
+    const rootNavigation = tabNavigation?.getParent?.();
+    (rootNavigation || tabNavigation)?.navigate(name, params);
+  };
 
   return (
     <>
@@ -244,8 +203,6 @@ export function Tabs() {
       >
         <Tab.Screen name="Swipe" component={SwipeScreen} />
         <Tab.Screen name="Discover" component={DiscoverV2Screen} />
-        <Tab.Screen name="Radar" component={RadarScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="DiscoverMood" component={DiscoverMoodScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen
           name="Create"
           component={CreateHubScreen}
@@ -259,50 +216,30 @@ export function Tabs() {
           })}
         />
         <Tab.Screen name="Library" component={LibraryScreen} />
-        <Tab.Screen name="Community" component={CommunityScreen} />
-        <Tab.Screen name="ClubDetail" component={ClubDetailScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Profile" component={ProfileScreen} />
-        <Tab.Screen name="Home" component={HomeV2Screen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="AIStudio" component={AIStudioScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="Upload" component={UploadScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="CreateHub" component={CreateHubScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="CreateVariation" component={CreateVariationScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="ClipComposer" component={ClipComposerScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="CreatePost" component={CreatePostScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="Subscriptions" component={SubscriptionsScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="City" component={CityScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="Stats" component={StatsScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="PublicProfile" component={PublicProfileScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="PostDetail" component={PostDetailScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="PlaylistDetail" component={PlaylistDetailScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="TrackDetail" component={TrackDetailScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="Search" component={SearchScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="ChallengeDetail" component={ChallengeDetailScreen} options={{ tabBarButton: () => null }} />
       </Tab.Navigator>
       <CreateMenuSheet
         visible={createMenuOpen}
         onClose={() => setCreateMenuOpen(false)}
         onCreatePost={() => {
           setCreateMenuOpen(false);
-          tabNavigationRef.current?.navigate('CreatePost');
+          navigateRoot('CreatePost');
         }}
         onCreateWithAI={() => {
           setCreateMenuOpen(false);
-          tabNavigationRef.current?.navigate('AIStudio');
+          navigateRoot('AIStudio');
         }}
         onPublishTrack={() => {
           setCreateMenuOpen(false);
-          tabNavigationRef.current?.navigate('Upload');
+          navigateRoot('Upload');
         }}
         onPublishClip={() => {
           setCreateMenuOpen(false);
-          tabNavigationRef.current?.navigate('ClipComposer');
+          navigateRoot('ClipComposer');
         }}
         onCreateVariation={() => {
           setCreateMenuOpen(false);
-          tabNavigationRef.current?.navigate('CreateVariation');
+          navigateRoot('CreateVariation');
         }}
       />
     </>
@@ -368,6 +305,6 @@ const styles = StyleSheet.create({
   dockLabelActive: { color: colors.black },
   dockLabelActiveDark: { color: colors.cyan },
   dockLabelCreate: { marginTop: -7 },
-  activeIndicator: { position: 'absolute', top: 0, width: 22, height: 2, borderRadius: 1, backgroundColor: colors.cyan, opacity: 0 },
+  activeIndicator: { position: 'absolute', top: 0, width: 22, height: 2, borderRadius: 1, backgroundColor: colors.cyan },
   activeIndicatorDark: {},
 });

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -40,6 +39,8 @@ import { ProfileShareSheet } from '@/components/profile/ProfileShareSheet';
 import { ProfileTrackActionsSheet } from '@/components/profile/ProfileTrackActionsSheet';
 import { ClipShareSheet } from '@/components/social/ClipShareSheet';
 import { ShareSheet } from '@/components/swipe/ShareSheet';
+import { useQueryClient } from '@tanstack/react-query';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 type ProfileTab = 'sons' | 'clips' | 'variations' | 'playlists' | 'posts';
 
@@ -65,6 +66,7 @@ export function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const responsive = useResponsiveLayout();
   const player = usePlayer();
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<MobileProfile | null>(null);
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
@@ -128,14 +130,26 @@ export function ProfileScreen() {
   );
   const lastPlayed = library.recent[0] || null;
 
-  const loadProfile = useCallback(async () => {
+  const loadProfile = useCallback(async (force = false) => {
     if (!auth.user?.username) return;
-    setLoading(true);
+    const profileKey = ['mobile-profile', 'private', auth.user.username] as const;
+    const cachedProfile = queryClient.getQueryData<MobileProfile>(profileKey);
+    if (cachedProfile) setProfile(cachedProfile);
+    setLoading(!cachedProfile);
     setError(null);
     try {
-      const nextProfile = await getMyProfile(auth.user.username);
+      if (force) await queryClient.invalidateQueries({ queryKey: profileKey });
+      const nextProfile = await queryClient.fetchQuery({
+        queryKey: profileKey,
+        queryFn: () => getMyProfile(auth.user!.username),
+        staleTime: 45_000,
+      });
       setProfile(nextProfile);
-      void getUserPostsPage(nextProfile.id)
+      void queryClient.fetchQuery({
+        queryKey: ['profile-posts', nextProfile.id, null],
+        queryFn: () => getUserPostsPage(nextProfile.id),
+        staleTime: 30_000,
+      })
         .then((page) => {
           setPosts(page.posts.map((post) => ({ ...post, isPinned: post.id === nextProfile.pinnedPostId })).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned))));
           setPostsCursor(page.nextCursor);
@@ -153,7 +167,7 @@ export function ProfileScreen() {
     } finally {
       setLoading(false);
     }
-  }, [auth.user?.username]);
+  }, [auth.user?.username, queryClient]);
 
   const loadClips = useCallback(async (cursor = 0, target?: { creatorId?: string; creatorUsername?: string }) => {
     const creatorUsername = target?.creatorUsername || auth.user?.username;
@@ -163,12 +177,14 @@ export function ProfileScreen() {
     else setClipsLoading(true);
     setClipsError(null);
     try {
-      const result = await getProfileMusicClips({
-        creatorUsername,
-        creatorId: target?.creatorId,
-        limit: 24,
-        cursor,
-      });
+      const input = { creatorUsername, creatorId: target?.creatorId, limit: 24, cursor };
+      const result = cursor > 0
+        ? await getProfileMusicClips(input)
+        : await queryClient.fetchQuery({
+          queryKey: ['profile-clips', target?.creatorId || creatorUsername, 0],
+          queryFn: () => getProfileMusicClips(input),
+          staleTime: 30_000,
+        });
       if (requestId !== clipsRequestRef.current) return;
       setClips((current) => {
         if (!cursor) return result.clips;
@@ -188,15 +204,21 @@ export function ProfileScreen() {
         setClipsLoadingMore(false);
       }
     }
-  }, [auth.user?.username]);
+  }, [auth.user?.username, queryClient]);
 
-  const refreshProfile = useCallback(async () => {
-    const nextProfile = await loadProfile();
+  const refreshProfile = useCallback(async (force = false) => {
+    if (force && auth.user?.username) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['profile-clips'] }),
+        queryClient.invalidateQueries({ queryKey: ['profile-posts'] }),
+      ]);
+    }
+    const nextProfile = await loadProfile(force);
     if (nextProfile) {
       await loadClips(0, { creatorId: nextProfile.id, creatorUsername: nextProfile.username });
     }
     void getSubscriptionUsage().then(setUsage).catch(() => {});
-  }, [loadClips, loadProfile]);
+  }, [auth.user?.username, loadClips, loadProfile, queryClient]);
 
   useFocusEffect(useCallback(() => {
     void refreshProfile();
@@ -459,7 +481,7 @@ export function ProfileScreen() {
     <SynauraBackground variant="warm">
       <ScrollView
         contentContainerStyle={[styles.content, responsive.pageContent, { paddingTop: 0, paddingBottom: responsive.miniPlayerClearance }]}
-        refreshControl={<RefreshControl refreshing={loading || clipsLoading} onRefresh={refreshProfile} />}
+        refreshControl={<RefreshControl refreshing={loading || clipsLoading} onRefresh={() => void refreshProfile(true)} />}
         showsVerticalScrollIndicator={false}
       >
         <AppHeader
@@ -668,7 +690,7 @@ export function ProfileScreen() {
           <SectionTitle title="Variations" action={variations.length ? `${variations.length}` : undefined} />
           {variationsLoading ? <Empty text="Chargement…" /> : variations.length ? variations.map((v) => (
             <Pressable key={v.id} onPress={() => navigation.navigate('TrackDetail', { trackId: v.id })} style={styles.trackRow}>
-              {v.coverUrl ? <Image source={{ uri: v.coverUrl }} style={styles.trackCover} /> : <View style={styles.trackCover} />}
+              {v.coverUrl ? <SynauraImage source={{ uri: v.coverUrl }} lowPriority style={styles.trackCover} /> : <View style={styles.trackCover} />}
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text numberOfLines={1} style={styles.trackTitle}>{v.title}</Text>
                 <Text style={styles.trackMeta}>IA · {compact(v.plays || 0)} écoutes</Text>
@@ -721,7 +743,7 @@ export function ProfileScreen() {
           <SectionTitle title="Playlists" action={`${profile?.playlists.length || 0}`} />
           {profile?.playlists.length ? profile.playlists.map((playlist) => (
             <Pressable key={playlist.id} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.id })} style={styles.playlistRow}>
-              <View style={styles.playlistCover}>{playlist.coverUrl ? <Image source={{ uri: playlist.coverUrl }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={20} color={colors.textTertiary} />}</View>
+              <View style={styles.playlistCover}>{playlist.coverUrl ? <SynauraImage source={{ uri: playlist.coverUrl }} lowPriority style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={20} color={colors.textTertiary} />}</View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.playlistTitle}>{playlist.title}</Text>
                 <Text style={styles.playlistMeta}>{playlist.tracksCount} sons {playlist.isAlbum ? '· Album' : ''}</Text>

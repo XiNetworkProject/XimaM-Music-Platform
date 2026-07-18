@@ -166,6 +166,7 @@ export type UserRecommendationSignals = {
   avoidedGenres: Map<string, number>;
   artistAffinity: Map<string, number>;
   artistAversion: Map<string, number>;
+  hiddenArtistIds: Set<string>;
   trackRepeatCounts24h: Map<string, number>;
   trackRepeatCounts72h: Map<string, number>;
   trackRecentCompletes72h: Map<string, number>;

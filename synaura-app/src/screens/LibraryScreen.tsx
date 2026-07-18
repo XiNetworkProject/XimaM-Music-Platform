@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { getFollowingCreators, getHomeData } from '@/api/client';
@@ -13,6 +13,7 @@ import { usePlayer } from '@/player/PlayerProvider';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { MotionPressable } from '@/components/motion/Motion';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 type LibraryTab = 'favorites' | 'recent' | 'downloaded' | 'queue';
 
@@ -99,27 +100,41 @@ export function LibraryScreen() {
 
             {playlists.length ? <RailTitle title="Playlists" subtitle="Tes collections et sélections" /> : null}
             {playlists.length ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.playlistRail}>
-                {playlists.slice(0, 10).map((playlist) => (
-                  <MotionPressable key={playlist.id} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.id })} style={styles.playlist} scaleTo={0.97}>
-                    <View style={styles.playlistCover}>{playlist.covers[0] ? <Image source={{ uri: playlist.covers[0] }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={23} color={colors.textTertiary} />}</View>
+              <FlatList
+                horizontal
+                data={playlists.slice(0, 10)}
+                keyExtractor={(playlist) => playlist.id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.playlistRail}
+                initialNumToRender={4}
+                windowSize={5}
+                renderItem={({ item: playlist }) => (
+                  <MotionPressable onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.id })} style={styles.playlist} scaleTo={0.97}>
+                    <View style={styles.playlistCover}>{playlist.covers[0] ? <SynauraImage source={{ uri: playlist.covers[0] }} lowPriority style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={23} color={colors.textTertiary} />}</View>
                     <Text numberOfLines={1} style={styles.playlistTitle}>{playlist.title}</Text>
                     <Text numberOfLines={1} style={styles.playlistMeta}>{playlist.tracks}</Text>
                   </MotionPressable>
-                ))}
-              </ScrollView>
+                )}
+              />
             ) : null}
 
             {following.length ? <RailTitle title="Artistes suivis" subtitle="Retrouve rapidement leurs univers" /> : null}
             {following.length ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.artistRail}>
-                {following.map((artist) => (
-                  <MotionPressable key={artist.id} onPress={() => navigation.navigate('PublicProfile', { username: artist.handle.replace(/^@/, '') })} style={styles.artist} scaleTo={0.95}>
-                    <View style={[styles.artistAvatar, { backgroundColor: artist.tint }]}>{artist.avatar?.startsWith('http') ? <Image source={{ uri: artist.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.artistInitial}>{artist.name.slice(0, 1)}</Text>}</View>
+              <FlatList
+                horizontal
+                data={following}
+                keyExtractor={(artist) => artist.id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.artistRail}
+                initialNumToRender={5}
+                windowSize={5}
+                renderItem={({ item: artist }) => (
+                  <MotionPressable onPress={() => navigation.navigate('PublicProfile', { username: artist.handle.replace(/^@/, '') })} style={styles.artist} scaleTo={0.95}>
+                    <View style={[styles.artistAvatar, { backgroundColor: artist.tint }]}>{artist.avatar?.startsWith('http') ? <SynauraImage source={{ uri: artist.avatar }} lowPriority style={StyleSheet.absoluteFillObject} /> : <Text style={styles.artistInitial}>{artist.name.slice(0, 1)}</Text>}</View>
                     <Text numberOfLines={1} style={styles.artistName}>{artist.name}</Text>
                   </MotionPressable>
-                ))}
-              </ScrollView>
+                )}
+              />
             ) : null}
 
             <View style={styles.listHeader}>

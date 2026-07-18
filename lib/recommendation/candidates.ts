@@ -6,8 +6,18 @@ import { computeTrackDiscoveryMetrics, globalDiscoveryScore } from '@/lib/rankin
 import type { RecommendedTrack } from './types';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const NORMAL_CANDIDATE_LIMIT = 360;
-const AI_CANDIDATE_LIMIT = 240;
+const RECENT_CANDIDATE_LIMIT = 240;
+const POPULAR_CANDIDATE_LIMIT = 100;
+const CATALOG_CANDIDATE_LIMIT = 100;
+const QUALITY_CANDIDATE_LIMIT = 120;
+const AI_CANDIDATE_LIMIT = 160;
+const NORMAL_TRACK_SELECT = `
+  *,
+  profiles:profiles!tracks_creator_id_fkey (
+    id, username, name, avatar, bio, is_artist, artist_name, is_verified,
+    follower_count, created_at
+  )
+`;
 
 function readJsonObject(value: any): Record<string, any> {
   if (!value) return {};
@@ -110,17 +120,30 @@ function buildMomentum(events: any[], now: number) {
 async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<RecommendedTrack[]> {
   const now = Date.now();
   const since7d = new Date(now - 7 * DAY_MS).toISOString();
+  const countResult = await applyPublicTrackFilter(supabaseAdmin
+    .from('tracks')
+    .select('id', { count: 'exact', head: true }));
+  const publicTrackCount = Math.max(0, Number(countResult.count || 0));
+  const maxCatalogOffset = Math.max(0, publicTrackCount - CATALOG_CANDIDATE_LIMIT);
+  const dayNumber = Math.floor(now / DAY_MS);
+  const catalogOffset = maxCatalogOffset > 0
+    ? (dayNumber * CATALOG_CANDIDATE_LIMIT) % (maxCatalogOffset + 1)
+    : 0;
   const normalQuery = applyPublicTrackFilter(supabaseAdmin
     .from('tracks')
-    .select(`
-      *,
-      profiles:profiles!tracks_creator_id_fkey (
-        id, username, name, avatar, bio, is_artist, artist_name, is_verified,
-        follower_count, created_at
-      )
-    `))
+    .select(NORMAL_TRACK_SELECT))
     .order('created_at', { ascending: false })
-    .limit(NORMAL_CANDIDATE_LIMIT);
+    .limit(RECENT_CANDIDATE_LIMIT);
+  const popularQuery = applyPublicTrackFilter(supabaseAdmin
+    .from('tracks')
+    .select(NORMAL_TRACK_SELECT))
+    .order('plays', { ascending: false, nullsFirst: false })
+    .limit(POPULAR_CANDIDATE_LIMIT);
+  const catalogQuery = applyPublicTrackFilter(supabaseAdmin
+    .from('tracks')
+    .select(NORMAL_TRACK_SELECT))
+    .order('created_at', { ascending: true })
+    .range(catalogOffset, catalogOffset + CATALOG_CANDIDATE_LIMIT - 1);
   const aiQuery = includeAi
     ? applyPublicAiTrackFilter(supabaseAdmin
         .from('ai_tracks')
@@ -133,10 +156,16 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
         .limit(AI_CANDIDATE_LIMIT)
     : Promise.resolve({ data: [], error: null } as any);
 
-  const [normalResult, aiResult, statsRows, recentEvents, boosts] = await Promise.all([
+  const [normalResult, popularRows, catalogRows, aiResult, statsRows, recentEvents, boosts] = await Promise.all([
     normalQuery,
+    optionalRows<any>(() => popularQuery),
+    optionalRows<any>(() => catalogQuery),
     aiQuery,
-    optionalRows<any>(() => supabaseAdmin.from('track_stats_rolling_30d').select('*').limit(1000)),
+    optionalRows<any>(() => supabaseAdmin
+      .from('track_stats_rolling_30d')
+      .select('*')
+      .order('plays_30d', { ascending: false })
+      .limit(1500)),
     optionalRows<any>(() => supabaseAdmin
       .from('track_events')
       .select('track_id, event_type, created_at, user_id, session_id, is_ai_track')
@@ -153,7 +182,28 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
   if (normalResult.error) throw normalResult.error;
   if (aiResult.error) throw aiResult.error;
 
-  const normalRows = normalResult.data || [];
+  const qualityIds = statsRows
+    .filter((row: any) => !row?.is_ai_track && row?.track_id)
+    .sort((a: any, b: any) => {
+      const score = (row: any) => Number(row.completes_30d || 0) * 3
+        + Number(row.likes_30d || 0) * 2
+        + Number(row.favorites_30d || 0) * 3
+        + Number(row.shares_30d || 0) * 2;
+      return score(b) - score(a);
+    })
+    .slice(0, QUALITY_CANDIDATE_LIMIT)
+    .map((row: any) => String(row.track_id));
+  const qualityRows = qualityIds.length
+    ? await optionalRows<any>(() => applyPublicTrackFilter(supabaseAdmin
+        .from('tracks')
+        .select(NORMAL_TRACK_SELECT))
+        .in('id', qualityIds))
+    : [];
+  const normalById = new Map<string, any>();
+  for (const row of [...(normalResult.data || []), ...popularRows, ...catalogRows, ...qualityRows]) {
+    if (row?.id && !normalById.has(String(row.id))) normalById.set(String(row.id), row);
+  }
+  const normalRows = Array.from(normalById.values());
   const aiRows = aiResult.data || [];
   const normalIds = normalRows.map((row: any) => String(row.id));
   const allIds = [
@@ -316,6 +366,6 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
 
 export const loadGlobalTrackCandidates = unstable_cache(
   loadGlobalTrackCandidatesUncached,
-  ['synaura-discovery-v2-candidates'],
+  ['synaura-discovery-v3-candidates'],
   { revalidate: 45, tags: ['synaura-discovery-candidates'] },
 );

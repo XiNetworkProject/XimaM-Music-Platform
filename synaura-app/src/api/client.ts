@@ -35,6 +35,7 @@ import type {
   MomentReaction,
   MomentReactionType,
   DiscoverPage,
+  DiscoverOverview,
 } from './types';
 import { DEFAULT_REMIX_PERMISSIONS } from './types';
 import type {
@@ -52,6 +53,7 @@ const fallbackBaseUrl = 'https://xima-m-music-platform.vercel.app';
 const fallbackCover = 'https://xima-m-music-platform.vercel.app/default-cover.svg';
 const tints = ['#8B5CF6', '#38BDF8', '#FB7185', '#F59E0B', '#14B8A6', '#EF4444'];
 let authTokenProvider: (() => string | null) | null = null;
+let authRefreshHandler: (() => Promise<boolean>) | null = null;
 
 export const API_BASE_URL =
   (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ||
@@ -82,6 +84,10 @@ export type MobileAppReleaseResponse = {
 
 export function setAuthTokenProvider(provider: () => string | null) {
   authTokenProvider = provider;
+}
+
+export function setAuthRefreshHandler(handler: (() => Promise<boolean>) | null) {
+  authRefreshHandler = handler;
 }
 
 function safeString(value: unknown, fallback: string) {
@@ -364,14 +370,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
   try {
-    const res = await fetch(`${API_BASE_URL}${path}`, {
-      ...init,
-      signal: init?.signal || controller.signal,
-      headers: authHeaders({
-        ...(!isForm ? { 'Content-Type': 'application/json' } : {}),
-        ...(init?.headers || {}),
-      }),
-    });
+    const perform = () => fetch(`${API_BASE_URL}${path}`, {
+        ...init,
+        signal: init?.signal || controller.signal,
+        headers: authHeaders({
+          ...(!isForm ? { 'Content-Type': 'application/json' } : {}),
+          ...(init?.headers || {}),
+        }),
+      });
+    let res = await perform();
+    if (res.status === 401 && authRefreshHandler && await authRefreshHandler()) {
+      res = await perform();
+    }
     const json = await res.json().catch(() => null);
     if (!res.ok) throw new Error(json?.error || json?.message || `Erreur API ${res.status}`);
     return json;
@@ -772,6 +782,23 @@ export async function searchEverything(query: string): Promise<SearchResults> {
 export async function getTrackById(trackId: string): Promise<Track | null> {
   const json = await optionalRequest<any>(`/api/tracks/${encodeURIComponent(trackId)}`);
   return json ? normalizeTrack(json?.track || json) : null;
+}
+
+export async function getDiscoverOverview(): Promise<DiscoverOverview> {
+  const session = await getRecommendationSessionId();
+  const payload = await request<any>(`/api/mobile/discover?session=${encodeURIComponent(session)}`);
+  const tracks = (value: unknown) => (Array.isArray(value) ? value : [])
+    .map(normalizeTrack)
+    .filter((track: Track | null): track is Track => Boolean(track));
+  return {
+    newest: tracks(payload?.newest),
+    popular: tracks(payload?.popular),
+    hidden: tracks(payload?.hidden),
+    radar: tracks(payload?.radar),
+    collections: Array.isArray(payload?.collections) ? payload.collections : [],
+    totalTracks: Number(payload?.totalTracks || 0),
+    generatedAt: typeof payload?.generatedAt === 'string' ? payload.generatedAt : undefined,
+  };
 }
 
 export async function getSimilarTracks(trackId: string, limit = 8): Promise<{ tracks: Track[]; contextLabel: string }> {
@@ -1300,6 +1327,26 @@ export async function recordTrackEvent(
       is_ai_track: trackId.startsWith('ai-'),
       extra,
     }),
+  });
+}
+
+export type RecommendationTasteAction = 'more' | 'less' | 'hide_artist' | 'show_artist';
+
+export async function setRecommendationTaste(input: {
+  action: RecommendationTasteAction;
+  trackId?: string;
+  artistId?: string;
+  source?: string;
+}) {
+  return request<{ ok: boolean; action: RecommendationTasteAction; hiddenArtistIds: string[] }>('/api/recommendations/taste', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function clearHiddenRecommendationArtists() {
+  return request<{ ok: boolean; hiddenArtistIds: string[]; hiddenArtistsCount: number }>('/api/recommendations/taste', {
+    method: 'DELETE',
   });
 }
 

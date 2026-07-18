@@ -18,31 +18,31 @@ const nextConfig = {
       {
         source: '/api/ai/generations',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=30, stale-while-revalidate=60' },
+          { key: 'Cache-Control', value: 'private, no-store' },
         ],
       },
       {
         source: '/api/tracks/:path*',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=30, stale-while-revalidate=120' },
+          { key: 'Cache-Control', value: 'private, no-store' },
         ],
       },
       {
         source: '/api/ranking/:path*',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=30, stale-while-revalidate=120' },
+          { key: 'Cache-Control', value: 'private, no-store' },
         ],
       },
       {
         source: '/api/users',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=60, stale-while-revalidate=120' },
+          { key: 'Cache-Control', value: 'private, no-store' },
         ],
       },
       {
         source: '/api/playlists/:path*',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=60, stale-while-revalidate=120' },
+          { key: 'Cache-Control', value: 'private, no-store' },
         ],
       },
       {
@@ -105,4 +105,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig; 
+module.exports = nextConfig;

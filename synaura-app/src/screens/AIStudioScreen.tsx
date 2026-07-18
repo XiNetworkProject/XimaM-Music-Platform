@@ -84,6 +84,7 @@ const ACTIVE_TASK_KEY = 'synaura.ai-studio.active-task';
 const MEDIA_REPAIR_KEY = 'synaura.ai-studio.media-repair.v2';
 const MEDIA_REPAIR_INTERVAL = 12 * 60 * 60 * 1000;
 const LIBRARY_CACHE_PREFIX = 'synaura.ai-studio.library.v1';
+const LIBRARY_RENDER_BATCH = 32;
 const GENERATION_COST = 12;
 const STUDIO_TAGS = ['Pop', 'Rap FR', 'Electronic', 'Club', 'Cinématique', 'Mélancolique', 'Épique', 'Viral', 'Acoustique', 'Nocturne', 'Énergique', 'Synaura'];
 const STUDIO_FOLDERS = ['Favoris', 'À finir', 'À publier', 'Remix'];
@@ -171,6 +172,7 @@ export function AIStudioScreen() {
   const [libraryFilter, setLibraryFilter] = useState<'all' | 'instrumental' | 'lyrics' | 'liked' | 'trashed'>('all');
   const [libraryFolder, setLibraryFolder] = useState('');
   const [librarySort, setLibrarySort] = useState<'newest' | 'oldest' | 'title'>('newest');
+  const [libraryRenderLimit, setLibraryRenderLimit] = useState(LIBRARY_RENDER_BATCH);
   const [inspector, setInspector] = useState<{ generation: AIStudioGeneration; track: AIStudioTrack } | null>(null);
   const [shareTrackTarget, setShareTrackTarget] = useState<Track | null>(null);
   const [showCredits, setShowCredits] = useState(false);
@@ -650,12 +652,16 @@ export function AIStudioScreen() {
     const bTime = new Date(b.track.created_at || b.generation.created_at).getTime();
     return librarySort === 'oldest' ? aTime - bTime : bTime - aTime;
   }), [libraryFilter, libraryFolder, librarySearch, librarySort, libraryTracks]);
+  const renderedLibraryTracks = useMemo(
+    () => visibleLibraryTracks.slice(0, libraryRenderLimit),
+    [libraryRenderLimit, visibleLibraryTracks],
+  );
   const libraryFolders = useMemo(() => Array.from(new Set(libraryTracks.map(({ track }) => track.library_folder).filter((folder): folder is string => Boolean(folder)))), [libraryTracks]);
   const pendingGenerations = useMemo(() => library.filter((generation) => !['completed', 'success', 'failed', 'error'].includes(String(generation.status).toLowerCase())), [library]);
   const groupedLibraryTracks = useMemo(() => {
-    if (librarySort === 'title') return [{ key: 'title', label: 'Par titre', items: visibleLibraryTracks }];
-    const groups = new Map<string, { key: string; label: string; items: typeof visibleLibraryTracks }>();
-    visibleLibraryTracks.forEach((item) => {
+    if (librarySort === 'title') return [{ key: 'title', label: 'Par titre', items: renderedLibraryTracks }];
+    const groups = new Map<string, { key: string; label: string; items: typeof renderedLibraryTracks }>();
+    renderedLibraryTracks.forEach((item) => {
       const rawDate = item.track.created_at || item.generation.created_at;
       const date = new Date(rawDate);
       const valid = !Number.isNaN(date.getTime());
@@ -665,7 +671,7 @@ export function AIStudioScreen() {
       groups.set(key, group);
     });
     return Array.from(groups.values());
-  }, [librarySort, visibleLibraryTracks]);
+  }, [librarySort, renderedLibraryTracks]);
   const activeFilterLabel = LIBRARY_FILTER_OPTIONS.find((option) => option.value === libraryFilter)?.label || 'Toutes les créations';
   const activeSortLabel = LIBRARY_SORT_OPTIONS.find((option) => option.value === librarySort)?.label || 'Plus récentes';
   const libraryQueue = useMemo(
@@ -674,6 +680,14 @@ export function AIStudioScreen() {
       .filter((track): track is Track => Boolean(track)),
     [visibleLibraryTracks],
   );
+
+  useEffect(() => {
+    setLibraryRenderLimit(LIBRARY_RENDER_BATCH);
+  }, [libraryFilter, libraryFolder, librarySearch, librarySort, libraryTracks.length]);
+
+  const revealMoreLibraryTracks = useCallback(() => {
+    setLibraryRenderLimit((current) => Math.min(visibleLibraryTracks.length, current + LIBRARY_RENDER_BATCH));
+  }, [visibleLibraryTracks.length]);
 
   const playLibraryTrack = useCallback(async (selected: AIStudioTrack) => {
     const selectedId = aiTrackToPlayer(selected)?._id;
@@ -806,6 +820,12 @@ export function AIStudioScreen() {
           },
         ]}
         keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={32}
+        onScroll={viewTab === 'library' ? (event) => {
+          if (renderedLibraryTracks.length >= visibleLibraryTracks.length) return;
+          const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+          if (contentOffset.y + layoutMeasurement.height >= contentSize.height - 360) revealMoreLibraryTracks();
+        } : undefined}
       >
         <View style={styles.top}>
           <Pressable accessibilityLabel={viewTab === 'create' ? 'Fermer la création' : 'Retour'} onPress={viewTab === 'create' ? closeComposer : () => navigation.goBack()} style={styles.iconButton}>
@@ -1078,26 +1098,38 @@ export function AIStudioScreen() {
             <View style={styles.libraryToolbar}><Text style={styles.libraryCount}>{visibleLibraryTracks.length} piste{visibleLibraryTracks.length > 1 ? 's' : ''}</Text>{libraryFolder ? <Text numberOfLines={1} style={styles.libraryFolderLabel}>{libraryFolder}</Text> : null}</View>
             {repairMessage ? <Text style={styles.repairMessage}>{repairMessage}</Text> : null}
             {pendingGenerations.map((generation) => <GenerationStatusRow key={generation.id} generation={generation} active={generation.task_id === liveTaskId} />)}
-            {visibleLibraryTracks.length ? groupedLibraryTracks.map((group) => (
-              <View key={group.key} style={styles.libraryGroup}>
-                <Text style={styles.libraryGroupTitle}>{group.label}</Text>
-                <View style={styles.libraryGroupRows}>
-                  {group.items.map(({ generation, track }) => (
-                    <StudioTrackRow
-                      key={`${generation.id}-${track.id}`}
-                      title={track.title || generation.metadata?.title || 'Création Synaura'}
-                      subtitle={`${generation.model} · ${generation.metadata?.style || generation.prompt || 'Studio IA'}`}
-                      image={track.image_url}
-                      playing={player.current?._id === `ai-${track.id}`}
-                      loading={libraryPlaybackPendingId === `ai-${track.id}`}
-                      disabled={Boolean(libraryPlaybackPendingId)}
-                      onPlay={() => playLibraryTrack(track)}
-                      onOpen={() => setInspector({ generation, track })}
-                    />
-                  ))}
-                </View>
-              </View>
-            )) : <View style={styles.empty}><Ionicons name="sparkles-outline" size={28} color="#C7B8FF" /><Text style={styles.emptyTitle}>Aucun projet ici.</Text><Text style={styles.emptyText}>Change le filtre ou lance une génération pour remplir cet espace.</Text></View>}
+            {visibleLibraryTracks.length ? (
+              <>
+                {groupedLibraryTracks.map((group) => (
+                  <View key={group.key} style={styles.libraryGroup}>
+                    <Text style={styles.libraryGroupTitle}>{group.label}</Text>
+                    <View style={styles.libraryGroupRows}>
+                      {group.items.map(({ generation, track }) => (
+                        <StudioTrackRow
+                          key={`${generation.id}-${track.id}`}
+                          title={track.title || generation.metadata?.title || 'Création Synaura'}
+                          subtitle={`${generation.model} · ${generation.metadata?.style || generation.prompt || 'Studio IA'}`}
+                          image={track.image_url}
+                          playing={player.current?._id === `ai-${track.id}`}
+                          loading={libraryPlaybackPendingId === `ai-${track.id}`}
+                          disabled={Boolean(libraryPlaybackPendingId)}
+                          onPlay={() => playLibraryTrack(track)}
+                          onOpen={() => setInspector({ generation, track })}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                ))}
+                {renderedLibraryTracks.length < visibleLibraryTracks.length ? (
+                  <Pressable accessibilityLabel="Afficher plus de créations" onPress={revealMoreLibraryTracks} style={styles.libraryMoreButton}>
+                    <Ionicons name="chevron-down" size={16} color={colors.violet} />
+                    <Text style={styles.libraryMoreText}>
+                      Afficher {Math.min(LIBRARY_RENDER_BATCH, visibleLibraryTracks.length - renderedLibraryTracks.length)} créations de plus
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </>
+            ) : <View style={styles.empty}><Ionicons name="sparkles-outline" size={28} color={colors.violet} /><Text style={styles.emptyTitle}>Aucun projet ici.</Text><Text style={styles.emptyText}>Change le filtre ou lance une génération pour remplir cet espace.</Text></View>}
           </View>
         )}
       </ScrollView>
@@ -1705,13 +1737,13 @@ const styles = StyleSheet.create({
   searchShell: { height: 48, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   searchInput: { flex: 1, minWidth: 0, height: 46, paddingHorizontal: 0, color: colors.text, fontSize: 12, fontWeight: '800' },
   libraryControls: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  libraryControl: { flex: 1, minWidth: 0, height: 40, borderRadius: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 9, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
+  libraryControl: { flex: 1, minWidth: 0, height: 44, borderRadius: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 9, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   libraryControlActive: { backgroundColor: colors.violet, borderColor: colors.violet },
   libraryControlText: { flexShrink: 1, color: colors.text, fontSize: 9, fontWeight: '900' },
   libraryControlTextActive: { color: colors.white },
-  libraryControlIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  libraryControlIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
   folderRow: { flexDirection: 'row', gap: 7, paddingRight: 15 },
-  folderFilter: { minHeight: 36, borderRadius: 17, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, backgroundColor: colors.surfaceStrong, borderWidth: 1, borderColor: colors.border },
+  folderFilter: { minHeight: 42, borderRadius: 21, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, backgroundColor: colors.surfaceStrong, borderWidth: 1, borderColor: colors.border },
   folderFilterActive: { backgroundColor: colors.violet, borderColor: colors.violet },
   folderFilterText: { color: colors.textTertiary, fontSize: 9, fontWeight: '900' },
   folderFilterTextActive: { color: colors.paper },
@@ -1721,6 +1753,8 @@ const styles = StyleSheet.create({
   libraryGroup: { gap: 8, marginTop: 4 },
   libraryGroupTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   libraryGroupRows: { gap: 7 },
+  libraryMoreButton: { minHeight: 48, marginTop: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
+  libraryMoreText: { color: colors.violet, fontSize: 10, fontWeight: '900' },
   repairMessage: { color: colors.textSecondary, fontSize: 9, lineHeight: 14, fontWeight: '800' },
   generationRow: { minHeight: 72, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 11, backgroundColor: colors.violetSoft, borderLeftWidth: 3, borderColor: colors.violet },
   generationRowActive: { borderColor: 'rgba(255,111,97,0.5)', backgroundColor: 'rgba(255,111,97,0.09)' },
@@ -1735,7 +1769,7 @@ const styles = StyleSheet.create({
   trackPlay: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   trackPlayActive: { backgroundColor: colors.cyan },
   trackPlayDisabled: { opacity: 0.38 },
-  trackMore: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  trackMore: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
   error: { overflow: 'hidden', borderRadius: 17, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: 'rgba(217,45,32,0.09)', borderWidth: 1, borderColor: 'rgba(217,45,32,0.16)' },
   errorText: { flex: 1, color: colors.danger, fontSize: 11, lineHeight: 16, fontWeight: '800' },
   empty: { alignItems: 'center', borderRadius: 14, padding: 28, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },

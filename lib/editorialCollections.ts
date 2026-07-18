@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase';
+import { getPublicPlaylistTrackCounts } from '@/lib/publicTracks';
 
 export type EditorialCollectionRow = {
   id: string;
@@ -126,7 +127,7 @@ export function normalizeThemeColors(value: unknown): string[] {
     .map((entry) => String(entry || '').trim())
     .filter((entry) => /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(entry))
     .slice(0, 4);
-  return colors.length ? colors : ['#8B5CF6', '#EC4899', '#22D3EE'];
+  return colors.length ? colors : ['#7357C6', '#4A9EAA', '#D96D63'];
 }
 
 export function normalizeEditorialCollection(row?: Partial<EditorialCollectionRow> | null): EditorialCollectionView | null {
@@ -181,4 +182,43 @@ export async function getEditorialCollectionBySlug(slug: string) {
     throw error;
   }
   return normalizeEditorialCollection(data as any);
+}
+
+export async function getFeaturedEditorialCollections(limit = 12): Promise<EditorialCollectionView[]> {
+  const safeLimit = Math.max(1, Math.min(24, limit));
+  const { data, error } = await supabaseAdmin
+    .from('editorial_collections')
+    .select('*')
+    .eq('is_published', true)
+    .eq('is_featured', true)
+    .order('position', { ascending: true })
+    .order('created_at', { ascending: false })
+    .limit(safeLimit);
+
+  let collections: EditorialCollectionView[] = [];
+  if (error) {
+    if (!isMissingEditorialCollectionsTable(error)) throw error;
+    const { data: playlists } = await supabaseAdmin
+      .from('playlists')
+      .select('*')
+      .eq('is_public', true)
+      .order('created_at', { ascending: false })
+      .limit(80);
+    collections = (playlists || [])
+      .map(normalizeLegacyCollectionFromPlaylist)
+      .filter((collection): collection is EditorialCollectionView => Boolean(collection?.isPublished && collection?.isFeatured))
+      .sort((a, b) => a.position - b.position)
+      .slice(0, safeLimit);
+  } else {
+    collections = (data || [])
+      .map((row) => normalizeEditorialCollection(row as EditorialCollectionRow))
+      .filter((collection): collection is EditorialCollectionView => Boolean(collection));
+  }
+
+  const counts = await getPublicPlaylistTrackCounts(collections.map((collection) => collection.playlistId));
+  return collections.map((collection) => ({
+    ...collection,
+    trackCount: counts.get(collection.playlistId) || 0,
+    publicUrl: `/playlists/${collection.slug || collection.playlistId}`,
+  })) as Array<EditorialCollectionView & { trackCount: number; publicUrl: string }>;
 }

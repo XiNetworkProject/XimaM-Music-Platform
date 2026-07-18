@@ -323,6 +323,7 @@ export function rerankTracks(
   const strategy = context.strategy || 'reco';
   const hardGenre = norm(context.genreFilter);
   const scored = tracks
+    .filter((track) => !signals.hiddenArtistIds.has(String(track.artist?._id || '')))
     .filter((track) => !hardGenre || toArray(track.genre).some((genre) => norm(genre).includes(hardGenre)))
     .map((track) => scoreTrackCandidate(track, signals, context))
     .sort((a, b) => (b.recommendationScore || 0) - (a.recommendationScore || 0));
@@ -337,7 +338,9 @@ export function rerankTracks(
   const allowed = (track: RecommendedTrack, position: number, strict: boolean) => {
     const artistId = String(track.artist?._id || '');
     const artistCount = artistCounts.get(artistId) || 0;
-    const maxPerArtist = context.maxPerArtist || (position < 24 ? 3 : position < 60 ? 6 : Number.POSITIVE_INFINITY);
+    const adaptiveMaxPerArtist = position < 16 ? 2 : position < 48 ? 4 : Number.POSITIVE_INFINITY;
+    const configuredMaxPerArtist = context.maxPerArtist || Number.POSITIVE_INFINITY;
+    const maxPerArtist = Math.min(adaptiveMaxPerArtist, configuredMaxPerArtist);
     if (strict && artistId && artistCount >= maxPerArtist) return false;
     if (strict && result.length && artistId && result[result.length - 1]?.artist?._id === artistId) return false;
     if (strict && track.isAI && position >= 5 && aiCount / Math.max(1, position) >= 0.45) return false;

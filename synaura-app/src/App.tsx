@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, DeviceEventEmitter, Text, View } from 'react-native';
+import { ActivityIndicator, DeviceEventEmitter, Platform, Text, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import * as NavigationBar from 'expo-navigation-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
@@ -10,12 +11,34 @@ import { PlayerProvider } from '@/player/PlayerProvider';
 import { LibraryProvider } from '@/library/LibraryProvider';
 import { MiniPlayer } from '@/components/MiniPlayer';
 import { FullPlayerModal } from '@/components/FullPlayerModal';
-import { Tabs } from '@/navigation/Tabs';
+import { Tabs, type RootTabsParamList } from '@/navigation/Tabs';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { RegisterScreen } from '@/screens/RegisterScreen';
 import { ForgotPasswordScreen } from '@/screens/ForgotPasswordScreen';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
 import { WelcomeScreen } from '@/screens/WelcomeScreen';
+import { HomeV2Screen } from '@/screens/HomeV2Screen';
+import { RadarScreen } from '@/screens/RadarScreen';
+import { DiscoverMoodScreen } from '@/screens/DiscoverMoodScreen';
+import { UploadScreen } from '@/screens/UploadScreen';
+import { SettingsScreen } from '@/screens/SettingsScreen';
+import { PublicProfileScreen } from '@/screens/PublicProfileScreen';
+import { NotificationsScreen } from '@/screens/NotificationsScreen';
+import { PostDetailScreen } from '@/screens/PostDetailScreen';
+import { PlaylistDetailScreen } from '@/screens/PlaylistDetailScreen';
+import { CommunityScreen } from '@/screens/CommunityScreen';
+import { ClubDetailScreen } from '@/screens/ClubDetailScreen';
+import { CreateHubScreen } from '@/screens/CreateHubScreen';
+import { CreateVariationScreen } from '@/screens/CreateVariationScreen';
+import { ClipComposerScreen } from '@/screens/ClipComposerScreen';
+import { AIStudioScreen } from '@/screens/AIStudioScreen';
+import { CreatePostScreen } from '@/screens/CreatePostScreen';
+import { SubscriptionsScreen } from '@/screens/SubscriptionsScreen';
+import { CityScreen } from '@/screens/CityScreen';
+import { TrackDetailScreen } from '@/screens/TrackDetailScreen';
+import { SearchScreen } from '@/screens/SearchScreen';
+import { ChallengeDetailScreen } from '@/screens/ChallengeDetailScreen';
+import { StatsScreen } from '@/screens/StatsScreen';
 import { isOnboardingCompleted } from '@/onboarding/checkOnboarding';
 import { isWelcomeCompleted } from '@/onboarding/welcomeState';
 import { colors } from '@/theme/tokens';
@@ -28,8 +51,9 @@ import { NativeNotificationNudge } from '@/notifications/NativeNotificationNudge
 import { navigationRef } from '@/navigation/navigationRef';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { ClipUploadProvider } from '@/clips/ClipUploadProvider';
+import { SynauraQueryProvider } from '@/query/SynauraQueryProvider';
 
-export type RootStackParamList = {
+export type RootStackParamList = RootTabsParamList & {
   Tabs: { screen?: string; params?: Record<string, unknown> } | undefined;
   Login: { message?: string; returnTo?: { screen: string; params?: Record<string, unknown> } } | undefined;
   Register: undefined;
@@ -40,19 +64,6 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const ROOT_GATE_TIMEOUT_MS = 2400;
-const ROOT_BOOT_WATCHDOG_MS = 1700;
-
-const navTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: colors.background,
-    card: colors.background,
-    primary: colors.accent,
-    text: colors.text,
-    border: colors.border,
-  },
-};
 
 function getActiveRouteName(state: any): string {
   const route = state?.routes?.[state.index ?? 0];
@@ -77,13 +88,6 @@ function RootStackNavigator() {
     initialRoute: 'Tabs',
   });
   const checkedRef = useRef(false);
-
-  useEffect(() => {
-    const watchdog = setTimeout(() => {
-      setGate((current) => current.ready ? current : { ready: true, initialRoute: 'Tabs' });
-    }, ROOT_BOOT_WATCHDOG_MS);
-    return () => clearTimeout(watchdog);
-  }, []);
 
   useEffect(() => {
     if (auth.loading || checkedRef.current) return;
@@ -130,13 +134,35 @@ function RootStackNavigator() {
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
-        animation: settings.reducedMotion ? 'none' : 'fade_from_bottom',
+        animation: settings.reducedMotion ? 'none' : 'slide_from_right',
         gestureEnabled: true,
         contentStyle: { backgroundColor: colors.background },
       }}
       initialRouteName={gate.initialRoute}
     >
       <Stack.Screen name="Tabs" component={Tabs} />
+      <Stack.Screen name="Home" component={HomeV2Screen} />
+      <Stack.Screen name="Radar" component={RadarScreen} />
+      <Stack.Screen name="DiscoverMood" component={DiscoverMoodScreen} />
+      <Stack.Screen name="Community" component={CommunityScreen} />
+      <Stack.Screen name="ClubDetail" component={ClubDetailScreen} />
+      <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+      <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen} />
+      <Stack.Screen name="TrackDetail" component={TrackDetailScreen} />
+      <Stack.Screen name="Search" component={SearchScreen} />
+      <Stack.Screen name="ChallengeDetail" component={ChallengeDetailScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="Subscriptions" component={SubscriptionsScreen} />
+      <Stack.Screen name="City" component={CityScreen} />
+      <Stack.Screen name="Stats" component={StatsScreen} />
+      <Stack.Screen name="CreateHub" component={CreateHubScreen} options={{ animation: settings.reducedMotion ? 'none' : 'slide_from_bottom' }} />
+      <Stack.Screen name="Upload" component={UploadScreen} options={{ animation: settings.reducedMotion ? 'none' : 'slide_from_bottom' }} />
+      <Stack.Screen name="CreateVariation" component={CreateVariationScreen} options={{ animation: settings.reducedMotion ? 'none' : 'slide_from_bottom' }} />
+      <Stack.Screen name="ClipComposer" component={ClipComposerScreen} options={{ animation: settings.reducedMotion ? 'none' : 'slide_from_bottom' }} />
+      <Stack.Screen name="AIStudio" component={AIStudioScreen} options={{ animation: settings.reducedMotion ? 'none' : 'slide_from_bottom' }} />
+      <Stack.Screen name="CreatePost" component={CreatePostScreen} options={{ animation: settings.reducedMotion ? 'none' : 'slide_from_bottom' }} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
@@ -146,9 +172,23 @@ function RootStackNavigator() {
   );
 }
 
-export default function App() {
+function SynauraRuntime() {
   const [playerOpen, setPlayerOpen] = React.useState(false);
   const [activeRoute, setActiveRoute] = React.useState('Swipe');
+  const { resolvedTheme } = useMobileSettings();
+  const navigationTheme = React.useMemo(() => ({
+    ...DefaultTheme,
+    dark: resolvedTheme === 'dark',
+    colors: {
+      ...DefaultTheme.colors,
+      background: colors.background,
+      card: colors.background,
+      primary: colors.accent,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.coral,
+    },
+  }), [resolvedTheme]);
 
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('synaura:open-full-player', () => {
@@ -157,44 +197,61 @@ export default function App() {
     return () => subscription.remove();
   }, []);
 
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    void NavigationBar.setBackgroundColorAsync(resolvedTheme === 'dark' ? '#0D0D0D' : '#F7F6F3').catch(() => {});
+    void NavigationBar.setButtonStyleAsync(resolvedTheme === 'dark' ? 'light' : 'dark').catch(() => {});
+  }, [resolvedTheme]);
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-    <SafeAreaProvider>
-      <UpdateProvider>
-        <MobileSettingsProvider>
-          <AuthProvider>
-            <ClipUploadProvider>
+    <AuthProvider>
+      <SynauraQueryProvider>
+        <ClipUploadProvider>
             <LibraryProvider>
               <PlayerProvider>
-              <NativeNotificationsProvider>
-              <AppErrorBoundary>
-              <NavigationContainer
-                ref={navigationRef}
-                theme={navTheme}
-                onReady={() => {
-                  const state = navigationRef.getRootState();
-                  if (state?.routes?.length) setActiveRoute(getActiveRouteName(state));
-                }}
-                onStateChange={(state) => {
-                  setActiveRoute(getActiveRouteName(state));
-                }}
-              >
-                <StatusBar style="light" />
-                <RootStackNavigator />
-                <MiniPlayer activeRoute={activeRoute} onOpen={() => setPlayerOpen(true)} />
-                <FullPlayerModal visible={playerOpen} onClose={() => setPlayerOpen(false)} />
-                <NativeNotificationNudge activeRoute={activeRoute} />
-              </NavigationContainer>
-              </AppErrorBoundary>
-              <AnimatedBootSplash />
-              </NativeNotificationsProvider>
+                <NativeNotificationsProvider>
+                  <AppErrorBoundary>
+                    <NavigationContainer
+                      ref={navigationRef}
+                      theme={navigationTheme}
+                      onReady={() => {
+                        const state = navigationRef.getRootState();
+                        if (state?.routes?.length) setActiveRoute(getActiveRouteName(state));
+                      }}
+                      onStateChange={(state) => {
+                        setActiveRoute(getActiveRouteName(state));
+                      }}
+                    >
+                      <StatusBar
+                        style={resolvedTheme === 'dark' ? 'light' : 'dark'}
+                        backgroundColor={resolvedTheme === 'dark' ? '#0D0D0D' : '#F7F6F3'}
+                      />
+                      <RootStackNavigator />
+                      <MiniPlayer activeRoute={activeRoute} onOpen={() => setPlayerOpen(true)} />
+                      <FullPlayerModal visible={playerOpen} onClose={() => setPlayerOpen(false)} />
+                      <NativeNotificationNudge activeRoute={activeRoute} />
+                    </NavigationContainer>
+                  </AppErrorBoundary>
+                  <AnimatedBootSplash />
+                </NativeNotificationsProvider>
               </PlayerProvider>
             </LibraryProvider>
-            </ClipUploadProvider>
-          </AuthProvider>
+        </ClipUploadProvider>
+      </SynauraQueryProvider>
+    </AuthProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <MobileSettingsProvider>
+          <UpdateProvider>
+            <SynauraRuntime />
+          </UpdateProvider>
         </MobileSettingsProvider>
-      </UpdateProvider>
-    </SafeAreaProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

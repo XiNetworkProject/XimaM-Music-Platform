@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { diagnosticsEnabled } from '@/lib/diagnostics';
 
 export async function GET(request: NextRequest) {
+  if (!diagnosticsEnabled()) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   try {
     console.log('🧪 Test API Artists - Début');
     

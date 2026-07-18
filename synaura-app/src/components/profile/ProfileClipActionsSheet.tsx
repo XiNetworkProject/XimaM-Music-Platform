@@ -1,9 +1,10 @@
 import React from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { MusicClip } from '@/api/types';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { colors, radius, spacing } from '@/theme/tokens';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 const VISIBILITY_LABELS: Record<MusicClip['visibility'], string> = {
   published: 'Clip public',
@@ -55,7 +56,7 @@ export function ProfileClipActionsSheet({
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.preview}>
             <View style={styles.poster}>
-              {artwork ? <Image source={{ uri: artwork }} resizeMode="cover" style={StyleSheet.absoluteFillObject} /> : <Ionicons name="film-outline" size={24} color={colors.textTertiary} />}
+              {artwork ? <SynauraImage source={{ uri: artwork }} lowPriority style={StyleSheet.absoluteFillObject} /> : <Ionicons name="film-outline" size={24} color={colors.textTertiary} />}
             </View>
             <View style={styles.previewCopy}>
               <Text numberOfLines={2} style={styles.title}>{clip.caption || clip.sourceTrack.title}</Text>

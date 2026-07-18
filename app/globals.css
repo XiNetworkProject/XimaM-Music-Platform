@@ -161,7 +161,8 @@ a {
  * gardent leurs teintes crème historiques (#fffaf2/#171313), très proches de
  * cette palette, pour limiter le risque de régression visuelle.
  */
-:root {
+:root,
+html[data-synaura-theme='light'] {
   --syn-background: #F7F6F3;
   --syn-surface: #FFFFFF;
   --syn-surface-muted: #EEECE7;
@@ -176,11 +177,94 @@ a {
   --syn-selected: #7357C6;
   --syn-success: #2E9D68;
   --syn-destructive: #C94F4F;
+  --syn-surface-translucent: rgba(255, 255, 255, 0.9);
+  --syn-text-translucent: rgba(17, 17, 17, 0.62);
+  --syn-soft: rgba(17, 17, 17, 0.055);
+  --syn-soft-strong: rgba(17, 17, 17, 0.09);
+  --syn-contrast-bg: #111111;
+  --syn-contrast-text: #FFFFFF;
+  --syn-shadow: rgba(30, 25, 20, 0.12);
+  --bg: #F7F6F3;
+  --bg-muted: #EEECE7;
+  --surface: #FFFFFF;
+  --surface-2: #EEECE7;
+  --border: rgba(17, 17, 17, 0.10);
+  --text: #111111;
+  --text-muted: rgba(17, 17, 17, 0.62);
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+html[data-synaura-theme='dark'] {
+  --syn-background: #0D0D0D;
+  --syn-surface: #151515;
+  --syn-surface-muted: #202020;
+  --syn-elevated-surface: #242424;
+  --syn-text-primary: #F7F6F3;
+  --syn-text-secondary: rgba(247, 246, 243, 0.68);
+  --syn-border: rgba(247, 246, 243, 0.12);
+  --syn-surface-translucent: rgba(21, 21, 21, 0.91);
+  --syn-text-translucent: rgba(247, 246, 243, 0.68);
+  --syn-soft: rgba(247, 246, 243, 0.06);
+  --syn-soft-strong: rgba(247, 246, 243, 0.11);
+  --syn-contrast-bg: #F7F6F3;
+  --syn-contrast-text: #111111;
+  --syn-shadow: rgba(0, 0, 0, 0.34);
+  --bg: #0D0D0D;
+  --bg-muted: #151515;
+  --surface: #151515;
+  --surface-2: #202020;
+  --border: rgba(247, 246, 243, 0.12);
+  --text: #F7F6F3;
+  --text-muted: rgba(247, 246, 243, 0.68);
+}
+
+html[data-synaura-theme='light'] {
+  color-scheme: light;
+}
+
+html[data-synaura-theme='dark'] {
+  color-scheme: dark;
+}
+
+.synaura-shell-atmosphere {
+  background:
+    linear-gradient(118deg, rgba(217, 109, 99, 0.11) 0%, transparent 26%),
+    linear-gradient(242deg, rgba(115, 87, 198, 0.10) 0%, transparent 30%),
+    linear-gradient(180deg, transparent 58%, rgba(74, 158, 170, 0.055) 100%);
+}
+
+html[data-synaura-theme='dark'] .synaura-shell-atmosphere {
+  background:
+    linear-gradient(118deg, rgba(217, 109, 99, 0.08) 0%, transparent 24%),
+    linear-gradient(242deg, rgba(115, 87, 198, 0.09) 0%, transparent 28%),
+    linear-gradient(180deg, transparent 58%, rgba(74, 158, 170, 0.05) 100%);
+}
+
+.synaura-theme-hero {
+  background:
+    linear-gradient(135deg, var(--syn-surface) 0%, rgba(115, 87, 198, 0.12) 54%, rgba(74, 158, 170, 0.12) 100%);
+}
+
+.synaura-global-background {
+  background:
+    linear-gradient(124deg, rgba(217, 109, 99, 0.08) 0%, transparent 32%),
+    linear-gradient(236deg, rgba(115, 87, 198, 0.08) 0%, transparent 34%),
+    var(--syn-background);
+}
+
+.synaura-studio-background {
+  background:
+    linear-gradient(132deg, rgba(115, 87, 198, 0.12) 0%, transparent 38%),
+    linear-gradient(310deg, rgba(74, 158, 170, 0.09) 0%, transparent 42%),
+    #0D0D0D;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 

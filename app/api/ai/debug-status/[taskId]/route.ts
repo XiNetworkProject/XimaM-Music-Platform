@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { diagnosticsEnabled } from '@/lib/diagnostics';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { taskId: string } }
 ) {
+  if (!diagnosticsEnabled()) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   try {
     console.log('🔍 Debug status pour:', params.taskId);
     

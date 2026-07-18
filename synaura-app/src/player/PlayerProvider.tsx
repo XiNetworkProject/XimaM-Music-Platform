@@ -151,6 +151,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [shuffleEnabled, setShuffleEnabled] = useState(false);
   const [sleepTimerEnd, setSleepTimerEnd] = useState<number | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [activatingTrackId, setActivatingTrackId] = useState<string | null>(null);
   const byIdRef = useRef<Map<string, Track>>(new Map());
   const currentRef = useRef<Track | null>(null);
   const lastRecordedTrackIdRef = useRef<string | null>(null);
@@ -167,6 +168,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const explicitNavigationAtRef = useRef(0);
   const lastActivationRef = useRef<{ trackId: string; at: number }>({ trackId: '', at: 0 });
   const activationEpochRef = useRef(0);
+  const activationInFlightRef = useRef<{ trackId: string; startedAt: number; promise: Promise<void> } | null>(null);
   const restoreGateRef = useRef<{ promise: Promise<void>; resolve: () => void } | null>(null);
   if (!restoreGateRef.current) {
     let resolve = () => {};
@@ -190,6 +192,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       console.warn('[SynauraPlayer] command failed', error);
     });
     return next;
+  }, []);
+
+  const runTrackActivation = useCallback((trackId: string, activate: () => Promise<void>) => {
+    const pending = activationInFlightRef.current;
+    if (pending?.trackId === trackId && Date.now() - pending.startedAt < 2_500) {
+      return pending.promise;
+    }
+
+    setActivatingTrackId(trackId);
+    const promise = activate().finally(() => {
+      if (activationInFlightRef.current?.promise === promise) {
+        activationInFlightRef.current = null;
+        setActivatingTrackId((current) => current === trackId ? null : current);
+      }
+    });
+    activationInFlightRef.current = { trackId, startedAt: Date.now(), promise };
+    return promise;
   }, []);
 
   useEffect(() => {
@@ -418,11 +437,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   );
 
   const setQueueAndPlay = useCallback((tracks: Track[], startIndex: number) => {
-    const activationEpoch = ++activationEpochRef.current;
-    return runPlayerCommand(async () => {
-      const playable = tracks.filter(isPlayableTrack);
-      if (!playable.length || activationEpoch !== activationEpochRef.current) return;
-      const index = Math.max(0, Math.min(playable.length - 1, startIndex || 0));
+    const playable = tracks.filter(isPlayableTrack);
+    if (!playable.length) return Promise.resolve();
+    const index = Math.max(0, Math.min(playable.length - 1, startIndex || 0));
+    const selectedTrack = playable[index];
+    return runTrackActivation(selectedTrack._id, () => {
+      const activationEpoch = ++activationEpochRef.current;
+      return runPlayerCommand(async () => {
+      if (activationEpoch !== activationEpochRef.current) return;
       await setupPlayer();
       if (activationEpoch !== activationEpochRef.current) return;
 
@@ -451,8 +473,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (activationEpoch !== activationEpochRef.current) return;
       const preceding = playable.slice(0, index);
       if (preceding.length) await TrackPlayer.add(preceding.map(toNativeTrack), 0);
+      });
     });
-  }, [addRecent, runPlayerCommand]);
+  }, [addRecent, runPlayerCommand, runTrackActivation]);
 
   /**
    * Replace la queue native sans relancer la lecture si le track courant est preserve.
@@ -593,8 +616,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [runPlayerCommand]);
 
   const playTrack = useCallback((track: Track) => {
-    const activationEpoch = ++activationEpochRef.current;
-    const command = runPlayerCommand(async () => {
+    if (!isPlayableTrack(track)) return Promise.resolve();
+    return runTrackActivation(track._id, () => {
+      const activationEpoch = ++activationEpochRef.current;
+      const command = runPlayerCommand(async () => {
       if (!isPlayableTrack(track) || activationEpoch !== activationEpochRef.current) return;
       await setupPlayer();
       if (activationEpoch !== activationEpochRef.current) return;
@@ -655,10 +680,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           await TrackPlayer.remove(obsoleteIndexes).catch(() => {});
         }
       }
+      });
+      void command.then(() => hydrateRelatedQueue(track, activationEpoch)).catch(() => {});
+      return command;
     });
-    void command.then(() => hydrateRelatedQueue(track, activationEpoch)).catch(() => {});
-    return command;
-  }, [addRecent, hydrateRelatedQueue, runPlayerCommand]);
+  }, [addRecent, hydrateRelatedQueue, runPlayerCommand, runTrackActivation]);
 
   const addNext = useCallback(async (track: Track) => {
     if (!isPlayableTrack(track)) return;
@@ -677,8 +703,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [currentIndex, queue.length]);
 
   const playQueueIndex = useCallback((index: number) => {
-    const activationEpoch = ++activationEpochRef.current;
-    return runPlayerCommand(async () => {
+    const targetId = queueRef.current[index]?._id;
+    if (!targetId) return Promise.resolve();
+    return runTrackActivation(targetId, () => {
+      const activationEpoch = ++activationEpochRef.current;
+      return runPlayerCommand(async () => {
       const logicalQueue = queueRef.current;
       if (index < 0 || index >= logicalQueue.length || activationEpoch !== activationEpochRef.current) return;
       await setupPlayer();
@@ -689,8 +718,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (activationEpoch !== activationEpochRef.current) return;
       await TrackPlayer.play();
       lastActivationRef.current = { trackId: targetId || '', at: Date.now() };
+      });
     });
-  }, [runPlayerCommand]);
+  }, [runPlayerCommand, runTrackActivation]);
 
   const removeFromQueue = useCallback(async (index: number) => runPlayerCommand(async () => {
     if (index < 0 || index >= queue.length || index === currentIndex) return;
@@ -743,6 +773,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [currentIndex, playbackState.state, queue, setQueueAndPlay, shuffleEnabled]);
 
   const togglePlayPause = useCallback(() => {
+    const pending = activationInFlightRef.current;
+    if (pending && pending.trackId === currentRef.current?._id) return pending.promise;
     const activationEpoch = ++activationEpochRef.current;
     return runPlayerCommand(async () => {
       if (!currentRef.current || activationEpoch !== activationEpochRef.current) return;
@@ -822,7 +854,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       || playbackState.state === State.Loading
       || playbackState.state === State.Buffering
     ),
-    isLoading: !!current && (playbackState.state === State.Loading || playbackState.state === State.Buffering),
+    isLoading: !!current && (
+      activatingTrackId === current._id
+      || playbackState.state === State.Loading
+      || playbackState.state === State.Buffering
+    ),
     isReady,
     repeatMode,
     shuffleEnabled,
@@ -844,7 +880,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     next,
     previous,
     setSleepTimer,
-  }), [addNext, current, currentIndex, cycleRepeatMode, isReady, mergeQueue, moveInQueue, next, pause, play, playQueueIndex, playTrack, playbackState.state, previous, queue, removeFromQueue, repeatMode, seekTo, setQueueAndPlay, setQueueOnly, setSleepTimer, shuffleEnabled, sleepTimerEnd, togglePlayPause, toggleShuffle]);
+  }), [activatingTrackId, addNext, current, currentIndex, cycleRepeatMode, isReady, mergeQueue, moveInQueue, next, pause, play, playQueueIndex, playTrack, playbackState.state, previous, queue, removeFromQueue, repeatMode, seekTo, setQueueAndPlay, setQueueOnly, setSleepTimer, shuffleEnabled, sleepTimerEnd, togglePlayPause, toggleShuffle]);
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }

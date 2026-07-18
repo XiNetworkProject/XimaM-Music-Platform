@@ -14,16 +14,23 @@ type Props = {
   animated?: boolean;
 };
 
-const BASES: Record<Variant, [string, string, string]> = {
+const DARK_BASES: Record<Variant, [string, string, string]> = {
   warm: ['#0D0D0D', '#101010', '#090909'],
   feed: ['#090909', '#0D0D0D', '#090909'],
   dark: ['#080909', '#0D0D0D', '#101010'],
 };
 
+const LIGHT_BASES: Record<Variant, [string, string, string]> = {
+  warm: ['#F7F6F3', '#F1EFEA', '#ECEAE5'],
+  feed: ['#F7F6F3', '#F3F1EC', '#ECEAE5'],
+  // Les surfaces media explicitement sombres restent immersives.
+  dark: DARK_BASES.dark,
+};
+
 const TRACK_TONES = ['#7357C6', '#4A9EAA', '#D96D63', '#B88B3B', '#C85D82'];
 
 export function SynauraBackground({ children, variant = 'warm', showGrid = false, animated = true }: Props) {
-  const { settings } = useMobileSettings();
+  const { settings, resolvedTheme } = useMobileSettings();
   const player = usePlayer();
   const navigation = useContext(NavigationContext);
   const [focused, setFocused] = useState(() => navigation?.isFocused?.() ?? true);
@@ -32,7 +39,8 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
   const activeKey = player.current?._id || player.current?.title || '';
   const activeTone = TRACK_TONES[Array.from(activeKey).reduce((sum, char) => sum + char.charCodeAt(0), 0) % TRACK_TONES.length];
   const dynamic = Boolean(player.current && settings.dynamicBackground);
-  const base = BASES[variant];
+  const isLight = resolvedTheme === 'light' && variant !== 'dark';
+  const base = isLight ? LIGHT_BASES[variant] : DARK_BASES[variant];
   const toneOpacity = variant === 'dark' ? '1F' : '1A';
 
   useEffect(() => {
@@ -79,7 +87,7 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
       <LinearGradient colors={base} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFillObject} />
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(115,87,198,0.11)', 'rgba(115,87,198,0.025)', 'transparent']}
+        colors={isLight ? ['rgba(115,87,198,0.10)', 'rgba(115,87,198,0.02)', 'transparent'] : ['rgba(115,87,198,0.11)', 'rgba(115,87,198,0.025)', 'transparent']}
         locations={[0, 0.45, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0.86 }}
@@ -87,7 +95,7 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
       />
       <LinearGradient
         pointerEvents="none"
-        colors={['transparent', 'rgba(74,158,170,0.018)', 'rgba(74,158,170,0.075)']}
+        colors={isLight ? ['transparent', 'rgba(74,158,170,0.012)', 'rgba(74,158,170,0.06)'] : ['transparent', 'rgba(74,158,170,0.018)', 'rgba(74,158,170,0.075)']}
         locations={[0, 0.58, 1]}
         start={{ x: 0.1, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -98,7 +106,7 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
         style={[
           styles.movingField,
           {
-            opacity: dynamic ? 0.72 : 0.35,
+            opacity: dynamic ? (isLight ? 0.46 : 0.72) : (isLight ? 0.2 : 0.35),
             transform: [
               { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [-34, 22] }) },
               { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [-10, 18] }) },
@@ -107,7 +115,7 @@ export function SynauraBackground({ children, variant = 'warm', showGrid = false
         ]}
       >
         <LinearGradient
-          colors={[dynamic ? `${activeTone}${toneOpacity}` : 'rgba(217,109,99,0.065)', 'rgba(217,109,99,0.018)', 'transparent']}
+          colors={[dynamic ? `${activeTone}${toneOpacity}` : isLight ? 'rgba(217,109,99,0.045)' : 'rgba(217,109,99,0.065)', isLight ? 'rgba(217,109,99,0.012)' : 'rgba(217,109,99,0.018)', 'transparent']}
           locations={[0, 0.42, 1]}
           start={{ x: 0, y: 0.1 }}
           end={{ x: 1, y: 0.76 }}

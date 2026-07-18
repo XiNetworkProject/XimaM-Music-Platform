@@ -19,8 +19,8 @@ export async function playbackService() {
       if (activeId !== retryTrackId) resetRecovery(activeId);
       retryCount += 1;
 
-      if (retryCount <= 3) {
-        const delay = [0, 450, 1200, 2600][retryCount] || 2600;
+      if (retryCount <= 5) {
+        const delay = [0, 350, 900, 1800, 3600, 6500][retryCount] || 6500;
         await new Promise((resolve) => setTimeout(resolve, delay));
         await TrackPlayer.retry();
         await TrackPlayer.play();

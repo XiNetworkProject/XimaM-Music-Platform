@@ -25,6 +25,7 @@ import { colors } from '@/theme/tokens';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { navigatePrimaryTab } from '@/navigation/navigatePrimaryTab';
 
 type ComposerMode = 'text' | 'photo' | 'track_share';
 
@@ -151,7 +152,7 @@ export function CreatePostScreen() {
         type: mode,
       });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      navigation.navigate('Profile', { tab: 'posts' });
+      navigatePrimaryTab(navigation, 'Profile', { tab: 'posts' });
     } catch (postError) {
       setError(postError instanceof Error ? postError.message : 'Publication impossible.');
     } finally {

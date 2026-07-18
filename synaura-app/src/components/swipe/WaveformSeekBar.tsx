@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   GestureResponderEvent,
-  Image,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -16,6 +15,8 @@ import Svg, { ClipPath, Defs, LinearGradient, Path, Rect, Stop } from 'react-nat
 import { getMomentReactions, getTimestampedComments, getTrackWaveform } from '@/api/client';
 import type { HomeComment, MomentReaction, MomentReactionType } from '@/api/types';
 import { MOMENT_REACTIONS } from '@/constants/momentReactions';
+import { fitMomentClusters, type MomentCluster } from '@/waveform/momentClustering';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 import { fmtTime } from './helpers';
 import { InteractiveSeekBar } from './InteractiveSeekBar';
 
@@ -30,18 +31,8 @@ export type TrackMoments = {
   momentsLoaded?: boolean;
 };
 
-type MomentCluster = {
-  id: string;
-  timestampSeconds: number;
-  comments: HomeComment[];
-  reactions: MomentReaction[];
-  byType: Partial<Record<MomentReactionType, number>>;
-  topType?: MomentReactionType;
-};
-
 const momentsCache = new Map<string, TrackMoments>();
 const momentsInFlight = new Map<string, Promise<TrackMoments>>();
-const MAX_VISIBLE_MOMENTS = 34;
 const DRAG_THRESHOLD = 5;
 
 export function loadTrackMoments(trackId: string, withMoments: boolean): Promise<TrackMoments> {
@@ -99,56 +90,6 @@ function samplePeaks(peaks: number[], targetCount: number) {
     const end = Math.max(start + 1, Math.floor((index + 1) * bucket));
     return Math.max(...peaks.slice(start, end));
   });
-}
-
-function topReaction(byType: Partial<Record<MomentReactionType, number>>) {
-  return Object.entries(byType).sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))[0]?.[0] as MomentReactionType | undefined;
-}
-
-function clusterMoments(comments: HomeComment[], reactions: MomentReaction[], windowSeconds: number): MomentCluster[] {
-  const events = [
-    ...comments.map((comment) => ({ kind: 'comment' as const, timestamp: Number(comment.timestampSeconds || 0), comment })),
-    ...reactions.map((reaction) => ({ kind: 'reaction' as const, timestamp: reaction.timestampSeconds, reaction })),
-  ].sort((a, b) => a.timestamp - b.timestamp);
-
-  const clusters: MomentCluster[] = [];
-  for (const event of events) {
-    const last = clusters[clusters.length - 1];
-    if (!last || event.timestamp - last.timestampSeconds > windowSeconds) {
-      clusters.push({
-        id: `moment-${event.timestamp}-${clusters.length}`,
-        timestampSeconds: event.timestamp,
-        comments: event.kind === 'comment' ? [event.comment] : [],
-        reactions: event.kind === 'reaction' ? [event.reaction] : [],
-        byType: event.kind === 'reaction' ? { [event.reaction.reactionType]: 1 } : {},
-        topType: event.kind === 'reaction' ? event.reaction.reactionType : undefined,
-      });
-      continue;
-    }
-
-    if (event.kind === 'comment') last.comments.push(event.comment);
-    else {
-      last.reactions.push(event.reaction);
-      last.byType[event.reaction.reactionType] = (last.byType[event.reaction.reactionType] || 0) + 1;
-      last.topType = topReaction(last.byType);
-    }
-    const allTimestamps = [
-      ...last.comments.map((comment) => Number(comment.timestampSeconds || 0)),
-      ...last.reactions.map((reaction) => reaction.timestampSeconds),
-    ];
-    last.timestampSeconds = allTimestamps.reduce((sum, value) => sum + value, 0) / allTimestamps.length;
-  }
-  return clusters;
-}
-
-function fitMomentClusters(comments: HomeComment[], reactions: MomentReaction[], initialWindow: number) {
-  let windowSeconds = initialWindow;
-  let clusters = clusterMoments(comments, reactions, windowSeconds);
-  while (clusters.length > MAX_VISIBLE_MOMENTS && windowSeconds < 18) {
-    windowSeconds *= 1.45;
-    clusters = clusterMoments(comments, reactions, windowSeconds);
-  }
-  return clusters;
 }
 
 function waveformPath(peaks: number[], width: number, height: number) {
@@ -468,7 +409,7 @@ function MarkerBubble({ marker, width, onClose }: { marker: MomentCluster; width
     <View style={[styles.bubbleCard, { maxWidth: Math.max(210, width - 12) }]}>
       <View style={[styles.bubbleAvatar, !latestComment && { backgroundColor: meta.color }]}>
         {latestComment?.user.avatar ? (
-          <Image source={{ uri: latestComment.user.avatar }} style={StyleSheet.absoluteFillObject} />
+          <SynauraImage source={{ uri: latestComment.user.avatar }} lowPriority style={StyleSheet.absoluteFillObject} />
         ) : latestComment ? (
           <Text style={styles.bubbleAvatarText}>{(latestComment.user.name || latestComment.user.username || '?').slice(0, 1).toUpperCase()}</Text>
         ) : (

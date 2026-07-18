@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { supabaseAdmin } from '@/lib/supabase';
+import { diagnosticsEnabled } from '@/lib/diagnostics';
 
 /**
  * GET /api/auth/mobile/debug
@@ -8,6 +9,7 @@ import { supabaseAdmin } from '@/lib/supabase';
  * À appeler avec le même Bearer / X-Auth-Token que les autres routes.
  */
 export async function GET(req: NextRequest) {
+  if (!diagnosticsEnabled()) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const auth = req.headers.get('authorization');
   const xAuth = req.headers.get('x-auth-token');
   const queryToken = req.nextUrl.searchParams.get('access_token');

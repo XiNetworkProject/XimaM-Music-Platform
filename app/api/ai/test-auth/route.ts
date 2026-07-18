@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
+import { diagnosticsEnabled } from '@/lib/diagnostics';
 
 export async function GET(request: NextRequest) {
+  if (!diagnosticsEnabled()) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   try {
     console.log('🔍 Test authentification...');
     

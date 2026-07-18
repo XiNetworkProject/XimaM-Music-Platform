@@ -12,6 +12,7 @@ import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { SoftCard } from '@/components/ui/SoftCard';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { navigatePrimaryTab } from '@/navigation/navigatePrimaryTab';
 
 const CONTENT_TYPE_LABEL: Record<MusicChallengeContentType, string> = {
   clip: 'Clip',
@@ -184,7 +185,7 @@ function EntryRow({ entry, navigation }: { entry: MusicChallengeEntry; navigatio
   if (!canOpen) return <View style={styles.entryRow}>{content}</View>;
   const onPress = () => {
     if (clipSourceTrackId) {
-      navigation.navigate('Swipe', { mode: 'clips', sourceTrackId: clipSourceTrackId });
+      navigatePrimaryTab(navigation, 'Swipe', { mode: 'clips', sourceTrackId: clipSourceTrackId });
     } else {
       navigation.navigate('TrackDetail', { trackId: entry.contentId });
     }

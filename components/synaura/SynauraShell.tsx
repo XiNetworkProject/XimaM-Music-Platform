@@ -5,7 +5,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { motion } from 'framer-motion';
 import {
   Compass,
   CreditCard,
@@ -73,7 +72,7 @@ function SynauraAccountMenu({ compact = false }: { compact?: boolean }) {
     <details className="group relative">
       <summary
         className={cx(
-          'flex cursor-pointer list-none items-center gap-2 rounded-full border border-black/[0.08] bg-white p-1 pr-2.5 shadow-[0_8px_24px_rgba(30,25,20,0.10)] transition hover:bg-black/[0.04]',
+          'flex cursor-pointer list-none items-center gap-2 rounded-full border border-[var(--syn-border)] bg-[var(--syn-surface)] p-1 pr-2.5 shadow-[0_8px_24px_var(--syn-shadow)] transition hover:bg-[var(--syn-soft)]',
           compact && 'p-0.5 pr-1.5',
         )}
         aria-label="Ouvrir le menu du compte"
@@ -86,20 +85,20 @@ function SynauraAccountMenu({ compact = false }: { compact?: boolean }) {
             (user.name || username || 'S').slice(0, 1).toUpperCase()
           )}
         </span>
-        <span className="hidden max-w-[110px] truncate text-xs font-black text-[#171313] xl:block">
+        <span className="hidden max-w-[110px] truncate text-xs font-black text-[var(--syn-text-primary)] xl:block">
           {user.name || username}
         </span>
       </summary>
 
-      <div className="absolute right-0 top-[calc(100%+0.55rem)] z-[80] w-64 max-w-none overflow-hidden rounded-[1.4rem] border border-black/[0.09] bg-[#fffaf2]/98 p-2 shadow-[0_24px_70px_rgba(30,25,20,0.22)] backdrop-blur-2xl">
-        <div className="mb-1 rounded-[1rem] bg-black/[0.045] px-3 py-2.5">
-          <p className="truncate text-sm font-black text-[#171313]">{user.name || username || 'Compte Synaura'}</p>
-          {username ? <p className="truncate text-xs font-bold text-black/42">@{username}</p> : null}
+      <div className="absolute right-0 top-[calc(100%+0.55rem)] z-[80] w-64 max-w-none overflow-hidden rounded-[1.4rem] border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] p-2 shadow-[0_24px_70px_var(--syn-shadow)] backdrop-blur-2xl">
+        <div className="mb-1 rounded-[1rem] bg-[var(--syn-soft)] px-3 py-2.5">
+          <p className="truncate text-sm font-black text-[var(--syn-text-primary)]">{user.name || username || 'Compte Synaura'}</p>
+          {username ? <p className="truncate text-xs font-bold text-[var(--syn-text-secondary)]">@{username}</p> : null}
         </div>
         {links.map((item) => {
           const Icon = item.icon;
           return (
-            <Link key={item.href} href={item.href} className="flex items-center gap-3 rounded-[0.95rem] px-3 py-2.5 text-sm font-black text-black/62 transition hover:bg-black hover:text-white">
+            <Link key={item.href} href={item.href} className="flex items-center gap-3 rounded-[0.95rem] px-3 py-2.5 text-sm font-black text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-contrast-bg)] hover:text-[var(--syn-contrast-text)]">
               <Icon className="h-4 w-4" />
               {item.label}
             </Link>
@@ -134,7 +133,7 @@ export function SynauraAppShell({
   contentClassName?: string;
 }) {
   return (
-    <div className={cx('relative z-20 min-h-screen overflow-x-hidden bg-syn-background text-[#171313]', className)}>
+    <div className={cx('synaura-shell-root relative z-20 min-h-screen overflow-x-hidden bg-[var(--syn-background)] text-[var(--syn-text-primary)]', className)}>
       <style>{`
         .synaura-no-scrollbar::-webkit-scrollbar { display: none; }
         .synaura-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -145,18 +144,7 @@ export function SynauraAppShell({
       `}</style>
 
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_8%_0%,rgba(255,111,97,0.22),transparent_28%),radial-gradient(circle_at_94%_4%,rgba(124,92,255,0.20),transparent_30%),radial-gradient(circle_at_60%_100%,rgba(0,194,203,0.14),transparent_32%)]" />
-        <div className="absolute inset-0 opacity-[0.28] [background-image:linear-gradient(#ded4c7_1px,transparent_1px),linear-gradient(90deg,#ded4c7_1px,transparent_1px)] [background-size:34px_34px]" />
-        <motion.div
-          className="absolute -left-28 top-36 h-72 w-72 rounded-full bg-[#ff6f61]/18 blur-3xl"
-          animate={{ y: [0, -24, 0], x: [0, 18, 0] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
-          className="absolute -right-20 top-24 h-80 w-80 rounded-full bg-[#7c5cff]/18 blur-3xl"
-          animate={{ y: [0, 28, 0], x: [0, -24, 0] }}
-          transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
-        />
+        <div className="synaura-shell-atmosphere absolute inset-0" />
       </div>
 
       <div
@@ -184,7 +172,7 @@ export function SynauraPanel({
   return (
     <div
       className={cx(
-        'relative w-full min-w-0 overflow-hidden rounded-[1.5rem] border border-black/[0.08] bg-[#fffaf2]/88 shadow-[0_18px_60px_rgba(30,25,20,0.10)] backdrop-blur-xl sm:rounded-[2rem]',
+        'relative w-full min-w-0 overflow-hidden rounded-[1.5rem] border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] shadow-[0_18px_60px_var(--syn-shadow)] backdrop-blur-xl sm:rounded-[2rem]',
         className,
       )}
       style={style}
@@ -234,13 +222,13 @@ export function SynauraTopBar({
 
   return (
     <header className={cx(
-      'sticky top-2 z-40 rounded-[1.35rem] border border-black/[0.08] bg-[#fffaf2]/90 px-2.5 py-2.5 shadow-[0_16px_50px_rgba(30,25,20,0.12)] backdrop-blur-2xl sm:top-3 sm:rounded-[2rem] sm:px-4 sm:py-3',
+      'sticky top-2 z-40 rounded-[1.35rem] border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] px-2.5 py-2.5 shadow-[0_16px_50px_var(--syn-shadow)] backdrop-blur-2xl sm:top-3 sm:rounded-[2rem] sm:px-4 sm:py-3',
       compact ? 'top-1 mb-1.5 rounded-[1.05rem] px-2 py-1.5 sm:top-2 sm:rounded-[1.25rem] sm:px-3 sm:py-1.5' : 'mb-4',
     )}>
       <div className="flex items-center justify-between gap-2 sm:gap-3">
         <Link href="/" className="flex min-w-0 items-center gap-3">
           <div className={cx(
-            'grid h-11 w-11 shrink-0 place-items-center rounded-[1rem] border border-black/[0.08] bg-white shadow-[0_10px_26px_rgba(30,25,20,0.10)] sm:h-14 sm:w-14 sm:rounded-[1.25rem]',
+            'grid h-11 w-11 shrink-0 place-items-center rounded-[1rem] border border-[var(--syn-border)] bg-[var(--syn-surface)] shadow-[0_10px_26px_var(--syn-shadow)] sm:h-14 sm:w-14 sm:rounded-[1.25rem]',
             compact && 'h-8 w-8 rounded-[0.8rem] sm:h-9 sm:w-9 sm:rounded-[0.9rem]',
           )}>
             <Image
@@ -277,7 +265,7 @@ export function SynauraTopBar({
             <Link
               href="/auth/signin"
               className={cx(
-                'hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex',
+                'hidden h-11 items-center gap-2 rounded-full bg-[var(--syn-soft)] px-4 text-sm font-black text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-contrast-bg)] hover:text-[var(--syn-contrast-text)] sm:flex',
                 compact && 'h-8 px-3 text-xs',
               )}
             >
@@ -285,11 +273,11 @@ export function SynauraTopBar({
             </Link>
           ) : (
             <>
-              <NotificationCenter className={cx('bg-black/[0.06] text-black/60 hover:bg-black hover:text-white sm:h-11 sm:w-11', compact && 'h-8 w-8 sm:h-8 sm:w-8')} />
+              <NotificationCenter className={cx('bg-[var(--syn-soft)] text-[var(--syn-text-secondary)] hover:bg-[var(--syn-contrast-bg)] hover:text-[var(--syn-contrast-text)] sm:h-11 sm:w-11', compact && 'h-8 w-8 sm:h-8 sm:w-8')} />
               <Link
                 href={secondaryHref}
                 className={cx(
-                  'hidden h-11 items-center gap-2 rounded-full bg-black/[0.06] px-4 text-sm font-black text-black/60 transition hover:bg-black hover:text-white sm:flex',
+                  'hidden h-11 items-center gap-2 rounded-full bg-[var(--syn-soft)] px-4 text-sm font-black text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-contrast-bg)] hover:text-[var(--syn-contrast-text)] sm:flex',
                   compact && 'h-8 px-3 text-xs',
                 )}
               >
@@ -301,7 +289,7 @@ export function SynauraTopBar({
           <Link
             href={isGuest ? '/auth/signup' : primaryHref}
             className={cx(
-              'inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-[#171313] px-3 text-xs font-black text-white shadow-[0_12px_28px_rgba(23,19,19,0.18)] transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm',
+              'inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-[var(--syn-contrast-bg)] px-3 text-xs font-black text-[var(--syn-contrast-text)] shadow-[0_12px_28px_var(--syn-shadow)] transition hover:scale-[1.02] sm:h-11 sm:px-5 sm:text-sm',
               compact && 'hidden h-8 px-3 text-xs sm:inline-flex sm:h-8 sm:px-3 sm:text-xs',
             )}
           >
@@ -353,7 +341,7 @@ export function SynauraRouteNav({ className = '', compact = false }: { className
   return (
     <nav className={cx(compact ? 'mb-1 block' : 'mb-4 hidden sm:block', className)} aria-label="Navigation Synaura">
       <div className={cx(
-        'synaura-no-scrollbar flex gap-2 overflow-x-auto rounded-[1.6rem] border border-black/[0.08] bg-[#fffaf2]/84 p-2 shadow-[0_14px_36px_rgba(30,25,20,0.08)] backdrop-blur-xl',
+        'synaura-no-scrollbar flex gap-2 overflow-x-auto rounded-[1.6rem] border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] p-2 shadow-[0_14px_36px_var(--syn-shadow)] backdrop-blur-xl',
         compact && 'gap-1.5 rounded-[1rem] p-1',
       )}>
         {SYNAURA_ROUTE_ITEMS.map((item) => {
@@ -367,7 +355,7 @@ export function SynauraRouteNav({ className = '', compact = false }: { className
               className={cx(
                 'inline-flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-black transition',
                 compact && 'h-7 gap-1.5 px-2.5 text-[10px]',
-                isActive ? 'bg-[#171313] text-white' : 'bg-black/[0.045] text-black/56 hover:bg-black/[0.08] hover:text-[#171313]',
+                isActive ? 'bg-[var(--syn-contrast-bg)] text-[var(--syn-contrast-text)]' : 'bg-[var(--syn-soft)] text-[var(--syn-text-secondary)] hover:bg-[var(--syn-soft-strong)] hover:text-[var(--syn-text-primary)]',
               )}
               aria-current={isActive ? 'page' : undefined}
             >
@@ -389,7 +377,7 @@ export function SynauraMobileDock() {
       className="fixed inset-x-0 bottom-0 z-50 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.45rem)] pt-1.5 sm:hidden"
       aria-label="Navigation mobile Synaura"
     >
-      <div className="mx-auto w-full max-w-[calc(100vw-1rem)] rounded-[1.35rem] border border-black/[0.08] bg-[#fffaf2]/94 p-1 shadow-[0_18px_50px_rgba(30,25,20,0.16)] backdrop-blur-2xl">
+      <div className="mx-auto w-full max-w-[calc(100vw-1rem)] rounded-[1.35rem] border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] p-1 shadow-[0_18px_50px_var(--syn-shadow)] backdrop-blur-2xl">
         <div className="grid grid-cols-5 gap-1">
           {SYNAURA_MOBILE_ROUTE_ITEMS.map((item) => {
             const Icon = item.icon;
@@ -401,7 +389,7 @@ export function SynauraMobileDock() {
                 href={item.href}
                 className={cx(
                   'flex min-w-0 flex-col items-center gap-0.5 rounded-[0.95rem] px-1 py-1.5 text-center transition',
-                  isActive ? 'bg-[#171313] text-white' : 'text-black/52 hover:bg-black/[0.05] hover:text-[#171313]',
+                  isActive ? 'bg-[var(--syn-contrast-bg)] text-[var(--syn-contrast-text)]' : 'text-[var(--syn-text-secondary)] hover:bg-[var(--syn-soft)] hover:text-[var(--syn-text-primary)]',
                 )}
                 aria-current={isActive ? 'page' : undefined}
               >
@@ -449,19 +437,16 @@ export function SynauraHero({
   className?: string;
 }) {
   return (
-    <SynauraPanel
-      className={cx('p-5 sm:p-6', className)}
-      style={{ background: 'linear-gradient(135deg, #fffaf2 0%, #eee7ff 52%, #e2fbff 100%)' }}
-    >
+    <SynauraPanel className={cx('synaura-theme-hero p-5 sm:p-6', className)}>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-center">
         <div className="min-w-0">
           {eyebrow ? (
-            <span className="inline-flex rounded-full bg-black/[0.055] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-black/52">
+            <span className="inline-flex rounded-full bg-[var(--syn-soft)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--syn-text-secondary)]">
               {eyebrow}
             </span>
           ) : null}
-          <div className="mt-3 text-[2rem] font-black leading-[0.95] tracking-[-0.05em] text-[#171313] sm:text-4xl">{title}</div>
-          {description ? <div className="mt-3 max-w-2xl text-sm leading-6 text-black/58 sm:text-[15px]">{description}</div> : null}
+          <div className="mt-3 text-[2rem] font-black leading-[0.95] text-[var(--syn-text-primary)] sm:text-4xl">{title}</div>
+          {description ? <div className="mt-3 max-w-2xl text-sm leading-6 text-[var(--syn-text-secondary)] sm:text-[15px]">{description}</div> : null}
           {actions ? <div className="mt-5 grid gap-2 sm:flex sm:flex-wrap sm:gap-2.5">{actions}</div> : null}
         </div>
         {aside ? <div className="min-w-0">{aside}</div> : null}
@@ -489,7 +474,7 @@ export function SynauraFilterTabs<T extends string>({
           aria-pressed={active === item}
           className={cx(
             'h-9 shrink-0 rounded-full px-3 text-xs font-black transition sm:h-10 sm:px-4 sm:text-sm',
-            active === item ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/55 hover:bg-black/[0.09]',
+            active === item ? 'bg-[var(--syn-contrast-bg)] text-[var(--syn-contrast-text)]' : 'bg-[var(--syn-soft)] text-[var(--syn-text-secondary)] hover:bg-[var(--syn-soft-strong)]',
           )}
         >
           {item}

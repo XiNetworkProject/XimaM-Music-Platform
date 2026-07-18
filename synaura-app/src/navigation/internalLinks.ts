@@ -1,7 +1,9 @@
 import { API_BASE_URL, getTrackById } from '@/api/client';
 import type { Track } from '@/api/types';
+import { navigatePrimaryTab } from '@/navigation/navigatePrimaryTab';
 
 type NavigationLike = {
+  getState?: () => { routeNames?: string[] } | undefined;
   navigate: (name: string, params?: Record<string, unknown>) => void;
 };
 
@@ -53,7 +55,7 @@ export async function openInternalLink(
     const tab = query.get('tab');
     const openPendingVariations = query.get('openPendingVariations') === '1';
     if (tab || openPendingVariations) {
-      navigation.navigate('Profile', {
+      navigatePrimaryTab(navigation, 'Profile', {
         tab: (['sons', 'clips', 'variations', 'playlists', 'posts'].includes(tab || '') ? tab : undefined) as any,
         openPendingVariations: openPendingVariations || undefined,
       });
@@ -71,7 +73,7 @@ export async function openInternalLink(
     return true;
   }
   if ((root === 'clips' || root === 'clip') && id) {
-    navigation.navigate('Swipe', { mode: 'clips', clipId: decodeURIComponent(id) });
+    navigatePrimaryTab(navigation, 'Swipe', { mode: 'clips', clipId: decodeURIComponent(id) });
     return true;
   }
   if ((root === 'track' || root === 'tracks') && id) {

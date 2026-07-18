@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type DimensionValue, type GestureResponderEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { MobileProfileTrack } from '@/api/client';
@@ -37,11 +37,17 @@ export function ProfileMusicCatalog({
 }) {
   const responsive = useResponsiveLayout();
   const [sort, setSort] = useState<ProfileTrackSort>(defaultSort);
+  const [visibleCount, setVisibleCount] = useState(12);
   const sortedTracks = useMemo(() => [...tracks].sort((a, b) => {
     if (sort === 'plays') return Number(b.plays || 0) - Number(a.plays || 0);
     if (sort === 'likes') return Number(b.likesCount || 0) - Number(a.likesCount || 0);
     return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
   }), [sort, tracks]);
+  const visibleTracks = sortedTracks.slice(0, visibleCount);
+
+  useEffect(() => {
+    setVisibleCount(12);
+  }, [sort, tracks.length]);
 
   const singleColumn = responsive.isNarrow || responsive.hasLargeText;
   const cardWidth: DimensionValue = responsive.isTablet ? '31.5%' : singleColumn ? '100%' : '48.3%';
@@ -63,9 +69,9 @@ export function ProfileMusicCatalog({
         <SegmentedControl value={sort} options={SORT_OPTIONS} onChange={setSort} compact style={styles.sortControl} />
       ) : null}
 
-      {sortedTracks.length ? (
+      {visibleTracks.length ? (
         <View style={styles.grid}>
-          {sortedTracks.map((track, index) => {
+          {visibleTracks.map((track, index) => {
             const card = (
               <CatalogTrackCard
                 track={track}
@@ -82,6 +88,16 @@ export function ProfileMusicCatalog({
               </Reveal>
             ) : <View key={track._id} style={{ width: cardWidth }}>{card}</View>;
           })}
+          {visibleCount < sortedTracks.length ? (
+            <Pressable
+              accessibilityLabel="Afficher plus de morceaux"
+              onPress={() => setVisibleCount((current) => Math.min(sortedTracks.length, current + 24))}
+              style={styles.moreButton}
+            >
+              <Ionicons name="chevron-down" size={15} color={colors.violet} />
+              <Text style={styles.moreText}>Afficher {Math.min(24, sortedTracks.length - visibleCount)} titres de plus</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : (
         <View style={styles.empty}>
@@ -126,7 +142,7 @@ function CatalogTrackCard({
         <View style={styles.coverShade} />
         {track.isPublic === false ? <Text style={styles.draftBadge}>Brouillon</Text> : null}
         {onManage ? (
-          <Pressable accessibilityLabel={`Gérer ${track.title}`} onPress={handleManage} style={styles.manageButton}>
+          <Pressable accessibilityLabel={`Gérer ${track.title}`} hitSlop={6} onPress={handleManage} style={styles.manageButton}>
             <Ionicons name="ellipsis-horizontal" size={17} color="#FFFFFF" />
           </Pressable>
         ) : null}
@@ -198,4 +214,6 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violetSoft },
   emptyTitle: { marginTop: 11, color: colors.text, fontSize: 15, fontWeight: '900' },
   emptyText: { marginTop: 5, maxWidth: 300, color: colors.textSecondary, textAlign: 'center', fontSize: 11, lineHeight: 17, fontWeight: '700' },
+  moreButton: { width: '100%', minHeight: 46, marginTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface },
+  moreText: { color: colors.text, fontSize: 11, fontWeight: '900' },
 });

@@ -69,6 +69,7 @@ async function enrichRemixFeedFields(tracks: any[], userId: string | null) {
 }
 
 export async function GET(request: NextRequest) {
+  const startedAt = Date.now();
   try {
     const { searchParams } = request.nextUrl;
     const limit = parseNumber(searchParams.get('limit'), 30, 1, 200);
@@ -84,14 +85,19 @@ export async function GET(request: NextRequest) {
     const excludedTrackIds = parseRecommendationExclusions(searchParams.get('exclude'));
     const rankingSeed = sessionSeed({ requested: requestedSessionId, userId, strategy, genre: seedGenre || genreFilter });
 
+    const candidatesStartedAt = Date.now();
     const candidates = await loadGlobalTrackCandidates(includeAi);
+    const candidatesDuration = Date.now() - candidatesStartedAt;
+    const signalsStartedAt = Date.now();
     const signals = await buildRecommendationSignals({
       supabase: supabaseAdmin,
       userId,
       candidateTracks: candidates,
       sessionId: requestedSessionId,
     });
+    const signalsDuration = Date.now() - signalsStartedAt;
 
+    const rankingStartedAt = Date.now();
     const ranked = rerankTracks(candidates, signals, {
       strategy,
       debug,
@@ -104,6 +110,7 @@ export async function GET(request: NextRequest) {
       ...track,
       isLiked: signals.likedTrackIds.has(String(track._id)),
     }));
+    const rankingDuration = Date.now() - rankingStartedAt;
 
     const available = excludedTrackIds.size
       ? ranked.filter((track) => !excludedTrackIds.has(String(track._id)))
@@ -121,11 +128,17 @@ export async function GET(request: NextRequest) {
       tracks,
       nextCursor,
       hasMore: nextCursor < available.length,
-      engineVersion: 'discovery-v4',
+      engineVersion: 'discovery-v5',
       sessionId: rankingSeed,
     }, {
       headers: {
         'Cache-Control': userId || requestedSessionId ? 'private, no-store' : 'public, s-maxage=30, stale-while-revalidate=90',
+        'Server-Timing': [
+          `candidates;dur=${candidatesDuration}`,
+          `signals;dur=${signalsDuration}`,
+          `ranking;dur=${rankingDuration}`,
+          `total;dur=${Date.now() - startedAt}`,
+        ].join(', '),
       },
     });
   } catch (error) {

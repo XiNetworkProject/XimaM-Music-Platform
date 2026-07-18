@@ -22,6 +22,7 @@ import {
   getCommentsCount,
   getSimilarTracks,
   getTrackLikeStatus,
+  setRecommendationTaste,
   setTrackLike,
   toggleArtistFollow,
 } from '@/api/client';
@@ -40,6 +41,7 @@ import { fmtCount, trackArtistName } from '@/components/swipe/helpers';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { colors } from '@/theme/tokens';
+import { recommendationReasonLabel } from '@/feed/recommendationReasons';
 
 type Props = {
   visible: boolean;
@@ -73,6 +75,8 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const [followBusy, setFollowBusy] = useState(false);
   const [relatedTracks, setRelatedTracks] = useState<Track[]>([]);
   const [relatedContext, setRelatedContext] = useState('');
+  const [tasteBusy, setTasteBusy] = useState<'more' | 'less' | 'hide_artist' | null>(null);
+  const [tasteFeedback, setTasteFeedback] = useState('');
 
   const dragY = useRef(new Animated.Value(0)).current;
   const coverX = useRef(new Animated.Value(0)).current;
@@ -219,6 +223,8 @@ export function FullPlayerModal({ visible, onClose }: Props) {
 
   useEffect(() => {
     coverX.setValue(0);
+    setTasteFeedback('');
+    setTasteBusy(null);
   }, [coverX, trackId]);
 
   const toggleLike = useCallback(async () => {
@@ -281,6 +287,37 @@ export function FullPlayerModal({ visible, onClose }: Props) {
     Haptics.selectionAsync().catch(() => {});
   }, [canInteract, progress.positionSec]);
 
+  const applyTaste = useCallback(async (action: 'more' | 'less' | 'hide_artist') => {
+    if (!trackId || isRadio || tasteBusy) return;
+    if (action === 'hide_artist' && !artistId) return;
+    setTasteBusy(action);
+    setTasteFeedback('');
+    try {
+      await setRecommendationTaste({
+        action,
+        trackId,
+        artistId: artistId || undefined,
+        source: 'mobile-full-player',
+      });
+      const message = action === 'more'
+        ? 'Compris, Synaura cherchera davantage cette aura.'
+        : action === 'less'
+          ? 'Compris, ce type de son sera moins présent.'
+          : 'Cet artiste ne sera plus proposé dans ton Flow.';
+      setTasteFeedback(message);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      if (action !== 'more') {
+        setMoreOpen(false);
+        await player.next();
+      }
+    } catch {
+      setTasteFeedback('Connecte-toi pour personnaliser durablement ton Flow.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+    } finally {
+      setTasteBusy(null);
+    }
+  }, [artistId, isRadio, player, tasteBusy, trackId]);
+
   if (!track) return null;
 
   const coverScale = coverPulse.interpolate({
@@ -305,6 +342,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const lyricPreview = typeof track.lyrics === 'string'
     ? track.lyrics.split(/\r?\n/).map((line) => line.trim()).find(Boolean) || ''
     : '';
+  const recommendationExplanation = recommendationReasonLabel(track.recommendationReasons, relatedContext);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={closeWithAnim}>
@@ -631,6 +669,35 @@ export function FullPlayerModal({ visible, onClose }: Props) {
             <View style={[styles.moreSheet, { width: Math.min(layout.safeWidth, 560), paddingBottom: insets.bottom + 16, transform: [{ translateX: (insets.left - insets.right) / 2 }] }]}>
               <View style={styles.moreHandle} />
               <ScrollView contentContainerStyle={styles.moreContent} showsVerticalScrollIndicator={false}>
+              {recommendationExplanation ? (
+                <View style={styles.whyCard}>
+                  <View style={styles.whyIcon}><Ionicons name="information" size={16} color="#111111" /></View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.whyTitle}>Pourquoi ce morceau ?</Text>
+                    <Text style={styles.whyText}>{recommendationExplanation}</Text>
+                  </View>
+                </View>
+              ) : null}
+              <MoreRow
+                icon="thumbs-up-outline"
+                label={tasteBusy === 'more' ? 'Enregistrement...' : 'Plus comme ça'}
+                active={tasteFeedback.startsWith('Compris, Synaura')}
+                disabled={!trackId || isRadio || Boolean(tasteBusy)}
+                onPress={() => void applyTaste('more')}
+              />
+              <MoreRow
+                icon="thumbs-down-outline"
+                label={tasteBusy === 'less' ? 'Enregistrement...' : 'Moins comme ça'}
+                disabled={!trackId || isRadio || Boolean(tasteBusy)}
+                onPress={() => void applyTaste('less')}
+              />
+              <MoreRow
+                icon="eye-off-outline"
+                label={tasteBusy === 'hide_artist' ? 'Enregistrement...' : 'Masquer cet artiste'}
+                disabled={!artistId || isRadio || Boolean(tasteBusy)}
+                onPress={() => void applyTaste('hide_artist')}
+              />
+              {tasteFeedback ? <Text style={styles.tasteFeedback}>{tasteFeedback}</Text> : null}
               <MoreRow
                 icon="document-text-outline"
                 label="Paroles"
@@ -1144,6 +1211,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   moreContent: { gap: 4 },
+  whyCard: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 5, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(74,158,170,0.34)', backgroundColor: 'rgba(74,158,170,0.10)', padding: 11 },
+  whyIcon: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cyan },
+  whyTitle: { color: '#F7F6F3', fontSize: 11, fontWeight: '900' },
+  whyText: { marginTop: 3, color: 'rgba(247,246,243,0.66)', fontSize: 10, lineHeight: 14, fontWeight: '700' },
+  tasteFeedback: { paddingHorizontal: 12, paddingVertical: 7, color: colors.cyan, fontSize: 10, lineHeight: 14, fontWeight: '800' },
   moreHandle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.4)', marginBottom: 8 },
   moreRow: {
     flexDirection: 'row',

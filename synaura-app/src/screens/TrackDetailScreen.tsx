@@ -24,6 +24,7 @@ import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { navigatePrimaryTab } from '@/navigation/navigatePrimaryTab';
 
 export function TrackDetailScreen() {
   const responsive = useResponsiveLayout();
@@ -212,7 +213,7 @@ export function TrackDetailScreen() {
               <Text style={styles.sectionTitleInline}>Clips utilisant ce son</Text>
               <Text style={styles.description}>{track.musicClipsCount} clip{Number(track.musicClipsCount || 0) > 1 ? 's' : ''} publie{Number(track.musicClipsCount || 0) > 1 ? 's' : ''}</Text>
             </View>
-            <Pressable onPress={() => navigation.navigate('Swipe', { mode: 'clips', sourceTrackId: track._id })} style={styles.clipsButton}>
+            <Pressable onPress={() => navigatePrimaryTab(navigation, 'Swipe', { mode: 'clips', sourceTrackId: track._id })} style={styles.clipsButton}>
               <Text style={styles.clipsButtonText}>Ouvrir</Text>
             </Pressable>
           </SoftCard>

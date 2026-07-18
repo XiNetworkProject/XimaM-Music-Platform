@@ -35,6 +35,7 @@ function emptySignals(userId: string | null): UserRecommendationSignals {
     avoidedGenres: new Map(),
     artistAffinity: new Map(),
     artistAversion: new Map(),
+    hiddenArtistIds: new Set(),
     trackRepeatCounts24h: new Map(),
     trackRepeatCounts72h: new Map(),
     trackRecentCompletes72h: new Map(),
@@ -411,7 +412,8 @@ export async function buildUserRecommendationSignals({
   } catch {}
 
   try {
-    const onboarding = (profileRes as any)?.data?.preferences?.onboarding;
+    const preferences = (profileRes as any)?.data?.preferences;
+    const onboarding = preferences?.onboarding;
     if (onboarding && typeof onboarding === 'object') {
       for (const genre of normalizeGenres(onboarding.favoriteGenres)) inc(signals.preferredGenres, genre, 0.9);
       const favoriteMoods: unknown[] = Array.isArray(onboarding.favoriteMoods) ? onboarding.favoriteMoods : [];
@@ -419,6 +421,13 @@ export async function buildUserRecommendationSignals({
         const mood = DISCOVER_MOODS.find((item) => item.id === moodId);
         if (!mood || mood.isAiOnly) continue;
         for (const keyword of mood.keywords) inc(signals.preferredGenres, keyword, 0.65);
+      }
+    }
+    const taste = preferences?.taste;
+    if (taste && typeof taste === 'object') {
+      for (const artistId of Array.isArray(taste.hiddenArtistIds) ? taste.hiddenArtistIds : []) {
+        const normalized = String(artistId || '').trim();
+        if (normalized) signals.hiddenArtistIds.add(normalized);
       }
     }
   } catch {}

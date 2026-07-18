@@ -34,6 +34,7 @@ import { usePlayer } from '@/player/PlayerProvider';
 import { useClipUploads } from '@/clips/ClipUploadProvider';
 import { colors } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { navigatePrimaryTab } from '@/navigation/navigatePrimaryTab';
 
 const MIN_SECONDS = 15;
 const MAX_SECONDS = 60;
@@ -278,7 +279,7 @@ export function ClipComposerScreen() {
       if (editTask) uploads.revise(editTask.id, input);
       else uploads.enqueue(input);
       void player.pause();
-      navigation.navigate('Swipe', { mode: 'clips' });
+      navigatePrimaryTab(navigation, 'Swipe', { mode: 'clips' });
     } catch (error) {
       publishingRef.current = false;
       Alert.alert('Publication impossible', error instanceof Error ? error.message : 'Connexion requise.');

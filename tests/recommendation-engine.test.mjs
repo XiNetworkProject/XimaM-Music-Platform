@@ -36,6 +36,7 @@ function signals() {
     avoidedGenres: new Map(),
     artistAffinity: new Map(),
     artistAversion: new Map(),
+    hiddenArtistIds: new Set(),
     trackRepeatCounts24h: new Map(),
     trackRepeatCounts72h: new Map(),
     trackRecentCompletes72h: new Map(),
@@ -122,7 +123,7 @@ test('session ranking is stable and protects artist diversity', () => {
   for (let index = 1; index < firstTwelve.length; index += 1) {
     assert.notEqual(firstTwelve[index - 1].artist?._id, firstTwelve[index].artist?._id);
   }
-  assert.ok(firstTwelve.filter((item) => item.artist?._id === 'artist-a').length <= 3);
+  assert.ok(firstTwelve.filter((item) => item.artist?._id === 'artist-a').length <= 2);
   assert.ok(firstTwelve.filter((item) => item.recommendationBucket === 'emerging').length >= 2);
 });
 
@@ -166,6 +167,16 @@ test('a skip in the current session almost removes the same track', () => {
   const skipped = scoreTrackCandidate(track('session-skip', 'artist-a', 9, sharedMetrics), userSignals, { sessionSeed: 'live-skip' });
   const unseen = scoreTrackCandidate(track('session-unseen', 'artist-b', 9, sharedMetrics), userSignals, { sessionSeed: 'live-skip' });
   assert.ok(Number(unseen.recommendationScore) > Number(skipped.recommendationScore) * 10);
+});
+
+test('an explicitly hidden artist is removed before reranking', () => {
+  const userSignals = signals();
+  userSignals.hiddenArtistIds.add('artist-hidden');
+  const ranked = rerankTracks([
+    track('hidden-track', 'artist-hidden', 999),
+    track('visible-track', 'artist-visible', 1),
+  ], userSignals, { sessionSeed: 'hidden-artist' });
+  assert.deepEqual(ranked.map((item) => item._id), ['visible-track']);
 });
 
 test('posts already viewed in the active session are not immediately recycled', () => {

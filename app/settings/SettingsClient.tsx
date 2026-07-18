@@ -31,6 +31,7 @@ import { useAudioPlayer } from '@/app/providers';
 import { UModal, UModalBody } from '@/components/ui/UnifiedUI';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import { registerPushSubscription, unregisterPushSubscription } from '@/lib/pushClient';
+import { SynauraThemeSelector } from '@/components/theme/SynauraThemeProvider';
 
 type SettingsTab = 'profil' | 'compte' | 'parrainage' | 'preferences' | 'events' | 'securite' | 'legal';
 
@@ -107,7 +108,7 @@ function WarmCard({ children, className = '' }: { children: ReactNode; className
 }
 
 function InnerCard({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-[1.35rem] border border-[#dccfbb] bg-[#f4ecdf] p-4 shadow-[0_10px_24px_rgba(44,33,19,0.04)] ${className}`}>{children}</div>;
+  return <div className={`rounded-[1.35rem] border border-[var(--syn-border)] bg-[var(--syn-surface-muted)] p-4 shadow-[0_10px_24px_var(--syn-shadow)] ${className}`}>{children}</div>;
 }
 
 function SectionHeader({
@@ -121,9 +122,9 @@ function SectionHeader({
 }) {
   return (
     <div>
-      <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">{eyebrow}</div>
-      <div className="mt-2 text-[1.65rem] font-black tracking-[-0.05em] text-[#171313]">{title}</div>
-      <div className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-black/46">{description}</div>
+      <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--syn-text-secondary)]">{eyebrow}</div>
+      <div className="mt-2 text-[1.65rem] font-black text-[var(--syn-text-primary)]">{title}</div>
+      <div className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[var(--syn-text-secondary)]">{description}</div>
     </div>
   );
 }
@@ -164,7 +165,7 @@ function ToggleCard({
   description: string;
 }) {
   return (
-    <div className="rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4">
+    <div className="rounded-[1.1rem] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-4">
       <Toggle checked={checked} onChange={onChange} label={label} description={description} />
     </div>
   );
@@ -349,6 +350,7 @@ export default function SettingsClient() {
   const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>(defaultNotifPrefs);
   const [notifPrefsLoading, setNotifPrefsLoading] = useState(false);
   const [notifPrefsSaving, setNotifPrefsSaving] = useState(false);
+  const [hiddenArtistsCount, setHiddenArtistsCount] = useState(0);
   const [eventPrefs, setEventPrefs] = useState({
     autoParticipate: false,
     voteReminders: true,
@@ -399,6 +401,10 @@ export default function SettingsClient() {
       })
       .catch(() => {})
       .finally(() => setNotifPrefsLoading(false));
+    fetch('/api/recommendations/taste', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => setHiddenArtistsCount(Number(data?.hiddenArtistsCount || 0)))
+      .catch(() => {});
   }, [tab]);
 
   const updateNotifPref = async (key: keyof NotifPrefs, value: boolean) => {
@@ -1228,6 +1234,35 @@ export default function SettingsClient() {
 
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
                   <div className="space-y-4">
+                    <InnerCard>
+                      <div className="text-sm font-black text-[var(--syn-text-primary)]">Apparence</div>
+                      <div className="mt-1 text-xs font-semibold text-[var(--syn-text-secondary)]">Le même thème est appliqué à toutes les pages Synaura de cet appareil.</div>
+                      <SynauraThemeSelector className="mt-3" />
+                      {hiddenArtistsCount > 0 ? (
+                        <div className="mt-4 flex flex-col gap-3 border-t border-[var(--syn-border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <div className="text-sm font-black text-[var(--syn-text-primary)]">Artistes masqués</div>
+                            <div className="mt-1 text-xs font-semibold text-[var(--syn-text-secondary)]">{hiddenArtistsCount} artiste{hiddenArtistsCount > 1 ? 's' : ''} retiré{hiddenArtistsCount > 1 ? 's' : ''} des recommandations.</div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              fetch('/api/recommendations/taste', { method: 'DELETE' })
+                                .then((response) => {
+                                  if (!response.ok) throw new Error();
+                                  setHiddenArtistsCount(0);
+                                  notify.success('Flow', 'Les artistes masqués peuvent de nouveau être recommandés.');
+                                })
+                                .catch(() => notify.error('Flow', 'Impossible de réafficher les artistes pour le moment.'));
+                            }}
+                            className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--syn-border)] bg-[var(--syn-soft)] px-3 text-xs font-black text-[var(--syn-text-primary)] transition hover:bg-[var(--syn-soft-strong)]"
+                          >
+                            Réafficher
+                          </button>
+                        </div>
+                      ) : null}
+                    </InnerCard>
+
                     <InnerCard>
                       <div className="text-sm font-black text-[#171313]">Préférences locales</div>
                       <div className="mt-3 grid gap-3">

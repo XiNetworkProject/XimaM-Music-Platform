@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import Video from 'react-native-video';
 import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -11,6 +11,7 @@ import { fmtCount, trackArtistName } from './helpers';
 import { useAuth } from '@/auth/AuthProvider';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 // Un clip reste une slide du Scroll, avec sa propre lecture et ses propres
 // interactions. Sa lecture ne modifie jamais la file ou la position du morceau.
@@ -263,7 +264,7 @@ export function ClipSlide({
             style={StyleSheet.absoluteFill}
           />
         ) : clip.posterUrl ? (
-          <Image source={{ uri: clip.posterUrl }} resizeMode="cover" style={StyleSheet.absoluteFill} />
+          <SynauraImage source={{ uri: clip.posterUrl }} lowPriority={!isActive} style={StyleSheet.absoluteFill} />
         ) : (
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#171313' }]} />
         )}
@@ -349,7 +350,7 @@ export function ClipSlide({
           <View style={styles.profileCluster}>
             <Pressable accessibilityLabel="Ouvrir le profil du créateur" onPress={onOpenCreator} style={styles.profileAvatar}>
               {clip.creator.avatar ? (
-                <ImageBackground source={{ uri: clip.creator.avatar }} style={StyleSheet.absoluteFill} />
+                <SynauraImage source={{ uri: clip.creator.avatar }} lowPriority={!isActive} style={StyleSheet.absoluteFill} />
               ) : (
                 <Text style={styles.profileInitial}>
                   {(clip.creator.name || clip.creator.username || '?').slice(0, 1).toUpperCase()}
@@ -413,7 +414,7 @@ export function ClipSlide({
 
         {/* Son original : bandeau sombre compact, cohérent avec le reste du Scroll */}
         <View style={styles.musicCard}>
-          {track.coverUrl ? <Image source={{ uri: track.coverUrl }} style={styles.cover} /> : <View style={styles.cover} />}
+          {track.coverUrl ? <SynauraImage source={{ uri: track.coverUrl }} lowPriority={!isActive} style={styles.cover} /> : <View style={styles.cover} />}
           <Pressable accessibilityLabel="Voir le morceau" onPress={onOpenTrack} style={styles.trackCopy}>
             <Text style={styles.kicker}>SON ORIGINAL</Text>
             <Text numberOfLines={1} style={styles.trackTitle}>{track.title}</Text>

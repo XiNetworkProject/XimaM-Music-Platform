@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getLatestAppRelease, type MobileAppRelease } from '@/api/client';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { colors, radius } from '@/theme/tokens';
 
 const DISMISSED_RELEASE_KEY = 'synaura.mobile.dismissed-release.v1';
 
@@ -242,11 +243,11 @@ function UpdateModal({
       >
         <View style={[styles.sheet, { width: Math.min(layout.safeWidth - 24, 520), padding: layout.isNarrow ? 16 : 20 }]}>
           <View style={styles.icon}>
-            <Ionicons name={isCurrent ? 'checkmark' : 'cloud-download-outline'} size={28} color="#fffaf2" />
+            <Ionicons name={isCurrent ? 'checkmark' : 'cloud-download-outline'} size={28} color={colors.paper} />
           </View>
           {!mandatory ? (
             <Pressable accessibilityLabel="Fermer" onPress={onClose} style={styles.close}>
-              <Ionicons name="close" size={20} color="#171313" />
+              <Ionicons name="close" size={20} color={colors.text} />
             </Pressable>
           ) : null}
 
@@ -279,10 +280,10 @@ function UpdateModal({
           {downloading ? <Text style={styles.progressText}>{Math.round(progress * 100)} % telecharge</Text> : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          {status === 'checking' ? <ActivityIndicator color="#171313" /> : null}
+          {status === 'checking' ? <ActivityIndicator color={colors.text} /> : null}
           {release && !isCurrent ? (
             <Pressable disabled={downloading} onPress={onInstall} style={[styles.primary, downloading && styles.disabled]}>
-              {downloading ? <ActivityIndicator color="#fffaf2" /> : <Ionicons name="download-outline" size={18} color="#fffaf2" />}
+              {downloading ? <ActivityIndicator color={colors.background} /> : <Ionicons name="download-outline" size={18} color={colors.background} />}
               <Text style={styles.primaryText}>{status === 'ready' ? "Ouvrir l'installation" : 'Telecharger et installer'}</Text>
             </Pressable>
           ) : null}
@@ -291,7 +292,7 @@ function UpdateModal({
           ) : null}
           {release && !isCurrent ? (
             <Pressable onPress={onSettings} style={styles.secondary}>
-              <Ionicons name="settings-outline" size={16} color="#171313" />
+              <Ionicons name="settings-outline" size={16} color={colors.text} />
               <Text style={styles.secondaryText}>Autoriser les installations</Text>
             </Pressable>
           ) : null}
@@ -305,24 +306,24 @@ function UpdateModal({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(23,19,19,0.52)' },
-  sheet: { alignSelf: 'center', maxHeight: '94%', borderRadius: 28, gap: 12, backgroundColor: '#fffaf2', borderWidth: 1, borderColor: 'rgba(23,19,19,0.09)' },
-  icon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7c5cff' },
-  close: { position: 'absolute', right: 14, top: 14, width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.06)' },
-  kicker: { marginTop: 4, color: '#7c5cff', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1.2 },
-  title: { color: '#171313', fontSize: 24, lineHeight: 28, fontWeight: '900' },
-  subtitle: { color: 'rgba(23,19,19,0.58)', fontSize: 12, lineHeight: 18, fontWeight: '700' },
-  notes: { gap: 8, borderRadius: 18, padding: 12, backgroundColor: 'rgba(23,19,19,0.045)' },
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(13,13,13,0.62)' },
+  sheet: { alignSelf: 'center', maxHeight: '94%', borderRadius: radius.lg, gap: 12, backgroundColor: colors.elevatedSurface, borderWidth: 1, borderColor: colors.borderStrong },
+  icon: { width: 54, height: 54, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  close: { position: 'absolute', right: 14, top: 14, width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  kicker: { marginTop: 4, color: colors.violet, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1.2 },
+  title: { color: colors.text, fontSize: 24, lineHeight: 28, fontWeight: '900' },
+  subtitle: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  notes: { gap: 8, borderRadius: radius.md, padding: 12, backgroundColor: colors.surfaceMuted },
   note: { flexDirection: 'row', gap: 9, alignItems: 'flex-start' },
-  bullet: { width: 6, height: 6, borderRadius: 3, marginTop: 6, backgroundColor: '#ff6f61' },
-  noteText: { flex: 1, color: 'rgba(23,19,19,0.72)', fontSize: 11, lineHeight: 17, fontWeight: '700' },
-  progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: 'rgba(23,19,19,0.08)' },
-  progressFill: { height: 8, borderRadius: 4, backgroundColor: '#7c5cff' },
-  progressText: { color: 'rgba(23,19,19,0.54)', fontSize: 10, fontWeight: '900', textAlign: 'center' },
+  bullet: { width: 6, height: 6, borderRadius: 3, marginTop: 6, backgroundColor: colors.coral },
+  noteText: { flex: 1, color: colors.textSecondary, fontSize: 11, lineHeight: 17, fontWeight: '700' },
+  progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
+  progressFill: { height: 8, borderRadius: 4, backgroundColor: colors.violet },
+  progressText: { color: colors.textTertiary, fontSize: 10, fontWeight: '900', textAlign: 'center' },
   error: { borderRadius: 14, padding: 10, color: '#b91c1c', backgroundColor: 'rgba(239,68,68,0.1)', fontSize: 11, lineHeight: 16, fontWeight: '800' },
-  primary: { minHeight: 48, borderRadius: 24, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#171313' },
-  primaryText: { color: '#fffaf2', fontSize: 12, fontWeight: '900' },
-  secondary: { minHeight: 44, borderRadius: 22, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.07)' },
-  secondaryText: { color: '#171313', fontSize: 11, fontWeight: '900' },
+  primary: { minHeight: 48, borderRadius: 24, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  primaryText: { color: colors.background, fontSize: 12, fontWeight: '900' },
+  secondary: { minHeight: 44, borderRadius: 22, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  secondaryText: { color: colors.text, fontSize: 11, fontWeight: '900' },
   disabled: { opacity: 0.55 },
 });

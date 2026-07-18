@@ -42,6 +42,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { colors } from '@/theme/tokens';
+import { navigatePrimaryTab } from '@/navigation/navigatePrimaryTab';
 
 type ReleaseType = 'single' | 'ep' | 'album';
 type Step = 1 | 2 | 3;
@@ -508,7 +509,7 @@ export function UploadScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader flush eyebrow="Sortie artiste" title="Publier" subtitle="Ton son, son identité, puis sa diffusion." onBack={() => navigation.goBack()} action={{ icon: 'library-outline', label: 'Bibliothèque', onPress: () => navigation.navigate('Library') }} />
+        <AppHeader flush eyebrow="Sortie artiste" title="Publier" subtitle="Ton son, son identité, puis sa diffusion." onBack={() => navigation.goBack()} action={{ icon: 'library-outline', label: 'Bibliothèque', onPress: () => navigatePrimaryTab(navigation, 'Library') }} />
 
         <CreateArrivalBanner context={challengeId ? 'challenge' : 'upload'} title={challengeId ? challengeTitle : null} />
 
@@ -520,7 +521,7 @@ export function UploadScreen() {
           </View>
           <Text style={styles.heroTitle}>Une sortie, trois décisions.</Text>
           <View style={styles.heroActions}>
-            <MotionPressable onPress={() => navigation.navigate('Library')} style={styles.lightButton} scaleTo={0.96}>
+            <MotionPressable onPress={() => navigatePrimaryTab(navigation, 'Library')} style={styles.lightButton} scaleTo={0.96}>
               <Ionicons name="library-outline" size={16} color="#171313" />
               <Text style={styles.lightButtonText}>Bibliothèque</Text>
             </MotionPressable>

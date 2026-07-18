@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import './suno.css';
@@ -11,6 +11,9 @@ import GlobalQueueBubble from '@/components/GlobalQueueBubble';
 import { Analytics } from '@vercel/analytics/next';
 import AdSenseScript from '@/components/AdSenseScript';
 import AndroidAppPrompt from '@/components/mobile/AndroidAppPrompt';
+import { SynauraThemeProvider } from '@/components/theme/SynauraThemeProvider';
+
+const SYNAURA_THEME_STORAGE_KEY = 'synaura.theme.mode.v1';
 
 // Déclaration des types pour les fonctions globales
 declare global {
@@ -26,8 +29,6 @@ export const metadata: Metadata = {
   title: 'Synaura',
   description: 'Découvrez et partagez de la musique avec la communauté Synaura',
   manifest: '/manifest.json',
-  themeColor: '#000000',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover',
   other: {
     'mobile-web-app-capable': 'yes',
   },
@@ -43,6 +44,14 @@ export const metadata: Metadata = {
     ],
     apple: '/brand/2026/synaura-symbol-2026-white.png',
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 };
 
 // Service Worker temporairement désactivé pour résoudre les problèmes de navigation
@@ -95,9 +104,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr">
+    <html lang="fr" suppressHydrationWarning>
       <head>
-        <meta name="theme-color" content="#1db954" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=localStorage.getItem('${SYNAURA_THEME_STORAGE_KEY}');m=(m==='dark'||m==='light'||m==='system')?m:'system';var t=m==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):m;var d=document.documentElement;d.dataset.synauraThemeMode=m;d.dataset.synauraTheme=t;d.classList.toggle('dark',t==='dark');d.classList.toggle('light',t==='light');d.style.colorScheme=t;}catch(e){}})();`,
+          }}
+        />
+        <meta name="theme-color" content="#0D0D0D" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Synaura" />
@@ -113,18 +127,11 @@ export default function RootLayout({
         <AdSenseScript />
       </head>
           <body className={`theme-suno ${inter.className} overflow-hidden max-w-full h-full`}>
+        <SynauraThemeProvider>
         <Providers>
           {/* Studio Background (fond global de l'app) */}
           <StudioBackground variant="synaura" />
           
-          {/* Aurora background (fixed layers) */}
-          <div className="aurora-bg" aria-hidden>
-            <div className="aurora-layer aurora-1"></div>
-            <div className="aurora-layer aurora-2"></div>
-            <div className="aurora-layer aurora-3"></div>
-            <div className="aurora-vignette"></div>
-          </div>
-
           {/* Conteneur de scroll unique : hauteur viewport, scroll interne, pas de rebond */}
           <div className="app-scroll-container">
             <div className="flex min-h-screen overflow-x-hidden max-w-full relative z-10">
@@ -144,6 +151,7 @@ export default function RootLayout({
           <Analytics />
           <AndroidAppPrompt />
         </Providers>
+        </SynauraThemeProvider>
       </body>
     </html>
   );

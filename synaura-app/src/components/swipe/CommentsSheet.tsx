@@ -2,10 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
-  Image,
+  FlatList,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -19,6 +18,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { colors } from '@/theme/tokens';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 import { fmtCount, fmtTime } from './helpers';
 
 type Props = {
@@ -51,11 +51,15 @@ export function CommentsSheet({ visible, track, clip = null, commentCount, onClo
   const { user } = useAuth();
   const [comments, setComments] = useState<HomeComment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [text, setText] = useState('');
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const offsetRef = useRef(0);
+  const hasMoreRef = useRef(false);
+  const loadingMoreRef = useRef(false);
+  const loadKeyRef = useRef('');
   const slide = useRef(new Animated.Value(0)).current;
 
   const targetKind = clip ? 'clip' as const : 'track' as const;
@@ -73,26 +77,58 @@ export function CommentsSheet({ visible, track, clip = null, commentCount, onClo
   }, [slide, visible]);
 
   const load = useCallback(async (mode: 'initial' | 'more') => {
+    const loadKey = `${targetKind}:${targetId}`;
     if (!targetId || disabled) {
       setComments([]);
       setHasMore(false);
+      hasMoreRef.current = false;
+      setLoading(false);
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
       offsetRef.current = 0;
       return;
     }
     if (mode === 'initial') {
+      const targetChanged = loadKeyRef.current !== loadKey;
+      loadKeyRef.current = loadKey;
+      if (targetChanged) {
+        setComments([]);
+        setHasMore(false);
+        hasMoreRef.current = false;
+        offsetRef.current = 0;
+      }
       setLoading(true);
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
       setError(null);
+    } else {
+      if (loadingMoreRef.current || !hasMoreRef.current) return;
+      loadingMoreRef.current = true;
+      setLoadingMore(true);
     }
     try {
       const cursor = mode === 'initial' ? 0 : offsetRef.current;
       const page = await getCommentsPage(targetKind, targetId, cursor);
-      setComments((current) => (mode === 'initial' ? page.comments : [...current, ...page.comments]));
+      if (loadKeyRef.current !== loadKey) return;
+      setComments((current) => {
+        if (mode === 'initial') return page.comments;
+        const byId = new Map(current.map((comment) => [comment.id, comment]));
+        page.comments.forEach((comment) => byId.set(comment.id, comment));
+        return Array.from(byId.values());
+      });
       setHasMore(page.hasMore);
+      hasMoreRef.current = page.hasMore;
       offsetRef.current = typeof page.nextCursor === 'number' ? page.nextCursor : cursor + page.comments.length;
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Impossible de charger les commentaires.');
+      if (loadKeyRef.current === loadKey) {
+        setError(loadError instanceof Error ? loadError.message : 'Impossible de charger les commentaires.');
+      }
     } finally {
-      if (mode === 'initial') setLoading(false);
+      if (loadKeyRef.current === loadKey) {
+        if (mode === 'initial') setLoading(false);
+        else setLoadingMore(false);
+      }
+      if (mode === 'more') loadingMoreRef.current = false;
     }
   }, [disabled, targetId, targetKind]);
 
@@ -101,7 +137,7 @@ export function CommentsSheet({ visible, track, clip = null, commentCount, onClo
     setText('');
     setError(null);
     void load('initial');
-  }, [visible, targetId, load]);
+  }, [visible, targetId, targetKind, load]);
 
   const submit = useCallback(async () => {
     const value = text.trim();
@@ -133,7 +169,7 @@ export function CommentsSheet({ visible, track, clip = null, commentCount, onClo
       <View key={`${nested ? 'reply' : 'comment'}-${comment.id}`} style={[styles.row, nested && styles.replyRow]}>
         <View style={styles.avatar}>
           {avatar ? (
-            <Image source={{ uri: avatar }} style={StyleSheet.absoluteFillObject} />
+            <SynauraImage source={{ uri: avatar }} lowPriority style={StyleSheet.absoluteFillObject} />
           ) : (
             <Text style={styles.avatarText}>{initial}</Text>
           )}
@@ -195,25 +231,44 @@ export function CommentsSheet({ visible, track, clip = null, commentCount, onClo
           </Pressable>
         </View>
 
-        <ScrollView
+        <FlatList
+          style={styles.commentList}
+          data={disabled || loading ? [] : comments}
+          keyExtractor={(comment) => String(comment.id)}
+          renderItem={({ item }) => renderComment(item)}
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-        >
-          {initialTimestamp != null && targetKind === 'track' ? (
-            <View style={styles.momentComposerNotice}>
-              <View style={styles.momentComposerIcon}><Ionicons name="pulse" size={14} color="#F7F6F3" /></View>
-              <View style={styles.momentComposerCopy}>
-                <Text style={styles.momentComposerTitle}>Moment à {fmtTime(initialTimestamp)}</Text>
-                <Text style={styles.momentComposerText}>Ton commentaire sera attaché à ce passage précis.</Text>
-              </View>
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          updateCellsBatchingPeriod={40}
+          windowSize={5}
+          removeClippedSubviews
+          ItemSeparatorComponent={() => <View style={styles.commentSeparator} />}
+          ListHeaderComponent={(initialTimestamp != null && targetKind === 'track') || (error && comments.length) ? (
+            <View style={styles.listHeader}>
+              {initialTimestamp != null && targetKind === 'track' ? (
+                <View style={styles.momentComposerNotice}>
+                  <View style={styles.momentComposerIcon}><Ionicons name="pulse" size={14} color="#F7F6F3" /></View>
+                  <View style={styles.momentComposerCopy}>
+                    <Text style={styles.momentComposerTitle}>Moment à {fmtTime(initialTimestamp)}</Text>
+                    <Text style={styles.momentComposerText}>Ton commentaire sera attaché à ce passage précis.</Text>
+                  </View>
+                </View>
+              ) : null}
+              {error && comments.length ? (
+                <View style={styles.inlineError}>
+                  <Ionicons name="cloud-offline-outline" size={16} color={colors.coral} />
+                  <Text style={styles.inlineErrorText}>{error}</Text>
+                </View>
+              ) : null}
             </View>
           ) : null}
-          {error ? (
+          ListEmptyComponent={error ? (
             <View style={styles.errorBox}>
-              <Ionicons name="alert-circle-outline" size={22} color="#B8463C" />
+              <Ionicons name="alert-circle-outline" size={22} color={colors.coral} />
               <Text style={styles.errorText}>{error}</Text>
-              {!disabled ? <Pressable onPress={() => void load('initial')} style={styles.retryButton}><Text style={styles.retryText}>Reessayer</Text></Pressable> : null}
+              {!disabled ? <Pressable onPress={() => void load('initial')} style={styles.retryButton}><Text style={styles.retryText}>Réessayer</Text></Pressable> : null}
             </View>
           ) : disabled ? (
             <View style={styles.empty}>
@@ -225,21 +280,18 @@ export function CommentsSheet({ visible, track, clip = null, commentCount, onClo
               <ActivityIndicator color={colors.cyan} />
               <Text style={styles.emptyText}>Chargement…</Text>
             </View>
-          ) : comments.length ? (
-            <View style={{ gap: 18 }}>{comments.map((comment) => renderComment(comment))}</View>
           ) : (
             <View style={styles.empty}>
               <Ionicons name="chatbubbles-outline" size={28} color={colors.textTertiary} />
               <Text style={styles.emptyText}>Aucun commentaire pour le moment.</Text>
             </View>
           )}
-
-          {!disabled && hasMore ? (
-            <Pressable accessibilityLabel="Charger plus de commentaires" onPress={() => void load('more')} style={styles.moreButton}>
-              <Text style={styles.moreButtonText}>Charger plus</Text>
+          ListFooterComponent={!disabled && hasMore ? (
+            <Pressable disabled={loadingMore} accessibilityLabel="Charger plus de commentaires" onPress={() => void load('more')} style={[styles.moreButton, loadingMore && styles.moreButtonBusy]}>
+              {loadingMore ? <ActivityIndicator size="small" color={colors.cyan} /> : <Text style={styles.moreButtonText}>Charger plus</Text>}
             </Pressable>
           ) : null}
-        </ScrollView>
+        />
 
         {!disabled ? (
           <View style={styles.composer}>
@@ -313,7 +365,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.surfaceMuted,
   },
-  scroll: { paddingHorizontal: 18, paddingVertical: 14, paddingBottom: 24 },
+  commentList: { flex: 1 },
+  scroll: { flexGrow: 1, paddingHorizontal: 18, paddingVertical: 14, paddingBottom: 24 },
+  listHeader: { gap: 10, marginBottom: 18 },
+  commentSeparator: { height: 18 },
   row: { flexDirection: 'row', gap: 12 },
   replyRow: { marginLeft: 38, marginTop: 10 },
   avatar: {
@@ -349,7 +404,9 @@ const styles = StyleSheet.create({
   },
   emptyText: { textAlign: 'center', color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
   errorBox: { marginVertical: 12, alignItems: 'center', gap: 8, borderRadius: 12, padding: 18, backgroundColor: 'rgba(217,109,99,0.1)' },
-  errorText: { color: '#8F352E', fontSize: 12, lineHeight: 18, fontWeight: '700', textAlign: 'center' },
+  errorText: { color: colors.coral, fontSize: 12, lineHeight: 18, fontWeight: '700', textAlign: 'center' },
+  inlineError: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(217,109,99,0.22)', backgroundColor: 'rgba(217,109,99,0.08)', paddingHorizontal: 10 },
+  inlineErrorText: { flex: 1, color: colors.textSecondary, fontSize: 10, lineHeight: 14, fontWeight: '700' },
   retryButton: { borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: colors.violet },
   retryText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900' },
   moreButton: {
@@ -363,6 +420,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   moreButtonText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
+  moreButtonBusy: { opacity: 0.72 },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',

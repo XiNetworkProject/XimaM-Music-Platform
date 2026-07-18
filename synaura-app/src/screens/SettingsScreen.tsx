@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  clearHiddenRecommendationArtists,
   deleteAccount,
   getMyProfile,
   getNotificationPrefs,
@@ -25,7 +26,7 @@ import { colors } from '@/theme/tokens';
 import legalContent from '@/legal/legalDocuments.json';
 import { useAppUpdate } from '@/updates/UpdateProvider';
 import { SHOW_SHUTDOWN_NOTICES } from '@/config/features';
-import { useMobileSettings } from '@/settings/MobileSettingsProvider';
+import { useMobileSettings, type ThemeMode } from '@/settings/MobileSettingsProvider';
 import { validateSocialUrl, type SocialPlatform } from '@/utils/validateSocialUrl';
 import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
 import { AppHeader } from '@/components/ui/AppHeader';
@@ -95,6 +96,7 @@ export function SettingsScreen() {
   const [referral, setReferral] = useState<ReferralData | null>(null);
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
   const [eventPrefs, setEventPrefs] = useState<EventPrefs>({ autoParticipate: false, voteReminders: true, showBadges: true, resultNotifications: true, allowPulse: true });
+  const [hiddenArtistsCount, setHiddenArtistsCount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', bio: '', location: '', website: '', artistName: '', genreText: '', isArtist: false, instagram: '', youtube: '', tiktok: '', spotify: '', soundcloud: '', deezer: '', apple_music: '', twitch: '', discord: '', x: '', custom: '', badgesText: '', featuredTrackId: '' });
@@ -131,6 +133,9 @@ export function SettingsScreen() {
       setReferral(nextReferral);
       setUsage(nextUsage);
       setEventPrefs((current) => ({ ...current, ...((nextPreferences as Record<string, any>).events || {}) }));
+      setHiddenArtistsCount(Array.isArray((nextPreferences as Record<string, any>)?.taste?.hiddenArtistIds)
+        ? (nextPreferences as Record<string, any>).taste.hiddenArtistIds.length
+        : 0);
       setForm({
         name: nextProfile.name || '',
         bio: nextProfile.bio || '',
@@ -376,6 +381,24 @@ export function SettingsScreen() {
 
         {tab === 'preferences' ? (
           <Section title="Preferences" text="Reglages locaux de l'app mobile.">
+            <ThemeSelector
+              value={mobileSettings.settings.themeMode}
+              onChange={(themeMode) => void mobileSettings.updateSettings({ themeMode })}
+            />
+            {hiddenArtistsCount > 0 ? (
+              <View style={styles.hiddenArtistsRow}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.toggleLabel}>Artistes masqués</Text>
+                  <Text style={styles.themeHint}>{hiddenArtistsCount} artiste{hiddenArtistsCount > 1 ? 's' : ''} retiré{hiddenArtistsCount > 1 ? 's' : ''} des recommandations.</Text>
+                </View>
+                <Pressable
+                  onPress={() => void clearHiddenRecommendationArtists().then(() => setHiddenArtistsCount(0))}
+                  style={styles.restoreTasteButton}
+                >
+                  <Text style={styles.restoreTasteText}>Réafficher</Text>
+                </Pressable>
+              </View>
+            ) : null}
             <Toggle label="Autoplay" value={mobileSettings.settings.autoplay} onValueChange={(value) => void mobileSettings.updateSettings({ autoplay: value })} />
             <Toggle label="Qualite audio haute" value={mobileSettings.settings.highQuality} onValueChange={(value) => void mobileSettings.updateSettings({ highQuality: value })} />
             <Toggle label="Pochettes video" value={mobileSettings.settings.coverVideos} onValueChange={(value) => void mobileSettings.updateSettings({ coverVideos: value })} />
@@ -631,6 +654,40 @@ function Toggle({ label, value, onValueChange }: { label: string; value: boolean
   );
 }
 
+const THEME_OPTIONS: Array<{ value: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
+  { value: 'dark', label: 'Sombre', icon: 'moon-outline' },
+  { value: 'light', label: 'Clair', icon: 'sunny-outline' },
+  { value: 'system', label: 'Système', icon: 'phone-portrait-outline' },
+];
+
+function ThemeSelector({ value, onChange }: { value: ThemeMode; onChange: (value: ThemeMode) => void }) {
+  return (
+    <View style={styles.themeBlock}>
+      <View>
+        <Text style={styles.toggleLabel}>Apparence</Text>
+        <Text style={styles.themeHint}>Le lecteur et les clips restent immersifs quand le contenu le demande.</Text>
+      </View>
+      <View style={styles.themeSelector} accessibilityRole="radiogroup">
+        {THEME_OPTIONS.map((option) => {
+          const selected = value === option.value;
+          return (
+            <Pressable
+              key={option.value}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
+              onPress={() => onChange(option.value)}
+              style={({ pressed }) => [styles.themeOption, selected && styles.themeOptionActive, pressed && styles.themeOptionPressed]}
+            >
+              <Ionicons name={option.icon} size={17} color={selected ? colors.white : colors.textSecondary} />
+              <Text style={[styles.themeOptionText, selected && styles.themeOptionTextActive]}>{option.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.info}>
@@ -698,6 +755,17 @@ const styles = StyleSheet.create({
   inputMulti: { minHeight: 96, paddingTop: 12, paddingBottom: 12 },
   toggleRow: { minHeight: 50, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingHorizontal: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   toggleLabel: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '900', textTransform: 'capitalize' },
+  themeBlock: { gap: 12, paddingBottom: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  themeHint: { marginTop: 4, color: colors.textSecondary, fontSize: 10, lineHeight: 15, fontWeight: '700' },
+  themeSelector: { minHeight: 48, flexDirection: 'row', gap: 5, padding: 4, borderRadius: 12, backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  themeOption: { flex: 1, minWidth: 0, minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 9 },
+  themeOptionActive: { backgroundColor: colors.violet },
+  themeOptionPressed: { opacity: 0.76 },
+  themeOptionText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
+  themeOptionTextActive: { color: colors.white },
+  hiddenArtistsRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingBottom: 12 },
+  restoreTasteButton: { minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong, paddingHorizontal: 12 },
+  restoreTasteText: { color: colors.text, fontSize: 10, fontWeight: '900' },
   info: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingVertical: 11, gap: 5 },
   infoLabel: { color: colors.textTertiary, fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
   infoValue: { color: colors.text, fontSize: 14, fontWeight: '900' },

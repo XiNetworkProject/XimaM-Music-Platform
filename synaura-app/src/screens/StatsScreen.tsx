@@ -23,6 +23,7 @@ import { SynauraBackground } from '@/components/SynauraBackground';
 import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { colors, radius, shadows } from '@/theme/tokens';
+import { navigatePrimaryTab } from '@/navigation/navigatePrimaryTab';
 import type {
   CreatorAudienceStats,
   CreatorPostStat,
@@ -345,7 +346,7 @@ export function StatsScreen() {
             <Panel eyebrow="Continuer" title="Agir depuis tes chiffres">
               <View style={styles.actionsRow}>
                 <ActionButton icon="sparkles-outline" label="Créer un son" primary onPress={() => navigation.navigate('AIStudio')} />
-                <ActionButton icon="person-outline" label="Mon profil" onPress={() => navigation.navigate('Profile')} />
+                <ActionButton icon="person-outline" label="Mon profil" onPress={() => navigatePrimaryTab(navigation, 'Profile')} />
                 <ActionButton icon="flash-outline" label="Events" onPress={() => navigation.navigate('City')} />
               </View>
             </Panel>

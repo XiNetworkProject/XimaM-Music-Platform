@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, StyleSheet, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
 import Video from 'react-native-video';
 import type { Track } from '@/api/types';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { colors } from '@/theme/tokens';
 
@@ -123,12 +124,11 @@ export function TrackCover({
 
   return (
     <View style={[styles.root, style]}>
-      <Image
+      <SynauraImage
         source={image && !imageFailed ? { uri: image } : require('../assets/synaura-symbol-2026.png')}
         style={[StyleSheet.absoluteFill, imageStyle, !image || imageFailed ? styles.fallback : null]}
-        resizeMode={image && !imageFailed && contentFit !== 'contain' ? 'cover' : 'contain'}
-        resizeMethod="resize"
-        fadeDuration={0}
+        contentFit={image && !imageFailed ? contentFit : 'contain'}
+        transition={80}
         onError={() => setImageFailed(true)}
       />
       {showVideo && activeVideo ? (

@@ -25,6 +25,7 @@ import { usePlayer } from '@/player/PlayerProvider';
 import { colors, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
+import { navigatePrimaryTab } from '@/navigation/navigatePrimaryTab';
 
 const emptyHome: HomeData = {
   forYou: [],
@@ -130,7 +131,7 @@ export function HomeV2Screen() {
         </View>
 
         {player.current ? (
-          <Pressable onPress={() => navigation.navigate('Swipe')} style={styles.resume}>
+          <Pressable onPress={() => navigatePrimaryTab(navigation, 'Swipe')} style={styles.resume}>
             <TrackCover track={player.current} active={player.isPlaying} style={styles.resumeCover} />
             <View style={styles.resumeCopy}>
               <Text style={styles.resumeKicker}>REPRENDRE L'ÉCOUTE</Text>
@@ -156,7 +157,7 @@ export function HomeV2Screen() {
                   <Ionicons name={player.current?._id === hero._id && player.isPlaying ? 'pause' : 'play'} size={18} color={colors.black} />
                   <Text style={styles.heroPlayText}>{player.current?._id === hero._id && player.isPlaying ? 'En lecture' : 'Écouter'}</Text>
                 </Pressable>
-                <Pressable onPress={() => navigation.navigate('Swipe')} style={styles.heroScroll}>
+                <Pressable onPress={() => navigatePrimaryTab(navigation, 'Swipe')} style={styles.heroScroll}>
                   <Text style={styles.heroScrollLetter}>S</Text>
                   <Text style={styles.heroScrollText}>Scroll</Text>
                 </Pressable>
@@ -166,7 +167,7 @@ export function HomeV2Screen() {
         ) : loading ? <ActivityIndicator color={colors.text} style={styles.loader} /> : null}
 
         <View style={styles.shortcutRow}>
-          <Shortcut icon="musical-notes-outline" title="Scroll" subtitle="Découvrir maintenant" onPress={() => navigation.navigate('Swipe')} />
+          <Shortcut icon="musical-notes-outline" title="Scroll" subtitle="Découvrir maintenant" onPress={() => navigatePrimaryTab(navigation, 'Swipe')} />
           <Shortcut icon="sparkles-outline" title="Studio" subtitle="Créer un morceau" onPress={() => navigation.navigate('AIStudio')} />
         </View>
 
@@ -182,7 +183,7 @@ export function HomeV2Screen() {
           postsCount={data.posts.length}
           creatorsCount={data.creators.length}
           onOpen={() => navigation.navigate('City')}
-          onScroll={() => navigation.navigate('Swipe')}
+          onScroll={() => navigatePrimaryTab(navigation, 'Swipe')}
         />
 
         {featuredCollection ? (
@@ -192,13 +193,13 @@ export function HomeV2Screen() {
           />
         ) : null}
 
-        <TrackRail title="Pour toi" tracks={forYou.length ? forYou : recommendations} player={player} onPlay={(track) => playFrom(forYou.length ? forYou : recommendations, track)} onSeeAll={() => navigation.navigate('Discover')} />
-        <TrackRail title="Tendances maintenant" tracks={trending} player={player} onPlay={(track) => playFrom(trending, track)} onSeeAll={() => navigation.navigate('Discover')} />
-        <TrackRail title="Mis en avant" tracks={boosted} player={player} onPlay={(track) => playFrom(boosted, track)} onSeeAll={() => navigation.navigate('Discover')} />
+        <TrackRail title="Pour toi" tracks={forYou.length ? forYou : recommendations} player={player} onPlay={(track) => playFrom(forYou.length ? forYou : recommendations, track)} onSeeAll={() => navigatePrimaryTab(navigation, 'Discover')} />
+        <TrackRail title="Tendances maintenant" tracks={trending} player={player} onPlay={(track) => playFrom(trending, track)} onSeeAll={() => navigatePrimaryTab(navigation, 'Discover')} />
+        <TrackRail title="Mis en avant" tracks={boosted} player={player} onPlay={(track) => playFrom(boosted, track)} onSeeAll={() => navigatePrimaryTab(navigation, 'Discover')} />
 
         {data.creators.length ? (
           <>
-            <SectionHeader title="Artistes qui montent" action="Explorer" onPress={() => navigation.navigate('Discover')} />
+            <SectionHeader title="Artistes qui montent" action="Explorer" onPress={() => navigatePrimaryTab(navigation, 'Discover')} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.creatorRail}>
               {data.creators.slice(0, 8).map((creator) => (
                 <CreatorBubble key={creator.id} creator={creator} onPress={() => navigation.navigate('PublicProfile', { username: creator.handle.replace(/^@/, '') })} />
@@ -209,7 +210,7 @@ export function HomeV2Screen() {
 
         {data.playlists.length ? (
           <>
-            <SectionHeader title="Playlists et ambiances" action="Voir" onPress={() => navigation.navigate('Library')} />
+            <SectionHeader title="Playlists et ambiances" action="Voir" onPress={() => navigatePrimaryTab(navigation, 'Library')} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.playlistRail}>
               {data.playlists.slice(0, 8).map((playlist) => (
                 <PlaylistTile key={playlist.id} playlist={playlist} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.slug || playlist.id })} />

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
@@ -19,6 +19,9 @@ import { ProfileClipGrid } from '@/components/profile/ProfileClipGrid';
 import { ProfileMusicCatalog } from '@/components/profile/ProfileMusicCatalog';
 import { ProfileShareSheet } from '@/components/profile/ProfileShareSheet';
 import { colors } from '@/theme/tokens';
+import { useQueryClient } from '@tanstack/react-query';
+import { SynauraImage } from '@/components/ui/SynauraImage';
+import { navigatePrimaryTab } from '@/navigation/navigatePrimaryTab';
 
 type Tab = 'sons' | 'clips' | 'variations' | 'playlists' | 'posts';
 
@@ -41,6 +44,7 @@ export function PublicProfileScreen() {
   const navigation = useNavigation<any>();
   const responsive = useResponsiveLayout();
   const player = usePlayer();
+  const queryClient = useQueryClient();
   const [profile, setProfile] = useState<MobileProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('sons');
@@ -64,11 +68,22 @@ export function PublicProfileScreen() {
 
   const load = useCallback(async () => {
     if (!username) return;
-    setLoading(true);
+    const profileKey = ['mobile-profile', 'public', username] as const;
+    const cachedProfile = queryClient.getQueryData<MobileProfile>(profileKey);
+    if (cachedProfile) setProfile(cachedProfile);
+    setLoading(!cachedProfile);
     try {
-      const nextProfile = await getPublicProfile(username);
+      const nextProfile = await queryClient.fetchQuery({
+        queryKey: profileKey,
+        queryFn: () => getPublicProfile(username),
+        staleTime: 45_000,
+      });
       setProfile(nextProfile);
-      void getUserPostsPage(nextProfile.id)
+      void queryClient.fetchQuery({
+        queryKey: ['profile-posts', nextProfile.id, null],
+        queryFn: () => getUserPostsPage(nextProfile.id),
+        staleTime: 30_000,
+      })
         .then((page) => {
           setPosts(page.posts.map((post) => ({ ...post, isPinned: post.id === nextProfile.pinnedPostId })).sort((a, b) => Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned))));
           setPostsCursor(page.nextCursor);
@@ -85,7 +100,7 @@ export function PublicProfileScreen() {
     } finally {
       setLoading(false);
     }
-  }, [username]);
+  }, [queryClient, username]);
 
   const loadClips = useCallback(async (cursor = 0, target?: { creatorId?: string; creatorUsername?: string }) => {
     const creatorUsername = target?.creatorUsername || username;
@@ -95,12 +110,14 @@ export function PublicProfileScreen() {
     else setClipsLoading(true);
     setClipsError(null);
     try {
-      const result = await getProfileMusicClips({
-        creatorUsername,
-        creatorId: target?.creatorId,
-        limit: 24,
-        cursor,
-      });
+      const input = { creatorUsername, creatorId: target?.creatorId, limit: 24, cursor };
+      const result = cursor > 0
+        ? await getProfileMusicClips(input)
+        : await queryClient.fetchQuery({
+          queryKey: ['profile-clips', target?.creatorId || creatorUsername, 0],
+          queryFn: () => getProfileMusicClips(input),
+          staleTime: 30_000,
+        });
       if (requestId !== clipsRequestRef.current) return;
       setClips((current) => {
         if (!cursor) return result.clips;
@@ -120,7 +137,7 @@ export function PublicProfileScreen() {
         setClipsLoadingMore(false);
       }
     }
-  }, [username]);
+  }, [queryClient, username]);
 
   useFocusEffect(useCallback(() => {
     void load().then((nextProfile) => {
@@ -288,7 +305,7 @@ export function PublicProfileScreen() {
                 <Text style={styles.retryText}>Recharger les clips</Text>
               </Pressable>
             ) : (
-              <ProfileClipGrid clips={clips} maxItems={responsive.isTablet ? 4 : 2} onOpen={(clip) => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })} />
+              <ProfileClipGrid clips={clips} maxItems={responsive.isTablet ? 4 : 2} onOpen={(clip) => navigatePrimaryTab(navigation, 'Swipe', { mode: 'clips', clipId: clip.id })} />
             )}
           </View>
         ) : null}
@@ -336,7 +353,7 @@ export function PublicProfileScreen() {
                 <Text style={styles.retryText}>Recharger les clips</Text>
               </Pressable>
             ) : clips.length ? (
-              <ProfileClipGrid clips={clips} onOpen={(clip) => navigation.navigate('Swipe', { mode: 'clips', clipId: clip.id })} />
+              <ProfileClipGrid clips={clips} onOpen={(clip) => navigatePrimaryTab(navigation, 'Swipe', { mode: 'clips', clipId: clip.id })} />
             ) : <Text style={styles.empty}>{profile.username === username ? "Tu n'as pas encore publié de clip." : 'Aucun clip publié.'}</Text>}
             {clipsHasMore ? (
               <Pressable disabled={clipsLoadingMore} onPress={() => void loadClips(clipsCursor, { creatorId: profile.id, creatorUsername: profile.username })} style={styles.retryButton}>
@@ -353,7 +370,7 @@ export function PublicProfileScreen() {
               <ActivityIndicator color={colors.violet} style={{ marginVertical: 20 }} />
             ) : variations.length ? variations.map((v) => (
               <Pressable key={v.id} onPress={() => navigation.navigate('TrackDetail', { trackId: v.id })} style={styles.trackRow}>
-                {v.coverUrl ? <Image source={{ uri: v.coverUrl }} style={styles.trackCover} /> : <View style={styles.trackCover} />}
+                {v.coverUrl ? <SynauraImage source={{ uri: v.coverUrl }} lowPriority style={styles.trackCover} /> : <View style={styles.trackCover} />}
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text numberOfLines={1} style={styles.trackTitle}>{v.title}</Text>
                   <Text style={styles.trackMeta}>IA · {compact(v.plays || 0)} écoutes</Text>
@@ -368,7 +385,7 @@ export function PublicProfileScreen() {
           <View style={styles.card}>
             {profile.playlists.length ? profile.playlists.map((playlist) => (
               <Pressable key={playlist.id} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.id })} style={styles.albumRow}>
-                <View style={styles.albumCover}>{playlist.coverUrl ? <Image source={{ uri: playlist.coverUrl }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={20} color={colors.textTertiary} />}</View>
+                <View style={styles.albumCover}>{playlist.coverUrl ? <SynauraImage source={{ uri: playlist.coverUrl }} lowPriority style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={20} color={colors.textTertiary} />}</View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.trackTitle}>{playlist.title}</Text>
                   <Text style={styles.trackMeta}>{playlist.tracksCount} sons</Text>

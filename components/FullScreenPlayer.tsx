@@ -2,12 +2,13 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronUp, ListMusic, MessageSquare, Pause, Play, Radio, Repeat2, Share2, SkipBack, SkipForward, Sparkles, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, EyeOff, Info, ListMusic, MessageSquare, Pause, Play, Radio, Repeat2, Share2, SkipBack, SkipForward, SlidersHorizontal, Sparkles, ThumbsDown, ThumbsUp, Trash2, X } from 'lucide-react';
 import { useAudioPlayer, useAudioTime } from '@/app/providers';
 import TikTokPlayer from './TikTokPlayer';
 import TrackCover from './TrackCover';
 import TrackCreateRemixActions from './TrackCreateRemixActions';
 import TrackShareCardModal from './share/TrackShareCardModal';
+import { recommendationReasonLabel } from '@/lib/recommendation/reasonLabels';
 
 function toTime(seconds: number) {
   const safe = Math.max(0, Math.floor(seconds || 0));
@@ -200,6 +201,61 @@ function QueuePanel({
   );
 }
 
+function TastePanel({
+  explanation,
+  canHideArtist,
+  busy,
+  feedback,
+  onAction,
+  onClose,
+}: {
+  explanation: string;
+  canHideArtist: boolean;
+  busy: 'more' | 'less' | 'hide_artist' | null;
+  feedback: string;
+  onAction: (action: 'more' | 'less' | 'hide_artist') => void;
+  onClose: () => void;
+}) {
+  const actions = [
+    { action: 'more' as const, label: 'Plus comme ça', icon: ThumbsUp, disabled: false },
+    { action: 'less' as const, label: 'Moins comme ça', icon: ThumbsDown, disabled: false },
+    { action: 'hide_artist' as const, label: 'Masquer cet artiste', icon: EyeOff, disabled: !canHideArtist },
+  ];
+  return (
+    <div className="mx-auto mb-2 max-w-[980px] rounded-[1.25rem] border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] p-3 text-[var(--syn-text-primary)] shadow-[0_22px_60px_var(--syn-shadow)] backdrop-blur-2xl">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#4A9EAA]">Affiner ton Flow</p>
+          {explanation ? (
+            <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-[var(--syn-text-secondary)]">
+              <Info className="h-4 w-4 shrink-0 text-[#4A9EAA]" />
+              <span><strong className="text-[var(--syn-text-primary)]">Pourquoi ce morceau ?</strong> {explanation}</span>
+            </div>
+          ) : null}
+        </div>
+        <button type="button" onClick={onClose} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--syn-soft)] text-[var(--syn-text-secondary)]" aria-label="Fermer">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {actions.map(({ action, label, icon: Icon, disabled }) => (
+          <button
+            key={action}
+            type="button"
+            disabled={disabled || Boolean(busy)}
+            onClick={() => onAction(action)}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--syn-border)] bg-[var(--syn-soft)] px-3 text-xs font-black transition hover:bg-[var(--syn-soft-strong)] disabled:opacity-40"
+          >
+            <Icon className="h-4 w-4" />
+            {busy === action ? 'Enregistrement...' : label}
+          </button>
+        ))}
+      </div>
+      {feedback ? <p className="mt-2 text-xs font-bold text-[#4A9EAA]">{feedback}</p> : null}
+    </div>
+  );
+}
+
 export default function SynauraMiniPlayer() {
   const {
     audioState,
@@ -224,6 +280,9 @@ export default function SynauraMiniPlayer() {
   const [showTikTok, setShowTikTok] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [showTaste, setShowTaste] = useState(false);
+  const [tasteBusy, setTasteBusy] = useState<'more' | 'less' | 'hide_artist' | null>(null);
+  const [tasteFeedback, setTasteFeedback] = useState('');
   const [relatedTracks, setRelatedTracks] = useState<any[]>([]);
   const [relatedLabel, setRelatedLabel] = useState('');
 
@@ -251,6 +310,8 @@ export default function SynauraMiniPlayer() {
 
   const progressPct = duration ? ((currentTime || 0) / duration) * 100 : 0;
   const artistUsername = (currentTrack as any)?.artist?.username;
+  const artistId = String((currentTrack as any)?.artist?._id || '');
+  const tasteExplanation = recommendationReasonLabel((currentTrack as any)?.recommendationReasons, relatedLabel);
   const nextQueueTracks = audioState.tracks.slice(Math.max(0, audioState.currentTrackIndex + 1), audioState.currentTrackIndex + 6);
 
   useEffect(() => {
@@ -317,6 +378,38 @@ export default function SynauraMiniPlayer() {
     } catch {}
   };
 
+  const applyTaste = async (action: 'more' | 'less' | 'hide_artist') => {
+    if (!currentTrackId || tasteBusy) return;
+    setTasteBusy(action);
+    setTasteFeedback('');
+    try {
+      const response = await fetch('/api/recommendations/taste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, trackId: currentTrackId, artistId: artistId || undefined, source: 'web-global-player' }),
+      });
+      if (!response.ok) throw new Error();
+      setTasteFeedback(action === 'more'
+        ? 'Compris, Synaura cherchera davantage cette aura.'
+        : action === 'less'
+          ? 'Compris, ce type de son sera moins présent.'
+          : 'Cet artiste ne sera plus proposé dans ton Flow.');
+      if (action !== 'more') {
+        setShowTaste(false);
+        nextTrack();
+      }
+    } catch {
+      setTasteFeedback('Connecte-toi pour personnaliser durablement ton Flow.');
+    } finally {
+      setTasteBusy(null);
+    }
+  };
+
+  useEffect(() => {
+    setTasteFeedback('');
+    setTasteBusy(null);
+  }, [currentTrackId]);
+
   useEffect(() => {
     if (showTikTok) return;
     const onKey = (event: KeyboardEvent) => {
@@ -369,7 +462,17 @@ export default function SynauraMiniPlayer() {
                   onClose={() => setShowQueue(false)}
                 />
               ) : null}
-              <div className="mx-auto max-w-[980px] overflow-hidden rounded-[1.1rem] border border-black/[0.08] bg-[#fffaf2]/96 text-[#171313] shadow-[0_18px_48px_rgba(30,25,20,0.20)] backdrop-blur-2xl sm:rounded-[1.45rem] sm:shadow-[0_22px_60px_rgba(30,25,20,0.22)]">
+              {showTaste ? (
+                <TastePanel
+                  explanation={tasteExplanation}
+                  canHideArtist={Boolean(artistId)}
+                  busy={tasteBusy}
+                  feedback={tasteFeedback}
+                  onAction={(action) => void applyTaste(action)}
+                  onClose={() => setShowTaste(false)}
+                />
+              ) : null}
+              <div className="mx-auto max-w-[980px] overflow-hidden rounded-[1.1rem] border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] text-[var(--syn-text-primary)] shadow-[0_18px_48px_var(--syn-shadow)] backdrop-blur-2xl sm:rounded-[1.45rem] sm:shadow-[0_22px_60px_var(--syn-shadow)]">
                 <div
                   ref={progressRef}
                   onClick={onProgressClick}
@@ -478,6 +581,18 @@ export default function SynauraMiniPlayer() {
                       Feed
                     </button>
                     <button
+                      onClick={() => {
+                        setShowTaste((value) => !value);
+                        setShowQueue(false);
+                      }}
+                      className="inline-flex h-9 items-center gap-2 rounded-full bg-[var(--syn-soft)] px-3 text-xs font-black text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-soft-strong)] hover:text-[var(--syn-text-primary)]"
+                      aria-label="Affiner le Flow"
+                      title="Affiner le Flow"
+                    >
+                      <SlidersHorizontal className="h-3.5 w-3.5" />
+                      Affiner
+                    </button>
+                    <button
                       onClick={() => setShowQueue((value) => !value)}
                       className="inline-flex h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313]"
                       aria-label="À suivre"
@@ -533,6 +648,16 @@ export default function SynauraMiniPlayer() {
                     aria-label={audioState.isPlaying ? 'Pause' : 'Play'}
                   >
                     {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="ml-0.5 w-4 h-4 fill-current" />}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowTaste((value) => !value);
+                      setShowQueue(false);
+                    }}
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--syn-soft)] text-[var(--syn-text-secondary)]"
+                    aria-label="Affiner le Flow"
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => setShowTikTok(true)}

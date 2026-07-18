@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    // Pour l'instant, on retourne juste un message de succès
-    // En production, on pourrait invalider le token côté serveur
-    return NextResponse.json({
-      success: true,
-      data: {
-        message: 'Déconnexion réussie'
-      }
+    const authorization = request.headers.get('authorization');
+    const token = authorization?.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+    if (token) await supabaseAdmin.auth.admin.signOut(token, 'global').catch(() => undefined);
+
+    return NextResponse.json({ success: true, data: { message: 'Déconnexion réussie' } }, {
+      headers: { 'Cache-Control': 'private, no-store' },
     });
-  } catch (error) {
-    console.error('❌ Erreur lors de la déconnexion mobile:', error);
-    return NextResponse.json(
-      { error: 'Erreur lors de la déconnexion' },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: 'Erreur lors de la déconnexion' }, { status: 500 });
   }
-} 
+}

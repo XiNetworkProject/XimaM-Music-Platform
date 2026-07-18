@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { HomePost, Track } from '@/api/types';
@@ -9,6 +9,7 @@ import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard
 import { PostShareSheet } from '@/components/social/PostShareSheet';
 import { colors } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 type Props = {
   post: HomePost;
@@ -68,7 +69,7 @@ export const PostSlide = memo(function PostSlide(props: Props) {
     <View style={[styles.page, { height }]}>
       {visual ? (
         <>
-          <Image source={{ uri: visual }} blurRadius={34} style={styles.backdropImage} />
+          <SynauraImage source={{ uri: visual }} blurRadius={34} lowPriority={!active} transition={0} style={styles.backdropImage} />
           <LinearGradient colors={['rgba(11,11,11,0.70)', 'rgba(18,15,16,0.82)', '#0B0B0B']} locations={[0, 0.52, 1]} style={StyleSheet.absoluteFillObject} />
         </>
       ) : (
@@ -89,7 +90,7 @@ export const PostSlide = memo(function PostSlide(props: Props) {
       >
         <View style={styles.authorRow}>
           <Pressable accessibilityLabel="Ouvrir le profil" onPress={onOpenProfile} style={[styles.avatar, responsive.isVeryShort && styles.avatarCompact]}>
-            {post.avatar?.startsWith('http') ? <Image source={{ uri: post.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.avatarText}>{initial}</Text>}
+            {post.avatar?.startsWith('http') ? <SynauraImage source={{ uri: post.avatar }} lowPriority={!active} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.avatarText}>{initial}</Text>}
           </Pressable>
           <Pressable accessibilityLabel="Ouvrir le profil" onPress={onOpenProfile} style={styles.authorCopy}>
             <Text numberOfLines={1} style={styles.author}>{post.author}</Text>
@@ -110,7 +111,7 @@ export const PostSlide = memo(function PostSlide(props: Props) {
 
           {post.imageUrl && !(responsive.isVeryShort && post.track) ? (
             <Pressable accessibilityLabel="Ouvrir la publication" onPress={onOpenPost} style={[styles.postImageWrap, responsive.isShort && styles.postImageWrapShort, responsive.isVeryShort && styles.postImageWrapVeryShort]}>
-              <Image source={{ uri: post.imageUrl }} resizeMode="cover" style={styles.postImage} />
+              <SynauraImage source={{ uri: post.imageUrl }} lowPriority={!active} style={styles.postImage} />
             </Pressable>
           ) : null}
 

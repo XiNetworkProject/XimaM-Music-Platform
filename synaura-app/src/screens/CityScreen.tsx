@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Animated,
   FlatList,
-  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -45,6 +44,7 @@ import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { usePlayer } from '@/player/PlayerProvider';
 import { colors, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 function compact(value: number | undefined) {
   const next = Number(value || 0);
@@ -386,7 +386,7 @@ function ArtistCard({ artist, index, onOpen, onPlay }: { artist: CityArtist; ind
     <Reveal delay={index * 45}>
       <View style={styles.artistCard}>
         <LinearGradient colors={['#FFE4DD', '#EEE9FF', '#E0F7F5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.artistTop} />
-        <Image source={artist.avatar ? { uri: artist.avatar } : require('../assets/synaura-symbol-2026.png')} style={styles.artistAvatar} />
+        <SynauraImage source={artist.avatar ? { uri: artist.avatar } : require('../assets/synaura-symbol-2026.png')} lowPriority style={styles.artistAvatar} />
         <View style={styles.artistBody}>
           <Text style={styles.artistBooster}>NOUVEAU TALENT DÉCOUVERT</Text>
           <Text numberOfLines={1} style={styles.artistName}>{artist.name}</Text>
@@ -446,7 +446,7 @@ function BattleCard({ event, voting, player, onPlay, onVote, onDetails, onClaim 
   const canVote = Boolean(event.isLive);
   return (
     <View style={styles.battle}>
-      <LinearGradient colors={['#EEE9FF', '#FFF4ED']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={['#18151C', '#231B22', '#173034']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       <View style={styles.battleHeader}><View style={styles.battleHeaderCopy}><Text style={styles.battleKicker}>{canVote ? 'VOTE EN COURS' : event.isEnded ? 'VOTE TERMINÉ' : 'PROCHAIN VOTE'}</Text><Text style={styles.battleTitle}>{event.title}</Text><Text style={styles.battleMeta}>{event.totalVotes || 0} votes · quel son mérite la vitrine ?</Text></View><MotionPressable onPress={onDetails} style={styles.battleFlash}><Ionicons name="people" size={20} color={colors.paper} /></MotionPressable></View>
       <BattleDuel event={event} />
       <View style={styles.battleGrid}>
@@ -518,7 +518,7 @@ function CreatorProgress({ artist, onCreate }: { artist: CityArtist | null; onCr
       <LinearGradient colors={['#171313', '#32262A']} style={StyleSheet.absoluteFill} />
       <Text style={styles.creatorKicker}>CARTE ARTISTE ÉVOLUTIVE</Text>
       <Text style={styles.creatorTitle}>Ton activité construit ton statut.</Text>
-      {artist ? <View style={styles.creatorBody}><Image source={artist.avatar ? { uri: artist.avatar } : require('../assets/synaura-symbol-2026.png')} style={styles.creatorAvatar} /><View style={styles.creatorCopy}><Text style={styles.creatorLevel}>NIVEAU {artist.level}</Text><Text style={styles.creatorLevelName}>{artist.levelName}</Text><Text style={styles.creatorXp}>{artist.xp} XP · {artist.trackCount} sons</Text></View><View style={styles.creatorFullBar}><LinearGradient colors={[colors.cyan, colors.violet, colors.coral]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.creatorBarFill, { width: `${progress}%` }]} /></View><Text style={styles.creatorNext}>{Math.max(0, artist.nextLevelXp - artist.xp)} XP avant le prochain niveau</Text></View> : <View style={styles.creatorEmpty}><Text style={styles.creatorEmptyText}>Publie ton premier son pour créer ta carte artiste.</Text><MotionPressable onPress={onCreate} style={styles.creatorButton}><Text style={styles.creatorButtonText}>Commencer</Text></MotionPressable></View>}
+      {artist ? <View style={styles.creatorBody}><SynauraImage source={artist.avatar ? { uri: artist.avatar } : require('../assets/synaura-symbol-2026.png')} lowPriority style={styles.creatorAvatar} /><View style={styles.creatorCopy}><Text style={styles.creatorLevel}>NIVEAU {artist.level}</Text><Text style={styles.creatorLevelName}>{artist.levelName}</Text><Text style={styles.creatorXp}>{artist.xp} XP · {artist.trackCount} sons</Text></View><View style={styles.creatorFullBar}><LinearGradient colors={[colors.cyan, colors.violet, colors.coral]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.creatorBarFill, { width: `${progress}%` }]} /></View><Text style={styles.creatorNext}>{Math.max(0, artist.nextLevelXp - artist.xp)} XP avant le prochain niveau</Text></View> : <View style={styles.creatorEmpty}><Text style={styles.creatorEmptyText}>Publie ton premier son pour créer ta carte artiste.</Text><MotionPressable onPress={onCreate} style={styles.creatorButton}><Text style={styles.creatorButtonText}>Commencer</Text></MotionPressable></View>}
     </View>
   );
 }
@@ -615,7 +615,7 @@ function TrackPickerSheet({ event, busy, onClose, onPick, onCreate }: { event: C
           {loadError ? <Text style={styles.sheetError}>{loadError}</Text> : tracks === null ? <View style={styles.sheetLoading}><ActivityIndicator color={colors.text} /></View> : tracks.length === 0 ? <View style={styles.sheetEmpty}><Ionicons name="musical-notes" size={26} color={colors.textTertiary} /><Text style={styles.sheetEmptyText}>Tu n’as pas encore publié de son.</Text><MotionPressable onPress={onCreate} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Publier un son</Text></MotionPressable></View> : (
             <FlatList data={tracks} keyExtractor={(item) => item.id} style={styles.sheetList} showsVerticalScrollIndicator={false} renderItem={({ item }) => {
               const isSelected = selected === item.id;
-              return <Pressable onPress={() => setSelected(item.id)} style={[styles.sheetTrack, isSelected && styles.sheetTrackSelected]}><Image source={item.coverVideoPosterUrl || item.coverUrl ? { uri: item.coverVideoPosterUrl || item.coverUrl || '' } : require('../assets/synaura-symbol-2026.png')} style={styles.sheetCover} /><View style={styles.sheetTrackCopy}><Text numberOfLines={1} style={styles.sheetTrackTitle}>{item.title}</Text><Text numberOfLines={1} style={styles.sheetTrackDate}>{item.createdAt ? new Date(item.createdAt).toLocaleDateString('fr-FR') : 'Mon son'}</Text></View><View style={[styles.sheetCheck, isSelected && styles.sheetCheckSelected]}>{isSelected ? <Ionicons name="checkmark" size={14} color={colors.paper} /> : null}</View></Pressable>;
+              return <Pressable onPress={() => setSelected(item.id)} style={[styles.sheetTrack, isSelected && styles.sheetTrackSelected]}><SynauraImage source={item.coverVideoPosterUrl || item.coverUrl ? { uri: item.coverVideoPosterUrl || item.coverUrl || '' } : require('../assets/synaura-symbol-2026.png')} lowPriority style={styles.sheetCover} /><View style={styles.sheetTrackCopy}><Text numberOfLines={1} style={styles.sheetTrackTitle}>{item.title}</Text><Text numberOfLines={1} style={styles.sheetTrackDate}>{item.createdAt ? new Date(item.createdAt).toLocaleDateString('fr-FR') : 'Mon son'}</Text></View><View style={[styles.sheetCheck, isSelected && styles.sheetCheckSelected]}>{isSelected ? <Ionicons name="checkmark" size={14} color={colors.paper} /> : null}</View></Pressable>;
             }} />
           )}
           <MotionPressable disabled={!selected || busy} onPress={() => selected && onPick(selected)} style={[styles.sheetSubmit, (!selected || busy) && styles.sheetSubmitDisabled]}><Ionicons name={busy ? 'hourglass' : 'rocket'} size={15} color={colors.paper} /><Text style={styles.sheetSubmitText}>{busy ? 'Inscription en cours...' : 'Inscrire ce son'}</Text></MotionPressable>
@@ -728,8 +728,8 @@ const styles = StyleSheet.create({
   battleHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   battleHeaderCopy: { flex: 1 },
   battleKicker: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  battleTitle: { marginTop: 5, color: '#111111', fontSize: 20, fontWeight: '900' },
-  battleMeta: { marginTop: 3, color: 'rgba(17,17,17,0.58)', fontSize: 9, fontWeight: '800' },
+  battleTitle: { marginTop: 5, color: colors.paper, fontSize: 20, fontWeight: '900' },
+  battleMeta: { marginTop: 3, color: 'rgba(247,246,243,0.58)', fontSize: 9, fontWeight: '800' },
   battleFlash: { width: 43, height: 43, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   battleGrid: { marginTop: 13, flexDirection: 'row', gap: 8 },
   battleRewardButton: { minHeight: 42, marginTop: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 12, backgroundColor: colors.violet },

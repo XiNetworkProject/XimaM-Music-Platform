@@ -146,7 +146,7 @@ export function OnboardingScreen() {
   if (!ready) {
     return (
       <View style={styles.screen}>
-        <StatusBar style="dark" backgroundColor="#F7F6F3" />
+        <StatusBar style="light" backgroundColor="#0D0D0D" />
         <View style={styles.loadingFill}>
           <View style={styles.loadingMark}><Ionicons name="musical-notes" size={22} color="#FFFFFF" /></View>
           <ActivityIndicator color={colors.violet} />
@@ -157,7 +157,7 @@ export function OnboardingScreen() {
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="dark" backgroundColor="#F7F6F3" />
+      <StatusBar style="light" backgroundColor="#0D0D0D" />
       <ScrollView
         contentInsetAdjustmentBehavior="never"
         keyboardShouldPersistTaps="handled"
@@ -182,7 +182,7 @@ export function OnboardingScreen() {
           </View>
           {isEdit ? (
             <Pressable accessibilityLabel="Fermer" onPress={() => navigation.goBack()} style={styles.closeButton}>
-              <Ionicons name="close" size={19} color="#111111" />
+              <Ionicons name="close" size={19} color="#F7F6F3" />
             </Pressable>
           ) : (
             <Pressable disabled={saving} onPress={() => void savePreferences(true)} style={styles.topSkip}>
@@ -244,7 +244,7 @@ export function OnboardingScreen() {
                       scaleTo={0.97}
                     >
                       <View style={[styles.tileIcon, active && styles.tileIconActive]}>
-                        <Ionicons name={UNIVERSE_ICON[option.id]} size={19} color={active ? '#FFFFFF' : '#111111'} />
+                        <Ionicons name={UNIVERSE_ICON[option.id]} size={19} color="#F7F6F3" />
                       </View>
                       <Text numberOfLines={2} style={styles.tileLabel}>{option.label}</Text>
                       <View style={[styles.check, active && styles.checkActive]}>
@@ -280,10 +280,10 @@ export function OnboardingScreen() {
                       scaleTo={0.985}
                     >
                       <View style={[styles.intentionIcon, active && styles.intentionIconActive]}>
-                        <Ionicons name={INTENTION_ICON[option.id]} size={17} color={active ? '#FFFFFF' : '#111111'} />
+                        <Ionicons name={INTENTION_ICON[option.id]} size={17} color="#F7F6F3" />
                       </View>
                       <Text style={styles.intentionLabel}>{option.label}</Text>
-                      <Ionicons name={active ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={active ? colors.violet : 'rgba(17,17,17,0.22)'} />
+                      <Ionicons name={active ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={active ? colors.violet : 'rgba(247,246,243,0.28)'} />
                     </MotionPressable>
                   );
                 })}
@@ -320,7 +320,7 @@ export function OnboardingScreen() {
                 </View>
                 {nativeNotifications.status !== 'ready' ? (
                   <Pressable disabled={nativeNotifications.status === 'requesting'} onPress={() => void activateNotifications()} style={[styles.notificationAction, (layout.isTiny || layout.hasLargeText) && styles.notificationActionStacked]}>
-                    {nativeNotifications.status === 'requesting' ? <ActivityIndicator size="small" color="#111111" /> : <Text style={styles.notificationActionText}>Activer</Text>}
+                    {nativeNotifications.status === 'requesting' ? <ActivityIndicator size="small" color="#F7F6F3" /> : <Text style={styles.notificationActionText}>Activer</Text>}
                   </Pressable>
                 ) : null}
               </View>
@@ -345,7 +345,7 @@ function StepHeader({ onBack, eyebrow, title, subtitle, selected }: { onBack?: (
     <View style={styles.stepHeader}>
       {onBack ? (
         <Pressable accessibilityLabel="Retour" onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={17} color="#111111" />
+          <Ionicons name="arrow-back" size={17} color="#F7F6F3" />
         </Pressable>
       ) : null}
       <View style={styles.stepEyebrowRow}>
@@ -385,79 +385,79 @@ function SummaryBlock({ icon, label, value }: { icon: keyof typeof Ionicons.glyp
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F7F6F3' },
+  screen: { flex: 1, backgroundColor: '#0D0D0D' },
   loadingFill: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
-  loadingMark: { width: 48, height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#111111' },
+  loadingMark: { width: 48, height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7357C6' },
   content: { flexGrow: 1 },
   topBar: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  brandMark: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#111111' },
-  brandName: { color: '#111111', fontSize: 14, fontWeight: '900' },
-  brandContext: { marginTop: 1, color: 'rgba(17,17,17,0.46)', fontSize: 9, fontWeight: '700' },
-  closeButton: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(17,17,17,0.1)', backgroundColor: '#FFFFFF' },
+  brandMark: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7357C6' },
+  brandName: { color: '#F7F6F3', fontSize: 14, fontWeight: '900' },
+  brandContext: { marginTop: 1, color: 'rgba(247,246,243,0.48)', fontSize: 9, fontWeight: '700' },
+  closeButton: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(247,246,243,0.14)', backgroundColor: '#1C1C1C' },
   topSkip: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 8 },
-  topSkipText: { color: 'rgba(17,17,17,0.54)', fontSize: 11, fontWeight: '800' },
+  topSkipText: { color: 'rgba(247,246,243,0.58)', fontSize: 11, fontWeight: '800' },
   progressRow: { minHeight: 28, marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  progressSegment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(17,17,17,0.1)' },
+  progressSegment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(247,246,243,0.12)' },
   progressSegmentDone: { backgroundColor: 'rgba(115,87,198,0.42)' },
   progressSegmentCurrent: { flex: 1.65, backgroundColor: '#7357C6' },
-  progressCount: { width: 39, marginLeft: 4, color: 'rgba(17,17,17,0.4)', fontSize: 8, fontWeight: '900', textAlign: 'right' },
+  progressCount: { width: 39, marginLeft: 4, color: 'rgba(247,246,243,0.42)', fontSize: 8, fontWeight: '900', textAlign: 'right' },
   step: { marginTop: 16 },
   introStage: { overflow: 'hidden', borderRadius: 8, backgroundColor: '#111111', shadowColor: '#111111', shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 5 },
   stageFill: { flex: 1, minHeight: 0 },
   introCopy: { paddingTop: 24 },
   eyebrow: { color: '#7357C6', fontSize: 10, fontWeight: '900' },
-  introTitle: { marginTop: 8, maxWidth: 560, color: '#111111', fontSize: 31, lineHeight: 36, fontWeight: '900' },
+  introTitle: { marginTop: 8, maxWidth: 560, color: '#F7F6F3', fontSize: 31, lineHeight: 36, fontWeight: '900' },
   introTitleNarrow: { fontSize: 27, lineHeight: 32 },
-  introText: { marginTop: 11, maxWidth: 520, color: 'rgba(17,17,17,0.58)', fontSize: 14, lineHeight: 21, fontWeight: '600' },
-  primaryButton: { width: '100%', minHeight: 54, marginTop: 24, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 16, backgroundColor: '#111111' },
+  introText: { marginTop: 11, maxWidth: 520, color: 'rgba(247,246,243,0.62)', fontSize: 14, lineHeight: 21, fontWeight: '600' },
+  primaryButton: { width: '100%', minHeight: 54, marginTop: 24, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 16, backgroundColor: '#7357C6' },
   primaryText: { flexShrink: 1, color: '#F7F6F3', fontSize: 13, fontWeight: '900', textAlign: 'center' },
   stepHeader: { marginBottom: 22 },
-  backButton: { width: 42, height: 42, marginBottom: 17, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(17,17,17,0.1)', backgroundColor: '#FFFFFF' },
+  backButton: { width: 42, height: 42, marginBottom: 17, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(247,246,243,0.14)', backgroundColor: '#1C1C1C' },
   stepEyebrowRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  selectedCount: { color: 'rgba(17,17,17,0.42)', fontSize: 9, fontWeight: '800' },
-  stepTitle: { marginTop: 7, maxWidth: 590, color: '#111111', fontSize: 29, lineHeight: 34, fontWeight: '900' },
-  stepSubtitle: { marginTop: 9, maxWidth: 560, color: 'rgba(17,17,17,0.54)', fontSize: 13, lineHeight: 19, fontWeight: '600' },
+  selectedCount: { color: 'rgba(247,246,243,0.46)', fontSize: 9, fontWeight: '800' },
+  stepTitle: { marginTop: 7, maxWidth: 590, color: '#F7F6F3', fontSize: 29, lineHeight: 34, fontWeight: '900' },
+  stepSubtitle: { marginTop: 9, maxWidth: 560, color: 'rgba(247,246,243,0.58)', fontSize: 13, lineHeight: 19, fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   gridCompact: { gap: 8 },
-  tile: { minHeight: 112, position: 'relative', alignItems: 'flex-start', justifyContent: 'space-between', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(17,17,17,0.09)', padding: 12, backgroundColor: '#FFFFFF' },
+  tile: { minHeight: 112, position: 'relative', alignItems: 'flex-start', justifyContent: 'space-between', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(247,246,243,0.12)', padding: 12, backgroundColor: '#151515' },
   tileCompact: { minHeight: 92, padding: 10 },
-  tileActive: { borderColor: '#7357C6', backgroundColor: 'rgba(115,87,198,0.08)' },
-  tileIcon: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.055)' },
+  tileActive: { borderColor: '#7357C6', backgroundColor: 'rgba(115,87,198,0.17)' },
+  tileIcon: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(247,246,243,0.08)' },
   tileIconActive: { backgroundColor: '#7357C6' },
-  tileLabel: { maxWidth: '88%', color: '#111111', fontSize: 12, lineHeight: 16, fontWeight: '900' },
-  check: { position: 'absolute', right: 10, top: 10, width: 20, height: 20, borderRadius: 6, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(17,17,17,0.16)' },
+  tileLabel: { maxWidth: '88%', color: '#F7F6F3', fontSize: 12, lineHeight: 16, fontWeight: '900' },
+  check: { position: 'absolute', right: 10, top: 10, width: 20, height: 20, borderRadius: 6, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(247,246,243,0.22)' },
   checkActive: { borderColor: '#7357C6', backgroundColor: '#7357C6' },
   intentions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  intention: { width: '100%', minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(17,17,17,0.09)', paddingHorizontal: 11, backgroundColor: '#FFFFFF' },
+  intention: { width: '100%', minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(247,246,243,0.12)', paddingHorizontal: 11, backgroundColor: '#151515' },
   intentionCompact: { minHeight: 52 },
   intentionTablet: { width: '49%' },
-  intentionActive: { borderColor: '#7357C6', backgroundColor: 'rgba(115,87,198,0.08)' },
-  intentionIcon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.055)' },
+  intentionActive: { borderColor: '#7357C6', backgroundColor: 'rgba(115,87,198,0.17)' },
+  intentionIcon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(247,246,243,0.08)' },
   intentionIconActive: { backgroundColor: '#7357C6' },
-  intentionLabel: { flex: 1, minWidth: 0, color: '#111111', fontSize: 12, lineHeight: 16, fontWeight: '800' },
+  intentionLabel: { flex: 1, minWidth: 0, color: '#F7F6F3', fontSize: 12, lineHeight: 16, fontWeight: '800' },
   stepFooter: { marginTop: 2 },
   skipStep: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  skipStepText: { color: 'rgba(17,17,17,0.42)', fontSize: 10, fontWeight: '800' },
+  skipStepText: { color: 'rgba(247,246,243,0.46)', fontSize: 10, fontWeight: '800' },
   summaryHero: { minHeight: 92, flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: 8, padding: 14, backgroundColor: '#111111' },
   summaryIcon: { width: 50, height: 50, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7357C6' },
   summaryHeroCopy: { flex: 1, minWidth: 0 },
   summaryHeroTitle: { color: '#F7F6F3', fontSize: 17, fontWeight: '900' },
   summaryHeroText: { marginTop: 4, color: 'rgba(247,246,243,0.62)', fontSize: 11, lineHeight: 16, fontWeight: '700' },
-  summaryBlock: { minHeight: 68, marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(17,17,17,0.1)' },
+  summaryBlock: { minHeight: 68, marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(247,246,243,0.13)' },
   summaryBlockIcon: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(115,87,198,0.1)' },
   summaryBlockCopy: { flex: 1, minWidth: 0 },
-  summaryLabel: { color: 'rgba(17,17,17,0.42)', fontSize: 9, fontWeight: '800' },
-  summaryValue: { marginTop: 4, color: '#111111', fontSize: 12, lineHeight: 17, fontWeight: '800' },
-  notificationCard: { minHeight: 78, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(17,17,17,0.09)', padding: 11, backgroundColor: '#FFFFFF' },
+  summaryLabel: { color: 'rgba(247,246,243,0.46)', fontSize: 9, fontWeight: '800' },
+  summaryValue: { marginTop: 4, color: '#F7F6F3', fontSize: 12, lineHeight: 17, fontWeight: '800' },
+  notificationCard: { minHeight: 78, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(247,246,243,0.12)', padding: 11, backgroundColor: '#151515' },
   notificationCardStacked: { flexWrap: 'wrap', alignItems: 'flex-start' },
   notificationIcon: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7357C6' },
   notificationIconReady: { backgroundColor: '#4A9EAA' },
   notificationCopy: { flex: 1, minWidth: 0 },
-  notificationTitle: { color: '#111111', fontSize: 11, lineHeight: 15, fontWeight: '900' },
-  notificationText: { marginTop: 3, color: 'rgba(17,17,17,0.54)', fontSize: 9, lineHeight: 13, fontWeight: '700' },
+  notificationTitle: { color: '#F7F6F3', fontSize: 11, lineHeight: 15, fontWeight: '900' },
+  notificationText: { marginTop: 3, color: 'rgba(247,246,243,0.58)', fontSize: 9, lineHeight: 13, fontWeight: '700' },
   notificationError: { marginTop: 4, color: '#D96D63', fontSize: 8, lineHeight: 12, fontWeight: '800' },
-  notificationAction: { minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 8, paddingHorizontal: 11, backgroundColor: 'rgba(115,87,198,0.1)' },
+  notificationAction: { minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 8, paddingHorizontal: 11, backgroundColor: '#7357C6' },
   notificationActionStacked: { width: '100%', marginTop: 2 },
-  notificationActionText: { color: '#111111', fontSize: 9, fontWeight: '900' },
+  notificationActionText: { color: '#F7F6F3', fontSize: 9, fontWeight: '900' },
 });
