@@ -15,6 +15,12 @@ import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import type { MusicChallenge, Track } from '@/api/types';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
+export type MessagingSharePayload = {
+  type: 'track' | 'clip' | 'post' | 'playlist';
+  entityId: string;
+  metadata: { title: string; subtitle?: string; artistName?: string; coverUrl?: string; duration?: number; url?: string };
+};
+
 export type RootTabsParamList = {
   Home: undefined;
   Discover: undefined;
@@ -38,6 +44,8 @@ export type RootTabsParamList = {
   Stats: { trackId?: string } | undefined;
   PublicProfile: { username: string };
   Notifications: undefined;
+  Messages: { tab?: 'conversations' | 'requests' | 'contacts'; share?: MessagingSharePayload } | undefined;
+  Conversation: { conversationId: string };
   PostDetail: { postId: string };
   PlaylistDetail: { playlistId: string };
   TrackDetail: { trackId: string; track?: Track };

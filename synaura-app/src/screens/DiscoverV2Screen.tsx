@@ -34,6 +34,7 @@ import { colors, radius, shadows } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { readDiscoverVisualCache, writeDiscoverVisualCache } from '@/discover/discoverCache';
 import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
+import { MessageInboxButton } from '@/components/messaging/MessageInboxButton';
 import { CityHomeBanner } from '@/components/city/CityHomeBanner';
 import { SynauraSearchField } from '@/components/search/SynauraSearchField';
 import { SynauraImage } from '@/components/ui/SynauraImage';
@@ -309,6 +310,7 @@ export function DiscoverV2Screen() {
           description="Les signaux qui montent, les nouvelles voix et tous les univers de Synaura."
           trailing={(
             <View style={styles.headerActions}>
+              <MessageInboxButton compact />
               <NotificationBellButton />
               <MobileAccountButton compact />
             </View>

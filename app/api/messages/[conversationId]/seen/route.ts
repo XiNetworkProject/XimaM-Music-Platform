@@ -1,55 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin as supabase } from '@/lib/supabase';
+import { getApiSession } from '@/lib/getApiSession';
+import { supabaseAdmin } from '@/lib/supabase';
+import { requireConversationParticipant } from '@/lib/messaging';
+
+export const dynamic = 'force-dynamic';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { conversationId: string } }
+  { params }: { params: { conversationId: string } },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    const session = await getApiSession(request);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+    const conversationId = params.conversationId;
+    if (!await requireConversationParticipant(conversationId, session.user.id)) {
+      return NextResponse.json({ error: 'Acces refuse' }, { status: 403 });
     }
 
-    const { conversationId } = params;
-
-    // Vérifier que l'utilisateur fait partie de la conversation
-    const { data: conversation, error: convError } = await supabase
-      .from('conversations')
-      .select('*')
-      .eq('id', conversationId)
-      .single();
-
-    if (convError || !conversation) {
-      return NextResponse.json({ error: 'Conversation non trouvée' }, { status: 404 });
-    }
-
-    if (!conversation.participants.includes(session.user.id)) {
-      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
-    }
-
-    // Marquer tous les messages comme vus
-    const { error: updateError } = await supabase
-      .from('messages')
-      .update({ 
-        seen: true,
-        seen_at: new Date().toISOString()
-      })
-      .eq('conversation_id', conversationId)
-      .neq('sender_id', session.user.id);
-
-    if (updateError) {
-      console.error('❌ Erreur mise à jour messages:', updateError);
-      return NextResponse.json({ error: 'Erreur lors de la mise à jour' }, { status: 500 });
-    }
-
-    return NextResponse.json({ message: 'Messages marqués comme vus' });
-
+    const now = new Date().toISOString();
+    const [{ error: participantError }, { error: messageError }] = await Promise.all([
+      supabaseAdmin
+        .from('conversation_participants')
+        .update({ last_read_at: now })
+        .eq('conversation_id', conversationId)
+        .eq('user_id', session.user.id),
+      supabaseAdmin
+        .from('messages')
+        .update({ is_read: true })
+        .eq('conversation_id', conversationId)
+        .neq('sender_id', session.user.id)
+        .eq('is_read', false),
+    ]);
+    if (participantError || messageError) return NextResponse.json({ error: 'Lecture impossible a enregistrer' }, { status: 500 });
+    return NextResponse.json({ success: true, seenAt: now });
   } catch (error) {
-    console.error('❌ Erreur marquage messages:', error);
-    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
+    console.error('[messages/seen] failed:', error);
+    return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }

@@ -1,403 +1,519 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import Avatar from '@/components/Avatar';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
+  ArrowRight,
+  BellOff,
+  Check,
+  Clock3,
+  Inbox,
   MessageCircle,
   Search,
-  ArrowRight,
-  Check,
-  X,
-  Image as ImageIcon,
-  Video,
-  Mic,
-  Send,
+  UserMinus,
   UserPlus,
-  Clock,
-  Inbox,
+  Users,
+  X,
 } from 'lucide-react';
+import Avatar from '@/components/Avatar';
 import { notify } from '@/components/NotificationCenter';
 
-interface Conversation {
-  _id: string;
-  name?: string;
-  type: string;
-  accepted: boolean;
-  participants: Array<{ _id: string; name: string; username: string; avatar?: string }>;
-  lastMessage?: { _id: string; content: string; type: string; createdAt: string; senderId: string };
+type MessagingProfile = {
+  id: string;
+  name: string;
+  username: string;
+  avatar: string | null;
+  isVerified?: boolean;
+  lastSeen?: string | null;
+};
+
+type Conversation = {
+  id: string;
+  otherUser: MessagingProfile | null;
+  lastMessage: {
+    id: string;
+    content: string;
+    type: string;
+    createdAt: string;
+    senderId: string;
+  } | null;
   unreadCount: number;
-  createdAt: string;
+  canMessage: boolean;
+  blocked: boolean;
+  muted: boolean;
   updatedAt: string;
+};
+
+type ContactRequest = {
+  id: string;
+  direction: 'received' | 'sent';
+  user: MessagingProfile;
+  message: string | null;
+  createdAt: string;
+};
+
+type Contact = {
+  friendshipId: string;
+  user: MessagingProfile;
+  conversationId: string | null;
+  friendsSince: string;
+};
+
+type InboxTab = 'conversations' | 'requests' | 'contacts';
+
+function readTab(value: string | null): InboxTab {
+  if (value === 'requests' || value === 'contacts') return value;
+  return 'conversations';
 }
 
-interface MessageRequest {
-  _id: string;
-  from: { _id: string; name: string; username: string; avatar?: string };
-  message?: string;
-  status: string;
-  createdAt: string;
+function formatDate(value?: string | null) {
+  if (!value) return '';
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return '';
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
+  if (minutes < 1) return "À l'instant";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} j`;
+  return new Date(value).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+
+function messagePreview(message: Conversation['lastMessage']) {
+  if (!message) return 'Commencez la discussion';
+  if (message.type === 'image') return 'Image';
+  if (message.type === 'video') return 'Vidéo';
+  if (message.type === 'audio') return 'Message audio';
+  if (message.type === 'track') return 'Son partagé';
+  if (message.type === 'clip') return 'Clip partagé';
+  if (message.type === 'post') return 'Post partagé';
+  if (message.type === 'playlist') return 'Playlist partagée';
+  if (message.type === 'deleted') return 'Message supprimé';
+  return message.content || 'Nouveau message';
+}
+
+function isRecentlyActive(lastSeen?: string | null) {
+  if (!lastSeen) return false;
+  const timestamp = new Date(lastSeen).getTime();
+  return Number.isFinite(timestamp) && Date.now() - timestamp < 5 * 60_000;
 }
 
 export default function MessagesPage() {
-  const { data: session } = useSession();
+  return (
+    <Suspense fallback={<InboxLoading />}>
+      <MessagesContent />
+    </Suspense>
+  );
+}
+
+function MessagesContent() {
+  const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<InboxTab>(() => readTab(searchParams.get('tab')));
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [requests, setRequests] = useState<MessageRequest[]>([]);
+  const [receivedRequests, setReceivedRequests] = useState<ContactRequest[]>([]);
+  const [sentRequests, setSentRequests] = useState<ContactRequest[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'conversations' | 'requests'>('conversations');
-  const [processingReqId, setProcessingReqId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [query, setQuery] = useState('');
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [contactToRemove, setContactToRemove] = useState<Contact | null>(null);
 
   useEffect(() => {
-    if (session?.user) {
-      fetchConversations();
-      fetchRequests();
-    }
-  }, [session]);
+    setActiveTab(readTab(searchParams.get('tab')));
+  }, [searchParams]);
 
-  const fetchConversations = async () => {
+  const loadInbox = useCallback(async (quiet = false) => {
+    if (!session?.user?.id) return;
+    if (quiet) setRefreshing(true);
+    else setLoading(true);
     try {
-      setLoading(true);
-      const res = await fetch('/api/messages/conversations');
-      if (res.ok) {
-        const data = await res.json();
-        setConversations(data.conversations || []);
+      const [conversationResponse, requestResponse, contactResponse] = await Promise.all([
+        fetch('/api/messages/conversations', { cache: 'no-store' }),
+        fetch('/api/messages/requests', { cache: 'no-store' }),
+        fetch('/api/messages/contacts', { cache: 'no-store' }),
+      ]);
+      const [conversationPayload, requestPayload, contactPayload] = await Promise.all([
+        conversationResponse.json().catch(() => null),
+        requestResponse.json().catch(() => null),
+        contactResponse.json().catch(() => null),
+      ]);
+      if (!conversationResponse.ok || !requestResponse.ok || !contactResponse.ok) {
+        throw new Error(
+          conversationPayload?.error || requestPayload?.error || contactPayload?.error || 'Messagerie indisponible',
+        );
       }
-    } catch {} finally {
+      setConversations(Array.isArray(conversationPayload?.conversations) ? conversationPayload.conversations : []);
+      setReceivedRequests(Array.isArray(requestPayload?.received) ? requestPayload.received : []);
+      setSentRequests(Array.isArray(requestPayload?.sent) ? requestPayload.sent : []);
+      setContacts(Array.isArray(contactPayload?.contacts) ? contactPayload.contacts : []);
+    } catch (error) {
+      if (!quiet) notify.error('Messagerie', error instanceof Error ? error.message : 'Chargement impossible');
+    } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (session?.user?.id) void loadInbox();
+  }, [loadInbox, session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const timer = window.setInterval(() => void loadInbox(true), 20_000);
+    return () => window.clearInterval(timer);
+  }, [loadInbox, session?.user?.id]);
+
+  const chooseTab = (tab: InboxTab) => {
+    setActiveTab(tab);
+    const next = new URLSearchParams(searchParams.toString());
+    if (tab === 'conversations') next.delete('tab');
+    else next.set('tab', tab);
+    router.replace(`/messages${next.size ? `?${next.toString()}` : ''}`, { scroll: false });
   };
 
-  const fetchRequests = async () => {
+  const mutateRequest = async (request: ContactRequest, action: 'accept' | 'reject' | 'cancel') => {
+    setProcessingId(request.id);
     try {
-      const res = await fetch('/api/messages/requests');
-      if (res.ok) {
-        const data = await res.json();
-        setRequests(data.requests || []);
-      }
-    } catch {}
-  };
-
-  const handleRequest = async (requestId: string, action: 'accept' | 'reject') => {
-    setProcessingReqId(requestId);
-    try {
-      const res = await fetch(`/api/messages/requests/${requestId}`, {
+      const response = await fetch(`/api/messages/requests/${encodeURIComponent(request.id)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setRequests((prev) => prev.filter((r) => r._id !== requestId));
-        if (action === 'accept') {
-          notify.success('OK', 'Demande acceptee');
-          if (data.conversationId) {
-            await fetchConversations();
-            router.push(`/messages/${data.conversationId}`);
-          }
-        } else {
-          notify.success('OK', 'Demande refusee');
-        }
-      } else {
-        notify.error('Erreur', 'Erreur traitement');
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || 'Action impossible');
+      await loadInbox(true);
+      if (action === 'accept' && payload?.conversationId) {
+        router.push(`/messages/${payload.conversationId}`);
+        return;
       }
-    } catch {
-      notify.error('Erreur', 'Erreur de connexion');
+      notify.success('Demandes', action === 'cancel' ? 'Demande annulée' : 'Demande refusée');
+    } catch (error) {
+      notify.error('Demandes', error instanceof Error ? error.message : 'Action impossible');
     } finally {
-      setProcessingReqId(null);
+      setProcessingId(null);
     }
   };
 
-  const getOtherParticipant = (conv: Conversation) =>
-    conv.participants.find((p) => p._id !== session?.user?.id);
-
-  const formatDate = (d: string) => {
-    const diff = Date.now() - new Date(d).getTime();
-    const h = Math.floor(diff / 3600000);
-    if (h < 1) return "A l'instant";
-    if (h < 24) return `${h}h`;
-    const days = Math.floor(h / 24);
-    if (days < 7) return `${days}j`;
-    return new Date(d).toLocaleDateString('fr-FR');
-  };
-
-  const getMessagePreview = (msg?: Conversation['lastMessage']) => {
-    if (!msg) return 'Nouvelle conversation';
-    switch (msg.type) {
-      case 'image': return 'Photo';
-      case 'video': return 'Video';
-      case 'audio': return 'Message vocal';
-      default: return msg.content.length > 45 ? msg.content.slice(0, 45) + '...' : msg.content;
+  const openContact = async (contact: Contact) => {
+    if (contact.conversationId) {
+      router.push(`/messages/${contact.conversationId}`);
+      return;
+    }
+    setProcessingId(contact.friendshipId);
+    try {
+      const response = await fetch('/api/messages/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participantId: contact.user.id }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.id) throw new Error(payload?.error || 'Conversation impossible');
+      router.push(`/messages/${payload.id}`);
+    } catch (error) {
+      notify.error('Messages', error instanceof Error ? error.message : 'Conversation impossible');
+    } finally {
+      setProcessingId(null);
     }
   };
 
-  const getMessageIcon = (type?: string) => {
-    switch (type) {
-      case 'image': return <ImageIcon className="w-3.5 h-3.5 text-white/30" />;
-      case 'video': return <Video className="w-3.5 h-3.5 text-white/30" />;
-      case 'audio': return <Mic className="w-3.5 h-3.5 text-white/30" />;
-      default: return null;
+  const removeContact = async () => {
+    if (!contactToRemove) return;
+    setProcessingId(contactToRemove.friendshipId);
+    try {
+      const response = await fetch('/api/messages/contacts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetId: contactToRemove.user.id }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || 'Suppression impossible');
+      setContactToRemove(null);
+      await loadInbox(true);
+      notify.success('Amis', 'Ce contact a été retiré de tes amis');
+    } catch (error) {
+      notify.error('Amis', error instanceof Error ? error.message : 'Suppression impossible');
+    } finally {
+      setProcessingId(null);
     }
   };
 
-  const filteredConvs = conversations.filter((conv) => {
-    const other = getOtherParticipant(conv);
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return other?.name.toLowerCase().includes(q) || other?.username.toLowerCase().includes(q);
-  });
+  const normalizedQuery = query.trim().toLocaleLowerCase('fr-FR');
+  const matches = (profile?: MessagingProfile | null) => !normalizedQuery || Boolean(
+    profile?.name.toLocaleLowerCase('fr-FR').includes(normalizedQuery)
+      || profile?.username.toLocaleLowerCase('fr-FR').includes(normalizedQuery),
+  );
+  const visibleConversations = useMemo(
+    () => conversations.filter((conversation) => matches(conversation.otherUser)),
+    [conversations, normalizedQuery],
+  );
+  const visibleReceived = useMemo(
+    () => receivedRequests.filter((request) => matches(request.user)),
+    [receivedRequests, normalizedQuery],
+  );
+  const visibleSent = useMemo(
+    () => sentRequests.filter((request) => matches(request.user)),
+    [sentRequests, normalizedQuery],
+  );
+  const visibleContacts = useMemo(
+    () => contacts.filter((contact) => matches(contact.user)),
+    [contacts, normalizedQuery],
+  );
+  const totalUnread = conversations.reduce((sum, conversation) => sum + conversation.unreadCount, 0);
+
+  if (status === 'loading') {
+    return <InboxLoading />;
+  }
 
   if (!session?.user) {
     return (
-      <div className="relative min-h-screen bg-[#0a0a0e] flex items-center justify-center text-white">
-        <div className="pointer-events-none fixed inset-0 z-0">
-          <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-indigo-600/[0.07] blur-[130px]" />
-        </div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 text-center">
-          <div className="w-20 h-20 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto mb-6">
-            <MessageCircle className="w-8 h-8 text-indigo-400" />
+      <main className="min-h-screen bg-syn-background px-5 py-24 text-syn-textPrimary">
+        <div className="mx-auto flex max-w-md flex-col items-center text-center">
+          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-syn-accent/10 text-syn-accent">
+            <MessageCircle className="h-7 w-7" />
           </div>
-          <h2 className="text-xl font-bold mb-2">Messagerie</h2>
-          <p className="text-sm text-white/40">Connectez-vous pour acceder a vos messages</p>
-        </motion.div>
-      </div>
+          <h1 className="text-2xl font-black">Tes discussions Synaura</h1>
+          <p className="mt-2 text-sm text-syn-textSecondary">Connecte-toi pour retrouver tes amis et parler des sons que vous aimez.</p>
+          <button onClick={() => router.push('/auth/signin')} className="mt-6 rounded-full bg-syn-textPrimary px-6 py-3 text-sm font-bold text-syn-background">
+            Se connecter
+          </button>
+        </div>
+      </main>
     );
   }
 
+  const tabs: Array<{ id: InboxTab; label: string; icon: typeof MessageCircle; count: number }> = [
+    { id: 'conversations', label: 'Discussions', icon: MessageCircle, count: totalUnread },
+    { id: 'requests', label: 'Demandes', icon: Inbox, count: receivedRequests.length },
+    { id: 'contacts', label: 'Amis', icon: Users, count: contacts.length },
+  ];
+
   return (
-    <div className="relative min-h-screen bg-[#0a0a0e] text-white overflow-hidden pb-32 lg:pb-8">
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-indigo-600/[0.07] blur-[130px] animate-[synaura-blob1_18s_ease-in-out_infinite]" />
-        <div className="absolute bottom-[-15%] right-[-5%] w-[50vw] h-[50vw] rounded-full bg-violet-600/[0.06] blur-[130px] animate-[synaura-blob2_22s_ease-in-out_infinite]" />
-      </div>
-
-      <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 pt-8 md:pt-14">
-        {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-xs text-violet-300 mb-3">
-            <Send className="w-3.5 h-3.5" />
-            <span>Messagerie</span>
+    <main className="min-h-screen bg-syn-background pb-32 text-syn-textPrimary lg:pb-12">
+      <div className="mx-auto w-full max-w-4xl px-4 pt-8 sm:px-7 sm:pt-12">
+        <header className="flex items-end justify-between gap-4 border-b border-syn-border pb-6">
+          <div>
+            <p className="mb-2 text-[11px] font-extrabold uppercase text-syn-accent">Liens musicaux</p>
+            <h1 className="text-3xl font-black sm:text-4xl">Messages</h1>
+            <p className="mt-2 max-w-lg text-sm text-syn-textSecondary">Retrouve tes amis et partage ce qui mérite d’être écouté.</p>
           </div>
-          <h1 className="text-3xl md:text-4xl font-black tracking-tight">Messages</h1>
-        </motion.div>
+          <button
+            type="button"
+            onClick={() => void loadInbox(true)}
+            disabled={refreshing}
+            className="hidden rounded-full border border-syn-border bg-syn-surface px-4 py-2 text-xs font-bold text-syn-textSecondary transition hover:text-syn-textPrimary disabled:opacity-50 sm:block"
+          >
+            {refreshing ? 'Actualisation…' : 'Actualiser'}
+          </button>
+        </header>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('conversations')}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
-              activeTab === 'conversations'
-                ? 'bg-white text-black font-semibold'
-                : 'bg-white/[0.06] text-white/70 hover:bg-white/[0.1]'
-            }`}
-          >
-            <MessageCircle className="w-4 h-4" />
-            Conversations
-            {conversations.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-md bg-white/[0.06] text-[10px]">{conversations.length}</span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('requests')}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all relative ${
-              activeTab === 'requests'
-                ? 'bg-white text-black font-semibold'
-                : 'bg-white/[0.06] text-white/70 hover:bg-white/[0.1]'
-            }`}
-          >
-            <Inbox className="w-4 h-4" />
-            Demandes
-            {requests.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded-md bg-violet-500 text-white text-[10px] font-bold">{requests.length}</span>
-            )}
-          </button>
+        <nav className="mt-5 flex gap-1 overflow-x-auto rounded-xl bg-syn-surfaceMuted p-1" aria-label="Messagerie">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => chooseTab(tab.id)}
+                className={`relative flex min-w-fit flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition ${active ? 'bg-syn-surface text-syn-textPrimary shadow-sm' : 'text-syn-textSecondary hover:text-syn-textPrimary'}`}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
+                {tab.count > 0 ? (
+                  <span className={`min-w-5 rounded-full px-1.5 py-0.5 text-[10px] font-black ${active ? 'bg-syn-accent text-white' : 'bg-syn-border text-syn-textSecondary'}`}>
+                    {tab.count > 99 ? '99+' : tab.count}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="relative mt-4">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-syn-textSecondary" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={activeTab === 'contacts' ? 'Rechercher un ami' : activeTab === 'requests' ? 'Rechercher une demande' : 'Rechercher une discussion'}
+            className="h-12 w-full rounded-xl border border-syn-border bg-syn-surface pl-11 pr-10 text-sm text-syn-textPrimary outline-none transition placeholder:text-syn-textSecondary/60 focus:border-syn-accent/60 focus:ring-2 focus:ring-syn-accent/10"
+          />
+          {query ? (
+            <button type="button" onClick={() => setQuery('')} aria-label="Effacer la recherche" className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-syn-textSecondary hover:bg-syn-surfaceMuted hover:text-syn-textPrimary">
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
 
-        {/* Search (only for conversations) */}
-        {activeTab === 'conversations' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative mb-6">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-            <input
-              type="text"
-              placeholder="Rechercher une conversation..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition-all"
-            />
-          </motion.div>
-        )}
+        <section className="mt-5 min-h-[360px]">
+          {loading ? <InboxLoading compact /> : null}
 
-        {/* CONVERSATIONS TAB */}
-        {activeTab === 'conversations' && (
-          <div className="space-y-2">
-            {loading ? (
-              <div className="flex flex-col items-center py-16 gap-3">
-                <div className="w-10 h-10 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
-                <p className="text-sm text-white/40">Chargement...</p>
-              </div>
-            ) : filteredConvs.length === 0 ? (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
-                <div className="w-20 h-20 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-5">
-                  <MessageCircle className="w-8 h-8 text-white/20" />
-                </div>
-                <h3 className="text-base font-bold mb-2">Aucune conversation</h3>
-                <p className="text-sm text-white/35 mb-4 max-w-xs mx-auto">
-                  Envoyez une demande de message depuis le profil d&apos;un createur pour commencer a discuter.
-                </p>
-                <button
-                  onClick={() => router.push('/discover')}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-white text-black hover:bg-white/90 transition-all"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Découvrir des créateurs
-                </button>
-              </motion.div>
-            ) : (
-              <AnimatePresence>
-                {filteredConvs.map((conv, i) => {
-                  const other = getOtherParticipant(conv);
-                  if (!other) return null;
+          {!loading && activeTab === 'conversations' ? (
+            visibleConversations.length ? (
+              <div className="divide-y divide-syn-border overflow-hidden rounded-xl border border-syn-border bg-syn-surface">
+                {visibleConversations.map((conversation, index) => {
+                  const user = conversation.otherUser;
+                  if (!user) return null;
                   return (
-                    <motion.div
-                      key={conv._id}
-                      initial={{ opacity: 0, y: 15 }}
+                    <motion.button
+                      key={conversation.id}
+                      type="button"
+                      initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -15 }}
-                      transition={{ delay: i * 0.03 }}
-                      onClick={() => router.push(`/messages/${conv._id}`)}
-                      className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.1] transition-all cursor-pointer group backdrop-blur-xl"
+                      transition={{ delay: Math.min(index * 0.025, 0.15) }}
+                      onClick={() => router.push(`/messages/${conversation.id}`)}
+                      className="group flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-syn-surfaceMuted/60 sm:px-4"
                     >
-                      <div className="relative shrink-0">
-                        <Avatar
-                          src={other.avatar ? other.avatar.replace('/upload/', '/upload/f_auto,q_auto/') : null}
-                          name={other.name}
-                          username={other.username}
-                          size="lg"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-0.5">
-                          <h3 className="text-sm font-semibold text-white truncate group-hover:text-indigo-300 transition-colors">
-                            {other.name}
-                          </h3>
-                          <span className="text-[11px] text-white/25 shrink-0 ml-2">
-                            {conv.lastMessage ? formatDate(conv.lastMessage.createdAt) : ''}
-                          </span>
+                      <ProfileAvatar user={user} active={isRecentlyActive(user.lastSeen)} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-sm font-extrabold group-hover:text-syn-accent">{user.name}</p>
+                          {conversation.muted ? <BellOff className="h-3.5 w-3.5 shrink-0 text-syn-textSecondary" /> : null}
+                          <span className="ml-auto shrink-0 text-[11px] font-semibold text-syn-textSecondary">{formatDate(conversation.lastMessage?.createdAt || conversation.updatedAt)}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          {getMessageIcon(conv.lastMessage?.type)}
-                          <p className="text-xs text-white/35 truncate">{getMessagePreview(conv.lastMessage)}</p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <p className={`truncate text-xs ${conversation.unreadCount ? 'font-bold text-syn-textPrimary' : 'text-syn-textSecondary'}`}>{messagePreview(conversation.lastMessage)}</p>
+                          {conversation.unreadCount ? <span className="ml-auto h-2.5 w-2.5 shrink-0 rounded-full bg-syn-accent" /> : null}
                         </div>
                       </div>
-                      {conv.unreadCount > 0 && (
-                        <div className="shrink-0 w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center">
-                          <span className="text-[10px] font-bold text-white">{conv.unreadCount}</span>
-                        </div>
-                      )}
-                    </motion.div>
+                    </motion.button>
                   );
                 })}
-              </AnimatePresence>
-            )}
-          </div>
-        )}
+              </div>
+            ) : <EmptyState icon={MessageCircle} title="Aucune discussion" text={query ? 'Aucune discussion ne correspond à ta recherche.' : 'Ajoute un créateur à tes amis pour commencer à échanger.'} actionLabel={!query ? 'Découvrir des créateurs' : undefined} onAction={() => router.push('/discover')} />
+          ) : null}
 
-        {/* REQUESTS TAB */}
-        {activeTab === 'requests' && (
-          <div className="space-y-3">
-            {requests.length === 0 ? (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
-                <div className="w-20 h-20 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-5">
-                  <Inbox className="w-8 h-8 text-white/20" />
-                </div>
-                <h3 className="text-base font-bold mb-2">Aucune demande</h3>
-                <p className="text-sm text-white/35 max-w-xs mx-auto">
-                  Les demandes de messages que vous recevez apparaitront ici.
-                </p>
-              </motion.div>
-            ) : (
-              <AnimatePresence>
-                {requests.map((req, i) => (
-                  <motion.div
-                    key={req._id}
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: -100 }}
-                    transition={{ delay: i * 0.04 }}
-                    className="rounded-2xl bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-4 hover:bg-white/[0.04] transition-all"
-                  >
-                    <div className="flex items-start gap-3.5">
-                      <div
-                        className="shrink-0 cursor-pointer"
-                        onClick={() => router.push(`/profile/${req.from.username}`)}
-                      >
-                        <Avatar
-                          src={req.from.avatar ? req.from.avatar.replace('/upload/', '/upload/f_auto,q_auto/') : null}
-                          name={req.from.name}
-                          username={req.from.username}
-                          size="lg"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <div>
-                            <h3
-                              className="text-sm font-semibold text-white cursor-pointer hover:text-indigo-300 transition-colors"
-                              onClick={() => router.push(`/profile/${req.from.username}`)}
-                            >
-                              {req.from.name}
-                            </h3>
-                            <p className="text-[11px] text-white/30">@{req.from.username}</p>
-                          </div>
-                          <span className="text-[11px] text-white/20 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {formatDate(req.createdAt)}
-                          </span>
-                        </div>
+          {!loading && activeTab === 'requests' ? (
+            visibleReceived.length || visibleSent.length ? (
+              <div className="space-y-7">
+                {visibleReceived.length ? (
+                  <RequestGroup title="Demandes reçues" requests={visibleReceived} processingId={processingId} onAction={mutateRequest} onProfile={(username) => router.push(`/profile/${username}`)} />
+                ) : null}
+                {visibleSent.length ? (
+                  <RequestGroup title="Demandes envoyées" requests={visibleSent} processingId={processingId} onAction={mutateRequest} onProfile={(username) => router.push(`/profile/${username}`)} />
+                ) : null}
+              </div>
+            ) : <EmptyState icon={Inbox} title="Aucune demande" text={query ? 'Aucune demande ne correspond à ta recherche.' : 'Les nouvelles demandes d’amis apparaîtront ici.'} />
+          ) : null}
 
-                        {req.message && (
-                          <div className="mt-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.04] text-xs text-white/50 italic">
-                            &ldquo;{req.message}&rdquo;
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-2 mt-3">
-                          <button
-                            onClick={() => handleRequest(req._id, 'accept')}
-                            disabled={processingReqId === req._id}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-white text-black hover:bg-white/90 disabled:opacity-40 transition-all"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            Accepter
-                          </button>
-                          <button
-                            onClick={() => handleRequest(req._id, 'reject')}
-                            disabled={processingReqId === req._id}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 disabled:opacity-40 transition-all"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                            Refuser
-                          </button>
-                          <button
-                            onClick={() => router.push(`/profile/${req.from.username}`)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium bg-white/[0.06] text-white/70 hover:bg-white/[0.1] transition-all ml-auto"
-                          >
-                            Voir profil
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
+          {!loading && activeTab === 'contacts' ? (
+            visibleContacts.length ? (
+              <div className="divide-y divide-syn-border overflow-hidden rounded-xl border border-syn-border bg-syn-surface">
+                {visibleContacts.map((contact) => (
+                  <div key={contact.friendshipId} className="flex items-center gap-3 px-3 py-3 sm:px-4">
+                    <button type="button" onClick={() => router.push(`/profile/${contact.user.username}`)} aria-label={`Profil de ${contact.user.name}`}>
+                      <ProfileAvatar user={contact.user} active={isRecentlyActive(contact.user.lastSeen)} />
+                    </button>
+                    <button type="button" onClick={() => router.push(`/profile/${contact.user.username}`)} className="min-w-0 flex-1 text-left">
+                      <p className="truncate text-sm font-extrabold">{contact.user.name}</p>
+                      <p className="truncate text-xs text-syn-textSecondary">@{contact.user.username}</p>
+                    </button>
+                    <button type="button" disabled={processingId === contact.friendshipId} onClick={() => void openContact(contact)} className="flex h-10 w-10 items-center justify-center rounded-full bg-syn-textPrimary text-syn-background transition hover:scale-105 disabled:opacity-40" aria-label={`Écrire à ${contact.user.name}`}>
+                      <MessageCircle className="h-4 w-4" />
+                    </button>
+                    <button type="button" onClick={() => setContactToRemove(contact)} className="flex h-10 w-10 items-center justify-center rounded-full border border-syn-border text-syn-textSecondary transition hover:bg-syn-destructive/10 hover:text-syn-destructive" aria-label={`Retirer ${contact.user.name} de mes amis`}>
+                      <UserMinus className="h-4 w-4" />
+                    </button>
+                  </div>
                 ))}
-              </AnimatePresence>
+              </div>
+            ) : <EmptyState icon={Users} title="Aucun ami" text={query ? 'Aucun ami ne correspond à ta recherche.' : 'Tes demandes acceptées formeront ici ton cercle musical.'} actionLabel={!query ? 'Explorer Synaura' : undefined} onAction={() => router.push('/discover')} />
+          ) : null}
+        </section>
+      </div>
+
+      <AnimatePresence>
+        {contactToRemove ? (
+          <motion.div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event: React.MouseEvent<HTMLDivElement>) => { if (event.currentTarget === event.target) setContactToRemove(null); }}>
+            <motion.div initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }} className="w-full max-w-sm rounded-xl border border-syn-border bg-syn-elevatedSurface p-5 text-syn-textPrimary shadow-2xl">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-syn-destructive/10 text-syn-destructive"><UserMinus className="h-5 w-5" /></div>
+              <h2 className="mt-4 text-lg font-black">Retirer {contactToRemove.user.name} ?</h2>
+              <p className="mt-2 text-sm leading-6 text-syn-textSecondary">La discussion restera dans tes archives, mais vous devrez accepter une nouvelle demande pour vous écrire à nouveau.</p>
+              <div className="mt-5 flex gap-2">
+                <button type="button" onClick={() => setContactToRemove(null)} className="flex-1 rounded-lg border border-syn-border px-4 py-3 text-sm font-bold">Annuler</button>
+                <button type="button" onClick={() => void removeContact()} disabled={processingId === contactToRemove.friendshipId} className="flex-1 rounded-lg bg-syn-destructive px-4 py-3 text-sm font-bold text-white disabled:opacity-50">Retirer</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </main>
+  );
+}
+
+function ProfileAvatar({ user, active }: { user: MessagingProfile; active: boolean }) {
+  return (
+    <div className="relative shrink-0">
+      <Avatar src={user.avatar} name={user.name} username={user.username} size="lg" />
+      {active ? <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-[3px] border-syn-surface bg-syn-accent2" aria-label="Actif récemment" /> : null}
+    </div>
+  );
+}
+
+function RequestGroup({
+  title,
+  requests,
+  processingId,
+  onAction,
+  onProfile,
+}: {
+  title: string;
+  requests: ContactRequest[];
+  processingId: string | null;
+  onAction: (request: ContactRequest, action: 'accept' | 'reject' | 'cancel') => void;
+  onProfile: (username: string) => void;
+}) {
+  return (
+    <div>
+      <h2 className="mb-3 text-xs font-black uppercase text-syn-textSecondary">{title}</h2>
+      <div className="divide-y divide-syn-border overflow-hidden rounded-xl border border-syn-border bg-syn-surface">
+        {requests.map((request) => (
+          <div key={request.id} className="flex items-start gap-3 px-3 py-4 sm:px-4">
+            <button type="button" onClick={() => onProfile(request.user.username)}><ProfileAvatar user={request.user} active={isRecentlyActive(request.user.lastSeen)} /></button>
+            <div className="min-w-0 flex-1">
+              <button type="button" onClick={() => onProfile(request.user.username)} className="block max-w-full text-left">
+                <p className="truncate text-sm font-extrabold">{request.user.name}</p>
+                <p className="truncate text-xs text-syn-textSecondary">@{request.user.username}</p>
+              </button>
+              {request.message ? <p className="mt-2 line-clamp-3 rounded-lg bg-syn-surfaceMuted px-3 py-2 text-sm leading-5 text-syn-textSecondary">{request.message}</p> : null}
+              <p className="mt-2 flex items-center gap-1 text-[10px] font-semibold text-syn-textSecondary"><Clock3 className="h-3 w-3" />{formatDate(request.createdAt)}</p>
+            </div>
+            {request.direction === 'received' ? (
+              <div className="flex shrink-0 gap-2">
+                <button type="button" disabled={processingId === request.id} onClick={() => onAction(request, 'accept')} className="flex h-10 w-10 items-center justify-center rounded-full bg-syn-textPrimary text-syn-background disabled:opacity-40" aria-label="Accepter"><Check className="h-4 w-4" /></button>
+                <button type="button" disabled={processingId === request.id} onClick={() => onAction(request, 'reject')} className="flex h-10 w-10 items-center justify-center rounded-full border border-syn-border text-syn-textSecondary hover:text-syn-destructive disabled:opacity-40" aria-label="Refuser"><X className="h-4 w-4" /></button>
+              </div>
+            ) : (
+              <button type="button" disabled={processingId === request.id} onClick={() => onAction(request, 'cancel')} className="shrink-0 rounded-full border border-syn-border px-3 py-2 text-xs font-bold text-syn-textSecondary hover:text-syn-destructive disabled:opacity-40">Annuler</button>
             )}
           </div>
-        )}
+        ))}
       </div>
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, title, text, actionLabel, onAction }: { icon: typeof MessageCircle; title: string; text: string; actionLabel?: string; onAction?: () => void }) {
+  return (
+    <div className="flex min-h-[360px] flex-col items-center justify-center px-5 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-syn-surfaceMuted text-syn-textSecondary"><Icon className="h-6 w-6" /></div>
+      <h2 className="mt-4 text-lg font-black">{title}</h2>
+      <p className="mt-2 max-w-sm text-sm leading-6 text-syn-textSecondary">{text}</p>
+      {actionLabel && onAction ? <button type="button" onClick={onAction} className="mt-5 inline-flex items-center gap-2 rounded-full bg-syn-textPrimary px-5 py-2.5 text-sm font-bold text-syn-background"><UserPlus className="h-4 w-4" />{actionLabel}<ArrowRight className="h-4 w-4" /></button> : null}
+    </div>
+  );
+}
+
+function InboxLoading({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`flex items-center justify-center bg-syn-background text-syn-textSecondary ${compact ? 'min-h-[360px]' : 'min-h-screen'}`}>
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-syn-accent/30 border-t-syn-accent" />
     </div>
   );
 }

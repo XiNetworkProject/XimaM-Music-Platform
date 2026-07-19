@@ -23,6 +23,7 @@ import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { cacheRemoteShareImage, shareCachedImage } from '@/sharing/shareAsset';
 import { colors } from '@/theme/tokens';
+import { trackArtistName } from '@/components/swipe/helpers';
 
 type Props = {
   visible: boolean;
@@ -179,6 +180,24 @@ export function ShareSheet({ visible, track, onClose, onShared, onPostCreated }:
     navigation.navigate('Community', { compose: true, category: 'feedback', track });
   }, [canInternal, navigation, onClose, track]);
 
+  const shareWithFriend = useCallback(() => {
+    if (!track || !canInternal) return;
+    onClose();
+    navigation.navigate('Messages', {
+      share: {
+        type: 'track',
+        entityId: track._id,
+        metadata: {
+          title: track.title,
+          artistName: trackArtistName(track),
+          coverUrl: track.coverUrl || undefined,
+          duration: track.duration || undefined,
+          url: `/track/${track._id}`,
+        },
+      },
+    });
+  }, [canInternal, navigation, onClose, track]);
+
   const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [600, 0] });
 
   return (
@@ -308,6 +327,12 @@ export function ShareSheet({ visible, track, onClose, onShared, onPostCreated }:
               <Ionicons name="share-social" size={16} color={colors.textSecondary} />
               <Text style={styles.sectionTitle}>Partage rapide</Text>
             </View>
+            {canInternal && user ? (
+              <Pressable accessibilityLabel="Envoyer à un ami Synaura" onPress={shareWithFriend} style={styles.friendAction}>
+                <Ionicons name="chatbubble-ellipses" size={18} color="#171313" />
+                <Text style={styles.friendActionText}>Envoyer à un ami</Text>
+              </Pressable>
+            ) : null}
             <Pressable accessibilityLabel="Partager via le menu système" onPress={() => void nativeShare()} style={styles.primaryAction}>
               <Ionicons name="share" size={18} color="#FFFAF2" />
               <Text style={styles.primaryActionText}>Partager via le système</Text>
@@ -546,6 +571,8 @@ const styles = StyleSheet.create({
   },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  friendAction: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 999, backgroundColor: colors.cyan },
+  friendActionText: { color: '#171313', fontSize: 13, fontWeight: '900' },
   primaryAction: {
     flexDirection: 'row',
     alignItems: 'center',

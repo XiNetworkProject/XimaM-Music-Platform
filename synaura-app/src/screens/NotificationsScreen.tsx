@@ -32,6 +32,7 @@ const tabs = [
   { id: 'all', label: 'Toutes' },
   { id: 'social', label: 'Social' },
   { id: 'music', label: 'Musique' },
+  { id: 'message', label: 'Messages' },
   { id: 'system', label: 'Système' },
 ] as const;
 

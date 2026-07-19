@@ -1,202 +1,184 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin as supabase } from '@/lib/supabase';
+import { getApiSession } from '@/lib/getApiSession';
+import { supabaseAdmin } from '@/lib/supabase';
+import {
+  ensureDirectConversation,
+  formatMessagingProfile,
+  getMessagingProfiles,
+  usersAreBlocked,
+  usersAreFriends,
+} from '@/lib/messaging';
+
+export const dynamic = 'force-dynamic';
+
+function lastMessagePreview(message: any) {
+  if (!message) return null;
+  const metadata = message.metadata && typeof message.metadata === 'object' ? message.metadata : {};
+  return {
+    id: String(message.id),
+    _id: String(message.id),
+    content: message.deleted_at ? 'Message supprime' : String(message.content || ''),
+    type: message.deleted_at ? 'deleted' : String(message.message_type || 'text'),
+    mediaUrl: message.deleted_at ? null : message.media_url || null,
+    sharedEntityType: message.deleted_at ? null : message.shared_entity_type || null,
+    sharedEntityId: message.deleted_at ? null : message.shared_entity_id || null,
+    metadata: message.deleted_at ? {} : metadata,
+    createdAt: message.created_at,
+    senderId: String(message.sender_id),
+  };
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
-    }
-
+    const session = await getApiSession(request);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
     const userId = session.user.id;
+    const includeArchived = request.nextUrl.searchParams.get('archived') === '1';
 
-    const { data: participations, error: partError } = await supabase
+    let participationQuery = supabaseAdmin
       .from('conversation_participants')
-      .select('conversation_id')
+      .select('conversation_id, last_read_at, archived_at, muted_until')
       .eq('user_id', userId);
+    if (!includeArchived) participationQuery = participationQuery.is('archived_at', null);
+    const { data: myParticipations, error: participationError } = await participationQuery;
+    if (participationError) return NextResponse.json({ error: 'Conversations indisponibles' }, { status: 500 });
 
-    if (partError) {
-      console.error('Erreur recuperation participations:', partError);
-      return NextResponse.json({ conversations: [], total: 0 });
-    }
+    const conversationIds = (myParticipations || []).map((row) => row.conversation_id);
+    if (!conversationIds.length) return NextResponse.json({ conversations: [], total: 0, unread: 0 });
 
-    if (!participations || participations.length === 0) {
-      return NextResponse.json({ conversations: [], total: 0 });
-    }
-
-    const convIds = participations.map((p) => p.conversation_id);
-
-    const { data: conversations, error: convError } = await supabase
+    const { data: conversations, error: conversationError } = await supabaseAdmin
       .from('conversations')
-      .select('*')
-      .in('id', convIds)
-      .order('updated_at', { ascending: false });
+      .select('id, name, is_group, created_at, updated_at, last_message_at, last_message_id, is_active')
+      .in('id', conversationIds)
+      .eq('is_active', true)
+      .order('last_message_at', { ascending: false });
+    if (conversationError) return NextResponse.json({ error: 'Conversations indisponibles' }, { status: 500 });
 
-    if (convError) {
-      console.error('Erreur recuperation conversations:', convError);
-      return NextResponse.json({ conversations: [], total: 0 });
+    const activeIds = (conversations || []).map((row) => row.id);
+    if (!activeIds.length) return NextResponse.json({ conversations: [], total: 0, unread: 0 });
+
+    const [{ data: participantRows }, { data: unreadRows }] = await Promise.all([
+      supabaseAdmin
+        .from('conversation_participants')
+        .select('conversation_id, user_id, last_read_at')
+        .in('conversation_id', activeIds),
+      supabaseAdmin
+        .from('messages')
+        .select('conversation_id')
+        .in('conversation_id', activeIds)
+        .neq('sender_id', userId)
+        .eq('is_read', false)
+        .is('deleted_at', null),
+    ]);
+
+    const participantsByConversation = new Map<string, any[]>();
+    (participantRows || []).forEach((row) => {
+      const list = participantsByConversation.get(row.conversation_id) || [];
+      list.push(row);
+      participantsByConversation.set(row.conversation_id, list);
+    });
+    const profileIds = Array.from(new Set((participantRows || []).map((row) => row.user_id)));
+    const profiles = await getMessagingProfiles(profileIds);
+
+    const messageIds = (conversations || []).map((row) => row.last_message_id).filter(Boolean);
+    const latestMessages = new Map<string, any>();
+    if (messageIds.length) {
+      const { data } = await supabaseAdmin
+        .from('messages')
+        .select('id, conversation_id, sender_id, content, message_type, media_url, shared_entity_type, shared_entity_id, metadata, deleted_at, created_at')
+        .in('id', messageIds);
+      (data || []).forEach((message) => latestMessages.set(message.id, message));
     }
 
-    const enriched = await Promise.all(
-      (conversations || []).map(async (conv) => {
-        const { data: parts } = await supabase
-          .from('conversation_participants')
-          .select('user_id')
-          .eq('conversation_id', conv.id);
+    const unreadByConversation = new Map<string, number>();
+    (unreadRows || []).forEach((row) => {
+      unreadByConversation.set(row.conversation_id, (unreadByConversation.get(row.conversation_id) || 0) + 1);
+    });
 
-        const participantIds = (parts || []).map((p) => p.user_id);
+    const otherUserIds = Array.from(new Set((participantRows || [])
+      .map((row) => row.user_id)
+      .filter((participantId) => participantId !== userId)));
+    const [{ data: friendshipsAsUser }, { data: friendshipsAsFriend }, { data: blockRows }] = await Promise.all([
+      supabaseAdmin.from('friendships').select('friend_id').eq('user_id', userId),
+      supabaseAdmin.from('friendships').select('user_id').eq('friend_id', userId),
+      otherUserIds.length
+        ? supabaseAdmin.from('user_blocks').select('blocker_id, blocked_id').in('blocker_id', [userId, ...otherUserIds]).in('blocked_id', [userId, ...otherUserIds])
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const friendIds = new Set([
+      ...(friendshipsAsUser || []).map((row) => row.friend_id),
+      ...(friendshipsAsFriend || []).map((row) => row.user_id),
+    ]);
 
-        const participantsInfo = await Promise.all(
-          participantIds.map(async (pid: string) => {
-            try {
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('id, name, username, avatar')
-                .eq('id', pid)
-                .single();
-              return profile
-                ? { _id: profile.id, name: profile.name, username: profile.username, avatar: profile.avatar }
-                : { _id: pid, name: 'Utilisateur', username: 'user', avatar: null };
-            } catch {
-              return { _id: pid, name: 'Utilisateur', username: 'user', avatar: null };
-            }
-          }),
-        );
+    const myParticipationMap = new Map((myParticipations || []).map((row) => [row.conversation_id, row]));
+    const result = (conversations || []).map((conversation) => {
+      const rows = participantsByConversation.get(conversation.id) || [];
+      const participants = rows.map((row) => profiles.get(row.user_id) || formatMessagingProfile({ id: row.user_id }));
+      const other = rows.find((row) => row.user_id !== userId);
+      const blocked = other ? (blockRows || []).some((row: any) => (
+        row.blocker_id === userId && row.blocked_id === other.user_id
+      ) || (
+        row.blocker_id === other.user_id && row.blocked_id === userId
+      )) : false;
+      const ownParticipation = myParticipationMap.get(conversation.id);
+      const unreadCount = unreadByConversation.get(conversation.id) || 0;
+      return {
+        id: conversation.id,
+        _id: conversation.id,
+        name: conversation.name,
+        type: conversation.is_group ? 'group' : 'direct',
+        participants,
+        otherUser: other ? profiles.get(other.user_id) || formatMessagingProfile({ id: other.user_id }) : null,
+        lastMessage: conversation.last_message_id ? lastMessagePreview(latestMessages.get(conversation.last_message_id)) : null,
+        unreadCount,
+        canMessage: Boolean(conversation.is_group || (other && friendIds.has(other.user_id) && !blocked)),
+        blocked,
+        muted: Boolean(ownParticipation?.muted_until && new Date(ownParticipation.muted_until).getTime() > Date.now()),
+        archived: Boolean(ownParticipation?.archived_at),
+        createdAt: conversation.created_at,
+        updatedAt: conversation.last_message_at || conversation.updated_at,
+      };
+    });
 
-        const { data: lastMsgArr } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('conversation_id', conv.id)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        const lastMsg = lastMsgArr?.[0] || null;
-
-        const { count: unreadCount } = await supabase
-          .from('messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('conversation_id', conv.id)
-          .neq('sender_id', userId)
-          .eq('is_read', false);
-
-        return {
-          _id: conv.id,
-          name: conv.name,
-          type: conv.is_group ? 'group' : 'direct',
-          accepted: true,
-          participants: participantsInfo,
-          lastMessage: lastMsg
-            ? {
-                _id: lastMsg.id,
-                content: lastMsg.content,
-                type: lastMsg.message_type || 'text',
-                createdAt: lastMsg.created_at,
-                senderId: lastMsg.sender_id,
-              }
-            : null,
-          unreadCount: unreadCount || 0,
-          createdAt: conv.created_at,
-          updatedAt: conv.updated_at,
-        };
-      }),
-    );
-
-    return NextResponse.json({ conversations: enriched, total: enriched.length });
+    return NextResponse.json({
+      conversations: result,
+      total: result.length,
+      unread: result.reduce((sum, conversation) => sum + conversation.unreadCount, 0),
+    });
   } catch (error) {
-    console.error('Erreur serveur conversations:', error);
+    console.error('[messages/conversations] GET failed:', error);
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+    const session = await getApiSession(request);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+    const body = await request.json().catch(() => null);
+    const participantId = typeof body?.participantId === 'string' ? body.participantId.trim() : '';
+    if (!participantId || participantId === session.user.id) {
+      return NextResponse.json({ error: 'Participant invalide' }, { status: 400 });
     }
 
-    const { participantId, name } = await request.json();
-
-    if (!participantId) {
-      return NextResponse.json({ error: 'ID du participant requis' }, { status: 400 });
+    const { data: profile } = await supabaseAdmin.from('profiles').select('id').eq('id', participantId).maybeSingle();
+    if (!profile) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
+    if (await usersAreBlocked(session.user.id, participantId)) {
+      return NextResponse.json({ error: 'Conversation indisponible' }, { status: 403 });
+    }
+    if (!await usersAreFriends(session.user.id, participantId)) {
+      return NextResponse.json({ error: 'Une demande de contact doit d’abord etre acceptee' }, { status: 403 });
     }
 
-    const userId = session.user.id;
-
-    {
-      const { data: existingParts } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', userId);
-
-      if (existingParts && existingParts.length > 0) {
-        const existingConvIds = existingParts.map((p) => p.conversation_id);
-
-        const { data: otherParts } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('user_id', participantId)
-          .in('conversation_id', existingConvIds);
-
-        if (otherParts && otherParts.length > 0) {
-          for (const op of otherParts) {
-            const { data: conv } = await supabase
-              .from('conversations')
-              .select('*')
-              .eq('id', op.conversation_id)
-              .eq('is_group', false)
-              .single();
-
-            if (conv) {
-              return NextResponse.json({
-                _id: conv.id,
-                name: conv.name,
-                type: 'direct',
-                exists: true,
-              });
-            }
-          }
-        }
-      }
-    }
-
-    const convId = crypto.randomUUID();
-    const { data: newConv, error: convError } = await supabase
-      .from('conversations')
-      .insert({
-        id: convId,
-        name: name || null,
-        is_group: false,
-      })
-      .select()
-      .single();
-
-    if (convError || !newConv) {
-      console.error('Erreur creation conversation:', convError);
-      return NextResponse.json({ error: 'Erreur creation conversation' }, { status: 500 });
-    }
-
-    const { error: partError } = await supabase
+    const conversation = await ensureDirectConversation(session.user.id, participantId);
+    await supabaseAdmin
       .from('conversation_participants')
-      .insert([
-        { conversation_id: newConv.id, user_id: userId },
-        { conversation_id: newConv.id, user_id: participantId },
-      ]);
-
-    if (partError) {
-      console.error('Erreur ajout participants:', partError);
-    }
-
-    return NextResponse.json(
-      { _id: newConv.id, name: newConv.name, type: 'direct' },
-      { status: 201 },
-    );
+      .update({ archived_at: null })
+      .eq('conversation_id', conversation.id)
+      .eq('user_id', session.user.id);
+    return NextResponse.json({ id: conversation.id, _id: conversation.id, type: 'direct', exists: true }, { status: 200 });
   } catch (error) {
-    console.error('Erreur creation conversation:', error);
+    console.error('[messages/conversations] POST failed:', error);
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }

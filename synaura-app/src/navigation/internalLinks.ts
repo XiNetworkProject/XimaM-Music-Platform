@@ -89,6 +89,18 @@ export async function openInternalLink(
     navigation.navigate('Notifications');
     return true;
   }
+  if (root === 'messages' && id) {
+    navigation.navigate('Conversation', { conversationId: decodeURIComponent(id) });
+    return true;
+  }
+  if (root === 'messages') {
+    const query = toQuery(urlOrPath);
+    const tab = query.get('tab');
+    navigation.navigate('Messages', {
+      tab: tab === 'requests' || tab === 'contacts' ? tab : 'conversations',
+    });
+    return true;
+  }
   if (root === 'settings') {
     navigation.navigate('Settings');
     return true;

@@ -1,15 +1,13 @@
 {
-  "title": "Synaura Aura Flow 0.21.0",
+  "title": "Synaura Connexions 0.22.0",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Themes Sombre, Clair et Systeme sur le web et l'app native",
-    "Flow plus stable avec un swipe page par page, reprise de position et moins de repetitions",
-    "Commandes Plus comme ca, Moins comme ca et Masquer cet artiste pour piloter les recommandations",
-    "Explication Pourquoi ce morceau basee sur les vrais signaux de recommandation",
-    "Discover charge plus vite et Tout juste publie respecte maintenant l'ordre chronologique",
-    "Waveform optimisee avec regroupement lisible des commentaires et reactions horodates",
-    "Profils, clips, commentaires, navigation et mises en page adaptes aux differentes tailles d'ecran",
-    "Session mobile securisee, reprise audio en arriere-plan et morceaux similaires dans le lecteur"
+    "Demandes d'amis avec message facultatif, acceptation, refus et annulation",
+    "Messagerie privee partagee entre le web et l'app native",
+    "Envoi de textes, images, videos, fichiers audio, vocaux et sons Synaura",
+    "Reactions aux messages, accusés de lecture, suppression et recherche de contacts",
+    "Blocage, retrait d'ami, archivage, sourdine et confidentialite des demandes",
+    "Notifications et badges de messages non lus relies aux conversations"
   ]
 }

@@ -101,6 +101,7 @@ import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { ClipUploadIndicator } from '@/clips/ClipUploadIndicator';
 import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
+import { MessageInboxButton } from '@/components/messaging/MessageInboxButton';
 import { SynauraImage } from '@/components/ui/SynauraImage';
 import { recommendationReasonLabel } from '@/feed/recommendationReasons';
 
@@ -1588,9 +1589,12 @@ export function SwipeScreen() {
             onChange={switchFeedMode}
           />
           <View style={styles.headerActions}>
-            <MotionPressable accessibilityLabel="Rechercher" onPress={() => navigation.navigate('Search')} style={styles.queueButton} scaleTo={0.9}>
-              <Ionicons name="search" size={19} color="#FFFAF2" />
-            </MotionPressable>
+            {!responsive.isUltraNarrow ? (
+              <MotionPressable accessibilityLabel="Rechercher" onPress={() => navigation.navigate('Search')} style={styles.queueButton} scaleTo={0.9}>
+                <Ionicons name="search" size={19} color="#FFFAF2" />
+              </MotionPressable>
+            ) : null}
+            <MessageInboxButton dark compact />
             <NotificationBellButton dark compact />
           </View>
         </View>

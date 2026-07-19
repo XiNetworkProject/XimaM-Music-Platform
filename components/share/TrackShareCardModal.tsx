@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Check, Copy, Download, Image as ImageIcon, Loader2, Share2, X } from 'lucide-react';
+import { Check, Copy, Download, Image as ImageIcon, Loader2, MessageCircle, Send, Share2, X } from 'lucide-react';
 import {
   SHARE_CARD_FORMATS,
   type ShareCardFormatId,
@@ -25,7 +25,13 @@ type Props = {
   onClose: () => void;
 };
 
-type ActionStatus = 'idle' | 'copied' | 'downloaded' | 'shared';
+type ActionStatus = 'idle' | 'copied' | 'downloaded' | 'shared' | 'sent';
+
+type ShareContact = {
+  friendshipId: string;
+  conversationId: string | null;
+  user: { id: string; name: string; username: string; avatar: string | null };
+};
 
 export default function TrackShareCardModal({ visible, track, trackUrl, onClose }: Props) {
   const [format, setFormat] = useState<ShareCardFormatId>('square');
@@ -33,6 +39,10 @@ export default function TrackShareCardModal({ visible, track, trackUrl, onClose 
   const [status, setStatus] = useState<ActionStatus>('idle');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [friendsOpen, setFriendsOpen] = useState(false);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [contacts, setContacts] = useState<ShareContact[]>([]);
+  const [sendingTo, setSendingTo] = useState<string | null>(null);
 
   const imagePath = useMemo(() => {
     if (!track?.id) return '';
@@ -116,6 +126,70 @@ export default function TrackShareCardModal({ visible, track, trackUrl, onClose 
       }
     } finally {
       setBusy(false);
+    }
+  };
+
+  const openFriends = async () => {
+    if (friendsOpen) {
+      setFriendsOpen(false);
+      return;
+    }
+    setFriendsOpen(true);
+    setFriendsLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/messages/contacts', { cache: 'no-store' });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(response.status === 401 ? 'Connecte-toi pour envoyer ce son à un ami.' : payload?.error || 'Contacts indisponibles');
+      setContacts(Array.isArray(payload?.contacts) ? payload.contacts : []);
+    } catch (contactError) {
+      setFriendsOpen(false);
+      setError(contactError instanceof Error ? contactError.message : 'Contacts indisponibles');
+    } finally {
+      setFriendsLoading(false);
+    }
+  };
+
+  const sendToFriend = async (contact: ShareContact) => {
+    if (sendingTo) return;
+    setSendingTo(contact.user.id);
+    setError('');
+    try {
+      let conversationId = contact.conversationId;
+      if (!conversationId) {
+        const conversationResponse = await fetch('/api/messages/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ participantId: contact.user.id }),
+        });
+        const conversation = await conversationResponse.json().catch(() => null);
+        if (!conversationResponse.ok || !conversation?.id) throw new Error(conversation?.error || 'Discussion indisponible');
+        conversationId = String(conversation.id);
+      }
+      if (!conversationId) throw new Error('Discussion indisponible');
+      const messageResponse = await fetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'track',
+          sharedEntityId: track.id,
+          metadata: {
+            title: track.title,
+            artistName: track.artist,
+            coverUrl: track.coverUrl || '',
+            duration: Number(track.duration || 0),
+            url: trackUrl,
+          },
+        }),
+      });
+      const message = await messageResponse.json().catch(() => null);
+      if (!messageResponse.ok) throw new Error(message?.error || 'Envoi impossible');
+      setFriendsOpen(false);
+      showStatus('sent');
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : 'Envoi impossible');
+    } finally {
+      setSendingTo(null);
     }
   };
 
@@ -205,6 +279,22 @@ export default function TrackShareCardModal({ visible, track, trackUrl, onClose 
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
                 {busy ? 'Préparation...' : 'Partager la carte'}
               </button>
+              <button type="button" disabled={friendsLoading || Boolean(sendingTo)} onClick={() => void openFriends()} className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#7357C6] px-4 text-xs font-black text-white transition hover:bg-[#674BB9] disabled:cursor-wait disabled:opacity-55">
+                {friendsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                Envoyer à un ami
+              </button>
+              {friendsOpen ? (
+                <div className="max-h-48 space-y-1 overflow-y-auto rounded-[1rem] border border-black/[0.08] bg-white p-2">
+                  {!contacts.length && !friendsLoading ? <p className="px-3 py-4 text-center text-xs font-bold text-black/42">Aucun ami à qui envoyer ce son.</p> : null}
+                  {contacts.map((contact) => (
+                    <button key={contact.friendshipId} type="button" disabled={Boolean(sendingTo)} onClick={() => void sendToFriend(contact)} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-black/[0.05] disabled:opacity-50">
+                      {contact.user.avatar ? <img src={contact.user.avatar} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black/[0.08] text-xs font-black">{contact.user.name.slice(0, 1).toUpperCase()}</span>}
+                      <span className="min-w-0 flex-1"><span className="block truncate text-xs font-black">{contact.user.name}</span><span className="block truncate text-[10px] font-bold text-black/38">@{contact.user.username}</span></span>
+                      {sendingTo === contact.user.id ? <Loader2 className="h-4 w-4 animate-spin text-[#7357C6]" /> : <Send className="h-4 w-4 text-black/36" />}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={copyLink} className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-black/[0.06] px-4 text-xs font-black text-black/62 transition hover:bg-black/[0.1]">
                   {status === 'copied' ? <Check className="h-4 w-4 text-[#4A9EAA]" /> : <Copy className="h-4 w-4" />}
@@ -218,7 +308,7 @@ export default function TrackShareCardModal({ visible, track, trackUrl, onClose 
             </div>
             {status !== 'idle' ? (
               <p className="mt-3 text-center text-xs font-black text-[#4A9EAA]">
-                {status === 'copied' ? 'Lien copie' : status === 'downloaded' ? 'Image prete' : 'Partage lance'}
+                {status === 'copied' ? 'Lien copie' : status === 'downloaded' ? 'Image prete' : status === 'sent' ? 'Envoye dans la discussion' : 'Partage lance'}
               </p>
             ) : null}
             {error ? <p className="mt-3 rounded-xl border border-[#D96D63]/25 bg-[#D96D63]/10 px-3 py-2 text-center text-xs font-bold text-[#B84D45]">{error}</p> : null}

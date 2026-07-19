@@ -27,6 +27,7 @@ import {
   CreditCard,
   Music2,
   Link2,
+  MessageCircle,
 } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { useSidebar } from '@/app/providers';
@@ -38,6 +39,7 @@ import StarAcademyBanner from '@/components/StarAcademyBanner';
 const NAV_ITEMS = [
   { href: '/', label: 'Pour toi', icon: Home },
   { href: '/discover', label: 'Découvrir', icon: Compass },
+  { href: '/messages', label: 'Messages', icon: MessageCircle },
   { href: '/library', label: 'Bibliothèque', icon: BookOpen },
   { href: '/publish', label: 'Publier', icon: Music2 },
   { href: '/community', label: 'Clubs', icon: Users },
@@ -60,6 +62,7 @@ export default function AppSidebar() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [creditsBalance, setCreditsBalance] = useState<number>(0);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [messagesUnread, setMessagesUnread] = useState(0);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const getSafeAvatar = () => {
@@ -89,6 +92,27 @@ export default function AppSidebar() {
       if (res && typeof res.balance === 'number') setCreditsBalance(res.balance);
     })();
   }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setMessagesUnread(0);
+      return;
+    }
+    let active = true;
+    const loadUnread = async () => {
+      try {
+        const response = await fetch('/api/messages/unread', { cache: 'no-store' });
+        const payload = await response.json().catch(() => null);
+        if (active && response.ok) setMessagesUnread(Math.max(0, Number(payload?.total || 0)));
+      } catch {}
+    };
+    void loadUnread();
+    const timer = window.setInterval(loadUnread, 30_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [pathname, session?.user?.id]);
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -263,7 +287,7 @@ export default function AppSidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2.5 rounded-xl px-2.5 py-[7px] text-[13px] font-medium transition-all active:scale-[0.98] ${
+              className={`relative flex items-center gap-2.5 rounded-xl px-2.5 py-[7px] text-[13px] font-medium transition-all active:scale-[0.98] ${
                 active
                   ? 'bg-syn-accent/10 text-syn-accent font-semibold'
                   : 'text-syn-textPrimary/55 hover:text-syn-textPrimary hover:bg-black/[0.035]'
@@ -272,6 +296,11 @@ export default function AppSidebar() {
             >
               <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={active ? 2.2 : 1.6} />
               <span className="group-data-[collapsed=true]/sidebar:hidden truncate">{item.label}</span>
+              {item.href === '/messages' && messagesUnread > 0 ? (
+                <span className="ml-auto min-w-5 rounded-full bg-syn-accent px-1.5 py-0.5 text-center text-[9px] font-black text-white group-data-[collapsed=true]/sidebar:absolute group-data-[collapsed=true]/sidebar:right-0 group-data-[collapsed=true]/sidebar:top-0">
+                  {messagesUnread > 99 ? '99+' : messagesUnread}
+                </span>
+              ) : null}
             </Link>
           );
         })}

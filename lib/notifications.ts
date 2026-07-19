@@ -26,6 +26,8 @@ export type NotifType =
   | 'like_milestone'
   | 'new_comment'
   | 'new_message'
+  | 'message_request'
+  | 'message_request_accepted'
   | 'new_track_followed'
   | 'view_milestone'
   | 'boost_reminder'
@@ -45,6 +47,8 @@ const TYPE_TO_CATEGORY: Record<NotifType, NotifCategory> = {
   like_milestone: 'milestone',
   new_comment: 'social',
   new_message: 'message',
+  message_request: 'message',
+  message_request_accepted: 'message',
   new_track_followed: 'music',
   view_milestone: 'milestone',
   boost_reminder: 'boost',
@@ -65,6 +69,8 @@ const TYPE_TO_PREF_KEY: Record<NotifType, string> = {
   like_milestone: 'like_milestone',
   new_comment: 'new_comment',
   new_message: 'new_message',
+  message_request: 'new_message',
+  message_request_accepted: 'new_message',
   new_track_followed: 'new_track_followed',
   view_milestone: 'view_milestone',
   boost_reminder: 'boost_reminder',
@@ -508,15 +514,72 @@ export async function notifyViewMilestone(userId: string, trackTitle: string, co
   });
 }
 
-export async function notifyNewMessage(senderId: string, recipientId: string, senderName: string) {
+export async function notifyNewMessage(
+  senderId: string,
+  recipientId: string,
+  senderName: string,
+  conversationId?: string,
+  preview?: string,
+) {
   return createNotification({
     userId: recipientId,
     type: 'new_message',
     title: 'Nouveau message',
-    message: `${senderName} t'a envoye un message`,
-    actionUrl: '/messages',
+    message: preview ? `${senderName} : ${preview.slice(0, 90)}` : `${senderName} t'a envoye un message`,
+    actionUrl: conversationId ? `/messages/${conversationId}` : '/messages',
     senderId,
+    relatedId: conversationId,
+    data: conversationId ? { conversation_id: conversationId } : undefined,
   });
+}
+
+export async function notifyMessageRequest(
+  requesterId: string,
+  recipientId: string,
+  requesterName: string,
+  requesterUsername: string,
+  requestId: string,
+) {
+  return createNotification({
+    userId: recipientId,
+    type: 'message_request',
+    title: 'Nouvelle demande de contact',
+    message: `${requesterName} souhaite discuter avec toi`,
+    actionUrl: '/messages?tab=requests',
+    senderId: requesterId,
+    relatedId: requestId,
+    data: { requester_username: requesterUsername },
+    dedupeOnRelatedId: true,
+  });
+}
+
+export async function notifyMessageRequestAccepted(
+  accepterId: string,
+  requesterId: string,
+  accepterName: string,
+  conversationId: string,
+) {
+  return createNotification({
+    userId: requesterId,
+    type: 'message_request_accepted',
+    title: 'Demande acceptee',
+    message: `${accepterName} fait maintenant partie de tes contacts`,
+    actionUrl: `/messages/${conversationId}`,
+    senderId: accepterId,
+    relatedId: conversationId,
+    data: { conversation_id: conversationId },
+    dedupeOnRelatedId: true,
+  });
+}
+
+export async function markMessageRequestNotificationResolved(recipientId: string, requestId: string) {
+  const { error } = await supabaseAdmin
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', recipientId)
+    .eq('type', 'message_request')
+    .eq('related_id', requestId);
+  if (error) console.warn('[notifications] request resolution sync failed:', error.message);
 }
 
 export async function notifyPostLike(likerId: string, postOwnerId: string, likerName: string, postId: string) {

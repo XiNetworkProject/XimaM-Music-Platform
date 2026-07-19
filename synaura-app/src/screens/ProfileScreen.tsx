@@ -26,6 +26,7 @@ import { colors } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { MobileBadge } from '@/components/mobile/MobileBadge';
 import { AppHeader } from '@/components/ui/AppHeader';
+import { useMessagingUnread } from '@/messaging/useMessagingUnread';
 import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
 import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard';
 import { MotionPressable } from '@/components/motion/Motion';
@@ -62,6 +63,7 @@ export function ProfileScreen() {
   const auth = useAuth();
   const navigation = useNavigation<any>();
   const nativeNotifications = useNativeNotifications();
+  const messagingUnread = useMessagingUnread();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
   const responsive = useResponsiveLayout();
@@ -489,6 +491,7 @@ export function ProfileScreen() {
           title="Profil"
           subtitle="Ton univers sur Synaura"
           actions={[
+            { icon: messagingUnread.total ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline', label: 'Messages', badge: messagingUnread.total, onPress: () => navigation.navigate('Messages') },
             { icon: nativeNotifications.unreadCount ? 'notifications' : 'notifications-outline', label: 'Activité', badge: nativeNotifications.unreadCount, onPress: () => navigation.navigate('Notifications') },
             { icon: 'settings-outline', label: 'Paramètres', onPress: () => navigation.navigate('Settings') },
           ]}

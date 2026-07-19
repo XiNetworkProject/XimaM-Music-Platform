@@ -1,75 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
+import { findDirectConversation, getBlockState, usersAreFriends } from '@/lib/messaging';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const targetId = searchParams.get('targetId');
-
-    if (!targetId) {
-      return NextResponse.json({ error: 'targetId requis' }, { status: 400 });
-    }
+    const session = await getApiSession(request);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+    const targetId = request.nextUrl.searchParams.get('targetId')?.trim();
+    if (!targetId) return NextResponse.json({ error: 'targetId requis' }, { status: 400 });
 
     const userId = session.user.id;
+    if (targetId === userId) return NextResponse.json({ relationship: 'self', status: 'self' });
 
-    const { data: myParts } = await supabaseAdmin
-      .from('conversation_participants')
-      .select('conversation_id')
-      .eq('user_id', userId);
-
-    if (myParts && myParts.length > 0) {
-      const convIds = myParts.map((p) => p.conversation_id);
-
-      const { data: otherParts } = await supabaseAdmin
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', targetId)
-        .in('conversation_id', convIds);
-
-      if (otherParts && otherParts.length > 0) {
-        for (const op of otherParts) {
-          const { data: conv } = await supabaseAdmin
-            .from('conversations')
-            .select('id')
-            .eq('id', op.conversation_id)
-            .eq('is_group', false)
-            .single();
-
-          if (conv) {
-            return NextResponse.json({ status: 'accepted', conversationId: conv.id });
-          }
-        }
-      }
+    const block = await getBlockState(userId, targetId);
+    if (block.blockedByMe || block.blockedMe) {
+      return NextResponse.json({
+        relationship: 'blocked',
+        status: 'blocked',
+        blockedByMe: block.blockedByMe,
+        blockedMe: block.blockedMe,
+      });
     }
 
-    const { data: sentReq } = await supabaseAdmin
-      .from('message_requests')
-      .select('id, status')
-      .eq('requester_id', userId)
-      .eq('target_id', targetId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (sentReq) {
-      if (sentReq.status === 'accepted') {
-        return NextResponse.json({ status: 'accepted' });
-      }
-      if (sentReq.status === 'pending') {
-        return NextResponse.json({ status: 'pending' });
-      }
+    const conversation = await findDirectConversation(userId, targetId);
+    if (await usersAreFriends(userId, targetId)) {
+      return NextResponse.json({
+        relationship: 'friends',
+        status: 'accepted',
+        conversationId: conversation?.id || null,
+      });
     }
 
-    return NextResponse.json({ status: 'none' });
+    const [{ data: outgoingRows }, { data: incomingRows }] = await Promise.all([
+      supabaseAdmin
+        .from('message_requests')
+        .select('id, requester_id, target_id, status, created_at')
+        .eq('requester_id', userId)
+        .eq('target_id', targetId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1),
+      supabaseAdmin
+        .from('message_requests')
+        .select('id, requester_id, target_id, status, created_at')
+        .eq('requester_id', targetId)
+        .eq('target_id', userId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1),
+    ]);
+    const pending = [...(outgoingRows || []), ...(incomingRows || [])]
+      .sort((first, second) => new Date(second.created_at).getTime() - new Date(first.created_at).getTime())[0];
+    if (pending) {
+      const incoming = pending.target_id === userId;
+      return NextResponse.json({
+        relationship: incoming ? 'incoming' : 'outgoing',
+        status: 'pending',
+        direction: incoming ? 'incoming' : 'outgoing',
+        requestId: pending.id,
+      });
+    }
+
+    return NextResponse.json({ relationship: 'none', status: 'none', conversationId: conversation?.id || null });
   } catch (error) {
-    console.error('Erreur statut demande:', error);
+    console.error('[messages/requests/status] failed:', error);
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }

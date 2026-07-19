@@ -62,7 +62,7 @@ export default function SynauraProfile() {
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageText, setMessageText] = useState('');
   const [sendingRequest, setSendingRequest] = useState(false);
-  const [messageRequestStatus, setMessageRequestStatus] = useState<'none' | 'pending' | 'accepted'>('none');
+  const [messageRequestStatus, setMessageRequestStatus] = useState<'none' | 'outgoing' | 'incoming' | 'friends' | 'blocked'>('none');
   const [existingConvId, setExistingConvId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<'sons' | 'clips' | 'variations' | 'playlists' | 'posts'>('sons');
   const [onlyDrafts, setOnlyDrafts] = useState(false);
@@ -218,8 +218,8 @@ export default function SynauraProfile() {
   const handleLikeUpdate = (tid: string, liked: boolean, count: number) => { setUserTracks(p => p.map(t => t.id === tid ? { ...t, isLiked: liked, likes: count } : t)); setProfile((p: any) => ({ ...p, tracks: p.tracks?.map((t: any) => t.id === tid ? { ...t, isLiked: liked, likes: count } : t) })); };
   const handleDeleteTrack = async (tid: string) => { if (!confirm('Supprimer ?')) return; try { const ai = String(tid).startsWith('ai-'); const eid = ai ? tid.slice(3) : tid; const r = await fetch(ai ? `/api/ai/tracks/${eid}` : `/api/tracks/${eid}`, { method: 'DELETE' }); if (!r.ok) throw new Error((await r.json()).error); setUserTracks(p => p.filter(t => t.id !== tid)); setDrawerId(null); notify.success('OK', 'Supprimee'); } catch (e: any) { notify.error('Erreur', e.message); } };
   const handleFollow = async () => { if (!session?.user) { router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`); return; } try { if (!usernameStr) return; const r = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/follow`, { method: 'POST' }); if (!r.ok) throw new Error(); const d = await r.json(); setProfile((p: any) => ({ ...p, isFollowing: d.action === 'followed', followerCount: p.followerCount + (d.action === 'followed' ? 1 : -1) })); } catch { notify.error('Erreur', 'Impossible'); } };
-  useEffect(() => { if (!session?.user?.id || !profile?.id || isOwnProfile) return; (async () => { try { const r = await fetch(`/api/messages/requests/status?targetId=${profile.id}`); if (r.ok) { const d = await r.json(); setMessageRequestStatus(d.status || 'none'); if (d.conversationId) setExistingConvId(d.conversationId); } } catch {} })(); }, [session?.user?.id, profile?.id, isOwnProfile]);
-  const handleSendMessageRequest = async () => { if (!session?.user) { router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`); return; } if (!profile?.id) return; setSendingRequest(true); try { const r = await fetch('/api/messages/requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetId: profile.id, message: messageText.trim() || null }) }); const d = await r.json(); if (r.ok) { setMessageRequestStatus('pending'); setShowMessageModal(false); setMessageText(''); notify.success('OK', 'Demande envoyee'); } else if (d.alreadyConnected) router.push(d.conversationId ? `/messages/${d.conversationId}` : '/messages'); else if (d.alreadySent) { setMessageRequestStatus('pending'); notify.info('Info', 'Deja envoyee'); } else notify.error('Erreur', d.error || 'Erreur'); } catch { notify.error('Erreur', 'Connexion'); } finally { setSendingRequest(false); } };
+  useEffect(() => { if (!session?.user?.id || !profile?.id || isOwnProfile) return; (async () => { try { const r = await fetch(`/api/messages/requests/status?targetId=${profile.id}`); if (r.ok) { const d = await r.json(); setMessageRequestStatus(d.relationship || 'none'); setExistingConvId(d.relationship === 'friends' ? d.conversationId || null : null); } } catch {} })(); }, [session?.user?.id, profile?.id, isOwnProfile]);
+  const handleSendMessageRequest = async () => { if (!session?.user) { router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`); return; } if (!profile?.id) return; setSendingRequest(true); try { const r = await fetch('/api/messages/requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetId: profile.id, message: messageText.trim() || null }) }); const d = await r.json(); if (!r.ok) { notify.error('Demande', d.error || 'Envoi impossible'); return; } if (d.alreadyConnected || d.autoAccepted) { setMessageRequestStatus('friends'); setExistingConvId(d.conversationId || null); setShowMessageModal(false); router.push(d.conversationId ? `/messages/${d.conversationId}` : '/messages'); return; } setMessageRequestStatus('outgoing'); setShowMessageModal(false); setMessageText(''); notify.success('Demande envoyée', `${profile.name} pourra l’accepter depuis sa messagerie.`); } catch { notify.error('Demande', 'Connexion impossible'); } finally { setSendingRequest(false); } };
   const handleImageUpload = async (type: 'avatar' | 'banner', file: File) => { setUploading(true); try { const ts = Math.round(Date.now() / 1000); const pid = `${usernameStr || 'u'}_${type}_${ts}`; if (!usernameStr) throw new Error(); const s = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/upload-image`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timestamp: ts, publicId: pid, type }) }); if (!s.ok) throw new Error(); const { signature, apiKey, cloudName } = await s.json(); const fd = new FormData(); fd.append('file', file); fd.append('timestamp', String(ts)); fd.append('public_id', pid); fd.append('folder', `ximam/profiles/${username}`); fd.append('resource_type', 'image'); fd.append('api_key', apiKey); fd.append('signature', signature); const u = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd }); if (!u.ok) throw new Error(); const ud = await u.json(); const sv = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/save-image`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: ud.secure_url, type, publicId: pid }) }); if (!sv.ok) throw new Error(); const sd = await sv.json(); setProfile((p: any) => ({ ...p, [type]: sd.imageUrl })); notify.success('OK', 'Image mise a jour'); } catch { notify.error('Erreur', 'Upload echoue'); } finally { setUploading(false); } };
   const handleEdit = () => router.push('/settings?tab=profil');
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -609,7 +609,7 @@ export default function SynauraProfile() {
                           <UserPlus size={15} /> Suivre
                         </HeroActionPrimary>
                       )}
-                      <MsgBtn status={messageRequestStatus} existingConvId={existingConvId} onMsg={() => setShowMessageModal(true)} onGo={() => router.push(existingConvId ? `/messages/${existingConvId}` : '/messages')} />
+                      <MsgBtn status={messageRequestStatus} existingConvId={existingConvId} onMsg={() => setShowMessageModal(true)} onGo={() => router.push(existingConvId ? `/messages/${existingConvId}` : messageRequestStatus === 'incoming' ? '/messages?tab=requests' : '/messages')} />
                       <HeroActionSecondary onClick={handleShareProfile}>
                         <Share2 size={15} /> Partager le profil
                       </HeroActionSecondary>
@@ -1242,8 +1242,8 @@ export default function SynauraProfile() {
 
       <UModal open={showMessageModal} onClose={() => setShowMessageModal(false)}>
         <UModalBody>
-          <div className="flex items-center gap-3 mb-4"><Avatar src={profile?.avatar} name={profile?.name} username={usernameStr || ''} size="md" /><div><h2 className="text-base font-bold text-white">Message a {profile?.name}</h2><p className="text-xs text-white/55">Demande en attente de validation</p></div></div>
-          <UTextarea value={messageText} onChange={(v) => setMessageText(v)} placeholder="Message (optionnel)..." rows={3} />
+          <div className="flex items-center gap-3 mb-4"><Avatar src={profile?.avatar} name={profile?.name} username={usernameStr || ''} size="md" /><div><h2 className="text-base font-bold text-white">Ajouter {profile?.name}</h2><p className="text-xs text-white/55">Ajoute un mot pour donner envie de répondre.</p></div></div>
+          <UTextarea value={messageText} onChange={(v) => setMessageText(v)} placeholder="Message (optionnel)…" rows={3} />
           <UModalFooter>
             <UButton variant="secondary" fullWidth onClick={() => { setShowMessageModal(false); setMessageText(''); }}>Annuler</UButton>
             <UButton variant="primary" fullWidth onClick={handleSendMessageRequest} disabled={sendingRequest} loading={sendingRequest}><Send size={13} /> Envoyer</UButton>
@@ -1440,13 +1440,19 @@ function MetricCard({ label, value, accent }: { label: string; value: string; ac
 }
 
 function MsgBtn({ status, existingConvId, onMsg, onGo }: { status: string; existingConvId: string | null; onMsg: () => void; onGo: () => void }) {
-  if (status === 'accepted' || existingConvId) {
+  if (status === 'friends' || existingConvId) {
     return <HeroActionSecondary onClick={onGo}><MessageCircle size={14} /> Message</HeroActionSecondary>;
   }
-  if (status === 'pending') {
-    return <button disabled className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/6 px-4 text-sm font-black text-white/32 cursor-not-allowed"><Send size={14} /> En attente</button>;
+  if (status === 'incoming') {
+    return <HeroActionSecondary onClick={onGo}><UserPlus size={14} /> Répondre</HeroActionSecondary>;
   }
-  return <HeroActionSecondary onClick={onMsg}><MessageCircle size={14} /> Message</HeroActionSecondary>;
+  if (status === 'outgoing') {
+    return <button disabled className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/6 px-4 text-sm font-black text-white/32 cursor-not-allowed"><Send size={14} /> Demande envoyée</button>;
+  }
+  if (status === 'blocked') {
+    return <button disabled className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/6 px-4 text-sm font-black text-white/32 cursor-not-allowed"><MessageCircle size={14} /> Indisponible</button>;
+  }
+  return <HeroActionSecondary onClick={onMsg}><UserPlus size={14} /> Ajouter</HeroActionSecondary>;
 }
 
 function HeroActionPrimary({

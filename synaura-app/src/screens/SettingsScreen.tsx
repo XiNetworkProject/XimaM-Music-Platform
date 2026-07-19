@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   clearHiddenRecommendationArtists,
   deleteAccount,
   getMyProfile,
+  getBlockedMessageUsers,
   getNotificationPrefs,
   getReferralData,
   getSubscriptionUsage,
@@ -14,6 +16,8 @@ import {
   updateNotificationPrefs,
   updateProfile,
   updateUserPreferences,
+  unblockMessageUser,
+  type MessagingBlock,
   type MobileProfile,
   type NotificationPrefs,
   type ReferralData,
@@ -32,6 +36,7 @@ import { useNativeNotifications } from '@/notifications/NativeNotificationsProvi
 import { AppHeader } from '@/components/ui/AppHeader';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { MessagingAvatar } from '@/components/messaging/MessagingAvatar';
 
 type Tab = 'overview' | 'profil' | 'compte' | 'preferences' | 'notifications' | 'events' | 'parrainage' | 'abonnement' | 'updates' | 'securite' | 'legal';
 type EventPrefs = {
@@ -96,7 +101,10 @@ export function SettingsScreen() {
   const [referral, setReferral] = useState<ReferralData | null>(null);
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
   const [eventPrefs, setEventPrefs] = useState<EventPrefs>({ autoParticipate: false, voteReminders: true, showBadges: true, resultNotifications: true, allowPulse: true });
+  const [messagingPrivacy, setMessagingPrivacy] = useState<'everyone' | 'following' | 'nobody'>('everyone');
   const [hiddenArtistsCount, setHiddenArtistsCount] = useState(0);
+  const [blockedUsers, setBlockedUsers] = useState<MessagingBlock[]>([]);
+  const [unblockingUserId, setUnblockingUserId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', bio: '', location: '', website: '', artistName: '', genreText: '', isArtist: false, instagram: '', youtube: '', tiktok: '', spotify: '', soundcloud: '', deezer: '', apple_music: '', twitch: '', discord: '', x: '', custom: '', badgesText: '', featuredTrackId: '' });
@@ -121,21 +129,25 @@ export function SettingsScreen() {
     if (!auth.user?.username) return;
     setLoading(true);
     try {
-      const [nextProfile, nextNotif, nextReferral, nextUsage, nextPreferences] = await Promise.all([
+      const [nextProfile, nextNotif, nextReferral, nextUsage, nextPreferences, nextBlockedUsers] = await Promise.all([
         getMyProfile(auth.user.username),
         getNotificationPrefs().catch(() => null),
         getReferralData(),
         getSubscriptionUsage(),
         getUserPreferences().catch(() => ({})),
+        getBlockedMessageUsers().catch(() => []),
       ]);
       setProfile(nextProfile);
       setNotif(nextNotif);
       setReferral(nextReferral);
       setUsage(nextUsage);
       setEventPrefs((current) => ({ ...current, ...((nextPreferences as Record<string, any>).events || {}) }));
+      const nextMessagingPrivacy = (nextPreferences as Record<string, any>).messagingPrivacy;
+      if (nextMessagingPrivacy === 'everyone' || nextMessagingPrivacy === 'following' || nextMessagingPrivacy === 'nobody') setMessagingPrivacy(nextMessagingPrivacy);
       setHiddenArtistsCount(Array.isArray((nextPreferences as Record<string, any>)?.taste?.hiddenArtistIds)
         ? (nextPreferences as Record<string, any>).taste.hiddenArtistIds.length
         : 0);
+      setBlockedUsers(nextBlockedUsers);
       setForm({
         name: nextProfile.name || '',
         bio: nextProfile.bio || '',
@@ -221,6 +233,28 @@ export function SettingsScreen() {
     const next = { ...eventPrefs, ...patch };
     setEventPrefs(next);
     await updateUserPreferences({ events: next });
+  };
+
+  const patchMessagingPrivacy = async (value: 'everyone' | 'following' | 'nobody') => {
+    const previous = messagingPrivacy;
+    setMessagingPrivacy(value);
+    try {
+      await updateUserPreferences({ messagingPrivacy: value });
+      void Haptics.selectionAsync().catch(() => {});
+    } catch {
+      setMessagingPrivacy(previous);
+    }
+  };
+
+  const unblockUser = async (userId: string) => {
+    setUnblockingUserId(userId);
+    try {
+      await unblockMessageUser(userId);
+      setBlockedUsers((current) => current.filter((block) => block.user.id !== userId));
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } finally {
+      setUnblockingUserId(null);
+    }
   };
 
   const confirmDelete = () => {
@@ -385,6 +419,7 @@ export function SettingsScreen() {
               value={mobileSettings.settings.themeMode}
               onChange={(themeMode) => void mobileSettings.updateSettings({ themeMode })}
             />
+            <MessagingPrivacySelector value={messagingPrivacy} onChange={(value) => void patchMessagingPrivacy(value)} />
             {hiddenArtistsCount > 0 ? (
               <View style={styles.hiddenArtistsRow}>
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -550,6 +585,15 @@ export function SettingsScreen() {
 
         {tab === 'securite' ? (
           <Section title="Securite" text="Actions sensibles du compte.">
+            <Text style={styles.groupTitle}>Comptes bloqués</Text>
+            <Text style={styles.themeHint}>Ces comptes ne peuvent plus t’ajouter ni t’envoyer de message.</Text>
+            {blockedUsers.length ? blockedUsers.map((block) => (
+              <View key={block.id} style={styles.blockedRow}>
+                <MessagingAvatar user={block.user} size={42} />
+                <View style={styles.blockedCopy}><Text numberOfLines={1} style={styles.blockedName}>{block.user.name}</Text><Text numberOfLines={1} style={styles.blockedUsername}>@{block.user.username}</Text></View>
+                <Pressable disabled={unblockingUserId === block.user.id} onPress={() => void unblockUser(block.user.id)} style={styles.unblockButton}><Text style={styles.unblockText}>{unblockingUserId === block.user.id ? 'Patiente…' : 'Débloquer'}</Text></Pressable>
+              </View>
+            )) : <View style={styles.emptyBlocked}><Text style={styles.emptyBlockedText}>Aucun compte bloqué.</Text></View>}
             <Field label="Tape SUPPRIMER pour confirmer" value={deleteConfirm} onChangeText={setDeleteConfirm} />
             <Pressable onPress={confirmDelete} style={styles.danger}><Text style={styles.dangerText}>Supprimer mon compte</Text></Pressable>
           </Section>
@@ -688,6 +732,34 @@ function ThemeSelector({ value, onChange }: { value: ThemeMode; onChange: (value
   );
 }
 
+const MESSAGING_PRIVACY_OPTIONS = [
+  { value: 'everyone', label: 'Tout le monde', description: 'Tous les membres peuvent envoyer une demande.' },
+  { value: 'following', label: 'Les personnes que je suis', description: 'Uniquement les comptes que tu suis déjà.' },
+  { value: 'nobody', label: 'Personne', description: 'Aucune nouvelle demande, sans couper tes amis actuels.' },
+] as const;
+
+function MessagingPrivacySelector({ value, onChange }: { value: 'everyone' | 'following' | 'nobody'; onChange: (value: 'everyone' | 'following' | 'nobody') => void }) {
+  return (
+    <View style={styles.messagingPrivacy}>
+      <View>
+        <Text style={styles.toggleLabel}>Qui peut m’ajouter ?</Text>
+        <Text style={styles.themeHint}>Contrôle les nouvelles demandes d’amis.</Text>
+      </View>
+      <View accessibilityRole="radiogroup" style={styles.messagingChoices}>
+        {MESSAGING_PRIVACY_OPTIONS.map((option) => {
+          const selected = option.value === value;
+          return (
+            <Pressable key={option.value} accessibilityRole="radio" accessibilityState={{ selected }} onPress={() => onChange(option.value)} style={[styles.messagingChoice, selected && styles.messagingChoiceActive]}>
+              <View style={[styles.radio, selected && styles.radioActive]}>{selected ? <View style={styles.radioDot} /> : null}</View>
+              <View style={styles.messagingChoiceCopy}><Text style={styles.messagingChoiceTitle}>{option.label}</Text><Text style={styles.messagingChoiceText}>{option.description}</Text></View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.info}>
@@ -758,6 +830,24 @@ const styles = StyleSheet.create({
   themeBlock: { gap: 12, paddingBottom: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   themeHint: { marginTop: 4, color: colors.textSecondary, fontSize: 10, lineHeight: 15, fontWeight: '700' },
   themeSelector: { minHeight: 48, flexDirection: 'row', gap: 5, padding: 4, borderRadius: 12, backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  messagingPrivacy: { gap: 12, paddingBottom: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  messagingChoices: { overflow: 'hidden', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface },
+  messagingChoice: { minHeight: 58, paddingHorizontal: 12, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  messagingChoiceActive: { backgroundColor: colors.violetSoft },
+  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: colors.textTertiary, alignItems: 'center', justifyContent: 'center' },
+  radioActive: { borderColor: colors.violet },
+  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.violet },
+  messagingChoiceCopy: { flex: 1, minWidth: 0 },
+  messagingChoiceTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  messagingChoiceText: { marginTop: 2, color: colors.textSecondary, fontSize: 9, lineHeight: 13, fontWeight: '600' },
+  blockedRow: { minHeight: 62, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingHorizontal: 10, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface },
+  blockedCopy: { flex: 1, minWidth: 0 },
+  blockedName: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  blockedUsername: { marginTop: 2, color: colors.textSecondary, fontSize: 9, fontWeight: '700' },
+  unblockButton: { minHeight: 36, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 11 },
+  unblockText: { color: colors.text, fontSize: 9, fontWeight: '900' },
+  emptyBlocked: { minHeight: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  emptyBlockedText: { color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
   themeOption: { flex: 1, minWidth: 0, minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 9 },
   themeOptionActive: { backgroundColor: colors.violet },
   themeOptionPressed: { opacity: 0.76 },

@@ -15,7 +15,7 @@ type Props = {
 };
 
 const DOCK_ROUTES = new Set(['Swipe', 'Discover', 'Library', 'Profile']);
-const HIDDEN_ROUTES = new Set(['Swipe', 'Notifications', 'Upload', 'ClipComposer', 'CreateVariation', 'CreateHub', 'Welcome', 'Login', 'Register', 'ForgotPassword', 'Onboarding']);
+const HIDDEN_ROUTES = new Set(['Swipe', 'Notifications', 'Conversation', 'Upload', 'ClipComposer', 'CreateVariation', 'CreateHub', 'Welcome', 'Login', 'Register', 'ForgotPassword', 'Onboarding']);
 
 export function MiniPlayer({ activeRoute, onOpen }: Props) {
   const layout = useResponsiveLayout();

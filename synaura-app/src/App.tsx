@@ -24,6 +24,8 @@ import { UploadScreen } from '@/screens/UploadScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { PublicProfileScreen } from '@/screens/PublicProfileScreen';
 import { NotificationsScreen } from '@/screens/NotificationsScreen';
+import { MessagesScreen } from '@/screens/MessagesScreen';
+import { ConversationScreen } from '@/screens/ConversationScreen';
 import { PostDetailScreen } from '@/screens/PostDetailScreen';
 import { PlaylistDetailScreen } from '@/screens/PlaylistDetailScreen';
 import { CommunityScreen } from '@/screens/CommunityScreen';
@@ -148,6 +150,8 @@ function RootStackNavigator() {
       <Stack.Screen name="ClubDetail" component={ClubDetailScreen} />
       <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="Messages" component={MessagesScreen} />
+      <Stack.Screen name="Conversation" component={ConversationScreen} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen} />
       <Stack.Screen name="TrackDetail" component={TrackDetailScreen} />

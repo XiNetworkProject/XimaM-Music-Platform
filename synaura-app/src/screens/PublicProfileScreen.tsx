@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import { followUser, getProfileMusicClips, getPublicProfile, getUserPostsPage, getUserVariations, type MobileProfile } from '@/api/client';
+import { createDirectConversation, followUser, getMessagingRelationship, getProfileMusicClips, getPublicProfile, getUserPostsPage, getUserVariations, sendMessageRequest, type MessagingRelationship, type MobileProfile } from '@/api/client';
 import type { HomePost, MusicClip, UserVariation } from '@/api/types';
 import type { RootTabsParamList } from '@/navigation/Tabs';
 import { SynauraBackground } from '@/components/SynauraBackground';
@@ -22,6 +22,8 @@ import { colors } from '@/theme/tokens';
 import { useQueryClient } from '@tanstack/react-query';
 import { SynauraImage } from '@/components/ui/SynauraImage';
 import { navigatePrimaryTab } from '@/navigation/navigatePrimaryTab';
+import { useAuth } from '@/auth/AuthProvider';
+import { MotionPressable } from '@/components/motion/Motion';
 
 type Tab = 'sons' | 'clips' | 'variations' | 'playlists' | 'posts';
 
@@ -44,6 +46,7 @@ export function PublicProfileScreen() {
   const navigation = useNavigation<any>();
   const responsive = useResponsiveLayout();
   const player = usePlayer();
+  const auth = useAuth();
   const queryClient = useQueryClient();
   const [profile, setProfile] = useState<MobileProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,6 +67,12 @@ export function PublicProfileScreen() {
   const [variationsLoading, setVariationsLoading] = useState(false);
   const [variationsLoaded, setVariationsLoaded] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [relationship, setRelationship] = useState<MessagingRelationship['relationship']>('none');
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [requestMessage, setRequestMessage] = useState('');
+  const [requestBusy, setRequestBusy] = useState(false);
+  const [requestError, setRequestError] = useState('');
   const username = route.params?.username;
 
   const load = useCallback(async () => {
@@ -145,6 +154,19 @@ export function PublicProfileScreen() {
     });
   }, [load, loadClips]));
 
+  useFocusEffect(useCallback(() => {
+    if (!profile?.id || !auth.user?.id || profile.id === auth.user.id) return undefined;
+    let active = true;
+    void getMessagingRelationship(profile.id)
+      .then((result) => {
+        if (!active) return;
+        setRelationship(result.relationship);
+        setConversationId(result.conversationId || null);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [auth.user?.id, profile?.id]));
+
   // Les variations restent chargees a la demande. Les Clips sont recuperes des
   // l'ouverture du profil afin d'apparaitre aussi dans son apercu principal.
   useEffect(() => {
@@ -212,6 +234,56 @@ export function PublicProfileScreen() {
 
   const share = () => setShareOpen(true);
 
+  const openMessaging = async () => {
+    if (!profile) return;
+    if (!auth.requireAuth()) {
+      navigation.navigate('Login', { returnTo: { screen: 'PublicProfile', params: { username: profile.username } } });
+      return;
+    }
+    if (relationship === 'friends') {
+      setRequestBusy(true);
+      try {
+        const id = conversationId || await createDirectConversation(profile.id);
+        setConversationId(id);
+        navigation.navigate('Conversation', { conversationId: id });
+      } catch (error) {
+        setRequestError(error instanceof Error ? error.message : 'Conversation impossible');
+      } finally {
+        setRequestBusy(false);
+      }
+      return;
+    }
+    if (relationship === 'incoming' || relationship === 'outgoing') {
+      navigation.navigate('Messages', { tab: 'requests' });
+      return;
+    }
+    if (relationship === 'none') setRequestModalOpen(true);
+  };
+
+  const submitMessageRequest = async () => {
+    if (!profile || requestBusy) return;
+    setRequestBusy(true);
+    setRequestError('');
+    try {
+      const result = await sendMessageRequest(profile.id, requestMessage);
+      setRequestModalOpen(false);
+      setRequestMessage('');
+      if (result.alreadyConnected || result.autoAccepted) {
+        setRelationship('friends');
+        const id = result.conversationId || await createDirectConversation(profile.id);
+        setConversationId(id);
+        navigation.navigate('Conversation', { conversationId: id });
+      } else {
+        setRelationship('outgoing');
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+    } catch (error) {
+      setRequestError(error instanceof Error ? error.message : 'Demande impossible');
+    } finally {
+      setRequestBusy(false);
+    }
+  };
+
   const loadMorePosts = async () => {
     if (!profile?.id || !postsCursor || postsLoadingMore) return;
     setPostsLoadingMore(true);
@@ -266,6 +338,11 @@ export function PublicProfileScreen() {
             onPress: () => void toggleFollow(),
             active: Boolean(profile.isFollowing),
             loading: followLoading,
+          }}
+          secondaryAction={profile.id === auth.user?.id || relationship === 'blocked' ? undefined : {
+            label: relationship === 'friends' ? 'Message' : relationship === 'incoming' ? 'Répondre à la demande' : relationship === 'outgoing' ? 'Demande envoyée' : 'Ajouter',
+            icon: relationship === 'friends' ? 'chatbubble-ellipses-outline' : relationship === 'incoming' ? 'person-add' : relationship === 'outgoing' ? 'time-outline' : 'person-add-outline',
+            onPress: () => void openMessaging(),
           }}
           onShare={() => void share()}
           onPlaySpotlight={() => {
@@ -429,6 +506,20 @@ export function PublicProfileScreen() {
         ) : null}
       </ScrollView>
       <ProfileShareSheet visible={shareOpen} profile={profile} onClose={() => setShareOpen(false)} />
+      <Modal transparent visible={requestModalOpen} animationType="fade" onRequestClose={() => setRequestModalOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setRequestModalOpen(false)}>
+          <Pressable style={styles.requestModal} onPress={() => {}}>
+            <View style={styles.requestHead}>
+              <View style={styles.requestIcon}><Ionicons name="person-add-outline" size={22} color={colors.violet} /></View>
+              <View style={styles.requestHeadCopy}><Text numberOfLines={1} style={styles.requestTitle}>Ajouter {profile.name}</Text><Text style={styles.requestSubtitle}>Ajoute un mot pour donner envie de répondre.</Text></View>
+            </View>
+            <TextInput value={requestMessage} onChangeText={(value) => setRequestMessage(value.slice(0, 280))} multiline maxLength={280} placeholder="Message (optionnel)…" placeholderTextColor={colors.textTertiary} style={styles.requestInput} />
+            <Text style={styles.requestCount}>{requestMessage.length}/280</Text>
+            {requestError ? <Text style={styles.requestError}>{requestError}</Text> : null}
+            <View style={styles.requestActions}><MotionPressable style={styles.requestSecondary} onPress={() => { setRequestModalOpen(false); setRequestError(''); }}><Text style={styles.requestSecondaryText}>Annuler</Text></MotionPressable><MotionPressable disabled={requestBusy} style={[styles.requestPrimary, requestBusy && { opacity: 0.5 }]} onPress={() => void submitMessageRequest()}>{requestBusy ? <ActivityIndicator size="small" color={colors.background} /> : <Text style={styles.requestPrimaryText}>Envoyer</Text>}</MotionPressable></View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SynauraBackground>
   );
 }
@@ -464,4 +555,19 @@ const styles = StyleSheet.create({
   sectionLink: { color: '#5B3FD6', fontSize: 11, fontWeight: '900' },
   retryButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 8, backgroundColor: 'rgba(115,87,198,0.1)' },
   retryText: { color: '#5B3FD6', fontSize: 11, fontWeight: '900' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', padding: 12, backgroundColor: 'rgba(0,0,0,0.62)' },
+  requestModal: { width: '100%', maxWidth: 520, marginBottom: 8, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, padding: 18, backgroundColor: colors.elevatedSurface },
+  requestHead: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  requestIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violetSoft },
+  requestHeadCopy: { flex: 1, minWidth: 0 },
+  requestTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  requestSubtitle: { marginTop: 3, color: colors.textSecondary, fontSize: 10, lineHeight: 14, fontWeight: '600' },
+  requestInput: { minHeight: 104, maxHeight: 160, marginTop: 16, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingHorizontal: 12, paddingVertical: 11, color: colors.text, backgroundColor: colors.surface, fontSize: 13, lineHeight: 19, fontWeight: '600', textAlignVertical: 'top' },
+  requestCount: { marginTop: 5, color: colors.textTertiary, textAlign: 'right', fontSize: 9, fontWeight: '700' },
+  requestError: { marginTop: 7, color: colors.coral, fontSize: 10, lineHeight: 15, fontWeight: '700' },
+  requestActions: { marginTop: 14, flexDirection: 'row', gap: 8 },
+  requestSecondary: { flex: 1, minHeight: 44, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center' },
+  requestSecondaryText: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  requestPrimary: { flex: 1, minHeight: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  requestPrimaryText: { color: colors.background, fontSize: 12, fontWeight: '900' },
 });

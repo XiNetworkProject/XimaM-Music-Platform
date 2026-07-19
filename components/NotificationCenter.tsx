@@ -29,7 +29,7 @@ import { getBrowserNotificationStatus, registerPushSubscription } from '@/lib/pu
 export type NotificationType = 'success' | 'error' | 'info' | 'warning' | 'music' | 'like' | 'message' | 'follow'
   | 'new_follower' | 'new_like' | 'like_milestone' | 'new_comment' | 'new_message'
   | 'new_track_followed' | 'view_milestone' | 'boost_reminder' | 'admin_broadcast' | 'general'
-  | 'post_like' | 'post_comment';
+  | 'post_like' | 'post_comment' | 'message_request' | 'message_request_accepted';
 
 export interface Notification {
   id: string;
@@ -121,6 +121,7 @@ const NOTIF_ICONS: Record<string, any> = {
   music: Music, like: Heart, message: MessageCircle, follow: UserPlus,
   new_follower: UserPlus, new_like: Heart, like_milestone: TrendingUp,
   new_comment: MessageCircle, new_message: MessageCircle,
+  message_request: UserPlus, message_request_accepted: MessageCircle,
   new_track_followed: Music, view_milestone: Eye,
   post_like: Heart, post_comment: MessageCircle,
   boost_reminder: Zap, admin_broadcast: Megaphone, general: Info,
@@ -140,6 +141,8 @@ const NOTIF_COLORS: Record<string, string> = {
   like_milestone: 'text-amber-700 bg-amber-50 border-amber-200',
   new_comment: 'text-blue-700 bg-blue-50 border-blue-200',
   new_message: 'text-indigo-700 bg-indigo-50 border-indigo-200',
+  message_request: 'text-[#7357C6] bg-[#7357C6]/8 border-[#7357C6]/18',
+  message_request_accepted: 'text-[#4A9EAA] bg-[#4A9EAA]/8 border-[#4A9EAA]/18',
   new_track_followed: 'text-[#7357C6] bg-[#7357C6]/8 border-[#7357C6]/18',
   view_milestone: 'text-cyan-700 bg-cyan-50 border-cyan-200',
   post_like: 'text-pink-700 bg-pink-50 border-pink-200',

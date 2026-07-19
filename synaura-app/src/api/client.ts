@@ -999,6 +999,367 @@ export async function getPlaylistDetail(playlistId: string): Promise<PlaylistDet
   };
 }
 
+export type MessagingUser = {
+  id: string;
+  name: string;
+  username: string;
+  avatar: string | null;
+  isVerified: boolean;
+  lastSeen: string | null;
+};
+
+export type MessagingReactionName = 'heart' | 'fire' | 'wow' | 'support' | 'laugh';
+
+export type MessagingMessage = {
+  id: string;
+  sender: MessagingUser;
+  type: 'text' | 'image' | 'audio' | 'video' | 'track' | 'clip' | 'post' | 'playlist' | 'deleted';
+  content: string;
+  mediaUrl: string | null;
+  sharedEntityType: string | null;
+  sharedEntityId: string | null;
+  metadata: Record<string, string | number>;
+  replyToId: string | null;
+  seenBy: string[];
+  reactions: Array<{ userId: string; reaction: MessagingReactionName }>;
+  createdAt: string;
+  deleted: boolean;
+};
+
+export type MessagingConversation = {
+  id: string;
+  name: string | null;
+  type: 'direct' | 'group';
+  participants: MessagingUser[];
+  otherUser: MessagingUser | null;
+  lastMessage: {
+    id: string;
+    content: string;
+    type: string;
+    mediaUrl: string | null;
+    metadata: Record<string, string | number>;
+    createdAt: string;
+    senderId: string;
+  } | null;
+  unreadCount: number;
+  canMessage: boolean;
+  blocked: boolean;
+  muted: boolean;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MessagingRequest = {
+  id: string;
+  direction: 'received' | 'sent';
+  user: MessagingUser;
+  message: string | null;
+  status: string;
+  createdAt: string;
+};
+
+export type MessagingContact = {
+  friendshipId: string;
+  user: MessagingUser;
+  conversationId: string | null;
+  friendsSince: string;
+};
+
+export type MessagingBlock = {
+  id: string;
+  user: MessagingUser;
+  createdAt: string;
+};
+
+export type MessagingRelationship = {
+  relationship: 'self' | 'blocked' | 'friends' | 'incoming' | 'outgoing' | 'none';
+  status: string;
+  conversationId?: string | null;
+  requestId?: string | null;
+  blockedByMe?: boolean;
+  blockedMe?: boolean;
+};
+
+function normalizeMessagingUser(raw: any): MessagingUser {
+  return {
+    id: safeString(raw?.id || raw?._id, ''),
+    name: safeString(raw?.name, raw?.username || 'Utilisateur Synaura'),
+    username: safeString(raw?.username, 'utilisateur'),
+    avatar: absoluteAsset(raw?.avatar || raw?.image || null),
+    isVerified: Boolean(raw?.isVerified ?? raw?.is_verified),
+    lastSeen: raw?.lastSeen || raw?.last_seen || null,
+  };
+}
+
+function normalizeMessagingMessage(raw: any): MessagingMessage {
+  const type = safeString(raw?.type || raw?.message_type, 'text') as MessagingMessage['type'];
+  const metadata = readObject(raw?.metadata);
+  if (typeof metadata.coverUrl === 'string') metadata.coverUrl = absoluteAsset(metadata.coverUrl) || metadata.coverUrl;
+  return {
+    id: safeString(raw?.id || raw?._id, ''),
+    sender: normalizeMessagingUser(raw?.sender || {}),
+    type,
+    content: typeof raw?.content === 'string' ? raw.content : '',
+    mediaUrl: absoluteAsset(raw?.mediaUrl || raw?.media_url || null),
+    sharedEntityType: raw?.sharedEntityType || raw?.shared_entity_type || null,
+    sharedEntityId: raw?.sharedEntityId || raw?.shared_entity_id || null,
+    metadata,
+    replyToId: raw?.replyToId || raw?.reply_to_id || null,
+    seenBy: Array.isArray(raw?.seenBy) ? raw.seenBy.map(String) : [],
+    reactions: (Array.isArray(raw?.reactions) ? raw.reactions : []).map((entry: any) => ({
+      userId: safeString(entry?.userId || entry?.user_id, ''),
+      reaction: safeString(entry?.reaction, 'heart') as MessagingReactionName,
+    })).filter((entry: { userId: string }) => Boolean(entry.userId)),
+    createdAt: raw?.createdAt || raw?.created_at || new Date().toISOString(),
+    deleted: Boolean(raw?.deleted || raw?.deleted_at || type === 'deleted'),
+  };
+}
+
+export async function getMessageConversations(): Promise<{ conversations: MessagingConversation[]; unread: number }> {
+  const payload = await request<any>('/api/messages/conversations');
+  return {
+    conversations: (Array.isArray(payload?.conversations) ? payload.conversations : []).map((raw: any) => ({
+      ...raw,
+      id: safeString(raw?.id || raw?._id, ''),
+      participants: (Array.isArray(raw?.participants) ? raw.participants : []).map(normalizeMessagingUser),
+      otherUser: raw?.otherUser ? normalizeMessagingUser(raw.otherUser) : null,
+      lastMessage: raw?.lastMessage ? {
+        ...raw.lastMessage,
+        id: safeString(raw.lastMessage.id || raw.lastMessage._id, ''),
+        mediaUrl: absoluteAsset(raw.lastMessage.mediaUrl || null),
+        metadata: readObject(raw.lastMessage.metadata),
+      } : null,
+      unreadCount: Math.max(0, Number(raw?.unreadCount || 0)),
+      canMessage: Boolean(raw?.canMessage),
+      blocked: Boolean(raw?.blocked),
+      muted: Boolean(raw?.muted),
+      archived: Boolean(raw?.archived),
+    })).filter((conversation: MessagingConversation) => Boolean(conversation.id)),
+    unread: Math.max(0, Number(payload?.unread || 0)),
+  };
+}
+
+export async function getMessageRequests(): Promise<{ received: MessagingRequest[]; sent: MessagingRequest[] }> {
+  const payload = await request<any>('/api/messages/requests');
+  const normalize = (raw: any, direction: 'received' | 'sent'): MessagingRequest => ({
+    id: safeString(raw?.id || raw?._id, ''),
+    direction,
+    user: normalizeMessagingUser(raw?.user || raw?.from || {}),
+    message: typeof raw?.message === 'string' && raw.message.trim() ? raw.message : null,
+    status: safeString(raw?.status, 'pending'),
+    createdAt: raw?.createdAt || raw?.created_at || new Date().toISOString(),
+  });
+  return {
+    received: (Array.isArray(payload?.received) ? payload.received : []).map((raw: any) => normalize(raw, 'received')),
+    sent: (Array.isArray(payload?.sent) ? payload.sent : []).map((raw: any) => normalize(raw, 'sent')),
+  };
+}
+
+export async function getMessageContacts(): Promise<MessagingContact[]> {
+  const payload = await request<any>('/api/messages/contacts');
+  return (Array.isArray(payload?.contacts) ? payload.contacts : []).map((raw: any) => ({
+    friendshipId: safeString(raw?.friendshipId, ''),
+    user: normalizeMessagingUser(raw?.user || {}),
+    conversationId: raw?.conversationId || null,
+    friendsSince: raw?.friendsSince || new Date().toISOString(),
+  })).filter((contact: MessagingContact) => Boolean(contact.friendshipId && contact.user.id));
+}
+
+export async function getMessageUnreadSummary(): Promise<{ messages: number; requests: number; total: number }> {
+  const payload = await request<any>('/api/messages/unread');
+  return {
+    messages: Math.max(0, Number(payload?.messages || 0)),
+    requests: Math.max(0, Number(payload?.requests || 0)),
+    total: Math.max(0, Number(payload?.total || 0)),
+  };
+}
+
+export async function getMessagingRelationship(targetId: string): Promise<MessagingRelationship> {
+  return request<MessagingRelationship>(`/api/messages/requests/status?targetId=${encodeURIComponent(targetId)}`);
+}
+
+export async function sendMessageRequest(targetId: string, message?: string | null): Promise<{ requestId?: string; conversationId?: string | null; alreadyConnected?: boolean; autoAccepted?: boolean; alreadySent?: boolean }> {
+  return request('/api/messages/requests', {
+    method: 'POST',
+    body: JSON.stringify({ targetId, message: message?.trim() || null }),
+  });
+}
+
+export async function mutateMessageRequest(requestId: string, action: 'accept' | 'reject' | 'cancel'): Promise<{ conversationId?: string | null }> {
+  return request(`/api/messages/requests/${encodeURIComponent(requestId)}`, {
+    method: 'POST',
+    body: JSON.stringify({ action }),
+  });
+}
+
+export async function createDirectConversation(participantId: string): Promise<string> {
+  const payload = await request<any>('/api/messages/conversations', {
+    method: 'POST',
+    body: JSON.stringify({ participantId }),
+  });
+  const id = safeString(payload?.id || payload?._id, '');
+  if (!id) throw new Error('Conversation introuvable');
+  return id;
+}
+
+export async function getConversationMessages(conversationId: string, before?: string | null): Promise<{ conversation: Omit<MessagingConversation, 'lastMessage' | 'unreadCount' | 'createdAt' | 'updatedAt'>; messages: MessagingMessage[]; hasMore: boolean; nextCursor: string | null }> {
+  const params = new URLSearchParams({ limit: '50' });
+  if (before) params.set('before', before);
+  const payload = await request<any>(`/api/messages/${encodeURIComponent(conversationId)}?${params.toString()}`);
+  return {
+    conversation: {
+      ...payload.conversation,
+      id: safeString(payload?.conversation?.id, conversationId),
+      participants: (Array.isArray(payload?.conversation?.participants) ? payload.conversation.participants : []).map(normalizeMessagingUser),
+      otherUser: payload?.conversation?.otherUser ? normalizeMessagingUser(payload.conversation.otherUser) : null,
+      canMessage: Boolean(payload?.conversation?.canMessage),
+      blocked: Boolean(payload?.conversation?.blocked),
+      muted: Boolean(payload?.conversation?.muted),
+      archived: Boolean(payload?.conversation?.archived),
+    },
+    messages: (Array.isArray(payload?.messages) ? payload.messages : []).map(normalizeMessagingMessage).filter((message: MessagingMessage) => Boolean(message.id)),
+    hasMore: Boolean(payload?.hasMore),
+    nextCursor: payload?.nextCursor || null,
+  };
+}
+
+export async function sendConversationMessage(conversationId: string, input: {
+  type: MessagingMessage['type'];
+  content?: string;
+  mediaUrl?: string;
+  sharedEntityId?: string;
+  metadata?: Record<string, string | number>;
+  replyToId?: string | null;
+}): Promise<MessagingMessage> {
+  const payload = await request<any>(`/api/messages/${encodeURIComponent(conversationId)}`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  return normalizeMessagingMessage(payload?.message);
+}
+
+export type MessageMediaType = 'image' | 'video' | 'audio';
+
+export type MessageMediaUpload = {
+  url: string;
+  publicId: string;
+  duration?: number;
+  bytes?: number;
+};
+
+export async function uploadMessageMedia(
+  asset: UploadAsset,
+  type: MessageMediaType,
+  options: { onProgress?: (progress: number) => void } = {},
+): Promise<MessageMediaUpload> {
+  let assetSize = Number(asset.size || 0);
+  if (!assetSize) {
+    const fileInfo = await FileSystem.getInfoAsync(asset.uri).catch(() => null);
+    assetSize = fileInfo?.exists && 'size' in fileInfo ? Number(fileInfo.size || 0) : 0;
+  }
+  if (assetSize > 25 * 1024 * 1024) throw new Error('La limite est de 25 Mo.');
+  const timestamp = Math.round(Date.now() / 1000);
+  const publicId = `message_${type}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  const signature = await request<any>('/api/messages/upload', {
+    method: 'POST',
+    body: JSON.stringify({ timestamp, publicId, type }),
+  });
+  if (!signature?.cloudName || !signature?.apiKey || !signature?.signature) {
+    throw new Error('Préparation de l’envoi impossible');
+  }
+
+  const parameters: Record<string, string> = {
+    folder: String(signature.folder),
+    public_id: String(signature.publicId || publicId),
+    timestamp: String(signature.timestamp || timestamp),
+    api_key: String(signature.apiKey),
+    signature: String(signature.signature),
+  };
+  if (type === 'audio') parameters.format = 'mp3';
+
+  const fallbackMime = type === 'image' ? 'image/jpeg' : type === 'video' ? 'video/mp4' : 'audio/mp4';
+  const uploadTask = FileSystem.createUploadTask(
+    `https://api.cloudinary.com/v1_1/${signature.cloudName}/${signature.resourceType}/upload`,
+    asset.uri,
+    {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: 'file',
+      mimeType: asset.type || fallbackMime,
+      parameters,
+    },
+    ({ totalBytesExpectedToSend, totalBytesSent }) => {
+      if (totalBytesExpectedToSend > 0) options.onProgress?.(Math.min(1, totalBytesSent / totalBytesExpectedToSend));
+    },
+  );
+  const response = await uploadTask.uploadAsync();
+  if (!response) throw new Error('L’envoi a été interrompu.');
+  let uploaded: any = null;
+  try { uploaded = JSON.parse(response.body || '{}'); } catch { /* reponse invalide */ }
+  if (response.status < 200 || response.status >= 300 || !uploaded?.secure_url) {
+    const message = String(uploaded?.error?.message || `Téléversement impossible (${response.status})`);
+    if (/signature|timestamp/i.test(message)) throw new Error('La session d’envoi a expiré. Réessaie.');
+    if (/too large|file size|maximum|entity too large|413/i.test(message)) throw new Error('La limite est de 25 Mo.');
+    throw new Error(message);
+  }
+  options.onProgress?.(1);
+  return {
+    url: String(uploaded.secure_url),
+    publicId: String(uploaded.public_id || parameters.public_id),
+    duration: Number(uploaded.duration || 0) || undefined,
+    bytes: Number(uploaded.bytes || assetSize || 0) || undefined,
+  };
+}
+
+export async function uploadMessageImage(uri: string, name = `synaura-message-${Date.now()}.jpg`, mimeType = 'image/jpeg'): Promise<string> {
+  const uploaded = await uploadMessageMedia({ uri, name, type: mimeType }, 'image');
+  return uploaded.url;
+}
+
+export async function markConversationSeen(conversationId: string): Promise<void> {
+  await request(`/api/messages/${encodeURIComponent(conversationId)}/seen`, { method: 'PUT' });
+}
+
+export async function reactToConversationMessage(conversationId: string, messageId: string, reaction: MessagingReactionName | null): Promise<void> {
+  await request(`/api/messages/${encodeURIComponent(conversationId)}/${encodeURIComponent(messageId)}/reactions`, {
+    method: reaction ? 'POST' : 'DELETE',
+    body: reaction ? JSON.stringify({ reaction }) : undefined,
+  });
+}
+
+export async function deleteConversationMessage(conversationId: string, messageId: string): Promise<void> {
+  await request(`/api/messages/${encodeURIComponent(conversationId)}/${encodeURIComponent(messageId)}`, { method: 'DELETE' });
+}
+
+export async function updateConversationState(conversationId: string, action: 'archive' | 'unarchive' | 'mute' | 'unmute'): Promise<void> {
+  await request(`/api/messages/${encodeURIComponent(conversationId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action }),
+  });
+}
+
+export async function removeMessageContact(targetId: string): Promise<void> {
+  await request('/api/messages/contacts', { method: 'DELETE', body: JSON.stringify({ targetId }) });
+}
+
+export async function blockMessageUser(targetId: string): Promise<void> {
+  await request('/api/messages/blocks', { method: 'POST', body: JSON.stringify({ targetId }) });
+}
+
+export async function getBlockedMessageUsers(): Promise<MessagingBlock[]> {
+  const payload = await request<any>('/api/messages/blocks');
+  return (Array.isArray(payload?.blocks) ? payload.blocks : []).map((raw: any) => ({
+    id: safeString(raw?.id, ''),
+    user: normalizeMessagingUser(raw?.user || {}),
+    createdAt: raw?.createdAt || new Date().toISOString(),
+  })).filter((block: MessagingBlock) => Boolean(block.id && block.user.id));
+}
+
+export async function unblockMessageUser(targetId: string): Promise<void> {
+  await request('/api/messages/blocks', { method: 'DELETE', body: JSON.stringify({ targetId }) });
+}
+
 function normalizeNotification(raw: any): SynauraNotification | null {
   const id = Number(raw?.id);
   if (!Number.isFinite(id)) return null;

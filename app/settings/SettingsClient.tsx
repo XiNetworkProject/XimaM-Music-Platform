@@ -359,6 +359,10 @@ export default function SettingsClient() {
     allowPulse: true,
   });
   const [eventPrefsSaving, setEventPrefsSaving] = useState(false);
+  const [messagingPrivacy, setMessagingPrivacy] = useState<'everyone' | 'following' | 'nobody'>('everyone');
+  const [messagingPrivacySaving, setMessagingPrivacySaving] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<Array<{ id: string; user: { id: string; name: string; username: string; avatar?: string | null } }>>([]);
+  const [unblockingUserId, setUnblockingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (tab !== 'events') return;
@@ -405,7 +409,60 @@ export default function SettingsClient() {
       .then((response) => response.ok ? response.json() : null)
       .then((data) => setHiddenArtistsCount(Number(data?.hiddenArtistsCount || 0)))
       .catch(() => {});
+    fetch('/api/user/preferences', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        const value = data?.preferences?.messagingPrivacy;
+        if (value === 'everyone' || value === 'following' || value === 'nobody') setMessagingPrivacy(value);
+      })
+      .catch(() => {});
   }, [tab]);
+
+  const updateMessagingPrivacy = async (value: 'everyone' | 'following' | 'nobody') => {
+    const previous = messagingPrivacy;
+    setMessagingPrivacy(value);
+    setMessagingPrivacySaving(true);
+    try {
+      const response = await fetch('/api/user/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messagingPrivacy: value }),
+      });
+      if (!response.ok) throw new Error();
+      notify.success('Messagerie', 'Préférence mise à jour');
+    } catch {
+      setMessagingPrivacy(previous);
+      notify.error('Messagerie', 'Impossible de sauvegarder cette préférence');
+    } finally {
+      setMessagingPrivacySaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tab !== 'securite') return;
+    fetch('/api/messages/blocks', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => setBlockedUsers(Array.isArray(data?.blocks) ? data.blocks : []))
+      .catch(() => {});
+  }, [tab]);
+
+  const unblockUser = async (userId: string) => {
+    setUnblockingUserId(userId);
+    try {
+      const response = await fetch('/api/messages/blocks', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetId: userId }),
+      });
+      if (!response.ok) throw new Error();
+      setBlockedUsers((current) => current.filter((block) => block.user.id !== userId));
+      notify.success('Sécurité', 'Compte débloqué');
+    } catch {
+      notify.error('Sécurité', 'Déblocage impossible');
+    } finally {
+      setUnblockingUserId(null);
+    }
+  };
 
   const updateNotifPref = async (key: keyof NotifPrefs, value: boolean) => {
     const prev = { ...notifPrefs };
@@ -1264,6 +1321,22 @@ export default function SettingsClient() {
                     </InnerCard>
 
                     <InnerCard>
+                      <label htmlFor="messaging-privacy" className="text-sm font-black text-[var(--syn-text-primary)]">Qui peut m’ajouter ?</label>
+                      <div className="mt-1 text-xs font-semibold text-[var(--syn-text-secondary)]">Ce réglage contrôle les nouvelles demandes d’amis. Tes amis actuels peuvent toujours t’écrire.</div>
+                      <select
+                        id="messaging-privacy"
+                        value={messagingPrivacy}
+                        disabled={messagingPrivacySaving}
+                        onChange={(event) => void updateMessagingPrivacy(event.target.value as 'everyone' | 'following' | 'nobody')}
+                        className="mt-3 h-11 w-full rounded-lg border border-[var(--syn-border)] bg-[var(--syn-surface)] px-3 text-sm font-bold text-[var(--syn-text-primary)] outline-none transition focus:border-[var(--syn-accent)] disabled:opacity-50"
+                      >
+                        <option value="everyone">Tout le monde</option>
+                        <option value="following">Les personnes que je suis</option>
+                        <option value="nobody">Personne</option>
+                      </select>
+                    </InnerCard>
+
+                    <InnerCard>
                       <div className="text-sm font-black text-[#171313]">Préférences locales</div>
                       <div className="mt-3 grid gap-3">
                         <ToggleCard checked={prefs.autoplay} onChange={(v) => setPrefs((p) => ({ ...p, autoplay: v }))} label="Lecture automatique" description="Active le démarrage automatique quand c’est possible." />
@@ -1399,6 +1472,22 @@ export default function SettingsClient() {
 
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
                   <div className="space-y-4">
+                    <InnerCard>
+                      <div className="text-sm font-black text-[var(--syn-text-primary)]">Comptes bloqués</div>
+                      <div className="mt-1 text-xs font-semibold text-[var(--syn-text-secondary)]">Ces comptes ne peuvent plus t’ajouter ni t’envoyer de message.</div>
+                      {blockedUsers.length ? (
+                        <div className="mt-3 divide-y divide-[var(--syn-border)] overflow-hidden rounded-xl border border-[var(--syn-border)] bg-[var(--syn-surface)]">
+                          {blockedUsers.map((block) => (
+                            <div key={block.id} className="flex items-center gap-3 px-3 py-3">
+                              <img src={block.user.avatar || '/default-avatar.png'} alt="" className="h-10 w-10 rounded-full object-cover" />
+                              <div className="min-w-0 flex-1"><div className="truncate text-sm font-black text-[var(--syn-text-primary)]">{block.user.name}</div><div className="truncate text-xs font-semibold text-[var(--syn-text-secondary)]">@{block.user.username}</div></div>
+                              <button type="button" disabled={unblockingUserId === block.user.id} onClick={() => void unblockUser(block.user.id)} className="rounded-full border border-[var(--syn-border)] px-3 py-2 text-xs font-black text-[var(--syn-text-primary)] disabled:opacity-50">Débloquer</button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <div className="mt-3 rounded-xl bg-[var(--syn-soft)] px-4 py-3 text-sm font-semibold text-[var(--syn-text-secondary)]">Aucun compte bloqué.</div>}
+                    </InnerCard>
+
                     <InnerCard>
                       <div className="text-sm font-black text-[#171313]">Réinitialiser le mot de passe</div>
                       <div className="mt-3 flex flex-col gap-3 rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4 sm:flex-row sm:items-center sm:justify-between">
