@@ -3,7 +3,7 @@
     "name": "Synaura",
     "slug": "synaura",
     "scheme": "synaura",
-    "version": "0.22.0",
+    "version": "0.22.1",
     "icon": "./src/assets/synaura-symbol-2026.png",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
@@ -14,7 +14,6 @@
       "bundleIdentifier": "com.synaura.music",
       "supportsTablet": true,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Synaura utilise le microphone uniquement lorsque tu enregistres un message vocal.",
         "UIBackgroundModes": [
           "audio"
         ]
@@ -23,7 +22,7 @@
     "android": {
       "package": "com.synaura.music",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 66,
+      "versionCode": 67,
       "newArchEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
@@ -34,7 +33,6 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.POST_NOTIFICATIONS",
-        "android.permission.RECORD_AUDIO",
         "android.permission.REQUEST_INSTALL_PACKAGES",
         "android.permission.WAKE_LOCK"
       ]
@@ -58,8 +56,7 @@
         }
       ],
       "expo-secure-store",
-      "./plugins/with-synaura-theme-colors",
-      "expo-audio"
+      "./plugins/with-synaura-theme-colors"
     ],
     "androidStatusBar": {
       "backgroundColor": "#0D0D0D",

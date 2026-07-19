@@ -1,8 +1,11 @@
 {
-  "title": "Synaura Connexions 0.22.0",
+  "title": "Synaura Connexions 0.22.1",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
+    "Correctif urgent du crash pouvant fermer l'application au demarrage sur certains appareils",
+    "Chargement differe des ecrans de messagerie pour un lancement plus leger et plus robuste",
+    "Messages vocaux via l'enregistreur Android systeme, sans initialiser un second moteur audio au demarrage",
     "Demandes d'amis avec message facultatif, acceptation, refus et annulation",
     "Messagerie privee partagee entre le web et l'app native",
     "Envoi de textes, images, videos, fichiers audio, vocaux et sons Synaura",

@@ -13,17 +13,11 @@ import {
   type ListRenderItemInfo,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  RecordingPresets,
-  requestRecordingPermissionsAsync,
-  setAudioModeAsync,
-  useAudioRecorder,
-  useAudioRecorderState,
-} from 'expo-audio';
 import * as DocumentPicker from 'expo-document-picker';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Video from 'react-native-video';
@@ -88,8 +82,6 @@ export function ConversationScreen() {
   const player = usePlayer();
   const layout = useResponsiveLayout();
   const queryClient = useQueryClient();
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const recorderState = useAudioRecorderState(recorder, 120);
   const listRef = useRef<FlatList<MessagingMessage>>(null);
   const [messages, setMessages] = useState<MessagingMessage[]>([]);
   const [draft, setDraft] = useState('');
@@ -148,11 +140,6 @@ export function ConversationScreen() {
     const timer = setInterval(() => void conversationQuery.refetch(), 4_000);
     return () => clearInterval(timer);
   }, [auth.token, auth.user?.id, conversationId]));
-
-  useEffect(() => () => {
-    if (recorder.isRecording) void recorder.stop().catch(() => {});
-    void setAudioModeAsync({ allowsRecording: false }).catch(() => {});
-  }, [recorder]);
 
   const conversation = conversationQuery.data?.conversation;
   const other = conversation?.otherUser;
@@ -259,46 +246,28 @@ export function ConversationScreen() {
   };
 
   const startRecording = async () => {
-    if (uploading || recordingBusy || recorderState.isRecording || !canMessage) return;
+    if (uploading || recordingBusy || !canMessage) return;
     setAttachmentOpen(false);
     setRecordingBusy(true);
     setErrorMessage('');
     try {
-      const permission = await requestRecordingPermissionsAsync();
-      if (!permission.granted) throw new Error('Autorise le microphone pour enregistrer un message vocal.');
       await player.pause().catch(() => {});
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await recorder.prepareToRecordAsync();
-      recorder.record();
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    } catch (error) {
-      await setAudioModeAsync({ allowsRecording: false }).catch(() => {});
-      setErrorMessage(error instanceof Error ? error.message : 'Enregistrement impossible');
-    } finally {
-      setRecordingBusy(false);
-    }
-  };
-
-  const finishRecording = async (shouldSend: boolean) => {
-    if (!recorderState.isRecording || recordingBusy) return;
-    const duration = recorderState.durationMillis / 1_000;
-    setRecordingBusy(true);
-    try {
-      await recorder.stop();
-      const uri = recorder.uri || recorder.getStatus().url;
-      await setAudioModeAsync({ allowsRecording: false });
-      if (shouldSend && uri && duration >= 0.5) {
-        await uploadAndSendMedia({
-          uri,
-          name: `vocal-synaura-${Date.now()}.m4a`,
-          type: 'audio/mp4',
-        }, 'audio', duration);
+      if (Platform.OS !== 'android') {
+        await pickAudio();
+        return;
       }
+      const result = await IntentLauncher.startActivityAsync('android.provider.MediaStore.RECORD_SOUND');
+      if (result.resultCode !== IntentLauncher.ResultCode.Success || !result.data) return;
+      await uploadAndSendMedia({
+        uri: result.data,
+        name: `vocal-synaura-${Date.now()}.m4a`,
+        type: 'audio/*',
+      }, 'audio');
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Message vocal non envoyé');
+      setErrorMessage(error instanceof Error ? error.message : 'Enregistrement indisponible sur cet appareil');
     } finally {
       setRecordingBusy(false);
-      await setAudioModeAsync({ allowsRecording: false }).catch(() => {});
     }
   };
 
@@ -454,19 +423,11 @@ export function ConversationScreen() {
         <View style={[styles.composerFrame, layout.contentFrame, { paddingHorizontal: layout.gutter }]}>
           {!canMessage ? <View style={styles.cannotSend}><Text style={styles.cannotSendText}>{conversation.blocked ? 'Cette discussion est bloquée.' : 'Vous devez être amis pour continuer cette discussion.'}</Text></View> : (
             <>
-              {recorderState.isRecording ? (
-                <View style={styles.recordingRow}>
-                  <MotionPressable accessibilityLabel="Annuler le vocal" disabled={recordingBusy} onPress={() => void finishRecording(false)} style={styles.recordingCancel}><Ionicons name="trash-outline" size={19} color={colors.coral} /></MotionPressable>
-                  <View style={styles.recordingStatus}><View style={styles.recordingDot} /><View style={styles.recordingCopy}><Text style={styles.recordingTitle}>Message vocal</Text><Text style={styles.recordingTime}>{recordingClock(recorderState.durationMillis)}</Text></View><View style={styles.recordingBars}>{[10, 19, 13, 24, 16, 21, 11, 18].map((height, index) => <View key={`${height}-${index}`} style={[styles.recordingBar, { height }]} />)}</View></View>
-                  <MotionPressable accessibilityLabel="Envoyer le vocal" disabled={recordingBusy || recorderState.durationMillis < 500} onPress={() => void finishRecording(true)} style={[styles.sendButton, (recordingBusy || recorderState.durationMillis < 500) && styles.sendButtonDisabled]}>{recordingBusy ? <ActivityIndicator size="small" color={colors.background} /> : <Ionicons name="arrow-up" size={20} color={colors.background} />}</MotionPressable>
-                </View>
-              ) : (
-                <View style={styles.composerRow}>
-                  <MotionPressable accessibilityLabel="Ajouter une pièce jointe" disabled={uploading || recordingBusy} onPress={() => setAttachmentOpen(true)} style={[styles.attachButton, (uploading || recordingBusy) && styles.disabled]}>{uploading ? <ActivityIndicator size="small" color={colors.violet} /> : <Ionicons name="add" size={22} color={colors.textSecondary} />}</MotionPressable>
-                  <View style={styles.inputShell}><TextInput value={draft} onChangeText={(value) => setDraft(value.slice(0, 2_000))} placeholder="Écrire un message…" placeholderTextColor={colors.textTertiary} multiline maxLength={2_000} style={styles.input} maxFontSizeMultiplier={1.2} /></View>
-                  <MotionPressable accessibilityLabel={draft.trim() ? 'Envoyer' : 'Enregistrer un vocal'} disabled={sending || uploading || recordingBusy} onPress={() => draft.trim() ? void sendText() : void startRecording()} style={[styles.sendButton, (sending || uploading || recordingBusy) && styles.sendButtonDisabled]}>{sending || recordingBusy ? <ActivityIndicator size="small" color={colors.background} /> : <Ionicons name={draft.trim() ? 'arrow-up' : 'mic'} size={20} color={colors.background} />}</MotionPressable>
-                </View>
-              )}
+              <View style={styles.composerRow}>
+                <MotionPressable accessibilityLabel="Ajouter une pièce jointe" disabled={uploading || recordingBusy} onPress={() => setAttachmentOpen(true)} style={[styles.attachButton, (uploading || recordingBusy) && styles.disabled]}>{uploading ? <ActivityIndicator size="small" color={colors.violet} /> : <Ionicons name="add" size={22} color={colors.textSecondary} />}</MotionPressable>
+                <View style={styles.inputShell}><TextInput value={draft} onChangeText={(value) => setDraft(value.slice(0, 2_000))} placeholder="Écrire un message…" placeholderTextColor={colors.textTertiary} multiline maxLength={2_000} style={styles.input} maxFontSizeMultiplier={1.2} /></View>
+                <MotionPressable accessibilityLabel={draft.trim() ? 'Envoyer' : 'Enregistrer un vocal'} disabled={sending || uploading || recordingBusy} onPress={() => draft.trim() ? void sendText() : void startRecording()} style={[styles.sendButton, (sending || uploading || recordingBusy) && styles.sendButtonDisabled]}>{sending || recordingBusy ? <ActivityIndicator size="small" color={colors.background} /> : <Ionicons name={draft.trim() ? 'arrow-up' : 'mic'} size={20} color={colors.background} />}</MotionPressable>
+              </View>
               {uploading ? <View style={styles.uploadStatus}><View style={styles.uploadTrack}><View style={[styles.uploadValue, { width: `${Math.max(5, Math.round(uploadProgress * 100))}%` }]} /></View><Text style={styles.uploadText}>Envoi {Math.round(uploadProgress * 100)} %</Text></View> : null}
             </>
           )}
@@ -623,15 +584,6 @@ const styles = StyleSheet.create({
   composerWrap: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: colors.background, paddingTop: 9 },
   composerFrame: { width: '100%' },
   composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 7 },
-  recordingRow: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  recordingCancel: { width: 43, height: 43, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.coralSoft, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.coral },
-  recordingStatus: { flex: 1, minWidth: 0, height: 43, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  recordingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.coral },
-  recordingCopy: { minWidth: 58 },
-  recordingTitle: { color: colors.text, fontSize: 10, fontWeight: '900' },
-  recordingTime: { marginTop: 1, color: colors.textSecondary, fontSize: 9, fontVariant: ['tabular-nums'], fontWeight: '700' },
-  recordingBars: { flex: 1, minWidth: 0, height: 25, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-evenly', gap: 2 },
-  recordingBar: { flex: 1, maxWidth: 3, borderRadius: 2, backgroundColor: colors.cyan },
   attachButton: { width: 43, height: 43, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   inputShell: { flex: 1, minHeight: 43, maxHeight: 118, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, justifyContent: 'center', paddingHorizontal: 11 },
   input: { minHeight: 41, maxHeight: 112, paddingTop: 10, paddingBottom: 9, color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },

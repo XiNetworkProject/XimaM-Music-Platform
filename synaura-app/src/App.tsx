@@ -24,8 +24,6 @@ import { UploadScreen } from '@/screens/UploadScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { PublicProfileScreen } from '@/screens/PublicProfileScreen';
 import { NotificationsScreen } from '@/screens/NotificationsScreen';
-import { MessagesScreen } from '@/screens/MessagesScreen';
-import { ConversationScreen } from '@/screens/ConversationScreen';
 import { PostDetailScreen } from '@/screens/PostDetailScreen';
 import { PlaylistDetailScreen } from '@/screens/PlaylistDetailScreen';
 import { CommunityScreen } from '@/screens/CommunityScreen';
@@ -66,6 +64,8 @@ export type RootStackParamList = RootTabsParamList & {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const ROOT_GATE_TIMEOUT_MS = 2400;
+const getMessagesScreen = () => require('@/screens/MessagesScreen').MessagesScreen;
+const getConversationScreen = () => require('@/screens/ConversationScreen').ConversationScreen;
 
 function getActiveRouteName(state: any): string {
   const route = state?.routes?.[state.index ?? 0];
@@ -150,8 +150,8 @@ function RootStackNavigator() {
       <Stack.Screen name="ClubDetail" component={ClubDetailScreen} />
       <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
-      <Stack.Screen name="Messages" component={MessagesScreen} />
-      <Stack.Screen name="Conversation" component={ConversationScreen} />
+      <Stack.Screen name="Messages" getComponent={getMessagesScreen} />
+      <Stack.Screen name="Conversation" getComponent={getConversationScreen} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen} />
       <Stack.Screen name="TrackDetail" component={TrackDetailScreen} />
@@ -214,28 +214,26 @@ function SynauraRuntime() {
             <LibraryProvider>
               <PlayerProvider>
                 <NativeNotificationsProvider>
-                  <AppErrorBoundary>
-                    <NavigationContainer
-                      ref={navigationRef}
-                      theme={navigationTheme}
-                      onReady={() => {
-                        const state = navigationRef.getRootState();
-                        if (state?.routes?.length) setActiveRoute(getActiveRouteName(state));
-                      }}
-                      onStateChange={(state) => {
-                        setActiveRoute(getActiveRouteName(state));
-                      }}
-                    >
-                      <StatusBar
-                        style={resolvedTheme === 'dark' ? 'light' : 'dark'}
-                        backgroundColor={resolvedTheme === 'dark' ? '#0D0D0D' : '#F7F6F3'}
-                      />
-                      <RootStackNavigator />
-                      <MiniPlayer activeRoute={activeRoute} onOpen={() => setPlayerOpen(true)} />
-                      <FullPlayerModal visible={playerOpen} onClose={() => setPlayerOpen(false)} />
-                      <NativeNotificationNudge activeRoute={activeRoute} />
-                    </NavigationContainer>
-                  </AppErrorBoundary>
+                  <NavigationContainer
+                    ref={navigationRef}
+                    theme={navigationTheme}
+                    onReady={() => {
+                      const state = navigationRef.getRootState();
+                      if (state?.routes?.length) setActiveRoute(getActiveRouteName(state));
+                    }}
+                    onStateChange={(state) => {
+                      setActiveRoute(getActiveRouteName(state));
+                    }}
+                  >
+                    <StatusBar
+                      style={resolvedTheme === 'dark' ? 'light' : 'dark'}
+                      backgroundColor={resolvedTheme === 'dark' ? '#0D0D0D' : '#F7F6F3'}
+                    />
+                    <RootStackNavigator />
+                    <MiniPlayer activeRoute={activeRoute} onOpen={() => setPlayerOpen(true)} />
+                    <FullPlayerModal visible={playerOpen} onClose={() => setPlayerOpen(false)} />
+                    <NativeNotificationNudge activeRoute={activeRoute} />
+                  </NavigationContainer>
                   <AnimatedBootSplash />
                 </NativeNotificationsProvider>
               </PlayerProvider>
@@ -251,9 +249,11 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <MobileSettingsProvider>
-          <UpdateProvider>
-            <SynauraRuntime />
-          </UpdateProvider>
+          <AppErrorBoundary>
+            <UpdateProvider>
+              <SynauraRuntime />
+            </UpdateProvider>
+          </AppErrorBoundary>
         </MobileSettingsProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
