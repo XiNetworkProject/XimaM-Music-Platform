@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,12 +19,14 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import * as IntentLauncher from 'expo-intent-launcher';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Video from 'react-native-video';
 import {
   blockMessageUser,
+  createConversationRoom,
+  deleteConversationRoom,
   deleteConversationMessage,
   getConversationMessages,
   markConversationSeen,
@@ -30,9 +34,11 @@ import {
   removeMessageContact,
   sendConversationMessage,
   updateConversationState,
+  updateConversationPreferences,
   uploadMessageMedia,
   type MessageMediaType,
   type MessagingMessage,
+  type MessagingConversationPreferences,
   type MessagingReactionName,
   type MessagingUser,
 } from '@/api/client';
@@ -42,6 +48,8 @@ import { MotionPressable } from '@/components/motion/Motion';
 import { usePlayer } from '@/player/PlayerProvider';
 import { openInternalLink } from '@/navigation/internalLinks';
 import { messagingKeys } from '@/messaging/useMessagingUnread';
+import { hideConversationBubble, requestConversationBubblePermission, showConversationBubble, supportsConversationBubble } from '@/messaging/conversationBubble';
+import { useVoiceMessageRecorder } from '@/messaging/useVoiceMessageRecorder';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
@@ -51,6 +59,21 @@ const REACTIONS: Array<{ value: MessagingReactionName; label: string; icon: keyo
   { value: 'wow', label: 'Waouh', icon: 'sparkles-outline' },
   { value: 'support', label: 'Soutien', icon: 'hand-left-outline' },
   { value: 'laugh', label: 'Drôle', icon: 'happy-outline' },
+];
+
+const THEME_OPTIONS: Array<{ key: MessagingConversationPreferences['themeKey']; label: string; color: string }> = [
+  { key: 'aura', label: 'Aura', color: '#7357C6' },
+  { key: 'ocean', label: 'Onde', color: '#4A9EAA' },
+  { key: 'coral', label: 'Corail', color: '#D96D63' },
+  { key: 'rose', label: 'Velours', color: '#C85D82' },
+  { key: 'graphite', label: 'Graphite', color: '#111111' },
+];
+
+const BACKGROUND_OPTIONS: Array<{ key: MessagingConversationPreferences['backgroundKey']; label: string }> = [
+  { key: 'quiet', label: 'Calme' },
+  { key: 'aurora', label: 'Aura' },
+  { key: 'cover', label: 'Pochette' },
+  { key: 'midnight', label: 'Minuit' },
 ];
 
 function mergeMessages(previous: MessagingMessage[], incoming: MessagingMessage[]) {
@@ -89,7 +112,6 @@ export function ConversationScreen() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [attachmentOpen, setAttachmentOpen] = useState(false);
-  const [recordingBusy, setRecordingBusy] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -99,13 +121,26 @@ export function ConversationScreen() {
   const [muted, setMuted] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const [voicePreviewPlaying, setVoicePreviewPlaying] = useState(false);
   const [audioPositions, setAudioPositions] = useState<Record<string, { current: number; duration: number }>>({});
   const [errorMessage, setErrorMessage] = useState('');
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(() => {
+    const value = route.params?.roomId;
+    return typeof value === 'string' && value ? value : null;
+  });
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [preferenceDraft, setPreferenceDraft] = useState<MessagingConversationPreferences | null>(null);
+  const [savingPreferences, setSavingPreferences] = useState(false);
+  const [roomCreatorOpen, setRoomCreatorOpen] = useState(false);
+  const [roomName, setRoomName] = useState('');
+  const [roomType, setRoomType] = useState<'text' | 'voice_notes'>('text');
+  const [roomBusy, setRoomBusy] = useState(false);
   const initializedRef = useRef(false);
+  const loadedRoomRef = useRef<string | null>(null);
 
   const conversationQuery = useQuery({
-    queryKey: messagingKeys.conversation(conversationId),
-    queryFn: () => getConversationMessages(conversationId),
+    queryKey: [...messagingKeys.conversation(conversationId), activeRoomId],
+    queryFn: () => getConversationMessages(conversationId, null, activeRoomId),
     enabled: Boolean(auth.user && auth.token && conversationId),
     staleTime: 2_000,
     retry: 1,
@@ -114,7 +149,15 @@ export function ConversationScreen() {
   useEffect(() => {
     const data = conversationQuery.data;
     if (!data) return;
-    setMessages((previous) => mergeMessages(previous, data.messages));
+    const responseRoomId = data.conversation.activeRoomId || null;
+    if (!activeRoomId && responseRoomId) setActiveRoomId(responseRoomId);
+    if (loadedRoomRef.current !== responseRoomId) {
+      loadedRoomRef.current = responseRoomId;
+      initializedRef.current = false;
+      setMessages(data.messages);
+    } else {
+      setMessages((previous) => mergeMessages(previous, data.messages));
+    }
     setHasMore(data.hasMore);
     setNextCursor(data.nextCursor);
     setMuted(Boolean(data.conversation.muted));
@@ -146,6 +189,37 @@ export function ConversationScreen() {
   const canMessage = Boolean(conversation?.canMessage && !conversation?.blocked);
   const ownId = auth.user?.id || '';
   const lastOwnMessageId = useMemo(() => [...messages].reverse().find((message) => message.sender.id === ownId && !message.deleted)?.id, [messages, ownId]);
+  const preferences = conversation?.preferences;
+  const accentColor = preferences?.accentColor || colors.violet;
+  const room = conversation?.rooms?.find((item) => item.id === (activeRoomId || conversation.activeRoomId));
+  const ownRole = conversation?.participantRoles?.find((item) => item.userId === ownId)?.role || 'member';
+  const canManageRooms = conversation?.type === 'group' && (ownRole === 'owner' || ownRole === 'moderator');
+  const conversationTitle = preferences?.nickname || other?.name || conversation?.name || conversation?.participants.map((item) => item.name).join(', ') || 'Discussion';
+
+  const voiceRecorder = useVoiceMessageRecorder({
+    disabled: sending || uploading || !canMessage,
+    onBeforeRecord: () => player.pause().catch(() => {}),
+    onError: setErrorMessage,
+  });
+
+  useEffect(() => {
+    if (!customizeOpen || !preferences) return;
+    setPreferenceDraft(preferences);
+  }, [customizeOpen, preferences]);
+
+  useEffect(() => {
+    if (!preferences?.bubbleEnabled || !conversationId || !supportsConversationBubble()) return;
+    const sync = (state: string) => {
+      if (state === 'active') void hideConversationBubble().catch(() => {});
+      else void showConversationBubble(conversationId, conversationTitle, accentColor).catch(() => {});
+    };
+    sync(AppState.currentState);
+    const subscription = AppState.addEventListener('change', sync);
+    return () => {
+      subscription.remove();
+      if (AppState.currentState === 'active') void hideConversationBubble().catch(() => {});
+    };
+  }, [accentColor, conversationId, conversationTitle, preferences?.bubbleEnabled]);
 
   const invalidateInbox = () => Promise.all([
     queryClient.invalidateQueries({ queryKey: messagingKeys.inbox() }),
@@ -153,7 +227,7 @@ export function ConversationScreen() {
   ]);
 
   const send = async (input: Parameters<typeof sendConversationMessage>[1]) => {
-    const message = await sendConversationMessage(conversationId, input);
+    const message = await sendConversationMessage(conversationId, { ...input, roomId: activeRoomId || conversation?.activeRoomId || null });
     setMessages((previous) => mergeMessages(previous, [message]));
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
     void invalidateInbox();
@@ -181,7 +255,7 @@ export function ConversationScreen() {
     type: MessageMediaType,
     duration?: number,
   ) => {
-    if (uploading || !canMessage) return;
+    if (uploading || !canMessage) return false;
     setAttachmentOpen(false);
     setUploading(true);
     setUploadProgress(0);
@@ -194,8 +268,10 @@ export function ConversationScreen() {
         metadata: { duration: Number(uploaded.duration || duration || 0) },
       });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      return true;
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Pièce jointe non envoyée');
+      return false;
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -245,37 +321,97 @@ export function ConversationScreen() {
     }, 'audio');
   };
 
-  const startRecording = async () => {
-    if (uploading || recordingBusy || !canMessage) return;
-    setAttachmentOpen(false);
-    setRecordingBusy(true);
+  const sendVoiceDraft = async () => {
+    const voice = voiceRecorder.draft;
+    if (!voice || uploading) return;
+    setVoicePreviewPlaying(false);
+    const sent = await uploadAndSendMedia({
+      uri: voice.uri,
+      name: `vocal-synaura-${Date.now()}.m4a`,
+      type: 'audio/mp4',
+    }, 'audio', voice.durationMs / 1_000);
+    if (sent) voiceRecorder.consumeDraft();
+  };
+
+  const savePreferences = async () => {
+    if (!preferenceDraft || savingPreferences) return;
+    setSavingPreferences(true);
     setErrorMessage('');
     try {
-      await player.pause().catch(() => {});
-      if (Platform.OS !== 'android') {
-        await pickAudio();
-        return;
-      }
-      const result = await IntentLauncher.startActivityAsync('android.provider.MediaStore.RECORD_SOUND');
-      if (result.resultCode !== IntentLauncher.ResultCode.Success || !result.data) return;
-      await uploadAndSendMedia({
-        uri: result.data,
-        name: `vocal-synaura-${Date.now()}.m4a`,
-        type: 'audio/*',
-      }, 'audio');
+      await updateConversationPreferences(conversationId, preferenceDraft);
+      setCustomizeOpen(false);
+      await conversationQuery.refetch();
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Enregistrement indisponible sur cet appareil');
+      setErrorMessage(error instanceof Error ? error.message : 'Personnalisation impossible');
     } finally {
-      setRecordingBusy(false);
+      setSavingPreferences(false);
     }
+  };
+
+  const toggleBubbleDraft = async (enabled: boolean) => {
+    if (!preferenceDraft) return;
+    if (enabled) {
+      const allowed = await requestConversationBubblePermission();
+      if (!allowed) {
+        setErrorMessage('Autorise “Afficher par-dessus les autres applications”, puis active de nouveau la bulle.');
+        return;
+      }
+    } else {
+      await hideConversationBubble().catch(() => {});
+    }
+    setPreferenceDraft({ ...preferenceDraft, bubbleEnabled: enabled });
+  };
+
+  const createRoom = async () => {
+    if (!roomName.trim() || roomBusy) return;
+    setRoomBusy(true);
+    try {
+      const created = await createConversationRoom(conversationId, roomName, roomType);
+      setRoomName('');
+      setRoomCreatorOpen(false);
+      setActiveRoomId(created.id);
+      loadedRoomRef.current = null;
+      setMessages([]);
+      await conversationQuery.refetch();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Salon impossible à créer');
+    } finally {
+      setRoomBusy(false);
+    }
+  };
+
+  const removeRoom = async (roomId: string) => {
+    if (roomBusy) return;
+    setRoomBusy(true);
+    try {
+      const replacementRoomId = await deleteConversationRoom(conversationId, roomId);
+      if (activeRoomId === roomId) setActiveRoomId(replacementRoomId || null);
+      loadedRoomRef.current = null;
+      setMessages([]);
+      await conversationQuery.refetch();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Suppression impossible');
+    } finally {
+      setRoomBusy(false);
+    }
+  };
+
+  const selectRoom = (roomId: string) => {
+    if (roomId === activeRoomId) return;
+    setActiveRoomId(roomId);
+    loadedRoomRef.current = null;
+    initializedRef.current = false;
+    setMessages([]);
+    setNextCursor(null);
+    setHasMore(false);
   };
 
   const loadOlder = async () => {
     if (!nextCursor || loadingOlder) return;
     setLoadingOlder(true);
     try {
-      const page = await getConversationMessages(conversationId, nextCursor);
+      const page = await getConversationMessages(conversationId, nextCursor, activeRoomId || conversation?.activeRoomId || null);
       setMessages((previous) => mergeMessages(page.messages, previous));
       setHasMore(page.hasMore);
       setNextCursor(page.nextCursor);
@@ -378,6 +514,7 @@ export function ConversationScreen() {
             <NativeMessageBubble
               message={message}
               own={own}
+              accentColor={accentColor}
               playing={playingAudioId === message.id}
               onPlayAudio={() => {
                 if (playingAudioId !== message.id) void player.pause().catch(() => {});
@@ -401,8 +538,20 @@ export function ConversationScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
-      <ConversationHeader navigation={navigation} user={other || null} title={other?.name || conversation.participants.map((item) => item.name).join(', ')} subtitle={other ? (recentlyActive(other) ? 'Actif récemment' : `@${other.username}`) : 'Discussion Synaura'} onMenu={() => setMenuOpen(true)} layout={layout} />
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
+      <ConversationBackdrop preferences={preferences} fallbackImage={conversation.avatarUrl || other?.avatar || null} />
+      <ConversationHeader navigation={navigation} user={other || null} title={conversationTitle} subtitle={room ? `# ${room.name}${room.type === 'voice_notes' ? ' · vocaux asynchrones' : ''}` : other ? (recentlyActive(other) ? 'Actif récemment' : `@${other.username}`) : 'Groupe Synaura'} onMenu={() => setMenuOpen(true)} layout={layout} accentColor={accentColor} />
+      {conversation.type === 'group' && conversation.rooms?.length ? (
+        <View style={styles.roomBar}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.roomBarContent, { paddingHorizontal: layout.gutter }]}>
+            {conversation.rooms.map((item) => {
+              const selected = item.id === (activeRoomId || conversation.activeRoomId);
+              return <MotionPressable key={item.id} onPress={() => selectRoom(item.id)} style={[styles.roomChip, selected && { borderColor: accentColor, backgroundColor: `${accentColor}22` }]}><Ionicons name={item.type === 'voice_notes' ? 'mic-outline' : 'chatbubble-outline'} size={13} color={selected ? accentColor : colors.textSecondary} /><Text style={[styles.roomChipText, selected && { color: accentColor }]}>#{item.name}</Text></MotionPressable>;
+            })}
+            {canManageRooms ? <MotionPressable accessibilityLabel="Créer un salon" onPress={() => setRoomCreatorOpen(true)} style={styles.roomAdd}><Ionicons name="add" size={17} color={colors.text} /></MotionPressable> : null}
+          </ScrollView>
+        </View>
+      ) : null}
       {errorMessage ? <Pressable onPress={() => setErrorMessage('')} style={[styles.errorBanner, layout.contentFrame, { marginHorizontal: layout.gutter }]}><Ionicons name="alert-circle-outline" size={17} color={colors.coral} /><Text style={styles.errorText}>{errorMessage}</Text><Ionicons name="close" size={16} color={colors.textTertiary} /></Pressable> : null}
       <FlatList
         ref={listRef}
@@ -423,11 +572,38 @@ export function ConversationScreen() {
         <View style={[styles.composerFrame, layout.contentFrame, { paddingHorizontal: layout.gutter }]}>
           {!canMessage ? <View style={styles.cannotSend}><Text style={styles.cannotSendText}>{conversation.blocked ? 'Cette discussion est bloquée.' : 'Vous devez être amis pour continuer cette discussion.'}</Text></View> : (
             <>
-              <View style={styles.composerRow}>
-                <MotionPressable accessibilityLabel="Ajouter une pièce jointe" disabled={uploading || recordingBusy} onPress={() => setAttachmentOpen(true)} style={[styles.attachButton, (uploading || recordingBusy) && styles.disabled]}>{uploading ? <ActivityIndicator size="small" color={colors.violet} /> : <Ionicons name="add" size={22} color={colors.textSecondary} />}</MotionPressable>
-                <View style={styles.inputShell}><TextInput value={draft} onChangeText={(value) => setDraft(value.slice(0, 2_000))} placeholder="Écrire un message…" placeholderTextColor={colors.textTertiary} multiline maxLength={2_000} style={styles.input} maxFontSizeMultiplier={1.2} /></View>
-                <MotionPressable accessibilityLabel={draft.trim() ? 'Envoyer' : 'Enregistrer un vocal'} disabled={sending || uploading || recordingBusy} onPress={() => draft.trim() ? void sendText() : void startRecording()} style={[styles.sendButton, (sending || uploading || recordingBusy) && styles.sendButtonDisabled]}>{sending || recordingBusy ? <ActivityIndicator size="small" color={colors.background} /> : <Ionicons name={draft.trim() ? 'arrow-up' : 'mic'} size={20} color={colors.background} />}</MotionPressable>
-              </View>
+              {voiceRecorder.phase === 'preview' && voiceRecorder.draft ? (
+                <View style={styles.voicePreviewRow}>
+                  <MotionPressable accessibilityLabel="Supprimer le vocal" onPress={() => { setVoicePreviewPlaying(false); void voiceRecorder.discardDraft(); }} style={styles.voiceUtilityButton}><Ionicons name="trash-outline" size={18} color={colors.coral} /></MotionPressable>
+                  <MotionPressable accessibilityLabel={voicePreviewPlaying ? 'Mettre en pause' : 'Écouter le vocal'} onPress={() => setVoicePreviewPlaying((value) => !value)} style={[styles.voicePreviewPlay, { backgroundColor: accentColor }]}><Ionicons name={voicePreviewPlaying ? 'pause' : 'play'} size={18} color={colors.paper} /></MotionPressable>
+                  <View style={styles.voicePreviewCopy}><View style={styles.voiceBars}>{Array.from({ length: 22 }, (_, index) => <View key={index} style={[styles.voiceBar, { height: 5 + ((index * 11) % 17), backgroundColor: index < 14 ? accentColor : colors.textTertiary }]} />)}</View><Text style={styles.voicePreviewDuration}>{recordingClock(voiceRecorder.durationMs)}</Text></View>
+                  <MotionPressable accessibilityLabel="Réenregistrer" onPress={() => { setVoicePreviewPlaying(false); void voiceRecorder.discardDraft(); }} style={styles.voiceUtilityButton}><Ionicons name="refresh" size={18} color={colors.textSecondary} /></MotionPressable>
+                  <MotionPressable accessibilityLabel="Envoyer le vocal" disabled={uploading} onPress={() => void sendVoiceDraft()} style={[styles.sendButton, { backgroundColor: accentColor }, uploading && styles.sendButtonDisabled]}>{uploading ? <ActivityIndicator size="small" color={colors.paper} /> : <Ionicons name="arrow-up" size={20} color={colors.paper} />}</MotionPressable>
+                  <Video source={{ uri: voiceRecorder.draft.uri }} paused={!voicePreviewPlaying} onEnd={() => setVoicePreviewPlaying(false)} onError={() => { setVoicePreviewPlaying(false); setErrorMessage('Aperçu audio indisponible.'); }} style={styles.hiddenAudio} />
+                </View>
+              ) : (
+                <View style={styles.composerRow}>
+                  {voiceRecorder.phase === 'recording' ? (
+                    <View style={[styles.voiceRecordingPanel, voiceRecorder.cancelArmed && styles.voiceRecordingCancel]}>
+                      <View style={[styles.recordingDot, { backgroundColor: voiceRecorder.cancelArmed ? colors.coral : accentColor }]} />
+                      <View style={styles.voiceRecordingCopy}><Text style={[styles.voiceRecordingTime, voiceRecorder.cancelArmed && { color: colors.coral }]}>{recordingClock(voiceRecorder.durationMs)}</Text><Text numberOfLines={1} style={styles.voiceRecordingHint}>{voiceRecorder.cancelArmed ? 'Relâche pour supprimer' : voiceRecorder.locked ? 'Enregistrement verrouillé' : 'Glisse à gauche pour annuler · en haut pour verrouiller'}</Text></View>
+                      {voiceRecorder.locked ? <Ionicons name="lock-closed" size={16} color={accentColor} /> : <Ionicons name="arrow-up" size={16} color={colors.textTertiary} />}
+                    </View>
+                  ) : (
+                    <>
+                      <MotionPressable accessibilityLabel="Ajouter une pièce jointe" disabled={uploading} onPress={() => setAttachmentOpen(true)} style={[styles.attachButton, uploading && styles.disabled]}>{uploading ? <ActivityIndicator size="small" color={accentColor} /> : <Ionicons name="add" size={22} color={colors.textSecondary} />}</MotionPressable>
+                      <View style={styles.inputShell}><TextInput value={draft} onChangeText={(value) => setDraft(value.slice(0, 2_000))} placeholder={room?.type === 'voice_notes' ? 'Ajoute un contexte au vocal…' : 'Écrire un message…'} placeholderTextColor={colors.textTertiary} multiline maxLength={2_000} style={styles.input} maxFontSizeMultiplier={1.2} /></View>
+                    </>
+                  )}
+                  {draft.trim() && voiceRecorder.phase === 'idle' ? (
+                    <MotionPressable accessibilityLabel="Envoyer" disabled={sending || uploading} onPress={() => void sendText()} style={[styles.sendButton, { backgroundColor: accentColor }, (sending || uploading) && styles.sendButtonDisabled]}>{sending ? <ActivityIndicator size="small" color={colors.paper} /> : <Ionicons name="arrow-up" size={20} color={colors.paper} />}</MotionPressable>
+                  ) : voiceRecorder.locked ? (
+                    <MotionPressable accessibilityLabel="Arrêter l’enregistrement" onPress={() => void voiceRecorder.stop()} style={[styles.sendButton, { backgroundColor: colors.coral }]}><Ionicons name="stop" size={18} color={colors.paper} /></MotionPressable>
+                  ) : (
+                    <View accessibilityLabel="Maintenir pour enregistrer" accessible key="voice-hold" {...voiceRecorder.panHandlers} style={[styles.sendButton, { backgroundColor: voiceRecorder.phase === 'recording' ? (voiceRecorder.cancelArmed ? colors.coral : accentColor) : colors.text }]}><Ionicons name={voiceRecorder.phase === 'recording' ? 'mic' : 'mic-outline'} size={20} color={colors.paper} /></View>
+                  )}
+                </View>
+              )}
               {uploading ? <View style={styles.uploadStatus}><View style={styles.uploadTrack}><View style={[styles.uploadValue, { width: `${Math.max(5, Math.round(uploadProgress * 100))}%` }]} /></View><Text style={styles.uploadText}>Envoi {Math.round(uploadProgress * 100)} %</Text></View> : null}
             </>
           )}
@@ -443,7 +619,6 @@ export function ConversationScreen() {
               <AttachmentOption icon="image-outline" label="Photo" tint={colors.violet} onPress={() => void pickVisual('image')} />
               <AttachmentOption icon="videocam-outline" label="Vidéo" tint={colors.coral} onPress={() => void pickVisual('video')} />
               <AttachmentOption icon="musical-note-outline" label="Audio" tint={colors.cyan} onPress={() => void pickAudio()} />
-              <AttachmentOption icon="mic-outline" label="Vocal" tint={colors.text} onPress={() => void startRecording()} />
             </View>
           </Pressable>
         </Pressable>
@@ -464,11 +639,48 @@ export function ConversationScreen() {
         <Pressable style={styles.sheetBackdrop} onPress={() => setMenuOpen(false)}>
           <Pressable style={[styles.actionSheet, { paddingBottom: Math.max(layout.insets.bottom, spacing.lg) }]} onPress={() => {}}>
             <View style={styles.sheetHandle} />
+            <SheetRow icon="color-palette-outline" label="Personnaliser la discussion" onPress={() => { setMenuOpen(false); setCustomizeOpen(true); }} />
             {other ? <SheetRow icon="person-outline" label="Voir le profil" onPress={() => { setMenuOpen(false); navigation.navigate('PublicProfile', { username: other.username }); }} /> : null}
             <SheetRow icon={muted ? 'notifications-outline' : 'notifications-off-outline'} label={muted ? 'Réactiver les notifications' : 'Mettre en sourdine'} onPress={() => void updateConversation(muted ? 'unmute' : 'mute')} />
             <SheetRow icon="archive-outline" label="Archiver la discussion" onPress={() => void updateConversation('archive')} />
             {other ? <SheetRow icon="person-remove-outline" label="Retirer de mes amis" danger onPress={() => { setMenuOpen(false); setConfirmAction('remove'); }} /> : null}
             {other ? <SheetRow icon="ban-outline" label="Bloquer" danger onPress={() => { setMenuOpen(false); setConfirmAction('block'); }} /> : null}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal transparent visible={customizeOpen} animationType="slide" onRequestClose={() => setCustomizeOpen(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setCustomizeOpen(false)}>
+          <Pressable style={[styles.customizeSheet, { paddingBottom: Math.max(layout.insets.bottom, spacing.lg) }]} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.customizeHeader}><View><Text style={styles.sheetTitle}>Ta discussion, ton ambiance</Text><Text style={styles.customizeSubtitle}>Ces réglages ne changent que ton affichage.</Text></View><MotionPressable accessibilityLabel="Fermer" onPress={() => setCustomizeOpen(false)} style={styles.headerButton}><Ionicons name="close" size={19} color={colors.text} /></MotionPressable></View>
+            {preferenceDraft ? <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Text style={styles.settingLabel}>Nom chez toi</Text>
+              <View style={styles.settingInputShell}><TextInput value={preferenceDraft.nickname || ''} onChangeText={(nickname) => setPreferenceDraft({ ...preferenceDraft, nickname: nickname.slice(0, 48) || null })} placeholder={other?.name || conversation.name || 'Nom de la discussion'} placeholderTextColor={colors.textTertiary} style={styles.settingInput} /></View>
+
+              <Text style={styles.settingLabel}>Couleur</Text>
+              <View style={styles.themeGrid}>{THEME_OPTIONS.map((option) => { const selected = preferenceDraft.themeKey === option.key; return <MotionPressable key={option.key} onPress={() => setPreferenceDraft({ ...preferenceDraft, themeKey: option.key, accentColor: option.color as MessagingConversationPreferences['accentColor'] })} style={[styles.themeOption, selected && { borderColor: option.color, backgroundColor: `${option.color}18` }]}><View style={[styles.themeSwatch, { backgroundColor: option.color }]} /> <Text style={[styles.themeLabel, selected && { color: option.color }]}>{option.label}</Text>{selected ? <Ionicons name="checkmark" size={15} color={option.color} /> : null}</MotionPressable>; })}</View>
+
+              <Text style={styles.settingLabel}>Fond</Text>
+              <View style={styles.backgroundGrid}>{BACKGROUND_OPTIONS.map((option) => { const selected = preferenceDraft.backgroundKey === option.key; return <MotionPressable key={option.key} onPress={() => setPreferenceDraft({ ...preferenceDraft, backgroundKey: option.key })} style={[styles.backgroundOption, selected && { borderColor: preferenceDraft.accentColor }]}><LinearGradient colors={option.key === 'quiet' ? ['#171717', '#111111'] : option.key === 'aurora' ? [preferenceDraft.accentColor, '#4A9EAA'] : option.key === 'cover' ? ['#D96D63', '#7357C6'] : ['#111111', '#050505']} style={StyleSheet.absoluteFill} /><Text style={styles.backgroundLabel}>{option.label}</Text>{selected ? <Ionicons name="checkmark-circle" size={17} color={colors.paper} /> : null}</MotionPressable>; })}</View>
+
+              {supportsConversationBubble() ? <MotionPressable onPress={() => void toggleBubbleDraft(!preferenceDraft.bubbleEnabled)} style={styles.toggleRow}><View style={styles.toggleIcon}><Ionicons name="chatbubble-ellipses-outline" size={19} color={preferenceDraft.accentColor} /></View><View style={styles.toggleCopy}><Text style={styles.toggleTitle}>Bulle hors de Synaura</Text><Text style={styles.toggleText}>Garde un raccourci flottant quand tu quittes l’app.</Text></View><View style={[styles.toggleTrack, preferenceDraft.bubbleEnabled && { backgroundColor: preferenceDraft.accentColor }]}><View style={[styles.toggleThumb, preferenceDraft.bubbleEnabled && styles.toggleThumbOn]} /></View></MotionPressable> : null}
+
+              {conversation.type === 'group' ? <View style={styles.roomsSettings}><View style={styles.roomsSettingsHeader}><View><Text style={styles.settingLabelNoMargin}>Salons</Text><Text style={styles.customizeSubtitle}>Messages et vocaux restent asynchrones.</Text></View>{canManageRooms ? <MotionPressable onPress={() => setRoomCreatorOpen(true)} style={[styles.compactAction, { backgroundColor: preferenceDraft.accentColor }]}><Ionicons name="add" size={16} color={colors.paper} /><Text style={styles.compactActionText}>Ajouter</Text></MotionPressable> : null}</View>{conversation.rooms?.map((item) => <View key={item.id} style={styles.roomSettingRow}><Ionicons name={item.type === 'voice_notes' ? 'mic-outline' : 'chatbubble-outline'} size={17} color={colors.textSecondary} /><Text style={styles.roomSettingName}>#{item.name}</Text><Text style={styles.roomSettingType}>{item.type === 'voice_notes' ? 'Vocaux' : 'Texte'}</Text>{canManageRooms && (conversation.rooms?.length || 0) > 1 ? <MotionPressable accessibilityLabel={`Supprimer ${item.name}`} disabled={roomBusy} onPress={() => void removeRoom(item.id)} style={styles.roomDelete}><Ionicons name="trash-outline" size={16} color={colors.coral} /></MotionPressable> : null}</View>)}</View> : null}
+            </ScrollView> : null}
+            <MotionPressable disabled={!preferenceDraft || savingPreferences} onPress={() => void savePreferences()} style={[styles.savePreferences, { backgroundColor: preferenceDraft?.accentColor || accentColor }, savingPreferences && styles.disabled]}>{savingPreferences ? <ActivityIndicator color={colors.paper} /> : <Text style={styles.savePreferencesText}>Enregistrer</Text>}</MotionPressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal transparent visible={roomCreatorOpen} animationType="fade" onRequestClose={() => setRoomCreatorOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setRoomCreatorOpen(false)}>
+          <Pressable style={styles.confirmCard} onPress={() => {}}>
+            <Text style={styles.confirmTitle}>Nouveau salon</Text>
+            <Text style={styles.confirmText}>Un espace dédié à un sujet ou aux messages vocaux.</Text>
+            <View style={[styles.settingInputShell, { marginTop: spacing.lg }]}><TextInput autoFocus value={roomName} onChangeText={(value) => setRoomName(value.slice(0, 40))} placeholder="Nom du salon" placeholderTextColor={colors.textTertiary} style={styles.settingInput} /></View>
+            <View style={styles.roomTypeRow}><MotionPressable onPress={() => setRoomType('text')} style={[styles.roomTypeOption, roomType === 'text' && { borderColor: accentColor, backgroundColor: `${accentColor}18` }]}><Ionicons name="chatbubble-outline" size={18} color={roomType === 'text' ? accentColor : colors.textSecondary} /><Text style={styles.roomTypeText}>Messages</Text></MotionPressable><MotionPressable onPress={() => setRoomType('voice_notes')} style={[styles.roomTypeOption, roomType === 'voice_notes' && { borderColor: accentColor, backgroundColor: `${accentColor}18` }]}><Ionicons name="mic-outline" size={18} color={roomType === 'voice_notes' ? accentColor : colors.textSecondary} /><Text style={styles.roomTypeText}>Vocaux</Text></MotionPressable></View>
+            <View style={styles.confirmActions}><MotionPressable style={styles.secondaryButton} onPress={() => setRoomCreatorOpen(false)}><Text style={styles.secondaryButtonText}>Annuler</Text></MotionPressable><MotionPressable disabled={!roomName.trim() || roomBusy} style={[styles.dangerButton, { backgroundColor: accentColor }, (!roomName.trim() || roomBusy) && styles.disabled]} onPress={() => void createRoom()}>{roomBusy ? <ActivityIndicator color={colors.paper} /> : <Text style={styles.dangerButtonText}>Créer</Text>}</MotionPressable></View>
           </Pressable>
         </Pressable>
       </Modal>
@@ -490,27 +702,43 @@ export function ConversationScreen() {
   );
 }
 
-function ConversationHeader({ navigation, user, title, subtitle, onMenu, layout }: { navigation: any; user: MessagingUser | null; title: string; subtitle: string; onMenu: () => void; layout: ReturnType<typeof useResponsiveLayout> }) {
-  return <View style={[styles.header, { paddingTop: layout.insets.top + 6 }]}><View style={[styles.headerFrame, layout.contentFrame, { paddingHorizontal: layout.gutter }]}><MotionPressable accessibilityLabel="Retour" onPress={() => navigation.goBack()} style={styles.headerButton}><Ionicons name="chevron-back" size={21} color={colors.text} /></MotionPressable>{user ? <Pressable onPress={() => navigation.navigate('PublicProfile', { username: user.username })}><MessagingAvatar user={user} size={40} active={recentlyActive(user)} /></Pressable> : null}<Pressable disabled={!user} onPress={() => user && navigation.navigate('PublicProfile', { username: user.username })} style={styles.headerCopy}><Text numberOfLines={1} style={styles.headerTitle}>{title}</Text><Text numberOfLines={1} style={styles.headerSubtitle}>{subtitle}</Text></Pressable><MotionPressable accessibilityLabel="Options de la discussion" onPress={onMenu} style={styles.headerButton}><Ionicons name="ellipsis-horizontal" size={20} color={colors.text} /></MotionPressable></View></View>;
+function ConversationBackdrop({ preferences, fallbackImage }: { preferences?: MessagingConversationPreferences; fallbackImage?: string | null }) {
+  const background = preferences?.backgroundKey || 'quiet';
+  const accent = preferences?.accentColor || '#7357C6';
+  const image = preferences?.wallpaperUrl || fallbackImage;
+  if (background === 'quiet') return <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdropQuiet]} />;
+  return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    {background === 'cover' && image ? <Image source={{ uri: image }} contentFit="cover" blurRadius={34} style={[StyleSheet.absoluteFill, styles.backdropImage]} /> : null}
+    <LinearGradient
+      colors={background === 'midnight' ? ['rgba(5,5,5,0.98)', `${accent}28`, 'rgba(5,5,5,0.99)'] : background === 'cover' ? ['rgba(13,13,13,0.52)', `${accent}35`, 'rgba(13,13,13,0.96)'] : [`${accent}3D`, 'rgba(74,158,170,0.16)', 'rgba(13,13,13,0.96)']}
+      locations={[0, 0.48, 1]}
+      style={StyleSheet.absoluteFill}
+    />
+  </View>;
 }
 
-function NativeMessageBubble({ message, own, playing, audioPosition, onPlayAudio, onAudioProgress, onAudioEnd, onImage, onShared }: { message: MessagingMessage; own: boolean; playing: boolean; audioPosition: { current: number; duration: number }; onPlayAudio: () => void; onAudioProgress: (current: number, duration: number) => void; onAudioEnd: () => void; onImage: () => void; onShared: () => void }) {
+function ConversationHeader({ navigation, user, title, subtitle, onMenu, layout, accentColor = colors.violet }: { navigation: any; user: MessagingUser | null; title: string; subtitle: string; onMenu: () => void; layout: ReturnType<typeof useResponsiveLayout>; accentColor?: string }) {
+  return <View style={[styles.header, { paddingTop: layout.insets.top + 6 }]}><View style={[styles.headerFrame, layout.contentFrame, { paddingHorizontal: layout.gutter }]}><MotionPressable accessibilityLabel="Retour" onPress={() => navigation.goBack()} style={styles.headerButton}><Ionicons name="chevron-back" size={21} color={colors.text} /></MotionPressable>{user ? <Pressable onPress={() => navigation.navigate('PublicProfile', { username: user.username })}><MessagingAvatar user={user} size={40} active={recentlyActive(user)} /></Pressable> : <View style={[styles.groupAvatar, { backgroundColor: `${accentColor}28` }]}><Ionicons name="people" size={19} color={accentColor} /></View>}<Pressable disabled={!user} onPress={() => user && navigation.navigate('PublicProfile', { username: user.username })} style={styles.headerCopy}><Text numberOfLines={1} style={styles.headerTitle}>{title}</Text><Text numberOfLines={1} style={styles.headerSubtitle}>{subtitle}</Text></Pressable><MotionPressable accessibilityLabel="Options de la discussion" onPress={onMenu} style={styles.headerButton}><Ionicons name="ellipsis-horizontal" size={20} color={colors.text} /></MotionPressable></View></View>;
+}
+
+function NativeMessageBubble({ message, own, accentColor, playing, audioPosition, onPlayAudio, onAudioProgress, onAudioEnd, onImage, onShared }: { message: MessagingMessage; own: boolean; accentColor: string; playing: boolean; audioPosition: { current: number; duration: number }; onPlayAudio: () => void; onAudioProgress: (current: number, duration: number) => void; onAudioEnd: () => void; onImage: () => void; onShared: () => void }) {
   const audioRef = useRef<any>(null);
   const mediaUrl = message.mediaUrl || message.content;
-  if (message.deleted) return <View style={[styles.bubble, own ? styles.bubbleOwn : styles.bubbleOther]}><Text style={[styles.deletedText, own && styles.bubbleTextOwn]}>Message supprimé</Text></View>;
-  if (message.type === 'image') return <Pressable onPress={onImage} style={[styles.mediaBubble, own ? styles.bubbleOwn : styles.bubbleOther]}><Image source={{ uri: mediaUrl }} contentFit="cover" transition={120} style={styles.messageImage} /></Pressable>;
-  if (message.type === 'video') return <View style={[styles.mediaBubble, own ? styles.bubbleOwn : styles.bubbleOther]}><Video source={{ uri: mediaUrl }} controls paused resizeMode="contain" style={styles.messageVideo} /></View>;
+  const ownAccent = own ? { backgroundColor: accentColor } : null;
+  if (message.deleted) return <View style={[styles.bubble, own ? styles.bubbleOwn : styles.bubbleOther, ownAccent]}><Text style={[styles.deletedText, own && styles.bubbleTextOwn]}>Message supprimé</Text></View>;
+  if (message.type === 'image') return <Pressable onPress={onImage} style={[styles.mediaBubble, own ? styles.bubbleOwn : styles.bubbleOther, ownAccent]}><Image source={{ uri: mediaUrl }} contentFit="cover" transition={120} style={styles.messageImage} /></Pressable>;
+  if (message.type === 'video') return <View style={[styles.mediaBubble, own ? styles.bubbleOwn : styles.bubbleOther, ownAccent]}><Video source={{ uri: mediaUrl }} controls paused resizeMode="contain" style={styles.messageVideo} /></View>;
   if (message.type === 'audio') {
     const progress = audioPosition.duration > 0 ? Math.min(1, audioPosition.current / audioPosition.duration) : 0;
-    return <Pressable onPress={onPlayAudio} style={[styles.audioBubble, own ? styles.bubbleOwn : styles.bubbleOther]}><View style={[styles.audioPlay, own && styles.audioPlayOwn]}><Ionicons name={playing ? 'pause' : 'play'} size={17} color={own ? colors.violet : colors.background} /></View><View style={styles.audioCopy}><View style={styles.audioTitleRow}><Text style={[styles.audioTitle, own && styles.bubbleTextOwn]}>Message audio</Text>{audioPosition.duration > 0 ? <Text style={[styles.audioDuration, own && styles.sharedSubtitleOwn]}>{recordingClock((playing ? audioPosition.current : audioPosition.duration) * 1_000)}</Text> : null}</View><View style={[styles.audioProgress, own && styles.audioProgressOwn]}><View style={[styles.audioProgressValue, { width: `${Math.round(progress * 100)}%` as `${number}%` }]} /></View></View>{playing ? <Video ref={audioRef} source={{ uri: mediaUrl }} paused={false} onLoad={() => { if (audioPosition.current > 0.25) audioRef.current?.seek(audioPosition.current); }} onProgress={({ currentTime, seekableDuration }) => onAudioProgress(currentTime, seekableDuration || audioPosition.duration)} onEnd={onAudioEnd} onError={onAudioEnd} progressUpdateInterval={250} style={styles.hiddenAudio} /> : null}</Pressable>;
+    return <Pressable onPress={onPlayAudio} style={[styles.audioBubble, own ? styles.bubbleOwn : styles.bubbleOther, ownAccent]}><View style={[styles.audioPlay, own && styles.audioPlayOwn]}><Ionicons name={playing ? 'pause' : 'play'} size={17} color={own ? accentColor : colors.background} /></View><View style={styles.audioCopy}><View style={styles.audioTitleRow}><Text style={[styles.audioTitle, own && styles.bubbleTextOwn]}>Message audio</Text>{audioPosition.duration > 0 ? <Text style={[styles.audioDuration, own && styles.sharedSubtitleOwn]}>{recordingClock((playing ? audioPosition.current : audioPosition.duration) * 1_000)}</Text> : null}</View><View style={[styles.audioProgress, own && styles.audioProgressOwn]}><View style={[styles.audioProgressValue, { width: `${Math.round(progress * 100)}%` as `${number}%`, backgroundColor: own ? colors.paper : accentColor }]} /></View></View>{playing ? <Video ref={audioRef} source={{ uri: mediaUrl }} paused={false} onLoad={() => { if (audioPosition.current > 0.25) audioRef.current?.seek(audioPosition.current); }} onProgress={({ currentTime, seekableDuration }) => onAudioProgress(currentTime, seekableDuration || audioPosition.duration)} onEnd={onAudioEnd} onError={onAudioEnd} progressUpdateInterval={250} style={styles.hiddenAudio} /> : null}</Pressable>;
   }
   if (['track', 'clip', 'post', 'playlist'].includes(message.type)) {
     const cover = typeof message.metadata?.coverUrl === 'string' ? message.metadata.coverUrl : '';
     const title = String(message.metadata?.title || (message.type === 'track' ? 'Son partagé' : message.type === 'clip' ? 'Clip partagé' : message.type === 'playlist' ? 'Playlist partagée' : 'Post partagé'));
     const subtitle = String(message.metadata?.artistName || message.metadata?.subtitle || 'Synaura');
-    return <Pressable onPress={onShared} style={[styles.sharedBubble, own ? styles.bubbleOwn : styles.bubbleOther]}>{cover ? <Image source={{ uri: cover }} contentFit="cover" style={styles.sharedCover} /> : <View style={styles.sharedCoverFallback}><Ionicons name="musical-notes" size={20} color={own ? colors.paper : colors.violet} /></View>}<View style={styles.sharedCopy}><Text numberOfLines={1} style={[styles.sharedTitle, own && styles.bubbleTextOwn]}>{title}</Text><Text numberOfLines={1} style={[styles.sharedSubtitle, own && styles.sharedSubtitleOwn]}>{subtitle}</Text></View><View style={[styles.sharedPlay, own && styles.sharedPlayOwn]}><Ionicons name="play" size={14} color={own ? colors.violet : colors.background} /></View></Pressable>;
+    return <Pressable onPress={onShared} style={[styles.sharedBubble, own ? styles.bubbleOwn : styles.bubbleOther, ownAccent]}>{cover ? <Image source={{ uri: cover }} contentFit="cover" style={styles.sharedCover} /> : <View style={styles.sharedCoverFallback}><Ionicons name="musical-notes" size={20} color={own ? colors.paper : accentColor} /></View>}<View style={styles.sharedCopy}><Text numberOfLines={1} style={[styles.sharedTitle, own && styles.bubbleTextOwn]}>{title}</Text><Text numberOfLines={1} style={[styles.sharedSubtitle, own && styles.sharedSubtitleOwn]}>{subtitle}</Text></View><View style={[styles.sharedPlay, own && styles.sharedPlayOwn]}><Ionicons name="play" size={14} color={own ? accentColor : colors.background} /></View></Pressable>;
   }
-  return <View style={[styles.bubble, own ? styles.bubbleOwn : styles.bubbleOther]}><Text selectable style={[styles.bubbleText, own && styles.bubbleTextOwn]}>{message.content}</Text></View>;
+  return <View style={[styles.bubble, own ? styles.bubbleOwn : styles.bubbleOther, ownAccent]}><Text selectable style={[styles.bubbleText, own && styles.bubbleTextOwn]}>{message.content}</Text></View>;
 }
 
 function SheetRow({ icon, label, onPress, danger = false }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; danger?: boolean }) {
@@ -523,13 +751,21 @@ function AttachmentOption({ icon, label, tint, onPress }: { icon: keyof typeof I
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  backdropQuiet: { backgroundColor: colors.background },
+  backdropImage: { opacity: 0.42, transform: [{ scale: 1.12 }] },
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   header: { zIndex: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, backgroundColor: colors.background },
   headerFrame: { width: '100%', height: 62, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   headerButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
+  groupAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1, minWidth: 0 },
   headerTitle: { color: colors.text, fontSize: 14, lineHeight: 18, fontWeight: '900' },
   headerSubtitle: { marginTop: 2, color: colors.textTertiary, fontSize: 10, lineHeight: 14, fontWeight: '700' },
+  roomBar: { minHeight: 48, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, backgroundColor: colors.background },
+  roomBarContent: { alignItems: 'center', gap: 7, paddingVertical: 7 },
+  roomChip: { height: 33, borderRadius: 17, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  roomChipText: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
+  roomAdd: { width: 33, height: 33, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong },
   errorBanner: { minHeight: 40, marginTop: spacing.sm, borderRadius: radius.sm, backgroundColor: colors.coralSoft, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   errorText: { flex: 1, color: colors.coral, fontSize: 11, lineHeight: 15, fontWeight: '700' },
   messages: { width: '100%', flexGrow: 1, justifyContent: 'flex-end', paddingTop: spacing.lg, paddingBottom: spacing.md },
@@ -589,6 +825,19 @@ const styles = StyleSheet.create({
   input: { minHeight: 41, maxHeight: 112, paddingTop: 10, paddingBottom: 9, color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   sendButton: { width: 43, height: 43, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
   sendButtonDisabled: { opacity: 0.28 },
+  voiceRecordingPanel: { flex: 1, minHeight: 43, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  voiceRecordingCancel: { borderColor: colors.coral, backgroundColor: colors.coralSoft },
+  recordingDot: { width: 9, height: 9, borderRadius: 5 },
+  voiceRecordingCopy: { flex: 1, minWidth: 0 },
+  voiceRecordingTime: { color: colors.text, fontSize: 12, fontVariant: ['tabular-nums'], fontWeight: '900' },
+  voiceRecordingHint: { marginTop: 2, color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
+  voicePreviewRow: { minHeight: 54, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, padding: 6, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  voiceUtilityButton: { width: 35, height: 35, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong },
+  voicePreviewPlay: { width: 39, height: 39, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  voicePreviewCopy: { flex: 1, minWidth: 0 },
+  voiceBars: { height: 24, flexDirection: 'row', alignItems: 'center', gap: 2, overflow: 'hidden' },
+  voiceBar: { width: 2, minHeight: 3, borderRadius: 1 },
+  voicePreviewDuration: { marginTop: 2, color: colors.textTertiary, fontSize: 8, fontVariant: ['tabular-nums'], fontWeight: '800' },
   disabled: { opacity: 0.4 },
   uploadStatus: { minHeight: 19, paddingTop: 7, flexDirection: 'row', alignItems: 'center', gap: 8 },
   uploadTrack: { flex: 1, height: 3, overflow: 'hidden', borderRadius: 2, backgroundColor: colors.surfaceMuted },
@@ -602,8 +851,43 @@ const styles = StyleSheet.create({
   emptyText: { maxWidth: 330, marginTop: 7, color: colors.textSecondary, textAlign: 'center', fontSize: 12, lineHeight: 18, fontWeight: '600' },
   sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
   actionSheet: { width: '100%', maxWidth: 680, alignSelf: 'center', borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderBottomWidth: 0, borderColor: colors.borderStrong, paddingHorizontal: spacing.md, paddingTop: spacing.sm, backgroundColor: colors.elevatedSurface },
+  customizeSheet: { width: '100%', maxWidth: 680, maxHeight: '88%', alignSelf: 'center', borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderBottomWidth: 0, borderColor: colors.borderStrong, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.elevatedSurface },
   sheetHandle: { width: 38, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: spacing.md, backgroundColor: colors.textTertiary },
   sheetTitle: { marginBottom: spacing.md, color: colors.text, fontSize: 14, fontWeight: '900' },
+  customizeHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
+  customizeSubtitle: { marginTop: -6, color: colors.textTertiary, fontSize: 9, lineHeight: 14, fontWeight: '700' },
+  settingLabel: { marginTop: spacing.lg, marginBottom: spacing.sm, color: colors.textSecondary, fontSize: 10, textTransform: 'uppercase', fontWeight: '900' },
+  settingLabelNoMargin: { marginBottom: spacing.sm, color: colors.textSecondary, fontSize: 10, textTransform: 'uppercase', fontWeight: '900' },
+  settingInputShell: { minHeight: 46, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong, paddingHorizontal: spacing.md, justifyContent: 'center' },
+  settingInput: { minHeight: 44, color: colors.text, fontSize: 13, fontWeight: '700' },
+  themeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  themeOption: { minWidth: '30%', flexGrow: 1, height: 42, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, backgroundColor: colors.surfaceStrong, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  themeSwatch: { width: 18, height: 18, borderRadius: 9 },
+  themeLabel: { flex: 1, color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
+  backgroundGrid: { flexDirection: 'row', gap: 7 },
+  backgroundOption: { flex: 1, height: 72, overflow: 'hidden', borderRadius: radius.sm, borderWidth: 2, borderColor: 'transparent', padding: 8, justifyContent: 'flex-end' },
+  backgroundLabel: { color: colors.paper, fontSize: 9, fontWeight: '900' },
+  toggleRow: { minHeight: 67, marginTop: spacing.lg, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  toggleIcon: { width: 37, height: 37, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong },
+  toggleCopy: { flex: 1, minWidth: 0 },
+  toggleTitle: { color: colors.text, fontSize: 11, fontWeight: '900' },
+  toggleText: { marginTop: 2, color: colors.textTertiary, fontSize: 8, lineHeight: 12, fontWeight: '600' },
+  toggleTrack: { width: 40, height: 23, borderRadius: 12, padding: 3, backgroundColor: colors.surfaceMuted },
+  toggleThumb: { width: 17, height: 17, borderRadius: 9, backgroundColor: colors.paper },
+  toggleThumbOn: { transform: [{ translateX: 17 }] },
+  roomsSettings: { marginTop: spacing.lg },
+  roomsSettingsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginBottom: spacing.sm },
+  compactAction: { height: 34, borderRadius: 17, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  compactActionText: { color: colors.paper, fontSize: 9, fontWeight: '900' },
+  roomSettingRow: { minHeight: 45, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  roomSettingName: { flex: 1, color: colors.text, fontSize: 11, fontWeight: '900' },
+  roomSettingType: { color: colors.textTertiary, fontSize: 8, fontWeight: '800' },
+  roomDelete: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  savePreferences: { minHeight: 47, marginTop: spacing.lg, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  savePreferencesText: { color: colors.paper, fontSize: 12, fontWeight: '900' },
+  roomTypeRow: { marginTop: spacing.md, flexDirection: 'row', gap: 8 },
+  roomTypeOption: { flex: 1, minHeight: 48, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  roomTypeText: { color: colors.text, fontSize: 10, fontWeight: '900' },
   attachmentGrid: { flexDirection: 'row', gap: 8 },
   attachmentOption: { flex: 1, minWidth: 0, minHeight: 78, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   attachmentIcon: { width: 39, height: 39, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },

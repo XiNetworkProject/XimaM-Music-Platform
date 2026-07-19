@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import {
+  MAX_GROUP_PARTICIPANTS,
   ensureDirectConversation,
+  formatConversationPreferences,
   formatMessagingProfile,
   getMessagingProfiles,
   usersAreBlocked,
@@ -37,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     let participationQuery = supabaseAdmin
       .from('conversation_participants')
-      .select('conversation_id, last_read_at, archived_at, muted_until')
+      .select('conversation_id, last_read_at, archived_at, muted_until, role, nickname, theme_key, accent_color, background_key, wallpaper_url, bubble_enabled')
       .eq('user_id', userId);
     if (!includeArchived) participationQuery = participationQuery.is('archived_at', null);
     const { data: myParticipations, error: participationError } = await participationQuery;
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     const { data: conversations, error: conversationError } = await supabaseAdmin
       .from('conversations')
-      .select('id, name, is_group, created_at, updated_at, last_message_at, last_message_id, is_active')
+      .select('id, name, description, avatar_url, owner_id, is_group, created_at, updated_at, last_message_at, last_message_id, is_active')
       .in('id', conversationIds)
       .eq('is_active', true)
       .order('last_message_at', { ascending: false });
@@ -60,7 +62,7 @@ export async function GET(request: NextRequest) {
     const [{ data: participantRows }, { data: unreadRows }] = await Promise.all([
       supabaseAdmin
         .from('conversation_participants')
-        .select('conversation_id, user_id, last_read_at')
+        .select('conversation_id, user_id, last_read_at, role, nickname')
         .in('conversation_id', activeIds),
       supabaseAdmin
         .from('messages')
@@ -126,15 +128,20 @@ export async function GET(request: NextRequest) {
         id: conversation.id,
         _id: conversation.id,
         name: conversation.name,
+        description: conversation.description || null,
+        avatarUrl: conversation.avatar_url || null,
+        ownerId: conversation.owner_id || null,
         type: conversation.is_group ? 'group' : 'direct',
         participants,
-        otherUser: other ? profiles.get(other.user_id) || formatMessagingProfile({ id: other.user_id }) : null,
+        participantRoles: rows.map((row) => ({ userId: row.user_id, role: row.role || 'member', nickname: row.nickname || null })),
+        otherUser: !conversation.is_group && other ? profiles.get(other.user_id) || formatMessagingProfile({ id: other.user_id }) : null,
         lastMessage: conversation.last_message_id ? lastMessagePreview(latestMessages.get(conversation.last_message_id)) : null,
         unreadCount,
         canMessage: Boolean(conversation.is_group || (other && friendIds.has(other.user_id) && !blocked)),
         blocked,
         muted: Boolean(ownParticipation?.muted_until && new Date(ownParticipation.muted_until).getTime() > Date.now()),
         archived: Boolean(ownParticipation?.archived_at),
+        preferences: formatConversationPreferences(ownParticipation),
         createdAt: conversation.created_at,
         updatedAt: conversation.last_message_at || conversation.updated_at,
       };
@@ -156,6 +163,63 @@ export async function POST(request: NextRequest) {
     const session = await getApiSession(request);
     if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
     const body = await request.json().catch(() => null);
+    const requestedParticipants: string[] = Array.isArray(body?.participantIds)
+      ? Array.from(new Set(body.participantIds.filter((value: unknown): value is string => typeof value === 'string').map((value: string) => value.trim()).filter(Boolean)))
+      : [];
+    if (requestedParticipants.length) {
+      const participantIds = requestedParticipants.filter((id) => id !== session.user.id).slice(0, MAX_GROUP_PARTICIPANTS - 1);
+      const name = typeof body?.name === 'string' ? body.name.trim().slice(0, 64) : '';
+      if (!name || participantIds.length < 2) {
+        return NextResponse.json({ error: 'Choisis un nom et au moins deux amis' }, { status: 400 });
+      }
+      const { data: profiles } = await supabaseAdmin.from('profiles').select('id').in('id', participantIds);
+      if ((profiles || []).length !== participantIds.length) {
+        return NextResponse.json({ error: 'Un participant est introuvable' }, { status: 404 });
+      }
+      const relationshipChecks = await Promise.all(participantIds.map(async (participantId) => ({
+        participantId,
+        blocked: await usersAreBlocked(session.user.id, participantId),
+        friend: await usersAreFriends(session.user.id, participantId),
+      })));
+      if (relationshipChecks.some((entry) => entry.blocked || !entry.friend)) {
+        return NextResponse.json({ error: 'Tous les membres doivent faire partie de tes amis' }, { status: 403 });
+      }
+
+      const now = new Date().toISOString();
+      const conversationId = crypto.randomUUID();
+      const { error: conversationError } = await supabaseAdmin.from('conversations').insert({
+        id: conversationId,
+        name,
+        description: typeof body?.description === 'string' ? body.description.trim().slice(0, 180) || null : null,
+        is_group: true,
+        owner_id: session.user.id,
+        created_at: now,
+        updated_at: now,
+        last_message_at: now,
+        is_active: true,
+      });
+      if (conversationError) return NextResponse.json({ error: 'Salon impossible a creer' }, { status: 500 });
+
+      const { error: participantError } = await supabaseAdmin.from('conversation_participants').insert([
+        { conversation_id: conversationId, user_id: session.user.id, role: 'owner', last_read_at: now },
+        ...participantIds.map((userId) => ({ conversation_id: conversationId, user_id: userId, role: 'member', last_read_at: null })),
+      ]);
+      if (participantError) {
+        await supabaseAdmin.from('conversations').delete().eq('id', conversationId);
+        return NextResponse.json({ error: 'Membres impossibles a ajouter' }, { status: 500 });
+      }
+
+      const { data: rooms, error: roomError } = await supabaseAdmin.from('conversation_rooms').insert([
+        { conversation_id: conversationId, name: 'general', room_type: 'text', position: 0, created_by: session.user.id },
+        { conversation_id: conversationId, name: 'vocaux', room_type: 'voice_notes', position: 1, created_by: session.user.id },
+      ]).select('id, name, room_type, position, created_at');
+      if (roomError) {
+        await supabaseAdmin.from('conversations').delete().eq('id', conversationId);
+        return NextResponse.json({ error: 'Salons impossibles a preparer' }, { status: 500 });
+      }
+      return NextResponse.json({ id: conversationId, _id: conversationId, type: 'group', rooms }, { status: 201 });
+    }
+
     const participantId = typeof body?.participantId === 'string' ? body.participantId.trim() : '';
     if (!participantId || participantId === session.user.id) {
       return NextResponse.json({ error: 'Participant invalide' }, { status: 400 });

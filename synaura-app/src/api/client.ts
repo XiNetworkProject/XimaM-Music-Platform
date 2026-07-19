@@ -1020,15 +1020,37 @@ export type MessagingMessage = {
   sharedEntityId: string | null;
   metadata: Record<string, string | number>;
   replyToId: string | null;
+  roomId: string | null;
   seenBy: string[];
   reactions: Array<{ userId: string; reaction: MessagingReactionName }>;
   createdAt: string;
   deleted: boolean;
 };
 
+export type MessagingConversationPreferences = {
+  nickname: string | null;
+  themeKey: 'aura' | 'ocean' | 'coral' | 'rose' | 'graphite';
+  accentColor: '#7357C6' | '#4A9EAA' | '#D96D63' | '#C85D82' | '#111111';
+  backgroundKey: 'quiet' | 'aurora' | 'cover' | 'midnight';
+  wallpaperUrl: string | null;
+  bubbleEnabled: boolean;
+};
+
+export type MessagingRoom = {
+  id: string;
+  name: string;
+  type: 'text' | 'voice_notes';
+  position: number;
+  createdBy: string | null;
+  createdAt: string;
+};
+
 export type MessagingConversation = {
   id: string;
   name: string | null;
+  description?: string | null;
+  avatarUrl?: string | null;
+  ownerId?: string | null;
   type: 'direct' | 'group';
   participants: MessagingUser[];
   otherUser: MessagingUser | null;
@@ -1046,6 +1068,10 @@ export type MessagingConversation = {
   blocked: boolean;
   muted: boolean;
   archived: boolean;
+  preferences: MessagingConversationPreferences;
+  participantRoles?: Array<{ userId: string; role: 'owner' | 'moderator' | 'member'; nickname: string | null }>;
+  rooms?: MessagingRoom[];
+  activeRoomId?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -1106,6 +1132,7 @@ function normalizeMessagingMessage(raw: any): MessagingMessage {
     sharedEntityId: raw?.sharedEntityId || raw?.shared_entity_id || null,
     metadata,
     replyToId: raw?.replyToId || raw?.reply_to_id || null,
+    roomId: raw?.roomId || raw?.room_id || null,
     seenBy: Array.isArray(raw?.seenBy) ? raw.seenBy.map(String) : [],
     reactions: (Array.isArray(raw?.reactions) ? raw.reactions : []).map((entry: any) => ({
       userId: safeString(entry?.userId || entry?.user_id, ''),
@@ -1114,6 +1141,28 @@ function normalizeMessagingMessage(raw: any): MessagingMessage {
     createdAt: raw?.createdAt || raw?.created_at || new Date().toISOString(),
     deleted: Boolean(raw?.deleted || raw?.deleted_at || type === 'deleted'),
   };
+}
+
+function normalizeConversationPreferences(raw: any): MessagingConversationPreferences {
+  return {
+    nickname: typeof raw?.nickname === 'string' && raw.nickname.trim() ? raw.nickname.trim() : null,
+    themeKey: ['aura', 'ocean', 'coral', 'rose', 'graphite'].includes(raw?.themeKey) ? raw.themeKey : 'aura',
+    accentColor: ['#7357C6', '#4A9EAA', '#D96D63', '#C85D82', '#111111'].includes(raw?.accentColor) ? raw.accentColor : '#7357C6',
+    backgroundKey: ['quiet', 'aurora', 'cover', 'midnight'].includes(raw?.backgroundKey) ? raw.backgroundKey : 'quiet',
+    wallpaperUrl: absoluteAsset(raw?.wallpaperUrl || null),
+    bubbleEnabled: Boolean(raw?.bubbleEnabled),
+  };
+}
+
+function normalizeMessagingRooms(raw: any): MessagingRoom[] {
+  return (Array.isArray(raw) ? raw : []).map((room: any): MessagingRoom => ({
+    id: safeString(room?.id, ''),
+    name: safeString(room?.name, 'salon'),
+    type: room?.type === 'voice_notes' ? 'voice_notes' : 'text',
+    position: Number(room?.position || 0),
+    createdBy: room?.createdBy || null,
+    createdAt: room?.createdAt || new Date().toISOString(),
+  })).filter((room: MessagingRoom) => Boolean(room.id));
 }
 
 export async function getMessageConversations(): Promise<{ conversations: MessagingConversation[]; unread: number }> {
@@ -1135,6 +1184,9 @@ export async function getMessageConversations(): Promise<{ conversations: Messag
       blocked: Boolean(raw?.blocked),
       muted: Boolean(raw?.muted),
       archived: Boolean(raw?.archived),
+      preferences: normalizeConversationPreferences(raw?.preferences),
+      rooms: normalizeMessagingRooms(raw?.rooms),
+      avatarUrl: absoluteAsset(raw?.avatarUrl || null),
     })).filter((conversation: MessagingConversation) => Boolean(conversation.id)),
     unread: Math.max(0, Number(payload?.unread || 0)),
   };
@@ -1203,9 +1255,20 @@ export async function createDirectConversation(participantId: string): Promise<s
   return id;
 }
 
-export async function getConversationMessages(conversationId: string, before?: string | null): Promise<{ conversation: Omit<MessagingConversation, 'lastMessage' | 'unreadCount' | 'createdAt' | 'updatedAt'>; messages: MessagingMessage[]; hasMore: boolean; nextCursor: string | null }> {
+export async function createGroupConversation(name: string, participantIds: string[], description?: string): Promise<string> {
+  const payload = await request<any>('/api/messages/conversations', {
+    method: 'POST',
+    body: JSON.stringify({ name, participantIds, description: description?.trim() || null }),
+  });
+  const id = safeString(payload?.id || payload?._id, '');
+  if (!id) throw new Error('Groupe introuvable');
+  return id;
+}
+
+export async function getConversationMessages(conversationId: string, before?: string | null, roomId?: string | null): Promise<{ conversation: Omit<MessagingConversation, 'lastMessage' | 'unreadCount' | 'createdAt' | 'updatedAt'>; messages: MessagingMessage[]; hasMore: boolean; nextCursor: string | null }> {
   const params = new URLSearchParams({ limit: '50' });
   if (before) params.set('before', before);
+  if (roomId) params.set('roomId', roomId);
   const payload = await request<any>(`/api/messages/${encodeURIComponent(conversationId)}?${params.toString()}`);
   return {
     conversation: {
@@ -1217,6 +1280,10 @@ export async function getConversationMessages(conversationId: string, before?: s
       blocked: Boolean(payload?.conversation?.blocked),
       muted: Boolean(payload?.conversation?.muted),
       archived: Boolean(payload?.conversation?.archived),
+      preferences: normalizeConversationPreferences(payload?.conversation?.preferences),
+      rooms: normalizeMessagingRooms(payload?.conversation?.rooms),
+      activeRoomId: payload?.conversation?.activeRoomId || null,
+      avatarUrl: absoluteAsset(payload?.conversation?.avatarUrl || null),
     },
     messages: (Array.isArray(payload?.messages) ? payload.messages : []).map(normalizeMessagingMessage).filter((message: MessagingMessage) => Boolean(message.id)),
     hasMore: Boolean(payload?.hasMore),
@@ -1231,6 +1298,7 @@ export async function sendConversationMessage(conversationId: string, input: {
   sharedEntityId?: string;
   metadata?: Record<string, string | number>;
   replyToId?: string | null;
+  roomId?: string | null;
 }): Promise<MessagingMessage> {
   const payload = await request<any>(`/api/messages/${encodeURIComponent(conversationId)}`, {
     method: 'POST',
@@ -1337,6 +1405,39 @@ export async function updateConversationState(conversationId: string, action: 'a
     method: 'PATCH',
     body: JSON.stringify({ action }),
   });
+}
+
+export async function updateConversationPreferences(conversationId: string, preferences: MessagingConversationPreferences): Promise<MessagingConversationPreferences> {
+  const payload = await request<any>(`/api/messages/${encodeURIComponent(conversationId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action: 'customize', preferences }),
+  });
+  return normalizeConversationPreferences(payload?.preferences);
+}
+
+export async function createConversationRoom(conversationId: string, name: string, type: MessagingRoom['type']): Promise<MessagingRoom> {
+  const payload = await request<any>(`/api/messages/${encodeURIComponent(conversationId)}/rooms`, {
+    method: 'POST',
+    body: JSON.stringify({ name, type }),
+  });
+  const [room] = normalizeMessagingRooms(payload?.room ? [payload.room] : []);
+  if (!room) throw new Error('Salon introuvable');
+  return room;
+}
+
+export async function updateConversationRoom(conversationId: string, roomId: string, changes: { name?: string; type?: MessagingRoom['type'] }): Promise<MessagingRoom> {
+  const payload = await request<any>(`/api/messages/${encodeURIComponent(conversationId)}/rooms/${encodeURIComponent(roomId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(changes),
+  });
+  const [room] = normalizeMessagingRooms(payload?.room ? [payload.room] : []);
+  if (!room) throw new Error('Salon introuvable');
+  return room;
+}
+
+export async function deleteConversationRoom(conversationId: string, roomId: string): Promise<string> {
+  const payload = await request<any>(`/api/messages/${encodeURIComponent(conversationId)}/rooms/${encodeURIComponent(roomId)}`, { method: 'DELETE' });
+  return safeString(payload?.replacementRoomId, '');
 }
 
 export async function removeMessageContact(targetId: string): Promise<void> {

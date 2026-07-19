@@ -151,9 +151,14 @@ export async function createNotification(opts: CreateNotificationOpts) {
 
   const category = TYPE_TO_CATEGORY[type] || 'general';
   const shouldInsertInApp = prefs?.in_app_enabled !== false;
+  const pushData = {
+    ...(data || {}),
+    sender_id: senderId || null,
+    related_id: relatedId || null,
+  };
 
   if (!shouldInsertInApp) {
-    await sendPushInBackground(userId, type, title, message, actionUrl);
+    await sendPushInBackground(userId, type, title, message, actionUrl, pushData);
     return { pushOnly: true };
   }
 
@@ -217,12 +222,12 @@ export async function createNotification(opts: CreateNotificationOpts) {
   if (insertError || !notif) {
     console.error('[notifications] all insert attempts failed for user', userId);
     // Toujours envoyer le push meme si le DB insert echoue
-    await sendPushInBackground(userId, type, title, message, actionUrl);
+    await sendPushInBackground(userId, type, title, message, actionUrl, pushData);
     return null;
   }
 
   console.log('[notifications] created:', { id: notif.id, type, userId: userId.slice(0, 8) });
-  await sendPushInBackground(userId, type, title, message, actionUrl);
+  await sendPushInBackground(userId, type, title, message, actionUrl, pushData);
 
   return notif;
 }
@@ -233,21 +238,22 @@ async function sendPushInBackground(
   title: string,
   body: string,
   url?: string,
+  data?: Record<string, any>,
 ) {
   try {
     const prefs = await getUserPrefs(userId);
     if (prefs?.push_enabled === false) return;
 
     await Promise.allSettled([
-      sendWebPush(userId, type, title, body, url),
-      sendNativePush(userId, type, title, body, url),
+      sendWebPush(userId, type, title, body, url, data),
+      sendNativePush(userId, type, title, body, url, data),
     ]);
   } catch (e) {
     console.error('[notifications] push error:', e);
   }
 }
 
-async function sendWebPush(userId: string, type: NotifType, title: string, body: string, url?: string) {
+async function sendWebPush(userId: string, type: NotifType, title: string, body: string, url?: string, data?: Record<string, any>) {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return;
 
   const { data: subs } = await supabaseAdmin
@@ -264,7 +270,7 @@ async function sendWebPush(userId: string, type: NotifType, title: string, body:
     badge: '/brand/2026/synaura-symbol-2026-white.png',
     url: url || '/',
     tag: `synaura-${type}-${Date.now()}`,
-    data: { type },
+    data: { type, ...(data || {}) },
   });
 
   const expired: string[] = [];
@@ -293,7 +299,7 @@ async function sendWebPush(userId: string, type: NotifType, title: string, body:
   }
 }
 
-async function sendNativePush(userId: string, type: NotifType, title: string, body: string, url?: string) {
+async function sendNativePush(userId: string, type: NotifType, title: string, body: string, url?: string, data?: Record<string, any>) {
   const { data: subscriptions, error } = await supabaseAdmin
     .from('push_subscriptions')
     .select('id, endpoint')
@@ -320,8 +326,9 @@ async function sendNativePush(userId: string, type: NotifType, title: string, bo
         body,
         sound: 'default',
         priority: 'high',
-        channelId: 'synaura-activity',
-        data: { type, url: url || '/notifications' },
+        channelId: TYPE_TO_CATEGORY[type] === 'message' ? 'synaura-messages' : 'synaura-activity',
+        categoryId: TYPE_TO_CATEGORY[type] === 'message' ? 'synaura-message' : undefined,
+        data: { type, url: url || '/notifications', ...(data || {}) },
       }))),
     });
   } catch (cause) {
@@ -520,16 +527,17 @@ export async function notifyNewMessage(
   senderName: string,
   conversationId?: string,
   preview?: string,
+  roomId?: string | null,
 ) {
   return createNotification({
     userId: recipientId,
     type: 'new_message',
     title: 'Nouveau message',
     message: preview ? `${senderName} : ${preview.slice(0, 90)}` : `${senderName} t'a envoye un message`,
-    actionUrl: conversationId ? `/messages/${conversationId}` : '/messages',
+    actionUrl: conversationId ? `/messages/${conversationId}${roomId ? `?room=${encodeURIComponent(roomId)}` : ''}` : '/messages',
     senderId,
     relatedId: conversationId,
-    data: conversationId ? { conversation_id: conversationId } : undefined,
+    data: conversationId ? { conversation_id: conversationId, room_id: roomId || null } : undefined,
   });
 }
 

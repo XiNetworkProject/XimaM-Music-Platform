@@ -64,6 +64,15 @@ export type RootStackParamList = RootTabsParamList & {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const ROOT_GATE_TIMEOUT_MS = 2400;
+const linking = {
+  prefixes: ['synaura://'],
+  config: {
+    screens: {
+      Messages: 'messages',
+      Conversation: 'messages/:conversationId',
+    },
+  },
+};
 const getMessagesScreen = () => require('@/screens/MessagesScreen').MessagesScreen;
 const getConversationScreen = () => require('@/screens/ConversationScreen').ConversationScreen;
 
@@ -217,6 +226,7 @@ function SynauraRuntime() {
                   <NavigationContainer
                     ref={navigationRef}
                     theme={navigationTheme}
+                    linking={linking}
                     onReady={() => {
                       const state = navigationRef.getRootState();
                       if (state?.routes?.length) setActiveRoute(getActiveRouteName(state));

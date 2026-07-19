@@ -14,6 +14,57 @@ export type MessagingProfile = {
 export const MESSAGE_PAGE_SIZE = 50;
 export const MAX_MESSAGE_LENGTH = 2_000;
 export const MAX_REQUEST_LENGTH = 280;
+export const MAX_GROUP_PARTICIPANTS = 24;
+export const CONVERSATION_THEME_KEYS = ['aura', 'ocean', 'coral', 'rose', 'graphite'] as const;
+export const CONVERSATION_BACKGROUND_KEYS = ['quiet', 'aurora', 'cover', 'midnight'] as const;
+export const CONVERSATION_ACCENTS = ['#7357C6', '#4A9EAA', '#D96D63', '#C85D82', '#111111'] as const;
+
+export type ConversationPreferences = {
+  nickname: string | null;
+  themeKey: typeof CONVERSATION_THEME_KEYS[number];
+  accentColor: typeof CONVERSATION_ACCENTS[number];
+  backgroundKey: typeof CONVERSATION_BACKGROUND_KEYS[number];
+  wallpaperUrl: string | null;
+  bubbleEnabled: boolean;
+};
+
+export function sanitizeConversationPreferences(value: unknown): ConversationPreferences {
+  const source = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const nickname = typeof source.nickname === 'string' ? source.nickname.trim().slice(0, 48) : '';
+  const themeKey = CONVERSATION_THEME_KEYS.includes(source.themeKey as any)
+    ? source.themeKey as ConversationPreferences['themeKey']
+    : 'aura';
+  const accentColor = CONVERSATION_ACCENTS.includes(String(source.accentColor || '').toUpperCase() as any)
+    ? String(source.accentColor).toUpperCase() as ConversationPreferences['accentColor']
+    : '#7357C6';
+  const backgroundKey = CONVERSATION_BACKGROUND_KEYS.includes(source.backgroundKey as any)
+    ? source.backgroundKey as ConversationPreferences['backgroundKey']
+    : 'quiet';
+  const wallpaperUrl = typeof source.wallpaperUrl === 'string' && /^https:\/\//i.test(source.wallpaperUrl.trim())
+    ? source.wallpaperUrl.trim().slice(0, 800)
+    : null;
+  return {
+    nickname: nickname || null,
+    themeKey,
+    accentColor,
+    backgroundKey,
+    wallpaperUrl,
+    bubbleEnabled: Boolean(source.bubbleEnabled),
+  };
+}
+
+export function formatConversationPreferences(row: any): ConversationPreferences {
+  return sanitizeConversationPreferences({
+    nickname: row?.nickname,
+    themeKey: row?.theme_key,
+    accentColor: row?.accent_color,
+    backgroundKey: row?.background_key,
+    wallpaperUrl: row?.wallpaper_url,
+    bubbleEnabled: row?.bubble_enabled,
+  });
+}
 
 export function directConversationKey(firstUserId: string, secondUserId: string) {
   return [firstUserId, secondUserId].sort().join(':');
@@ -224,7 +275,7 @@ export async function acceptPendingMessageRequest(requestRow: {
 export async function requireConversationParticipant(conversationId: string, userId: string) {
   const { data } = await supabaseAdmin
     .from('conversation_participants')
-    .select('id, conversation_id, user_id, last_read_at, archived_at, muted_until')
+    .select('id, conversation_id, user_id, last_read_at, archived_at, muted_until, role, nickname, theme_key, accent_color, background_key, wallpaper_url, bubble_enabled')
     .eq('conversation_id', conversationId)
     .eq('user_id', userId)
     .maybeSingle();
@@ -234,7 +285,7 @@ export async function requireConversationParticipant(conversationId: string, use
 export async function getConversationParticipantIds(conversationId: string) {
   const { data } = await supabaseAdmin
     .from('conversation_participants')
-    .select('user_id, last_read_at, muted_until')
+    .select('user_id, last_read_at, muted_until, role, nickname')
     .eq('conversation_id', conversationId);
   return data || [];
 }

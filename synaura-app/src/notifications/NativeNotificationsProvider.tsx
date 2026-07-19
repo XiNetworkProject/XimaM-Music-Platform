@@ -33,6 +33,7 @@ type NativeNotificationsContextValue = {
 
 const TOKEN_KEY = 'synaura.native.push.token.v1';
 const CHANNEL_ID = 'synaura-activity';
+const MESSAGE_CHANNEL_ID = 'synaura-messages';
 const FOREGROUND_SYNC_MS = 60_000;
 const PUSH_REGISTRATION_COOLDOWN_MS = 5 * 60_000;
 const PUSH_TOKEN_EVENT_COOLDOWN_MS = 60_000;
@@ -50,14 +51,30 @@ Notifications.setNotificationHandler({
 
 async function configureAndroidChannel() {
   if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-    name: 'Activite Synaura',
-    description: 'Commentaires, reactions, abonnements et sorties musicales',
-    importance: Notifications.AndroidImportance.HIGH,
-    sound: 'default',
-    vibrationPattern: [0, 180, 90, 180],
-    lightColor: '#7357C6',
-  });
+  await Promise.all([
+    Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+      name: 'Activite Synaura',
+      description: 'Commentaires, reactions, abonnements et sorties musicales',
+      importance: Notifications.AndroidImportance.HIGH,
+      sound: 'default',
+      vibrationPattern: [0, 180, 90, 180],
+      lightColor: '#7357C6',
+    }),
+    Notifications.setNotificationChannelAsync(MESSAGE_CHANNEL_ID, {
+      name: 'Messages Synaura',
+      description: 'Messages prives, groupes et salons',
+      importance: Notifications.AndroidImportance.MAX,
+      sound: 'default',
+      vibrationPattern: [0, 120, 70, 120],
+      lightColor: '#4A9EAA',
+      showBadge: true,
+    }),
+    Notifications.setNotificationCategoryAsync('synaura-message', [{
+      identifier: 'open-message',
+      buttonTitle: 'Ouvrir',
+      options: { opensAppToForeground: true },
+    }]),
+  ]);
 }
 
 function projectId() {

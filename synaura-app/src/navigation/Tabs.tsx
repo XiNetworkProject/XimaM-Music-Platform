@@ -45,7 +45,7 @@ export type RootTabsParamList = {
   PublicProfile: { username: string };
   Notifications: undefined;
   Messages: { tab?: 'conversations' | 'requests' | 'contacts'; share?: MessagingSharePayload } | undefined;
-  Conversation: { conversationId: string };
+  Conversation: { conversationId: string; roomId?: string };
   PostDetail: { postId: string };
   PlaylistDetail: { playlistId: string };
   TrackDetail: { trackId: string; track?: Track };

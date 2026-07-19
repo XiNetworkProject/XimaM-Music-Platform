@@ -45,7 +45,7 @@ async function ensureBucket() {
 
 async function listAll(prefix: string) {
   await ensureBucket();
-  const result: Array<{ name: string; created_at?: string }> = [];
+  const result: Array<{ name: string; created_at?: string | null }> = [];
   let offset = 0;
   while (true) {
     const { data, error } = await supabaseAdmin.storage.from(BUCKET).list(prefix, {

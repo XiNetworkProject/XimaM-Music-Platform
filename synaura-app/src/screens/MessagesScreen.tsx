@@ -5,6 +5,7 @@ import {
   Modal,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +17,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import {
   createDirectConversation,
+  createGroupConversation,
   getMessageContacts,
   getMessageConversations,
   getMessageRequests,
@@ -91,6 +93,10 @@ export function MessagesScreen() {
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [contactToRemove, setContactToRemove] = useState<MessagingContact | null>(null);
+  const [groupOpen, setGroupOpen] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [groupMembers, setGroupMembers] = useState<string[]>([]);
+  const [groupBusy, setGroupBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const pendingShare = route.params?.share as MessagingSharePayload | undefined;
 
@@ -129,7 +135,7 @@ export function MessagesScreen() {
   const totalUnread = conversations.reduce((sum, conversation) => sum + conversation.unreadCount, 0);
 
   const rows = useMemo<ListRow[]>(() => {
-    if (tab === 'conversations') return conversations.filter((item) => matches(item.otherUser)).map((value) => ({ kind: 'conversation', value }));
+    if (tab === 'conversations') return conversations.filter((item) => matches(item.otherUser) || Boolean(normalized && item.name?.toLocaleLowerCase('fr-FR').includes(normalized))).map((value) => ({ kind: 'conversation', value }));
     if (tab === 'contacts') return contacts.filter((item) => matches(item.user)).map((value) => ({ kind: 'contact', value }));
     const received = requests.received.filter((item) => matches(item.user));
     const sent = requests.sent.filter((item) => matches(item.user));
@@ -213,6 +219,24 @@ export function MessagesScreen() {
     }
   };
 
+  const createGroup = async () => {
+    if (!groupName.trim() || groupMembers.length < 2 || groupBusy) return;
+    setGroupBusy(true);
+    setErrorMessage('');
+    try {
+      const conversationId = await createGroupConversation(groupName.trim(), groupMembers);
+      setGroupOpen(false);
+      setGroupName('');
+      setGroupMembers([]);
+      await invalidate();
+      navigation.navigate('Conversation', { conversationId });
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Groupe impossible à créer');
+    } finally {
+      setGroupBusy(false);
+    }
+  };
+
   if (!auth.loading && !auth.user) {
     return (
       <View style={styles.screen}>
@@ -256,6 +280,8 @@ export function MessagesScreen() {
           })}
         </View>
 
+        {tab === 'conversations' && contacts.length >= 2 ? <MotionPressable onPress={() => setGroupOpen(true)} style={styles.groupLauncher}><View style={styles.groupLauncherIcon}><Ionicons name="people" size={18} color={colors.cyan} /></View><View style={styles.groupLauncherCopy}><Text style={styles.groupLauncherTitle}>Créer un groupe</Text><Text style={styles.groupLauncherText}>Ouvre des salons pour vos sons, messages et vocaux.</Text></View><Ionicons name="add-circle" size={23} color={colors.violet} /></MotionPressable> : null}
+
         <View style={styles.search}>
           <Ionicons name="search" size={17} color={colors.textTertiary} />
           <TextInput value={search} onChangeText={setSearch} placeholder={tab === 'contacts' ? 'Rechercher un ami' : tab === 'requests' ? 'Rechercher une demande' : 'Rechercher une discussion'} placeholderTextColor={colors.textTertiary} style={styles.searchInput} returnKeyType="search" maxFontSizeMultiplier={1.15} />
@@ -285,12 +311,13 @@ export function MessagesScreen() {
             if (item.kind === 'conversation') {
               const conversation = item.value;
               const user = conversation.otherUser;
-              if (!user) return null;
+              const group = conversation.type === 'group';
+              const title = conversation.preferences?.nickname || (group ? conversation.name || 'Groupe Synaura' : user?.name || 'Discussion');
               return (
                 <Pressable onPress={() => void openConversation(conversation.id, conversation.id)} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
-                  <MessagingAvatar user={user} active={isActive(user)} />
+                  {user ? <MessagingAvatar user={user} active={isActive(user)} /> : <View style={styles.groupAvatar}><Ionicons name="people" size={21} color={colors.cyan} /></View>}
                   <View style={styles.rowCopy}>
-                    <View style={styles.rowTitleLine}><Text numberOfLines={1} style={styles.rowTitle}>{user.name}</Text>{conversation.muted ? <Ionicons name="notifications-off-outline" size={13} color={colors.textTertiary} /> : null}<Text style={styles.rowTime}>{relativeDate(conversation.lastMessage?.createdAt || conversation.updatedAt)}</Text></View>
+                    <View style={styles.rowTitleLine}><Text numberOfLines={1} style={styles.rowTitle}>{title}</Text>{group ? <View style={styles.groupBadge}><Text style={styles.groupBadgeText}>{conversation.participants.length} membres</Text></View> : null}{conversation.muted ? <Ionicons name="notifications-off-outline" size={13} color={colors.textTertiary} /> : null}<Text style={styles.rowTime}>{relativeDate(conversation.lastMessage?.createdAt || conversation.updatedAt)}</Text></View>
                     <View style={styles.rowTitleLine}><Text numberOfLines={1} style={[styles.rowSubtitle, conversation.unreadCount > 0 && styles.rowSubtitleUnread]}>{preview(conversation)}</Text>{conversation.unreadCount > 0 ? <View style={styles.unreadDot} /> : null}</View>
                   </View>
                 </Pressable>
@@ -322,6 +349,21 @@ export function MessagesScreen() {
           }}
         />
       )}
+
+      <Modal visible={groupOpen} transparent animationType="slide" onRequestClose={() => setGroupOpen(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setGroupOpen(false)}>
+          <Pressable style={[styles.groupSheet, { paddingBottom: Math.max(layout.insets.bottom, spacing.lg) }]} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.groupSheetHeader}><View><Text style={styles.modalTitle}>Nouveau groupe</Text><Text style={styles.modalText}>Choisis au moins deux amis. Deux salons seront prêts dès l’ouverture.</Text></View><Pressable accessibilityLabel="Fermer" onPress={() => setGroupOpen(false)} style={styles.sheetClose}><Ionicons name="close" size={20} color={colors.text} /></Pressable></View>
+            <View style={styles.groupNameInput}><Ionicons name="people-outline" size={18} color={colors.textTertiary} /><TextInput autoFocus value={groupName} onChangeText={(value) => setGroupName(value.slice(0, 64))} placeholder="Nom du groupe" placeholderTextColor={colors.textTertiary} style={styles.searchInput} /></View>
+            <Text style={styles.groupSelectionLabel}>{groupMembers.length} ami{groupMembers.length > 1 ? 's' : ''} sélectionné{groupMembers.length > 1 ? 's' : ''}</Text>
+            <ScrollView style={styles.groupContacts} showsVerticalScrollIndicator={false}>
+              {contacts.map((contact) => { const selected = groupMembers.includes(contact.user.id); return <Pressable key={contact.user.id} onPress={() => setGroupMembers((current) => selected ? current.filter((id) => id !== contact.user.id) : current.length < 23 ? [...current, contact.user.id] : current)} style={[styles.groupContactRow, selected && styles.groupContactRowSelected]}><MessagingAvatar user={contact.user} size={42} active={isActive(contact.user)} /><View style={styles.rowCopy}><Text numberOfLines={1} style={styles.rowTitle}>{contact.user.name}</Text><Text numberOfLines={1} style={styles.rowSubtitle}>@{contact.user.username}</Text></View><View style={[styles.groupCheck, selected && styles.groupCheckSelected]}>{selected ? <Ionicons name="checkmark" size={15} color={colors.paper} /> : null}</View></Pressable>; })}
+            </ScrollView>
+            <MotionPressable disabled={!groupName.trim() || groupMembers.length < 2 || groupBusy} onPress={() => void createGroup()} style={[styles.groupCreateButton, (!groupName.trim() || groupMembers.length < 2 || groupBusy) && styles.disabled]}>{groupBusy ? <ActivityIndicator color={colors.paper} /> : <><Ionicons name="sparkles" size={17} color={colors.paper} /><Text style={styles.groupCreateText}>Créer le groupe</Text></>}</MotionPressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal visible={Boolean(contactToRemove)} transparent animationType="fade" onRequestClose={() => setContactToRemove(null)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setContactToRemove(null)}>
@@ -355,6 +397,11 @@ const styles = StyleSheet.create({
   tabTextActive: { color: colors.text },
   tabBadge: { minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   tabBadgeText: { color: colors.paper, fontSize: 8, fontWeight: '900' },
+  groupLauncher: { minHeight: 62, marginTop: spacing.md, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  groupLauncherIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cyanSoft },
+  groupLauncherCopy: { flex: 1, minWidth: 0 },
+  groupLauncherTitle: { color: colors.text, fontSize: 11, fontWeight: '900' },
+  groupLauncherText: { marginTop: 2, color: colors.textTertiary, fontSize: 8, lineHeight: 12, fontWeight: '600' },
   search: { height: 46, marginTop: spacing.md, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md },
   searchInput: { flex: 1, minWidth: 0, height: 44, color: colors.text, fontSize: 13, fontWeight: '600', paddingVertical: 0 },
   errorBanner: { marginTop: spacing.sm, minHeight: 42, borderRadius: radius.sm, backgroundColor: colors.coralSoft, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
@@ -368,6 +415,9 @@ const styles = StyleSheet.create({
   listEmpty: { flexGrow: 1 },
   row: { minHeight: 70, paddingVertical: 10, paddingHorizontal: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: colors.surface },
   rowPressed: { backgroundColor: colors.surfaceMuted },
+  groupAvatar: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cyanSoft, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(74,158,170,0.28)' },
+  groupBadge: { height: 19, borderRadius: 10, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.cyanSoft },
+  groupBadgeText: { color: colors.cyan, fontSize: 7, fontWeight: '900' },
   rowCopy: { flex: 1, minWidth: 0 },
   rowTitleLine: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 5 },
   rowTitle: { flexShrink: 1, color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '900' },
@@ -399,6 +449,20 @@ const styles = StyleSheet.create({
   dangerButton: { minHeight: 43, flex: 1, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, backgroundColor: colors.coral },
   dangerButtonText: { color: colors.paper, fontSize: 12, fontWeight: '900' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', padding: spacing.md, backgroundColor: 'rgba(0,0,0,0.62)' },
+  sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.62)' },
+  groupSheet: { width: '100%', maxWidth: 680, maxHeight: '88%', alignSelf: 'center', borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderBottomWidth: 0, borderColor: colors.borderStrong, backgroundColor: colors.elevatedSurface, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  sheetHandle: { width: 38, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: spacing.md, backgroundColor: colors.textTertiary },
+  groupSheetHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  sheetClose: { width: 38, height: 38, marginLeft: 'auto', borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong },
+  groupNameInput: { height: 48, marginTop: spacing.lg, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  groupSelectionLabel: { marginTop: spacing.lg, marginBottom: spacing.sm, color: colors.textSecondary, fontSize: 9, textTransform: 'uppercase', fontWeight: '900' },
+  groupContacts: { maxHeight: 360 },
+  groupContactRow: { minHeight: 60, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingHorizontal: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  groupContactRowSelected: { backgroundColor: colors.violetSoft },
+  groupCheck: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center' },
+  groupCheckSelected: { borderColor: colors.violet, backgroundColor: colors.violet },
+  groupCreateButton: { minHeight: 48, marginTop: spacing.lg, borderRadius: radius.sm, backgroundColor: colors.violet, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  groupCreateText: { color: colors.paper, fontSize: 12, fontWeight: '900' },
   modalCard: { width: '100%', maxWidth: 440, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, padding: spacing.lg, backgroundColor: colors.elevatedSurface },
   modalIcon: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.coralSoft },
   modalTitle: { marginTop: spacing.md, color: colors.text, fontSize: 18, fontWeight: '900' },

@@ -90,7 +90,8 @@ export async function openInternalLink(
     return true;
   }
   if (root === 'messages' && id) {
-    navigation.navigate('Conversation', { conversationId: decodeURIComponent(id) });
+    const query = toQuery(urlOrPath);
+    navigation.navigate('Conversation', { conversationId: decodeURIComponent(id), roomId: query.get('room') || undefined });
     return true;
   }
   if (root === 'messages') {

@@ -4,10 +4,12 @@ import { supabaseAdmin } from '@/lib/supabase';
 import {
   MAX_MESSAGE_LENGTH,
   MESSAGE_PAGE_SIZE,
+  formatConversationPreferences,
   formatMessagingProfile,
   getConversationParticipantIds,
   getMessagingProfiles,
   requireConversationParticipant,
+  sanitizeConversationPreferences,
   sanitizeMessageMetadata,
   usersAreBlocked,
   usersAreFriends,
@@ -37,6 +39,7 @@ function messageDto(message: any, profile: any, participants: any[], reactions: 
     sharedEntityId: deleted ? null : message.shared_entity_id || null,
     metadata: deleted ? {} : (message.metadata || {}),
     replyToId: message.reply_to_id || null,
+    roomId: message.room_id || null,
     seenBy,
     reactions: reactions.map((reaction) => ({ userId: reaction.user_id, reaction: reaction.reaction })),
     createdAt,
@@ -58,19 +61,36 @@ export async function GET(
 
     const { data: conversation } = await supabaseAdmin
       .from('conversations')
-      .select('id, name, is_group, is_active')
+      .select('id, name, description, avatar_url, owner_id, is_group, is_active')
       .eq('id', conversationId)
       .maybeSingle();
     if (!conversation) return NextResponse.json({ error: 'Conversation introuvable' }, { status: 404 });
+
+    const { data: roomRows } = await supabaseAdmin
+      .from('conversation_rooms')
+      .select('id, name, room_type, position, created_by, created_at, updated_at')
+      .eq('conversation_id', conversationId)
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: true });
+    const rooms = roomRows || [];
+    const requestedRoomId = request.nextUrl.searchParams.get('roomId');
+    const selectedRoom = conversation.is_group
+      ? rooms.find((room) => room.id === requestedRoomId) || rooms[0] || null
+      : null;
 
     const limit = Math.min(80, Math.max(10, Number(request.nextUrl.searchParams.get('limit') || MESSAGE_PAGE_SIZE)));
     const before = request.nextUrl.searchParams.get('before');
     let messagesQuery = supabaseAdmin
       .from('messages')
-      .select('id, conversation_id, sender_id, content, message_type, media_url, shared_entity_type, shared_entity_id, metadata, reply_to_id, is_read, deleted_at, created_at, updated_at')
+      .select('id, conversation_id, room_id, sender_id, content, message_type, media_url, shared_entity_type, shared_entity_id, metadata, reply_to_id, is_read, deleted_at, created_at, updated_at')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false })
       .limit(limit + 1);
+    if (conversation.is_group && selectedRoom) {
+      messagesQuery = selectedRoom === rooms[0]
+        ? messagesQuery.or(`room_id.eq.${selectedRoom.id},room_id.is.null`)
+        : messagesQuery.eq('room_id', selectedRoom.id);
+    }
     if (before) messagesQuery = messagesQuery.lt('created_at', before);
     const { data: rows, error } = await messagesQuery;
     if (error) return NextResponse.json({ error: 'Messages indisponibles' }, { status: 500 });
@@ -109,13 +129,27 @@ export async function GET(
       conversation: {
         id: conversation.id,
         name: conversation.name,
+        description: conversation.description || null,
+        avatarUrl: conversation.avatar_url || null,
+        ownerId: conversation.owner_id || null,
         type: conversation.is_group ? 'group' : 'direct',
         participants: participants.map((participant) => profiles.get(participant.user_id) || formatMessagingProfile({ id: participant.user_id })),
-        otherUser: otherParticipant ? profiles.get(otherParticipant.user_id) || null : null,
+        otherUser: !conversation.is_group && otherParticipant ? profiles.get(otherParticipant.user_id) || null : null,
+        participantRoles: participants.map((participant) => ({ userId: participant.user_id, role: participant.role || 'member', nickname: participant.nickname || null })),
         canMessage: Boolean(conversation.is_active && friends && !blocked),
         blocked,
         muted: Boolean(participation.muted_until && new Date(participation.muted_until).getTime() > Date.now()),
         archived: Boolean(participation.archived_at),
+        preferences: formatConversationPreferences(participation),
+        rooms: rooms.map((room) => ({
+          id: room.id,
+          name: room.name,
+          type: room.room_type,
+          position: room.position,
+          createdBy: room.created_by,
+          createdAt: room.created_at,
+        })),
+        activeRoomId: selectedRoom?.id || null,
       },
       messages,
       hasMore,
@@ -159,6 +193,18 @@ export async function POST(
     }
 
     const body = await request.json().catch(() => null);
+    let roomId: string | null = null;
+    if (conversation.is_group) {
+      const { data: rooms } = await supabaseAdmin
+        .from('conversation_rooms')
+        .select('id, name')
+        .eq('conversation_id', conversationId)
+        .order('position', { ascending: true });
+      const requestedRoomId = typeof body?.roomId === 'string' ? body.roomId : '';
+      const room = (rooms || []).find((entry) => entry.id === requestedRoomId) || (rooms || [])[0];
+      if (!room) return NextResponse.json({ error: 'Salon introuvable' }, { status: 409 });
+      roomId = room.id;
+    }
     const type = MESSAGE_TYPES.has(body?.type) ? String(body.type) : 'text';
     let content = typeof body?.content === 'string' ? body.content.trim().slice(0, MAX_MESSAGE_LENGTH) : '';
     let mediaUrl = typeof body?.mediaUrl === 'string' ? body.mediaUrl.trim() : '';
@@ -191,6 +237,7 @@ export async function POST(
       .insert({
         id: crypto.randomUUID(),
         conversation_id: conversationId,
+        room_id: roomId,
         sender_id: session.user.id,
         content,
         message_type: type,
@@ -201,7 +248,7 @@ export async function POST(
         reply_to_id: replyToId,
         is_read: false,
       })
-      .select('id, conversation_id, sender_id, content, message_type, media_url, shared_entity_type, shared_entity_id, metadata, reply_to_id, is_read, deleted_at, created_at, updated_at')
+      .select('id, conversation_id, room_id, sender_id, content, message_type, media_url, shared_entity_type, shared_entity_id, metadata, reply_to_id, is_read, deleted_at, created_at, updated_at')
       .single();
     if (error || !inserted) {
       console.error('[messages/conversation] send failed:', error?.message);
@@ -244,6 +291,7 @@ export async function POST(
       sender.name,
       conversationId,
       preview,
+      roomId,
     )));
 
     return NextResponse.json({
@@ -267,6 +315,39 @@ export async function PATCH(
     }
     const body = await request.json().catch(() => null);
     const action = body?.action;
+    if (action === 'customize') {
+      const preferences = sanitizeConversationPreferences(body?.preferences);
+      const { error } = await supabaseAdmin
+        .from('conversation_participants')
+        .update({
+          nickname: preferences.nickname,
+          theme_key: preferences.themeKey,
+          accent_color: preferences.accentColor,
+          background_key: preferences.backgroundKey,
+          wallpaper_url: preferences.wallpaperUrl,
+          bubble_enabled: preferences.bubbleEnabled,
+        })
+        .eq('conversation_id', params.conversationId)
+        .eq('user_id', session.user.id);
+      if (error) return NextResponse.json({ error: 'Personnalisation impossible' }, { status: 500 });
+      return NextResponse.json({ success: true, action, preferences });
+    }
+    if (action === 'update_group') {
+      const participant = await requireConversationParticipant(params.conversationId, session.user.id);
+      if (!participant || !['owner', 'moderator'].includes(participant.role || 'member')) {
+        return NextResponse.json({ error: 'Permission insuffisante' }, { status: 403 });
+      }
+      const changes = {
+        name: typeof body?.name === 'string' ? body.name.trim().slice(0, 64) : undefined,
+        description: typeof body?.description === 'string' ? body.description.trim().slice(0, 180) || null : undefined,
+        avatar_url: typeof body?.avatarUrl === 'string' && /^https:\/\//i.test(body.avatarUrl) ? body.avatarUrl.slice(0, 800) : undefined,
+      };
+      const cleanChanges = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined));
+      if (!Object.keys(cleanChanges).length) return NextResponse.json({ error: 'Aucune modification' }, { status: 400 });
+      const { error } = await supabaseAdmin.from('conversations').update(cleanChanges).eq('id', params.conversationId).eq('is_group', true);
+      if (error) return NextResponse.json({ error: 'Salon impossible a modifier' }, { status: 500 });
+      return NextResponse.json({ success: true, action });
+    }
     if (!['archive', 'unarchive', 'mute', 'unmute'].includes(action)) {
       return NextResponse.json({ error: 'Action invalide' }, { status: 400 });
     }
