@@ -5,12 +5,13 @@ import { colors } from '@/theme/tokens';
 
 type State = {
   error: Error | null;
+  recoveryKey: number;
 };
 
 export class AppErrorBoundary extends React.Component<React.PropsWithChildren, State> {
-  state: State = { error: null };
+  state: State = { error: null, recoveryKey: 0 };
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { error };
   }
 
@@ -19,11 +20,11 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, S
   }
 
   private retry = () => {
-    this.setState({ error: null });
+    this.setState((current) => ({ error: null, recoveryKey: current.recoveryKey + 1 }));
   };
 
   render() {
-    if (!this.state.error) return this.props.children;
+    if (!this.state.error) return <React.Fragment key={this.state.recoveryKey}>{this.props.children}</React.Fragment>;
 
     return (
       <View style={styles.root}>
@@ -55,7 +56,7 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.black,
+    backgroundColor: colors.text,
   },
   title: {
     marginTop: 6,
@@ -79,10 +80,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 24,
-    backgroundColor: colors.black,
+    backgroundColor: colors.text,
   },
   buttonText: {
-    color: colors.paper,
+    color: colors.background,
     fontSize: 13,
     fontWeight: '900',
   },

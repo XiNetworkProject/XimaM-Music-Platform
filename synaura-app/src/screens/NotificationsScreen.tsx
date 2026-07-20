@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   deleteBehind: { ...StyleSheet.absoluteFillObject, alignItems: 'flex-end', justifyContent: 'center', gap: 3, paddingRight: 18 },
   deleteText: { color: colors.paper, fontSize: 9, fontWeight: '900' },
   row: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: colors.surface, paddingHorizontal: 12, paddingVertical: 12 },
-  rowUnread: { backgroundColor: '#1C1921' },
+  rowUnread: { backgroundColor: colors.violetSoft },
   rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   unreadRail: { position: 'absolute', left: 0, top: 13, bottom: 13, width: 3, borderRadius: 2, backgroundColor: colors.violet },
   visual: { width: 43, height: 43, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },

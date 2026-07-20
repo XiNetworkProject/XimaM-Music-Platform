@@ -14,12 +14,17 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.LifecycleEventListener
 import java.io.File
 
-class SynauraMessagingModule(private val context: ReactApplicationContext) : ReactContextBaseJavaModule(context) {
+class SynauraMessagingModule(private val context: ReactApplicationContext) : ReactContextBaseJavaModule(context), LifecycleEventListener {
   private var recorder: MediaRecorder? = null
   private var recordingFile: File? = null
   private var recordingStartedAt = 0L
+
+  init {
+    context.addLifecycleEventListener(this)
+  }
 
   override fun getName() = "SynauraMessaging"
 
@@ -107,10 +112,27 @@ class SynauraMessagingModule(private val context: ReactApplicationContext) : Rea
       return
     }
     val intent = Intent(context, SynauraBubbleService::class.java)
+      .putExtra(SynauraBubbleService.EXTRA_ENABLED, true)
       .putExtra(SynauraBubbleService.EXTRA_CONVERSATION_ID, conversationId)
       .putExtra(SynauraBubbleService.EXTRA_TITLE, title)
       .putExtra(SynauraBubbleService.EXTRA_ACCENT, accentColor)
-    ContextCompat.startForegroundService(context, intent)
+    try {
+      ContextCompat.startForegroundService(context, intent)
+      promise.resolve(true)
+    } catch (error: Exception) {
+      promise.reject("bubble_start", error.message, error)
+    }
+  }
+
+  @ReactMethod
+  fun configureChatBubble(enabled: Boolean, conversationId: String, title: String, accentColor: String, promise: Promise) {
+    bubblePreferences().edit()
+      .putBoolean(SynauraBubbleService.EXTRA_ENABLED, enabled)
+      .putString(SynauraBubbleService.EXTRA_CONVERSATION_ID, conversationId)
+      .putString(SynauraBubbleService.EXTRA_TITLE, title)
+      .putString(SynauraBubbleService.EXTRA_ACCENT, accentColor)
+      .apply()
+    if (!enabled) context.stopService(Intent(context, SynauraBubbleService::class.java))
     promise.resolve(true)
   }
 
@@ -119,6 +141,31 @@ class SynauraMessagingModule(private val context: ReactApplicationContext) : Rea
     context.stopService(Intent(context, SynauraBubbleService::class.java))
     promise.resolve(true)
   }
+
+  private fun bubblePreferences() = context.getSharedPreferences(SynauraBubbleService.PREFERENCES_NAME, android.content.Context.MODE_PRIVATE)
+
+  private fun showConfiguredBubble() {
+    val preferences = bubblePreferences()
+    if (!preferences.getBoolean(SynauraBubbleService.EXTRA_ENABLED, false)) return
+    val conversationId = preferences.getString(SynauraBubbleService.EXTRA_CONVERSATION_ID, "").orEmpty()
+    if (conversationId.isBlank() || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context))) return
+    val intent = Intent(context, SynauraBubbleService::class.java)
+      .putExtra(SynauraBubbleService.EXTRA_ENABLED, true)
+      .putExtra(SynauraBubbleService.EXTRA_CONVERSATION_ID, conversationId)
+      .putExtra(SynauraBubbleService.EXTRA_TITLE, preferences.getString(SynauraBubbleService.EXTRA_TITLE, "Discussion Synaura"))
+      .putExtra(SynauraBubbleService.EXTRA_ACCENT, preferences.getString(SynauraBubbleService.EXTRA_ACCENT, "#7357C6"))
+    runCatching { ContextCompat.startForegroundService(context, intent) }
+  }
+
+  override fun onHostResume() {
+    context.stopService(Intent(context, SynauraBubbleService::class.java))
+  }
+
+  override fun onHostPause() {
+    showConfiguredBubble()
+  }
+
+  override fun onHostDestroy() = Unit
 
   private fun releaseRecorder(deleteFile: Boolean) {
     try { recorder?.reset() } catch (_: Exception) {}
@@ -130,6 +177,7 @@ class SynauraMessagingModule(private val context: ReactApplicationContext) : Rea
   }
 
   override fun invalidate() {
+    context.removeLifecycleEventListener(this)
     releaseRecorder(true)
     super.invalidate()
   }

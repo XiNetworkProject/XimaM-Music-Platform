@@ -7,6 +7,7 @@ import { usePlayer } from '@/player/PlayerProvider';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { MobileAnimatedLogo } from '@/components/mobile/MobileAnimatedLogo';
 import { colors, shadows } from '@/theme/tokens';
+import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
 export const MOBILE_HEADER_EXPANDED_HEIGHT = 108;
 
@@ -25,6 +26,8 @@ export function MobileHeader({
 }) {
   const insets = useSafeAreaInsets();
   const player = usePlayer();
+  const { resolvedTheme } = useMobileSettings();
+  const dark = resolvedTheme === 'dark';
   const [compact, setCompact] = useState(false);
   const progress = scrollY.interpolate({ inputRange: [0, 78], outputRange: [0, 1], extrapolate: 'clamp' });
   const height = scrollY.interpolate({
@@ -44,8 +47,8 @@ export function MobileHeader({
   }, [scrollY]);
 
   return (
-    <Animated.View style={[styles.shell, { height }]}>
-      <BlurView intensity={56} tint="dark" style={StyleSheet.absoluteFill} />
+    <Animated.View style={[styles.shell, dark ? styles.shellDark : styles.shellLight, { height }]}>
+      <BlurView intensity={56} tint={dark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
       <Animated.View pointerEvents={compact ? 'none' : 'auto'} style={[styles.large, { paddingTop: insets.top + 7, opacity: progress.interpolate({ inputRange: [0, 0.64], outputRange: [1, 0], extrapolate: 'clamp' }), transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -14] }) }] }]}>
         <View style={styles.brandRow}>
           <MobileAnimatedLogo playing={player.isPlaying} loading={player.isLoading} size={46} />
@@ -96,9 +99,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderTopWidth: 0,
     borderColor: colors.border,
-    backgroundColor: 'rgba(13,13,13,0.9)',
     ...shadows.soft,
   },
+  shellDark: { backgroundColor: 'rgba(13,13,13,0.9)' },
+  shellLight: { backgroundColor: 'rgba(247,246,243,0.92)' },
   large: { ...StyleSheet.absoluteFillObject, paddingHorizontal: 9, paddingBottom: 8 },
   brandRow: { height: 49, flexDirection: 'row', alignItems: 'center', gap: 7 },
   brandCopy: { flex: 1, minWidth: 0 },

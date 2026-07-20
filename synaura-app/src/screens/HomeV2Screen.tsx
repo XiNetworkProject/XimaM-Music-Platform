@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
   composerTitle: { marginTop: 4, color: colors.text, fontSize: 17, fontWeight: '900' },
   composerText: { marginTop: 4, color: colors.textSecondary, fontSize: 11, lineHeight: 16, fontWeight: '700' },
   composerActions: { marginTop: 11, flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  pillAction: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 16, backgroundColor: 'rgba(23,19,19,0.06)', paddingHorizontal: 10 },
+  pillAction: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 16, backgroundColor: colors.surfaceMuted, paddingHorizontal: 10 },
   pillActionActive: { backgroundColor: colors.violet },
   pillActionText: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
   pillActionTextActive: { color: colors.paper },

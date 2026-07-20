@@ -48,7 +48,14 @@ import { MotionPressable } from '@/components/motion/Motion';
 import { usePlayer } from '@/player/PlayerProvider';
 import { openInternalLink } from '@/navigation/internalLinks';
 import { messagingKeys } from '@/messaging/useMessagingUnread';
-import { hideConversationBubble, requestConversationBubblePermission, showConversationBubble, supportsConversationBubble } from '@/messaging/conversationBubble';
+import {
+  clearPreferredConversationBubble,
+  hasConversationBubblePermission,
+  hideConversationBubble,
+  requestConversationBubblePermission,
+  setPreferredConversationBubble,
+  supportsConversationBubble,
+} from '@/messaging/conversationBubble';
 import { useVoiceMessageRecorder } from '@/messaging/useVoiceMessageRecorder';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
@@ -137,6 +144,7 @@ export function ConversationScreen() {
   const [roomBusy, setRoomBusy] = useState(false);
   const initializedRef = useRef(false);
   const loadedRoomRef = useRef<string | null>(null);
+  const bubblePermissionPendingRef = useRef(false);
 
   const conversationQuery = useQuery({
     queryKey: [...messagingKeys.conversation(conversationId), activeRoomId],
@@ -208,18 +216,30 @@ export function ConversationScreen() {
   }, [customizeOpen, preferences]);
 
   useEffect(() => {
-    if (!preferences?.bubbleEnabled || !conversationId || !supportsConversationBubble()) return;
-    const sync = (state: string) => {
-      if (state === 'active') void hideConversationBubble().catch(() => {});
-      else void showConversationBubble(conversationId, conversationTitle, accentColor).catch(() => {});
-    };
-    sync(AppState.currentState);
-    const subscription = AppState.addEventListener('change', sync);
-    return () => {
-      subscription.remove();
-      if (AppState.currentState === 'active') void hideConversationBubble().catch(() => {});
-    };
-  }, [accentColor, conversationId, conversationTitle, preferences?.bubbleEnabled]);
+    if (!supportsConversationBubble() || !ownId || !conversationId || !preferences) return;
+    if (preferences?.bubbleEnabled) {
+      void setPreferredConversationBubble({ userId: ownId, conversationId, title: conversationTitle, accentColor });
+    } else {
+      void clearPreferredConversationBubble(conversationId);
+    }
+  }, [accentColor, conversationId, conversationTitle, ownId, preferences?.bubbleEnabled]);
+
+  useEffect(() => {
+    if (!supportsConversationBubble()) return undefined;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' || !bubblePermissionPendingRef.current) return;
+      bubblePermissionPendingRef.current = false;
+      void hasConversationBubblePermission().then((allowed) => {
+        if (!allowed) {
+          setErrorMessage('L’autorisation de bulle n’a pas été accordée.');
+          return;
+        }
+        setPreferenceDraft((current) => current ? { ...current, bubbleEnabled: true } : current);
+        setErrorMessage('');
+      });
+    });
+    return () => subscription.remove();
+  }, []);
 
   const invalidateInbox = () => Promise.all([
     queryClient.invalidateQueries({ queryKey: messagingKeys.inbox() }),
@@ -339,6 +359,12 @@ export function ConversationScreen() {
     setErrorMessage('');
     try {
       await updateConversationPreferences(conversationId, preferenceDraft);
+      if (preferenceDraft.bubbleEnabled) {
+        await setPreferredConversationBubble({ userId: ownId, conversationId, title: conversationTitle, accentColor: preferenceDraft.accentColor });
+      } else {
+        await clearPreferredConversationBubble(conversationId);
+        await hideConversationBubble().catch(() => {});
+      }
       setCustomizeOpen(false);
       await conversationQuery.refetch();
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -354,13 +380,20 @@ export function ConversationScreen() {
     if (enabled) {
       const allowed = await requestConversationBubblePermission();
       if (!allowed) {
-        setErrorMessage('Autorise “Afficher par-dessus les autres applications”, puis active de nouveau la bulle.');
+        bubblePermissionPendingRef.current = true;
+        setErrorMessage('Autorise “Afficher par-dessus les autres applications”. La bulle sera cochée à ton retour.');
         return;
       }
     } else {
       await hideConversationBubble().catch(() => {});
     }
     setPreferenceDraft({ ...preferenceDraft, bubbleEnabled: enabled });
+  };
+
+  const openCustomization = () => {
+    setPreferenceDraft(preferences ? { ...preferences } : null);
+    setMenuOpen(false);
+    setTimeout(() => setCustomizeOpen(true), Platform.OS === 'android' ? 120 : 0);
   };
 
   const createRoom = async () => {
@@ -639,7 +672,7 @@ export function ConversationScreen() {
         <Pressable style={styles.sheetBackdrop} onPress={() => setMenuOpen(false)}>
           <Pressable style={[styles.actionSheet, { paddingBottom: Math.max(layout.insets.bottom, spacing.lg) }]} onPress={() => {}}>
             <View style={styles.sheetHandle} />
-            <SheetRow icon="color-palette-outline" label="Personnaliser la discussion" onPress={() => { setMenuOpen(false); setCustomizeOpen(true); }} />
+            <SheetRow icon="color-palette-outline" label="Personnaliser la discussion" onPress={openCustomization} />
             {other ? <SheetRow icon="person-outline" label="Voir le profil" onPress={() => { setMenuOpen(false); navigation.navigate('PublicProfile', { username: other.username }); }} /> : null}
             <SheetRow icon={muted ? 'notifications-outline' : 'notifications-off-outline'} label={muted ? 'Réactiver les notifications' : 'Mettre en sourdine'} onPress={() => void updateConversation(muted ? 'unmute' : 'mute')} />
             <SheetRow icon="archive-outline" label="Archiver la discussion" onPress={() => void updateConversation('archive')} />
@@ -659,12 +692,12 @@ export function ConversationScreen() {
               <View style={styles.settingInputShell}><TextInput value={preferenceDraft.nickname || ''} onChangeText={(nickname) => setPreferenceDraft({ ...preferenceDraft, nickname: nickname.slice(0, 48) || null })} placeholder={other?.name || conversation.name || 'Nom de la discussion'} placeholderTextColor={colors.textTertiary} style={styles.settingInput} /></View>
 
               <Text style={styles.settingLabel}>Couleur</Text>
-              <View style={styles.themeGrid}>{THEME_OPTIONS.map((option) => { const selected = preferenceDraft.themeKey === option.key; return <MotionPressable key={option.key} onPress={() => setPreferenceDraft({ ...preferenceDraft, themeKey: option.key, accentColor: option.color as MessagingConversationPreferences['accentColor'] })} style={[styles.themeOption, selected && { borderColor: option.color, backgroundColor: `${option.color}18` }]}><View style={[styles.themeSwatch, { backgroundColor: option.color }]} /> <Text style={[styles.themeLabel, selected && { color: option.color }]}>{option.label}</Text>{selected ? <Ionicons name="checkmark" size={15} color={option.color} /> : null}</MotionPressable>; })}</View>
+              <View style={styles.themeGrid}>{THEME_OPTIONS.map((option) => { const selected = preferenceDraft.themeKey === option.key; return <MotionPressable key={option.key} onPress={() => setPreferenceDraft({ ...preferenceDraft, themeKey: option.key, accentColor: option.color as MessagingConversationPreferences['accentColor'] })} style={[styles.themeOption, selected && { borderColor: option.color, backgroundColor: `${option.color}18` }]}><View style={[styles.themeSwatch, { backgroundColor: option.color }]} /><Text style={[styles.themeLabel, selected && { color: option.color }]}>{option.label}</Text>{selected ? <Ionicons name="checkmark" size={15} color={option.color} /> : null}</MotionPressable>; })}</View>
 
               <Text style={styles.settingLabel}>Fond</Text>
               <View style={styles.backgroundGrid}>{BACKGROUND_OPTIONS.map((option) => { const selected = preferenceDraft.backgroundKey === option.key; return <MotionPressable key={option.key} onPress={() => setPreferenceDraft({ ...preferenceDraft, backgroundKey: option.key })} style={[styles.backgroundOption, selected && { borderColor: preferenceDraft.accentColor }]}><LinearGradient colors={option.key === 'quiet' ? ['#171717', '#111111'] : option.key === 'aurora' ? [preferenceDraft.accentColor, '#4A9EAA'] : option.key === 'cover' ? ['#D96D63', '#7357C6'] : ['#111111', '#050505']} style={StyleSheet.absoluteFill} /><Text style={styles.backgroundLabel}>{option.label}</Text>{selected ? <Ionicons name="checkmark-circle" size={17} color={colors.paper} /> : null}</MotionPressable>; })}</View>
 
-              {supportsConversationBubble() ? <MotionPressable onPress={() => void toggleBubbleDraft(!preferenceDraft.bubbleEnabled)} style={styles.toggleRow}><View style={styles.toggleIcon}><Ionicons name="chatbubble-ellipses-outline" size={19} color={preferenceDraft.accentColor} /></View><View style={styles.toggleCopy}><Text style={styles.toggleTitle}>Bulle hors de Synaura</Text><Text style={styles.toggleText}>Garde un raccourci flottant quand tu quittes l’app.</Text></View><View style={[styles.toggleTrack, preferenceDraft.bubbleEnabled && { backgroundColor: preferenceDraft.accentColor }]}><View style={[styles.toggleThumb, preferenceDraft.bubbleEnabled && styles.toggleThumbOn]} /></View></MotionPressable> : null}
+              {supportsConversationBubble() ? <MotionPressable onPress={() => void toggleBubbleDraft(!preferenceDraft.bubbleEnabled)} style={styles.toggleRow}><View style={styles.toggleIcon}><Ionicons name="chatbubble-ellipses-outline" size={19} color={preferenceDraft.accentColor} /></View><View style={styles.toggleCopy}><Text style={styles.toggleTitle}>Bulle hors de Synaura</Text><Text style={styles.toggleText}>Elle apparaît quand Synaura passe en arrière-plan et rouvre cette discussion.</Text></View><View style={[styles.toggleTrack, preferenceDraft.bubbleEnabled && { backgroundColor: preferenceDraft.accentColor }]}><View style={[styles.toggleThumb, preferenceDraft.bubbleEnabled && styles.toggleThumbOn]} /></View></MotionPressable> : null}
 
               {conversation.type === 'group' ? <View style={styles.roomsSettings}><View style={styles.roomsSettingsHeader}><View><Text style={styles.settingLabelNoMargin}>Salons</Text><Text style={styles.customizeSubtitle}>Messages et vocaux restent asynchrones.</Text></View>{canManageRooms ? <MotionPressable onPress={() => setRoomCreatorOpen(true)} style={[styles.compactAction, { backgroundColor: preferenceDraft.accentColor }]}><Ionicons name="add" size={16} color={colors.paper} /><Text style={styles.compactActionText}>Ajouter</Text></MotionPressable> : null}</View>{conversation.rooms?.map((item) => <View key={item.id} style={styles.roomSettingRow}><Ionicons name={item.type === 'voice_notes' ? 'mic-outline' : 'chatbubble-outline'} size={17} color={colors.textSecondary} /><Text style={styles.roomSettingName}>#{item.name}</Text><Text style={styles.roomSettingType}>{item.type === 'voice_notes' ? 'Vocaux' : 'Texte'}</Text>{canManageRooms && (conversation.rooms?.length || 0) > 1 ? <MotionPressable accessibilityLabel={`Supprimer ${item.name}`} disabled={roomBusy} onPress={() => void removeRoom(item.id)} style={styles.roomDelete}><Ionicons name="trash-outline" size={16} color={colors.coral} /></MotionPressable> : null}</View>)}</View> : null}
             </ScrollView> : null}

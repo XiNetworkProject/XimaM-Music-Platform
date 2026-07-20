@@ -28,6 +28,30 @@ const DEFAULT_SETTINGS: MobileSettings = {
   themeMode: 'system',
 };
 
+const BOOLEAN_SETTINGS: Array<Exclude<keyof MobileSettings, 'themeMode'>> = [
+  'autoplay',
+  'highQuality',
+  'activityVisible',
+  'pushDevice',
+  'reducedMotion',
+  'dataSaver',
+  'coverVideos',
+  'dynamicBackground',
+];
+
+function sanitizeSettings(value: unknown): MobileSettings {
+  if (!value || typeof value !== 'object') return { ...DEFAULT_SETTINGS };
+  const candidate = value as Partial<MobileSettings>;
+  const next = { ...DEFAULT_SETTINGS };
+  BOOLEAN_SETTINGS.forEach((key) => {
+    if (typeof candidate[key] === 'boolean') next[key] = candidate[key] as boolean;
+  });
+  if (candidate.themeMode === 'dark' || candidate.themeMode === 'light' || candidate.themeMode === 'system') {
+    next.themeMode = candidate.themeMode;
+  }
+  return next;
+}
+
 export const MOBILE_SETTINGS_KEY = 'synaura.mobile.settings.v1';
 
 type MobileSettingsContextValue = {
@@ -47,19 +71,23 @@ export function MobileSettingsProvider({ children }: { children: React.ReactNode
     AsyncStorage.getItem(MOBILE_SETTINGS_KEY)
       .then((raw) => {
         if (!raw) return;
-        const next = { ...settingsRef.current, ...JSON.parse(raw) };
+        const next = sanitizeSettings(JSON.parse(raw));
         settingsRef.current = next;
         setSettings(next);
       })
-      .catch(() => {});
+      .catch(() => AsyncStorage.removeItem(MOBILE_SETTINGS_KEY).catch(() => {}));
   }, []);
 
   useEffect(() => {
-    Appearance.setColorScheme(settings.themeMode === 'system' ? null : settings.themeMode);
+    try {
+      Appearance.setColorScheme(settings.themeMode === 'system' ? null : settings.themeMode);
+    } catch {
+      // Some Android vendors reject runtime overrides; semantic colors still follow resolvedTheme.
+    }
   }, [settings.themeMode]);
 
   const updateSettings = useCallback(async (patch: Partial<MobileSettings>) => {
-    const next = { ...settingsRef.current, ...patch };
+    const next = sanitizeSettings({ ...settingsRef.current, ...patch });
     settingsRef.current = next;
     setSettings(next);
     await AsyncStorage.setItem(MOBILE_SETTINGS_KEY, JSON.stringify(next));

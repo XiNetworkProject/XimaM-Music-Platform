@@ -384,9 +384,9 @@ function ComposerModal({ visible, club, initialTrack, tracks, onClose, onCreated
             <Pressable onPress={onClose} style={styles.circleButton}><Ionicons name="close" size={23} color="#171313" /></Pressable>
           </View>
           <Text style={styles.fieldLabel}>TITRE</Text>
-          <TextInput value={title} onChangeText={setTitle} placeholder="De quoi veux-tu parler ?" placeholderTextColor="rgba(23,19,19,0.35)" style={styles.input} />
+          <TextInput value={title} onChangeText={setTitle} placeholder="De quoi veux-tu parler ?" placeholderTextColor={colors.textTertiary} style={styles.input} />
           <Text style={styles.fieldLabel}>MESSAGE</Text>
-          <TextInput value={content} onChangeText={setContent} multiline placeholder="Donne du contexte, explique ce que tu recherches..." placeholderTextColor="rgba(23,19,19,0.35)" style={[styles.input, styles.textarea]} />
+          <TextInput value={content} onChangeText={setContent} multiline placeholder="Donne du contexte, explique ce que tu recherches..." placeholderTextColor={colors.textTertiary} style={[styles.input, styles.textarea]} />
           {tracks.length ? (
             <>
               <Text style={styles.fieldLabel}>SON ATTACHÉ</Text>

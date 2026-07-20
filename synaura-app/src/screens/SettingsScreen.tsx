@@ -643,7 +643,7 @@ function LegalReader({ document, onClose }: { document: LegalDocument; onClose: 
     <SynauraBackground variant="warm">
       <ScrollView contentContainerStyle={[styles.legalReader, responsive.pageContent, { paddingTop: insets.top + 10 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Pressable onPress={onClose} style={styles.back}><Ionicons name="chevron-back" size={20} color="#171313" /></Pressable>
+          <Pressable onPress={onClose} style={styles.back}><Ionicons name="chevron-back" size={20} color={colors.text} /></Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.kicker}>Centre légal officiel</Text>
             <Text style={styles.legalReaderTitle}>{document.title}</Text>
@@ -684,7 +684,7 @@ function Field({ label, value, onChangeText, multiline, hint }: { label: string;
         <Text style={styles.label}>{label}</Text>
         {hint ? <Text style={styles.hint}>{hint}</Text> : null}
       </View>
-      <TextInput value={value} onChangeText={onChangeText} multiline={multiline} textAlignVertical={multiline ? 'top' : 'center'} placeholderTextColor="rgba(23,19,19,0.34)" style={[styles.input, multiline && styles.inputMulti]} />
+      <TextInput value={value} onChangeText={onChangeText} multiline={multiline} textAlignVertical={multiline ? 'top' : 'center'} placeholderTextColor={colors.textTertiary} style={[styles.input, multiline && styles.inputMulti]} />
     </View>
   );
 }
@@ -869,10 +869,10 @@ const styles = StyleSheet.create({
   legalReaderSubtitle: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '800' },
   webDocumentButton: { alignSelf: 'flex-start', minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, backgroundColor: '#171313', paddingHorizontal: 14 },
   webDocumentText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900' },
-  legalArticle: { borderRadius: 14, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border, padding: 14, gap: 10 },
-  legalParagraph: { color: 'rgba(23,19,19,0.72)', fontSize: 12, lineHeight: 19, fontWeight: '600' },
-  legalHeading: { marginTop: 14, color: '#171313', fontSize: 18, lineHeight: 23, fontWeight: '900' },
-  legalSubheading: { marginTop: 8, color: '#171313', fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  legalArticle: { borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 14, gap: 10 },
+  legalParagraph: { color: colors.textSecondary, fontSize: 12, lineHeight: 19, fontWeight: '600' },
+  legalHeading: { marginTop: 14, color: colors.text, fontSize: 18, lineHeight: 23, fontWeight: '900' },
+  legalSubheading: { marginTop: 8, color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: '900' },
   legalListRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, paddingLeft: 4 },
   legalBullet: { width: 6, height: 6, borderRadius: 3, marginTop: 7, backgroundColor: '#7C5CFF' },
   legalNumber: { minWidth: 18, color: '#7C5CFF', fontSize: 11, lineHeight: 19, fontWeight: '900' },

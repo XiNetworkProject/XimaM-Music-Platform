@@ -24,6 +24,8 @@ import kotlin.math.abs
 
 class SynauraBubbleService : Service() {
   companion object {
+    const val PREFERENCES_NAME = "synaura_bubble"
+    const val EXTRA_ENABLED = "enabled"
     const val EXTRA_CONVERSATION_ID = "conversationId"
     const val EXTRA_TITLE = "title"
     const val EXTRA_ACCENT = "accent"
@@ -46,18 +48,21 @@ class SynauraBubbleService : Service() {
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    val preferences = getSharedPreferences("synaura_bubble", MODE_PRIVATE)
+    val preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+    val enabled = intent?.getBooleanExtra(EXTRA_ENABLED, preferences.getBoolean(EXTRA_ENABLED, false))
+      ?: preferences.getBoolean(EXTRA_ENABLED, false)
     conversationId = intent?.getStringExtra(EXTRA_CONVERSATION_ID)
       ?: preferences.getString(EXTRA_CONVERSATION_ID, "").orEmpty()
     conversationTitle = intent?.getStringExtra(EXTRA_TITLE)
       ?: preferences.getString(EXTRA_TITLE, "Discussion Synaura").orEmpty()
     accentColor = intent?.getStringExtra(EXTRA_ACCENT)
       ?: preferences.getString(EXTRA_ACCENT, "#7357C6").orEmpty()
-    if (conversationId.isBlank() || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this))) {
+    if (!enabled || conversationId.isBlank() || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this))) {
       stopSelf()
       return START_NOT_STICKY
     }
     preferences.edit()
+      .putBoolean(EXTRA_ENABLED, true)
       .putString(EXTRA_CONVERSATION_ID, conversationId)
       .putString(EXTRA_TITLE, conversationTitle)
       .putString(EXTRA_ACCENT, accentColor)
@@ -127,7 +132,6 @@ class SynauraBubbleService : Service() {
         setColor(Color.rgb(17, 17, 17))
       }
       setBackground(closeBackground)
-      setOnClickListener { stopSelf() }
     }
     root.addView(close, FrameLayout.LayoutParams(dp(22), dp(22), Gravity.TOP or Gravity.END))
 
@@ -140,8 +144,10 @@ class SynauraBubbleService : Service() {
       PixelFormat.TRANSLUCENT,
     ).apply {
       gravity = Gravity.TOP or Gravity.START
-      x = resources.displayMetrics.widthPixels - size - dp(14)
-      y = dp(180)
+      val preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+      x = if (preferences.getBoolean("position_left", false)) dp(10) else resources.displayMetrics.widthPixels - size - dp(10)
+      val maxY = (resources.displayMetrics.heightPixels - size - dp(72)).coerceAtLeast(dp(40))
+      y = preferences.getInt("position_y", dp(180)).coerceIn(dp(40), maxY)
     }
 
     root.setOnTouchListener(object : View.OnTouchListener {
@@ -160,17 +166,25 @@ class SynauraBubbleService : Service() {
             return true
           }
           MotionEvent.ACTION_MOVE -> {
-            params.x = initialX + (event.rawX - downX).toInt()
-            params.y = initialY + (event.rawY - downY).toInt()
+            params.x = (initialX + (event.rawX - downX).toInt()).coerceIn(0, (resources.displayMetrics.widthPixels - size).coerceAtLeast(0))
+            params.y = (initialY + (event.rawY - downY).toInt()).coerceIn(dp(32), (resources.displayMetrics.heightPixels - size - dp(52)).coerceAtLeast(dp(32)))
             runCatching { windowManager.updateViewLayout(root, params) }
             return true
           }
           MotionEvent.ACTION_UP -> {
             val moved = abs(event.rawX - downX) + abs(event.rawY - downY)
-            if (moved < dp(12)) conversationIntent().send()
+            if (moved < dp(12) && event.x >= (size - dp(27)).toFloat() && event.y <= dp(27).toFloat()) {
+              getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE).edit().putBoolean(EXTRA_ENABLED, false).apply()
+              stopSelf()
+            } else if (moved < dp(12)) conversationIntent().send()
             else {
               val screenWidth = resources.displayMetrics.widthPixels
-              params.x = if (params.x + size / 2 < screenWidth / 2) dp(10) else screenWidth - size - dp(10)
+              val left = params.x + size / 2 < screenWidth / 2
+              params.x = if (left) dp(10) else screenWidth - size - dp(10)
+              getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE).edit()
+                .putBoolean("position_left", left)
+                .putInt("position_y", params.y)
+                .apply()
               runCatching { windowManager.updateViewLayout(root, params) }
             }
             return true

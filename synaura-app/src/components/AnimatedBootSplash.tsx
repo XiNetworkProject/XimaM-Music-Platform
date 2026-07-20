@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
+import { colors } from '@/theme/tokens';
 
 const symbol = require('../assets/synaura-symbol-2026.png');
 
@@ -141,13 +142,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: '#171313',
+    color: colors.text,
     fontSize: 34,
     fontWeight: '900',
   },
   subtitle: {
     marginTop: 7,
-    color: 'rgba(23,19,19,0.38)',
+    color: colors.textTertiary,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.8,
@@ -163,6 +164,6 @@ const styles = StyleSheet.create({
     width: 4,
     height: 22,
     borderRadius: 3,
-    backgroundColor: '#171313',
+    backgroundColor: colors.text,
   },
 });

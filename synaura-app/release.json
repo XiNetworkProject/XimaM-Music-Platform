@@ -1,14 +1,13 @@
 {
-  "title": "Synaura Conversations 0.23.0",
+  "title": "Synaura Conversations 0.23.1",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Nouvelle interface de conversation plus claire, fluide et adaptee au clavier",
-    "Vocaux gestuels : maintenir pour enregistrer, glisser pour annuler ou verrouiller, puis ecouter avant l'envoi",
-    "Personnalisation par discussion avec surnom, couleur, ambiance et fond",
-    "Conversations de groupe et salons de textes ou de messages vocaux asynchrones",
-    "Notifications de messages enrichies avec ouverture directe de la bonne discussion",
-    "Bulle de discussion Android facultative, deplacable et disponible au-dessus des autres applications",
-    "Experience et donnees de messagerie partagees entre le web et l'app native"
+    "Correction du crash a l'ouverture de la personnalisation d'une discussion",
+    "Bulle Android globale et persistante quand Synaura passe en arriere-plan",
+    "Retour direct vers la bonne discussion, position memorisee et fermeture fiable de la bulle",
+    "Demarrage protege contre les sessions ou preferences locales bloquees",
+    "Themes clair, sombre et systeme finalises sur la navigation, les en-tetes, les listes et les feuilles modales",
+    "Preferences locales validees automatiquement pour eviter de bloquer l'application"
   ]
 }

@@ -52,6 +52,7 @@ import { navigationRef } from '@/navigation/navigationRef';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { ClipUploadProvider } from '@/clips/ClipUploadProvider';
 import { SynauraQueryProvider } from '@/query/SynauraQueryProvider';
+import { ConversationBubbleProvider } from '@/messaging/ConversationBubbleProvider';
 
 export type RootStackParamList = RootTabsParamList & {
   Tabs: { screen?: string; params?: Record<string, unknown> } | undefined;
@@ -64,6 +65,7 @@ export type RootStackParamList = RootTabsParamList & {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const ROOT_GATE_TIMEOUT_MS = 2400;
+const ROOT_BOOT_WATCHDOG_MS = 5000;
 const linking = {
   prefixes: ['synaura://'],
   config: {
@@ -99,6 +101,15 @@ function RootStackNavigator() {
     initialRoute: 'Tabs',
   });
   const checkedRef = useRef(false);
+
+  useEffect(() => {
+    const watchdog = setTimeout(() => {
+      if (checkedRef.current) return;
+      checkedRef.current = true;
+      setGate({ ready: true, initialRoute: 'Tabs' });
+    }, ROOT_BOOT_WATCHDOG_MS);
+    return () => clearTimeout(watchdog);
+  }, []);
 
   useEffect(() => {
     if (auth.loading || checkedRef.current) return;
@@ -218,8 +229,9 @@ function SynauraRuntime() {
 
   return (
     <AuthProvider>
-      <SynauraQueryProvider>
-        <ClipUploadProvider>
+      <ConversationBubbleProvider>
+        <SynauraQueryProvider>
+          <ClipUploadProvider>
             <LibraryProvider>
               <PlayerProvider>
                 <NativeNotificationsProvider>
@@ -248,8 +260,9 @@ function SynauraRuntime() {
                 </NativeNotificationsProvider>
               </PlayerProvider>
             </LibraryProvider>
-        </ClipUploadProvider>
-      </SynauraQueryProvider>
+          </ClipUploadProvider>
+        </SynauraQueryProvider>
+      </ConversationBubbleProvider>
     </AuthProvider>
   );
 }

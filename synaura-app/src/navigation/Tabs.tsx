@@ -112,7 +112,8 @@ function primaryIcon(routeName: (typeof PRIMARY_ROUTES)[number], focused: boolea
 
 function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
   const layout = useResponsiveLayout();
-  const dark = true;
+  const { resolvedTheme } = useMobileSettings();
+  const dark = resolvedTheme === 'dark';
   const routes = state.routes.filter((route) => PRIMARY_ROUTES.includes(route.name as any));
   const dockWidth = Math.min(layout.safeWidth, layout.isTablet ? 640 : 560);
 
