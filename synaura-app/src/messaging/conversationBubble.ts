@@ -4,7 +4,8 @@ import { DeviceEventEmitter, NativeModules, Platform } from 'react-native';
 type NativeMessagingModule = {
   canDrawOverlays: () => Promise<boolean>;
   requestOverlayPermission: () => Promise<boolean>;
-  configureChatBubble?: (enabled: boolean, conversationId: string, title: string, accentColor: string) => Promise<boolean>;
+  configureChatBubble?: (enabled: boolean, conversationId: string, title: string, accentColor: string, avatarUrl: string) => Promise<boolean>;
+  updateChatBubble?: (conversationId: string, title: string, accentColor: string, avatarUrl: string, messagesJson: string) => Promise<boolean>;
   showChatBubble: (conversationId: string, title: string, accentColor: string) => Promise<boolean>;
   hideChatBubble: () => Promise<boolean>;
 };
@@ -16,10 +17,23 @@ export type ConversationBubbleConfig = {
   conversationId: string;
   title: string;
   accentColor: string;
+  avatarUrl: string | null;
+};
+
+export type ConversationBubbleMessage = {
+  id: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  createdAt: string;
+  own: boolean;
+  reaction: string | null;
 };
 
 const CONVERSATION_BUBBLE_KEY = 'synaura.messaging.bubble.v1';
 export const CONVERSATION_BUBBLE_CHANGED = 'synaura:conversation-bubble-changed';
+export const CONVERSATION_BUBBLE_REPLY = 'synaura:bubble-reply';
+export const CONVERSATION_BUBBLE_REACTION = 'synaura:bubble-reaction';
 let cachedConfig: ConversationBubbleConfig | null | undefined;
 
 function sanitizeBubbleConfig(value: unknown): ConversationBubbleConfig | null {
@@ -36,6 +50,9 @@ function sanitizeBubbleConfig(value: unknown): ConversationBubbleConfig | null {
     accentColor: typeof candidate.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(candidate.accentColor)
       ? candidate.accentColor
       : '#7357C6',
+    avatarUrl: typeof candidate.avatarUrl === 'string' && /^https:\/\//i.test(candidate.avatarUrl)
+      ? candidate.avatarUrl.slice(0, 1_000)
+      : null,
   };
 }
 
@@ -83,6 +100,18 @@ export async function configureNativeConversationBubble(config: ConversationBubb
     config?.conversationId || '',
     config?.title || 'Discussion Synaura',
     config?.accentColor || '#7357C6',
+    config?.avatarUrl || '',
+  ).catch(() => false);
+}
+
+export async function updateConversationBubbleContent(config: ConversationBubbleConfig, messages: ConversationBubbleMessage[]) {
+  if (!supportsConversationBubble() || !nativeMessaging?.updateChatBubble) return false;
+  return nativeMessaging.updateChatBubble(
+    config.conversationId,
+    config.title,
+    config.accentColor,
+    config.avatarUrl || '',
+    JSON.stringify(messages.slice(-24)),
   ).catch(() => false);
 }
 

@@ -4,6 +4,7 @@ import { Text, TextInput } from 'react-native';
 import { registerRootComponent } from 'expo';
 import App from './src/App';
 import { playbackService } from './src/player/playbackService';
+import './src/notifications/backgroundNotificationTask';
 
 // Conserve l'accessibilite du texte sans laisser un reglage constructeur tres
 // eleve casser les boutons et les barres de navigation sur les petits ecrans.

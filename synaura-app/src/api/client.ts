@@ -1020,6 +1020,13 @@ export type MessagingMessage = {
   sharedEntityId: string | null;
   metadata: Record<string, string | number>;
   replyToId: string | null;
+  replyTo: {
+    id: string;
+    senderId: string;
+    senderName: string;
+    type: string;
+    content: string;
+  } | null;
   roomId: string | null;
   seenBy: string[];
   reactions: Array<{ userId: string; reaction: MessagingReactionName }>;
@@ -1132,6 +1139,13 @@ function normalizeMessagingMessage(raw: any): MessagingMessage {
     sharedEntityId: raw?.sharedEntityId || raw?.shared_entity_id || null,
     metadata,
     replyToId: raw?.replyToId || raw?.reply_to_id || null,
+    replyTo: raw?.replyTo ? {
+      id: safeString(raw.replyTo.id, ''),
+      senderId: safeString(raw.replyTo.senderId || raw.replyTo.sender_id, ''),
+      senderName: safeString(raw.replyTo.senderName || raw.replyTo.sender_name, 'Message'),
+      type: safeString(raw.replyTo.type || raw.replyTo.message_type, 'text'),
+      content: typeof raw.replyTo.content === 'string' ? raw.replyTo.content : '',
+    } : null,
     roomId: raw?.roomId || raw?.room_id || null,
     seenBy: Array.isArray(raw?.seenBy) ? raw.seenBy.map(String) : [],
     reactions: (Array.isArray(raw?.reactions) ? raw.reactions : []).map((entry: any) => ({

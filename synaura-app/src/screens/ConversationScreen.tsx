@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   AppState,
   FlatList,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -15,6 +17,7 @@ import {
   type ListRenderItemInfo,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -93,6 +96,36 @@ function clock(value: string) {
   return new Date(value).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
+function dayKey(value: string) {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}` : value;
+}
+
+function dayLabel(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (dayKey(value) === dayKey(today.toISOString())) return "Aujourd'hui";
+  if (dayKey(value) === dayKey(yesterday.toISOString())) return 'Hier';
+  return date.toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    ...(date.getFullYear() !== today.getFullYear() ? { year: 'numeric' as const } : {}),
+  });
+}
+
+function messagePreview(message: MessagingMessage) {
+  if (message.deleted) return 'Message supprimé';
+  if (message.type === 'text') return message.content || 'Message';
+  if (message.type === 'audio') return 'Message vocal';
+  if (message.type === 'image') return 'Photo';
+  if (message.type === 'video') return 'Vidéo';
+  return message.content || `Contenu ${message.type}`;
+}
+
 function recentlyActive(user?: MessagingUser | null) {
   if (!user?.lastSeen) return false;
   const timestamp = new Date(user.lastSeen).getTime();
@@ -113,6 +146,7 @@ export function ConversationScreen() {
   const layout = useResponsiveLayout();
   const queryClient = useQueryClient();
   const listRef = useRef<FlatList<MessagingMessage>>(null);
+  const inputRef = useRef<TextInput>(null);
   const [messages, setMessages] = useState<MessagingMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -123,6 +157,8 @@ export function ConversationScreen() {
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<MessagingMessage | null>(null);
+  const [replyingTo, setReplyingTo] = useState<MessagingMessage | null>(null);
+  const [reactionBurst, setReactionBurst] = useState<{ id: string; reaction: MessagingReactionName } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'remove' | 'block' | null>(null);
   const [muted, setMuted] = useState(false);
@@ -143,6 +179,10 @@ export function ConversationScreen() {
   const [roomType, setRoomType] = useState<'text' | 'voice_notes'>('text');
   const [roomBusy, setRoomBusy] = useState(false);
   const initializedRef = useRef(false);
+  const initialScrollPendingRef = useRef(false);
+  const nearBottomRef = useRef(true);
+  const lastTapRef = useRef<{ id: string; at: number } | null>(null);
+  const reactionBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadedRoomRef = useRef<string | null>(null);
   const bubblePermissionPendingRef = useRef(false);
 
@@ -162,6 +202,7 @@ export function ConversationScreen() {
     if (loadedRoomRef.current !== responseRoomId) {
       loadedRoomRef.current = responseRoomId;
       initializedRef.current = false;
+      initialScrollPendingRef.current = true;
       setMessages(data.messages);
     } else {
       setMessages((previous) => mergeMessages(previous, data.messages));
@@ -181,9 +222,12 @@ export function ConversationScreen() {
 
   useEffect(() => {
     if (!messages.length || initializedRef.current) return;
-    initializedRef.current = true;
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: false }));
   }, [messages.length]);
+
+  useEffect(() => () => {
+    if (reactionBurstTimerRef.current) clearTimeout(reactionBurstTimerRef.current);
+  }, []);
 
   useFocusEffect(useCallback(() => {
     if (!auth.user || !auth.token || !conversationId) return undefined;
@@ -218,11 +262,11 @@ export function ConversationScreen() {
   useEffect(() => {
     if (!supportsConversationBubble() || !ownId || !conversationId || !preferences) return;
     if (preferences?.bubbleEnabled) {
-      void setPreferredConversationBubble({ userId: ownId, conversationId, title: conversationTitle, accentColor });
+      void setPreferredConversationBubble({ userId: ownId, conversationId, title: conversationTitle, accentColor, avatarUrl: conversation?.avatarUrl || other?.avatar || null });
     } else {
       void clearPreferredConversationBubble(conversationId);
     }
-  }, [accentColor, conversationId, conversationTitle, ownId, preferences?.bubbleEnabled]);
+  }, [accentColor, conversation?.avatarUrl, conversationId, conversationTitle, other?.avatar, ownId, preferences?.bubbleEnabled]);
 
   useEffect(() => {
     if (!supportsConversationBubble()) return undefined;
@@ -247,8 +291,14 @@ export function ConversationScreen() {
   ]);
 
   const send = async (input: Parameters<typeof sendConversationMessage>[1]) => {
-    const message = await sendConversationMessage(conversationId, { ...input, roomId: activeRoomId || conversation?.activeRoomId || null });
+    const message = await sendConversationMessage(conversationId, {
+      ...input,
+      replyToId: input.replyToId === undefined ? replyingTo?.id || null : input.replyToId,
+      roomId: activeRoomId || conversation?.activeRoomId || null,
+    });
     setMessages((previous) => mergeMessages(previous, [message]));
+    setReplyingTo(null);
+    nearBottomRef.current = true;
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
     void invalidateInbox();
   };
@@ -360,7 +410,7 @@ export function ConversationScreen() {
     try {
       await updateConversationPreferences(conversationId, preferenceDraft);
       if (preferenceDraft.bubbleEnabled) {
-        await setPreferredConversationBubble({ userId: ownId, conversationId, title: conversationTitle, accentColor: preferenceDraft.accentColor });
+        await setPreferredConversationBubble({ userId: ownId, conversationId, title: conversationTitle, accentColor: preferenceDraft.accentColor, avatarUrl: conversation?.avatarUrl || other?.avatar || null });
       } else {
         await clearPreferredConversationBubble(conversationId);
         await hideConversationBubble().catch(() => {});
@@ -435,6 +485,7 @@ export function ConversationScreen() {
     setActiveRoomId(roomId);
     loadedRoomRef.current = null;
     initializedRef.current = false;
+    initialScrollPendingRef.current = true;
     setMessages([]);
     setNextCursor(null);
     setHasMore(false);
@@ -469,11 +520,34 @@ export function ConversationScreen() {
     } : item));
     try {
       await reactToConversationMessage(conversationId, message.id, remove ? null : reaction);
+      if (!remove) {
+        setReactionBurst({ id: message.id, reaction });
+        if (reactionBurstTimerRef.current) clearTimeout(reactionBurstTimerRef.current);
+        reactionBurstTimerRef.current = setTimeout(() => setReactionBurst(null), 620);
+      }
       void Haptics.selectionAsync().catch(() => {});
     } catch {
       void conversationQuery.refetch();
       setErrorMessage('La réaction n’a pas pu être enregistrée.');
     }
+  };
+
+  const startReply = (message: MessagingMessage) => {
+    setActionMessage(null);
+    setReplyingTo(message);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setTimeout(() => inputRef.current?.focus(), 90);
+  };
+
+  const handleMessageTap = (message: MessagingMessage) => {
+    if (message.deleted) return;
+    const now = Date.now();
+    if (lastTapRef.current?.id === message.id && now - lastTapRef.current.at < 280) {
+      lastTapRef.current = null;
+      void chooseReaction('heart', message);
+      return;
+    }
+    lastTapRef.current = { id: message.id, at: now };
   };
 
   const deleteMessage = async () => {
@@ -534,16 +608,22 @@ export function ConversationScreen() {
     const own = message.sender.id === ownId;
     const previous = messages[index - 1];
     const startsGroup = !previous || previous.sender.id !== message.sender.id || new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime() > 5 * 60_000;
+    const startsDay = !previous || dayKey(previous.createdAt) !== dayKey(message.createdAt);
+    const replyTarget = message.replyToId ? messages.find((item) => item.id === message.replyToId) : null;
     const groupedReactions = REACTIONS.map((definition) => ({
       ...definition,
       users: message.reactions.filter((reaction) => reaction.reaction === definition.value),
     })).filter((group) => group.users.length);
     return (
+      <>
+      {startsDay ? <View style={styles.dayDivider}><View style={styles.dayDividerLine} /><Text style={styles.dayDividerText}>{dayLabel(message.createdAt)}</Text><View style={styles.dayDividerLine} /></View> : null}
+      <SwipeToReply accentColor={accentColor} onReply={() => startReply(message)}>
       <View style={[styles.messageRow, own && styles.messageRowOwn, startsGroup && index > 0 && styles.messageGroupStart]}>
         {!own ? <View style={styles.avatarSlot}>{startsGroup ? <MessagingAvatar user={message.sender} size={28} /> : null}</View> : null}
         <View style={[styles.messageColumn, own && styles.messageColumnOwn]}>
           {startsGroup && !own ? <Text style={styles.senderName}>{message.sender.name}</Text> : null}
-          <Pressable delayLongPress={260} onLongPress={() => { setActionMessage(message); void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); }}>
+          {message.replyToId ? <View style={[styles.replySnippet, own && styles.replySnippetOwn]}><Text numberOfLines={1} style={[styles.replySnippetAuthor, own && styles.replySnippetTextOwn]}>{message.replyTo?.senderName || replyTarget?.sender.name || 'Message'}</Text><Text numberOfLines={1} style={[styles.replySnippetText, own && styles.replySnippetTextOwn]}>{message.replyTo?.content || (replyTarget ? messagePreview(replyTarget) : 'Message précédent')}</Text></View> : null}
+          <Pressable onPress={() => handleMessageTap(message)} delayLongPress={260} onLongPress={() => { setActionMessage(message); void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); }}>
             <NativeMessageBubble
               message={message}
               own={own}
@@ -562,11 +642,14 @@ export function ConversationScreen() {
               onImage={() => setImagePreview(message.mediaUrl || message.content)}
               onShared={() => void openSharedMessage(message)}
             />
+            {reactionBurst?.id === message.id ? <ReactionBurst accentColor={accentColor} reaction={reactionBurst.reaction} /> : null}
           </Pressable>
           {groupedReactions.length ? <View style={[styles.reactionSummary, own && styles.reactionSummaryOwn]}>{groupedReactions.map((group) => { const selected = group.users.some((entry) => entry.userId === ownId); return <Pressable key={group.value} onPress={() => void chooseReaction(group.value, message)} style={[styles.reactionChip, selected && styles.reactionChipSelected]}><Ionicons name={group.icon} size={12} color={selected ? colors.violet : colors.textSecondary} /><Text style={[styles.reactionCount, selected && styles.reactionCountSelected]}>{group.users.length}</Text></Pressable>; })}</View> : null}
           <View style={[styles.timeRow, own && styles.timeRowOwn]}><Text style={styles.time}>{clock(message.createdAt)}</Text>{own && message.id === lastOwnMessageId ? <Ionicons name={message.seenBy.some((id) => id !== ownId) ? 'checkmark-done' : 'checkmark'} size={13} color={message.seenBy.some((id) => id !== ownId) ? colors.cyan : colors.textTertiary} /> : null}</View>
         </View>
       </View>
+      </SwipeToReply>
+      </>
     );
   };
 
@@ -593,10 +676,26 @@ export function ConversationScreen() {
         renderItem={renderMessage}
         contentContainerStyle={[styles.messages, layout.contentFrame, { paddingHorizontal: layout.gutter }, !messages.length && styles.messagesEmpty]}
         keyboardShouldPersistTaps="handled"
-        onContentSizeChange={() => { if (!initializedRef.current) listRef.current?.scrollToEnd({ animated: false }); }}
+        onContentSizeChange={() => {
+          if (initialScrollPendingRef.current || !initializedRef.current) {
+            listRef.current?.scrollToEnd({ animated: false });
+            requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: false }));
+            initialScrollPendingRef.current = false;
+            initializedRef.current = true;
+            return;
+          }
+          if (nearBottomRef.current) {
+            requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+          }
+        }}
+        onLayout={() => { if (initialScrollPendingRef.current) listRef.current?.scrollToEnd({ animated: false }); }}
+        onScroll={({ nativeEvent }) => {
+          nearBottomRef.current = nativeEvent.contentSize.height - nativeEvent.contentOffset.y - nativeEvent.layoutMeasurement.height < 120;
+        }}
+        scrollEventThrottle={32}
         ListHeaderComponent={hasMore ? <MotionPressable disabled={loadingOlder || !nextCursor} onPress={() => void loadOlder()} style={styles.olderButton}>{loadingOlder ? <ActivityIndicator size="small" color={colors.violet} /> : <Text style={styles.olderButtonText}>Messages précédents</Text>}</MotionPressable> : null}
         ListEmptyComponent={<View style={styles.center}><View style={styles.emptyIcon}><Ionicons name="chatbubble-ellipses-outline" size={25} color={colors.violet} /></View><Text style={styles.emptyTitle}>Une discussion qui commence par la musique</Text><Text style={styles.emptyText}>Partage un son, un contexte ou simplement ce que tu as envie de dire.</Text></View>}
-        initialNumToRender={24}
+        initialNumToRender={50}
         windowSize={9}
         removeClippedSubviews={Platform.OS === 'android'}
       />
@@ -605,6 +704,7 @@ export function ConversationScreen() {
         <View style={[styles.composerFrame, layout.contentFrame, { paddingHorizontal: layout.gutter }]}>
           {!canMessage ? <View style={styles.cannotSend}><Text style={styles.cannotSendText}>{conversation.blocked ? 'Cette discussion est bloquée.' : 'Vous devez être amis pour continuer cette discussion.'}</Text></View> : (
             <>
+              {replyingTo ? <View style={styles.replyComposer}><View style={[styles.replyComposerMark, { backgroundColor: accentColor }]} /><View style={styles.replyComposerCopy}><Text numberOfLines={1} style={[styles.replyComposerAuthor, { color: accentColor }]}>Réponse à {replyingTo.sender.id === ownId ? 'toi' : replyingTo.sender.name}</Text><Text numberOfLines={1} style={styles.replyComposerText}>{messagePreview(replyingTo)}</Text></View><MotionPressable accessibilityLabel="Annuler la réponse" onPress={() => setReplyingTo(null)} style={styles.replyComposerClose}><Ionicons name="close" size={17} color={colors.textSecondary} /></MotionPressable></View> : null}
               {voiceRecorder.phase === 'preview' && voiceRecorder.draft ? (
                 <View style={styles.voicePreviewRow}>
                   <MotionPressable accessibilityLabel="Supprimer le vocal" onPress={() => { setVoicePreviewPlaying(false); void voiceRecorder.discardDraft(); }} style={styles.voiceUtilityButton}><Ionicons name="trash-outline" size={18} color={colors.coral} /></MotionPressable>
@@ -625,7 +725,7 @@ export function ConversationScreen() {
                   ) : (
                     <>
                       <MotionPressable accessibilityLabel="Ajouter une pièce jointe" disabled={uploading} onPress={() => setAttachmentOpen(true)} style={[styles.attachButton, uploading && styles.disabled]}>{uploading ? <ActivityIndicator size="small" color={accentColor} /> : <Ionicons name="add" size={22} color={colors.textSecondary} />}</MotionPressable>
-                      <View style={styles.inputShell}><TextInput value={draft} onChangeText={(value) => setDraft(value.slice(0, 2_000))} placeholder={room?.type === 'voice_notes' ? 'Ajoute un contexte au vocal…' : 'Écrire un message…'} placeholderTextColor={colors.textTertiary} multiline maxLength={2_000} style={styles.input} maxFontSizeMultiplier={1.2} /></View>
+                      <View style={styles.inputShell}><TextInput ref={inputRef} value={draft} onChangeText={(value) => setDraft(value.slice(0, 2_000))} placeholder={room?.type === 'voice_notes' ? 'Ajoute un contexte au vocal…' : 'Écrire un message…'} placeholderTextColor={colors.textTertiary} multiline maxLength={2_000} style={styles.input} maxFontSizeMultiplier={1.2} /></View>
                     </>
                   )}
                   {draft.trim() && voiceRecorder.phase === 'idle' ? (
@@ -661,7 +761,10 @@ export function ConversationScreen() {
         <Pressable style={styles.sheetBackdrop} onPress={() => setActionMessage(null)}>
           <Pressable style={[styles.actionSheet, { paddingBottom: Math.max(layout.insets.bottom, spacing.lg) }]} onPress={() => {}}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Réagir au message</Text>
+            <Text style={styles.sheetTitle}>Message</Text>
+            {actionMessage ? <SheetRow icon="return-up-back-outline" label="Répondre" onPress={() => startReply(actionMessage)} /> : null}
+            {actionMessage?.type === 'text' && actionMessage.content ? <SheetRow icon="copy-outline" label="Copier le texte" onPress={() => { void Clipboard.setStringAsync(actionMessage.content); setActionMessage(null); }} /> : null}
+            <Text style={styles.reactionSectionLabel}>Ajouter une réaction</Text>
             <View style={styles.reactionPicker}>{REACTIONS.map((reaction) => { const selected = actionMessage?.reactions.some((item) => item.userId === ownId && item.reaction === reaction.value); return <MotionPressable key={reaction.value} accessibilityLabel={reaction.label} onPress={() => void chooseReaction(reaction.value)} style={[styles.reactionButton, selected && styles.reactionButtonSelected]}><Ionicons name={reaction.icon} size={22} color={selected ? colors.violet : colors.text} /><Text style={[styles.reactionLabel, selected && styles.reactionLabelSelected]}>{reaction.label}</Text></MotionPressable>; })}</View>
             {actionMessage?.sender.id === ownId && !actionMessage.deleted ? <MotionPressable onPress={() => void deleteMessage()} style={styles.sheetDangerRow}><Ionicons name="trash-outline" size={19} color={colors.coral} /><Text style={styles.sheetDangerText}>Supprimer le message</Text></MotionPressable> : null}
           </Pressable>
@@ -782,6 +885,37 @@ function AttachmentOption({ icon, label, tint, onPress }: { icon: keyof typeof I
   return <MotionPressable accessibilityLabel={label} onPress={onPress} style={styles.attachmentOption}><View style={[styles.attachmentIcon, { backgroundColor: `${tint}20` }]}><Ionicons name={icon} size={23} color={tint} /></View><Text style={styles.attachmentLabel}>{label}</Text></MotionPressable>;
 }
 
+function SwipeToReply({ children, onReply, accentColor }: { children: React.ReactNode; onReply: () => void; accentColor: string }) {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const responder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => gesture.dx > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.4,
+    onPanResponderMove: (_, gesture) => translateX.setValue(Math.max(0, Math.min(68, gesture.dx))),
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dx >= 48) onReply();
+      Animated.spring(translateX, { toValue: 0, damping: 18, stiffness: 240, mass: 0.7, useNativeDriver: true }).start();
+    },
+    onPanResponderTerminate: () => Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start(),
+  }), [onReply, translateX]);
+  const iconScale = translateX.interpolate({ inputRange: [0, 48, 68], outputRange: [0.6, 1, 1.08], extrapolate: 'clamp' });
+  const iconOpacity = translateX.interpolate({ inputRange: [0, 22, 48], outputRange: [0, 0.5, 1], extrapolate: 'clamp' });
+  return <View style={styles.swipeShell}><Animated.View pointerEvents="none" style={[styles.swipeReplyIcon, { backgroundColor: `${accentColor}22`, opacity: iconOpacity, transform: [{ scale: iconScale }] }]}><Ionicons name="return-up-back" size={16} color={accentColor} /></Animated.View><Animated.View style={{ transform: [{ translateX }] }} {...responder.panHandlers}>{children}</Animated.View></View>;
+}
+
+function ReactionBurst({ accentColor, reaction }: { accentColor: string; reaction: MessagingReactionName }) {
+  const progress = useRef(new Animated.Value(0)).current;
+  const icon = REACTIONS.find((entry) => entry.value === reaction)?.icon || 'heart';
+  useEffect(() => {
+    Animated.timing(progress, { toValue: 1, duration: 560, useNativeDriver: true }).start();
+  }, [progress]);
+  return <Animated.View pointerEvents="none" style={[styles.reactionBurst, {
+    opacity: progress.interpolate({ inputRange: [0, 0.18, 0.78, 1], outputRange: [0, 1, 1, 0] }),
+    transform: [
+      { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [8, -34] }) },
+      { scale: progress.interpolate({ inputRange: [0, 0.28, 1], outputRange: [0.45, 1.25, 0.95] }) },
+    ],
+  }]}><Ionicons name={icon} size={30} color={accentColor} /></Animated.View>;
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   backdropQuiet: { backgroundColor: colors.background },
@@ -805,6 +939,11 @@ const styles = StyleSheet.create({
   messagesEmpty: { justifyContent: 'center' },
   olderButton: { minHeight: 38, alignSelf: 'center', marginBottom: spacing.lg, borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingHorizontal: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   olderButtonText: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
+  dayDivider: { minHeight: 34, marginVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dayDividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.borderStrong },
+  dayDividerText: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', textTransform: 'capitalize' },
+  swipeShell: { position: 'relative', width: '100%' },
+  swipeReplyIcon: { position: 'absolute', left: 8, top: '50%', width: 34, height: 34, marginTop: -17, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   messageRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginBottom: 4 },
   messageRowOwn: { justifyContent: 'flex-end' },
   messageGroupStart: { marginTop: spacing.sm },
@@ -812,6 +951,11 @@ const styles = StyleSheet.create({
   messageColumn: { maxWidth: '80%', alignItems: 'flex-start' },
   messageColumnOwn: { alignItems: 'flex-end' },
   senderName: { marginBottom: 4, marginLeft: 3, color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
+  replySnippet: { maxWidth: 250, marginBottom: 3, borderLeftWidth: 3, borderLeftColor: colors.violet, borderRadius: 8, backgroundColor: colors.surfaceMuted, paddingHorizontal: 9, paddingVertical: 6 },
+  replySnippetOwn: { borderLeftColor: colors.paper, backgroundColor: 'rgba(255,255,255,0.14)' },
+  replySnippetAuthor: { color: colors.violet, fontSize: 9, fontWeight: '900' },
+  replySnippetText: { marginTop: 1, color: colors.textSecondary, fontSize: 10, fontWeight: '600' },
+  replySnippetTextOwn: { color: colors.paper },
   bubble: { maxWidth: '100%', minHeight: 36, borderRadius: 15, paddingHorizontal: 12, paddingVertical: 9 },
   bubbleOwn: { backgroundColor: colors.violet, borderBottomRightRadius: 4 },
   bubbleOther: { backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderBottomLeftRadius: 4 },
@@ -847,11 +991,18 @@ const styles = StyleSheet.create({
   reactionChipSelected: { borderColor: colors.violet, backgroundColor: colors.violetSoft },
   reactionCount: { color: colors.textSecondary, fontSize: 9, fontWeight: '900' },
   reactionCountSelected: { color: colors.violet },
+  reactionBurst: { position: 'absolute', alignSelf: 'center', top: '18%', zIndex: 12 },
   timeRow: { minHeight: 14, marginTop: 2, paddingHorizontal: 3, flexDirection: 'row', alignItems: 'center', gap: 3 },
   timeRowOwn: { justifyContent: 'flex-end' },
   time: { color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
   composerWrap: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: colors.background, paddingTop: 9 },
   composerFrame: { width: '100%' },
+  replyComposer: { minHeight: 49, marginBottom: 7, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, paddingRight: 5, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' },
+  replyComposerMark: { alignSelf: 'stretch', width: 3 },
+  replyComposerCopy: { flex: 1, minWidth: 0, paddingHorizontal: 10 },
+  replyComposerAuthor: { fontSize: 10, fontWeight: '900' },
+  replyComposerText: { marginTop: 2, color: colors.textSecondary, fontSize: 10, fontWeight: '600' },
+  replyComposerClose: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 7 },
   attachButton: { width: 43, height: 43, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   inputShell: { flex: 1, minHeight: 43, maxHeight: 118, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, justifyContent: 'center', paddingHorizontal: 11 },
@@ -887,6 +1038,7 @@ const styles = StyleSheet.create({
   customizeSheet: { width: '100%', maxWidth: 680, maxHeight: '88%', alignSelf: 'center', borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderBottomWidth: 0, borderColor: colors.borderStrong, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.elevatedSurface },
   sheetHandle: { width: 38, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: spacing.md, backgroundColor: colors.textTertiary },
   sheetTitle: { marginBottom: spacing.md, color: colors.text, fontSize: 14, fontWeight: '900' },
+  reactionSectionLabel: { marginTop: spacing.sm, marginBottom: 8, color: colors.textTertiary, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   customizeHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
   customizeSubtitle: { marginTop: -6, color: colors.textTertiary, fontSize: 9, lineHeight: 14, fontWeight: '700' },
   settingLabel: { marginTop: spacing.lg, marginBottom: spacing.sm, color: colors.textSecondary, fontSize: 10, textTransform: 'uppercase', fontWeight: '900' },

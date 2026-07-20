@@ -327,7 +327,7 @@ async function sendNativePush(userId: string, type: NotifType, title: string, bo
         sound: 'default',
         priority: 'high',
         channelId: TYPE_TO_CATEGORY[type] === 'message' ? 'synaura-messages' : 'synaura-activity',
-        categoryId: TYPE_TO_CATEGORY[type] === 'message' ? 'synaura-message' : undefined,
+        categoryId: TYPE_TO_CATEGORY[type] === 'message' ? 'synaura_message' : undefined,
         data: { type, url: url || '/notifications', ...(data || {}) },
       }))),
     });
@@ -528,16 +528,26 @@ export async function notifyNewMessage(
   conversationId?: string,
   preview?: string,
   roomId?: string | null,
+  messageId?: string | null,
+  senderAvatar?: string | null,
 ) {
   return createNotification({
     userId: recipientId,
     type: 'new_message',
-    title: 'Nouveau message',
-    message: preview ? `${senderName} : ${preview.slice(0, 90)}` : `${senderName} t'a envoye un message`,
+    title: senderName,
+    message: preview ? preview.slice(0, 120) : 'Nouveau message',
     actionUrl: conversationId ? `/messages/${conversationId}${roomId ? `?room=${encodeURIComponent(roomId)}` : ''}` : '/messages',
     senderId,
     relatedId: conversationId,
-    data: conversationId ? { conversation_id: conversationId, room_id: roomId || null } : undefined,
+    iconUrl: senderAvatar || undefined,
+    data: conversationId ? {
+      conversation_id: conversationId,
+      room_id: roomId || null,
+      message_id: messageId || null,
+      sender_name: senderName,
+      sender_avatar: senderAvatar || null,
+      message_preview: preview?.slice(0, 160) || null,
+    } : undefined,
   });
 }
 

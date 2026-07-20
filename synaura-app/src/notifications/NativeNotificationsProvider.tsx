@@ -14,6 +14,13 @@ import {
 import { useAuth } from '@/auth/AuthProvider';
 import { openInternalLink } from '@/navigation/internalLinks';
 import { navigationRef } from '@/navigation/navigationRef';
+import {
+  handleMessageNotificationAction,
+  isMessageNotificationAction,
+  MESSAGE_MARK_READ_ACTION,
+  MESSAGE_NOTIFICATION_CATEGORY,
+  MESSAGE_REPLY_ACTION,
+} from '@/notifications/messageNotificationReply';
 
 export type NativePushStatus = 'disabled' | 'requesting' | 'ready' | 'denied' | 'unsupported' | 'error';
 
@@ -69,11 +76,24 @@ async function configureAndroidChannel() {
       lightColor: '#4A9EAA',
       showBadge: true,
     }),
-    Notifications.setNotificationCategoryAsync('synaura-message', [{
-      identifier: 'open-message',
-      buttonTitle: 'Ouvrir',
-      options: { opensAppToForeground: true },
-    }]),
+    Notifications.setNotificationCategoryAsync(MESSAGE_NOTIFICATION_CATEGORY, [
+      {
+        identifier: MESSAGE_REPLY_ACTION,
+        buttonTitle: 'Répondre',
+        textInput: { submitButtonTitle: 'Envoyer', placeholder: 'Écrire un message…' },
+        options: { opensAppToForeground: false },
+      },
+      {
+        identifier: MESSAGE_MARK_READ_ACTION,
+        buttonTitle: 'Marquer comme lu',
+        options: { opensAppToForeground: false },
+      },
+      {
+        identifier: 'open_message',
+        buttonTitle: 'Ouvrir',
+        options: { opensAppToForeground: true },
+      },
+    ]),
   ]);
 }
 
@@ -89,7 +109,11 @@ function readablePushError(cause: unknown) {
   return message || 'Activation push impossible.';
 }
 
-function openNotificationResponse(response: Notifications.NotificationResponse | null) {
+async function openNotificationResponse(response: Notifications.NotificationResponse | null) {
+  if (response && isMessageNotificationAction(response)) {
+    await handleMessageNotificationAction(response).catch(() => {});
+    return;
+  }
   const url = response?.notification.request.content.data?.url;
   if (typeof url !== 'string' || !url) return;
   const responseId = response?.notification.request.identifier || url;
@@ -245,11 +269,13 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
   }, [refreshUnread]);
 
   useEffect(() => {
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(openNotificationResponse);
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      void openNotificationResponse(response);
+    });
     const receivedSubscription = Notifications.addNotificationReceivedListener(() => {
       void refreshUnread();
     });
-    void Notifications.getLastNotificationResponseAsync().then(openNotificationResponse).catch(() => {});
+    void Notifications.getLastNotificationResponseAsync().then((response) => openNotificationResponse(response)).catch(() => {});
     return () => {
       responseSubscription.remove();
       receivedSubscription.remove();

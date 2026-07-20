@@ -3,6 +3,11 @@ import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { API_BASE_URL, setAuthRefreshHandler, setAuthTokenProvider } from '@/api/client';
+import {
+  MOBILE_AUTH_EXPIRES_AT_KEY,
+  MOBILE_AUTH_REFRESH_TOKEN_KEY,
+  MOBILE_AUTH_TOKEN_KEY,
+} from '@/auth/storageKeys';
 
 export type MobileUser = {
   id: string;
@@ -41,9 +46,9 @@ type SessionPayload = {
   user: MobileUser;
 };
 
-const TOKEN_KEY = 'synaura.mobile.auth.token';
-const REFRESH_TOKEN_KEY = 'synaura.mobile.auth.refresh';
-const EXPIRES_AT_KEY = 'synaura.mobile.auth.expires';
+const TOKEN_KEY = MOBILE_AUTH_TOKEN_KEY;
+const REFRESH_TOKEN_KEY = MOBILE_AUTH_REFRESH_TOKEN_KEY;
+const EXPIRES_AT_KEY = MOBILE_AUTH_EXPIRES_AT_KEY;
 const USER_KEY = 'synaura.mobile.auth.user';
 const PUSH_TOKEN_KEY = 'synaura.native.push.token.v1';
 const AUTH_RESTORE_TIMEOUT_MS = 1800;

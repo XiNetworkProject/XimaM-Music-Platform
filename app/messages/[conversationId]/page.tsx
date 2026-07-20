@@ -29,6 +29,7 @@ import {
   Lock,
   Palette,
   Plus,
+  Reply,
   RotateCcw,
   Square,
   Sparkles,
@@ -71,6 +72,13 @@ type Message = {
   sharedEntityId: string | null;
   metadata: Record<string, string | number>;
   replyToId: string | null;
+  replyTo: {
+    id: string;
+    senderId: string;
+    senderName: string;
+    type: string;
+    content: string;
+  } | null;
   roomId: string | null;
   seenBy: string[];
   reactions: MessageReaction[];
@@ -158,6 +166,38 @@ function formatClock(value: string) {
   });
 }
 
+function dayKey(value: string) {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime())
+    ? `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+    : value;
+}
+
+function formatDay(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (dayKey(value) === dayKey(today.toISOString())) return "Aujourd'hui";
+  if (dayKey(value) === dayKey(yesterday.toISOString())) return "Hier";
+  return date.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    ...(date.getFullYear() !== today.getFullYear() ? { year: "numeric" } : {}),
+  });
+}
+
+function messagePreview(message: Message) {
+  if (message.deleted) return "Message supprimé";
+  if (message.type === "text") return message.content || "Message";
+  if (message.type === "audio") return "Message vocal";
+  if (message.type === "image") return "Photo";
+  if (message.type === "video") return "Vidéo";
+  return message.content || `Contenu ${message.type}`;
+}
+
 function formatDuration(value: number) {
   const seconds = Math.max(0, Math.floor(value || 0));
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
@@ -198,6 +238,8 @@ export default function ConversationPage() {
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   const [reactionPickerId, setReactionPickerId] = useState<string | null>(null);
   const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [reactionBurst, setReactionBurst] = useState<{ id: string; reaction: ReactionName } | null>(null);
   const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<"remove" | "block" | null>(
     null
@@ -378,6 +420,10 @@ export default function ConversationPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...payload,
+          replyToId:
+            payload.replyToId === undefined
+              ? replyingTo?.id || null
+              : payload.replyToId,
           roomId: activeRoomId || conversation?.activeRoomId || null,
         }),
       }
@@ -387,6 +433,7 @@ export default function ConversationPage() {
       throw new Error(body?.error || "Envoi impossible");
     nearBottomRef.current = true;
     setMessages((previous) => mergeMessages(previous, [body.message]));
+    setReplyingTo(null);
     return body.message as Message;
   };
 
@@ -674,6 +721,13 @@ export default function ConversationPage() {
         }
       );
       if (!response.ok) throw new Error();
+      if (!remove) {
+        setReactionBurst({ id: message.id, reaction });
+        window.setTimeout(
+          () => setReactionBurst((current) => (current?.id === message.id ? null : current)),
+          620
+        );
+      }
     } catch {
       void loadMessages({ quiet: true });
       notify.error("Réaction", "La réaction n’a pas pu être enregistrée.");
@@ -1137,11 +1191,26 @@ export default function ConversationPage() {
                   previous.sender.id !== message.sender.id ||
                   new Date(message.createdAt).getTime() -
                     new Date(previous.createdAt).getTime() >
-                    5 * 60_000;
+                      5 * 60_000;
+                const startsDay =
+                  !previous || dayKey(previous.createdAt) !== dayKey(message.createdAt);
+                const replyTarget = message.replyToId
+                  ? messages.find((item) => item.id === message.replyToId)
+                  : null;
+                const BurstIcon = reactionBurst?.id === message.id
+                  ? REACTIONS.find((entry) => entry.value === reactionBurst.reaction)?.icon
+                  : null;
                 const isLastOwn = lastOwnMessage?.id === message.id;
                 return (
+                  <div key={message.id} className="contents">
+                  {startsDay ? (
+                    <div className="flex items-center gap-3 py-3 text-[10px] font-black capitalize text-syn-textSecondary">
+                      <span className="h-px flex-1 bg-syn-border" />
+                      <span>{formatDay(message.createdAt)}</span>
+                      <span className="h-px flex-1 bg-syn-border" />
+                    </div>
+                  ) : null}
                   <div
-                    key={message.id}
                     className={`group/message flex items-end gap-2 ${
                       own ? "justify-end" : "justify-start"
                     } ${startsGroup && index ? "pt-3" : ""}`}
@@ -1168,7 +1237,20 @@ export default function ConversationPage() {
                           {message.sender.name}
                         </span>
                       ) : null}
-                      <div className="relative flex items-center gap-1">
+                      {message.replyToId ? (
+                        <div
+                          className="mb-1 max-w-full rounded-lg border-l-[3px] bg-syn-surfaceMuted px-2.5 py-1.5"
+                          style={{ borderLeftColor: own ? "#F7F6F3" : accentColor }}
+                        >
+                          <p className="truncate text-[10px] font-black" style={{ color: own ? "#F7F6F3" : accentColor }}>
+                            {message.replyTo?.senderName || replyTarget?.sender.name || "Message"}
+                          </p>
+                          <p className="truncate text-[11px] font-semibold text-syn-textSecondary">
+                            {message.replyTo?.content || (replyTarget ? messagePreview(replyTarget) : "Message précédent")}
+                          </p>
+                        </div>
+                      ) : null}
+                      <div className="relative flex items-center gap-1" onDoubleClick={() => void reactToMessage(message, "heart")}>
                         {own && !message.deleted ? (
                           <MessageActions
                             message={message}
@@ -1190,6 +1272,10 @@ export default function ConversationPage() {
                               setMessageMenuId(null);
                             }}
                             onDelete={() => void deleteMessage(message)}
+                            onReply={() => {
+                              setReplyingTo(message);
+                              setMessageMenuId(null);
+                            }}
                             onPick={(reaction) =>
                               void reactToMessage(message, reaction)
                             }
@@ -1203,6 +1289,18 @@ export default function ConversationPage() {
                           onPlay={() => playAudio(message)}
                           onOpen={(path) => router.push(path)}
                         />
+                        <AnimatePresence>
+                          {BurstIcon ? (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.45, y: 8 }}
+                              animate={{ opacity: 1, scale: 1.25, y: -22 }}
+                              exit={{ opacity: 0, scale: 0.9, y: -36 }}
+                              className="pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 text-syn-accentCoral"
+                            >
+                              <BurstIcon className="h-8 w-8 fill-current" />
+                            </motion.div>
+                          ) : null}
+                        </AnimatePresence>
                         {!own && !message.deleted ? (
                           <MessageActions
                             message={message}
@@ -1218,6 +1316,7 @@ export default function ConversationPage() {
                               )
                             }
                             onDelete={() => {}}
+                            onReply={() => setReplyingTo(message)}
                             onPick={(reaction) =>
                               void reactToMessage(message, reaction)
                             }
@@ -1278,6 +1377,7 @@ export default function ConversationPage() {
                       </div>
                     </div>
                   </div>
+                  </div>
                 );
               })}
             </div>
@@ -1287,6 +1387,30 @@ export default function ConversationPage() {
 
       <footer className="relative z-20 shrink-0 border-t border-syn-border bg-syn-background/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:px-5">
         <div className="mx-auto w-full max-w-4xl">
+          {canSend && replyingTo ? (
+            <div className="mb-2 flex min-h-12 items-center gap-3 rounded-xl border border-syn-border bg-syn-surface px-3 py-2">
+              <span
+                className="h-8 w-1 shrink-0 rounded-full"
+                style={{ backgroundColor: accentColor }}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[10px] font-black" style={{ color: accentColor }}>
+                  Réponse à {replyingTo.sender.id === ownId ? "toi" : replyingTo.sender.name}
+                </p>
+                <p className="truncate text-xs font-semibold text-syn-textSecondary">
+                  {messagePreview(replyingTo)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReplyingTo(null)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-syn-textSecondary hover:bg-syn-surfaceMuted hover:text-syn-textPrimary"
+                aria-label="Annuler la réponse"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
           {!canSend ? (
             <div className="rounded-xl bg-syn-surfaceMuted px-4 py-3 text-center text-xs font-bold text-syn-textSecondary">
               {conversation?.blocked
@@ -2041,6 +2165,7 @@ function MessageActions({
   reactionOpen,
   onMenu,
   onReact,
+  onReply,
   onDelete,
   onPick,
   hideMenu = false,
@@ -2051,12 +2176,21 @@ function MessageActions({
   reactionOpen: boolean;
   onMenu: () => void;
   onReact: () => void;
+  onReply: () => void;
   onDelete: () => void;
   onPick: (reaction: ReactionName) => void;
   hideMenu?: boolean;
 }) {
   return (
     <div className="relative flex opacity-100 transition sm:opacity-0 sm:group-hover/message:opacity-100">
+      <button
+        type="button"
+        onClick={onReply}
+        className="flex h-8 w-8 items-center justify-center rounded-full text-syn-textSecondary hover:bg-syn-surfaceMuted hover:text-syn-textPrimary"
+        aria-label="Répondre"
+      >
+        <Reply className="h-3.5 w-3.5" />
+      </button>
       <button
         type="button"
         onClick={onReact}

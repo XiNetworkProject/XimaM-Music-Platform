@@ -1,13 +1,13 @@
 {
-  "title": "Synaura Conversations 0.23.1",
+  "title": "Synaura Messages 0.24.0",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Correction du crash a l'ouverture de la personnalisation d'une discussion",
-    "Bulle Android globale et persistante quand Synaura passe en arriere-plan",
-    "Retour direct vers la bonne discussion, position memorisee et fermeture fiable de la bulle",
-    "Demarrage protege contre les sessions ou preferences locales bloquees",
-    "Themes clair, sombre et systeme finalises sur la navigation, les en-tetes, les listes et les feuilles modales",
-    "Preferences locales validees automatiquement pour eviter de bloquer l'application"
+    "Bulle flottante avec l'avatar du contact et mini discussion sans ouvrir toute l'application",
+    "Ouverture des discussions sur le dernier message, horodatage complet et separateurs par jour",
+    "Reponse par glissement, double tap pour aimer et reactions animees sur les messages",
+    "Reponse directe et marquage comme lu depuis la notification, meme en arriere-plan",
+    "Messages cites et reactions harmonises entre l'application native et le web",
+    "Mini discussion conservee et synchronisee quand Android relance la bulle"
   ]
 }

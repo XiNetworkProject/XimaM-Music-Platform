@@ -20,7 +20,15 @@ export const dynamic = 'force-dynamic';
 
 const MESSAGE_TYPES = new Set(['text', 'image', 'audio', 'video', 'track', 'clip', 'post', 'playlist']);
 
-function messageDto(message: any, profile: any, participants: any[], reactions: any[]) {
+type ReplyMessageRow = {
+  id: string;
+  sender_id: string;
+  content: string | null;
+  message_type: string | null;
+  deleted_at: string | null;
+};
+
+function messageDto(message: any, profile: any, participants: any[], reactions: any[], replyTo?: any, replyProfile?: any) {
   const createdAt = message.created_at;
   const seenBy = participants
     .filter((participant) => participant.user_id === message.sender_id || (
@@ -39,6 +47,13 @@ function messageDto(message: any, profile: any, participants: any[], reactions: 
     sharedEntityId: deleted ? null : message.shared_entity_id || null,
     metadata: deleted ? {} : (message.metadata || {}),
     replyToId: message.reply_to_id || null,
+    replyTo: replyTo ? {
+      id: String(replyTo.id),
+      senderId: String(replyTo.sender_id),
+      senderName: String(replyProfile?.name || replyProfile?.username || 'Message'),
+      type: replyTo.deleted_at ? 'deleted' : String(replyTo.message_type || 'text'),
+      content: replyTo.deleted_at ? 'Message supprime' : String(replyTo.content || ''),
+    } : null,
     roomId: message.room_id || null,
     seenBy,
     reactions: reactions.map((reaction) => ({ userId: reaction.user_id, reaction: reaction.reaction })),
@@ -100,6 +115,19 @@ export async function GET(
     const participants = await getConversationParticipantIds(conversationId);
     const profiles = await getMessagingProfiles(participants.map((participant) => participant.user_id));
     const messageIds = page.map((message) => message.id);
+    const replyIds = Array.from(new Set(page.map((message) => message.reply_to_id).filter(Boolean)));
+    const replyById = new Map<string, ReplyMessageRow>(
+      page.map((message) => [String(message.id), message]),
+    );
+    const missingReplyIds = replyIds.filter((id) => !replyById.has(id));
+    if (missingReplyIds.length) {
+      const { data: replyRows } = await supabaseAdmin
+        .from('messages')
+        .select('id, sender_id, content, message_type, deleted_at')
+        .in('id', missingReplyIds)
+        .eq('conversation_id', conversationId);
+      (replyRows || []).forEach((message) => replyById.set(String(message.id), message));
+    }
     const reactionsByMessage = new Map<string, any[]>();
     if (messageIds.length) {
       const { data: reactions } = await supabaseAdmin
@@ -118,12 +146,19 @@ export async function GET(
     const friends = conversation.is_group || !otherParticipant
       ? true
       : await usersAreFriends(session.user.id, otherParticipant.user_id);
-    const messages = page.map((message) => messageDto(
-      message,
-      profiles.get(message.sender_id) || formatMessagingProfile({ id: message.sender_id }),
-      participants,
-      reactionsByMessage.get(message.id) || [],
-    ));
+    const messages = page.map((message) => {
+      const replyTo = message.reply_to_id
+        ? replyById.get(String(message.reply_to_id))
+        : null;
+      return messageDto(
+        message,
+        profiles.get(message.sender_id) || formatMessagingProfile({ id: message.sender_id }),
+        participants,
+        reactionsByMessage.get(message.id) || [],
+        replyTo,
+        replyTo ? profiles.get(replyTo.sender_id) : null,
+      );
+    });
 
     return NextResponse.json({
       conversation: {
@@ -222,14 +257,16 @@ export async function POST(
     if (sharedEntityType && !sharedEntityId) return NextResponse.json({ error: 'Contenu partage introuvable' }, { status: 400 });
 
     let replyToId: string | null = typeof body?.replyToId === 'string' ? body.replyToId : null;
+    let replyTo: any = null;
     if (replyToId) {
       const { data: reply } = await supabaseAdmin
         .from('messages')
-        .select('id')
+        .select('id, sender_id, content, message_type, deleted_at')
         .eq('id', replyToId)
         .eq('conversation_id', conversationId)
         .maybeSingle();
       if (!reply) replyToId = null;
+      else replyTo = reply;
     }
 
     const { data: inserted, error } = await supabaseAdmin
@@ -267,7 +304,7 @@ export async function POST(
       .eq('conversation_id', conversationId)
       .neq('user_id', session.user.id);
 
-    const profiles = await getMessagingProfiles([session.user.id]);
+    const profiles = await getMessagingProfiles([session.user.id, replyTo?.sender_id].filter(Boolean));
     const sender = profiles.get(session.user.id) || formatMessagingProfile({
       id: session.user.id,
       name: session.user.name,
@@ -292,10 +329,12 @@ export async function POST(
       conversationId,
       preview,
       roomId,
+      inserted.id,
+      sender.avatar,
     )));
 
     return NextResponse.json({
-      message: messageDto(inserted, sender, participants, []),
+      message: messageDto(inserted, sender, participants, [], replyTo, replyTo ? profiles.get(replyTo.sender_id) : null),
     }, { status: 201 });
   } catch (error) {
     console.error('[messages/conversation] POST failed:', error);

@@ -15,14 +15,46 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.LifecycleEventListener
+import com.facebook.react.modules.core.DeviceEventManagerModule
 import java.io.File
 
 class SynauraMessagingModule(private val context: ReactApplicationContext) : ReactContextBaseJavaModule(context), LifecycleEventListener {
+  companion object {
+    @Volatile private var activeContext: ReactApplicationContext? = null
+
+    fun emitBubbleReply(conversationId: String, content: String) {
+      val payload = Arguments.createMap().apply {
+        putString("conversationId", conversationId)
+        putString("content", content)
+      }
+      emitBubbleEvent("synaura:bubble-reply", payload)
+    }
+
+    fun emitBubbleReaction(conversationId: String, messageId: String, reaction: String?) {
+      val payload = Arguments.createMap().apply {
+        putString("conversationId", conversationId)
+        putString("messageId", messageId)
+        if (reaction == null) putNull("reaction") else putString("reaction", reaction)
+      }
+      emitBubbleEvent("synaura:bubble-reaction", payload)
+    }
+
+    private fun emitBubbleEvent(name: String, payload: com.facebook.react.bridge.WritableMap) {
+      val reactContext = activeContext ?: return
+      reactContext.runOnUiQueueThread {
+        if (reactContext.hasActiveReactInstance()) {
+          reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java).emit(name, payload)
+        }
+      }
+    }
+  }
+
   private var recorder: MediaRecorder? = null
   private var recordingFile: File? = null
   private var recordingStartedAt = 0L
 
   init {
+    activeContext = context
     context.addLifecycleEventListener(this)
   }
 
@@ -125,15 +157,39 @@ class SynauraMessagingModule(private val context: ReactApplicationContext) : Rea
   }
 
   @ReactMethod
-  fun configureChatBubble(enabled: Boolean, conversationId: String, title: String, accentColor: String, promise: Promise) {
+  fun configureChatBubble(enabled: Boolean, conversationId: String, title: String, accentColor: String, avatarUrl: String, promise: Promise) {
     bubblePreferences().edit()
       .putBoolean(SynauraBubbleService.EXTRA_ENABLED, enabled)
       .putString(SynauraBubbleService.EXTRA_CONVERSATION_ID, conversationId)
       .putString(SynauraBubbleService.EXTRA_TITLE, title)
       .putString(SynauraBubbleService.EXTRA_ACCENT, accentColor)
+      .putString(SynauraBubbleService.EXTRA_AVATAR_URL, avatarUrl)
       .apply()
     if (!enabled) context.stopService(Intent(context, SynauraBubbleService::class.java))
     promise.resolve(true)
+  }
+
+  @ReactMethod
+  fun updateChatBubble(conversationId: String, title: String, accentColor: String, avatarUrl: String, messagesJson: String, promise: Promise) {
+    bubblePreferences().edit()
+      .putString(SynauraBubbleService.EXTRA_TITLE, title)
+      .putString(SynauraBubbleService.EXTRA_ACCENT, accentColor)
+      .putString(SynauraBubbleService.EXTRA_AVATAR_URL, avatarUrl)
+      .apply()
+    val intent = Intent(context, SynauraBubbleService::class.java)
+      .setAction(SynauraBubbleService.ACTION_UPDATE)
+      .putExtra(SynauraBubbleService.EXTRA_ENABLED, true)
+      .putExtra(SynauraBubbleService.EXTRA_CONVERSATION_ID, conversationId)
+      .putExtra(SynauraBubbleService.EXTRA_TITLE, title)
+      .putExtra(SynauraBubbleService.EXTRA_ACCENT, accentColor)
+      .putExtra(SynauraBubbleService.EXTRA_AVATAR_URL, avatarUrl)
+      .putExtra(SynauraBubbleService.EXTRA_MESSAGES_JSON, messagesJson)
+    try {
+      ContextCompat.startForegroundService(context, intent)
+      promise.resolve(true)
+    } catch (error: Exception) {
+      promise.reject("bubble_update", error.message, error)
+    }
   }
 
   @ReactMethod
@@ -154,6 +210,7 @@ class SynauraMessagingModule(private val context: ReactApplicationContext) : Rea
       .putExtra(SynauraBubbleService.EXTRA_CONVERSATION_ID, conversationId)
       .putExtra(SynauraBubbleService.EXTRA_TITLE, preferences.getString(SynauraBubbleService.EXTRA_TITLE, "Discussion Synaura"))
       .putExtra(SynauraBubbleService.EXTRA_ACCENT, preferences.getString(SynauraBubbleService.EXTRA_ACCENT, "#7357C6"))
+      .putExtra(SynauraBubbleService.EXTRA_AVATAR_URL, preferences.getString(SynauraBubbleService.EXTRA_AVATAR_URL, ""))
     runCatching { ContextCompat.startForegroundService(context, intent) }
   }
 
@@ -177,6 +234,7 @@ class SynauraMessagingModule(private val context: ReactApplicationContext) : Rea
   }
 
   override fun invalidate() {
+    if (activeContext === context) activeContext = null
     context.removeLifecycleEventListener(this)
     releaseRecorder(true)
     super.invalidate()
