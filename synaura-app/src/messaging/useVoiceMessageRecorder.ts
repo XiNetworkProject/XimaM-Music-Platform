@@ -12,6 +12,23 @@ type NativeMessagingModule = {
 };
 
 const nativeMessaging = NativeModules.SynauraMessaging as NativeMessagingModule | undefined;
+const MAX_VOICE_DURATION_MS = 5 * 60_000;
+const MAX_STORED_WAVEFORM_SAMPLES = 160;
+
+function compactWaveformSamples(samples: number[], target = MAX_STORED_WAVEFORM_SAMPLES) {
+  if (samples.length <= target) return samples.slice();
+  const result: number[] = [];
+  const bucketSize = samples.length / target;
+  for (let index = 0; index < target; index += 1) {
+    const start = Math.floor(index * bucketSize);
+    const end = Math.max(start + 1, Math.floor((index + 1) * bucketSize));
+    const bucket = samples.slice(start, end);
+    const peak = Math.max(...bucket);
+    const average = bucket.reduce((sum, value) => sum + value, 0) / bucket.length;
+    result.push(Math.max(0, Math.min(1, peak * 0.7 + average * 0.3)));
+  }
+  return result;
+}
 
 export type VoiceDraft = {
   uri: string;
@@ -29,6 +46,7 @@ export function useVoiceMessageRecorder(options: {
   const [draft, setDraft] = useState<VoiceDraft | null>(null);
   const [waveform, setWaveform] = useState<number[]>([]);
   const waveformRef = useRef<number[]>([]);
+  const fullWaveformRef = useRef<number[]>([]);
   const [locked, setLocked] = useState(false);
   const [cancelArmed, setCancelArmed] = useState(false);
   const phaseRef = useRef(phase);
@@ -37,6 +55,7 @@ export function useVoiceMessageRecorder(options: {
   const startedAtRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startPromiseRef = useRef<Promise<boolean> | null>(null);
+  const stopRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
@@ -57,6 +76,7 @@ export function useVoiceMessageRecorder(options: {
     setDraft(null);
     setWaveform([]);
     waveformRef.current = [];
+    fullWaveformRef.current = [];
     setDurationMs(0);
     setLocked(false);
     setCancelArmed(false);
@@ -93,12 +113,19 @@ export function useVoiceMessageRecorder(options: {
       setDurationMs(0);
       setWaveform([]);
       waveformRef.current = [];
+      fullWaveformRef.current = [];
       phaseRef.current = 'recording';
       setPhase('recording');
       timerRef.current = setInterval(() => {
-        setDurationMs(Date.now() - startedAtRef.current);
+        const elapsed = Date.now() - startedAtRef.current;
+        setDurationMs(elapsed);
+        if (elapsed >= MAX_VOICE_DURATION_MS) {
+          void stopRef.current();
+          return;
+        }
         void nativeMessaging.getVoiceAmplitude().then((sample) => {
           const normalized = Math.max(0, Math.min(1, Number(sample || 0)));
+          fullWaveformRef.current.push(normalized);
           setWaveform((current) => {
             const next = [...current, normalized].slice(-120);
             waveformRef.current = next;
@@ -120,6 +147,7 @@ export function useVoiceMessageRecorder(options: {
     setDurationMs(0);
     setWaveform([]);
     waveformRef.current = [];
+    fullWaveformRef.current = [];
     setLocked(false);
     setCancelArmed(false);
     lockedRef.current = false;
@@ -135,13 +163,20 @@ export function useVoiceMessageRecorder(options: {
     stopTimer();
     try {
       const result = await nativeMessaging.stopVoiceRecording();
-      const next = { uri: result.uri, durationMs: Math.max(Number(result.durationMs || 0), Date.now() - startedAtRef.current), waveform: waveformRef.current };
+      const next = {
+        uri: result.uri,
+        durationMs: Math.max(Number(result.durationMs || 0), Date.now() - startedAtRef.current),
+        waveform: compactWaveformSamples(fullWaveformRef.current),
+      };
       if (next.durationMs < 350) {
         await removeDraftFile(next);
         options.onError('Maintiens le micro un peu plus longtemps.');
         phaseRef.current = 'idle';
         setPhase('idle');
         setDurationMs(0);
+        setWaveform([]);
+        waveformRef.current = [];
+        fullWaveformRef.current = [];
         return;
       }
       setDraft(next);
@@ -155,15 +190,21 @@ export function useVoiceMessageRecorder(options: {
       phaseRef.current = 'idle';
       setPhase('idle');
       setDurationMs(0);
+      setWaveform([]);
+      waveformRef.current = [];
+      fullWaveformRef.current = [];
       options.onError(error instanceof Error ? error.message : 'Le vocal n’a pas pu être préparé.');
     }
   }, [options, removeDraftFile, stopTimer]);
+
+  stopRef.current = stop;
 
   const discardDraft = useCallback(async () => {
     await removeDraftFile();
     setDraft(null);
     setWaveform([]);
     waveformRef.current = [];
+    fullWaveformRef.current = [];
     setDurationMs(0);
     phaseRef.current = 'idle';
     setPhase('idle');
@@ -173,6 +214,7 @@ export function useVoiceMessageRecorder(options: {
     setDraft(null);
     setWaveform([]);
     waveformRef.current = [];
+    fullWaveformRef.current = [];
     setDurationMs(0);
     phaseRef.current = 'idle';
     setPhase('idle');

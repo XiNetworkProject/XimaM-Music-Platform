@@ -1,14 +1,13 @@
 {
-  "title": "Synaura Messages 0.25.0",
+  "title": "Synaura Messages 0.25.1",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Messagerie Realtime Supabase avec ouverture instantanee depuis le cache et reprise automatique des envois",
-    "Vocaux par appui maintenu, gestes annuler ou verrouiller, ecoute avant envoi et vraie waveform du micro",
-    "Reactions par appui long, reponses citees, edition, epinglage, masquage et suppression des messages",
-    "Images, videos, sons et contenus Synaura lisibles directement dans les discussions",
-    "Groupes, salons asynchrones et personnalisation complete du nom, des couleurs, du fond et de l'image",
-    "Bulles de conversation Android officielles avec avatar, mini discussion et notifications synchronisees",
-    "New Architecture React Native activee globalement et listes FlashList plus fluides"
+    "Correction de la fermeture immediate au demarrage avec la New Architecture React Native",
+    "Envois de messages conserves hors ligne puis repris automatiquement sans doublon",
+    "Vocaux jusqu'a cinq minutes avec vraie waveform complete, apercu et gestes d'enregistrement",
+    "Ajout, retrait et roles des membres de groupe sur l'app native et le web",
+    "Televersements de medias plus robustes avec nouvelle signature automatique apres expiration",
+    "Notifications de recompenses et donnees editoriales alignees avec Supabase"
   ]
 }

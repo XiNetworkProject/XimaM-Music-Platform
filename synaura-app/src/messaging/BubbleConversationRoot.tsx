@@ -22,14 +22,13 @@ import {
   getConversationMessages,
   markConversationSeen,
   reactToConversationMessage,
-  sendConversationMessage,
   setAuthRefreshHandler,
   setAuthTokenProvider,
   type MessagingMessage,
   type MessagingReactionName,
 } from '@/api/client';
 import { readConversationCache, writeConversationCache } from '@/messaging/messageCache';
-import { createMessageClientId, enqueueMessage, failOutboxMessage, resolveOutboxMessage } from '@/messaging/messageOutbox';
+import { createMessageClientId, deliverOutboxMessage, enqueueMessage } from '@/messaging/messageOutbox';
 import { subscribeToConversationRealtime } from '@/messaging/realtime';
 import { getStoredMobileAccessToken } from '@/notifications/messageNotificationReply';
 
@@ -238,12 +237,10 @@ function BubbleConversation({ conversationId = '', title = 'Discussion Synaura',
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
     await enqueueMessage(user.id, queued);
     try {
-      const message = await sendConversationMessage(conversationId, input);
+      const message = await deliverOutboxMessage(user.id, queued);
       setMessages((current) => mergeMessages(current, [message]));
-      await resolveOutboxMessage(user.id, clientId);
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     } catch (cause) {
-      await failOutboxMessage(user.id, clientId, cause);
       setMessages((current) => current.map((message) => message.clientId === clientId ? { ...message, localState: 'failed' } : message));
       setError(cause instanceof Error ? cause.message : 'Message non envoye');
     } finally {

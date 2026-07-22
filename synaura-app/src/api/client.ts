@@ -1409,57 +1409,69 @@ export async function uploadMessageMedia(
     assetSize = fileInfo?.exists && 'size' in fileInfo ? Number(fileInfo.size || 0) : 0;
   }
   if (assetSize > 25 * 1024 * 1024) throw new Error('La limite est de 25 Mo.');
-  const timestamp = Math.round(Date.now() / 1000);
   const publicId = `message_${type}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-  const signature = await request<any>('/api/messages/upload', {
-    method: 'POST',
-    body: JSON.stringify({ timestamp, publicId, type }),
-  });
-  if (!signature?.cloudName || !signature?.apiKey || !signature?.signature) {
-    throw new Error('Préparation de l’envoi impossible');
-  }
-
-  const parameters: Record<string, string> = {
-    folder: String(signature.folder),
-    public_id: String(signature.publicId || publicId),
-    timestamp: String(signature.timestamp || timestamp),
-    api_key: String(signature.apiKey),
-    signature: String(signature.signature),
-  };
-  if (type === 'audio') parameters.format = 'mp3';
-
   const fallbackMime = type === 'image' ? 'image/jpeg' : type === 'video' ? 'video/mp4' : 'audio/mp4';
-  const uploadTask = FileSystem.createUploadTask(
-    `https://api.cloudinary.com/v1_1/${signature.cloudName}/${signature.resourceType}/upload`,
-    asset.uri,
-    {
-      httpMethod: 'POST',
-      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-      fieldName: 'file',
-      mimeType: asset.type || fallbackMime,
-      parameters,
-    },
-    ({ totalBytesExpectedToSend, totalBytesSent }) => {
-      if (totalBytesExpectedToSend > 0) options.onProgress?.(Math.min(1, totalBytesSent / totalBytesExpectedToSend));
-    },
-  );
-  const response = await uploadTask.uploadAsync();
-  if (!response) throw new Error('L’envoi a été interrompu.');
-  let uploaded: any = null;
-  try { uploaded = JSON.parse(response.body || '{}'); } catch { /* reponse invalide */ }
-  if (response.status < 200 || response.status >= 300 || !uploaded?.secure_url) {
-    const message = String(uploaded?.error?.message || `Téléversement impossible (${response.status})`);
-    if (/signature|timestamp/i.test(message)) throw new Error('La session d’envoi a expiré. Réessaie.');
-    if (/too large|file size|maximum|entity too large|413/i.test(message)) throw new Error('La limite est de 25 Mo.');
-    throw new Error(message);
+  let lastError: unknown = new Error('L’envoi a été interrompu.');
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const timestamp = Math.round(Date.now() / 1000);
+      const signature = await request<any>('/api/messages/upload', {
+        method: 'POST',
+        body: JSON.stringify({ timestamp, publicId, type }),
+      });
+      if (!signature?.cloudName || !signature?.apiKey || !signature?.signature) {
+        throw new Error('Préparation de l’envoi impossible.');
+      }
+
+      const parameters: Record<string, string> = {
+        folder: String(signature.folder),
+        public_id: String(signature.publicId || publicId),
+        timestamp: String(signature.timestamp || timestamp),
+        api_key: String(signature.apiKey),
+        signature: String(signature.signature),
+      };
+      if (type === 'audio') parameters.format = 'mp3';
+
+      const uploadTask = FileSystem.createUploadTask(
+        `https://api.cloudinary.com/v1_1/${signature.cloudName}/${signature.resourceType}/upload`,
+        asset.uri,
+        {
+          httpMethod: 'POST',
+          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+          fieldName: 'file',
+          mimeType: asset.type || fallbackMime,
+          parameters,
+        },
+        ({ totalBytesExpectedToSend, totalBytesSent }) => {
+          if (totalBytesExpectedToSend > 0) options.onProgress?.(Math.min(1, totalBytesSent / totalBytesExpectedToSend));
+        },
+      );
+      const response = await uploadTask.uploadAsync();
+      if (!response) throw new Error('L’envoi a été interrompu.');
+      let uploaded: any = null;
+      try { uploaded = JSON.parse(response.body || '{}'); } catch { /* invalid response */ }
+      if (response.status < 200 || response.status >= 300 || !uploaded?.secure_url) {
+        const message = String(uploaded?.error?.message || `Téléversement impossible (${response.status})`);
+        if (/too large|file size|maximum|entity too large|413/i.test(message)) throw new Error('La limite est de 25 Mo.');
+        if (/signature|timestamp/i.test(message)) throw new Error('La session d’envoi a expiré.');
+        throw new Error(message);
+      }
+      options.onProgress?.(1);
+      return {
+        url: String(uploaded.secure_url),
+        publicId: String(uploaded.public_id || parameters.public_id),
+        duration: Number(uploaded.duration || 0) || undefined,
+        bytes: Number(uploaded.bytes || assetSize || 0) || undefined,
+      };
+    } catch (error) {
+      lastError = error;
+      if (error instanceof Error && error.message.includes('25 Mo')) throw error;
+      if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 650));
+    }
   }
-  options.onProgress?.(1);
-  return {
-    url: String(uploaded.secure_url),
-    publicId: String(uploaded.public_id || parameters.public_id),
-    duration: Number(uploaded.duration || 0) || undefined,
-    bytes: Number(uploaded.bytes || assetSize || 0) || undefined,
-  };
+
+  throw lastError instanceof Error ? lastError : new Error('L’envoi a été interrompu.');
 }
 
 export async function uploadMessageImage(uri: string, name = `synaura-message-${Date.now()}.jpg`, mimeType = 'image/jpeg'): Promise<string> {
@@ -1531,6 +1543,31 @@ export async function updateConversationGroup(conversationId: string, changes: {
   await request(`/api/messages/${encodeURIComponent(conversationId)}`, {
     method: 'PATCH',
     body: JSON.stringify({ action: 'update_group', ...changes }),
+  });
+}
+
+export async function addConversationParticipant(conversationId: string, userId: string): Promise<void> {
+  await request(`/api/messages/${encodeURIComponent(conversationId)}/participants`, {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  });
+}
+
+export async function updateConversationParticipantRole(
+  conversationId: string,
+  userId: string,
+  role: 'member' | 'moderator',
+): Promise<void> {
+  await request(`/api/messages/${encodeURIComponent(conversationId)}/participants`, {
+    method: 'PATCH',
+    body: JSON.stringify({ userId, role }),
+  });
+}
+
+export async function removeConversationParticipant(conversationId: string, userId?: string): Promise<void> {
+  await request(`/api/messages/${encodeURIComponent(conversationId)}/participants`, {
+    method: 'DELETE',
+    body: JSON.stringify(userId ? { userId } : {}),
   });
 }
 

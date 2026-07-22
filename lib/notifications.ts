@@ -551,6 +551,32 @@ export async function notifyNewMessage(
   });
 }
 
+export async function notifyGroupMemberAdded(
+  actorId: string,
+  recipientId: string,
+  actorName: string,
+  groupName: string,
+  conversationId: string,
+  actorAvatar?: string | null,
+) {
+  return createNotification({
+    userId: recipientId,
+    type: 'new_message',
+    title: groupName,
+    message: `${actorName} t'a ajoute au groupe`,
+    actionUrl: `/messages/${conversationId}`,
+    senderId: actorId,
+    relatedId: conversationId,
+    iconUrl: actorAvatar || undefined,
+    data: {
+      event: 'group_member_added',
+      conversation_id: conversationId,
+      sender_name: actorName,
+      sender_avatar: actorAvatar || null,
+    },
+  });
+}
+
 export async function notifyMessageRequest(
   requesterId: string,
   recipientId: string,

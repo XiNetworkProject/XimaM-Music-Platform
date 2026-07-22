@@ -27,6 +27,7 @@ import {
   Send,
   Hash,
   Lock,
+  LogOut,
   Palette,
   Plus,
   Reply,
@@ -34,6 +35,9 @@ import {
   Square,
   Sparkles,
   Trash2,
+  ShieldCheck,
+  Shield,
+  UserPlus,
   UserMinus,
   UserX,
   X,
@@ -48,6 +52,13 @@ type MessagingProfile = {
   avatar: string | null;
   isVerified?: boolean;
   lastSeen?: string | null;
+};
+
+type MessagingContact = {
+  friendshipId: string;
+  user: MessagingProfile;
+  conversationId: string | null;
+  friendsSince: string;
 };
 
 type MessageReaction = { userId: string; reaction: ReactionName };
@@ -254,6 +265,15 @@ export default function ConversationPage() {
   const [roomName, setRoomName] = useState("");
   const [roomType, setRoomType] = useState<"text" | "voice_notes">("text");
   const [roomBusy, setRoomBusy] = useState(false);
+  const [contacts, setContacts] = useState<MessagingContact[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [memberPickerOpen, setMemberPickerOpen] = useState(false);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberBusyId, setMemberBusyId] = useState<string | null>(null);
+  const [memberConfirm, setMemberConfirm] = useState<{
+    action: "remove" | "leave";
+    user?: MessagingProfile;
+  } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -358,6 +378,33 @@ export default function ConversationPage() {
   useEffect(() => {
     if (session?.user?.id && conversationId) void loadMessages();
   }, [conversationId, loadMessages, session?.user?.id]);
+
+  useEffect(() => {
+    if (!customizeOpen || conversation?.type !== "group") return;
+    const controller = new AbortController();
+    setContactsLoading(true);
+    void fetch("/api/messages/contacts", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null);
+        if (!response.ok)
+          throw new Error(payload?.error || "Contacts indisponibles");
+        setContacts(Array.isArray(payload?.contacts) ? payload.contacts : []);
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        notify.error(
+          "Membres",
+          error instanceof Error ? error.message : "Contacts indisponibles"
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setContactsLoading(false);
+      });
+    return () => controller.abort();
+  }, [conversation?.type, customizeOpen]);
 
   useEffect(() => {
     if (!session?.user?.id || !conversationId) return;
@@ -836,6 +883,84 @@ export default function ConversationPage() {
     }
   };
 
+  const updateGroupMember = async (
+    method: "POST" | "PATCH" | "DELETE",
+    body: Record<string, string> = {}
+  ) => {
+    const response = await fetch(
+      `/api/messages/${encodeURIComponent(conversationId)}/participants`,
+      {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
+    const payload = await response.json().catch(() => null);
+    if (!response.ok)
+      throw new Error(payload?.error || "Gestion des membres impossible");
+  };
+
+  const addMember = async (user: MessagingProfile) => {
+    if (memberBusyId) return;
+    setMemberBusyId(`add:${user.id}`);
+    try {
+      await updateGroupMember("POST", { userId: user.id });
+      setMemberPickerOpen(false);
+      setMemberSearch("");
+      await loadMessages({ quiet: true });
+      notify.success("Membres", `${user.name} a rejoint le groupe.`);
+    } catch (error) {
+      notify.error(
+        "Membres",
+        error instanceof Error ? error.message : "Ajout impossible"
+      );
+    } finally {
+      setMemberBusyId(null);
+    }
+  };
+
+  const toggleMemberRole = async (
+    user: MessagingProfile,
+    role: "member" | "moderator"
+  ) => {
+    if (memberBusyId) return;
+    const nextRole = role === "moderator" ? "member" : "moderator";
+    setMemberBusyId(`role:${user.id}`);
+    try {
+      await updateGroupMember("PATCH", { userId: user.id, role: nextRole });
+      await loadMessages({ quiet: true });
+    } catch (error) {
+      notify.error(
+        "Membres",
+        error instanceof Error ? error.message : "Rôle impossible à modifier"
+      );
+    } finally {
+      setMemberBusyId(null);
+    }
+  };
+
+  const runMemberRemoval = async () => {
+    if (!memberConfirm || memberBusyId) return;
+    const targetId = memberConfirm.action === "remove" ? memberConfirm.user?.id : undefined;
+    setMemberBusyId(targetId ? `remove:${targetId}` : "leave");
+    try {
+      await updateGroupMember("DELETE", targetId ? { userId: targetId } : {});
+      setMemberConfirm(null);
+      if (!targetId) {
+        router.replace("/messages");
+        return;
+      }
+      await loadMessages({ quiet: true });
+    } catch (error) {
+      notify.error(
+        "Membres",
+        error instanceof Error ? error.message : "Retrait impossible"
+      );
+    } finally {
+      setMemberBusyId(null);
+    }
+  };
+
   const createRoom = async () => {
     if (!roomName.trim() || roomBusy) return;
     setRoomBusy(true);
@@ -950,6 +1075,20 @@ export default function ConversationPage() {
   const canManageRooms =
     conversation?.type === "group" &&
     (ownRole === "owner" || ownRole === "moderator");
+  const canManageMembers = canManageRooms;
+  const candidateContacts = useMemo(() => {
+    const participantIds = new Set(
+      conversation?.participants.map((participant) => participant.id) || []
+    );
+    const query = memberSearch.trim().toLocaleLowerCase("fr");
+    return contacts.filter((contact) => {
+      if (participantIds.has(contact.user.id)) return false;
+      if (!query) return true;
+      return `${contact.user.name} ${contact.user.username}`
+        .toLocaleLowerCase("fr")
+        .includes(query);
+    });
+  }, [contacts, conversation?.participants, memberSearch]);
   const accentColor = conversation?.preferences?.accentColor || "#7357C6";
   const lastOwnMessage = useMemo(
     () =>
@@ -1055,6 +1194,8 @@ export default function ConversationPage() {
                     onClick={() => {
                       setConversationMenuOpen(false);
                       setPreferenceDraft(conversation?.preferences || null);
+                      setMemberPickerOpen(false);
+                      setMemberSearch("");
                       setCustomizeOpen(true);
                     }}
                   />
@@ -1684,6 +1825,94 @@ export default function ConversationPage() {
                   <X className="h-4 w-4" />
                 </button>
               </div>
+              {conversation?.type === "group" ? (
+                <section className="mt-6 border-t border-syn-border pt-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-syn-textSecondary">
+                        Membres
+                      </p>
+                      <p className="mt-1 text-xs text-syn-textSecondary">
+                        {conversation.participants.length} participant{conversation.participants.length > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    {canManageMembers ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMemberPickerOpen((open) => !open);
+                          setMemberSearch("");
+                        }}
+                        className="flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-black text-white"
+                        style={{ backgroundColor: preferenceDraft.accentColor }}
+                      >
+                        {memberPickerOpen ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                        {memberPickerOpen ? "Fermer" : "Ajouter"}
+                      </button>
+                    ) : null}
+                  </div>
+                  {memberPickerOpen ? (
+                    <div className="mt-3 overflow-hidden rounded-xl border border-syn-border bg-syn-surface">
+                      <div className="flex h-11 items-center gap-2 border-b border-syn-border px-3">
+                        <UserPlus className="h-4 w-4 text-syn-textSecondary" />
+                        <input
+                          value={memberSearch}
+                          onChange={(event) => setMemberSearch(event.target.value)}
+                          placeholder="Rechercher parmi tes amis"
+                          className="min-w-0 flex-1 bg-transparent text-xs font-bold outline-none placeholder:text-syn-textSecondary/70"
+                        />
+                      </div>
+                      {contactsLoading ? (
+                        <div className="flex h-20 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" style={{ color: preferenceDraft.accentColor }} /></div>
+                      ) : candidateContacts.length ? (
+                        <div className="max-h-56 divide-y divide-syn-border overflow-y-auto">
+                          {candidateContacts.map((contact) => (
+                            <button
+                              key={contact.user.id}
+                              type="button"
+                              disabled={Boolean(memberBusyId)}
+                              onClick={() => void addMember(contact.user)}
+                              className="flex min-h-14 w-full items-center gap-3 px-3 text-left transition hover:bg-syn-surfaceMuted disabled:opacity-50"
+                            >
+                              <Avatar src={contact.user.avatar} name={contact.user.name} username={contact.user.username} size="sm" />
+                              <span className="min-w-0 flex-1"><span className="block truncate text-xs font-black">{contact.user.name}</span><span className="block truncate text-[10px] font-bold text-syn-textSecondary">@{contact.user.username}</span></span>
+                              {memberBusyId === `add:${contact.user.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span className="text-[10px] font-black" style={{ color: preferenceDraft.accentColor }}>Ajouter</span><Plus className="h-4 w-4" style={{ color: preferenceDraft.accentColor }} /></>}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="px-4 py-5 text-center text-xs font-bold text-syn-textSecondary">Aucun ami disponible à ajouter.</p>
+                      )}
+                    </div>
+                  ) : null}
+                  <div className="mt-3 divide-y divide-syn-border">
+                    {conversation.participants.map((participant) => {
+                      const role = conversation.participantRoles?.find((item) => item.userId === participant.id)?.role || "member";
+                      const canChangeRole = ownRole === "owner" && participant.id !== ownId && role !== "owner";
+                      const canRemove = participant.id !== ownId && role !== "owner" && (ownRole === "owner" || (ownRole === "moderator" && role === "member"));
+                      const roleLabel = role === "owner" ? "Propriétaire" : role === "moderator" ? "Modérateur" : "Membre";
+                      return (
+                        <div key={participant.id} className="flex min-h-14 items-center gap-3">
+                          <Avatar src={participant.avatar} name={participant.name} username={participant.username} size="sm" />
+                          <div className="min-w-0 flex-1"><p className="truncate text-xs font-black">{participant.name}{participant.id === ownId ? " · toi" : ""}</p><p className="truncate text-[10px] font-bold text-syn-textSecondary">@{participant.username}</p></div>
+                          {canChangeRole ? (
+                            <button type="button" disabled={Boolean(memberBusyId)} onClick={() => void toggleMemberRole(participant, role)} className="flex h-8 items-center gap-1.5 rounded-full bg-syn-surfaceMuted px-2.5 text-[10px] font-black disabled:opacity-50">
+                              {memberBusyId === `role:${participant.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : role === "moderator" ? <ShieldCheck className="h-3.5 w-3.5" style={{ color: preferenceDraft.accentColor }} /> : <Shield className="h-3.5 w-3.5" />}
+                              {roleLabel}
+                            </button>
+                          ) : <span className="text-[10px] font-bold text-syn-textSecondary">{roleLabel}</span>}
+                          {canRemove ? (
+                            <button type="button" disabled={Boolean(memberBusyId)} onClick={() => setMemberConfirm({ action: "remove", user: participant })} className="flex h-8 w-8 items-center justify-center rounded-full text-syn-destructive transition hover:bg-syn-destructive/10 disabled:opacity-50" aria-label={`Retirer ${participant.name}`}><UserMinus className="h-3.5 w-3.5" /></button>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {ownRole !== "owner" ? (
+                    <button type="button" disabled={Boolean(memberBusyId)} onClick={() => setMemberConfirm({ action: "leave" })} className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-syn-destructive/10 text-xs font-black text-syn-destructive disabled:opacity-50"><LogOut className="h-4 w-4" />Quitter le groupe</button>
+                  ) : null}
+                </section>
+              ) : null}
               <label className="mt-6 block text-[10px] font-black uppercase text-syn-textSecondary">
                 Nom chez toi
               </label>
@@ -1840,6 +2069,43 @@ export default function ConversationPage() {
                   "Enregistrer"
                 )}
               </button>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {memberConfirm ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[130] flex items-end justify-center bg-black/65 p-4 backdrop-blur-sm sm:items-center"
+            onMouseDown={(event: React.MouseEvent<HTMLDivElement>) => {
+              if (event.currentTarget === event.target && !memberBusyId)
+                setMemberConfirm(null);
+            }}
+          >
+            <motion.div
+              initial={{ y: 18, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 18, opacity: 0 }}
+              className="w-full max-w-sm rounded-xl border border-syn-border bg-syn-elevatedSurface p-5"
+            >
+              <h2 className="text-lg font-black">
+                {memberConfirm.action === "leave"
+                  ? "Quitter le groupe ?"
+                  : `Retirer ${memberConfirm.user?.name || "ce membre"} ?`}
+              </h2>
+              <p className="mt-2 text-sm text-syn-textSecondary">
+                {memberConfirm.action === "leave"
+                  ? "Tu ne recevras plus les messages de ce groupe."
+                  : "Cette personne perdra l’accès aux messages et aux salons du groupe."}
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <button type="button" disabled={Boolean(memberBusyId)} onClick={() => setMemberConfirm(null)} className="h-11 rounded-lg border border-syn-border text-xs font-black disabled:opacity-50">Annuler</button>
+                <button type="button" disabled={Boolean(memberBusyId)} onClick={() => void runMemberRemoval()} className="flex h-11 items-center justify-center rounded-lg bg-syn-destructive text-xs font-black text-white disabled:opacity-50">{memberBusyId ? <Loader2 className="h-4 w-4 animate-spin" /> : memberConfirm.action === "leave" ? "Quitter" : "Retirer"}</button>
+              </div>
             </motion.div>
           </motion.div>
         ) : null}

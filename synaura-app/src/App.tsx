@@ -53,6 +53,7 @@ import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { ClipUploadProvider } from '@/clips/ClipUploadProvider';
 import { SynauraQueryProvider } from '@/query/SynauraQueryProvider';
 import { ConversationBubbleProvider } from '@/messaging/ConversationBubbleProvider';
+import { MessageOutboxProvider } from '@/messaging/MessageOutboxProvider';
 
 export type RootStackParamList = RootTabsParamList & {
   Tabs: { screen?: string; params?: Record<string, unknown> } | undefined;
@@ -231,10 +232,11 @@ function SynauraRuntime() {
     <AuthProvider>
       <ConversationBubbleProvider>
         <SynauraQueryProvider>
-          <ClipUploadProvider>
-            <LibraryProvider>
-              <PlayerProvider>
-                <NativeNotificationsProvider>
+          <MessageOutboxProvider>
+            <ClipUploadProvider>
+              <LibraryProvider>
+                <PlayerProvider>
+                  <NativeNotificationsProvider>
                   <NavigationContainer
                     ref={navigationRef}
                     theme={navigationTheme}
@@ -257,10 +259,11 @@ function SynauraRuntime() {
                     <NativeNotificationNudge activeRoute={activeRoute} />
                   </NavigationContainer>
                   <AnimatedBootSplash />
-                </NativeNotificationsProvider>
-              </PlayerProvider>
-            </LibraryProvider>
-          </ClipUploadProvider>
+                  </NativeNotificationsProvider>
+                </PlayerProvider>
+              </LibraryProvider>
+            </ClipUploadProvider>
+          </MessageOutboxProvider>
         </SynauraQueryProvider>
       </ConversationBubbleProvider>
     </AuthProvider>

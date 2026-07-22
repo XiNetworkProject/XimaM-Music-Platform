@@ -14,17 +14,28 @@ export async function GET() {
     const now = new Date();
     const notifications: Array<{ type: string; title: string; body: string; key: string; expiresAt?: string }> = [];
 
-    // 1. Check daily booster availability
-    const { data: daily } = await supabaseAdmin
-      .from('user_booster_daily')
-      .select('last_opened_at, cooldown_ms')
-      .eq('user_id', userId)
-      .maybeSingle();
+    const [profileResult, dailyResult, spinResult] = await Promise.all([
+      supabaseAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle(),
+      supabaseAdmin
+        .from('user_booster_daily')
+        .select('last_opened_at')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('user_daily_spin')
+        .select('last_spun_at')
+        .eq('user_id', userId)
+        .maybeSingle(),
+    ]);
 
-    if (daily) {
-      const cooldownMs = Number(daily.cooldown_ms) || 24 * 3600000;
+    // 1. Check daily booster availability. Keep this calculation aligned with
+    // /api/boosters: subscribers receive a 12-hour cooldown, others 24 hours.
+    const plan = String(profileResult.data?.plan || 'free');
+    const boosterCooldownMs = plan !== 'free' ? 12 * 3_600_000 : 24 * 3_600_000;
+    const daily = dailyResult.data;
+    if (!dailyResult.error && daily) {
       const lastOpened = daily.last_opened_at ? new Date(daily.last_opened_at).getTime() : 0;
-      const nextAvailable = lastOpened + cooldownMs;
+      const nextAvailable = lastOpened + boosterCooldownMs;
       if (now.getTime() >= nextAvailable) {
         notifications.push({
           type: 'daily_available',
@@ -33,7 +44,7 @@ export async function GET() {
           key: `daily-${now.toISOString().slice(0, 10)}`,
         });
       }
-    } else {
+    } else if (!dailyResult.error) {
       notifications.push({
         type: 'daily_available',
         title: 'Booster quotidien disponible',
@@ -43,13 +54,11 @@ export async function GET() {
     }
 
     // 2. Check daily spin availability
-    const { data: spin } = await supabaseAdmin
-      .from('user_daily_spin')
-      .select('last_spun_at, next_available_at')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (!spin || !spin.next_available_at || new Date(spin.next_available_at).getTime() <= now.getTime()) {
+    const spin = spinResult.data;
+    const spinAvailableAt = spin?.last_spun_at
+      ? new Date(spin.last_spun_at).getTime() + 24 * 3_600_000
+      : 0;
+    if (!spinResult.error && now.getTime() >= spinAvailableAt) {
       notifications.push({
         type: 'spin_available',
         title: 'Roue quotidienne disponible',
