@@ -32,8 +32,6 @@ export type ConversationBubbleMessage = {
 
 const CONVERSATION_BUBBLE_KEY = 'synaura.messaging.bubble.v1';
 export const CONVERSATION_BUBBLE_CHANGED = 'synaura:conversation-bubble-changed';
-export const CONVERSATION_BUBBLE_REPLY = 'synaura:bubble-reply';
-export const CONVERSATION_BUBBLE_REACTION = 'synaura:bubble-reaction';
 let cachedConfig: ConversationBubbleConfig | null | undefined;
 
 function sanitizeBubbleConfig(value: unknown): ConversationBubbleConfig | null {
@@ -57,7 +55,7 @@ function sanitizeBubbleConfig(value: unknown): ConversationBubbleConfig | null {
 }
 
 export function supportsConversationBubble() {
-  return Platform.OS === 'android' && Boolean(nativeMessaging);
+  return Platform.OS === 'android' && Number(Platform.Version) >= 29 && Boolean(nativeMessaging);
 }
 
 export async function hasConversationBubblePermission() {
@@ -123,7 +121,6 @@ export async function clearPreferredConversationBubble(conversationId?: string) 
 
 export async function showConversationBubble(conversationId: string, title: string, accentColor: string) {
   if (!supportsConversationBubble()) return false;
-  if (!await hasConversationBubblePermission()) return false;
   return nativeMessaging!.showChatBubble(conversationId, title, accentColor);
 }
 

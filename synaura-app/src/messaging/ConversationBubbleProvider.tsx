@@ -1,11 +1,9 @@
 import React, { useEffect } from 'react';
 import { AppState, DeviceEventEmitter, type AppStateStatus } from 'react-native';
 import { useAuth } from '@/auth/AuthProvider';
-import { getConversationMessages, reactToConversationMessage, sendConversationMessage, type MessagingMessage } from '@/api/client';
+import { getConversationMessages, type MessagingMessage } from '@/api/client';
 import {
   CONVERSATION_BUBBLE_CHANGED,
-  CONVERSATION_BUBBLE_REACTION,
-  CONVERSATION_BUBBLE_REPLY,
   configureNativeConversationBubble,
   getPreferredConversationBubble,
   hideConversationBubble,
@@ -57,13 +55,14 @@ export function ConversationBubbleProvider({ children }: { children: React.React
 
     const synchronize = async (state: AppStateStatus) => {
       if (!mounted) return;
-      if (state === 'active' || auth.loading || !auth.user) {
+      if (auth.loading || !auth.user) {
         await hideConversationBubble().catch(() => {});
         return;
       }
       const config = await getPreferredConversationBubble();
       if (!mounted || !config || config.userId !== auth.user.id) return;
       await configureNativeConversationBubble(config);
+      if (state === 'active') return;
       await showConversationBubble(config.conversationId, config.title, config.accentColor).catch(() => {});
       await refreshBubble(config);
     };
@@ -87,39 +86,11 @@ export function ConversationBubbleProvider({ children }: { children: React.React
       CONVERSATION_BUBBLE_CHANGED,
       () => void synchronize(AppState.currentState),
     );
-    const replySubscription = DeviceEventEmitter.addListener(CONVERSATION_BUBBLE_REPLY, (payload) => {
-      void (async () => {
-        const config = await getPreferredConversationBubble();
-        const content = typeof payload?.content === 'string' ? payload.content.trim().slice(0, 2_000) : '';
-        if (!config || !content || payload?.conversationId !== config.conversationId || config.userId !== auth.user?.id) return;
-        await sendConversationMessage(config.conversationId, { type: 'text', content }).catch(() => null);
-        await refreshBubble(config);
-      })();
-    });
-    const reactionSubscription = DeviceEventEmitter.addListener(CONVERSATION_BUBBLE_REACTION, (payload) => {
-      void (async () => {
-        const config = await getPreferredConversationBubble();
-        const messageId = typeof payload?.messageId === 'string' ? payload.messageId : '';
-        if (!config || !messageId || payload?.conversationId !== config.conversationId || config.userId !== auth.user?.id) return;
-        await reactToConversationMessage(config.conversationId, messageId, payload?.reaction === 'heart' ? 'heart' : null).catch(() => null);
-        await refreshBubble(config);
-      })();
-    });
-    const refreshTimer = setInterval(() => {
-      if (AppState.currentState === 'active') return;
-      void getPreferredConversationBubble().then((config) => {
-        if (config) void refreshBubble(config);
-      });
-    }, 6_000);
 
     return () => {
       mounted = false;
       appStateSubscription.remove();
       configSubscription.remove();
-      replySubscription.remove();
-      reactionSubscription.remove();
-      clearInterval(refreshTimer);
-      if (AppState.currentState === 'active') void hideConversationBubble().catch(() => {});
     };
   }, [auth.loading, auth.user?.id]);
 

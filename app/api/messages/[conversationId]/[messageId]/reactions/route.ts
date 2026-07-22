@@ -22,6 +22,35 @@ async function validate(request: NextRequest, conversationId: string, messageId:
   return { userId: session.user.id };
 }
 
+export async function GET(request: NextRequest, { params }: { params: { conversationId: string; messageId: string } }) {
+  try {
+    const checked = await validate(request, params.conversationId, params.messageId);
+    if (checked.error) return checked.error;
+    const { data: reactions, error } = await supabaseAdmin
+      .from('message_reactions')
+      .select('user_id, reaction, created_at')
+      .eq('message_id', params.messageId)
+      .order('created_at', { ascending: true });
+    if (error) return NextResponse.json({ error: 'Reactions indisponibles' }, { status: 500 });
+    const userIds = (reactions || []).map((reaction) => reaction.user_id);
+    const { data: profiles } = userIds.length
+      ? await supabaseAdmin.from('profiles').select('id, name, username, avatar').in('id', userIds)
+      : { data: [] as any[] };
+    const profilesById = new Map((profiles || []).map((profile) => [profile.id, profile]));
+    return NextResponse.json({
+      reactions: (reactions || []).map((reaction) => ({
+        userId: reaction.user_id,
+        reaction: reaction.reaction,
+        createdAt: reaction.created_at,
+        user: profilesById.get(reaction.user_id) || null,
+      })),
+    });
+  } catch (error) {
+    console.error('[messages/reactions] GET failed:', error);
+    return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest, { params }: { params: { conversationId: string; messageId: string } }) {
   try {
     const checked = await validate(request, params.conversationId, params.messageId);

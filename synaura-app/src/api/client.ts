@@ -1010,12 +1010,30 @@ export type MessagingUser = {
 
 export type MessagingReactionName = 'heart' | 'fire' | 'wow' | 'support' | 'laugh';
 
+export type MessagingAttachment = {
+  id: string;
+  type: 'image' | 'video' | 'audio' | 'file';
+  url: string;
+  previewUrl: string | null;
+  mimeType: string | null;
+  fileName: string | null;
+  sizeBytes: number | null;
+  width: number | null;
+  height: number | null;
+  durationMs: number | null;
+  waveform: number[];
+  position: number;
+  metadata: Record<string, string | number>;
+};
+
 export type MessagingMessage = {
   id: string;
+  clientId: string | null;
   sender: MessagingUser;
   type: 'text' | 'image' | 'audio' | 'video' | 'track' | 'clip' | 'post' | 'playlist' | 'deleted';
   content: string;
   mediaUrl: string | null;
+  attachments: MessagingAttachment[];
   sharedEntityType: string | null;
   sharedEntityId: string | null;
   metadata: Record<string, string | number>;
@@ -1031,7 +1049,11 @@ export type MessagingMessage = {
   seenBy: string[];
   reactions: Array<{ userId: string; reaction: MessagingReactionName }>;
   createdAt: string;
+  editedAt: string | null;
+  pinned: boolean;
   deleted: boolean;
+  localState?: 'sending' | 'sent' | 'failed';
+  localError?: string | null;
 };
 
 export type MessagingConversationPreferences = {
@@ -1131,10 +1153,28 @@ function normalizeMessagingMessage(raw: any): MessagingMessage {
   if (typeof metadata.coverUrl === 'string') metadata.coverUrl = absoluteAsset(metadata.coverUrl) || metadata.coverUrl;
   return {
     id: safeString(raw?.id || raw?._id, ''),
+    clientId: raw?.clientId || raw?.client_id || null,
     sender: normalizeMessagingUser(raw?.sender || {}),
     type,
     content: typeof raw?.content === 'string' ? raw.content : '',
     mediaUrl: absoluteAsset(raw?.mediaUrl || raw?.media_url || null),
+    attachments: (Array.isArray(raw?.attachments) ? raw.attachments : []).map((attachment: any, index: number): MessagingAttachment => ({
+      id: safeString(attachment?.id, `attachment-${index}`),
+      type: ['image', 'video', 'audio', 'file'].includes(attachment?.type || attachment?.attachment_type)
+        ? (attachment.type || attachment.attachment_type)
+        : 'file',
+      url: absoluteAsset(attachment?.url) || '',
+      previewUrl: absoluteAsset(attachment?.previewUrl || attachment?.preview_url || null),
+      mimeType: attachment?.mimeType || attachment?.mime_type || null,
+      fileName: attachment?.fileName || attachment?.file_name || null,
+      sizeBytes: Number.isFinite(Number(attachment?.sizeBytes ?? attachment?.size_bytes)) ? Number(attachment?.sizeBytes ?? attachment?.size_bytes) : null,
+      width: Number.isFinite(Number(attachment?.width)) ? Number(attachment.width) : null,
+      height: Number.isFinite(Number(attachment?.height)) ? Number(attachment.height) : null,
+      durationMs: Number.isFinite(Number(attachment?.durationMs ?? attachment?.duration_ms)) ? Number(attachment?.durationMs ?? attachment?.duration_ms) : null,
+      waveform: (Array.isArray(attachment?.waveform) ? attachment.waveform : []).map(Number).filter(Number.isFinite).slice(0, 160),
+      position: Math.max(0, Number(attachment?.position ?? index) || 0),
+      metadata: readObject(attachment?.metadata),
+    })).filter((attachment: MessagingAttachment) => Boolean(attachment.url)),
     sharedEntityType: raw?.sharedEntityType || raw?.shared_entity_type || null,
     sharedEntityId: raw?.sharedEntityId || raw?.shared_entity_id || null,
     metadata,
@@ -1153,8 +1193,20 @@ function normalizeMessagingMessage(raw: any): MessagingMessage {
       reaction: safeString(entry?.reaction, 'heart') as MessagingReactionName,
     })).filter((entry: { userId: string }) => Boolean(entry.userId)),
     createdAt: raw?.createdAt || raw?.created_at || new Date().toISOString(),
+    editedAt: raw?.editedAt || raw?.edited_at || null,
+    pinned: Boolean(raw?.pinned),
     deleted: Boolean(raw?.deleted || raw?.deleted_at || type === 'deleted'),
+    localState: raw?.localState,
+    localError: raw?.localError || null,
   };
+}
+
+export async function getMessagingRealtimeConfig(): Promise<{ url: string; publishableKey: string }> {
+  const payload = await request<any>('/api/messages/realtime');
+  const url = safeString(payload?.url, '');
+  const publishableKey = safeString(payload?.publishableKey, '');
+  if (!url || !publishableKey) throw new Error('Temps reel indisponible');
+  return { url, publishableKey };
 }
 
 function normalizeConversationPreferences(raw: any): MessagingConversationPreferences {
@@ -1305,7 +1357,7 @@ export async function getConversationMessages(conversationId: string, before?: s
   };
 }
 
-export async function sendConversationMessage(conversationId: string, input: {
+export type SendConversationMessageInput = {
   type: MessagingMessage['type'];
   content?: string;
   mediaUrl?: string;
@@ -1313,7 +1365,23 @@ export async function sendConversationMessage(conversationId: string, input: {
   metadata?: Record<string, string | number>;
   replyToId?: string | null;
   roomId?: string | null;
-}): Promise<MessagingMessage> {
+  clientId?: string | null;
+  attachments?: Array<{
+    type: MessagingAttachment['type'];
+    url: string;
+    previewUrl?: string | null;
+    mimeType?: string | null;
+    fileName?: string | null;
+    sizeBytes?: number | null;
+    width?: number | null;
+    height?: number | null;
+    durationMs?: number | null;
+    waveform?: number[];
+    metadata?: Record<string, string | number>;
+  }>;
+};
+
+export async function sendConversationMessage(conversationId: string, input: SendConversationMessageInput): Promise<MessagingMessage> {
   const payload = await request<any>(`/api/messages/${encodeURIComponent(conversationId)}`, {
     method: 'POST',
     body: JSON.stringify(input),
@@ -1414,10 +1482,55 @@ export async function deleteConversationMessage(conversationId: string, messageI
   await request(`/api/messages/${encodeURIComponent(conversationId)}/${encodeURIComponent(messageId)}`, { method: 'DELETE' });
 }
 
+export async function hideConversationMessage(conversationId: string, messageId: string): Promise<void> {
+  await request(`/api/messages/${encodeURIComponent(conversationId)}/${encodeURIComponent(messageId)}?scope=me`, { method: 'DELETE' });
+}
+
+export async function editConversationMessage(conversationId: string, messageId: string, content: string): Promise<{ content: string; editedAt: string }> {
+  return request(`/api/messages/${encodeURIComponent(conversationId)}/${encodeURIComponent(messageId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action: 'edit', content }),
+  });
+}
+
+export async function pinConversationMessage(conversationId: string, messageId: string, pinned: boolean): Promise<void> {
+  await request(`/api/messages/${encodeURIComponent(conversationId)}/${encodeURIComponent(messageId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action: pinned ? 'pin' : 'unpin' }),
+  });
+}
+
+export async function getConversationMessageReactions(conversationId: string, messageId: string): Promise<Array<{
+  userId: string;
+  reaction: MessagingReactionName;
+  createdAt: string;
+  user: { id: string; name: string; username: string; avatar: string | null } | null;
+}>> {
+  const payload = await request<any>(`/api/messages/${encodeURIComponent(conversationId)}/${encodeURIComponent(messageId)}/reactions`);
+  return (Array.isArray(payload?.reactions) ? payload.reactions : []).map((entry: any) => ({
+    userId: safeString(entry?.userId, ''),
+    reaction: safeString(entry?.reaction, 'heart') as MessagingReactionName,
+    createdAt: entry?.createdAt || new Date().toISOString(),
+    user: entry?.user ? {
+      id: safeString(entry.user.id, ''),
+      name: safeString(entry.user.name, entry.user.username || 'Utilisateur'),
+      username: safeString(entry.user.username, 'utilisateur'),
+      avatar: absoluteAsset(entry.user.avatar || null),
+    } : null,
+  })).filter((entry: { userId: string }) => Boolean(entry.userId));
+}
+
 export async function updateConversationState(conversationId: string, action: 'archive' | 'unarchive' | 'mute' | 'unmute'): Promise<void> {
   await request(`/api/messages/${encodeURIComponent(conversationId)}`, {
     method: 'PATCH',
     body: JSON.stringify({ action }),
+  });
+}
+
+export async function updateConversationGroup(conversationId: string, changes: { name?: string; description?: string | null; avatarUrl?: string | null }): Promise<void> {
+  await request(`/api/messages/${encodeURIComponent(conversationId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action: 'update_group', ...changes }),
   });
 }
 

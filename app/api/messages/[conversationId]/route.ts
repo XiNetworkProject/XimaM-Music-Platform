@@ -28,7 +28,34 @@ type ReplyMessageRow = {
   deleted_at: string | null;
 };
 
-function messageDto(message: any, profile: any, participants: any[], reactions: any[], replyTo?: any, replyProfile?: any) {
+function attachmentDto(attachment: any) {
+  return {
+    id: String(attachment.id),
+    type: String(attachment.attachment_type || 'file'),
+    url: String(attachment.url || ''),
+    previewUrl: attachment.preview_url || null,
+    mimeType: attachment.mime_type || null,
+    fileName: attachment.file_name || null,
+    sizeBytes: Number.isFinite(Number(attachment.size_bytes)) ? Number(attachment.size_bytes) : null,
+    width: Number.isFinite(Number(attachment.width)) ? Number(attachment.width) : null,
+    height: Number.isFinite(Number(attachment.height)) ? Number(attachment.height) : null,
+    durationMs: Number.isFinite(Number(attachment.duration_ms)) ? Number(attachment.duration_ms) : null,
+    waveform: Array.isArray(attachment.waveform) ? attachment.waveform : [],
+    position: Number(attachment.position || 0),
+    metadata: attachment.metadata || {},
+  };
+}
+
+function messageDto(
+  message: any,
+  profile: any,
+  participants: any[],
+  reactions: any[],
+  replyTo?: any,
+  replyProfile?: any,
+  attachments: any[] = [],
+  pinned = false,
+) {
   const createdAt = message.created_at;
   const seenBy = participants
     .filter((participant) => participant.user_id === message.sender_id || (
@@ -39,10 +66,12 @@ function messageDto(message: any, profile: any, participants: any[], reactions: 
   return {
     id: String(message.id),
     _id: String(message.id),
+    clientId: message.client_id || null,
     sender: profile,
     type: deleted ? 'deleted' : String(message.message_type || 'text'),
     content: deleted ? 'Message supprime' : String(message.content || ''),
     mediaUrl: deleted ? null : message.media_url || null,
+    attachments: deleted ? [] : attachments.map(attachmentDto),
     sharedEntityType: deleted ? null : message.shared_entity_type || null,
     sharedEntityId: deleted ? null : message.shared_entity_id || null,
     metadata: deleted ? {} : (message.metadata || {}),
@@ -59,6 +88,8 @@ function messageDto(message: any, profile: any, participants: any[], reactions: 
     reactions: reactions.map((reaction) => ({ userId: reaction.user_id, reaction: reaction.reaction })),
     createdAt,
     updatedAt: message.updated_at,
+    editedAt: message.edited_at || null,
+    pinned,
     deleted,
   };
 }
@@ -97,7 +128,7 @@ export async function GET(
     const before = request.nextUrl.searchParams.get('before');
     let messagesQuery = supabaseAdmin
       .from('messages')
-      .select('id, conversation_id, room_id, sender_id, content, message_type, media_url, shared_entity_type, shared_entity_id, metadata, reply_to_id, is_read, deleted_at, created_at, updated_at')
+      .select('id, client_id, conversation_id, room_id, sender_id, content, message_type, media_url, shared_entity_type, shared_entity_id, metadata, reply_to_id, is_read, deleted_at, created_at, updated_at, edited_at')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false })
       .limit(limit + 1);
@@ -111,7 +142,17 @@ export async function GET(
     if (error) return NextResponse.json({ error: 'Messages indisponibles' }, { status: 500 });
 
     const hasMore = (rows || []).length > limit;
-    const page = (rows || []).slice(0, limit).reverse();
+    let page = (rows || []).slice(0, limit).reverse();
+    const candidateIds = page.map((message) => message.id);
+    if (candidateIds.length) {
+      const { data: hiddenRows } = await supabaseAdmin
+        .from('message_hidden_users')
+        .select('message_id')
+        .eq('user_id', session.user.id)
+        .in('message_id', candidateIds);
+      const hiddenIds = new Set((hiddenRows || []).map((row) => String(row.message_id)));
+      page = page.filter((message) => !hiddenIds.has(String(message.id)));
+    }
     const participants = await getConversationParticipantIds(conversationId);
     const profiles = await getMessagingProfiles(participants.map((participant) => participant.user_id));
     const messageIds = page.map((message) => message.id);
@@ -129,16 +170,36 @@ export async function GET(
       (replyRows || []).forEach((message) => replyById.set(String(message.id), message));
     }
     const reactionsByMessage = new Map<string, any[]>();
+    const attachmentsByMessage = new Map<string, any[]>();
+    const pinnedMessageIds = new Set<string>();
     if (messageIds.length) {
-      const { data: reactions } = await supabaseAdmin
-        .from('message_reactions')
-        .select('message_id, user_id, reaction')
-        .in('message_id', messageIds);
+      const [{ data: reactions }, { data: attachments }, { data: pins }] = await Promise.all([
+        supabaseAdmin
+          .from('message_reactions')
+          .select('message_id, user_id, reaction')
+          .in('message_id', messageIds),
+        supabaseAdmin
+          .from('message_attachments')
+          .select('id, message_id, attachment_type, url, preview_url, mime_type, file_name, size_bytes, width, height, duration_ms, waveform, position, metadata')
+          .in('message_id', messageIds)
+          .order('position', { ascending: true }),
+        supabaseAdmin
+          .from('message_pins')
+          .select('message_id')
+          .eq('conversation_id', conversationId)
+          .in('message_id', messageIds),
+      ]);
       (reactions || []).forEach((reaction) => {
         const list = reactionsByMessage.get(reaction.message_id) || [];
         list.push(reaction);
         reactionsByMessage.set(reaction.message_id, list);
       });
+      (attachments || []).forEach((attachment) => {
+        const list = attachmentsByMessage.get(attachment.message_id) || [];
+        list.push(attachment);
+        attachmentsByMessage.set(attachment.message_id, list);
+      });
+      (pins || []).forEach((pin) => pinnedMessageIds.add(String(pin.message_id)));
     }
 
     const otherParticipant = participants.find((participant) => participant.user_id !== session.user.id);
@@ -157,8 +218,16 @@ export async function GET(
         reactionsByMessage.get(message.id) || [],
         replyTo,
         replyTo ? profiles.get(replyTo.sender_id) : null,
+        attachmentsByMessage.get(message.id) || [],
+        pinnedMessageIds.has(String(message.id)),
       );
     });
+
+    await supabaseAdmin
+      .from('conversation_participants')
+      .update({ last_delivered_at: new Date().toISOString() })
+      .eq('conversation_id', conversationId)
+      .eq('user_id', session.user.id);
 
     return NextResponse.json({
       conversation: {
@@ -228,6 +297,9 @@ export async function POST(
     }
 
     const body = await request.json().catch(() => null);
+    const clientId = typeof body?.clientId === 'string' && /^[a-zA-Z0-9-]{8,80}$/.test(body.clientId)
+      ? body.clientId
+      : null;
     let roomId: string | null = null;
     if (conversation.is_group) {
       const { data: rooms } = await supabaseAdmin
@@ -243,6 +315,26 @@ export async function POST(
     const type = MESSAGE_TYPES.has(body?.type) ? String(body.type) : 'text';
     let content = typeof body?.content === 'string' ? body.content.trim().slice(0, MAX_MESSAGE_LENGTH) : '';
     let mediaUrl = typeof body?.mediaUrl === 'string' ? body.mediaUrl.trim() : '';
+    const attachments = (Array.isArray(body?.attachments) ? body.attachments : [])
+      .slice(0, 10)
+      .map((attachment: any, position: number) => ({
+        attachment_type: ['image', 'video', 'audio', 'file'].includes(attachment?.type) ? attachment.type : 'file',
+        url: typeof attachment?.url === 'string' && /^https:\/\//i.test(attachment.url.trim()) ? attachment.url.trim().slice(0, 1200) : '',
+        preview_url: typeof attachment?.previewUrl === 'string' && /^https:\/\//i.test(attachment.previewUrl.trim()) ? attachment.previewUrl.trim().slice(0, 1200) : null,
+        mime_type: typeof attachment?.mimeType === 'string' ? attachment.mimeType.trim().slice(0, 120) || null : null,
+        file_name: typeof attachment?.fileName === 'string' ? attachment.fileName.trim().slice(0, 180) || null : null,
+        size_bytes: Number.isFinite(Number(attachment?.sizeBytes)) ? Math.max(0, Number(attachment.sizeBytes)) : null,
+        width: Number.isFinite(Number(attachment?.width)) ? Math.max(0, Number(attachment.width)) : null,
+        height: Number.isFinite(Number(attachment?.height)) ? Math.max(0, Number(attachment.height)) : null,
+        duration_ms: Number.isFinite(Number(attachment?.durationMs)) ? Math.max(0, Math.round(Number(attachment.durationMs))) : null,
+        waveform: (Array.isArray(attachment?.waveform) ? attachment.waveform : []).map(Number).filter(Number.isFinite).slice(0, 160),
+        position,
+        metadata: sanitizeMessageMetadata(attachment?.metadata),
+      }))
+      .filter((attachment: any) => Boolean(attachment.url));
+    if (!mediaUrl && ['image', 'audio', 'video'].includes(type)) {
+      mediaUrl = attachments.find((attachment: any) => attachment.attachment_type === type)?.url || '';
+    }
     if (['image', 'audio', 'video'].includes(type) && !mediaUrl && /^https:\/\//i.test(content)) {
       mediaUrl = content;
       content = '';
@@ -269,10 +361,11 @@ export async function POST(
       else replyTo = reply;
     }
 
-    const { data: inserted, error } = await supabaseAdmin
+    const { data: createdMessage, error } = await supabaseAdmin
       .from('messages')
       .insert({
         id: crypto.randomUUID(),
+        client_id: clientId,
         conversation_id: conversationId,
         room_id: roomId,
         sender_id: session.user.id,
@@ -285,12 +378,46 @@ export async function POST(
         reply_to_id: replyToId,
         is_read: false,
       })
-      .select('id, conversation_id, room_id, sender_id, content, message_type, media_url, shared_entity_type, shared_entity_id, metadata, reply_to_id, is_read, deleted_at, created_at, updated_at')
+      .select('id, client_id, conversation_id, room_id, sender_id, content, message_type, media_url, shared_entity_type, shared_entity_id, metadata, reply_to_id, is_read, deleted_at, created_at, updated_at, edited_at')
       .single();
-    if (error || !inserted) {
+    let inserted = createdMessage;
+    let createdNow = true;
+    if (error?.code === '23505' && clientId) {
+      const { data: existing } = await supabaseAdmin
+        .from('messages')
+        .select('id, client_id, conversation_id, room_id, sender_id, content, message_type, media_url, shared_entity_type, shared_entity_id, metadata, reply_to_id, is_read, deleted_at, created_at, updated_at, edited_at')
+        .eq('conversation_id', conversationId)
+        .eq('sender_id', session.user.id)
+        .eq('client_id', clientId)
+        .maybeSingle();
+      inserted = existing;
+      createdNow = false;
+    }
+    if (!inserted) {
       console.error('[messages/conversation] send failed:', error?.message);
       return NextResponse.json({ error: 'Envoi impossible' }, { status: 500 });
     }
+
+    if (createdNow && attachments.length) {
+      const { error: attachmentError } = await supabaseAdmin.from('message_attachments').insert(
+        attachments.map((attachment: any) => ({
+          ...attachment,
+          message_id: inserted.id,
+          conversation_id: conversationId,
+        })),
+      );
+      if (attachmentError) {
+        await supabaseAdmin.from('messages').delete().eq('id', inserted.id);
+        console.error('[messages/conversation] attachments failed:', attachmentError.message);
+        return NextResponse.json({ error: 'Pieces jointes impossibles a enregistrer' }, { status: 500 });
+      }
+    }
+
+    const { data: storedAttachments } = await supabaseAdmin
+      .from('message_attachments')
+      .select('id, message_id, attachment_type, url, preview_url, mime_type, file_name, size_bytes, width, height, duration_ms, waveform, position, metadata')
+      .eq('message_id', inserted.id)
+      .order('position', { ascending: true });
 
     const now = new Date().toISOString();
     await supabaseAdmin
@@ -322,20 +449,22 @@ export async function POST(
     const notificationRecipientIds = recipientParticipants
       .filter((participant) => !participant.muted_until || new Date(participant.muted_until).getTime() <= Date.now())
       .map((participant) => participant.user_id);
-    await Promise.allSettled(notificationRecipientIds.map((recipientId) => notifyNewMessage(
-      session.user.id,
-      recipientId,
-      sender.name,
-      conversationId,
-      preview,
-      roomId,
-      inserted.id,
-      sender.avatar,
-    )));
+    if (createdNow) {
+      await Promise.allSettled(notificationRecipientIds.map((recipientId) => notifyNewMessage(
+        session.user.id,
+        recipientId,
+        sender.name,
+        conversationId,
+        preview,
+        roomId,
+        inserted.id,
+        sender.avatar,
+      )));
+    }
 
     return NextResponse.json({
-      message: messageDto(inserted, sender, participants, [], replyTo, replyTo ? profiles.get(replyTo.sender_id) : null),
-    }, { status: 201 });
+      message: messageDto(inserted, sender, participants, [], replyTo, replyTo ? profiles.get(replyTo.sender_id) : null, storedAttachments || []),
+    }, { status: createdNow ? 201 : 200 });
   } catch (error) {
     console.error('[messages/conversation] POST failed:', error);
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
@@ -379,7 +508,9 @@ export async function PATCH(
       const changes = {
         name: typeof body?.name === 'string' ? body.name.trim().slice(0, 64) : undefined,
         description: typeof body?.description === 'string' ? body.description.trim().slice(0, 180) || null : undefined,
-        avatar_url: typeof body?.avatarUrl === 'string' && /^https:\/\//i.test(body.avatarUrl) ? body.avatarUrl.slice(0, 800) : undefined,
+        avatar_url: body?.avatarUrl === null
+          ? null
+          : typeof body?.avatarUrl === 'string' && /^https:\/\//i.test(body.avatarUrl) ? body.avatarUrl.slice(0, 800) : undefined,
       };
       const cleanChanges = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined));
       if (!Object.keys(cleanChanges).length) return NextResponse.json({ error: 'Aucune modification' }, { status: 400 });

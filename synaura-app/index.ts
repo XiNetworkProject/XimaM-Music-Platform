@@ -1,9 +1,11 @@
 import 'react-native-gesture-handler';
+import 'react-native-url-polyfill/auto';
 import TrackPlayer from 'react-native-track-player';
-import { Text, TextInput } from 'react-native';
+import { AppRegistry, Text, TextInput } from 'react-native';
 import { registerRootComponent } from 'expo';
 import App from './src/App';
 import { playbackService } from './src/player/playbackService';
+import { BubbleConversationRoot } from './src/messaging/BubbleConversationRoot';
 import './src/notifications/backgroundNotificationTask';
 
 // Conserve l'accessibilite du texte sans laisser un reglage constructeur tres
@@ -17,4 +19,5 @@ for (const component of [Text, TextInput]) {
 }
 
 TrackPlayer.registerPlaybackService(() => playbackService);
+AppRegistry.registerComponent('SynauraBubble', () => BubbleConversationRoot);
 registerRootComponent(App);

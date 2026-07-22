@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Modal,
   Pressable,
   RefreshControl,
@@ -11,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -34,6 +34,7 @@ import { AppHeader } from '@/components/ui/AppHeader';
 import { MessagingAvatar } from '@/components/messaging/MessagingAvatar';
 import { MotionPressable } from '@/components/motion/Motion';
 import { messagingKeys } from '@/messaging/useMessagingUnread';
+import { subscribeToMessagingInboxRealtime } from '@/messaging/realtime';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import type { MessagingSharePayload } from '@/navigation/Tabs';
@@ -104,24 +105,59 @@ export function MessagesScreen() {
     setTab(routeTab(route.params?.tab));
   }, [route.params?.tab]);
 
-  const inbox = useQuery({
-    queryKey: messagingKeys.inbox(),
-    queryFn: async () => {
-      const [conversations, requests, contacts] = await Promise.all([
-        getMessageConversations(),
-        getMessageRequests(),
-        getMessageContacts(),
-      ]);
-      return { conversations, requests, contacts };
-    },
+  const conversationsQuery = useQuery({
+    queryKey: [...messagingKeys.inbox(), 'conversations'],
+    queryFn: getMessageConversations,
     enabled: Boolean(auth.user && auth.token),
-    staleTime: 8_000,
+    staleTime: 15_000,
+    retry: 1,
+  });
+  const requestsQuery = useQuery({
+    queryKey: [...messagingKeys.inbox(), 'requests'],
+    queryFn: getMessageRequests,
+    enabled: Boolean(auth.user && auth.token),
+    staleTime: 20_000,
+    retry: 1,
+  });
+  const contactsQuery = useQuery({
+    queryKey: [...messagingKeys.inbox(), 'contacts'],
+    queryFn: getMessageContacts,
+    enabled: Boolean(auth.user && auth.token),
+    staleTime: 30_000,
     retry: 1,
   });
 
   useFocusEffect(useCallback(() => {
-    if (auth.user && auth.token) void inbox.refetch();
+    if (auth.user && auth.token) {
+      void conversationsQuery.refetch();
+      void requestsQuery.refetch();
+      void contactsQuery.refetch();
+    }
   }, [auth.token, auth.user?.id]));
+
+  useEffect(() => {
+    if (!auth.token || !auth.user?.id) return undefined;
+    let unsubscribe: (() => void) | undefined;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    void subscribeToMessagingInboxRealtime(auth.token, auth.user.id, (table) => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        if (table === 'messages' || table === 'conversations' || table === 'participants') {
+          void queryClient.invalidateQueries({ queryKey: [...messagingKeys.inbox(), 'conversations'], exact: true });
+          void queryClient.invalidateQueries({ queryKey: messagingKeys.unread() });
+        }
+        if (table === 'requests') void queryClient.invalidateQueries({ queryKey: [...messagingKeys.inbox(), 'requests'], exact: true });
+        if (table === 'friendships' || table === 'blocks') {
+          void queryClient.invalidateQueries({ queryKey: [...messagingKeys.inbox(), 'contacts'], exact: true });
+          void queryClient.invalidateQueries({ queryKey: [...messagingKeys.inbox(), 'requests'], exact: true });
+        }
+      }, 90);
+    }).then((dispose) => { unsubscribe = dispose; }).catch(() => {});
+    return () => {
+      unsubscribe?.();
+      if (refreshTimer) clearTimeout(refreshTimer);
+    };
+  }, [auth.token, auth.user?.id, queryClient]);
 
   const normalized = search.trim().toLocaleLowerCase('fr-FR');
   const matches = useCallback((user?: MessagingUser | null) => !normalized || Boolean(
@@ -129,9 +165,9 @@ export function MessagesScreen() {
       || user?.username.toLocaleLowerCase('fr-FR').includes(normalized),
   ), [normalized]);
 
-  const conversations = inbox.data?.conversations.conversations || [];
-  const requests = inbox.data?.requests || { received: [], sent: [] };
-  const contacts = inbox.data?.contacts || [];
+  const conversations = conversationsQuery.data?.conversations || [];
+  const requests = requestsQuery.data || { received: [], sent: [] };
+  const contacts = contactsQuery.data || [];
   const totalUnread = conversations.reduce((sum, conversation) => sum + conversation.unreadCount, 0);
 
   const rows = useMemo<ListRow[]>(() => {
@@ -262,6 +298,13 @@ export function MessagesScreen() {
     : tab === 'requests'
       ? ['Aucune demande', search ? 'Aucune demande ne correspond à ta recherche.' : 'Les nouvelles demandes d’amis apparaîtront ici.']
       : ['Aucun ami', search ? 'Aucun ami ne correspond à ta recherche.' : 'Tes demandes acceptées formeront ici ton cercle musical.'];
+  const activeQuery = tab === 'conversations' ? conversationsQuery : tab === 'requests' ? requestsQuery : contactsQuery;
+  const refreshing = conversationsQuery.isRefetching || requestsQuery.isRefetching || contactsQuery.isRefetching;
+  const refreshAll = () => Promise.all([
+    conversationsQuery.refetch(),
+    requestsQuery.refetch(),
+    contactsQuery.refetch(),
+  ]);
 
   return (
     <View style={styles.screen}>
@@ -291,20 +334,18 @@ export function MessagesScreen() {
         {pendingShare ? <View style={styles.shareBanner}><Ionicons name="musical-notes" size={17} color={colors.cyan} /><View style={styles.shareBannerCopy}><Text numberOfLines={1} style={styles.shareBannerTitle}>{pendingShare.metadata.title}</Text><Text style={styles.shareBannerText}>Sera envoyé dans la discussion choisie.</Text></View><Pressable hitSlop={8} onPress={() => navigation.setParams({ share: undefined })}><Ionicons name="close" size={18} color={colors.textTertiary} /></Pressable></View> : null}
       </View>
 
-      {inbox.isLoading ? (
+      {activeQuery.isLoading ? (
         <View style={styles.loader}><ActivityIndicator color={colors.violet} /></View>
-      ) : inbox.isError ? (
-        <View style={styles.authEmpty}><Text style={styles.emptyTitle}>Messagerie indisponible</Text><Text style={styles.emptyText}>{inbox.error instanceof Error ? inbox.error.message : 'Réessaie dans un instant.'}</Text><MotionPressable style={styles.secondaryButton} onPress={() => void inbox.refetch()}><Text style={styles.secondaryButtonText}>Réessayer</Text></MotionPressable></View>
+      ) : activeQuery.isError ? (
+        <View style={styles.authEmpty}><Text style={styles.emptyTitle}>Messagerie indisponible</Text><Text style={styles.emptyText}>{activeQuery.error instanceof Error ? activeQuery.error.message : 'Réessaie dans un instant.'}</Text><MotionPressable style={styles.secondaryButton} onPress={() => void activeQuery.refetch()}><Text style={styles.secondaryButtonText}>Réessayer</Text></MotionPressable></View>
       ) : (
-        <FlatList
+        <FlashList
           data={rows}
           keyExtractor={(row) => row.kind === 'requestHeader' ? row.id : row.kind === 'conversation' ? row.value.id : row.kind === 'request' ? row.value.id : row.value.friendshipId}
           contentContainerStyle={[styles.listContent, layout.contentFrame, { paddingHorizontal: layout.gutter, paddingBottom: layout.miniPlayerClearance + 20 }, !rows.length && styles.listEmpty]}
-          refreshControl={<RefreshControl refreshing={inbox.isRefetching} onRefresh={() => void inbox.refetch()} tintColor={colors.violet} colors={[colors.violet]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refreshAll()} tintColor={colors.violet} colors={[colors.violet]} />}
           keyboardShouldPersistTaps="handled"
-          removeClippedSubviews
-          initialNumToRender={12}
-          windowSize={7}
+          drawDistance={layout.height}
           ListEmptyComponent={<EmptyInbox icon={tab === 'conversations' ? 'chatbubble-ellipses-outline' : tab === 'requests' ? 'person-add-outline' : 'people-outline'} title={emptyCopy[0]} text={emptyCopy[1]} onDiscover={tab !== 'requests' && !search ? () => navigation.navigate('Tabs', { screen: 'Discover' }) : undefined} />}
           renderItem={({ item }) => {
             if (item.kind === 'requestHeader') return <Text style={styles.groupTitle}>{item.label}</Text>;

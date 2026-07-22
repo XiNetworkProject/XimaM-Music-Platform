@@ -8,6 +8,7 @@ type NativeMessagingModule = {
   startVoiceRecording: () => Promise<string>;
   stopVoiceRecording: () => Promise<NativeRecorderResult>;
   cancelVoiceRecording: () => Promise<void>;
+  getVoiceAmplitude: () => Promise<number>;
 };
 
 const nativeMessaging = NativeModules.SynauraMessaging as NativeMessagingModule | undefined;
@@ -15,6 +16,7 @@ const nativeMessaging = NativeModules.SynauraMessaging as NativeMessagingModule 
 export type VoiceDraft = {
   uri: string;
   durationMs: number;
+  waveform: number[];
 };
 
 export function useVoiceMessageRecorder(options: {
@@ -25,6 +27,8 @@ export function useVoiceMessageRecorder(options: {
   const [phase, setPhase] = useState<'idle' | 'recording' | 'preview'>('idle');
   const [durationMs, setDurationMs] = useState(0);
   const [draft, setDraft] = useState<VoiceDraft | null>(null);
+  const [waveform, setWaveform] = useState<number[]>([]);
+  const waveformRef = useRef<number[]>([]);
   const [locked, setLocked] = useState(false);
   const [cancelArmed, setCancelArmed] = useState(false);
   const phaseRef = useRef(phase);
@@ -51,6 +55,8 @@ export function useVoiceMessageRecorder(options: {
     if (phaseRef.current === 'recording') await nativeMessaging?.cancelVoiceRecording().catch(() => {});
     await removeDraftFile();
     setDraft(null);
+    setWaveform([]);
+    waveformRef.current = [];
     setDurationMs(0);
     setLocked(false);
     setCancelArmed(false);
@@ -85,9 +91,21 @@ export function useVoiceMessageRecorder(options: {
       setLocked(false);
       setCancelArmed(false);
       setDurationMs(0);
+      setWaveform([]);
+      waveformRef.current = [];
       phaseRef.current = 'recording';
       setPhase('recording');
-      timerRef.current = setInterval(() => setDurationMs(Date.now() - startedAtRef.current), 100);
+      timerRef.current = setInterval(() => {
+        setDurationMs(Date.now() - startedAtRef.current);
+        void nativeMessaging.getVoiceAmplitude().then((sample) => {
+          const normalized = Math.max(0, Math.min(1, Number(sample || 0)));
+          setWaveform((current) => {
+            const next = [...current, normalized].slice(-120);
+            waveformRef.current = next;
+            return next;
+          });
+        }).catch(() => {});
+      }, 100);
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       return true;
     } catch (error) {
@@ -100,6 +118,8 @@ export function useVoiceMessageRecorder(options: {
     stopTimer();
     await nativeMessaging?.cancelVoiceRecording().catch(() => {});
     setDurationMs(0);
+    setWaveform([]);
+    waveformRef.current = [];
     setLocked(false);
     setCancelArmed(false);
     lockedRef.current = false;
@@ -115,7 +135,7 @@ export function useVoiceMessageRecorder(options: {
     stopTimer();
     try {
       const result = await nativeMessaging.stopVoiceRecording();
-      const next = { uri: result.uri, durationMs: Math.max(Number(result.durationMs || 0), Date.now() - startedAtRef.current) };
+      const next = { uri: result.uri, durationMs: Math.max(Number(result.durationMs || 0), Date.now() - startedAtRef.current), waveform: waveformRef.current };
       if (next.durationMs < 350) {
         await removeDraftFile(next);
         options.onError('Maintiens le micro un peu plus longtemps.');
@@ -142,6 +162,8 @@ export function useVoiceMessageRecorder(options: {
   const discardDraft = useCallback(async () => {
     await removeDraftFile();
     setDraft(null);
+    setWaveform([]);
+    waveformRef.current = [];
     setDurationMs(0);
     phaseRef.current = 'idle';
     setPhase('idle');
@@ -149,6 +171,8 @@ export function useVoiceMessageRecorder(options: {
 
   const consumeDraft = useCallback(() => {
     setDraft(null);
+    setWaveform([]);
+    waveformRef.current = [];
     setDurationMs(0);
     phaseRef.current = 'idle';
     setPhase('idle');
@@ -196,10 +220,12 @@ export function useVoiceMessageRecorder(options: {
   return {
     phase,
     durationMs,
+    waveform,
     draft,
     locked,
     cancelArmed,
     panHandlers: panResponder.panHandlers,
+    begin,
     stop,
     cancel,
     discardDraft,

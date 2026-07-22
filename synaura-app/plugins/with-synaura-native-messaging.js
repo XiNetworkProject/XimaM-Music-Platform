@@ -4,9 +4,11 @@ const { withAndroidManifest, withDangerousMod, withMainApplication } = require('
 
 const PERMISSIONS = [
   'android.permission.RECORD_AUDIO',
+];
+const REMOVED_PERMISSIONS = new Set([
   'android.permission.SYSTEM_ALERT_WINDOW',
   'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
-];
+]);
 
 function addPermission(manifest, permission) {
   const permissions = manifest.manifest['uses-permission'] || [];
@@ -18,23 +20,24 @@ function addPermission(manifest, permission) {
 
 module.exports = function withSynauraNativeMessaging(config) {
   config = withAndroidManifest(config, (androidConfig) => {
+    androidConfig.modResults.manifest['uses-permission'] = (androidConfig.modResults.manifest['uses-permission'] || [])
+      .filter((entry) => !REMOVED_PERMISSIONS.has(entry?.$?.['android:name']));
     PERMISSIONS.forEach((permission) => addPermission(androidConfig.modResults, permission));
     const application = androidConfig.modResults.manifest.application?.[0];
     if (application) {
-      application.service = application.service || [];
-      if (!application.service.some((entry) => entry?.$?.['android:name'] === '.SynauraBubbleService')) {
-        application.service.push({
+      application.service = (application.service || []).filter((entry) => entry?.$?.['android:name'] !== '.SynauraBubbleService');
+      application.activity = application.activity || [];
+      if (!application.activity.some((entry) => entry?.$?.['android:name'] === '.SynauraBubbleActivity')) {
+        application.activity.push({
           $: {
-            'android:name': '.SynauraBubbleService',
+            'android:name': '.SynauraBubbleActivity',
             'android:exported': 'false',
-            'android:foregroundServiceType': 'specialUse',
+            'android:allowEmbedded': 'true',
+            'android:resizeableActivity': 'true',
+            'android:documentLaunchMode': 'always',
+            'android:windowSoftInputMode': 'adjustResize',
+            'android:theme': '@style/AppTheme',
           },
-          property: [{
-            $: {
-              'android:name': 'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE',
-              'android:value': 'Opt-in floating shortcut for Synaura conversations',
-            },
-          }],
         });
       }
     }
@@ -61,7 +64,9 @@ module.exports = function withSynauraNativeMessaging(config) {
     );
     const source = path.join(__dirname, 'native-messaging', 'native');
     fs.mkdirSync(destination, { recursive: true });
-    for (const file of ['SynauraMessagingModule.kt', 'SynauraMessagingPackage.kt', 'SynauraBubbleService.kt']) {
+    const staleService = path.join(destination, 'SynauraBubbleService.kt');
+    if (fs.existsSync(staleService)) fs.unlinkSync(staleService);
+    for (const file of ['SynauraMessagingModule.kt', 'SynauraMessagingPackage.kt', 'SynauraBubbleManager.kt', 'SynauraBubbleActivity.kt']) {
       fs.copyFileSync(path.join(source, file), path.join(destination, file));
     }
     return androidConfig;

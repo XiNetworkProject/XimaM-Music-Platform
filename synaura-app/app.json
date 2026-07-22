@@ -3,7 +3,8 @@
     "name": "Synaura",
     "slug": "synaura",
     "scheme": "synaura",
-    "version": "0.24.0",
+    "version": "0.25.0",
+    "newArchEnabled": true,
     "icon": "./src/assets/synaura-symbol-2026.png",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
@@ -22,8 +23,8 @@
     "android": {
       "package": "com.synaura.music",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 70,
-      "newArchEnabled": false,
+      "versionCode": 71,
+      "newArchEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/synaura-symbol-2026.png",
@@ -35,7 +36,6 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECORD_AUDIO",
         "android.permission.REQUEST_INSTALL_PACKAGES",
-        "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.WAKE_LOCK"
       ]
     },

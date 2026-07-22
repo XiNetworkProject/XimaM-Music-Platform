@@ -18,7 +18,7 @@ function notificationData(response: MessageNotificationResponse) {
   return data && typeof data === 'object' ? data as Record<string, unknown> : {};
 }
 
-async function storedAccessToken() {
+export async function getStoredMobileAccessToken() {
   let token = await SecureStore.getItemAsync(MOBILE_AUTH_TOKEN_KEY).catch(() => null);
   const expiresAt = Number(await SecureStore.getItemAsync(MOBILE_AUTH_EXPIRES_AT_KEY).catch(() => 0) || 0);
   const expiresAtMs = expiresAt > 1_000_000_000_000 ? expiresAt : expiresAt * 1_000;
@@ -52,7 +52,7 @@ export async function handleMessageNotificationAction(response: MessageNotificat
   const data = notificationData(response);
   const conversationId = String(data.conversation_id || data.conversationId || '');
   if (!conversationId) return true;
-  const token = await storedAccessToken();
+  const token = await getStoredMobileAccessToken();
   if (!token) return true;
   const headers = {
     Accept: 'application/json',
@@ -64,16 +64,19 @@ export async function handleMessageNotificationAction(response: MessageNotificat
     const content = String(response.userText || '').trim().slice(0, 2_000);
     if (!content) return true;
     const roomId = typeof data.room_id === 'string' && data.room_id ? data.room_id : null;
-    await fetch(`${API_BASE_URL}/api/messages/${encodeURIComponent(conversationId)}`, {
+    const notificationId = String(response.notification.request.identifier || conversationId).replace(/[^a-zA-Z0-9-]/g, '').slice(0, 60);
+    const result = await fetch(`${API_BASE_URL}/api/messages/${encodeURIComponent(conversationId)}`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ type: 'text', content, roomId }),
+      body: JSON.stringify({ type: 'text', content, roomId, clientId: `notification-${notificationId}` }),
     });
+    if (!result.ok) throw new Error('Reponse non envoyee');
   } else {
-    await fetch(`${API_BASE_URL}/api/messages/${encodeURIComponent(conversationId)}/seen`, {
+    const result = await fetch(`${API_BASE_URL}/api/messages/${encodeURIComponent(conversationId)}/seen`, {
       method: 'PUT',
       headers,
     });
+    if (!result.ok) throw new Error('Lecture non synchronisee');
   }
 
   await Notifications.dismissNotificationAsync(response.notification.request.identifier).catch(() => {});
