@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, DeviceEventEmitter, Platform, Text, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -92,7 +92,8 @@ function getActiveRouteName(state: any): string {
  * passe a false) : si un utilisateur deja connecte n'a pas termine l'onboarding
  * V1, Tabs n'est jamais monte en premier (donc jamais de flash "Pour toi") -
  * Onboarding devient l'ecran initial du stack racine. Ne s'execute qu'une seule
- * fois par montage de l'app (checkedRef) pour eviter toute boucle.
+ * fois par montage de l'app. Si la session change pendant la lecture locale,
+ * la decision redemarre au lieu de laisser le gate verrouille.
  */
 function RootStackNavigator() {
   const auth = useAuth();
@@ -101,22 +102,21 @@ function RootStackNavigator() {
     ready: false,
     initialRoute: 'Tabs',
   });
-  const checkedRef = useRef(false);
+  const authenticated = Boolean(auth.user?.id && auth.token);
 
   useEffect(() => {
+    if (gate.ready) return undefined;
     const watchdog = setTimeout(() => {
-      if (checkedRef.current) return;
-      checkedRef.current = true;
       setGate({ ready: true, initialRoute: 'Tabs' });
     }, ROOT_BOOT_WATCHDOG_MS);
     return () => clearTimeout(watchdog);
-  }, []);
+  }, [gate.ready]);
 
   useEffect(() => {
-    if (auth.loading || checkedRef.current) return;
-    checkedRef.current = true;
+    if (auth.loading || gate.ready) return undefined;
     let mounted = true;
     let settled = false;
+    let timeout: ReturnType<typeof setTimeout>;
     const finish = (initialRoute: 'Tabs' | 'Onboarding' | 'Welcome') => {
       if (!mounted || settled) return;
       settled = true;
@@ -126,9 +126,9 @@ function RootStackNavigator() {
 
     // Aucune lecture reseau ou locale ne doit pouvoir retenir la navigation sur
     // un ecran vide. En cas de stockage/reseau lent, l'app reste accessible.
-    const timeout = setTimeout(() => finish('Tabs'), ROOT_GATE_TIMEOUT_MS);
+    timeout = setTimeout(() => finish('Tabs'), ROOT_GATE_TIMEOUT_MS);
 
-    if (!auth.user || !auth.token) {
+    if (!authenticated) {
       void isWelcomeCompleted()
         .then((completed) => finish(completed ? 'Tabs' : 'Welcome'))
         .catch(() => finish('Tabs'));
@@ -142,7 +142,7 @@ function RootStackNavigator() {
       mounted = false;
       clearTimeout(timeout);
     };
-  }, [auth.loading, auth.user, auth.token]);
+  }, [auth.loading, authenticated, gate.ready]);
 
   if (!gate.ready) {
     return (

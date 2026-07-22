@@ -29,15 +29,14 @@ export function ConversationBubbleProvider({ children }: { children: React.React
   useEffect(() => {
     if (!supportsConversationBubble()) return undefined;
     let mounted = true;
-    let refreshing = false;
+    let synchronization = Promise.resolve();
 
     const refreshBubble = async (config: ConversationBubbleConfig) => {
-      if (refreshing || !auth.user || config.userId !== auth.user.id) return;
-      refreshing = true;
+      if (!auth.user || config.userId !== auth.user.id) return false;
       try {
         const page = await getConversationMessages(config.conversationId);
-        if (!mounted) return;
-        await updateConversationBubbleContent(config, page.messages.map((message) => ({
+        if (!mounted) return false;
+        return await updateConversationBubbleContent(config, page.messages.map((message) => ({
           id: message.id,
           senderId: message.sender.id,
           senderName: message.sender.name,
@@ -47,9 +46,7 @@ export function ConversationBubbleProvider({ children }: { children: React.React
           reaction: message.reactions.find((reaction) => reaction.userId === auth.user?.id)?.reaction || null,
         })));
       } catch {
-        // The compact chat keeps the last synchronized messages while offline.
-      } finally {
-        refreshing = false;
+        return false;
       }
     };
 
@@ -62,9 +59,21 @@ export function ConversationBubbleProvider({ children }: { children: React.React
       const config = await getPreferredConversationBubble();
       if (!mounted || !config || config.userId !== auth.user.id) return;
       await configureNativeConversationBubble(config);
-      if (state === 'active') return;
-      await showConversationBubble(config.conversationId, config.title, config.accentColor).catch(() => {});
-      await refreshBubble(config);
+      if (state === 'active') {
+        await hideConversationBubble().catch(() => {});
+        return;
+      }
+      if (state !== 'background') return;
+      const refreshed = await refreshBubble(config);
+      if (!refreshed) {
+        await showConversationBubble(config.conversationId, config.title, config.accentColor).catch(() => {});
+      }
+    };
+
+    const scheduleSynchronization = (state: AppStateStatus) => {
+      synchronization = synchronization
+        .catch(() => {})
+        .then(() => synchronize(state));
     };
 
     if (!auth.loading && !auth.user) {
@@ -80,11 +89,11 @@ export function ConversationBubbleProvider({ children }: { children: React.React
       });
     }
 
-    void synchronize(AppState.currentState);
-    const appStateSubscription = AppState.addEventListener('change', (state) => void synchronize(state));
+    scheduleSynchronization(AppState.currentState);
+    const appStateSubscription = AppState.addEventListener('change', scheduleSynchronization);
     const configSubscription = DeviceEventEmitter.addListener(
       CONVERSATION_BUBBLE_CHANGED,
-      () => void synchronize(AppState.currentState),
+      () => scheduleSynchronization(AppState.currentState),
     );
 
     return () => {

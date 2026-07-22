@@ -16,6 +16,7 @@ import { openInternalLink } from '@/navigation/internalLinks';
 import { navigationRef } from '@/navigation/navigationRef';
 import {
   handleMessageNotificationAction,
+  flushPendingMessageNotificationActions,
   isMessageNotificationAction,
   MESSAGE_MARK_READ_ACTION,
   MESSAGE_NOTIFICATION_CATEGORY,
@@ -111,22 +112,28 @@ function readablePushError(cause: unknown) {
 
 async function openNotificationResponse(response: Notifications.NotificationResponse | null) {
   if (response && isMessageNotificationAction(response)) {
-    await handleMessageNotificationAction(response).catch(() => {});
+    try {
+      await handleMessageNotificationAction(response);
+    } finally {
+      await Notifications.clearLastNotificationResponseAsync().catch(() => {});
+    }
     return;
   }
   const url = response?.notification.request.content.data?.url;
   if (typeof url !== 'string' || !url) return;
   const responseId = response?.notification.request.identifier || url;
   if (lastOpenedNotificationId === responseId) return;
+  lastOpenedNotificationId = responseId;
+  await Notifications.clearLastNotificationResponseAsync().catch(() => {});
+  let attempts = 0;
   const open = () => {
     if (!navigationRef.isReady()) {
+      attempts += 1;
+      if (attempts >= 20) return;
       setTimeout(open, 350);
       return;
     }
-    lastOpenedNotificationId = responseId;
-    void openInternalLink(navigationRef as any, url).finally(() => {
-      void Notifications.clearLastNotificationResponseAsync().catch(() => {});
-    });
+    void openInternalLink(navigationRef as any, url);
   };
   open();
 }
@@ -275,6 +282,7 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
     const receivedSubscription = Notifications.addNotificationReceivedListener(() => {
       void refreshUnread();
     });
+    void flushPendingMessageNotificationActions({ force: true }).catch(() => {});
     void Notifications.getLastNotificationResponseAsync().then((response) => openNotificationResponse(response)).catch(() => {});
     return () => {
       responseSubscription.remove();
@@ -292,7 +300,10 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
     }
     void refreshUnread();
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') void refreshUnread();
+      if (nextState === 'active') {
+        void refreshUnread();
+        void flushPendingMessageNotificationActions().catch(() => {});
+      }
     });
     const interval = setInterval(() => {
       if (AppState.currentState === 'active') void refreshUnread();

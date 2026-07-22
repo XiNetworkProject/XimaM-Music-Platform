@@ -1,13 +1,11 @@
 {
-  "title": "Synaura Messages 0.25.1",
+  "title": "Synaura Correctifs 0.25.2",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Correction de la fermeture immediate au demarrage avec la New Architecture React Native",
-    "Envois de messages conserves hors ligne puis repris automatiquement sans doublon",
-    "Vocaux jusqu'a cinq minutes avec vraie waveform complete, apercu et gestes d'enregistrement",
-    "Ajout, retrait et roles des membres de groupe sur l'app native et le web",
-    "Televersements de medias plus robustes avec nouvelle signature automatique apres expiration",
-    "Notifications de recompenses et donnees editoriales alignees avec Supabase"
+    "Ouverture fiable apres fermeture ou redemarrage, meme si la restauration de session est lente",
+    "Reponses rapides depuis les notifications mises en attente hors ligne puis envoyees sans doublon",
+    "Notifications de conversation regroupees et anciennes alertes expirees automatiquement",
+    "Bulle Android synchronisee une seule fois au passage en arriere-plan"
   ]
 }

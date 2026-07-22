@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, DeviceEventEmitter } from 'react-native';
 import { API_BASE_URL, setAuthRefreshHandler, setAuthTokenProvider } from '@/api/client';
 import {
   MOBILE_AUTH_EXPIRES_AT_KEY,
   MOBILE_AUTH_REFRESH_TOKEN_KEY,
+  MOBILE_AUTH_SESSION_REFRESHED_EVENT,
   MOBILE_AUTH_TOKEN_KEY,
 } from '@/auth/storageKeys';
 
@@ -107,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshTokenRef = useRef<string | null>(null);
   const expiresAtRef = useRef(0);
   const refreshPromiseRef = useRef<Promise<boolean> | null>(null);
+  const sessionMutationRef = useRef(0);
 
   const persistSession = useCallback(async (
     nextToken: string | null,
@@ -114,6 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     nextExpiresAt: number,
     nextUser: MobileUser | null,
   ) => {
+    sessionMutationRef.current += 1;
     tokenRef.current = nextToken;
     refreshTokenRef.current = nextRefreshToken;
     expiresAtRef.current = nextExpiresAt;
@@ -178,8 +181,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refreshSession]);
 
   useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener(MOBILE_AUTH_SESSION_REFRESHED_EVENT, (session) => {
+      const nextToken = typeof session?.token === 'string' ? session.token : '';
+      if (!nextToken) return;
+      sessionMutationRef.current += 1;
+      tokenRef.current = nextToken;
+      refreshTokenRef.current = typeof session?.refreshToken === 'string' ? session.refreshToken : refreshTokenRef.current;
+      expiresAtRef.current = Number(session?.expiresAt || 0);
+      setAuthTokenProvider(() => nextToken);
+      setToken(nextToken);
+      if (session?.user?.id) {
+        setUser((current) => ({ ...current, ...session.user } as MobileUser));
+        void AsyncStorage.setItem(USER_KEY, JSON.stringify(session.user)).catch(() => {});
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
     let restoreExpired = false;
+    const restoreMutation = sessionMutationRef.current;
     const restoreTimeout = setTimeout(() => {
       restoreExpired = true;
       if (mounted) setLoading(false);
@@ -194,7 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           AsyncStorage.getItem(USER_KEY),
           AsyncStorage.getItem(TOKEN_KEY),
         ]);
-        if (!mounted || restoreExpired) return;
+        if (!mounted || sessionMutationRef.current !== restoreMutation) return;
 
         const restoredToken = secureToken || legacyToken || null;
         const restoredUser = parseStoredUser(storedUserRaw);
@@ -206,7 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(restoredToken);
         setUser(restoredUser);
         clearTimeout(restoreTimeout);
-        setLoading(false);
+        if (!restoreExpired) setLoading(false);
 
         if (legacyToken && !secureToken) {
           await secureSet(TOKEN_KEY, legacyToken);

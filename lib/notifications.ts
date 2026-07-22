@@ -227,7 +227,10 @@ export async function createNotification(opts: CreateNotificationOpts) {
   }
 
   console.log('[notifications] created:', { id: notif.id, type, userId: userId.slice(0, 8) });
-  await sendPushInBackground(userId, type, title, message, actionUrl, pushData);
+  await sendPushInBackground(userId, type, title, message, actionUrl, {
+    ...pushData,
+    notification_id: String(notif.id),
+  });
 
   return notif;
 }
@@ -314,6 +317,11 @@ async function sendNativePush(userId: string, type: NotifType, title: string, bo
     'Content-Type': 'application/json',
   };
   if (EXPO_ACCESS_TOKEN) headers.Authorization = `Bearer ${EXPO_ACCESS_TOKEN}`;
+  const isMessage = TYPE_TO_CATEGORY[type] === 'message';
+  const conversationKey = String(data?.conversation_id || data?.related_id || '')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .slice(0, 40);
+  const messageGroupKey = conversationKey ? `synaura-message-${conversationKey}` : undefined;
   let response: Response;
   try {
     response = await fetch('https://exp.host/--/api/v2/push/send', {
@@ -326,8 +334,11 @@ async function sendNativePush(userId: string, type: NotifType, title: string, bo
         body,
         sound: 'default',
         priority: 'high',
-        channelId: TYPE_TO_CATEGORY[type] === 'message' ? 'synaura-messages' : 'synaura-activity',
-        categoryId: TYPE_TO_CATEGORY[type] === 'message' ? 'synaura_message' : undefined,
+        ttl: isMessage ? 6 * 60 * 60 : 24 * 60 * 60,
+        channelId: isMessage ? 'synaura-messages' : 'synaura-activity',
+        categoryId: isMessage ? 'synaura_message' : undefined,
+        collapseId: isMessage ? messageGroupKey : undefined,
+        tag: isMessage ? messageGroupKey : undefined,
         data: { type, url: url || '/notifications', ...(data || {}) },
       }))),
     });
