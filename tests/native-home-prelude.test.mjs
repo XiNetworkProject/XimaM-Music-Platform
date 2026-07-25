@@ -99,9 +99,9 @@ test('tablet cards use the broader web rail proportions', () => {
   assert.equal(wideBreakpoint.pulseHeight, 400);
 });
 
-test('the native atmosphere stays diffuse without decorative bubble outlines', () => {
-  assert.match(nativePreludeSource, /styles\.atmosphereBand/);
-  assert.match(nativePreludeSource, /styles\.atmosphereSheen/);
-  assert.match(nativePreludeSource, /styles\.playSurfacePulse/);
-  assert.doesNotMatch(nativePreludeSource, /logoPulseRing|playPulseRing|auroraField/);
+test('the approved native home keeps the activity rail and Flow transition', () => {
+  assert.match(nativePreludeSource, /const BANNER_ROTATION_MS = 4200/);
+  assert.match(nativePreludeSource, /styles\.pulseCard/);
+  assert.match(nativePreludeSource, /styles\.railWrap/);
+  assert.match(nativePreludeSource, /PanResponder\.create/);
 });

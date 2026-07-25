@@ -1,42 +1,46 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  AppState,
   Easing,
+  FlatList,
+  Image,
   PanResponder,
+  Platform,
   StyleSheet,
   Text,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
+import { useNavigation } from '@react-navigation/native';
 import type { HomePost, Track } from '@/api/types';
-import { MessageInboxButton } from '@/components/messaging/MessageInboxButton';
-import { BreathingView, MotionPressable } from '@/components/motion/Motion';
-import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
+import { MotionPressable } from '@/components/motion/Motion';
 import { getTrackCoverImage } from '@/components/TrackCover';
-import { fmtCount, trackArtistName } from '@/components/swipe/helpers';
-import { SynauraImage } from '@/components/ui/SynauraImage';
-import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
-import {
-  HOME_BANNER_ROTATION_MS,
-  HOME_PUNCHLINES,
-  pickNextPunchlineIndex,
-  resolveHomePreludeMetrics,
-} from './homePreludeModel';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 const brandSymbol = require('../../assets/synaura-symbol-2026.png');
-const EMPTY_BOOLEAN_MAP: Record<string, boolean> = {};
-const EMPTY_NUMBER_MAP: Record<string, number> = {};
-const FONT_SEMIBOLD = 'Inter_600SemiBold';
-const FONT_BOLD = 'Inter_700Bold';
-const FONT_EXTRABOLD = 'Inter_800ExtraBold';
-const FONT_BLACK = 'Inter_900Black';
+
+const PUNCHLINES = [
+  'POV : tu voulais juste écouter un son.',
+  'On t’a gardé du lourd pendant ton absence.',
+  'Petit scroll innocent, grosse obsession musicale.',
+  'Ton Flow a bossé pendant que tu vivais ta vie.',
+  'Ça sent le son envoyé à quatre potes direct.',
+  'Le Radar a encore cuisiné quelque chose.',
+  'Tu viens pour un son, tu repars avec douze.',
+  'Promis, juste deux minutes. On connaît.',
+  'Ta prochaine claque est peut-être à un swipe.',
+  'Ton FYP imaginaire aurait validé ça.',
+  'Il s’est passé deux-trois trucs pas mal ici.',
+  'Alerte : risque élevé de remettre ce son en boucle.',
+];
+
+const BANNER_ROTATION_MS = 4200;
+const FONT_BLACK = Platform.select({ android: 'sans-serif-black', ios: 'System', default: 'System' });
+const FONT_BOLD = Platform.select({ android: 'sans-serif', ios: 'System', default: 'System' });
 
 type Props = {
   visible: boolean;
@@ -68,27 +72,36 @@ type Props = {
   onRetry?: () => void;
 };
 
-type ShortcutTarget = 'discover' | 'radar' | 'studio' | 'events';
+type Shortcut = {
+  label: string;
+  sub: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  accent: string;
+  onPress: () => void;
+};
 
 type RailItem =
-  | { id: string; kind: 'skeleton' }
-  | { id: string; kind: 'post'; post: HomePost }
-  | { id: string; kind: 'recent-post'; post: HomePost }
-  | { id: string; kind: 'error' }
-  | { id: string; kind: 'community' }
+  | { id: string; kind: 'post'; post: HomePost | null }
   | { id: string; kind: 'social'; avatars: string[] }
-  | { id: string; kind: 'track'; track: Track; eyebrow: string }
-  | { id: string; kind: 'music-fallback' }
-  | {
-    id: string;
-    kind: 'shortcut';
-    target: ShortcutTarget;
-    icon: keyof typeof Ionicons.glyphMap;
-    title: string;
-    subtitle: string;
-    accent: 'violet' | 'cyan' | 'coral' | 'orange';
-  }
+  | { id: string; kind: 'track'; track: Track; badge: string }
+  | { id: string; kind: 'shortcut'; shortcut: Shortcut }
   | { id: string; kind: 'studio' };
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+function artistName(track: Track) {
+  return track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste Synaura';
+}
+
+function countOf(value: number | string[] | undefined | null) {
+  return Array.isArray(value) ? value.length : Number(value || 0);
+}
+
+function compactCount(value: number) {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)} M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)} k`;
+  return String(Math.max(0, Math.round(value)));
+}
 
 function postPreview(post: HomePost) {
   if (post.text?.trim()) return post.text.trim();
@@ -97,65 +110,14 @@ function postPreview(post: HomePost) {
   return 'vient de publier sur Synaura';
 }
 
-function trackLikes(track: Track) {
-  return Number(track.likesCount ?? track.likes?.length ?? 0);
-}
-
-function trackComments(track: Track) {
-  return Number(track.commentsCount ?? track.comments?.length ?? 0);
-}
-
-function Equalizer({ active, reducedMotion }: { active: boolean; reducedMotion: boolean }) {
-  const progress = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    progress.stopAnimation();
-    if (!active || reducedMotion) {
-      progress.setValue(0);
-      return;
-    }
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(progress, {
-        toValue: 1,
-        duration: 520,
-        easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
-      }),
-      Animated.timing(progress, {
-        toValue: 0,
-        duration: 520,
-        easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
-      }),
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, [active, progress, reducedMotion]);
-
-  const scales = [
-    progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.42, 1, 0.58] }),
-    progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.78, 0.35, 1] }),
-    progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.52, 0.9, 0.38] }),
-    progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.52, 0.74] }),
-  ];
-
-  return (
-    <View accessibilityElementsHidden style={styles.equalizer}>
-      {scales.map((scaleY, index) => (
-        <Animated.View
-          key={index}
-          style={[styles.equalizerBar, { transform: [{ scaleY }] }]}
-        />
-      ))}
-    </View>
-  );
+function hapticPress(callback: () => void) {
+  void Haptics.selectionAsync().catch(() => {});
+  callback();
 }
 
 export function HomeFlowPrelude(props: Props) {
   const {
     visible,
-    loading = false,
-    error = false,
     tracks,
     posts,
     currentTrack,
@@ -163,15 +125,9 @@ export function HomeFlowPrelude(props: Props) {
     userName,
     topPad,
     bottomPad,
-    likedMap = EMPTY_BOOLEAN_MAP,
-    likesMap = EMPTY_NUMBER_MAP,
-    commentsMap = EMPTY_NUMBER_MAP,
     onEnterFlow,
     onPlayTrack,
     onOpenTrack,
-    onToggleLike,
-    onOpenComments,
-    onShareTrack,
     onOpenPost,
     onSearch,
     onNotifications,
@@ -179,1071 +135,526 @@ export function HomeFlowPrelude(props: Props) {
     onRadar,
     onStudio,
     onEvents,
-    onRetry,
   } = props;
+
+  const navigation = useNavigation<any>();
   const responsive = useResponsiveLayout();
   const { settings } = useMobileSettings();
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [bannerIndex, setBannerIndex] = useState(0);
-  const phraseIndexRef = useRef(-1);
-  const wasVisibleRef = useRef(false);
-  const progress = useRef(new Animated.Value(0)).current;
-  const progressValue = useRef(0);
-  const entrance = useRef(new Animated.Value(settings.reducedMotion ? 1 : 0)).current;
-  const bannerEntrance = useRef(new Animated.Value(1)).current;
-  const bannerProgress = useRef(new Animated.Value(0)).current;
-  const auroraA = useRef(new Animated.Value(0)).current;
-  const auroraB = useRef(new Animated.Value(0)).current;
-  const guideMotion = useRef(new Animated.Value(0)).current;
-  const playPulse = useRef(new Animated.Value(0)).current;
-  const cardFloat = useRef(new Animated.Value(0)).current;
-  const railScrollX = useRef(new Animated.Value(0)).current;
-  const skeletonPulse = useRef(new Animated.Value(0.38)).current;
-  const finishingRef = useRef(false);
-  const lastRailIndexRef = useRef(0);
 
-  const metrics = resolveHomePreludeMetrics({
-    width: responsive.safeWidth,
-    height: responsive.height,
-    topInset: topPad,
-    bottomPad,
-    isPhoneLandscape: responsive.isPhoneLandscape,
-    isVeryShort: responsive.isVeryShort,
-  });
-  const compactRail = metrics.compactTop
-    || metrics.pulseHeight < 290
-    || responsive.hasLargeText;
-  const maxContentWidth = responsive.isPhoneLandscape
-    ? responsive.safeWidth
-    : responsive.isTablet
-      ? 920
-      : 520;
-  const homeGutter = responsive.isPhoneLandscape ? 16 : responsive.isTablet ? 24 : 16;
-  const safeLeft = responsive.insets.left + homeGutter;
-  const safeRight = responsive.insets.right + homeGutter;
+  const exitProgress = useRef(new Animated.Value(0)).current;
+  const exitProgressValue = useRef(0);
+  const bannerIn = useRef(new Animated.Value(1)).current;
+  const bannerProgress = useRef(new Animated.Value(0)).current;
+  const cardsIn = useRef(new Animated.Value(0)).current;
+  const haloOne = useRef(new Animated.Value(0)).current;
+  const haloTwo = useRef(new Animated.Value(0)).current;
+  const coverBreathe = useRef(new Animated.Value(0)).current;
+  const swipeGuide = useRef(new Animated.Value(0)).current;
+  const playPulse = useRef(new Animated.Value(0)).current;
+  const equalizer = useRef(new Animated.Value(0)).current;
+  const finishingRef = useRef(false);
 
   const playableTracks = useMemo(
-    () => tracks.filter((track) => Boolean(track?._id && track.audioUrl)),
+    () => tracks.filter((track) => Boolean(track.audioUrl)),
     [tracks],
   );
   const firstTrack = playableTracks[0] || null;
   const featuredTrack = currentTrack?.audioUrl ? currentTrack : firstTrack;
   const featuredCover = getTrackCoverImage(featuredTrack);
   const nextTrack = playableTracks.find((track) => track._id !== featuredTrack?._id) || null;
+  const discoveryTracks = playableTracks
+    .filter((track) => track._id !== featuredTrack?._id)
+    .slice(0, 4);
+  const latestPost = posts[0] || null;
+  const greetingName = userName?.trim().split(/\s+/)[0] || null;
   const isCurrentTrack = Boolean(featuredTrack && currentTrack?._id === featuredTrack._id);
   const isPlayingFeatured = Boolean(isCurrentTrack && currentPlaying);
-  const greetingName = userName?.trim().split(/\s+/)[0] || null;
-  const latestPost = posts[0] || null;
-  const featuredLikes = featuredTrack
-    ? likesMap[featuredTrack._id] ?? trackLikes(featuredTrack)
-    : 0;
-  const featuredComments = featuredTrack
-    ? commentsMap[featuredTrack._id] ?? trackComments(featuredTrack)
-    : 0;
-  const featuredLiked = featuredTrack
-    ? likedMap[featuredTrack._id] ?? Boolean(featuredTrack.isLiked)
-    : false;
 
-  const refreshPhrase = useCallback(() => {
-    const next = pickNextPunchlineIndex(phraseIndexRef.current, Math.random());
-    phraseIndexRef.current = next;
-    setPhraseIndex(next);
-  }, []);
-
-  useEffect(() => {
-    if (visible && !wasVisibleRef.current) refreshPhrase();
-    wasVisibleRef.current = visible;
-  }, [refreshPhrase, visible]);
-
-  useEffect(() => {
-    let previousState = AppState.currentState;
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      const trulyReopened = (previousState === 'background' || previousState === 'inactive')
-        && nextState === 'active';
-      previousState = nextState;
-      if (visible && trulyReopened) refreshPhrase();
-    });
-    return () => subscription.remove();
-  }, [refreshPhrase, visible]);
-
-  const bannerItems = useMemo(() => {
-    return [
-      latestPost
-        ? `${latestPost.author || latestPost.handle || 'La communauté'} vient de publier`
-        : 'La communauté se réveille doucement',
-      featuredTrack
-        ? `Fais partie des premiers sur « ${featuredTrack.title} »`
-        : 'Ton prochain son est en approche',
+  const bannerItems = useMemo(
+    () => [
+      latestPost ? `${latestPost.author} vient de publier` : 'La communauté se réveille doucement',
+      featuredTrack ? `Fais partie des premiers sur « ${featuredTrack.title} »` : 'Ton prochain son est en approche',
       'Quelqu’un pourrait t’avoir suivi récemment 👀',
       'Le Radar pense avoir trouvé ta prochaine boucle',
       'Pas de drama, juste des sons à découvrir',
       'Ton algorithme a bossé pendant ton absence',
+    ],
+    [featuredTrack, latestPost],
+  );
+
+  const avatarCandidates = useMemo(
+    () => playableTracks
+      .map((track) => track.artist?.avatar)
+      .filter((avatar): avatar is string => Boolean(avatar))
+      .slice(0, 3),
+    [playableTracks],
+  );
+
+  const shortcuts = useMemo<Shortcut[]>(
+    () => [
+      { label: 'Découvrir', sub: 'Trouve ton mood', icon: 'compass-outline', accent: '#F4A261', onPress: onDiscover },
+      { label: 'Radar', sub: 'Ce qui chauffe', icon: 'radio-outline', accent: '#4A9EAA', onPress: onRadar },
+      { label: 'Studio IA', sub: 'Crée maintenant', icon: 'sparkles-outline', accent: '#D96D63', onPress: onStudio },
+      { label: 'Événements', sub: 'La scène Synaura', icon: 'calendar-outline', accent: '#A98BE8', onPress: onEvents },
+    ],
+    [onDiscover, onEvents, onRadar, onStudio],
+  );
+
+  const railItems = useMemo<RailItem[]>(() => {
+    const items: RailItem[] = [
+      { id: 'activity', kind: 'post', post: latestPost },
+      { id: 'social', kind: 'social', avatars: avatarCandidates },
     ];
-  }, [featuredTrack, latestPost]);
 
-  useEffect(() => {
-    setBannerIndex((current) => current % Math.max(1, bannerItems.length));
-  }, [bannerItems.length]);
-
-  useEffect(() => {
-    if (!visible || !bannerItems.length) return;
-    bannerEntrance.stopAnimation();
-    bannerProgress.stopAnimation();
-    bannerEntrance.setValue(settings.reducedMotion ? 1 : 0);
-    bannerProgress.setValue(settings.reducedMotion ? 1 : 0);
-
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let entranceAnimation: Animated.CompositeAnimation | undefined;
-    let progressAnimation: Animated.CompositeAnimation | undefined;
-
-    if (settings.reducedMotion) {
-      timer = setTimeout(() => {
-        setBannerIndex((current) => (current + 1) % bannerItems.length);
-      }, HOME_BANNER_ROTATION_MS);
-    } else {
-      entranceAnimation = Animated.timing(bannerEntrance, {
-        toValue: 1,
-        duration: 260,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+    discoveryTracks.forEach((track, index) => {
+      items.push({
+        id: `track-${track._id}`,
+        kind: 'track',
+        track,
+        badge: index === 0 ? 'Fais partie des premiers' : index === 1 ? 'Ça monte' : 'Pour toi',
       });
-      progressAnimation = Animated.timing(bannerProgress, {
-        toValue: 1,
-        duration: HOME_BANNER_ROTATION_MS,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      });
-      entranceAnimation.start();
-      progressAnimation.start(({ finished }) => {
-        if (finished) setBannerIndex((current) => (current + 1) % bannerItems.length);
-      });
-    }
-
-    return () => {
-      if (timer) clearTimeout(timer);
-      entranceAnimation?.stop();
-      progressAnimation?.stop();
-    };
-  }, [
-    bannerEntrance,
-    bannerIndex,
-    bannerItems.length,
-    bannerProgress,
-    settings.reducedMotion,
-    visible,
-  ]);
-
-  useEffect(() => {
-    const id = progress.addListener(({ value }) => {
-      progressValue.current = value;
     });
-    return () => progress.removeListener(id);
-  }, [progress]);
+
+    shortcuts.forEach((shortcut) => {
+      items.push({ id: `shortcut-${shortcut.label}`, kind: 'shortcut', shortcut });
+    });
+
+    items.push({ id: 'studio-push', kind: 'studio' });
+    return items;
+  }, [avatarCandidates, discoveryTracks, latestPost, shortcuts]);
+
+  const availableHeight = Math.max(420, responsive.height - Math.max(0, bottomPad));
+  const pulseHeight = clamp(
+    availableHeight * (responsive.isVeryShort ? 0.39 : responsive.isTall ? 0.45 : 0.43),
+    responsive.isVeryShort ? 220 : 258,
+    responsive.isTall ? 352 : 326,
+  );
+  const railHeight = clamp(pulseHeight * 0.37, responsive.isVeryShort ? 94 : 110, 138);
+  const cardWidth = clamp(responsive.safeWidth * 0.64, responsive.isTiny ? 205 : 220, 278);
+  const compact = responsive.isNarrow || responsive.isShort;
+
+  useEffect(() => {
+    const id = exitProgress.addListener(({ value }) => {
+      exitProgressValue.current = value;
+    });
+    return () => exitProgress.removeListener(id);
+  }, [exitProgress]);
 
   useEffect(() => {
     if (!visible) return;
-    finishingRef.current = false;
-    progress.stopAnimation();
-    progress.setValue(0);
-    progressValue.current = 0;
-    entrance.stopAnimation();
-    entrance.setValue(settings.reducedMotion ? 1 : 0);
-    if (!settings.reducedMotion) {
-      Animated.timing(entrance, {
-        toValue: 1,
-        duration: 420,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [entrance, progress, settings.reducedMotion, visible]);
 
-  useEffect(() => {
-    auroraA.stopAnimation();
-    auroraB.stopAnimation();
-    guideMotion.stopAnimation();
-    playPulse.stopAnimation();
-    cardFloat.stopAnimation();
-    skeletonPulse.stopAnimation();
-    if (!visible || settings.reducedMotion) {
-      auroraA.setValue(0);
-      auroraB.setValue(0);
-      guideMotion.setValue(0);
+    finishingRef.current = false;
+    exitProgress.stopAnimation();
+    exitProgress.setValue(0);
+    exitProgressValue.current = 0;
+    setPhraseIndex(Math.floor(Math.random() * PUNCHLINES.length));
+    setBannerIndex(0);
+    cardsIn.setValue(0);
+
+    const cardsAnimation = Animated.timing(cardsIn, {
+      toValue: 1,
+      duration: settings.reducedMotion ? 1 : 520,
+      delay: settings.reducedMotion ? 0 : 90,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    cardsAnimation.start();
+
+    if (settings.reducedMotion) {
+      haloOne.setValue(0.5);
+      haloTwo.setValue(0.5);
+      coverBreathe.setValue(0);
+      swipeGuide.setValue(0);
       playPulse.setValue(0);
-      cardFloat.setValue(0);
-      skeletonPulse.setValue(0.5);
-      return;
+      equalizer.setValue(0.5);
+      return () => cardsAnimation.stop();
     }
-    const auroraALoop = Animated.loop(Animated.sequence([
-      Animated.timing(auroraA, {
-        toValue: 1,
-        duration: 7_200,
-        easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
-      }),
-      Animated.timing(auroraA, {
-        toValue: 0,
-        duration: 7_200,
-        easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
-      }),
+
+    const haloOneLoop = Animated.loop(Animated.sequence([
+      Animated.timing(haloOne, { toValue: 1, duration: 4600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(haloOne, { toValue: 0, duration: 4600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
     ]));
-    const auroraBLoop = Animated.loop(Animated.sequence([
-      Animated.timing(auroraB, {
-        toValue: 1,
-        duration: 8_400,
-        easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
-      }),
-      Animated.timing(auroraB, {
-        toValue: 0,
-        duration: 8_400,
-        easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
-      }),
+    const haloTwoLoop = Animated.loop(Animated.sequence([
+      Animated.timing(haloTwo, { toValue: 1, duration: 5600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(haloTwo, { toValue: 0, duration: 5600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
     ]));
-    const guideLoop = Animated.loop(Animated.sequence([
-      Animated.timing(guideMotion, {
-        toValue: 1,
-        duration: 900,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(guideMotion, {
-        toValue: 0,
-        duration: 900,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      }),
+    const coverLoop = Animated.loop(Animated.sequence([
+      Animated.timing(coverBreathe, { toValue: 1, duration: 6500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(coverBreathe, { toValue: 0, duration: 6500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
     ]));
-    const playPulseLoop = Animated.loop(Animated.sequence([
-      Animated.timing(playPulse, {
-        toValue: 1,
-        duration: 1_250,
-        easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
-      }),
-      Animated.timing(playPulse, {
-        toValue: 0,
-        duration: 1_250,
-        easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
-      }),
+    const swipeLoop = Animated.loop(Animated.sequence([
+      Animated.delay(160),
+      Animated.timing(swipeGuide, { toValue: 1, duration: 1350, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(swipeGuide, { toValue: 0, duration: 420, useNativeDriver: true }),
+      Animated.delay(180),
     ]));
-    const cardFloatLoop = Animated.loop(Animated.sequence([
-      Animated.timing(cardFloat, {
-        toValue: 1,
-        duration: 2_500,
-        easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
-      }),
-      Animated.timing(cardFloat, {
-        toValue: 0,
-        duration: 2_500,
-        easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
-      }),
+    const pulseLoop = Animated.loop(Animated.timing(playPulse, {
+      toValue: 1,
+      duration: 1750,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }));
+    const eqLoop = Animated.loop(Animated.sequence([
+      Animated.timing(equalizer, { toValue: 1, duration: 360, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(equalizer, { toValue: 0, duration: 360, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
     ]));
-    const skeletonLoop = Animated.loop(Animated.sequence([
-      Animated.timing(skeletonPulse, { toValue: 0.76, duration: 720, useNativeDriver: true }),
-      Animated.timing(skeletonPulse, { toValue: 0.38, duration: 720, useNativeDriver: true }),
-    ]));
-    auroraALoop.start();
-    auroraBLoop.start();
-    guideLoop.start();
-    playPulseLoop.start();
-    cardFloatLoop.start();
-    if (loading && !playableTracks.length && !posts.length) skeletonLoop.start();
+
+    haloOneLoop.start();
+    haloTwoLoop.start();
+    coverLoop.start();
+    swipeLoop.start();
+    pulseLoop.start();
+    eqLoop.start();
+
     return () => {
-      auroraALoop.stop();
-      auroraBLoop.stop();
-      guideLoop.stop();
-      playPulseLoop.stop();
-      cardFloatLoop.stop();
-      skeletonLoop.stop();
+      cardsAnimation.stop();
+      haloOneLoop.stop();
+      haloTwoLoop.stop();
+      coverLoop.stop();
+      swipeLoop.stop();
+      pulseLoop.stop();
+      eqLoop.stop();
     };
   }, [
-    auroraA,
-    auroraB,
-    cardFloat,
-    guideMotion,
-    loading,
-    playableTracks.length,
+    cardsIn,
+    coverBreathe,
+    equalizer,
+    exitProgress,
+    haloOne,
+    haloTwo,
     playPulse,
-    posts.length,
     settings.reducedMotion,
-    skeletonPulse,
+    swipeGuide,
     visible,
   ]);
+
+  useEffect(() => {
+    if (!visible || bannerItems.length < 2) return;
+    const interval = setInterval(() => {
+      setBannerIndex((current) => (current + 1) % bannerItems.length);
+    }, BANNER_ROTATION_MS);
+    return () => clearInterval(interval);
+  }, [bannerItems.length, visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    bannerIn.stopAnimation();
+    bannerProgress.stopAnimation();
+    bannerIn.setValue(0);
+    bannerProgress.setValue(0);
+
+    Animated.parallel([
+      Animated.timing(bannerIn, {
+        toValue: 1,
+        duration: settings.reducedMotion ? 1 : 320,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(bannerProgress, {
+        toValue: 1,
+        duration: settings.reducedMotion ? 1 : BANNER_ROTATION_MS,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, [bannerIn, bannerIndex, bannerProgress, settings.reducedMotion, visible]);
 
   const finish = useCallback(() => {
     if (finishingRef.current) return;
     finishingRef.current = true;
+    void Haptics.selectionAsync().catch(() => {});
+
     if (settings.reducedMotion) {
-      progress.setValue(1);
+      exitProgress.setValue(1);
       onEnterFlow();
       return;
     }
-    Animated.timing(progress, {
+
+    Animated.timing(exitProgress, {
       toValue: 1,
       duration: 300,
-      easing: Easing.in(Easing.cubic),
+      easing: Easing.inOut(Easing.cubic),
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) onEnterFlow();
       else finishingRef.current = false;
     });
-  }, [onEnterFlow, progress, settings.reducedMotion]);
+  }, [exitProgress, onEnterFlow, settings.reducedMotion]);
 
-  const reset = useCallback(() => {
+  const resetExit = useCallback(() => {
     if (finishingRef.current) return;
-    Animated.spring(progress, {
+    Animated.spring(exitProgress, {
       toValue: 0,
       speed: 28,
       bounciness: 2,
       useNativeDriver: true,
     }).start();
-  }, [progress]);
+  }, [exitProgress]);
 
   const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => false,
     onMoveShouldSetPanResponder: (_, gesture) => (
-      gesture.dy < -8 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.2
+      gesture.dy < -8 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.22
     ),
     onPanResponderMove: (_, gesture) => {
-      progress.setValue(Math.min(1, Math.max(0, -gesture.dy / Math.max(1, metrics.availableHeight))));
+      exitProgress.setValue(clamp(-gesture.dy / Math.max(1, responsive.height), 0, 1));
     },
     onPanResponderRelease: (_, gesture) => {
-      if (progressValue.current > 0.055 || gesture.vy < -0.3) finish();
-      else reset();
+      if (exitProgressValue.current > 0.055 || gesture.vy < -0.3) finish();
+      else resetExit();
     },
-    onPanResponderTerminate: reset,
-  }), [finish, metrics.availableHeight, progress, reset]);
+    onPanResponderTerminate: resetExit,
+  }), [exitProgress, finish, resetExit, responsive.height]);
 
-  const avatarCandidates = useMemo(() => {
-    const values = [
-      ...posts.map((post) => post.avatar),
-      ...playableTracks.map((track) => track.artist?.avatar || ''),
-    ].filter(Boolean);
-    return Array.from(new Set(values)).slice(0, 3);
-  }, [playableTracks, posts]);
+  if (!visible) return null;
 
-  const railItems = useMemo<RailItem[]>(() => {
-    if (loading && !playableTracks.length && !posts.length) {
-      return [
-        { id: 'skeleton-1', kind: 'skeleton' },
-        { id: 'skeleton-2', kind: 'skeleton' },
-        {
-          id: 'shortcut-radar',
-          kind: 'shortcut',
-          target: 'radar',
-          icon: 'radio-outline',
-          title: 'Radar',
-          subtitle: 'Ce qui chauffe',
-          accent: 'cyan',
-        },
-      ];
-    }
+  const screenTranslateY = exitProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -responsive.height],
+  });
+  const screenOpacity = exitProgress.interpolate({
+    inputRange: [0, 0.82, 1],
+    outputRange: [1, 0.98, 0.72],
+    extrapolate: 'clamp',
+  });
+  const contentTranslateY = exitProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -48],
+  });
+  const contentScale = exitProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.975],
+  });
+  const bannerWidth = bannerProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+  const cardsTranslateY = cardsIn.interpolate({
+    inputRange: [0, 1],
+    outputRange: [14, 0],
+  });
+  const coverScale = coverBreathe.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1.01, 1.065],
+  });
+  const fingerTranslateY = swipeGuide.interpolate({
+    inputRange: [0, 1],
+    outputRange: [22, -26],
+  });
+  const fingerOpacity = swipeGuide.interpolate({
+    inputRange: [0, 0.12, 0.8, 1],
+    outputRange: [0, 1, 1, 0],
+  });
+  const pulseScale = playPulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.76, 1.62],
+  });
+  const pulseOpacity = playPulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.6, 0],
+  });
 
-    const items: RailItem[] = error && !playableTracks.length && !posts.length
-      ? [{ id: 'error', kind: 'error' }]
-      : [];
-    if (latestPost) {
-      items.push({ id: `post-${latestPost.id}`, kind: 'post', post: latestPost });
-    } else {
-      items.push({ id: 'community-fallback', kind: 'community' });
-    }
-    items.push({ id: 'social', kind: 'social', avatars: avatarCandidates });
-
-    const discoveryTracks = playableTracks
-      .filter((track) => track._id !== featuredTrack?._id)
-      .slice(0, 4);
-    const tracksForRail = discoveryTracks.length
-      ? discoveryTracks
-      : featuredTrack
-        ? [featuredTrack]
-        : [];
-    tracksForRail.forEach((track, index) => {
-      items.push({
-        id: `track-${track._id}`,
-        kind: 'track',
-        track,
-        eyebrow: index === 0 ? 'Fais partie des premiers' : index === 1 ? 'Ça monte' : 'Pour toi',
-      });
-    });
-    if (!tracksForRail.length) items.push({ id: 'music-fallback', kind: 'music-fallback' });
-
-    posts.slice(1, 3).forEach((post) => {
-      items.push({ id: `recent-post-${post.id}`, kind: 'recent-post', post });
-    });
-    items.push(
-      {
-        id: 'shortcut-discover',
-        kind: 'shortcut',
-        target: 'discover',
-        icon: 'compass-outline',
-        title: 'Découvrir',
-        subtitle: 'Trouve ton mood',
-        accent: 'orange',
-      },
-      {
-        id: 'shortcut-radar',
-        kind: 'shortcut',
-        target: 'radar',
-        icon: 'radio-outline',
-        title: 'Radar',
-        subtitle: 'Ce qui chauffe',
-        accent: 'cyan',
-      },
-      {
-        id: 'shortcut-studio',
-        kind: 'shortcut',
-        target: 'studio',
-        icon: 'sparkles-outline',
-        title: 'Studio IA',
-        subtitle: 'Crée maintenant',
-        accent: 'coral',
-      },
-      {
-        id: 'shortcut-events',
-        kind: 'shortcut',
-        target: 'events',
-        icon: 'calendar-outline',
-        title: 'Événements',
-        subtitle: 'La scène Synaura',
-        accent: 'violet',
-      },
-      { id: 'studio', kind: 'studio' },
-    );
-    return items;
-  }, [
-    avatarCandidates,
-    error,
-    featuredTrack,
-    latestPost,
-    loading,
-    playableTracks,
-    posts,
-  ]);
-
-  const getRailItemWidth = useCallback((item: RailItem) => {
-    const mobileRail = responsive.isPhoneLandscape || responsive.safeWidth <= 760;
-    if (mobileRail) return item.kind === 'shortcut' ? 145 : 220;
-    if (responsive.safeWidth >= 1_280) return item.kind === 'shortcut' ? 190 : 285;
-    if (item.kind === 'social') return 245;
-    if (item.kind === 'track' || item.kind === 'music-fallback') return 265;
-    if (item.kind === 'recent-post' || item.kind === 'studio') return 250;
-    if (item.kind === 'shortcut') return 165;
-    return 270;
-  }, [responsive.isPhoneLandscape, responsive.safeWidth]);
-
-  const railItemWidths = useMemo(
-    () => railItems.map((item) => getRailItemWidth(item)),
-    [getRailItemWidth, railItems],
-  );
-  const railOffsets = useMemo(() => {
-    let offset = 0;
-    return railItemWidths.map((width) => {
-      const current = offset;
-      offset += width + metrics.railGap;
-      return current;
-    });
-  }, [metrics.railGap, railItemWidths]);
-
-  const openShortcut = useCallback((target: ShortcutTarget) => {
-    Haptics.selectionAsync().catch(() => {});
-    if (target === 'discover') onDiscover();
-    else if (target === 'radar') onRadar();
-    else if (target === 'studio') onStudio();
-    else onEvents();
-  }, [onDiscover, onEvents, onRadar, onStudio]);
-
-  const onRailMomentumEnd = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const offset = Math.max(0, event.nativeEvent.contentOffset.x);
-    let index = 0;
-    let distance = Number.POSITIVE_INFINITY;
-    railOffsets.forEach((candidate, candidateIndex) => {
-      const nextDistance = Math.abs(candidate - offset);
-      if (nextDistance >= distance) return;
-      index = candidateIndex;
-      distance = nextDistance;
-    });
-    if (index === lastRailIndexRef.current) return;
-    lastRailIndexRef.current = index;
-    Haptics.selectionAsync().catch(() => {});
-  }, [railOffsets]);
-
-  const renderRailItem = useCallback(({ item }: { item: RailItem }) => {
-    const cardStyle = [
+  const renderRailItem = ({ item }: { item: RailItem; index: number }) => {
+    const itemStyle = [
       styles.railCard,
-      compactRail && styles.railCardCompact,
-      { width: getRailItemWidth(item) },
+      { width: item.kind === 'shortcut' ? Math.max(148, cardWidth * 0.66) : cardWidth, height: railHeight },
     ];
-    if (item.kind === 'skeleton') {
-      return (
-        <Animated.View style={[cardStyle, styles.skeletonCard, { opacity: skeletonPulse }]}>
-          <View style={styles.skeletonBadge} />
-          <View style={styles.skeletonAvatar} />
-          <View style={styles.skeletonLineWide} />
-          <View style={styles.skeletonLineShort} />
-        </Animated.View>
-      );
-    }
-    if (item.kind === 'error') {
-      return (
-        <MotionPressable
-          accessibilityLabel="Réessayer de charger l'accueil"
-          disabled={!onRetry}
-          onPress={onRetry}
-          style={[cardStyle, styles.errorRailCard]}
-          scaleTo={0.97}
-        >
-          <LinearGradient
-            colors={['rgba(217,109,99,0.28)', 'rgba(28,18,24,0.98)', 'rgba(115,87,198,0.16)']}
-            style={StyleSheet.absoluteFillObject}
-          />
-          {compactRail ? (
-            <View style={styles.compactRailRow}>
-              <View style={[styles.errorRailIcon, styles.shortcutIconCompact]}>
-                <Ionicons name="cloud-offline-outline" size={17} color="#FFD4CE" />
-              </View>
-              <View style={styles.compactRailCopy}>
-                <Text numberOfLines={1} style={styles.compactRailTitle}>Connexion capricieuse</Text>
-                <Text numberOfLines={1} style={styles.railBodyCompact}>Touche pour réessayer.</Text>
-              </View>
-              <Ionicons name="refresh" size={16} color="#F0AAA2" />
-            </View>
-          ) : (
-            <>
-              <View style={styles.railTopLine}>
-                <View style={styles.errorRailIcon}>
-                  <Ionicons name="cloud-offline-outline" size={18} color="#FFD4CE" />
-                </View>
-                <Text style={styles.errorRailBadge}>HORS LIGNE</Text>
-              </View>
-              <Text numberOfLines={1} style={styles.communityTitle}>Le Flow attend le réseau.</Text>
-              <Text numberOfLines={2} style={styles.railBody}>Touche cette carte pour relancer le chargement.</Text>
-              <View style={styles.errorRailRetry}>
-                <Ionicons name="refresh" size={13} color="#F0AAA2" />
-                <Text style={styles.errorRailRetryText}>Réessayer</Text>
-              </View>
-            </>
-          )}
-        </MotionPressable>
-      );
-    }
+
     if (item.kind === 'post') {
+      const post = item.post;
       return (
         <MotionPressable
-          accessibilityLabel={`Ouvrir la publication de ${item.post.author}`}
-          onPress={() => onOpenPost(item.post)}
-          style={cardStyle}
-          scaleTo={0.97}
+          accessibilityLabel={post ? `Ouvrir le post de ${post.author}` : 'Découvrir la communauté'}
+          onPress={() => post ? hapticPress(() => onOpenPost(post)) : hapticPress(onDiscover)}
+          style={itemStyle}
+          scaleTo={0.975}
         >
           <LinearGradient
-            colors={['rgba(217,109,99,0.24)', 'rgba(20,17,23,0.96)', 'rgba(244,162,97,0.13)']}
+            colors={['rgba(217,109,99,0.33)', 'rgba(31,24,29,0.96)', 'rgba(244,162,97,0.16)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFillObject}
           />
-          {!compactRail ? (
-            <View style={styles.railTopLine}>
-              <View style={styles.railEyebrowRow}>
-                <View style={[styles.signalDot, styles.signalDotCoral]} />
-                <Text style={[styles.railEyebrow, styles.coralText]}>ÇA BOUGE MAINTENANT</Text>
-              </View>
-              <Ionicons name="trending-up" size={15} color="#F4A261" />
+          <View style={styles.cardGlowCoral} />
+          <View style={styles.cardHeader}>
+            <View style={styles.cardKickerRow}>
+              <View style={[styles.liveDot, { backgroundColor: '#D96D63' }]} />
+              <Text style={[styles.cardKicker, { color: '#F0AAA2' }]}>ÇA BOUGE MAINTENANT</Text>
             </View>
-          ) : null}
-          <View style={[styles.postIdentity, compactRail && styles.postIdentityCompact]}>
-            <View style={[styles.avatar, compactRail && styles.avatarCompact]}>
-              {item.post.avatar ? (
-                <SynauraImage source={item.post.avatar} style={StyleSheet.absoluteFillObject} />
+            <Ionicons name='trending-up' size={14} color='#F4A261' />
+          </View>
+          <View style={styles.postBody}>
+            <View style={styles.postAvatarRing}>
+              {post?.avatar ? (
+                <ExpoImage source={{ uri: post.avatar }} contentFit='cover' transition={140} style={styles.postAvatar} />
               ) : (
-                <SynauraImage source={brandSymbol} contentFit="contain" style={styles.avatarFallback} />
+                <Image source={brandSymbol} resizeMode='contain' style={styles.postAvatarFallback} />
               )}
             </View>
             <View style={styles.postCopy}>
-              <Text numberOfLines={1} style={styles.railTitle}>{item.post.author || item.post.handle}</Text>
-              <Text
-                numberOfLines={compactRail ? 1 : 2}
-                style={[styles.railBody, compactRail && styles.railBodyCompact]}
-              >
-                {postPreview(item.post)}
+              <Text numberOfLines={1} style={styles.postName}>{post?.author || 'La communauté'}</Text>
+              <Text numberOfLines={2} style={styles.postText}>
+                {post ? postPreview(post) : 'Les prochaines publications apparaîtront ici.'}
               </Text>
             </View>
           </View>
-          {!compactRail ? (
-            <View style={styles.postCta}>
-              <Text style={styles.postCtaText}>Voir ce que t’as raté</Text>
-              <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.68)" />
-            </View>
-          ) : null}
-        </MotionPressable>
-      );
-    }
-    if (item.kind === 'recent-post') {
-      return (
-        <MotionPressable
-          accessibilityLabel={`Ouvrir la publication de ${item.post.author}`}
-          onPress={() => onOpenPost(item.post)}
-          style={[cardStyle, styles.recentPostCard]}
-          scaleTo={0.97}
-        >
-          <LinearGradient
-            colors={['rgba(244,162,97,0.22)', 'rgba(22,18,22,0.97)', 'rgba(217,109,99,0.1)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <View style={[styles.recentPostHeader, compactRail && styles.recentPostHeaderCompact]}>
-            <View style={[styles.recentPostAvatar, compactRail && styles.avatarCompact]}>
-              <SynauraImage
-                source={item.post.avatar || brandSymbol}
-                contentFit={item.post.avatar ? 'cover' : 'contain'}
-                style={item.post.avatar ? StyleSheet.absoluteFillObject : styles.avatarFallback}
-              />
-            </View>
-            <View style={styles.postCopy}>
-              <Text numberOfLines={1} style={[styles.recentPostTitle, compactRail && styles.compactRailTitle]}>
-                {item.post.author || item.post.handle}
-              </Text>
-              {!compactRail ? <Text style={styles.recentPostEyebrow}>POST À VOIR VITE</Text> : null}
-              {compactRail ? (
-                <>
-                  <Text numberOfLines={1} style={styles.railBodyCompact}>
-                    {postPreview(item.post)}
-                  </Text>
-                  <View style={styles.postStats}>
-                    <Ionicons name="heart-outline" size={10} color="rgba(255,255,255,0.46)" />
-                    <Text style={styles.statText}>{fmtCount(item.post.likesCount)}</Text>
-                    <Ionicons name="chatbubble-outline" size={10} color="rgba(255,255,255,0.46)" />
-                    <Text style={styles.statText}>{fmtCount(item.post.commentsCount)}</Text>
-                  </View>
-                </>
-              ) : null}
-            </View>
+          <View style={styles.cardFooter}>
+            <Text style={styles.cardCta}>{post ? 'Voir ce que t’as raté' : 'Explorer la communauté'}</Text>
+            <Ionicons name='chevron-forward' size={13} color='rgba(255,255,255,0.66)' />
+            {post ? (
+              <View style={styles.postCounts}>
+                <Ionicons name='heart-outline' size={11} color='rgba(255,255,255,0.38)' />
+                <Text style={styles.postCountText}>{compactCount(post.likesCount)}</Text>
+                <Ionicons name='chatbubble-outline' size={11} color='rgba(255,255,255,0.38)' />
+                <Text style={styles.postCountText}>{compactCount(post.commentsCount)}</Text>
+              </View>
+            ) : null}
           </View>
-          {!compactRail ? (
-            <>
-              <Text numberOfLines={3} style={styles.recentPostBody}>
-                {postPreview(item.post)}
-              </Text>
-              <View style={styles.postStats}>
-                <Ionicons name="heart-outline" size={12} color="rgba(255,255,255,0.46)" />
-                <Text style={styles.statText}>{fmtCount(item.post.likesCount)}</Text>
-                <Ionicons name="chatbubble-outline" size={12} color="rgba(255,255,255,0.46)" />
-                <Text style={styles.statText}>{fmtCount(item.post.commentsCount)}</Text>
-              </View>
-            </>
-          ) : null}
         </MotionPressable>
       );
     }
-    if (item.kind === 'community') {
-      return (
-        <MotionPressable
-          accessibilityLabel="Découvrir la communauté"
-          onPress={onDiscover}
-          style={cardStyle}
-          scaleTo={0.97}
-        >
-          <LinearGradient
-            colors={['rgba(217,109,99,0.28)', 'rgba(28,19,27,0.98)', 'rgba(244,162,97,0.12)']}
-            style={StyleSheet.absoluteFillObject}
-          />
-          {compactRail ? (
-            <View style={styles.compactRailRow}>
-              <View style={[styles.shortcutIconOrange, styles.shortcutIconCompact]}>
-                <Ionicons name="people-outline" size={17} color="#FFD2A8" />
-              </View>
-              <View style={styles.compactRailCopy}>
-                <Text numberOfLines={1} style={styles.compactRailTitle}>La communauté s'éveille</Text>
-                <Text numberOfLines={1} style={styles.railBodyCompact}>Découvre les nouvelles voix Synaura.</Text>
-              </View>
-            </View>
-          ) : (
-            <>
-              <View style={styles.railTopLine}>
-                <View style={styles.railEyebrowRow}>
-                  <View style={[styles.signalDot, styles.signalDotCoral]} />
-                  <Text style={[styles.railEyebrow, styles.coralText]}>COMMUNAUTÉ</Text>
-                </View>
-                <Ionicons name="people-outline" size={16} color="#F4A261" />
-              </View>
-              <Text numberOfLines={2} style={styles.communityTitle}>Les prochaines publications arrivent ici.</Text>
-              <Text numberOfLines={2} style={styles.railBody}>Explore les artistes et retrouve les nouvelles voix Synaura.</Text>
-            </>
-          )}
-        </MotionPressable>
-      );
-    }
+
     if (item.kind === 'social') {
       const avatars = item.avatars.length ? item.avatars : [];
       return (
         <MotionPressable
-          accessibilityLabel="Ouvrir ton réseau"
-          onPress={onDiscover}
-          style={cardStyle}
-          scaleTo={0.97}
+          accessibilityLabel='Ouvrir ton réseau'
+          onPress={() => hapticPress(onDiscover)}
+          style={itemStyle}
+          scaleTo={0.975}
         >
           <LinearGradient
-            colors={['rgba(115,87,198,0.38)', 'rgba(25,20,33,0.98)', 'rgba(74,158,170,0.12)']}
+            colors={['rgba(115,87,198,0.38)', 'rgba(24,20,31,0.97)', 'rgba(74,158,170,0.14)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFillObject}
           />
-          {compactRail ? (
-            <View style={styles.compactRailRow}>
-              <View style={[styles.shortcutIconViolet, styles.shortcutIconCompact]}>
-                <Ionicons name="person-add-outline" size={17} color="#DCCEFF" />
-              </View>
-              <View style={styles.compactRailCopy}>
-                <Text numberOfLines={1} style={styles.compactRailTitle}>Quelqu’un t’a peut-être suivi</Text>
-                <View style={[styles.avatarStack, styles.avatarStackCompact]}>
-                  {(avatars.length ? avatars : [null]).map((avatar, index) => (
-                    <View
-                      key={`${avatar || 'brand'}-${index}`}
-                      style={[
-                        styles.stackAvatar,
-                        styles.stackAvatarCompact,
-                        index > 0 && styles.stackAvatarOverlap,
-                      ]}
-                    >
-                      <SynauraImage
-                        source={avatar || brandSymbol}
-                        contentFit={avatar ? 'cover' : 'contain'}
-                        style={avatar ? StyleSheet.absoluteFillObject : styles.stackAvatarFallback}
-                      />
-                    </View>
-                  ))}
-                </View>
-              </View>
+          <View style={styles.cardGlowViolet} />
+          <View style={styles.cardHeader}>
+            <View style={styles.socialIcon}>
+              <Ionicons name='person-add-outline' size={19} color='#DCCEFF' />
             </View>
-          ) : (
-            <>
-              <View style={styles.railTopLine}>
-                <View style={styles.shortcutIconViolet}>
-                  <Ionicons name="person-add-outline" size={17} color="#DCCEFF" />
+            <Text style={styles.socialBadge}>SOCIAL</Text>
+          </View>
+          <Text numberOfLines={3} style={styles.socialTitle}>Quelqu’un t’a peut-être suivi récemment 👀</Text>
+          <View style={styles.socialFooter}>
+            <View style={styles.avatarStack}>
+              {(avatars.length ? avatars : [null]).map((avatar, avatarIndex) => (
+                <View key={`${avatar || 'fallback'}-${avatarIndex}`} style={[styles.stackAvatarWrap, avatarIndex ? { marginLeft: -9 } : null]}>
+                  {avatar ? (
+                    <ExpoImage source={{ uri: avatar }} contentFit='cover' style={styles.stackAvatar} />
+                  ) : (
+                    <Image source={brandSymbol} resizeMode='contain' style={styles.stackAvatarFallback} />
+                  )}
                 </View>
-                <Text style={styles.socialBadge}>SOCIAL</Text>
-              </View>
-              <Text numberOfLines={2} style={styles.communityTitle}>Quelqu’un t’a peut-être suivi récemment 👀</Text>
-              <View style={styles.avatarStack}>
-                {(avatars.length ? avatars : [null]).map((avatar, index) => (
-                  <View key={`${avatar || 'brand'}-${index}`} style={[styles.stackAvatar, index > 0 && styles.stackAvatarOverlap]}>
-                    <SynauraImage
-                      source={avatar || brandSymbol}
-                      contentFit={avatar ? 'cover' : 'contain'}
-                      style={avatar ? StyleSheet.absoluteFillObject : styles.stackAvatarFallback}
-                    />
-                  </View>
-                ))}
-                <Text numberOfLines={1} style={styles.networkCopy}>Ouvre ton réseau</Text>
-              </View>
-            </>
-          )}
+              ))}
+            </View>
+            <Text style={styles.socialHint}>Ouvre ton réseau</Text>
+          </View>
         </MotionPressable>
       );
     }
+
     if (item.kind === 'track') {
       const cover = getTrackCoverImage(item.track);
       return (
         <MotionPressable
           accessibilityLabel={`Ouvrir ${item.track.title}`}
-          onPress={() => onOpenTrack(item.track)}
-          style={cardStyle}
-          scaleTo={0.97}
+          onPress={() => hapticPress(() => onOpenTrack(item.track))}
+          style={itemStyle}
+          scaleTo={0.975}
         >
-          {cover ? <SynauraImage source={cover} style={StyleSheet.absoluteFillObject} lowPriority /> : null}
+          {cover ? (
+            <ExpoImage source={{ uri: cover }} contentFit='cover' transition={160} style={StyleSheet.absoluteFillObject} />
+          ) : (
+            <LinearGradient colors={['#362640', '#142B2F', '#151217']} style={StyleSheet.absoluteFillObject} />
+          )}
           <LinearGradient
-            colors={['rgba(7,7,9,0.08)', 'rgba(7,7,9,0.48)', 'rgba(7,7,9,0.96)']}
-            locations={[0, 0.45, 1]}
+            colors={['rgba(5,5,7,0.04)', 'rgba(5,5,7,0.18)', 'rgba(5,5,7,0.94)']}
+            locations={[0, 0.38, 1]}
             style={StyleSheet.absoluteFillObject}
           />
           <LinearGradient
-            colors={['rgba(7,7,9,0.58)', 'transparent']}
+            colors={['rgba(5,5,7,0.64)', 'transparent']}
             start={{ x: 0, y: 0.5 }}
             end={{ x: 1, y: 0.5 }}
             style={StyleSheet.absoluteFillObject}
           />
-          {!compactRail ? <Text numberOfLines={1} style={styles.trackBadge}>{item.eyebrow}</Text> : null}
-          <View style={styles.trackRailBottom}>
-            <Text
-              numberOfLines={compactRail ? 1 : 2}
-              style={[styles.trackRailTitle, compactRail && styles.trackRailTitleCompact]}
-            >
-              {item.track.title}
-            </Text>
-            <Text
-              numberOfLines={1}
-              style={[styles.trackRailArtist, compactRail && styles.trackRailArtistCompact]}
-            >
-              {trackArtistName(item.track)}
-            </Text>
-            {!compactRail ? (
-              <View style={styles.trackRailStat}>
-                <Ionicons name="headset-outline" size={12} color="rgba(255,255,255,0.74)" />
-                <Text style={styles.trackRailStatText}>{fmtCount(Number(item.track.plays || 0))} écoutes</Text>
+          <View style={styles.trackCardContent}>
+            <Text style={styles.trackBadge}>{item.badge}</Text>
+            <View>
+              <Text numberOfLines={2} style={styles.trackCardTitle}>{item.track.title}</Text>
+              <Text numberOfLines={1} style={styles.trackCardArtist}>{artistName(item.track)}</Text>
+              <View style={styles.trackMeta}>
+                <Ionicons name='headset-outline' size={12} color='rgba(255,255,255,0.76)' />
+                <Text style={styles.trackMetaText}>{compactCount(item.track.plays || 0)} écoutes</Text>
               </View>
-            ) : null}
-          </View>
-        </MotionPressable>
-      );
-    }
-    if (item.kind === 'music-fallback') {
-      return (
-        <MotionPressable
-          accessibilityLabel="Découvrir de nouveaux morceaux"
-          onPress={onDiscover}
-          style={cardStyle}
-          scaleTo={0.97}
-        >
-          <LinearGradient
-            colors={['rgba(74,158,170,0.32)', 'rgba(16,28,30,0.98)', 'rgba(115,87,198,0.16)']}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <View style={[compactRail && styles.compactRailRow]}>
-            <View style={[styles.musicFallbackIcon, compactRail && styles.shortcutIconCompact]}>
-              <Ionicons name="musical-notes-outline" size={22} color="#A8DEE5" />
             </View>
-            {compactRail ? (
-              <View style={styles.compactRailCopy}>
-                <Text numberOfLines={1} style={styles.compactRailTitle}>Ton prochain son se prépare</Text>
-                <Text numberOfLines={1} style={styles.railBodyCompact}>Le Flow affine ta sélection.</Text>
-              </View>
-            ) : null}
           </View>
-          {!compactRail ? (
-            <>
-              <Text numberOfLines={2} style={styles.communityTitle}>Ton prochain son se prépare.</Text>
-              <Text numberOfLines={2} style={styles.railBody}>Le Flow apparaîtra dès que la sélection sera prête.</Text>
-            </>
-          ) : null}
         </MotionPressable>
       );
     }
+
     if (item.kind === 'shortcut') {
-      const accentStyle = item.accent === 'violet'
-        ? styles.shortcutViolet
-        : item.accent === 'cyan'
-          ? styles.shortcutCyan
-          : item.accent === 'coral'
-            ? styles.shortcutCoral
-            : styles.shortcutOrange;
-      const iconStyle = item.accent === 'violet'
-        ? styles.shortcutIconViolet
-        : item.accent === 'cyan'
-          ? styles.shortcutIconCyan
-          : item.accent === 'coral'
-            ? styles.shortcutIconCoral
-            : styles.shortcutIconOrange;
-      const iconColor = item.accent === 'violet'
-        ? '#DCCEFF'
-        : item.accent === 'cyan'
-          ? '#A8DEE5'
-          : item.accent === 'coral'
-            ? '#FFD4CE'
-            : '#FFD2A8';
-      const gradientColors = item.accent === 'violet'
-        ? ['rgba(115,87,198,0.3)', 'rgba(18,17,21,0.96)'] as const
-        : item.accent === 'cyan'
-          ? ['rgba(74,158,170,0.28)', 'rgba(18,17,21,0.96)'] as const
-          : item.accent === 'coral'
-            ? ['rgba(217,109,99,0.28)', 'rgba(18,17,21,0.96)'] as const
-            : ['rgba(244,162,97,0.25)', 'rgba(18,17,21,0.96)'] as const;
+      const { shortcut } = item;
       return (
         <MotionPressable
-          accessibilityLabel={`Ouvrir ${item.title}`}
-          onPress={() => openShortcut(item.target)}
-          style={[cardStyle, accentStyle, compactRail && styles.compactHorizontalCard]}
+          accessibilityLabel={shortcut.label}
+          onPress={() => hapticPress(shortcut.onPress)}
+          style={[
+            ...itemStyle,
+            { borderColor: `${shortcut.accent}55` },
+          ]}
           scaleTo={0.97}
         >
           <LinearGradient
-            colors={gradientColors}
+            colors={[`${shortcut.accent}42`, 'rgba(22,20,26,0.97)', `${shortcut.accent}14`]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFillObject}
           />
-          <View style={[iconStyle, compactRail && styles.shortcutIconCompact]}>
-            <Ionicons name={item.icon} size={20} color={iconColor} />
-          </View>
-          <View style={compactRail && styles.compactRailCopy}>
-            <Text style={[styles.shortcutTitle, compactRail && styles.compactRailTitle]}>{item.title}</Text>
-            <Text numberOfLines={compactRail ? 1 : 2} style={styles.shortcutSubtitle}>{item.subtitle}</Text>
+          <View style={[styles.shortcutGlow, { backgroundColor: `${shortcut.accent}2B` }]} />
+          <View style={styles.shortcutCardContent}>
+            <View style={[styles.shortcutIcon, { backgroundColor: `${shortcut.accent}26`, borderColor: `${shortcut.accent}42` }]}>
+              <Ionicons name={shortcut.icon} size={19} color={shortcut.accent} />
+            </View>
+            <View>
+              <Text style={styles.shortcutTitle}>{shortcut.label}</Text>
+              <Text numberOfLines={1} style={styles.shortcutSub}>{shortcut.sub}</Text>
+            </View>
           </View>
         </MotionPressable>
       );
     }
+
     return (
       <MotionPressable
-        accessibilityLabel="Ouvrir le Studio"
-        onPress={onStudio}
-        style={[cardStyle, compactRail && styles.compactHorizontalCard]}
-        scaleTo={0.97}
+        accessibilityLabel='Ouvrir le Studio IA'
+        onPress={() => hapticPress(onStudio)}
+        style={itemStyle}
+        scaleTo={0.975}
       >
         <LinearGradient
-          colors={['rgba(217,109,99,0.38)', 'rgba(115,87,198,0.28)', 'rgba(24,18,28,0.98)']}
+          colors={['rgba(217,109,99,0.36)', 'rgba(115,87,198,0.24)', 'rgba(18,16,23,0.98)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFillObject}
         />
-        <View style={[styles.studioIcon, compactRail && styles.shortcutIconCompact]}>
-          <Ionicons name="flash-outline" size={21} color="#FFD8D3" />
+        <View style={styles.cardGlowCoral} />
+        <View style={styles.studioIcon}>
+          <Ionicons name='flash-outline' size={21} color='#FFD8D3' />
         </View>
-        <Text
-          numberOfLines={compactRail ? 1 : 2}
-          style={[styles.studioTitle, compactRail && styles.studioTitleCompact]}
-        >
-          Ton prochain banger attend juste un clic.
-        </Text>
-        {!compactRail ? (
-          <View style={styles.studioLink}>
-            <Text style={styles.studioLinkText}>Va cuisiner ça</Text>
-            <Ionicons name="chevron-forward" size={13} color="#F0AAA2" />
-          </View>
-        ) : null}
+        <Text numberOfLines={3} style={styles.studioTitle}>Ton prochain banger attend juste un clic.</Text>
+        <View style={styles.studioCtaRow}>
+          <Text style={styles.studioCta}>Va cuisiner ça</Text>
+          <Ionicons name='chevron-forward' size={13} color='#F0AAA2' />
+        </View>
       </MotionPressable>
     );
-  }, [
-    compactRail,
-    getRailItemWidth,
-    onDiscover,
-    onOpenPost,
-    onOpenTrack,
-    onRetry,
-    onStudio,
-    openShortcut,
-    skeletonPulse,
-  ]);
-
-  const renderAnimatedRailItem = useCallback(({
-    item,
-    index,
-  }: {
-    item: RailItem;
-    index: number;
-  }) => {
-    const width = railItemWidths[index] ?? getRailItemWidth(item);
-    const offset = railOffsets[index] ?? 0;
-    const depthDistance = Math.max(1, width + metrics.railGap);
-    const depthScale = railScrollX.interpolate({
-      inputRange: [offset - depthDistance, offset, offset + depthDistance],
-      outputRange: [0.976, 1, 0.976],
-      extrapolate: 'clamp',
-    });
-    const depthTranslateY = railScrollX.interpolate({
-      inputRange: [offset - depthDistance, offset, offset + depthDistance],
-      outputRange: [2, 0, 2],
-      extrapolate: 'clamp',
-    });
-    const revealStart = index === 0 ? 0.001 : Math.min(0.72, index * 0.045);
-    const revealEnd = Math.min(0.96, revealStart + 0.24);
-    const cardOpacity = entrance.interpolate({
-      inputRange: [0, revealStart, revealEnd, 1],
-      outputRange: [0, 0, 1, 1],
-      extrapolate: 'clamp',
-    });
-    const cardTranslateY = entrance.interpolate({
-      inputRange: [0, revealStart, revealEnd, 1],
-      outputRange: [14, 14, 0, 0],
-      extrapolate: 'clamp',
-    });
-    const floatingTranslateY = cardFloat.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, -4],
-    });
-    return (
-      <Animated.View
-        style={[
-          styles.animatedRailCard,
-          {
-            width,
-            opacity: cardOpacity,
-            transform: [
-              { translateY: cardTranslateY },
-              { translateY: depthTranslateY },
-              { translateY: index === 0 ? floatingTranslateY : 0 },
-              { scale: depthScale },
-            ],
-          },
-        ]}
-      >
-        {renderRailItem({ item })}
-      </Animated.View>
-    );
-  }, [
-    cardFloat,
-    entrance,
-    getRailItemWidth,
-    metrics.railGap,
-    railItemWidths,
-    railOffsets,
-    railScrollX,
-    renderRailItem,
-  ]);
-
-  if (!visible) return null;
-
-  const banner = bannerItems[bannerIndex % Math.max(1, bannerItems.length)] || '';
-  const screenTranslateY = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -metrics.availableHeight],
-  });
-  const screenOpacity = progress.interpolate({
-    inputRange: [0, 0.82, 1],
-    outputRange: [1, 0.98, 0.72],
-    extrapolate: 'clamp',
-  });
-  const contentOpacity = Animated.multiply(
-    entrance,
-    progress.interpolate({
-      inputRange: [0, 0.7, 1],
-      outputRange: [1, 0.35, 0],
-      extrapolate: 'clamp',
-    }),
-  );
-  const contentTranslateY = entrance.interpolate({
-    inputRange: [0, 1],
-    outputRange: [12, 0],
-  });
-  const exitScale = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0.97],
-  });
-  const bannerTranslateY = bannerEntrance.interpolate({
-    inputRange: [0, 1],
-    outputRange: [7, 0],
-  });
-  const guideTranslateY = guideMotion.interpolate({
-    inputRange: [0, 1],
-    outputRange: [2, -3],
-  });
-  const fingerTranslateY = guideMotion.interpolate({
-    inputRange: [0, 1],
-    outputRange: responsive.isVeryShort ? [12, -12] : [24, -24],
-  });
-  const fingerOpacity = guideMotion.interpolate({
-    inputRange: [0, 0.16, 0.78, 1],
-    outputRange: [0, 1, 1, 0],
-  });
-  const auroraATranslateX = auroraA.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-24, 28],
-  });
-  const auroraAOpacity = auroraA.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.5, 0.78],
-  });
-  const auroraBTranslateX = auroraB.interpolate({
-    inputRange: [0, 1],
-    outputRange: [18, -18],
-  });
-  const auroraBOpacity = auroraB.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.16, 0.34],
-  });
-  const playPulseOpacity = playPulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 0.14],
-  });
-  const punchlineSize = Math.min(32, Math.max(24, responsive.safeWidth * 0.075));
+  };
 
   return (
     <Animated.View
@@ -1256,628 +667,386 @@ export function HomeFlowPrelude(props: Props) {
         },
       ]}
     >
-      <StatusBar style="light" backgroundColor="#08080B" />
       <View style={[styles.surface, { paddingBottom: bottomPad }]}>
+        <View pointerEvents='none' style={StyleSheet.absoluteFillObject}>
+          <LinearGradient
+            colors={['#09090B', '#0C0B10', '#09090B']}
+            locations={[0, 0.5, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <Animated.View
+            style={[
+              styles.halo,
+              styles.haloViolet,
+              {
+                opacity: haloOne.interpolate({ inputRange: [0, 1], outputRange: [0.36, 0.7] }),
+                transform: [
+                  { translateX: haloOne.interpolate({ inputRange: [0, 1], outputRange: [-26, 20] }) },
+                  { translateY: haloOne.interpolate({ inputRange: [0, 1], outputRange: [-12, 18] }) },
+                  { scale: haloOne.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1.12] }) },
+                ],
+              },
+            ]}
+          >
+            <LinearGradient colors={['rgba(115,87,198,0.72)', 'rgba(115,87,198,0)']} style={StyleSheet.absoluteFillObject} />
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.halo,
+              styles.haloCoral,
+              {
+                opacity: haloTwo.interpolate({ inputRange: [0, 1], outputRange: [0.28, 0.62] }),
+                transform: [
+                  { translateX: haloTwo.interpolate({ inputRange: [0, 1], outputRange: [20, -24] }) },
+                  { translateY: haloTwo.interpolate({ inputRange: [0, 1], outputRange: [-10, 22] }) },
+                  { scale: haloTwo.interpolate({ inputRange: [0, 1], outputRange: [1.08, 0.92] }) },
+                ],
+              },
+            ]}
+          >
+            <LinearGradient colors={['rgba(217,109,99,0.64)', 'rgba(217,109,99,0)']} style={StyleSheet.absoluteFillObject} />
+          </Animated.View>
+          <View style={[styles.halo, styles.haloCyan]}>
+            <LinearGradient colors={['rgba(74,158,170,0.34)', 'rgba(74,158,170,0)']} style={StyleSheet.absoluteFillObject} />
+          </View>
+        </View>
+
         <Animated.View
           style={[
             styles.stage,
             {
-              opacity: contentOpacity,
-              transform: [{ translateY: contentTranslateY }, { scale: exitScale }],
+              transform: [{ translateY: contentTranslateY }, { scale: contentScale }],
             },
           ]}
         >
-          <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
-            <Animated.View
-              style={[
-                styles.atmosphereBand,
-                {
-                  opacity: auroraAOpacity,
-                  transform: [{ translateX: auroraATranslateX }],
-                },
-              ]}
-            >
-              <LinearGradient
-                colors={[
-                  'rgba(115,87,198,0.24)',
-                  'rgba(217,109,99,0.12)',
-                  'rgba(74,158,170,0.1)',
-                  'rgba(115,87,198,0.08)',
-                ]}
-                locations={[0, 0.34, 0.72, 1]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={StyleSheet.absoluteFillObject}
-              />
-              <LinearGradient
-                colors={['rgba(9,9,11,0)', 'rgba(9,9,11,0.54)', '#09090B']}
-                locations={[0, 0.56, 1]}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-              />
-            </Animated.View>
-            <Animated.View
-              style={[
-                styles.atmosphereSheen,
-                {
-                  opacity: auroraBOpacity,
-                  transform: [{ translateX: auroraBTranslateX }],
-                },
-              ]}
-            >
-              <LinearGradient
-                colors={['rgba(74,158,170,0.18)', 'rgba(244,162,97,0.08)', 'rgba(9,9,11,0)']}
-                locations={[0, 0.36, 1]}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-              />
-            </Animated.View>
-          </View>
-
-          <View style={[styles.header, { height: metrics.headerHeight, paddingTop: topPad }]}>
-            <View
-              style={[
-                styles.headerInner,
-                {
-                  maxWidth: maxContentWidth,
-                  paddingLeft: safeLeft,
-                  paddingRight: safeRight,
-                },
-              ]}
-            >
-              <MotionPressable
-                accessibilityLabel="Ouvrir le Flow"
-                onPress={finish}
-                style={styles.brandButton}
-                scaleTo={0.97}
-              >
-                <View style={styles.logo}>
-                  <SynauraImage source={brandSymbol} contentFit="contain" style={styles.logoImage} />
-                </View>
-                <View style={styles.brandCopy}>
-                  <Text style={styles.brand}>Synaura</Text>
-                  <Text numberOfLines={1} style={styles.greeting}>
-                    {greetingName ? `Salut ${greetingName}, regarde ce que t'as raté` : 'Écoute, crée, partage'}
-                  </Text>
-                </View>
-              </MotionPressable>
-
-              <View style={styles.headerActions}>
-                <MotionPressable
-                  accessibilityLabel="Rechercher"
-                  onPress={onSearch}
-                  style={styles.headerAction}
-                  scaleTo={0.9}
-                >
-                  <Ionicons name="search-outline" size={16} color="rgba(255,255,255,0.78)" />
-                </MotionPressable>
-                <MessageInboxButton dark size={40} />
-                <NotificationBellButton dark size={40} onPress={onNotifications} />
-              </View>
-            </View>
-          </View>
-
           <View
             style={[
-              styles.pulseOuter,
+              styles.header,
               {
-                height: metrics.pulseHeight,
-                paddingLeft: safeLeft,
-                paddingRight: safeRight,
+                minHeight: topPad + (compact ? 50 : 56),
+                paddingTop: topPad + 6,
+                paddingHorizontal: responsive.gutter,
               },
             ]}
           >
-            <View style={[styles.pulsePanel, responsive.isPhoneLandscape && styles.pulsePanelLandscape]}>
-              <LinearGradient
-                colors={['rgba(18,17,24,0.98)', 'rgba(10,10,13,0.97)']}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-              />
-              <View style={[styles.pulseLead, responsive.isPhoneLandscape && styles.pulseLeadLandscape]}>
-                <View
-                  style={[
-                    styles.pulseIntro,
-                    metrics.compactTop && styles.pulseIntroCompact,
-                    responsive.isTablet
-                      && !metrics.compactTop
-                      && !responsive.hasVeryLargeText
-                      && styles.pulseIntroTablet,
-                  ]}
-                >
-                  <View style={styles.badgeRow}>
-                    <View style={styles.absenceBadge}>
-                      <Text style={styles.absenceBadgeText}>PENDANT TON ABSENCE</Text>
-                    </View>
-                    <View style={styles.swipeBadge}>
-                      <Text style={styles.swipeBadgeText}>SWIPE LES CARTES</Text>
-                    </View>
-                  </View>
-                  <Text
-                    maxFontSizeMultiplier={1.12}
-                    numberOfLines={responsive.isPhoneLandscape ? 2 : 3}
-                    adjustsFontSizeToFit={responsive.isPhoneLandscape}
-                    minimumFontScale={0.82}
-                    style={[
-                      styles.punchline,
-                      responsive.isTiny && styles.punchlineTiny,
-                      responsive.isPhoneLandscape && styles.punchlineLandscape,
-                      !responsive.isPhoneLandscape && {
-                        fontSize: punchlineSize,
-                        lineHeight: punchlineSize * 0.94,
-                      },
-                    ]}
-                  >
-                    {HOME_PUNCHLINES[phraseIndex]}
-                  </Text>
-                  {responsive.isTablet && !metrics.compactTop && !responsive.hasVeryLargeText ? (
-                    <Text numberOfLines={1} style={styles.punchCopy}>
-                      Nouveaux posts, sons à tester, petits signaux sociaux et accès rapides : pioche ce qui te donne envie.
-                    </Text>
-                  ) : null}
-                </View>
-
-                {responsive.isTablet && !metrics.compactTop && !responsive.hasVeryLargeText ? (
-                  <MotionPressable
-                    accessibilityLabel="Ouvrir le Flow"
-                    onPress={finish}
-                    style={styles.tabletFlowButton}
-                    scaleTo={0.96}
-                  >
-                    <Ionicons name="radio-outline" size={17} color="#7357C6" />
-                    <Text style={styles.tabletFlowButtonText}>Ouvrir le Flow</Text>
-                    <Ionicons name="chevron-up" size={14} color="#111111" />
-                  </MotionPressable>
-                ) : null}
-
-                {!responsive.isVeryShort ? (
-                  <View style={[styles.banner, metrics.compactTop && styles.bannerCompact]}>
-                    <LinearGradient
-                      colors={[
-                        'rgba(115,87,198,0.12)',
-                        'rgba(255,255,255,0.045)',
-                        'rgba(74,158,170,0.11)',
-                      ]}
-                      start={{ x: 0, y: 0.5 }}
-                      end={{ x: 1, y: 0.5 }}
-                      style={StyleSheet.absoluteFillObject}
-                    />
-                    <Animated.View
-                      style={[
-                        styles.bannerMessage,
-                        { opacity: bannerEntrance, transform: [{ translateY: bannerTranslateY }] },
-                      ]}
-                    >
-                      <View style={styles.bannerIcon}>
-                        <Ionicons name="flash-outline" size={13} color="#A8DEE5" />
-                      </View>
-                      {responsive.isTablet && !responsive.isPhoneLandscape ? (
-                        <Text style={styles.bannerLabel}>EN CE MOMENT</Text>
-                      ) : null}
-                      <Text numberOfLines={1} style={styles.bannerText}>{banner}</Text>
-                      <Text style={styles.bannerCount}>
-                        {String(bannerIndex + 1).padStart(2, '0')} / {String(bannerItems.length).padStart(2, '0')}
-                      </Text>
-                    </Animated.View>
-                    <Animated.View
-                      style={[
-                        styles.bannerProgress,
-                        {
-                          width: bannerProgress.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: ['0%', '100%'],
-                          }),
-                        },
-                      ]}
-                    >
-                      <LinearGradient
-                        colors={['#7357C6', '#4A9EAA', '#D96D63']}
-                        start={{ x: 0, y: 0.5 }}
-                        end={{ x: 1, y: 0.5 }}
-                        style={StyleSheet.absoluteFillObject}
-                      />
-                    </Animated.View>
-                  </View>
-                ) : null}
+            <MotionPressable accessibilityLabel='Entrer dans le Flow' onPress={finish} style={styles.brandRow} scaleTo={0.97}>
+              <View style={styles.brandLogo}>
+                <Animated.View style={[styles.brandPulse, { opacity: pulseOpacity, transform: [{ scale: pulseScale }] }]} />
+                <Image source={brandSymbol} resizeMode='contain' style={styles.brandImage} />
               </View>
-
-              <View
-                style={[
-                  styles.railWrap,
-                  responsive.isPhoneLandscape && styles.railLandscape,
-                ]}
-              >
-                <Animated.FlatList
-                  horizontal
-                  data={railItems}
-                  keyExtractor={(item) => item.id}
-                  renderItem={renderAnimatedRailItem}
-                  style={styles.rail}
-                  contentContainerStyle={[
-                    styles.railContent,
-                    {
-                      gap: metrics.railGap,
-                      paddingLeft: 16,
-                      paddingRight: 48,
-                    },
-                  ]}
-                  showsHorizontalScrollIndicator={false}
-                  decelerationRate="fast"
-                  snapToOffsets={railOffsets}
-                  snapToAlignment="start"
-                  disableIntervalMomentum
-                  initialNumToRender={6}
-                  maxToRenderPerBatch={6}
-                  windowSize={7}
-                  removeClippedSubviews={false}
-                  scrollEventThrottle={16}
-                  onScroll={Animated.event(
-                    [{ nativeEvent: { contentOffset: { x: railScrollX } } }],
-                    { useNativeDriver: true },
-                  )}
-                  onMomentumScrollEnd={onRailMomentumEnd}
-                  getItemLayout={(_, index) => ({
-                    index,
-                    length: (railItemWidths[index] ?? metrics.railCardWidth) + metrics.railGap,
-                    offset: railOffsets[index] ?? 0,
-                  })}
-                />
-                <LinearGradient
-                  pointerEvents="none"
-                  colors={['#101014', 'rgba(16,16,20,0)']}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={styles.railFadeLeft}
-                />
-                <LinearGradient
-                  pointerEvents="none"
-                  colors={['rgba(16,16,20,0)', '#101014']}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={styles.railFadeRight}
-                />
+              <View style={styles.brandCopy}>
+                <Text style={styles.brandName}>Synaura</Text>
+                <Text numberOfLines={1} style={styles.brandLine}>
+                  {greetingName ? `Salut ${greetingName}, regarde ce que t’as raté` : 'Écoute, crée, partage'}
+                </Text>
               </View>
+            </MotionPressable>
+
+            <View style={styles.headerActions}>
+              <MotionPressable accessibilityLabel='Rechercher' onPress={() => hapticPress(onSearch)} style={styles.headerButton} scaleTo={0.9}>
+                <Ionicons name='search' size={compact ? 17 : 18} color='rgba(255,255,255,0.82)' />
+              </MotionPressable>
+              <MotionPressable accessibilityLabel='Messages' onPress={() => hapticPress(() => navigation.navigate('Messages'))} style={styles.headerButton} scaleTo={0.9}>
+                <Ionicons name='chatbubble-outline' size={compact ? 17 : 18} color='rgba(255,255,255,0.82)' />
+              </MotionPressable>
+              <MotionPressable accessibilityLabel='Notifications' onPress={() => hapticPress(onNotifications)} style={styles.headerButton} scaleTo={0.9}>
+                <Ionicons name='notifications-outline' size={compact ? 18 : 19} color='rgba(255,255,255,0.82)' />
+              </MotionPressable>
             </View>
           </View>
 
-          <View style={styles.flowPreview}>
-            <BreathingView
-              active={visible}
-              scaleTo={1.055}
-              duration={6_500}
-              style={styles.previewMedia}
-            >
-              {featuredCover ? (
-                <SynauraImage source={featuredCover} style={StyleSheet.absoluteFillObject} />
-              ) : (
-                <View style={styles.previewFallback}>
-                  <LinearGradient
-                    colors={['#2A1830', '#102B2D', '#20131A']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFillObject}
-                  />
-                  <SynauraImage source={brandSymbol} contentFit="contain" style={styles.previewFallbackLogo} />
-                </View>
-              )}
-            </BreathingView>
+          <View style={[styles.pulseSection, { height: pulseHeight, paddingHorizontal: responsive.gutter }]}>
             <LinearGradient
-              colors={['rgba(7,7,9,0.22)', 'rgba(7,7,9,0.12)', 'rgba(7,7,9,0.86)', 'rgba(7,7,9,0.99)']}
-              locations={[0, 0.28, 0.76, 1]}
+              colors={['rgba(20,18,26,0.96)', 'rgba(12,11,15,0.94)', 'rgba(9,9,11,0.9)']}
+              locations={[0, 0.56, 1]}
+              style={styles.pulseCard}
+            >
+              <View style={styles.pulseHeader}>
+                <View style={styles.badgeRow}>
+                  <View style={[styles.badge, styles.badgeViolet]}>
+                    <Text style={[styles.badgeText, { color: '#DCCEFF' }]}>PENDANT TON ABSENCE</Text>
+                  </View>
+                  <View style={[styles.badge, styles.badgeCyan]}>
+                    <Text style={[styles.badgeText, { color: '#A8DEE5' }]}>SWIPE LES CARTES</Text>
+                  </View>
+                </View>
+                <Text
+                  maxFontSizeMultiplier={1.08}
+                  numberOfLines={3}
+                  adjustsFontSizeToFit
+                  style={[styles.punchline, compact && styles.punchlineCompact]}
+                >
+                  {PUNCHLINES[phraseIndex]}
+                </Text>
+              </View>
+
+              <View style={styles.ticker}>
+                <LinearGradient
+                  colors={['rgba(115,87,198,0.16)', 'rgba(255,255,255,0.055)', 'rgba(74,158,170,0.14)']}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+                <Animated.View
+                  style={[
+                    styles.tickerContent,
+                    {
+                      opacity: bannerIn,
+                      transform: [{
+                        translateY: bannerIn.interpolate({ inputRange: [0, 1], outputRange: [7, 0] }),
+                      }],
+                    },
+                  ]}
+                >
+                  <View style={styles.tickerIcon}>
+                    <Ionicons name='flash-outline' size={13} color='#A8DEE5' />
+                  </View>
+                  {!responsive.isTiny ? <Text style={styles.tickerLabel}>EN CE MOMENT</Text> : null}
+                  <Text numberOfLines={1} style={styles.tickerMessage}>{bannerItems[bannerIndex]}</Text>
+                  <Text style={styles.tickerCount}>
+                    {String(bannerIndex + 1).padStart(2, '0')} / {String(bannerItems.length).padStart(2, '0')}
+                  </Text>
+                </Animated.View>
+                <Animated.View style={[styles.tickerProgress, { width: bannerWidth }]} />
+              </View>
+
+              <Animated.View
+                style={[
+                  styles.railWrap,
+                  {
+                    height: railHeight,
+                    opacity: cardsIn,
+                    transform: [{ translateY: cardsTranslateY }],
+                  },
+                ]}
+              >
+                <LinearGradient
+                  pointerEvents='none'
+                  colors={['rgba(15,14,19,0.96)', 'rgba(15,14,19,0)']}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.leftFade}
+                />
+                <FlatList
+                  horizontal
+                  data={railItems}
+                  renderItem={renderRailItem}
+                  keyExtractor={(item) => item.id}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.railContent}
+                  ItemSeparatorComponent={() => <View style={styles.railGap} />}
+                  snapToInterval={cardWidth + 10}
+                  snapToAlignment='start'
+                  decelerationRate='fast'
+                  disableIntervalMomentum
+                  bounces
+                  onMomentumScrollEnd={() => {
+                    void Haptics.selectionAsync().catch(() => {});
+                  }}
+                />
+                <LinearGradient
+                  pointerEvents='none'
+                  colors={['rgba(15,14,19,0)', 'rgba(15,14,19,0.98)']}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.rightFade}
+                />
+              </Animated.View>
+            </LinearGradient>
+          </View>
+
+          <View style={styles.flowPreview}>
+            <Animated.View style={[StyleSheet.absoluteFillObject, { transform: [{ scale: coverScale }] }]}>
+              {featuredCover ? (
+                <ExpoImage
+                  source={{ uri: featuredCover }}
+                  contentFit='cover'
+                  transition={220}
+                  cachePolicy='memory-disk'
+                  style={StyleSheet.absoluteFillObject}
+                />
+              ) : (
+                <LinearGradient
+                  colors={['#2B172D', '#193138', '#0B0B0D']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+              )}
+            </Animated.View>
+            <LinearGradient
+              colors={['rgba(7,7,9,0.14)', 'rgba(7,7,9,0.05)', 'rgba(7,7,9,0.86)', 'rgba(7,7,9,0.98)']}
+              locations={[0, 0.25, 0.76, 1]}
               style={StyleSheet.absoluteFillObject}
             />
             <LinearGradient
-              colors={['rgba(7,7,9,0.68)', 'transparent', 'rgba(7,7,9,0.2)']}
+              colors={['rgba(7,7,9,0.66)', 'rgba(7,7,9,0.1)', 'rgba(7,7,9,0.2)']}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={StyleSheet.absoluteFillObject}
             />
             <LinearGradient
-              pointerEvents="none"
-              colors={['rgba(115,87,198,0.2)', 'rgba(115,87,198,0)']}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={styles.previewTopGlow}
+              colors={['rgba(115,87,198,0.2)', 'rgba(217,109,99,0.08)', 'transparent']}
+              start={{ x: 0.2, y: 0 }}
+              end={{ x: 0.8, y: 1 }}
+              style={styles.flowTopGlow}
             />
 
-            {responsive.isPhoneLandscape ? (
-              <View
-                style={[
-                  styles.landscapePreviewContent,
-                  {
-                    paddingLeft: responsive.insets.left + 12,
-                    paddingRight: responsive.insets.right + 12,
-                  },
-                ]}
-              >
-                <MotionPressable
-                  accessibilityLabel={isPlayingFeatured ? 'Mettre en pause' : 'Écouter'}
-                  disabled={!featuredTrack}
-                  onPress={() => featuredTrack && onPlayTrack(featuredTrack)}
-                  style={styles.landscapePlayButton}
-                  scaleTo={0.9}
-                >
-                  <Animated.View
-                    pointerEvents="none"
-                    style={[styles.playSurfacePulse, { opacity: playPulseOpacity }]}
-                  />
-                  {isPlayingFeatured ? (
-                    <Equalizer active reducedMotion={settings.reducedMotion} />
-                  ) : (
-                    <Ionicons name="play" size={19} color="#111111" style={styles.playIcon} />
-                  )}
-                </MotionPressable>
-                <MotionPressable
-                  accessibilityLabel="Ouvrir le morceau dans le Flow"
-                  disabled={!featuredTrack}
-                  onPress={() => featuredTrack && onOpenTrack(featuredTrack)}
-                  style={styles.landscapeTrackCopy}
-                  scaleTo={0.99}
-                >
-                  <Text numberOfLines={1} style={styles.landscapeKicker}>
-                    POUR TOI · {isCurrentTrack ? 'REPRENDRE' : 'PREMIER SON'}
-                  </Text>
-                  <Text numberOfLines={1} adjustsFontSizeToFit style={styles.landscapeTrackTitle}>
-                    {featuredTrack?.title || (loading ? 'Ton Flow se prépare' : 'Prêt pour une nouvelle écoute')}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.landscapeTrackArtist}>
-                    {featuredTrack ? trackArtistName(featuredTrack) : 'Synaura affine ta sélection'}
-                  </Text>
-                </MotionPressable>
-                <MotionPressable
-                  accessibilityLabel="Glisser vers le haut pour ouvrir le Flow"
-                  onPress={finish}
-                  style={styles.landscapeGuide}
-                  scaleTo={0.94}
-                >
-                  <Animated.View style={{ transform: [{ translateY: guideTranslateY }] }}>
-                    <Ionicons name="chevron-up" size={15} color="#DCCEFF" />
-                  </Animated.View>
-                  <Text style={styles.landscapeGuideText}>GLISSE</Text>
-                </MotionPressable>
-                <MotionPressable
-                  accessibilityLabel="Voir le Flow en plein écran"
-                  onPress={() => featuredTrack ? onOpenTrack(featuredTrack) : finish()}
-                  style={styles.landscapeIconAction}
-                  scaleTo={0.9}
-                >
-                  <Ionicons name="scan-outline" size={18} color="#FFFFFF" />
-                </MotionPressable>
-                <MotionPressable
-                  accessibilityLabel={featuredLiked ? "Retirer des j'aime" : 'Aimer'}
-                  disabled={!featuredTrack}
-                  onPress={() => featuredTrack && onToggleLike(featuredTrack)}
-                  style={[styles.landscapeLabeledAction, featuredLiked && styles.flowActionLiked]}
-                  scaleTo={0.88}
-                >
-                  <Ionicons
-                    name={featuredLiked ? 'heart' : 'heart-outline'}
-                    size={17}
-                    color={featuredLiked ? '#FFD5CF' : '#FFFFFF'}
-                  />
-                  <Text style={styles.landscapeActionCount}>{fmtCount(featuredLikes)}</Text>
-                </MotionPressable>
-                <MotionPressable
-                  accessibilityLabel="Ouvrir les commentaires"
-                  disabled={!featuredTrack}
-                  onPress={() => featuredTrack && onOpenComments(featuredTrack)}
-                  style={styles.landscapeLabeledAction}
-                  scaleTo={0.88}
-                >
-                  <Ionicons name="chatbubble-outline" size={16} color="#FFFFFF" />
-                  <Text style={styles.landscapeActionCount}>{fmtCount(featuredComments)}</Text>
-                </MotionPressable>
-                <MotionPressable
-                  accessibilityLabel="Partager le morceau"
-                  disabled={!featuredTrack}
-                  onPress={() => featuredTrack && onShareTrack(featuredTrack)}
-                  style={styles.landscapeIconAction}
-                  scaleTo={0.88}
-                >
-                  <Ionicons name="share-social-outline" size={18} color="#FFFFFF" />
-                </MotionPressable>
-              </View>
-            ) : (
-              <>
-            <MotionPressable
-              accessibilityLabel="Ouvrir le Flow"
-              onPress={finish}
-              style={[
-                styles.flowPreviewBadge,
-                responsive.isVeryShort && styles.flowPreviewBadgeVeryShort,
-                responsive.isVeryShort
-                  ? { right: safeRight + metrics.actionSize + 8 }
-                  : null,
-              ]}
-              scaleTo={0.95}
-            >
-              <View style={styles.flowPreviewSignal} />
-              <Text
-                style={[
-                  styles.flowPreviewBadgeText,
-                  responsive.isVeryShort && styles.flowPreviewBadgeTextVeryShort,
-                ]}
-              >
-                APERÇU DU FLOW
-              </Text>
+            <MotionPressable accessibilityLabel='Entrer dans le Flow' onPress={finish} style={styles.previewBadge} scaleTo={0.96}>
+              <View style={styles.previewDot} />
+              <Text style={styles.previewBadgeText}>APERÇU DU FLOW</Text>
             </MotionPressable>
 
-            <View
-              style={[
-                styles.previewBadges,
-                responsive.isVeryShort && styles.previewBadgesVeryShort,
-                { left: safeLeft },
-              ]}
-            >
-              <MotionPressable accessibilityLabel="Découvrir ta sélection" onPress={onDiscover} style={styles.previewBadge} scaleTo={0.94}>
-                <Text style={styles.previewBadgeText}>Pour toi</Text>
+            <View style={styles.flowChips}>
+              <MotionPressable accessibilityLabel='Découvrir pour toi' onPress={() => hapticPress(onDiscover)} style={[styles.flowChip, styles.flowChipNeutral]} scaleTo={0.94}>
+                <Text style={styles.flowChipText}>Pour toi</Text>
               </MotionPressable>
-              <MotionPressable accessibilityLabel="Ouvrir le Radar" onPress={onRadar} style={styles.previewBadgeRadar} scaleTo={0.94}>
-                <Text style={styles.previewBadgeRadarText}>Ça monte</Text>
+              <MotionPressable accessibilityLabel='Ouvrir le Radar' onPress={() => hapticPress(onRadar)} style={[styles.flowChip, styles.flowChipCoral]} scaleTo={0.94}>
+                <Text style={[styles.flowChipText, { color: '#FFD4CE' }]}>Ça monte</Text>
               </MotionPressable>
             </View>
 
-            <MotionPressable
-              accessibilityLabel="Glisser vers le haut pour ouvrir le Flow"
-              onPress={finish}
-              style={[
-                styles.swipeGuide,
-                responsive.isVeryShort && styles.swipeGuideVeryShort,
-                {
-                  top: responsive.isVeryShort
-                    ? 42
-                    : Math.max(8, (metrics.previewHeight - 144) / 2),
-                },
-              ]}
-              scaleTo={0.94}
-            >
-              <Animated.View style={[styles.swipeChevrons, { transform: [{ translateY: guideTranslateY }] }]}>
-                <Ionicons name="chevron-up" size={responsive.isVeryShort ? 10 : 13} color="#DCCEFF" />
-                <Ionicons name="chevron-up" size={responsive.isVeryShort ? 10 : 13} color="#A8DEE5" />
-                <Ionicons name="chevron-up" size={responsive.isVeryShort ? 10 : 13} color="#F0AAA2" />
-              </Animated.View>
-              <View style={[styles.swipeFingerTrack, responsive.isVeryShort && styles.swipeFingerTrackVeryShort]}>
-                <Animated.View
-                  style={[
-                    styles.swipeFinger,
-                    responsive.isVeryShort && styles.swipeFingerVeryShort,
-                    {
-                      opacity: fingerOpacity,
-                      transform: [{ translateY: fingerTranslateY }],
-                    },
-                  ]}
-                >
-                  <View style={styles.swipeFingerDot} />
-                </Animated.View>
-              </View>
-              <Text style={[styles.swipeGuideText, responsive.isVeryShort && styles.swipeGuideTextVeryShort]}>
-                GLISSE
-              </Text>
-            </MotionPressable>
-
-            <View
-              style={[
-                styles.previewCopy,
-                {
-                  left: safeLeft,
-                  right: responsive.isVeryShort
-                    ? safeRight + metrics.actionSize + 49
-                    : safeRight + metrics.actionSize + 16,
-                },
-                responsive.isVeryShort && styles.previewCopyCompact,
-              ]}
-            >
-              <Text style={styles.previewKicker}>
-                {isCurrentTrack ? 'REPRENDRE MAINTENANT' : 'PREMIER SON DE TON FLOW'}
-              </Text>
+            <View style={[styles.flowCopy, { left: responsive.gutter, maxWidth: responsive.safeWidth * (responsive.isTiny ? 0.61 : 0.68) }]}>
+              <Text style={styles.flowKicker}>{isCurrentTrack ? 'REPRENDRE MAINTENANT' : 'PREMIER SON DE TON FLOW'}</Text>
               <MotionPressable
-                accessibilityLabel="Ouvrir le morceau dans le Flow"
+                accessibilityLabel='Ouvrir le morceau'
                 disabled={!featuredTrack}
-                onPress={() => featuredTrack && onOpenTrack(featuredTrack)}
-                style={styles.previewTrackCopy}
+                onPress={() => featuredTrack && hapticPress(() => onOpenTrack(featuredTrack))}
+                style={styles.trackCopy}
                 scaleTo={0.99}
               >
                 <Text
-                  maxFontSizeMultiplier={1.12}
+                  maxFontSizeMultiplier={1.08}
                   numberOfLines={2}
                   adjustsFontSizeToFit
-                  minimumFontScale={0.7}
-                  style={[
-                    styles.previewTitle,
-                    responsive.isTiny && styles.previewTitleTiny,
-                    responsive.isPhoneLandscape && styles.previewTitleLandscape,
-                  ]}
+                  style={[styles.flowTitle, compact && styles.flowTitleCompact]}
                 >
-                  {featuredTrack?.title || (loading ? 'Ton Flow se prépare' : 'Prêt pour une nouvelle écoute')}
+                  {featuredTrack?.title || 'Ton Flow se prépare'}
                 </Text>
-                <Text numberOfLines={1} style={styles.previewArtist}>
-                  {featuredTrack ? trackArtistName(featuredTrack) : 'Synaura affine ta sélection'}
+                <Text numberOfLines={1} style={styles.flowArtist}>
+                  {featuredTrack ? artistName(featuredTrack) : 'Synaura prépare ta sélection'}
                 </Text>
               </MotionPressable>
 
-              {featuredTrack && !responsive.isVeryShort ? (
-                <View style={styles.previewMeta}>
-                  <Text style={styles.previewMetaText}>{fmtCount(Number(featuredTrack.plays || 0))} écoutes</Text>
+              {featuredTrack ? (
+                <View style={styles.flowMeta}>
+                  <Text style={styles.flowMetaText}>{compactCount(featuredTrack.plays || 0)} écoutes</Text>
                   <View style={styles.metaDot} />
-                  <Text style={styles.previewMetaText}>{fmtCount(featuredLikes)} j'aime</Text>
-                  {nextTrack && !responsive.isShort ? (
-                    <>
-                      <View style={styles.metaDot} />
-                      <Text numberOfLines={1} style={styles.nextTrack}>Ensuite : {nextTrack.title}</Text>
-                    </>
+                  <Text style={styles.flowMetaText}>{compactCount(countOf(featuredTrack.likesCount ?? featuredTrack.likes))} j’aime</Text>
+                  {nextTrack && !responsive.isTiny ? (
+                    <Text numberOfLines={1} style={styles.nextTrack}>Ensuite : {nextTrack.title}</Text>
                   ) : null}
                 </View>
               ) : null}
 
-              <View style={styles.previewButtons}>
+              <View style={styles.flowButtons}>
                 <MotionPressable
-                  accessibilityLabel={isPlayingFeatured ? 'Mettre en pause' : 'Écouter'}
+                  accessibilityLabel='Écouter'
                   disabled={!featuredTrack}
-                  onPress={() => featuredTrack && onPlayTrack(featuredTrack)}
-                  style={[styles.playButton, { width: 48, height: 48, borderRadius: 24 }]}
-                  scaleTo={0.9}
+                  onPress={() => featuredTrack && hapticPress(() => onPlayTrack(featuredTrack))}
+                  style={[styles.playButton, !featuredTrack && styles.disabledButton]}
+                  scaleTo={0.92}
                 >
-                  <Animated.View
-                    pointerEvents="none"
-                    style={[styles.playSurfacePulse, { opacity: playPulseOpacity }]}
-                  />
+                  <Animated.View style={[styles.playPulse, { opacity: pulseOpacity, transform: [{ scale: pulseScale }] }]} />
                   {isPlayingFeatured ? (
-                    <Equalizer active reducedMotion={settings.reducedMotion} />
+                    <View style={styles.equalizer}>
+                      {[0, 1, 2, 3].map((bar) => (
+                        <Animated.View
+                          key={bar}
+                          style={[
+                            styles.eqBar,
+                            {
+                              transform: [{
+                                scaleY: equalizer.interpolate({
+                                  inputRange: [0, 1],
+                                  outputRange: bar % 2 ? [1, 0.38] : [0.38, 1],
+                                }),
+                              }],
+                            },
+                          ]}
+                        />
+                      ))}
+                    </View>
                   ) : (
-                    <Ionicons name="play" size={21} color="#111111" style={styles.playIcon} />
+                    <Ionicons name='play' size={compact ? 21 : 23} color='#111111' style={styles.playIcon} />
                   )}
                 </MotionPressable>
-                <MotionPressable
-                  accessibilityLabel="Voir le Flow en plein écran"
-                  onPress={() => featuredTrack ? onOpenTrack(featuredTrack) : finish()}
-                  style={[styles.fullScreenButton, { height: metrics.actionSize }]}
-                  scaleTo={0.95}
-                >
-                  <Ionicons name="radio-outline" size={17} color="#FFFFFF" />
-                  <Text numberOfLines={1} adjustsFontSizeToFit style={styles.fullScreenText}>Voir en plein écran</Text>
+
+                <MotionPressable accessibilityLabel='Voir en plein écran' onPress={finish} style={styles.fullscreenButton} scaleTo={0.96}>
+                  <Ionicons name='radio-outline' size={16} color='#FFFFFF' />
+                  <Text numberOfLines={1} adjustsFontSizeToFit style={styles.fullscreenText}>Voir en plein écran</Text>
                 </MotionPressable>
               </View>
             </View>
 
-            <View style={[styles.flowActions, { right: safeRight }]}>
+            <View style={[styles.flowActions, { right: responsive.gutter }]}>
               <MotionPressable
-                accessibilityLabel={featuredLiked ? "Retirer des j'aime" : 'Aimer'}
+                accessibilityLabel='Aimer'
                 disabled={!featuredTrack}
-                onPress={() => featuredTrack && onToggleLike(featuredTrack)}
-                style={[styles.flowAction, { width: metrics.actionSize, height: metrics.actionSize }, featuredLiked && styles.flowActionLiked]}
-                scaleTo={0.88}
+                onPress={() => featuredTrack && hapticPress(() => onOpenTrack(featuredTrack))}
+                style={styles.actionButton}
+                scaleTo={0.9}
               >
-                <Ionicons
-                  name={featuredLiked ? 'heart' : 'heart-outline'}
-                  size={19}
-                  color={featuredLiked ? '#FFD5CF' : '#FFFFFF'}
-                />
+                <Ionicons name='heart-outline' size={compact ? 21 : 23} color='#FFFFFF' />
               </MotionPressable>
-              <Text style={styles.flowActionCount}>{fmtCount(featuredLikes)}</Text>
+              <Text style={styles.actionCount}>
+                {featuredTrack ? compactCount(countOf(featuredTrack.likesCount ?? featuredTrack.likes)) : '0'}
+              </Text>
+
               <MotionPressable
-                accessibilityLabel="Ouvrir les commentaires"
+                accessibilityLabel='Commentaires'
                 disabled={!featuredTrack}
-                onPress={() => featuredTrack && onOpenComments(featuredTrack)}
-                style={[styles.flowAction, { width: metrics.actionSize, height: metrics.actionSize }]}
-                scaleTo={0.88}
+                onPress={() => featuredTrack && hapticPress(() => onOpenTrack(featuredTrack))}
+                style={styles.actionButton}
+                scaleTo={0.9}
               >
-                <Ionicons name="chatbubble-outline" size={18} color="#FFFFFF" />
+                <Ionicons name='chatbubble-outline' size={compact ? 20 : 22} color='#FFFFFF' />
               </MotionPressable>
-              <Text style={styles.flowActionCount}>{fmtCount(featuredComments)}</Text>
+              <Text style={styles.actionCount}>
+                {featuredTrack ? compactCount(countOf(featuredTrack.commentsCount ?? featuredTrack.comments)) : '0'}
+              </Text>
+
               <MotionPressable
-                accessibilityLabel="Partager le morceau"
+                accessibilityLabel='Partager'
                 disabled={!featuredTrack}
-                onPress={() => featuredTrack && onShareTrack(featuredTrack)}
-                style={[styles.flowAction, { width: metrics.actionSize, height: metrics.actionSize }]}
-                scaleTo={0.88}
+                onPress={() => featuredTrack && hapticPress(() => onOpenTrack(featuredTrack))}
+                style={styles.actionButton}
+                scaleTo={0.9}
               >
-                <Ionicons name="share-social-outline" size={19} color="#FFFFFF" />
+                <Ionicons name='share-social-outline' size={compact ? 20 : 22} color='#FFFFFF' />
               </MotionPressable>
             </View>
-              </>
-            )}
+
+            <MotionPressable
+              accessibilityLabel='Glisser vers le haut pour ouvrir le Flow'
+              onPress={finish}
+              style={[
+                styles.swipePill,
+                {
+                  right: responsive.gutter + (compact ? 47 : 54),
+                  top: compact ? '29%' : '31%',
+                },
+              ]}
+              scaleTo={0.97}
+            >
+              <LinearGradient
+                colors={['rgba(115,87,198,0.34)', 'rgba(74,158,170,0.12)', 'rgba(217,109,99,0.24)']}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={styles.chevrons}>
+                <Ionicons name='chevron-up' size={14} color='#DCCEFF' />
+                <Ionicons name='chevron-up' size={14} color='#A8DEE5' style={styles.chevronOverlap} />
+                <Ionicons name='chevron-up' size={14} color='#F0AAA2' style={styles.chevronOverlap} />
+              </View>
+              <View style={styles.fingerTrack}>
+                <Animated.View style={[styles.finger, { opacity: fingerOpacity, transform: [{ translateY: fingerTranslateY }] }]}>
+                  <View style={styles.fingerDot} />
+                </Animated.View>
+              </View>
+              <Text style={styles.swipeText}>GLISSE</Text>
+            </MotionPressable>
           </View>
         </Animated.View>
       </View>
@@ -1886,1284 +1055,126 @@ export function HomeFlowPrelude(props: Props) {
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 40,
-    overflow: 'hidden',
-    backgroundColor: '#09090B',
-  },
-  surface: {
-    flex: 1,
-    backgroundColor: '#09090B',
-  },
-  stage: {
-    flex: 1,
-    overflow: 'hidden',
-    backgroundColor: '#09090B',
-  },
-  atmosphereBand: {
-    position: 'absolute',
-    left: -48,
-    right: -48,
-    top: -18,
-    height: 340,
-    overflow: 'hidden',
-  },
-  atmosphereSheen: {
-    position: 'absolute',
-    left: -36,
-    right: -36,
-    top: -20,
-    height: 280,
-  },
-  header: {
-    zIndex: 10,
-    width: '100%',
-    justifyContent: 'center',
-  },
-  headerInner: {
-    width: '100%',
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  brandButton: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-  },
-  logo: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F7F6F3',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.44)',
-    shadowColor: '#7357C6',
-    shadowOpacity: 0.38,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 7,
-  },
-  logoCompact: {
-    width: 36,
-    height: 36,
-  },
-  logoImage: {
-    width: 25,
-    height: 25,
-    zIndex: 1,
-  },
-  brandCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  brand: {
-    color: '#F7F6F3',
-    fontSize: 17,
-    lineHeight: 18,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  greeting: {
-    marginTop: 2,
-    color: 'rgba(255,255,255,0.48)',
-    fontSize: 10,
-    lineHeight: 12,
-    fontWeight: '700',
-    fontFamily: FONT_BOLD,
-  },
-  headerActions: {
-    flexShrink: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  headerAction: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  headerActionCompact: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  pulseOuter: {
-    zIndex: 5,
-    width: '100%',
-    paddingBottom: 12,
-  },
-  pulsePanel: {
-    flex: 1,
-    width: '100%',
-    maxWidth: 920,
-    alignSelf: 'center',
-    overflow: 'hidden',
-    borderRadius: 26,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.13)',
-    backgroundColor: '#101014',
-    shadowColor: '#000000',
-    shadowOpacity: 0.34,
-    shadowRadius: 26,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 9,
-  },
-  pulsePanelLandscape: {
-    flexDirection: 'row',
-  },
-  pulseLead: {
-    flexShrink: 0,
-    position: 'relative',
-  },
-  pulseLeadLandscape: {
-    width: '42%',
-    justifyContent: 'center',
-  },
-  pulseIntro: {
-    flexShrink: 0,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 10,
-  },
-  pulseIntroCompact: {
-    paddingTop: 10,
-    paddingBottom: 7,
-  },
-  pulseIntroTablet: {
-    paddingRight: 190,
-  },
-  badgeRow: {
-    minHeight: 20,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 6,
-  },
-  absenceBadge: {
-    minHeight: 20,
-    justifyContent: 'center',
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(169,139,232,0.38)',
-    backgroundColor: 'rgba(115,87,198,0.2)',
-    paddingHorizontal: 10,
-  },
-  absenceBadgeText: {
-    color: '#DCCEFF',
-    fontSize: 8,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  swipeBadge: {
-    minHeight: 20,
-    justifyContent: 'center',
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(114,187,197,0.32)',
-    backgroundColor: 'rgba(74,158,170,0.16)',
-    paddingHorizontal: 10,
-  },
-  swipeBadgeText: {
-    color: '#A8DEE5',
-    fontSize: 8,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  punchline: {
-    marginTop: 8,
-    color: '#FFFFFF',
-    fontSize: 29,
-    lineHeight: 27.5,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  punchlineTiny: {
-    fontSize: 24,
-    lineHeight: 22.6,
-  },
-  punchlineLandscape: {
-    marginTop: 7,
-    fontSize: 18,
-    lineHeight: 18,
-    fontFamily: FONT_BLACK,
-  },
-  punchCopy: {
-    marginTop: 4,
-    color: 'rgba(255,255,255,0.43)',
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: '600',
-    fontFamily: FONT_SEMIBOLD,
-  },
-  tabletFlowButton: {
-    position: 'absolute',
-    right: 20,
-    top: 42,
-    zIndex: 2,
-    height: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    borderRadius: 14,
-    backgroundColor: '#F7F6F3',
-    paddingHorizontal: 16,
-    shadowColor: '#F7F6F3',
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 5,
-  },
-  tabletFlowButtonText: {
-    color: '#111111',
-    fontSize: 12,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  banner: {
-    flexShrink: 0,
-    height: 42,
-    marginHorizontal: 16,
-    marginBottom: 10,
-    overflow: 'hidden',
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.11)',
-    backgroundColor: 'rgba(255,255,255,0.055)',
-  },
-  bannerCompact: {
-    height: 38,
-    marginBottom: 7,
-  },
-  bannerMessage: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-  },
-  bannerIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(74,158,170,0.18)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(114,187,197,0.3)',
-  },
-  bannerLabel: {
-    flexShrink: 0,
-    color: '#DCCEFF',
-    fontSize: 8,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  bannerText: {
-    flex: 1,
-    minWidth: 0,
-    color: 'rgba(255,255,255,0.76)',
-    fontSize: 10,
-    fontWeight: '800',
-    fontFamily: FONT_BLACK,
-  },
-  bannerCount: {
-    flexShrink: 0,
-    color: 'rgba(255,255,255,0.34)',
-    fontSize: 8,
-    fontFamily: FONT_BLACK,
-  },
-  bannerProgress: {
-    position: 'absolute',
-    left: 0,
-    bottom: 0,
-    height: 2,
-    overflow: 'hidden',
-  },
-  railWrap: {
-    flex: 1,
-    minHeight: 0,
-    position: 'relative',
-  },
-  rail: {
-    flex: 1,
-    minHeight: 0,
-  },
-  railLandscape: {
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: 'rgba(255,255,255,0.1)',
-  },
-  railContent: {
-    alignItems: 'stretch',
-    paddingBottom: 12,
-  },
-  railFadeLeft: {
-    position: 'absolute',
-    zIndex: 3,
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 22,
-  },
-  railFadeRight: {
-    position: 'absolute',
-    zIndex: 3,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 40,
-  },
-  animatedRailCard: {
-    height: '100%',
-  },
-  railCard: {
-    height: '100%',
-    minHeight: 68,
-    overflow: 'hidden',
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.13)',
-    backgroundColor: '#18171D',
-    padding: 14,
-  },
-  railCardCompact: {
-    padding: 11,
-  },
-  skeletonCard: {
-    justifyContent: 'center',
-    backgroundColor: '#1A1920',
-  },
-  skeletonBadge: {
-    position: 'absolute',
-    top: 11,
-    left: 11,
-    width: 70,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.13)',
-  },
-  skeletonAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  skeletonLineWide: {
-    width: '70%',
-    height: 9,
-    marginTop: 9,
-    borderRadius: 5,
-    backgroundColor: 'rgba(255,255,255,0.13)',
-  },
-  skeletonLineShort: {
-    width: '44%',
-    height: 7,
-    marginTop: 5,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.09)',
-  },
-  errorRailCard: {
-    borderColor: 'rgba(217,109,99,0.36)',
-    backgroundColor: '#1C1218',
-  },
-  errorRailIcon: {
-    width: 36,
-    height: 36,
-    flexShrink: 0,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(217,109,99,0.34)',
-    backgroundColor: 'rgba(217,109,99,0.2)',
-  },
-  errorRailBadge: {
-    borderRadius: 9,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(217,109,99,0.26)',
-    backgroundColor: 'rgba(0,0,0,0.18)',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    color: '#F0AAA2',
-    fontSize: 7,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  errorRailRetry: {
-    marginTop: 7,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  errorRailRetryText: {
-    color: '#F0AAA2',
-    fontSize: 8,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  railTopLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  railEyebrowRow: {
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  signalDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  signalDotCoral: {
-    backgroundColor: '#D96D63',
-    shadowColor: '#D96D63',
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-  },
-  railEyebrow: {
-    fontSize: 8,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  coralText: {
-    color: '#F0AAA2',
-  },
-  postIdentity: {
-    minHeight: 0,
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-  },
-  postIdentityCompact: {
-    marginTop: 0,
-    gap: 8,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    flexShrink: 0,
-    overflow: 'hidden',
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(217,109,99,0.42)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  avatarCompact: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-  },
-  avatarFallback: {
-    width: 24,
-    height: 24,
-  },
-  postCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  railTitle: {
-    color: 'rgba(255,255,255,0.94)',
-    fontSize: 14,
-    lineHeight: 18,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  railBody: {
-    marginTop: 3,
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: '600',
-    fontFamily: FONT_SEMIBOLD,
-  },
-  railBodyCompact: {
-    marginTop: 1,
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 8,
-    lineHeight: 10,
-    fontWeight: '600',
-    fontFamily: FONT_SEMIBOLD,
-  },
-  compactRailRow: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  compactRailCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  compactRailTitle: {
-    marginTop: 0,
-    color: '#FFFFFF',
-    fontSize: 12,
-    lineHeight: 15,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  postStats: {
-    marginTop: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  postCta: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  postCtaText: {
-    color: 'rgba(255,255,255,0.68)',
-    fontSize: 9,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  statText: {
-    marginRight: 5,
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 9,
-    fontWeight: '800',
-    fontFamily: FONT_EXTRABOLD,
-  },
-  recentPostCard: {
-    borderColor: 'rgba(244,162,97,0.3)',
-    backgroundColor: '#161216',
-  },
-  recentPostHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  recentPostHeaderCompact: {
-    flex: 1,
-    minHeight: 0,
-  },
-  recentPostAvatar: {
-    width: 40,
-    height: 40,
-    flexShrink: 0,
-    overflow: 'hidden',
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(244,162,97,0.28)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  recentPostTitle: {
-    color: 'rgba(255,255,255,0.94)',
-    fontSize: 12,
-    lineHeight: 15,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  recentPostEyebrow: {
-    marginTop: 1,
-    color: '#F4C18B',
-    fontSize: 7,
-    lineHeight: 10,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  recentPostBody: {
-    marginTop: 8,
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: '600',
-    fontFamily: FONT_SEMIBOLD,
-  },
-  communityTitle: {
-    marginTop: 10,
-    color: '#FFFFFF',
-    fontSize: 16,
-    lineHeight: 20,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  socialBadge: {
-    borderRadius: 9,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.13)',
-    backgroundColor: 'rgba(0,0,0,0.18)',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    color: 'rgba(255,255,255,0.58)',
-    fontSize: 7,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  avatarStack: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatarStackCompact: {
-    marginTop: 2,
-  },
-  stackAvatar: {
-    width: 29,
-    height: 29,
-    overflow: 'hidden',
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#17151B',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  stackAvatarCompact: {
-    width: 21,
-    height: 21,
-    borderRadius: 11,
-  },
-  stackAvatarOverlap: {
-    marginLeft: -8,
-  },
-  stackAvatarFallback: {
-    width: 18,
-    height: 18,
-  },
-  networkCopy: {
-    flex: 1,
-    minWidth: 0,
-    marginLeft: 7,
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 9,
-    fontWeight: '700',
-    fontFamily: FONT_BOLD,
-  },
-  trackBadge: {
-    alignSelf: 'flex-start',
-    maxWidth: '90%',
-    overflow: 'hidden',
-    borderRadius: 9,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(114,187,197,0.34)',
-    backgroundColor: 'rgba(74,158,170,0.24)',
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    color: '#A8DEE5',
-    fontSize: 7,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-    textTransform: 'uppercase',
-  },
-  trackRailBottom: {
-    flex: 1,
-    minHeight: 0,
-    justifyContent: 'flex-end',
-  },
-  trackRailTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    lineHeight: 20,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  trackRailTitleCompact: {
-    fontSize: 12,
-    lineHeight: 14,
-  },
-  trackRailArtist: {
-    marginTop: 2,
-    color: 'rgba(255,255,255,0.62)',
-    fontSize: 10,
-    fontWeight: '700',
-    fontFamily: FONT_BOLD,
-  },
-  trackRailArtistCompact: {
-    fontSize: 8,
-  },
-  trackRailStat: {
-    marginTop: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  trackRailStatText: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 8,
-    fontWeight: '800',
-    fontFamily: FONT_EXTRABOLD,
-  },
-  musicFallbackIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(74,158,170,0.18)',
-  },
-  shortcutViolet: {
-    justifyContent: 'space-between',
-    borderColor: 'rgba(169,139,232,0.34)',
-    backgroundColor: 'rgba(115,87,198,0.2)',
-  },
-  shortcutCyan: {
-    justifyContent: 'space-between',
-    borderColor: 'rgba(114,187,197,0.34)',
-    backgroundColor: 'rgba(74,158,170,0.2)',
-  },
-  shortcutCoral: {
-    justifyContent: 'space-between',
-    borderColor: 'rgba(217,109,99,0.36)',
-    backgroundColor: 'rgba(217,109,99,0.18)',
-  },
-  shortcutOrange: {
-    justifyContent: 'space-between',
-    borderColor: 'rgba(244,162,97,0.34)',
-    backgroundColor: 'rgba(244,162,97,0.16)',
-  },
-  shortcutIconViolet: {
-    width: 36,
-    height: 36,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(115,87,198,0.26)',
-  },
-  shortcutIconCyan: {
-    width: 36,
-    height: 36,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(74,158,170,0.24)',
-  },
-  shortcutIconCoral: {
-    width: 36,
-    height: 36,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(217,109,99,0.22)',
-  },
-  shortcutIconOrange: {
-    width: 36,
-    height: 36,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(244,162,97,0.2)',
-  },
-  shortcutIconCompact: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-  },
-  compactHorizontalCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: 8,
-  },
-  shortcutTitle: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  shortcutSubtitle: {
-    marginTop: 3,
-    color: 'rgba(255,255,255,0.46)',
-    fontSize: 9,
-    lineHeight: 11,
-    fontWeight: '600',
-    fontFamily: FONT_SEMIBOLD,
-  },
-  studioIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  studioTitle: {
-    marginTop: 8,
-    color: '#FFFFFF',
-    fontSize: 16,
-    lineHeight: 20,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  studioTitleCompact: {
-    flex: 1,
-    minWidth: 0,
-    marginTop: 0,
-    fontSize: 12,
-    lineHeight: 15,
-  },
-  studioLink: {
-    marginTop: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  studioLinkText: {
-    color: '#F0AAA2',
-    fontSize: 9,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  flowPreview: {
-    flex: 1,
-    minHeight: 0,
-    overflow: 'hidden',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.15)',
-    backgroundColor: '#131116',
-    shadowColor: '#000000',
-    shadowOpacity: 0.42,
-    shadowRadius: 26,
-    shadowOffset: { width: 0, height: -12 },
-    elevation: 10,
-  },
-  previewMedia: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  previewTopGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 96,
-  },
-  previewFallback: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  previewFallbackLogo: {
-    width: 150,
-    height: 150,
-    opacity: 0.18,
-  },
-  landscapePreviewContent: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  landscapePlayButton: {
-    width: 44,
-    height: 44,
-    flexShrink: 0,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F7F6F3',
-  },
-  playSurfacePulse: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 999,
-    backgroundColor: '#7357C6',
-  },
-  landscapeTrackCopy: {
-    flex: 1,
-    minWidth: 120,
-  },
-  landscapeKicker: {
-    color: '#DCCEFF',
-    fontSize: 7,
-    lineHeight: 9,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  landscapeTrackTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    lineHeight: 17,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  landscapeTrackArtist: {
-    color: 'rgba(255,255,255,0.62)',
-    fontSize: 8,
-    lineHeight: 10,
-    fontWeight: '700',
-    fontFamily: FONT_BOLD,
-  },
-  landscapeGuide: {
-    height: 40,
-    flexShrink: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    paddingHorizontal: 9,
-  },
-  landscapeGuideText: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 7,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  landscapeIconAction: {
-    width: 42,
-    height: 42,
-    flexShrink: 0,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(0,0,0,0.42)',
-  },
-  landscapeLabeledAction: {
-    minWidth: 50,
-    height: 42,
-    flexShrink: 0,
-    borderRadius: 21,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(0,0,0,0.42)',
-    paddingHorizontal: 7,
-  },
-  landscapeActionCount: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 8,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  flowPreviewBadge: {
-    position: 'absolute',
-    top: 12,
-    zIndex: 5,
-    alignSelf: 'center',
-    minHeight: 28,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    minWidth: 138,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(0,0,0,0.34)',
-    paddingHorizontal: 12,
-  },
-  flowPreviewBadgeVeryShort: {
-    alignSelf: 'auto',
-    minWidth: 108,
-    gap: 6,
-    paddingHorizontal: 8,
-  },
-  flowPreviewSignal: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#72BBC5',
-    shadowColor: '#72BBC5',
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-  },
-  flowPreviewBadgeText: {
-    color: 'rgba(255,255,255,0.74)',
-    fontSize: 9,
-    fontFamily: FONT_BLACK,
-  },
-  flowPreviewBadgeTextVeryShort: {
-    fontSize: 8,
-  },
-  previewBadges: {
-    position: 'absolute',
-    top: 56,
-    zIndex: 3,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  previewBadgesVeryShort: {
-    top: 12,
-  },
-  previewBadge: {
-    minHeight: 27,
-    justifyContent: 'center',
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(0,0,0,0.34)',
-    paddingHorizontal: 12,
-  },
-  previewBadgeText: {
-    color: 'rgba(255,255,255,0.82)',
-    fontSize: 9,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  previewBadgeRadar: {
-    minHeight: 27,
-    justifyContent: 'center',
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(217,109,99,0.38)',
-    backgroundColor: 'rgba(217,109,99,0.2)',
-    paddingHorizontal: 12,
-  },
-  previewBadgeRadarText: {
-    color: '#FFD4CE',
-    fontSize: 9,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  swipeGuide: {
-    position: 'absolute',
-    zIndex: 4,
-    right: 61,
-    width: 60,
-    height: 144,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    paddingVertical: 10,
-  },
-  swipeGuideVeryShort: {
-    right: 61,
-    width: 46,
-    height: 76,
-    gap: 1,
-    borderRadius: 18,
-    paddingVertical: 4,
-  },
-  swipeChevrons: {
-    alignItems: 'center',
-    marginBottom: -4,
-  },
-  swipeFingerTrack: {
-    width: 28,
-    height: 54,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  swipeFingerTrackVeryShort: {
-    width: 22,
-    height: 26,
-  },
-  swipeFinger: {
-    width: 18,
-    height: 38,
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.82)',
-    backgroundColor: 'rgba(255,255,255,0.13)',
-  },
-  swipeFingerVeryShort: {
-    width: 14,
-    height: 22,
-    borderRadius: 8,
-    borderWidth: 1.5,
-  },
-  swipeFingerDot: {
-    width: 5,
-    height: 5,
-    marginTop: 5,
-    borderRadius: 3,
-    backgroundColor: '#DCCEFF',
-  },
-  swipeGuideText: {
-    color: 'rgba(255,255,255,0.66)',
-    fontSize: 8,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  swipeGuideTextVeryShort: {
-    fontSize: 7,
-  },
-  previewCopy: {
-    position: 'absolute',
-    zIndex: 3,
-    bottom: 16,
-  },
-  previewCopyCompact: {
-    bottom: 7,
-  },
-  previewKicker: {
-    color: '#DCCEFF',
-    fontSize: 9,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  previewTrackCopy: {
-    minWidth: 0,
-    marginTop: 3,
-  },
-  previewTitle: {
-    color: '#FFFFFF',
-    fontSize: 26.4,
-    lineHeight: 25.5,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-    textShadowColor: 'rgba(0,0,0,0.45)',
-    textShadowRadius: 12,
-    textShadowOffset: { width: 0, height: 4 },
-  },
-  previewTitleTiny: {
-    fontSize: 24,
-    lineHeight: 24,
-  },
-  previewTitleLandscape: {
-    fontSize: 23,
-    lineHeight: 24,
-  },
-  previewArtist: {
-    marginTop: 4,
-    color: 'rgba(255,255,255,0.68)',
-    fontSize: 11,
-    fontWeight: '700',
-    fontFamily: FONT_BOLD,
-  },
-  previewMeta: {
-    minWidth: 0,
-    marginTop: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  previewMetaText: {
-    flexShrink: 0,
-    color: 'rgba(255,255,255,0.48)',
-    fontSize: 8,
-    fontWeight: '700',
-    fontFamily: FONT_BOLD,
-  },
-  metaDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.28)',
-  },
-  nextTrack: {
-    flex: 1,
-    minWidth: 0,
-    color: 'rgba(255,255,255,0.34)',
-    fontSize: 8,
-    fontWeight: '700',
-    fontFamily: FONT_BOLD,
-  },
-  previewButtons: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  playButton: {
-    flexShrink: 0,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F7F6F3',
-    shadowColor: '#000000',
-    shadowOpacity: 0.36,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
-  },
-  playIcon: {
-    marginLeft: 2,
-  },
-  fullScreenButton: {
-    flexShrink: 1,
-    width: 170,
-    maxWidth: 172,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(0,0,0,0.38)',
-    paddingHorizontal: 11,
-  },
-  fullScreenText: {
-    flexShrink: 1,
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
-  equalizer: {
-    height: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  equalizerBar: {
-    width: 2,
-    height: 16,
-    borderRadius: 1,
-    backgroundColor: '#7357C6',
-  },
-  flowActions: {
-    position: 'absolute',
-    zIndex: 4,
-    bottom: 16,
-    alignItems: 'center',
-  },
-  flowAction: {
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  flowActionLiked: {
-    borderColor: 'rgba(217,109,99,0.52)',
-    backgroundColor: 'rgba(217,109,99,0.34)',
-  },
-  flowActionCount: {
-    minHeight: 14,
-    marginTop: 2,
-    marginBottom: 4,
-    color: 'rgba(255,255,255,0.64)',
-    fontSize: 8,
-    lineHeight: 12,
-    fontWeight: '900',
-    fontFamily: FONT_BLACK,
-  },
+  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 120, overflow: 'hidden', backgroundColor: '#09090B' },
+  surface: { flex: 1, overflow: 'hidden', backgroundColor: '#09090B' },
+  stage: { flex: 1, overflow: 'hidden' },
+  halo: { position: 'absolute', overflow: 'hidden', borderRadius: 999 },
+  haloViolet: { width: 330, height: 330, left: -155, top: -95 },
+  haloCoral: { width: 300, height: 300, right: -150, top: -40 },
+  haloCyan: { width: 220, height: 220, left: '34%', top: 56, opacity: 0.52 },
+  header: { zIndex: 20, width: '100%', flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingBottom: 8, gap: 10 },
+  brandRow: { minWidth: 0, flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  brandLogo: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F6F3', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', shadowColor: '#7357C6', shadowOpacity: 0.34, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
+  brandPulse: { position: 'absolute', width: 40, height: 40, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(169,139,232,0.66)' },
+  brandImage: { width: 25, height: 25 },
+  brandCopy: { flex: 1, minWidth: 0 },
+  brandName: { color: '#F7F6F3', fontFamily: FONT_BLACK, fontSize: 18, lineHeight: 19, fontWeight: '900', letterSpacing: 0 },
+  brandLine: { marginTop: 3, color: 'rgba(255,255,255,0.45)', fontFamily: FONT_BOLD, fontSize: 9.5, lineHeight: 12, fontWeight: '700' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  headerButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.075)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
+  pulseSection: { width: '100%', paddingBottom: 12 },
+  pulseCard: { flex: 1, overflow: 'hidden', borderRadius: 26, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', shadowColor: '#000000', shadowOpacity: 0.34, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 7 },
+  pulseHeader: { paddingHorizontal: 16, paddingTop: 13, paddingBottom: 9 },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  badge: { minHeight: 24, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, borderWidth: 1 },
+  badgeViolet: { backgroundColor: 'rgba(115,87,198,0.18)', borderColor: 'rgba(169,139,232,0.34)' },
+  badgeCyan: { backgroundColor: 'rgba(74,158,170,0.14)', borderColor: 'rgba(114,187,197,0.28)' },
+  badgeText: { fontFamily: FONT_BLACK, fontSize: 8, fontWeight: '900', letterSpacing: 1.15 },
+  punchline: { marginTop: 9, maxWidth: '96%', color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 31, lineHeight: 29, fontWeight: '900', letterSpacing: 0 },
+  punchlineCompact: { fontSize: 27, lineHeight: 26, letterSpacing: 0 },
+  ticker: { minHeight: 42, marginHorizontal: 14, overflow: 'hidden', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.045)' },
+  tickerContent: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12 },
+  tickerIcon: { width: 25, height: 25, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(74,158,170,0.17)', borderWidth: 1, borderColor: 'rgba(114,187,197,0.26)' },
+  tickerLabel: { color: '#DCCEFF', fontFamily: FONT_BLACK, fontSize: 7.5, fontWeight: '900', letterSpacing: 1.05 },
+  tickerMessage: { flex: 1, minWidth: 0, color: 'rgba(255,255,255,0.74)', fontFamily: FONT_BLACK, fontSize: 9.5, fontWeight: '900' },
+  tickerCount: { color: 'rgba(255,255,255,0.31)', fontFamily: FONT_BLACK, fontSize: 8, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  tickerProgress: { position: 'absolute', bottom: 0, left: 0, height: 2, backgroundColor: '#7357C6', borderTopRightRadius: 2, borderBottomRightRadius: 2 },
+  railWrap: { marginTop: 9, overflow: 'hidden' },
+  railContent: { paddingLeft: 14, paddingRight: 48 },
+  railGap: { width: 10 },
+  leftFade: { position: 'absolute', zIndex: 5, left: 0, top: 0, bottom: 0, width: 18 },
+  rightFade: { position: 'absolute', zIndex: 5, right: 0, top: 0, bottom: 0, width: 34 },
+  railCard: { overflow: 'hidden', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', backgroundColor: '#17151B', padding: 13 },
+  cardGlowCoral: { position: 'absolute', width: 110, height: 110, right: -36, top: -44, borderRadius: 55, backgroundColor: 'rgba(217,109,99,0.2)' },
+  cardGlowViolet: { position: 'absolute', width: 115, height: 115, right: -38, top: -42, borderRadius: 58, backgroundColor: 'rgba(115,87,198,0.22)' },
+  cardHeader: { minHeight: 23, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  cardKickerRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, shadowColor: '#D96D63', shadowOpacity: 0.9, shadowRadius: 7, elevation: 3 },
+  cardKicker: { fontFamily: FONT_BLACK, fontSize: 7.5, fontWeight: '900', letterSpacing: 0.95 },
+  postBody: { flex: 1, minHeight: 0, flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 5 },
+  postAvatarRing: { width: 47, height: 47, borderRadius: 24, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 2, borderColor: 'rgba(217,109,99,0.5)' },
+  postAvatar: { width: '100%', height: '100%' },
+  postAvatarFallback: { width: 29, height: 29 },
+  postCopy: { flex: 1, minWidth: 0 },
+  postName: { color: 'rgba(255,255,255,0.95)', fontFamily: FONT_BLACK, fontSize: 13.5, fontWeight: '900', letterSpacing: 0 },
+  postText: { marginTop: 4, color: 'rgba(255,255,255,0.48)', fontFamily: FONT_BOLD, fontSize: 9.5, lineHeight: 13, fontWeight: '700' },
+  cardFooter: { minHeight: 18, flexDirection: 'row', alignItems: 'center' },
+  cardCta: { color: 'rgba(255,255,255,0.68)', fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900' },
+  postCounts: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4 },
+  postCountText: { color: 'rgba(255,255,255,0.38)', fontFamily: FONT_BOLD, fontSize: 8, fontWeight: '700' },
+  socialIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(115,87,198,0.28)', borderWidth: 1, borderColor: 'rgba(169,139,232,0.28)' },
+  socialBadge: { overflow: 'hidden', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5, color: 'rgba(255,255,255,0.54)', fontFamily: FONT_BLACK, fontSize: 7.5, fontWeight: '900', letterSpacing: 0.95, backgroundColor: 'rgba(0,0,0,0.17)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  socialTitle: { marginTop: 8, color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 15, lineHeight: 18, fontWeight: '900', letterSpacing: 0 },
+  socialFooter: { marginTop: 'auto', flexDirection: 'row', alignItems: 'center' },
+  avatarStack: { flexDirection: 'row', alignItems: 'center' },
+  stackAvatarWrap: { width: 29, height: 29, borderRadius: 15, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#201B28', borderWidth: 2, borderColor: '#17151B' },
+  stackAvatar: { width: '100%', height: '100%' },
+  stackAvatarFallback: { width: 19, height: 19 },
+  socialHint: { marginLeft: 8, color: 'rgba(255,255,255,0.43)', fontFamily: FONT_BOLD, fontSize: 8.5, fontWeight: '700' },
+  trackCardContent: { flex: 1, justifyContent: 'space-between' },
+  trackBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5, color: '#A8DEE5', fontFamily: FONT_BLACK, fontSize: 7.5, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase', backgroundColor: 'rgba(74,158,170,0.2)', borderWidth: 1, borderColor: 'rgba(114,187,197,0.28)' },
+  trackCardTitle: { color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 15, lineHeight: 18, fontWeight: '900', letterSpacing: 0 },
+  trackCardArtist: { marginTop: 3, color: 'rgba(255,255,255,0.58)', fontFamily: FONT_BOLD, fontSize: 9.5, fontWeight: '700' },
+  trackMeta: { marginTop: 7, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  trackMetaText: { color: 'rgba(255,255,255,0.72)', fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900' },
+  shortcutGlow: { position: 'absolute', right: -22, top: -25, width: 82, height: 82, borderRadius: 41 },
+  shortcutCardContent: { flex: 1, justifyContent: 'space-between' },
+  shortcutIcon: { width: 39, height: 39, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  shortcutTitle: { color: 'rgba(255,255,255,0.95)', fontFamily: FONT_BLACK, fontSize: 13, fontWeight: '900' },
+  shortcutSub: { marginTop: 4, color: 'rgba(255,255,255,0.42)', fontFamily: FONT_BOLD, fontSize: 8.5, fontWeight: '700' },
+  studioIcon: { width: 39, height: 39, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  studioTitle: { marginTop: 9, color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 15, lineHeight: 18, fontWeight: '900', letterSpacing: 0 },
+  studioCtaRow: { marginTop: 'auto', flexDirection: 'row', alignItems: 'center', gap: 3 },
+  studioCta: { color: '#F0AAA2', fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900' },
+  flowPreview: { flex: 1, minHeight: 220, overflow: 'hidden', borderTopLeftRadius: 30, borderTopRightRadius: 30, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.15)', backgroundColor: '#131116', shadowColor: '#000000', shadowOpacity: 0.42, shadowRadius: 26, shadowOffset: { width: 0, height: -12 }, elevation: 10 },
+  flowTopGlow: { position: 'absolute', left: 0, right: 0, top: 0, height: 120 },
+  previewBadge: { position: 'absolute', zIndex: 6, top: 12, alignSelf: 'center', minHeight: 31, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 7, backgroundColor: 'rgba(20,12,25,0.58)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.19)' },
+  previewDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#72BBC5', shadowColor: '#72BBC5', shadowOpacity: 0.9, shadowRadius: 7, elevation: 3 },
+  previewBadgeText: { color: 'rgba(255,255,255,0.8)', fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900', letterSpacing: 1.15 },
+  flowChips: { position: 'absolute', zIndex: 5, left: 16, top: 54, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  flowChip: { minHeight: 31, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, borderWidth: 1 },
+  flowChipNeutral: { backgroundColor: 'rgba(0,0,0,0.28)', borderColor: 'rgba(255,255,255,0.16)' },
+  flowChipCoral: { backgroundColor: 'rgba(217,109,99,0.18)', borderColor: 'rgba(217,109,99,0.35)' },
+  flowChipText: { color: 'rgba(255,255,255,0.78)', fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900' },
+  flowCopy: { position: 'absolute', zIndex: 5, bottom: 13 },
+  flowKicker: { color: '#DCCEFF', fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900', letterSpacing: 1.3 },
+  trackCopy: { minWidth: 0 },
+  flowTitle: { marginTop: 5, color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 31, lineHeight: 30, fontWeight: '900', letterSpacing: 0, textShadowColor: 'rgba(0,0,0,0.34)', textShadowRadius: 12, textShadowOffset: { width: 0, height: 5 } },
+  flowTitleCompact: { fontSize: 26, lineHeight: 26, letterSpacing: 0 },
+  flowArtist: { marginTop: 6, color: 'rgba(255,255,255,0.66)', fontFamily: FONT_BLACK, fontSize: 11, fontWeight: '900' },
+  flowMeta: { marginTop: 7, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  flowMetaText: { color: 'rgba(255,255,255,0.42)', fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900' },
+  metaDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.26)' },
+  nextTrack: { flex: 1, minWidth: 0, color: 'rgba(255,255,255,0.3)', fontFamily: FONT_BOLD, fontSize: 8.5, fontWeight: '700' },
+  flowButtons: { marginTop: 11, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  playButton: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F6F3', shadowColor: '#000000', shadowOpacity: 0.34, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  playPulse: { position: 'absolute', width: 50, height: 50, borderRadius: 25, borderWidth: 1, borderColor: 'rgba(255,255,255,0.65)' },
+  playIcon: { marginLeft: 3 },
+  equalizer: { height: 18, flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
+  eqBar: { width: 3, height: 17, borderRadius: 2, backgroundColor: '#7357C6' },
+  fullscreenButton: { minWidth: 0, height: 46, flex: 1, maxWidth: 205, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 15, paddingHorizontal: 15, backgroundColor: 'rgba(0,0,0,0.3)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+  fullscreenText: { flexShrink: 1, color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 10.5, fontWeight: '900' },
+  disabledButton: { opacity: 0.5 },
+  flowActions: { position: 'absolute', zIndex: 8, bottom: 14, alignItems: 'center', gap: 4 },
+  actionButton: { width: 45, height: 45, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.31)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+  actionCount: { color: 'rgba(255,255,255,0.56)', fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900' },
+  swipePill: { position: 'absolute', zIndex: 7, width: 61, minHeight: 132, overflow: 'hidden', alignItems: 'center', borderRadius: 23, paddingHorizontal: 8, paddingVertical: 10, backgroundColor: 'rgba(0,0,0,0.28)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.17)' },
+  chevrons: { alignItems: 'center' },
+  chevronOverlap: { marginTop: -6 },
+  fingerTrack: { width: 28, height: 66, marginTop: 2, justifyContent: 'center' },
+  finger: { alignSelf: 'center', width: 19, height: 40, borderRadius: 10, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.86)', shadowColor: '#000000', shadowOpacity: 0.34, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+  fingerDot: { marginTop: 5, width: 5, height: 5, borderRadius: 3, backgroundColor: '#DCCEFF', shadowColor: '#A98BE8', shadowOpacity: 0.9, shadowRadius: 7, elevation: 3 },
+  swipeText: { color: 'rgba(255,255,255,0.62)', fontFamily: FONT_BLACK, fontSize: 7.5, fontWeight: '900', letterSpacing: 0.85 },
 });
 
 export default HomeFlowPrelude;

@@ -1,11 +1,11 @@
 {
-  "title": "Synaura Accueil Flow 0.25.3",
+  "title": "Synaura Accueil Web 0.25.4",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Nouvel accueil natif aligne sur le Flow web avec apercu immersif des l'ouverture",
-    "Cartes, publications, morceaux et statistiques relies aux donnees reelles de Synaura",
-    "Swipe vertical, lecture globale et actions aimer, commenter et partager entierement connectes",
-    "Mise en page affinee du petit telephone a la tablette, avec une atmosphere lumineuse sans bulles visibles"
+    "Accueil natif repense pour reproduire plus fidelement l'experience web approuvee",
+    "Banniere d'activite rotative et rail de decouvertes enrichi",
+    "Lecture mise en avant et geste d'acces au Flow affines",
+    "Animations et mise en page adaptees aux differentes tailles d'ecran"
   ]
 }
