@@ -4,14 +4,17 @@ import React from 'react';
 import { usePathname } from 'next/navigation';
 import { useSidebar, useAudioPlayer } from '@/app/providers';
 import SynauraShutdownNotice from '@/components/SynauraShutdownNotice';
-import { getRouteChrome } from '@/lib/routeChrome';
+import { getRouteChrome, shouldRenderGlobalMiniPlayer } from '@/lib/routeChrome';
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isSidebarOpen } = useSidebar();
   const { audioState } = useAudioPlayer();
   const pathname = usePathname();
   const chrome = getRouteChrome(pathname);
-  const playerVisible = audioState.showPlayer && audioState.tracks.length > 0;
+  const playerVisible =
+    audioState.showPlayer &&
+    audioState.tracks.length > 0 &&
+    shouldRenderGlobalMiniPlayer(pathname);
   
   return (
     <div

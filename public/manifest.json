@@ -2,10 +2,16 @@
   "name": "Synaura - Partage de Musique",
   "short_name": "Synaura",
   "description": "Plateforme de partage de musique avec fonctionnalités sociales",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#F4EFE6",
-  "theme_color": "#171313",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#0D0D0D",
+  "theme_color": "#0D0D0D",
   "orientation": "portrait",
   "icons": [
     {

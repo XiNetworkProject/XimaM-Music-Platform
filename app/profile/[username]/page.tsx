@@ -7,7 +7,7 @@ import {
   Share2, Upload, UserPlus, Sparkles, Calendar, X, MessageCircle,
   Send, Search, Users, Disc3, ExternalLink, Crown,
   ArrowUpRight, Library, Mic2, Shield, ListPlus, ListEnd, Trash2,
-  Settings, Film, Repeat, FileEdit, SlidersHorizontal, ListChecks,
+  Settings, Film, Repeat, FileEdit, SlidersHorizontal, ListChecks, ArrowLeft,
 } from "lucide-react";
 import { FaInstagram, FaSoundcloud, FaSpotify, FaTiktok, FaXTwitter, FaYoutube } from 'react-icons/fa6';
 import { useParams, useRouter } from 'next/navigation';
@@ -78,7 +78,12 @@ export default function SynauraProfile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const usernameStr = Array.isArray(username) ? username[0] : username;
-  const isOwnProfile = (session?.user as any)?.username === usernameStr;
+  const sessionUsername = String((session?.user as any)?.username || '');
+  const isOwnProfile = Boolean(
+    sessionUsername &&
+    usernameStr &&
+    sessionUsername.toLocaleLowerCase('fr-FR') === usernameStr.toLocaleLowerCase('fr-FR'),
+  );
 
   useEffect(() => { if (lastOpened) setShowBoosterModal(true); }, [lastOpened]);
   const formatRemaining = (ms: number) => { if (!ms || ms <= 0) return 'Dispo'; const h = Math.floor(ms / 3_600_000); const m = Math.floor((ms % 3_600_000) / 60_000); if (h > 0) return `${h}h${m.toString().padStart(2, '0')}`; const s = Math.floor((ms % 60_000) / 1000); return `${m}:${s.toString().padStart(2, '0')}`; };
@@ -434,7 +439,17 @@ export default function SynauraProfile() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={profile.banner || '/default-cover.svg'} alt="" className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(23,19,19,0.08)_0%,rgba(23,19,19,0.18)_34%,rgba(23,19,19,0.76)_76%,#171313_100%)]" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,111,97,0.24),transparent_32%),radial-gradient(circle_at_top_right,rgba(124,92,255,0.22),transparent_34%),radial-gradient(circle_at_bottom,rgba(0,194,203,0.16),transparent_42%)]" />
+              {!isOwnProfile ? (
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  className="absolute left-4 top-4 z-10 grid h-10 w-10 place-items-center rounded-[11px] border border-white/15 bg-black/36 text-white backdrop-blur-xl transition hover:bg-black/55"
+                  aria-label="Retour"
+                  title="Retour"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+              ) : null}
               {isOwnProfile && (
                 <>
                   <button

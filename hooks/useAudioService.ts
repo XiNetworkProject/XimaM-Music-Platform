@@ -498,14 +498,11 @@ export const useAudioService = () => {
   const loadAllTracks = useCallback(async () => {
     try {
       // Charger les pistes depuis les mêmes APIs que la page (sans limite)
+      // A compact continuation pool is enough for autoplay. The shell must not
+      // download thousands of tracks from every catalogue on every route.
       const apis = [
-        '/api/ranking/feed?limit=200&ai=1&strategy=reco',
-        '/api/recommendations/feed?limit=60',
-        '/api/tracks/popular?limit=1000',
-        '/api/tracks/trending?limit=1000',
-        '/api/tracks/recent?limit=1000',
-        '/api/tracks/most-liked?limit=1000',
-        '/api/tracks/recommended?limit=1000'
+        '/api/ranking/feed?limit=80&ai=1&strategy=reco',
+        '/api/tracks/popular?limit=40',
       ];
       
       const allTracksPromises = apis.map(async (url) => {
@@ -1599,11 +1596,6 @@ export const useAudioService = () => {
     
     // État allTracks mis à jour
     return tracks;
-  }, [loadAllTracks]);
-
-  // Charger les pistes au démarrage
-  useEffect(() => {
-    loadAllTracks();
   }, [loadAllTracks]);
 
   // Debug: Afficher l'état des pistes

@@ -32,9 +32,11 @@ export function useTrackWaveform(
 
     (async () => {
       try {
+        let canWriteCache = false;
         const cacheRes = await fetch(`/api/tracks/${encodeURIComponent(trackId)}/waveform`, { cache: 'no-store' });
         if (cacheRes.ok) {
           const json = await cacheRes.json().catch(() => null);
+          canWriteCache = Boolean(json?.canWrite);
           if (!cancelled && Array.isArray(json?.peaks) && json.peaks.length) {
             setState({ peaks: json.peaks, duration: Number(json.duration) || fallbackDuration || 0, loading: false });
             return;
@@ -45,11 +47,13 @@ export function useTrackWaveform(
         if (cancelled) return;
         setState({ peaks: computed.peaks, duration: computed.duration || fallbackDuration || 0, loading: false });
 
-        fetch(`/api/tracks/${encodeURIComponent(trackId)}/waveform`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ duration: computed.duration, peaks: computed.peaks }),
-        }).catch(() => {});
+        if (canWriteCache) {
+          fetch(`/api/tracks/${encodeURIComponent(trackId)}/waveform`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ duration: computed.duration, peaks: computed.peaks }),
+          }).catch(() => {});
+        }
       } catch {
         if (!cancelled) setState({ peaks: null, duration: fallbackDuration || 0, loading: false });
       }

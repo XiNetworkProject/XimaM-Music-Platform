@@ -182,8 +182,10 @@ export async function POST(
       notifyViewMilestone(track.creator_id, track.title || 'Ton son', milestone, trackId).catch(() => {});
     }
 
-    // Enregistrer la vue pour les stats (y compris anonymes)
-    {
+    // Les compteurs publics incluent les écoutes anonymes, mais track_views est
+    // relié à users par une clé étrangère. On n'insère donc une ligne détaillée
+    // que lorsqu'un utilisateur réel est identifié.
+    if (userId) {
       const ua = request.headers.get('user-agent') || '';
       const device = /mobile|iphone|android/i.test(ua)
         ? 'mobile'
@@ -207,8 +209,7 @@ export async function POST(
         country = await lookupCountryFromIp(ip, 400).catch(() => null);
       }
 
-      const viewerId = userId || '00000000-0000-0000-0000-000000000000';
-      const insertPayload: any = { track_id: trackId, user_id: viewerId, device, user_agent: ua };
+      const insertPayload: any = { track_id: trackId, user_id: userId, device, user_agent: ua };
       if (country) insertPayload.country = country;
       if (ip) insertPayload.ip = ip;
 

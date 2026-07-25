@@ -116,14 +116,14 @@ export function SectionHeader({
   onAction?: () => void;
 }) {
   const actionClassName =
-    'inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-black/[0.08] bg-black/[0.04] px-4 text-[11px] font-black uppercase tracking-[0.12em] text-black/62 transition hover:bg-[#171313] hover:text-white sm:w-auto sm:text-xs sm:tracking-[0.16em]';
+    'inline-flex h-10 w-full items-center justify-center gap-2 rounded-[10px] border border-[var(--syn-border)] bg-[var(--syn-soft)] px-4 text-[11px] font-black uppercase text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-contrast-bg)] hover:text-[var(--syn-contrast-text)] sm:w-auto sm:text-xs';
 
   return (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-black/38">Sélection Synaura</p>
-        <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[#171313] sm:text-[1.4rem]">{title}</h2>
-        {subtitle ? <p className="mt-1 text-sm leading-6 text-black/48">{subtitle}</p> : null}
+        <p className="text-[11px] font-black uppercase text-[var(--syn-text-secondary)]">Sélection Synaura</p>
+        <h2 className="mt-1 text-xl font-black text-[var(--syn-text-primary)] sm:text-[1.4rem]">{title}</h2>
+        {subtitle ? <p className="mt-1 text-sm leading-6 text-[var(--syn-text-secondary)]">{subtitle}</p> : null}
       </div>
       {actionHref && actionLabel ? (
         <Link href={actionHref} className={actionClassName}>
@@ -167,7 +167,7 @@ export function HorizontalScroller({ children }: { children: React.ReactNode }) 
   }, [children]);
 
   const arrowClassName =
-    'absolute top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/12 bg-[#fffaf2] text-[#171313] shadow-[0_16px_35px_rgba(0,0,0,0.28)] transition-all hover:scale-[1.03] group-hover:flex';
+    'absolute top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--syn-border)] bg-[var(--syn-contrast-bg)] text-[var(--syn-contrast-text)] shadow-[0_16px_35px_var(--syn-shadow)] transition-all hover:scale-[1.03] group-hover:flex';
 
   return (
     <div className="group relative">
@@ -208,15 +208,15 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
   return (
     <div
       className={cx(
-        'group/card overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] hover:shadow-[0_18px_40px_rgba(0,0,0,0.24)]',
-        grid ? 'w-full' : 'min-w-[144px] max-w-[144px] shrink-0 sm:min-w-[208px] sm:max-w-[208px]',
+        'group/card overflow-hidden rounded-[14px] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-[var(--syn-surface-muted)] hover:shadow-[0_18px_40px_var(--syn-shadow)] sm:rounded-[16px]',
+        grid ? 'w-full' : 'min-w-[148px] max-w-[148px] shrink-0 sm:min-w-[196px] sm:max-w-[196px]',
       )}
       style={{ scrollSnapAlign: grid ? undefined : 'start' }}
     >
-      <div className="relative overflow-hidden rounded-[1.3rem]">
+      <div className="relative overflow-hidden rounded-[10px]">
         {isBoosted ? (
           <div
-            className="pointer-events-none absolute inset-0 rounded-[1.3rem] opacity-85"
+            className="pointer-events-none absolute inset-0 rounded-[10px] opacity-85"
             style={{
               background:
                 'linear-gradient(140deg, rgba(168,85,247,0.28) 0%, rgba(245,158,11,0.28) 45%, rgba(255,255,255,0.0) 100%)',
@@ -230,7 +230,7 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
           posterSrc={track.coverVideoPosterUrl || (track as any).cover_video_poster_url || track.coverUrl}
           title={track.title}
           className="aspect-square w-full"
-          rounded="rounded-[1.3rem]"
+          rounded="rounded-[10px]"
           objectFit="cover"
         />
 
@@ -270,23 +270,23 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
         <button
           type="button"
           onClick={() => track.audioUrl && playTrack(track as any)}
-          className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#fffaf2] text-[#171313] shadow-[0_16px_35px_rgba(0,0,0,0.28)] transition duration-200 hover:scale-105 sm:h-11 sm:w-11"
+          className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#F7F6F3] text-[#111111] shadow-[0_16px_35px_rgba(0,0,0,0.28)] transition duration-200 hover:scale-105 sm:h-11 sm:w-11"
         >
           <Play className="ml-0.5 h-4 w-4 fill-current" />
         </button>
       </div>
 
       <div className="mt-3">
-        <p className="line-clamp-1 text-[15px] font-black tracking-[-0.03em] text-[#fffaf2]">{track.title}</p>
-        <p className="mt-1 line-clamp-1 text-[12px] text-white/46">{artistLabel}</p>
+        <p className="line-clamp-1 text-[15px] font-black text-[var(--syn-text-primary)]">{track.title}</p>
+        <p className="mt-1 line-clamp-1 text-[12px] text-[var(--syn-text-secondary)]">{artistLabel}</p>
       </div>
 
-      <div className="mt-3 flex flex-col items-start gap-1.5 text-[10px] text-white/40 sm:flex-row sm:items-center sm:justify-between sm:text-[11px]">
-        <span className="rounded-full bg-white/[0.06] px-2.5 py-1 font-semibold">{formatK(plays)} écoutes</span>
-        <span className="text-white/28">{isAI ? 'génération IA' : 'publié sur Synaura'}</span>
+      <div className="mt-3 flex flex-col items-start gap-1.5 text-[10px] text-[var(--syn-text-secondary)] sm:flex-row sm:items-center sm:justify-between sm:text-[11px]">
+        <span className="rounded-full bg-[var(--syn-soft)] px-2.5 py-1 font-semibold">{formatK(plays)} écoutes</span>
+        <span>{isAI ? 'génération IA' : 'publié sur Synaura'}</span>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <TrackCreateRemixActions track={track as any} compact dark />
+        <TrackCreateRemixActions track={track as any} compact />
         <button
           type="button"
           onClick={() => {
@@ -294,7 +294,7 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
             addToUpNext(toPlayerTrack(track) as any, 'next');
             notify.success('File', `${track.title} sera lu ensuite.`);
           }}
-          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/12 bg-white/8 px-2.5 text-[10px] font-black text-white/74 transition hover:bg-white/14 hover:text-white"
+          className="inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-[var(--syn-border)] bg-[var(--syn-soft)] px-2.5 text-[10px] font-black text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-soft-strong)] hover:text-[var(--syn-text-primary)]"
         >
           <ListPlus className="h-3 w-3" />
           Ensuite
@@ -312,23 +312,23 @@ export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: n
 
   return (
     <div
-      className="group/row flex items-start gap-3 rounded-[1.45rem] border border-white/10 bg-white/[0.04] px-3 py-2.5 transition duration-200 hover:bg-white/[0.08] sm:items-center"
+      className="group/row flex items-start gap-3 rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-surface)] px-3 py-2.5 transition duration-200 hover:bg-[var(--syn-surface-muted)] sm:items-center"
       onClick={() => track.audioUrl && playTrack(track as any)}
     >
       {typeof index === 'number' ? (
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/[0.07] text-[11px] font-black text-white/52">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--syn-soft)] text-[11px] font-black text-[var(--syn-text-secondary)]">
           {index + 1}
         </span>
       ) : null}
 
-      <div className="relative shrink-0 overflow-hidden rounded-[1rem]">
+      <div className="relative shrink-0 overflow-hidden rounded-[8px]">
         <TrackCover
           src={track.coverUrl}
           videoSrc={track.coverVideoUrl || (track as any).cover_video_url || null}
           posterSrc={track.coverVideoPosterUrl || (track as any).cover_video_poster_url || track.coverUrl}
           title={track.title}
           className="h-12 w-12"
-          rounded="rounded-[1rem]"
+          rounded="rounded-[8px]"
           objectFit="cover"
         />
         <div className="absolute inset-0 grid place-items-center bg-black/40 opacity-0 transition-opacity group-hover/row:opacity-100">
@@ -338,7 +338,7 @@ export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: n
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <p className="truncate text-[14px] font-black tracking-[-0.03em] text-[#fffaf2]">{track.title}</p>
+          <p className="truncate text-[14px] font-black text-[var(--syn-text-primary)]">{track.title}</p>
           {isAI ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/78 px-2 py-0.5 text-[9px] font-black text-white">
               <Sparkles className="h-2.5 w-2.5" />
@@ -355,11 +355,11 @@ export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: n
             </span>
           ) : null}
         </div>
-        <p className="mt-0.5 truncate text-[11px] text-white/42">{artistLabel}</p>
+        <p className="mt-0.5 truncate text-[11px] text-[var(--syn-text-secondary)]">{artistLabel}</p>
       </div>
 
       <div className="hidden shrink-0 items-center gap-2 sm:flex" onClick={(event) => event.stopPropagation()}>
-        <TrackCreateRemixActions track={track as any} compact dark />
+        <TrackCreateRemixActions track={track as any} compact />
         <button
           type="button"
           onClick={() => {
@@ -367,12 +367,12 @@ export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: n
             addToUpNext(toPlayerTrack(track) as any, 'next');
             notify.success('File', `${track.title} sera lu ensuite.`);
           }}
-          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/12 bg-white/8 px-2.5 text-[10px] font-black text-white/74 transition hover:bg-white/14 hover:text-white"
+          className="inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-[var(--syn-border)] bg-[var(--syn-soft)] px-2.5 text-[10px] font-black text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-soft-strong)] hover:text-[var(--syn-text-primary)]"
         >
           <ListPlus className="h-3 w-3" />
           Ensuite
         </button>
-        <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-[10px] font-semibold text-white/48">
+        <span className="rounded-full bg-[var(--syn-soft)] px-2.5 py-1 text-[10px] font-semibold text-[var(--syn-text-secondary)]">
           {formatK(track.plays || 0)} écoutes
         </span>
       </div>
@@ -387,10 +387,10 @@ export function PlaylistTile({ playlist }: { playlist: DiscoverPlaylistLite }) {
   return (
     <Link
       href={href}
-      className="group/card min-w-[152px] max-w-[152px] shrink-0 overflow-hidden rounded-[1.55rem] border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] sm:min-w-[208px] sm:max-w-[208px] sm:rounded-[1.75rem]"
+      className="group/card min-w-[152px] max-w-[152px] shrink-0 overflow-hidden rounded-[14px] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-[var(--syn-surface-muted)] sm:min-w-[196px] sm:max-w-[196px] sm:rounded-[16px]"
       style={{ scrollSnapAlign: 'start' }}
     >
-      <div className="relative overflow-hidden rounded-[1.3rem]">
+      <div className="relative overflow-hidden rounded-[10px]">
         <img
           src={visual}
           alt={playlist.name}
@@ -406,8 +406,8 @@ export function PlaylistTile({ playlist }: { playlist: DiscoverPlaylistLite }) {
         </span>
       </div>
       <div className="mt-3">
-        <p className="line-clamp-1 text-[15px] font-black tracking-[-0.03em] text-[#fffaf2]">{playlist.name}</p>
-        <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-white/42">
+        <p className="line-clamp-1 text-[15px] font-black text-[var(--syn-text-primary)]">{playlist.name}</p>
+        <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--syn-text-secondary)]">
           {playlist.description || 'Selection construite pour prolonger l’ambiance.'}
         </p>
       </div>
@@ -428,24 +428,24 @@ export function CollectionSpotlight({ playlists }: { playlists: DiscoverPlaylist
 
   return (
     <section
-      className="relative overflow-hidden rounded-[2rem] border border-white/10 p-4 text-[#fffaf2] shadow-[0_24px_80px_rgba(0,0,0,0.24)] sm:p-6"
+      className="relative overflow-hidden rounded-[14px] border border-white/10 p-4 text-[#fffaf2] shadow-[0_24px_80px_rgba(0,0,0,0.24)] sm:rounded-[20px] sm:p-6"
       style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1] || colors[0]}, ${colors[2] || colors[0]})` }}
     >
       <img src={visual} alt="" className="absolute inset-0 h-full w-full object-cover opacity-44 saturate-[1.08]" />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(18,14,14,0.88),rgba(18,14,14,0.48),rgba(18,14,14,0.18))]" />
       <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="flex min-h-[280px] flex-col justify-end">
+        <div className="flex min-h-[230px] flex-col justify-end">
           <p className="mb-3 inline-flex w-fit rounded-full bg-white/16 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white/82 backdrop-blur">
             {collection?.badge || 'Collection officielle'}
           </p>
-          <h2 className="max-w-2xl text-4xl font-black leading-[0.92] tracking-[-0.05em] sm:text-6xl">
+          <h2 className="max-w-2xl text-3xl font-black leading-tight sm:text-4xl">
             {collection?.title || featured.name}
           </h2>
           <p className="mt-4 max-w-xl text-sm font-bold leading-6 text-white/76 sm:text-base">
             {collection?.subtitle || featured.description || 'Une selection Synaura a ouvrir comme une vraie sortie.'}
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            <Link href={href} className="inline-flex h-12 items-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]">
+            <Link href={href} className="inline-flex h-12 items-center gap-2 rounded-[10px] bg-[#F7F6F3] px-5 text-sm font-black text-[#111111] transition hover:opacity-90">
               <Play className="h-4 w-4 fill-current" />
               Ouvrir la collection
             </Link>
@@ -462,8 +462,8 @@ export function CollectionSpotlight({ playlists }: { playlists: DiscoverPlaylist
               const itemHref = playlist.publicUrl || (itemCollection?.slug ? `/playlists/${encodeURIComponent(itemCollection.slug)}` : `/playlists/${encodeURIComponent(playlist._id)}`);
               const itemVisual = itemCollection?.coverUrl || playlist.coverUrl || itemCollection?.bannerUrl || playlist.bannerUrl || '/default-cover.svg';
               return (
-                <Link key={playlist._id} href={itemHref} className="flex items-center gap-3 rounded-[1.25rem] border border-white/10 bg-white/12 p-2.5 backdrop-blur transition hover:bg-white/18">
-                  <img src={itemVisual} alt="" className="h-14 w-14 rounded-[1rem] object-cover" />
+                <Link key={playlist._id} href={itemHref} className="flex items-center gap-3 rounded-[10px] border border-white/10 bg-white/12 p-2.5 backdrop-blur transition hover:bg-white/18">
+                  <img src={itemVisual} alt="" className="h-14 w-14 rounded-[8px] object-cover" />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-black">{itemCollection?.title || playlist.name}</p>
                     <p className="truncate text-xs font-bold text-white/54">{itemCollection?.badge || 'Collection'}</p>
@@ -485,7 +485,7 @@ export function ArtistTile({ artist }: { artist: DiscoverArtistLite }) {
   return (
     <Link
       href={`/profile/${encodeURIComponent(artist.username)}`}
-      className="group/card min-w-[126px] max-w-[126px] shrink-0 rounded-[1.55rem] border border-white/10 bg-white/[0.05] p-2.5 text-center transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] sm:min-w-[160px] sm:max-w-[160px] sm:rounded-[1.75rem] sm:p-3"
+      className="group/card min-w-[126px] max-w-[126px] shrink-0 rounded-[14px] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-2.5 text-center transition duration-200 hover:-translate-y-0.5 hover:bg-[var(--syn-surface-muted)] sm:min-w-[160px] sm:max-w-[160px] sm:rounded-[16px] sm:p-3"
       style={{ scrollSnapAlign: 'start' }}
     >
       {artist.avatar && !imgError ? (
@@ -502,15 +502,15 @@ export function ArtistTile({ artist }: { artist: DiscoverArtistLite }) {
         </div>
       )}
 
-      <p className="mt-3 truncate text-[14px] font-black tracking-[-0.03em] text-[#fffaf2]">{artist.name}</p>
-      <p className="mt-1 truncate text-[11px] text-white/38">
+      <p className="mt-3 truncate text-[14px] font-black text-[var(--syn-text-primary)]">{artist.name}</p>
+      <p className="mt-1 truncate text-[11px] text-[var(--syn-text-secondary)]">
         {typeof artist.trackCount === 'number' ? `${artist.trackCount} titres` : `@${artist.username}`}
       </p>
 
-      <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-white/44">
-        {artist.isTrending ? <span className="rounded-full bg-white/[0.06] px-2 py-1 font-semibold">hot</span> : null}
+      <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-[var(--syn-text-secondary)]">
+        {artist.isTrending ? <span className="rounded-full bg-[var(--syn-soft)] px-2 py-1 font-semibold">hot</span> : null}
         {typeof artist.totalPlays === 'number' ? (
-          <span className="rounded-full bg-white/[0.06] px-2 py-1 font-semibold">{formatK(artist.totalPlays)} plays</span>
+          <span className="rounded-full bg-[var(--syn-soft)] px-2 py-1 font-semibold">{formatK(artist.totalPlays)} plays</span>
         ) : null}
       </div>
     </Link>
@@ -554,10 +554,10 @@ export function AlbumTile({ album }: { album: DiscoverAlbumLite }) {
   return (
     <Link
       href={`/album/${album._id}`}
-      className="group/album min-w-[148px] max-w-[148px] shrink-0 rounded-[1.55rem] border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.09] sm:min-w-[188px] sm:max-w-[188px] sm:rounded-[1.75rem]"
+      className="group/album min-w-[148px] max-w-[148px] shrink-0 rounded-[14px] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:bg-[var(--syn-surface-muted)] sm:min-w-[188px] sm:max-w-[188px] sm:rounded-[16px]"
       style={{ scrollSnapAlign: 'start' }}
     >
-      <div className="relative overflow-hidden rounded-[1.3rem]">
+      <div className="relative overflow-hidden rounded-[10px]">
         {album.coverUrl ? (
           <img src={album.coverUrl} alt={album.name} className="aspect-square w-full object-cover transition duration-300 group-hover/album:scale-[1.03]" />
         ) : (
@@ -578,7 +578,7 @@ export function AlbumTile({ album }: { album: DiscoverAlbumLite }) {
             e.stopPropagation();
             router.push(`/album/${album._id}`);
           }}
-          className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#fffaf2] text-[#171313] shadow-[0_16px_35px_rgba(0,0,0,0.28)] transition duration-200 hover:scale-105 sm:h-11 sm:w-11"
+          className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#F7F6F3] text-[#111111] shadow-[0_16px_35px_rgba(0,0,0,0.28)] transition duration-200 hover:scale-105 sm:h-11 sm:w-11"
         >
           {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
         </button>
@@ -593,19 +593,19 @@ export function AlbumTile({ album }: { album: DiscoverAlbumLite }) {
       </div>
 
       <div className="mt-3">
-        <p className="line-clamp-1 text-[15px] font-black tracking-[-0.03em] text-[#fffaf2]">{album.name}</p>
-        <p className="mt-1 line-clamp-1 text-[12px] text-white/42">{album.artist?.name || 'Artiste'}</p>
+        <p className="line-clamp-1 text-[15px] font-black text-[var(--syn-text-primary)]">{album.name}</p>
+        <p className="mt-1 line-clamp-1 text-[12px] text-[var(--syn-text-secondary)]">{album.artist?.name || 'Artiste'}</p>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[10px] text-white/44">
+      <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[10px] text-[var(--syn-text-secondary)]">
         {album.trackCount ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2.5 py-1 font-semibold">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--syn-soft)] px-2.5 py-1 font-semibold">
             <Music className="h-3 w-3" />
             {album.trackCount}
           </span>
         ) : null}
         {album.duration ? (
-          <span className="rounded-full bg-white/[0.06] px-2.5 py-1 font-semibold">{formatAlbumDuration(album.duration)}</span>
+          <span className="rounded-full bg-[var(--syn-soft)] px-2.5 py-1 font-semibold">{formatAlbumDuration(album.duration)}</span>
         ) : null}
       </div>
     </Link>

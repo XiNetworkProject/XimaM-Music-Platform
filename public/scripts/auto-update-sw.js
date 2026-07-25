@@ -67,7 +67,7 @@ async function autoCleanCache() {
       const cacheNames = await caches.keys();
       const oldCaches = cacheNames.filter(name => 
         name.startsWith('ximam-') && 
-        !name.includes('v3') // Garder la version actuelle
+        !name.includes('v7') // Garder la version actuelle
       );
       
       if (oldCaches.length > 0) {
@@ -194,4 +194,4 @@ initAutoUpdate();
 
 console.log('✅ Script de mise à jour automatique chargé');
 console.log('📝 Utilisez window.autoUpdateSW.forceImmediateUpdate() pour forcer une mise à jour');
-console.log('🎵 Utilisez window.audioNavigation pour la navigation audio améliorée'); 
+console.log('🎵 Utilisez window.audioNavigation pour la navigation audio améliorée');

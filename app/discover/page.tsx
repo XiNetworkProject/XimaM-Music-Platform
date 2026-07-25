@@ -86,6 +86,19 @@ async function fetchAiPreviewCovers(): Promise<string[]> {
   }
 }
 
+async function fetchPublicTrackCount(): Promise<number> {
+  try {
+    const { count } = await supabaseAdmin
+      .from('tracks')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_public', true)
+      .not('audio_url', 'is', null);
+    return Math.max(0, Number(count || 0));
+  } catch {
+    return 0;
+  }
+}
+
 export default async function DiscoverPage({ searchParams }: { searchParams: Promise<{ mood?: string }> }) {
   const sp = await searchParams;
   const moodParam = (sp?.mood || null) as MoodId | null;
@@ -95,13 +108,14 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
   const userId = (session?.user as any)?.id as string | undefined;
   const baseUrl = await getBaseUrl();
 
-  const [pool, radarRaw, collections, popularArtists, aiCovers, favoriteMoodIds] = await Promise.all([
+  const [pool, radarRaw, collections, popularArtists, aiCovers, favoriteMoodIds, totalTracks] = await Promise.all([
     getPublicTrackPool({ limit: 300 }),
     getRadarTracks(16),
     fetchCollections(baseUrl),
     fetchPopularArtists(baseUrl),
     fetchAiPreviewCovers(),
     fetchFavoriteMoodIds(userId),
+    fetchPublicTrackCount(),
   ]);
 
   const radarTracks = await attachLikedFlag(radarRaw, userId);
@@ -139,10 +153,27 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
     .filter((artist): artist is DiscoverArtistCardLite => artist !== null)
     .slice(0, 10);
 
+  const newestTracks = [...pool]
+    .sort((left, right) => new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime())
+    .slice(0, 16);
+  const popularTracks = pool.slice(0, 16);
+  const hiddenTracks = [...pool]
+    .filter((track) => Number(track.plays || 0) < 500)
+    .sort((left, right) => {
+      const leftSignal = Number(left.likesCount || 0) * 5 + Number(left.commentsCount || 0) * 3 + Number(left.plays || 0) * 0.02;
+      const rightSignal = Number(right.likesCount || 0) * 5 + Number(right.commentsCount || 0) * 3 + Number(right.plays || 0) * 0.02;
+      return rightSignal - leftSignal || new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime();
+    })
+    .slice(0, 16);
+
   return (
     <DiscoverClient
       initialMood={initialMood}
       radarTracks={radarTracks as any}
+      newestTracks={newestTracks as any}
+      hiddenTracks={hiddenTracks as any}
+      popularTracks={popularTracks as any}
+      totalTracks={totalTracks || pool.length}
       moodPreviews={moodPreviews}
       collections={collections}
       artists={artists}

@@ -6,11 +6,16 @@ import { Download, Lock, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { useDownloadPermission, downloadAudioFile, generateFilename } from '@/hooks/useDownloadPermission';
 import DownloadDialog from './DownloadDialog';
 import { notify } from '@/components/NotificationCenter';
+import { rememberOfflineTrack } from '@/lib/offlineLibrary';
 
 interface DownloadButtonProps {
   audioUrl: string;
+  trackId?: string;
   trackTitle: string;
   artistName: string;
+  artistUsername?: string;
+  coverUrl?: string | null;
+  duration?: number;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
   showUpgrade?: boolean;
@@ -18,8 +23,12 @@ interface DownloadButtonProps {
 
 export default function DownloadButton({
   audioUrl,
+  trackId,
   trackTitle,
   artistName,
+  artistUsername,
+  coverUrl,
+  duration,
   className = '',
   size = 'md',
   showUpgrade = true
@@ -80,6 +89,15 @@ export default function DownloadButton({
         setDownloadProgress(progress);
       });
 
+      rememberOfflineTrack({
+        id: trackId || audioUrl,
+        title: trackTitle,
+        artistName,
+        artistUsername,
+        audioUrl,
+        coverUrl: coverUrl || undefined,
+        duration,
+      });
       setDownloadStatus('success');
       notify.success('OK', `Téléchargement réussi: ${filename}`);
       
@@ -156,10 +174,10 @@ export default function DownloadButton({
   };
 
   const getButtonStyle = () => {
-    const baseClasses = `inline-flex items-center gap-2 rounded-full transition-all duration-200 ${getSizeClasses()} ${className}`;
+    const baseClasses = `relative inline-flex items-center gap-2 rounded-[10px] transition-all duration-200 ${getSizeClasses()} ${className}`;
     
     if (!canDownload) {
-      return `${baseClasses} text-white/60 bg-white/10 border border-white/20 cursor-not-allowed`;
+      return `${baseClasses} cursor-not-allowed border border-[var(--syn-border)] bg-[var(--syn-soft)] text-[var(--syn-text-secondary)]`;
     }
     
     if (downloadStatus === 'downloading') {
@@ -174,7 +192,7 @@ export default function DownloadButton({
       return `${baseClasses} text-red-400 bg-red-400/10 border border-red-400/30`;
     }
 
-    return `${baseClasses} text-white/80 bg-white/10 border border-white/20 hover:bg-white/20 hover:text-white hover:scale-105 active:scale-95`;
+    return `${baseClasses} border border-[var(--syn-border)] bg-[var(--syn-soft)] text-[var(--syn-text-secondary)] hover:bg-[var(--syn-soft-strong)] hover:text-[var(--syn-text-primary)] active:opacity-75`;
   };
 
   return (

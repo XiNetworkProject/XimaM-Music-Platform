@@ -44,6 +44,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     '/stats',
     '/search',
     '/notifications',
+    '/messages',
     '/join',
     '/subscriptions',
     '/swipe',
@@ -52,6 +53,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     '/download',
   ]);
   const isImmersivePlayer = pathname.startsWith('/swipe');
+  const isConversation = /^\/messages\/[^/]+/.test(pathname);
   const useFullScreenLayout = isHome || isAuth || isOnboarding || isMeteoFullscreen || isSynauraSurface;
   const hideTopSearch = startsWithAny(pathname, [
     '/discover',
@@ -69,7 +71,19 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     showTopSearch: !useFullScreenLayout && !hideTopSearch,
     showBottomNav: !useFullScreenLayout,
     useFullScreenLayout,
-    suppressGlobalPlayerPadding: isAuth || isOnboarding || pathname.startsWith('/ai-generator') || pathname.startsWith('/studio') || pathname.startsWith('/city') || isImmersivePlayer,
+    suppressGlobalPlayerPadding: isAuth || isOnboarding || pathname.startsWith('/ai-generator') || pathname.startsWith('/studio') || pathname.startsWith('/city') || isImmersivePlayer || isConversation,
     showGlobalShutdownNotice: !useFullScreenLayout,
   };
+}
+
+export function shouldRenderGlobalMiniPlayer(pathname: string | null) {
+  if (!pathname) return true;
+  if (pathname === '/' || pathname.startsWith('/swipe')) return false;
+  if (pathname.startsWith('/notifications')) return false;
+  if (/^\/messages\/[^/]+/.test(pathname)) return false;
+  if (pathname.startsWith('/upload')) return false;
+  if (pathname.startsWith('/clips/new')) return false;
+  if (pathname.startsWith('/create/variation') || pathname === '/create') return false;
+  if (pathname.startsWith('/auth') || pathname.startsWith('/onboarding')) return false;
+  return true;
 }

@@ -1486,14 +1486,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       if (typeof window === 'undefined') return;
       const params = new URLSearchParams(window.location.search);
       const flag = params.get('whatsnew');
-      if (flag === 'reset') localStorage.removeItem(storageKey);
-      if (flag === '1' || flag === 'true') {
+      if (flag === 'reset') {
+        localStorage.removeItem(storageKey);
         setShowWhatsNew(true);
         return;
       }
-
-      const dismissed = localStorage.getItem(storageKey);
-      if (!dismissed) setShowWhatsNew(true);
+      if (flag === '1' || flag === 'true') {
+        setShowWhatsNew(true);
+      }
     } catch {}
   }, [storageKey, showShutdown]);
 

@@ -217,7 +217,17 @@ function RadarFollowButton({ artist }: { artist?: RadarArtist | null }) {
   );
 }
 
-function RadarTrackCard({ track, tracks, featured = false }: { track: RadarTrack; tracks: RadarTrack[]; featured?: boolean }) {
+function RadarTrackCard({
+  track,
+  tracks,
+  compact = false,
+  featured = false,
+}: {
+  track: RadarTrack;
+  tracks: RadarTrack[];
+  compact?: boolean;
+  featured?: boolean;
+}) {
   const { setQueueAndPlay } = useAudioPlayer();
   const duration = formatDuration(track.duration);
   const reasons = Array.isArray(track.radarReasons) ? track.radarReasons.filter(Boolean).slice(0, 3) : [];
@@ -234,18 +244,19 @@ function RadarTrackCard({ track, tracks, featured = false }: { track: RadarTrack
   return (
     <article
       className={cx(
-        'group/card relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-3 text-white shadow-[0_18px_50px_rgba(0,0,0,0.22)] transition hover:-translate-y-0.5 hover:bg-white/[0.085]',
+        'group/card relative overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.055] p-3 text-white shadow-[0_18px_50px_rgba(0,0,0,0.22)] transition hover:-translate-y-0.5 hover:bg-white/[0.085]',
+        compact && 'w-[246px] shrink-0',
         featured && 'lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-4',
       )}
     >
-      <div className={cx('relative overflow-hidden rounded-[1.15rem]', featured ? 'lg:min-h-[220px]' : '')}>
+      <div className={cx('relative overflow-hidden rounded-[10px]', featured ? 'lg:min-h-[220px]' : '')}>
         <TrackCover
           src={track.coverUrl || '/default-cover.svg'}
           videoSrc={track.coverVideoUrl || null}
           posterSrc={track.coverVideoPosterUrl || track.coverUrl || null}
           title={track.title}
-          className={cx('aspect-square w-full', featured && 'lg:h-full lg:aspect-auto')}
-          rounded="rounded-[1.15rem]"
+          className={cx(compact ? 'h-[154px] w-full' : 'aspect-square w-full', featured && 'lg:h-full lg:aspect-auto')}
+          rounded="rounded-[10px]"
           objectFit="cover"
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/8 to-transparent" />
@@ -415,7 +426,7 @@ export default function RadarSection({
   const rest = compact ? visible : visible.slice(1);
 
   return (
-    <section className="relative overflow-hidden rounded-[2rem] bg-[#111111] p-4 text-white shadow-[0_26px_90px_rgba(17,17,17,0.24)] sm:p-6">
+    <section className="relative overflow-hidden rounded-[14px] bg-[#111111] p-4 text-white shadow-[0_26px_90px_rgba(17,17,17,0.24)] sm:rounded-[20px] sm:p-6">
       <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(135deg,rgba(115,87,198,0.24),transparent_34%),linear-gradient(160deg,transparent_52%,rgba(74,158,170,0.16)),linear-gradient(0deg,rgba(217,109,99,0.12),transparent_34%)]" />
       <div className="relative">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -424,7 +435,7 @@ export default function RadarSection({
               <Radar className="h-3.5 w-3.5 text-[#4A9EAA]" />
               Radar Synaura
             </p>
-            <h2 className="mt-4 text-3xl font-black leading-[0.95] tracking-[-0.05em] sm:text-5xl">{title}</h2>
+            <h2 className={cx('mt-4 font-black leading-tight', compact ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl')}>{title}</h2>
             <p className="mt-3 max-w-xl text-sm font-bold leading-6 text-white/62 sm:text-base">
               Découvre les sons avant tout le monde. Sur Synaura, même un petit créateur peut trouver ses premiers vrais auditeurs.
             </p>
@@ -441,7 +452,7 @@ export default function RadarSection({
         {tracks.length ? (
           <>
             {newThisWeek.length ? (
-              <div className="mt-6 rounded-[1.35rem] border border-white/10 bg-white/[0.055] p-3">
+              <div className="mt-5 rounded-[12px] border border-white/10 bg-white/[0.055] p-3">
                 <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/42">Nouveaux cette semaine</p>
                 <div className="flex flex-wrap gap-2">
                   {newThisWeek.map((track) => (
@@ -456,19 +467,27 @@ export default function RadarSection({
               </div>
             ) : null}
 
-            <div className={cx('mt-6 grid gap-3', compact ? 'sm:grid-cols-2 xl:grid-cols-4' : 'lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]')}>
-              {!compact && featured ? <RadarTrackCard track={featured} tracks={tracks} featured /> : null}
-              <div className={cx('grid gap-3', compact ? 'contents' : 'sm:grid-cols-2')}>
-                {(compact ? visible : rest).map((track) => (
-                  <RadarTrackCard key={track._id} track={track} tracks={tracks} />
+            {compact ? (
+              <div className="synaura-no-scrollbar -mx-1 mt-5 flex gap-3 overflow-x-auto px-1 pb-1">
+                {visible.map((track) => (
+                  <RadarTrackCard key={track._id} track={track} tracks={tracks} compact />
                 ))}
               </div>
-            </div>
+            ) : (
+              <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+                {featured ? <RadarTrackCard track={featured} tracks={tracks} featured /> : null}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {rest.map((track) => (
+                    <RadarTrackCard key={track._id} track={track} tracks={tracks} />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {!compact ? <EmergingArtists tracks={tracks} /> : null}
           </>
         ) : (
-          <div className="mt-6 rounded-[1.35rem] border border-dashed border-white/16 bg-white/[0.04] p-7 text-center">
+          <div className="mt-6 rounded-[12px] border border-dashed border-white/16 bg-white/[0.04] p-7 text-center">
             <p className="text-base font-black text-white/70">Le Radar attend les prochains signaux.</p>
             <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-white/42">
               Dès que des morceaux publics avec audio remontent des signaux réels, ils apparaîtront ici.

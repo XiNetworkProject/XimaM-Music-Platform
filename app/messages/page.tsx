@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import { notify } from "@/components/NotificationCenter";
+import { SynauraAppShell } from "@/components/synaura/SynauraShell";
 
 type MessagingProfile = {
   id: string;
@@ -424,7 +425,8 @@ function MessagesContent() {
   ];
 
   return (
-    <main className="min-h-screen bg-syn-background pb-32 text-syn-textPrimary lg:pb-12">
+    <SynauraAppShell contentClassName="max-w-[960px]">
+    <main className="min-h-screen pb-24 text-syn-textPrimary lg:pb-12">
       <div className="mx-auto w-full max-w-4xl px-4 pt-8 sm:px-7 sm:pt-12">
         <header className="flex items-end justify-between gap-4 border-b border-syn-border pb-6">
           <div>
@@ -894,6 +896,7 @@ function MessagesContent() {
         ) : null}
       </AnimatePresence>
     </main>
+    </SynauraAppShell>
   );
 }
 

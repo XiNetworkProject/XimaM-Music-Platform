@@ -14,6 +14,7 @@ import { canUseSoundClientSide } from '@/lib/clipPermissions';
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
 import TrackPostsSection from '@/components/posts/TrackPostsSection';
 import TrackShareCardModal from '@/components/share/TrackShareCardModal';
+import DownloadButton from '@/components/DownloadButton';
 
 interface TrackData {
   id: string;
@@ -241,6 +242,18 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
                 <Share2 className="h-4 w-4" />
                 Partager
               </button>
+
+              <DownloadButton
+                audioUrl={track.audioUrl}
+                trackId={track.id}
+                trackTitle={track.title}
+                artistName={track.artist}
+                artistUsername={track.artistUsername}
+                coverUrl={track.coverUrl}
+                duration={track.duration}
+                size="lg"
+                className="h-12 px-5 font-black"
+              />
 
               <button
                 onClick={handleCopyEmbed}

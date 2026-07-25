@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pause, Play, Radio, Sparkles } from 'lucide-react';
+import { Bell, Pause, Play, Radio, Search, Sparkles } from 'lucide-react';
+import MessageInboxButton from '@/components/messaging/MessageInboxButton';
 import { type ScrollPost, type ScrollTrack } from '@/lib/scrollFeed';
 
 type Props = {
@@ -36,6 +37,8 @@ export default function HomeFlowPrelude(props: Props) {
     onEnterFlow,
     onPlayTrack,
     onOpenTrack,
+    onSearch,
+    onNotifications,
     onStudio,
   } = props;
   const [leaving, setLeaving] = useState(false);
@@ -93,7 +96,7 @@ export default function HomeFlowPrelude(props: Props) {
 
   return (
     <div
-      className={`synaura-home-prelude fixed inset-0 z-[120] overflow-hidden bg-[#0D0D0D] text-[#F7F6F3] transition-[transform,opacity] duration-300 ease-out ${leaving ? 'is-leaving -translate-y-full opacity-70' : 'translate-y-0 opacity-100'}`}
+      className={`synaura-home-prelude fixed inset-x-0 bottom-[var(--synaura-primary-dock-space)] top-0 z-[120] overflow-hidden bg-[#0D0D0D] text-[#F7F6F3] transition-[transform,opacity] duration-300 ease-out lg:bottom-0 ${leaving ? 'is-leaving -translate-y-full opacity-70' : 'translate-y-0 opacity-100'}`}
       onWheel={(event) => {
         if (event.deltaY > 18 && Math.abs(event.deltaY) > Math.abs(event.deltaX)) enterFlow();
       }}
@@ -137,14 +140,38 @@ export default function HomeFlowPrelude(props: Props) {
         }
       `}</style>
 
-      <div className="synaura-proto-home mx-auto flex h-[92svh] w-full max-w-5xl flex-col px-4 pb-4 pt-[max(env(safe-area-inset-top),1rem)] sm:px-6 sm:pt-5">
-        <header className="synaura-proto-brand mb-4 flex shrink-0 items-center gap-2.5">
-          <span className="synaura-proto-brand-mark grid h-[38px] w-[38px] place-items-center rounded-lg border border-white/10 bg-[#F7F6F3] text-[#111111] shadow-[0_10px_28px_rgba(0,0,0,0.3)]">
-            <Radio className="h-5 w-5" />
+      <div className="synaura-proto-home mx-auto flex h-[92%] w-full max-w-5xl flex-col px-4 pb-4 pt-[max(env(safe-area-inset-top),1rem)] sm:px-6 sm:pt-5">
+        <header className="synaura-proto-brand mb-4 flex shrink-0 items-center justify-between gap-3">
+          <span className="flex min-w-0 items-center gap-2.5">
+            <span className="synaura-proto-brand-mark grid h-[38px] w-[38px] shrink-0 place-items-center rounded-lg border border-white/10 bg-[#F7F6F3] text-[#111111] shadow-[0_10px_28px_rgba(0,0,0,0.3)]">
+              <Radio className="h-5 w-5" />
+            </span>
+            <span className="min-w-0">
+              <strong className="block text-lg font-black leading-none">Synaura</strong>
+              <span className="synaura-proto-brand-line mt-1 block truncate text-[10px] font-bold text-white/45">Ton monde musical</span>
+            </span>
           </span>
-          <span>
-            <strong className="block text-lg font-black leading-none">Synaura</strong>
-            <span className="synaura-proto-brand-line mt-1 block text-[10px] font-bold text-white/45">Ton monde musical</span>
+
+          <span className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onSearch}
+              className="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-white/68 transition hover:bg-white/12 hover:text-white"
+              aria-label="Rechercher"
+              title="Rechercher"
+            >
+              <Search className="h-4 w-4" />
+            </button>
+            <MessageInboxButton className="h-9 w-9 border border-white/10 bg-white/[0.06] text-white/68 hover:bg-white/12 hover:text-white" />
+            <button
+              type="button"
+              onClick={onNotifications}
+              className="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-white/68 transition hover:bg-white/12 hover:text-white"
+              aria-label="Notifications"
+              title="Notifications"
+            >
+              <Bell className="h-4 w-4" />
+            </button>
           </span>
         </header>
 
@@ -200,7 +227,7 @@ export default function HomeFlowPrelude(props: Props) {
         </div>
       </div>
 
-      <button type="button" onClick={enterFlow} aria-label="Entrer dans le Flow" className="relative block h-[8svh] min-h-10 w-full overflow-hidden border-t border-white/[0.06] bg-[#111111]">
+      <button type="button" onClick={enterFlow} aria-label="Entrer dans le Flow" className="relative block h-[8%] min-h-10 w-full overflow-hidden border-t border-white/[0.06] bg-[#111111]">
         {firstTrack?.coverUrl ? <img src={firstTrack.coverUrl} alt="" className="absolute inset-[-20%] h-[140%] w-[140%] object-cover opacity-24 blur-2xl" /> : null}
         <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(13,13,13,0.3),#090909)]" />
         <span className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-white/22" />

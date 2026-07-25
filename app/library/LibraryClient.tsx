@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Clock3,
   ChevronDown,
+  Download,
   FolderPlus,
   Globe,
   Grid,
@@ -45,6 +46,12 @@ import {
 import { applyCdnToTracks } from '@/lib/cdnHelpers';
 import { useBatchLikeSystem } from '@/hooks/useLikeSystem';
 import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
+import {
+  forgetOfflineTrack,
+  OFFLINE_TRACKS_EVENT,
+  readOfflineTracks,
+  type OfflineTrack,
+} from '@/lib/offlineLibrary';
 
 type TabKey = 'playlists' | 'favorites' | 'recent' | 'downloads';
 type ViewMode = 'grid' | 'list';
@@ -87,54 +94,54 @@ const LIBRARY_SCOPE_CSS = `
   .${LIBRARY_SCOPE_CLASS},
   .${LIBRARY_MODAL_CLASS} {
     --background-primary: transparent;
-    --background-secondary: #fff6ea;
-    --background-tertiary: rgba(255, 250, 242, 0.96);
-    --foreground-primary: #171313;
-    --foreground-secondary: rgba(23, 19, 19, 0.72);
-    --foreground-tertiary: rgba(23, 19, 19, 0.48);
-    --foreground-inactive: rgba(23, 19, 19, 0.34);
-    --border-primary: rgba(23, 19, 19, 0.08);
-    --border-secondary: rgba(23, 19, 19, 0.10);
-    --overlay-on-primary: rgba(23, 19, 19, 0.08);
+    --background-secondary: var(--syn-surface-muted);
+    --background-tertiary: var(--syn-surface);
+    --foreground-primary: var(--syn-text-primary);
+    --foreground-secondary: var(--syn-text-secondary);
+    --foreground-tertiary: var(--syn-text-secondary);
+    --foreground-inactive: var(--syn-text-secondary);
+    --border-primary: var(--syn-border);
+    --border-secondary: var(--syn-border);
+    --overlay-on-primary: var(--syn-soft);
   }
 
   .${LIBRARY_SCOPE_CLASS} .bg-background-fog-thin,
   .${LIBRARY_MODAL_CLASS} .bg-background-fog-thin {
-    background-color: rgba(23, 19, 19, 0.04) !important;
+    background-color: var(--syn-soft) !important;
   }
 
   .${LIBRARY_SCOPE_CLASS} .bg-background-tertiary,
   .${LIBRARY_MODAL_CLASS} .bg-background-tertiary {
-    background-color: rgba(255, 250, 242, 0.96) !important;
+    background-color: var(--syn-surface) !important;
   }
 
   .${LIBRARY_SCOPE_CLASS} .bg-overlay-on-primary,
   .${LIBRARY_MODAL_CLASS} .bg-overlay-on-primary {
-    background-color: #171313 !important;
-    color: #fffaf2 !important;
-    border-color: #171313 !important;
+    background-color: var(--syn-contrast-bg) !important;
+    color: var(--syn-contrast-text) !important;
+    border-color: var(--syn-contrast-bg) !important;
   }
 
   .${LIBRARY_SCOPE_CLASS} .hover\\:bg-overlay-on-primary:hover,
   .${LIBRARY_MODAL_CLASS} .hover\\:bg-overlay-on-primary:hover {
-    background-color: rgba(23, 19, 19, 0.08) !important;
-    color: #171313 !important;
+    background-color: var(--syn-soft-strong) !important;
+    color: var(--syn-text-primary) !important;
   }
 
   .${LIBRARY_SCOPE_CLASS} .divide-border-secondary\\/40 > :not([hidden]) ~ :not([hidden]),
   .${LIBRARY_MODAL_CLASS} .divide-border-secondary\\/40 > :not([hidden]) ~ :not([hidden]) {
-    border-color: rgba(23, 19, 19, 0.08) !important;
+    border-color: var(--syn-border) !important;
   }
 
   .${LIBRARY_SCOPE_CLASS} select,
   .${LIBRARY_MODAL_CLASS} select {
-    color: #171313;
+    color: var(--syn-text-primary);
   }
 
   .${LIBRARY_SCOPE_CLASS} option,
   .${LIBRARY_MODAL_CLASS} option {
-    background: #fffaf2;
-    color: #171313;
+    background: var(--syn-surface);
+    color: var(--syn-text-primary);
   }
 `;
 
@@ -168,6 +175,25 @@ function trackIsLiked(t: Track, userId: string | undefined) {
 
 function normalizeGenre(g: any) {
   return String(g || '').trim();
+}
+
+function offlineTrackToLibraryTrack(track: OfflineTrack): Track {
+  return {
+    _id: track.id,
+    title: track.title,
+    artist: {
+      _id: track.artistUsername || track.artistName,
+      name: track.artistName,
+      username: track.artistUsername || '',
+    },
+    audioUrl: track.audioUrl,
+    coverUrl: track.coverUrl,
+    duration: track.duration || 0,
+    genre: [],
+    likes: [],
+    plays: 0,
+    createdAt: track.downloadedAt,
+  };
 }
 
 function sortTracks(list: Track[], sort: 'recent' | 'title' | 'plays' | 'duration') {
@@ -220,6 +246,7 @@ export default function LibraryClient() {
 
   const [recentTracks, setRecentTracks] = useState<Track[]>([]);
   const [favoriteTracks, setFavoriteTracks] = useState<Track[]>([]);
+  const [downloadedTracks, setDownloadedTracks] = useState<Track[]>([]);
 
   const [recentLimit, setRecentLimit] = useState(40);
   const [favoritesLimit, setFavoritesLimit] = useState(60);
@@ -231,6 +258,15 @@ export default function LibraryClient() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newPl, setNewPl] = useState({ name: '', description: '', isPublic: true });
+
+  useEffect(() => {
+    const syncDownloads = () => {
+      setDownloadedTracks(readOfflineTracks().map(offlineTrackToLibraryTrack));
+    };
+    syncDownloads();
+    window.addEventListener(OFFLINE_TRACKS_EVENT, syncDownloads);
+    return () => window.removeEventListener(OFFLINE_TRACKS_EVENT, syncDownloads);
+  }, []);
 
   const [activeTrackMenu, setActiveTrackMenu] = useState<{
     track: Track;
@@ -429,6 +465,21 @@ export default function LibraryClient() {
     });
     return sortTracks(filtered, trackSort);
   }, [favoriteTracks, genreFilter, search, trackSort]);
+
+  const visibleDownloaded = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const filtered = downloadedTracks.filter((track) => {
+      const haystack = `${track.title || ''} ${track.artist?.name || ''} ${track.artist?.username || ''}`.toLowerCase();
+      return !q || haystack.includes(q);
+    });
+    return sortTracks(filtered, trackSort);
+  }, [downloadedTracks, search, trackSort]);
+
+  const filterableTracks = tab === 'favorites'
+    ? favoriteTracks
+    : tab === 'downloads'
+      ? downloadedTracks
+      : recentTracks;
 
   const playTracks = useCallback(
     async (tracks: Track[], index: number, source: string) => {
@@ -727,6 +778,16 @@ export default function LibraryClient() {
       };
     }
 
+    if (tab === 'downloads') {
+      return {
+        eyebrow: 'Disponible sans reseau',
+        title: 'Hors ligne',
+        description: 'Les morceaux telecharges sur cet appareil restent disponibles quand le reseau disparait.',
+        count: visibleDownloaded.length,
+        countLabel: 'titres hors ligne',
+      };
+    }
+
     return {
       eyebrow: 'Lecture continue',
       title: 'A suivre',
@@ -736,7 +797,7 @@ export default function LibraryClient() {
     };
   })();
 
-  const header = (
+  const header = () => (
     <div className="sticky top-0 z-10 backdrop-blur-xl bg-background-primary/70 border-b border-border-secondary/60">
       <div className="mx-auto max-w-6xl px-4 py-4">
         <div className="flex items-center gap-3">
@@ -842,7 +903,7 @@ export default function LibraryClient() {
                 <option value="all">Tous les genres</option>
                 {Array.from(
                   new Set(
-                    (tab === 'favorites' ? favoriteTracks : recentTracks)
+                    filterableTracks
                       .flatMap((t) => (Array.isArray(t.genre) ? t.genre : []))
                       .map(normalizeGenre)
                       .filter(Boolean),
@@ -876,7 +937,7 @@ export default function LibraryClient() {
     </div>
   );
 
-  const synauraHeader = (
+  const synauraHeader = () => (
     <div className="sticky top-[104px] z-20 mb-5 sm:top-0">
       <div className="rounded-[2rem] border border-border-secondary bg-background-tertiary/95 p-4 shadow-[0_18px_60px_rgba(30,25,20,0.10)] backdrop-blur-2xl sm:p-5">
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_240px] xl:items-start">
@@ -1006,7 +1067,7 @@ export default function LibraryClient() {
                     <option value="all">Tous les genres</option>
                     {Array.from(
                       new Set(
-                        (tab === 'favorites' ? favoriteTracks : recentTracks)
+                        filterableTracks
                           .flatMap((t) => (Array.isArray(t.genre) ? t.genre : []))
                           .map(normalizeGenre)
                           .filter(Boolean),
@@ -1063,6 +1124,155 @@ export default function LibraryClient() {
   );
 
   void header;
+  void synauraHeader;
+
+  const resumeTrack = recentTracks[0] || null;
+  const resumeActive = Boolean(
+    resumeTrack &&
+    audioState.tracks[audioState.currentTrackIndex]?._id === resumeTrack._id &&
+    audioState.isPlaying,
+  );
+  const nativeLibraryHeader = (
+    <header className="mb-5 space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3 px-1 pt-1">
+        <div>
+          <p className="text-[10px] font-black uppercase text-[var(--syn-text-secondary)]">Tout ce que tu gardes</p>
+          <h1 className="mt-1 text-3xl font-black text-[var(--syn-text-primary)] sm:text-4xl">Bibliothèque</h1>
+          <p className="mt-1 text-sm font-semibold text-[var(--syn-text-secondary)]">
+            Favoris, historique, playlists et file d&apos;attente.
+          </p>
+        </div>
+        {tab === 'playlists' && !selectedPlaylistId ? (
+          <div className="flex rounded-[10px] border border-[var(--syn-border)] bg-[var(--syn-soft)] p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={cx(
+                'grid h-9 w-9 place-items-center rounded-[7px] transition',
+                viewMode === 'grid'
+                  ? 'bg-[var(--syn-surface)] text-[var(--syn-text-primary)] shadow-sm'
+                  : 'text-[var(--syn-text-secondary)]',
+              )}
+              aria-label="Vue grille"
+              title="Vue grille"
+            >
+              <Grid className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={cx(
+                'grid h-9 w-9 place-items-center rounded-[7px] transition',
+                viewMode === 'list'
+                  ? 'bg-[var(--syn-surface)] text-[var(--syn-text-primary)] shadow-sm'
+                  : 'text-[var(--syn-text-secondary)]',
+              )}
+              aria-label="Vue liste"
+              title="Vue liste"
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--syn-text-secondary)]" />
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder={selectedPlaylist ? 'Rechercher dans cette playlist' : 'Rechercher dans ta bibliothèque'}
+          className="h-12 w-full rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-surface)] pl-10 pr-10 text-sm font-semibold text-[var(--syn-text-primary)] outline-none placeholder:text-[var(--syn-text-secondary)] focus:border-[var(--syn-accent)] focus:ring-2 focus:ring-[#7357C6]/10"
+        />
+        {search ? (
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-[8px] text-[var(--syn-text-secondary)] hover:bg-[var(--syn-soft)]"
+            aria-label="Effacer la recherche"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
+      </div>
+
+      <div className="synaura-no-scrollbar overflow-x-auto">
+        <div className="flex min-w-max gap-1 rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-soft)] p-1">
+          <TabButton active={tab === 'playlists'} onClick={() => { setTab('playlists'); setSelectedPlaylistId(null); }}>
+            Playlists
+          </TabButton>
+          <TabButton active={tab === 'favorites'} onClick={() => { setTab('favorites'); setSelectedPlaylistId(null); }}>
+            Favoris
+          </TabButton>
+          <TabButton active={tab === 'recent'} onClick={() => { setTab('recent'); setSelectedPlaylistId(null); }}>
+            Récents
+          </TabButton>
+          <TabButton active={tab === 'downloads'} onClick={() => { setTab('downloads'); setSelectedPlaylistId(null); }}>
+            Hors ligne
+          </TabButton>
+          <TabButton active={tab === 'queue'} onClick={() => { setTab('queue'); setSelectedPlaylistId(null); }}>
+            File
+          </TabButton>
+        </div>
+      </div>
+
+      {resumeTrack ? (
+        <button
+          type="button"
+          onClick={() => void playTracks(recentTracks, 0, 'library-resume')}
+          className="flex min-h-[88px] w-full items-center gap-3 rounded-[14px] border border-[var(--syn-border)] border-l-[3px] border-l-[var(--syn-accent-blue)] bg-[#151515] p-3 text-left text-white transition hover:bg-[#1d1d1d]"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={resumeTrack.coverUrl || '/default-cover.svg'}
+            alt=""
+            className="h-[62px] w-[62px] shrink-0 rounded-[10px] object-cover"
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[9px] font-black uppercase text-[#6BB4BE]">Reprendre l&apos;écoute</span>
+            <span className="mt-1 block truncate text-sm font-black">{resumeTrack.title}</span>
+            <span className="mt-0.5 block truncate text-xs font-semibold text-white/55">
+              {resumeTrack.artist?.name || resumeTrack.artist?.username || 'Artiste Synaura'}
+            </span>
+          </span>
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-[#F7F6F3] text-[#111111]">
+            {resumeActive ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
+          </span>
+        </button>
+      ) : null}
+
+      {tab !== 'playlists' && tab !== 'queue' ? (
+        <div className="flex flex-wrap gap-2">
+          <label className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[var(--syn-border)] bg-[var(--syn-surface)] px-3 text-xs font-bold text-[var(--syn-text-secondary)]">
+            <Clock3 className="h-4 w-4" />
+            <select value={trackSort} onChange={(event) => setTrackSort(event.target.value as typeof trackSort)} className="bg-transparent outline-none">
+              <option value="recent">Récent</option>
+              <option value="title">Titre</option>
+              <option value="plays">Écoutes</option>
+              <option value="duration">Durée</option>
+            </select>
+          </label>
+          <label className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[var(--syn-border)] bg-[var(--syn-surface)] px-3 text-xs font-bold text-[var(--syn-text-secondary)]">
+            <Grid className="h-4 w-4" />
+            <select value={genreFilter} onChange={(event) => setGenreFilter(event.target.value)} className="bg-transparent outline-none">
+              <option value="all">Tous les genres</option>
+              {Array.from(
+                new Set(
+                  filterableTracks
+                    .flatMap((track) => (Array.isArray(track.genre) ? track.genre : []))
+                    .map(normalizeGenre)
+                    .filter(Boolean),
+                ),
+              )
+                .sort((a, b) => a.localeCompare(b))
+                .slice(0, 25)
+                .map((genre) => <option key={genre} value={genre}>{genre}</option>)}
+            </select>
+          </label>
+        </div>
+      ) : null}
+    </header>
+  );
 
   if (loading) {
     return (
@@ -1141,7 +1351,7 @@ export default function LibraryClient() {
       <div className={cx(LIBRARY_SCOPE_CLASS, 'grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start')}>
         <main className="min-w-0">
           <div className="min-h-screen bg-background-primary text-foreground-primary">
-            {synauraHeader}
+            {nativeLibraryHeader}
 
             <div className="mx-auto max-w-6xl px-4 py-6">
         {/* Playlist detail */}
@@ -1372,6 +1582,88 @@ export default function LibraryClient() {
                   ) : (
                     <div className="p-8 text-center text-sm text-foreground-secondary">
                       Aucun favori pour l’instant.
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ) : tab === 'downloads' ? (
+              <motion.div
+                key="downloads"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
+              >
+                <SectionHeader
+                  title="Hors ligne"
+                  subtitle={`${visibleDownloaded.length} piste${visibleDownloaded.length > 1 ? 's' : ''} sur cet appareil`}
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => playTracks(visibleDownloaded, 0, 'library-downloads')}
+                      className="inline-flex h-11 items-center gap-2 rounded-[10px] bg-[var(--syn-contrast-bg)] px-4 text-sm font-black text-[var(--syn-contrast-text)] disabled:opacity-40"
+                      disabled={!visibleDownloaded.length}
+                    >
+                      <Play className="h-4 w-4" />
+                      Lire tout
+                    </button>
+                  }
+                />
+
+                <div className="mt-4 overflow-hidden rounded-[14px] border border-[var(--syn-border)] bg-[var(--syn-surface)]">
+                  {visibleDownloaded.length ? (
+                    <div className="divide-y divide-[var(--syn-border)]">
+                      {visibleDownloaded.map((track, index) => (
+                        <div key={track._id} className="flex min-h-[68px] items-center gap-3 px-3 py-2.5">
+                          <button
+                            type="button"
+                            onClick={() => playTracks(visibleDownloaded, index, 'library-download-row')}
+                            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={track.coverUrl || '/default-cover.svg'}
+                              alt=""
+                              className="h-12 w-12 shrink-0 rounded-[9px] object-cover"
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{track.title}</span>
+                              <span className="mt-1 block truncate text-xs font-semibold text-[var(--syn-text-secondary)]">
+                                {track.artist?.name || track.artist?.username || 'Artiste Synaura'}
+                              </span>
+                            </span>
+                            <span className="hidden text-xs font-bold text-[var(--syn-text-secondary)] sm:block">
+                              {formatDuration(track.duration || 0)}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void forgetOfflineTrack(track._id)}
+                            className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-[var(--syn-text-secondary)] transition hover:bg-red-500/10 hover:text-red-500"
+                            aria-label={`Retirer ${track.title} des téléchargements`}
+                            title="Retirer du hors ligne"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="px-6 py-12 text-center">
+                      <div className="mx-auto grid h-14 w-14 place-items-center rounded-[14px] bg-[var(--syn-soft)] text-[var(--syn-text-secondary)]">
+                        <Download className="h-6 w-6" />
+                      </div>
+                      <p className="mt-4 text-sm font-black text-[var(--syn-text-primary)]">Aucun téléchargement</p>
+                      <p className="mt-1 text-xs font-semibold text-[var(--syn-text-secondary)]">
+                        Télécharge un morceau depuis sa fiche pour l&apos;écouter sans réseau.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => router.push('/discover')}
+                        className="mt-5 h-10 rounded-[10px] bg-[var(--syn-contrast-bg)] px-4 text-xs font-black text-[var(--syn-contrast-text)]"
+                      >
+                        Découvrir des sons
+                      </button>
                     </div>
                   )}
                 </div>
@@ -2023,10 +2315,10 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={cx(
-        'h-10 shrink-0 rounded-full px-4 text-sm font-black transition',
+        'h-10 shrink-0 rounded-[8px] px-4 text-sm font-black transition',
         active
-          ? 'bg-[#171313] text-[#fffaf2] shadow-[0_10px_24px_rgba(23,19,19,0.14)]'
-          : 'text-black/45 hover:bg-black/[0.06] hover:text-[#171313]',
+          ? 'bg-[var(--syn-contrast-bg)] text-[var(--syn-contrast-text)] shadow-sm'
+          : 'text-[var(--syn-text-secondary)] hover:text-[var(--syn-text-primary)]',
       )}
     >
       {children}
@@ -2044,11 +2336,10 @@ function SectionHeader({
   action?: any;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--syn-border)] pb-3">
       <div>
-        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-foreground-tertiary">Collection</div>
-        <div className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#171313]">{title}</div>
-        <div className="mt-1 text-sm text-foreground-secondary">{subtitle}</div>
+        <div className="text-xl font-black text-[var(--syn-text-primary)]">{title}</div>
+        <div className="mt-1 text-sm font-semibold text-[var(--syn-text-secondary)]">{subtitle}</div>
       </div>
       {action}
     </div>
@@ -2073,15 +2364,26 @@ function PlaylistCard({
 
   if (viewMode === 'list') {
     return (
-      <div className="overflow-hidden rounded-[1.8rem] border border-border-secondary bg-background-tertiary shadow-[0_16px_40px_rgba(30,25,20,0.08)]">
-        <button type="button" className="w-full text-left" onClick={onOpen}>
+      <div className="overflow-hidden rounded-[14px] border border-border-secondary bg-background-tertiary">
+        <div
+          role="button"
+          tabIndex={0}
+          className="w-full cursor-pointer text-left"
+          onClick={onOpen}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              onOpen();
+            }
+          }}
+        >
           <div className="flex items-center gap-3 p-3.5">
-            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[1.1rem] border border-border-secondary bg-background-fog-thin">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[10px] border border-border-secondary bg-background-fog-thin">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={cover} alt={playlist.name} className="h-full w-full object-cover" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[15px] font-black tracking-[-0.03em] text-[#171313]">{playlist.name}</div>
+              <div className="truncate text-[15px] font-black text-[var(--syn-text-primary)]">{playlist.name}</div>
               <div className="mt-1 truncate text-xs text-foreground-secondary">
                 {count} piste{count > 1 ? 's' : ''} • {playlist.isPublic ? 'Public' : 'Privé'}
               </div>
@@ -2111,14 +2413,25 @@ function PlaylistCard({
               </button>
             </div>
           </div>
-        </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="group overflow-hidden rounded-[1.9rem] border border-border-secondary bg-background-tertiary shadow-[0_18px_42px_rgba(30,25,20,0.08)]">
-      <button type="button" className="w-full text-left" onClick={onOpen}>
+    <div className="group overflow-hidden rounded-[14px] border border-border-secondary bg-background-tertiary">
+      <div
+        role="button"
+        tabIndex={0}
+        className="w-full cursor-pointer text-left"
+        onClick={onOpen}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onOpen();
+          }
+        }}
+      >
         <div className="aspect-square bg-background-fog-thin border-b border-border-secondary/60 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={cover} alt={playlist.name} className="h-full w-full object-cover" />
@@ -2126,7 +2439,7 @@ function PlaylistCard({
         <div className="p-3.5">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="truncate text-[15px] font-black tracking-[-0.03em] text-[#171313]">{playlist.name}</div>
+              <div className="truncate text-[15px] font-black text-[var(--syn-text-primary)]">{playlist.name}</div>
               <div className="mt-1 text-xs text-foreground-secondary truncate">
                 {count} piste{count > 1 ? 's' : ''} • {playlist.isPublic ? 'Public' : 'Privé'}
               </div>
@@ -2144,7 +2457,7 @@ function PlaylistCard({
             </button>
           </div>
         </div>
-      </button>
+      </div>
     </div>
   );
 }
@@ -2176,15 +2489,15 @@ function TrackRow({
   return (
     <div
       className={cx(
-        'flex items-center gap-3 rounded-[1.5rem] px-3 py-2.5 transition',
-        isActive ? 'bg-[#171313] text-[#fffaf2]' : 'hover:bg-black/[0.035]',
+        'flex items-center gap-3 rounded-[10px] px-3 py-2.5 transition',
+        isActive ? 'bg-[#171313] text-[#fffaf2]' : 'hover:bg-[var(--syn-soft)]',
         disabled && 'opacity-60',
       )}
     >
       <div
         className={cx(
           'grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-black',
-          isActive ? 'bg-white/10 text-white/72' : 'bg-black/[0.05] text-black/36',
+          isActive ? 'bg-white/10 text-white/72' : 'bg-[var(--syn-soft)] text-[var(--syn-text-secondary)]',
         )}
       >
         {index + 1}
@@ -2204,7 +2517,7 @@ function TrackRow({
 
       <div
         className={cx(
-          'h-11 w-11 shrink-0 overflow-hidden rounded-[1rem] border',
+          'h-11 w-11 shrink-0 overflow-hidden rounded-[9px] border',
           isActive ? 'border-white/10 bg-white/10' : 'border-border-secondary bg-background-tertiary',
         )}
       >
@@ -2213,7 +2526,7 @@ function TrackRow({
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className={cx('truncate text-sm font-black tracking-[-0.03em]', isActive ? 'text-[#fffaf2]' : 'text-foreground-primary')}>{track.title || 'Titre'}</div>
+        <div className={cx('truncate text-sm font-black', isActive ? 'text-[#fffaf2]' : 'text-foreground-primary')}>{track.title || 'Titre'}</div>
         <div className={cx('truncate text-xs', isActive ? 'text-white/52' : 'text-foreground-tertiary')}>{track.artist?.name || 'Artiste'}</div>
       </div>
 

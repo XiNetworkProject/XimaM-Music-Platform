@@ -30,8 +30,8 @@ async function loadViewableTrack(ref: { id: string; type: 'track' | 'ai_track' }
 }
 
 // GET /api/tracks/[id]/waveform — peaks + duree en cache (jamais recalcules
-// serveur, uniquement lus). 404 si pas encore en cache : le client genere
-// alors la vraie waveform depuis l'audio (Web Audio API) et la pousse via POST.
+// serveur, uniquement lus). Une waveform absente est un cache miss normal :
+// le client la genere depuis l'audio (Web Audio API) et la pousse via POST.
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = params.id;
@@ -52,9 +52,21 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       .maybeSingle();
 
     if (error) throw error;
-    if (!cached) return NextResponse.json({ error: 'Waveform non generee' }, { status: 404 });
+    if (!cached) {
+      return NextResponse.json({
+        duration: null,
+        peaks: [],
+        cached: false,
+        canWrite: Boolean(viewerId),
+      });
+    }
 
-    return NextResponse.json({ duration: Number(cached.duration), peaks: cached.peaks });
+    return NextResponse.json({
+      duration: Number(cached.duration),
+      peaks: cached.peaks,
+      cached: true,
+      canWrite: Boolean(viewerId),
+    });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Erreur serveur' }, { status: 500 });
   }

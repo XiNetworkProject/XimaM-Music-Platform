@@ -9,6 +9,7 @@ import { useAudioPlayer } from '@/app/providers';
 import { applyCdnToTracks } from '@/lib/cdnHelpers';
 import FollowButton from '@/components/FollowButton';
 import NotificationCenter, { notify } from '@/components/NotificationCenter';
+import MessageInboxButton from '@/components/messaging/MessageInboxButton';
 import { isAiVariationAvailable } from '@/lib/remixPermissions';
 import { canUseSoundClientSide } from '@/lib/clipPermissions';
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
@@ -24,6 +25,7 @@ import ReactionPicker from '@/components/player/ReactionPicker';
 import ClipUploadIndicator from '@/components/clips/ClipUploadIndicator';
 import HomeFlowPrelude from '@/components/home/HomeFlowPrelude';
 import ScrollPostSlide from '@/components/home/ScrollPostSlide';
+import { SynauraMobileDock } from '@/components/synaura/SynauraShell';
 import {
   buildAnnouncementItem,
   buildArtistSpotlightItems,
@@ -1031,6 +1033,7 @@ export default function SynauraScroll() {
   const profileHref = username ? `/profile/${username}` : '/auth/signin';
 
   const accountLinks = [
+    { href: '/messages', label: 'Messages', icon: MessageCircle },
     { href: '/clips/new', label: 'Publier un clip', icon: Film },
     { href: profileHref, label: 'Mon profil', icon: User },
     { href: '/discover', label: 'Découvrir', icon: Compass },
@@ -1080,7 +1083,7 @@ export default function SynauraScroll() {
             </button>
           </aside>
 
-          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[max(env(safe-area-inset-bottom),1rem)]">
+          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] lg:pb-[max(env(safe-area-inset-bottom),1rem)]">
             <div className="mx-auto max-w-5xl space-y-3">
               <div className="max-w-xl text-white drop-shadow">
                 <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-[#4A9EAA]/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#8fd3dc]">
@@ -1278,7 +1281,7 @@ export default function SynauraScroll() {
             </a>
           </aside>
 
-          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[max(env(safe-area-inset-bottom),1rem)]">
+          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] lg:pb-[max(env(safe-area-inset-bottom),1rem)]">
             <div className="mx-auto max-w-5xl rounded-[1.8rem] border border-white/12 bg-[#fffaf2]/95 p-4 text-[#171313] shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
@@ -1464,7 +1467,7 @@ export default function SynauraScroll() {
             </div>
           </div>
 
-          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[max(env(safe-area-inset-bottom),1rem)]">
+          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] lg:pb-[max(env(safe-area-inset-bottom),1rem)]">
             <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 rounded-[1.8rem] border border-white/12 bg-[#fffaf2]/95 p-4 text-[#171313] shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
               <div className="min-w-0">
                 <p className="truncate text-sm font-black">{artist.name}</p>
@@ -1523,7 +1526,7 @@ export default function SynauraScroll() {
             </div>
           </div>
 
-          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[max(env(safe-area-inset-bottom),1rem)]">
+          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] lg:pb-[max(env(safe-area-inset-bottom),1rem)]">
             <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-2.5 rounded-[1.8rem] border border-white/12 bg-[#fffaf2]/95 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
               <button
                 type="button"
@@ -1573,7 +1576,7 @@ export default function SynauraScroll() {
               </div>
             </div>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[max(env(safe-area-inset-bottom),1rem)]">
+          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] lg:pb-[max(env(safe-area-inset-bottom),1rem)]">
             <div className="mx-auto max-w-5xl rounded-[1.8rem] border border-white/12 bg-[#fffaf2]/95 p-4 text-center shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
               <Link
                 href={challenge.href}
@@ -1607,7 +1610,7 @@ export default function SynauraScroll() {
             </p>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[max(env(safe-area-inset-bottom),1rem)]">
+        <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] lg:pb-[max(env(safe-area-inset-bottom),1rem)]">
           <div className="mx-auto max-w-5xl rounded-[1.8rem] border border-white/12 bg-[#fffaf2]/95 p-4 text-center shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
             <Link
               href={announcement.href}
@@ -1642,6 +1645,7 @@ export default function SynauraScroll() {
         onStudio={() => router.push('/ai-generator')}
         onEvents={() => router.push('/city')}
       />
+      <SynauraMobileDock appearance="immersive" showDesktop />
       <ClipUploadIndicator />
       <div className="absolute left-0 right-0 top-0 z-40 px-3 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-4">
         <div className="flex items-center justify-between gap-2">
@@ -1679,6 +1683,7 @@ export default function SynauraScroll() {
             >
               {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
             </button>
+            <MessageInboxButton className="border border-white/14 bg-white/10 text-white hover:bg-white/16" />
             <NotificationCenter className="h-10 w-10 border border-white/14 bg-white/10 text-white hover:bg-white/16" />
             <div className="relative" ref={accountRef}>
               <button

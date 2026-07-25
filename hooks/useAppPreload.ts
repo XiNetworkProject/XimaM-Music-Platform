@@ -46,7 +46,7 @@ interface CacheEntry {
   timestamp: number;
 }
 
-export function useAppPreload() {
+export function useAppPreload(autoStart = true) {
   const { data: session, status: sessionStatus } = useSession();
   const [state, setState] = useState<PreloadState>({
     // Ne pas bloquer l’UI: le préchargement se fait en background
@@ -388,12 +388,11 @@ export function useAppPreload() {
   }, [session, sessionStatus, updateProgress, saveToCache, loadFromCache]);
 
   useEffect(() => {
-    // S'exécuter une seule fois au montage - ne pas dépendre de preloadData
-    if (!hasStartedPreload.current && sessionStatus !== 'loading') {
+    if (autoStart && !hasStartedPreload.current && sessionStatus !== 'loading') {
       hasStartedPreload.current = true;
-      preloadData(true);
+      void preloadData(true);
     }
-  }, [sessionStatus]);
+  }, [autoStart, sessionStatus]);
 
   const refresh = useCallback(async () => {
     localStorage.removeItem(CACHE_KEY);

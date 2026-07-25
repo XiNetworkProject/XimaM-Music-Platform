@@ -27,8 +27,8 @@ export async function GET(
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('*')
-      .eq('username', username)
-      .single();
+      .ilike('username', username)
+      .maybeSingle();
 
     if (profileError || !profile) {
       console.log(`❌ Profil non trouvé pour: ${username}`);

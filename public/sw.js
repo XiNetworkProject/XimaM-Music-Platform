@@ -1,6 +1,6 @@
 // Service Worker pour XimaM Music Platform
-const CACHE_NAME = 'ximam-audio-v6';
-const AUDIO_CACHE_NAME = 'ximam-audio-files-v6';
+const CACHE_NAME = 'ximam-static-v7';
+const AUDIO_CACHE_NAME = 'ximam-audio-files-v7';
 const NOTIFICATION_TAG = 'ximam-music-player';
 
 // Fonction helper pour vérifier si une requête peut être mise en cache
@@ -22,6 +22,34 @@ function canCacheRequest(request) {
   }
   
   return true;
+}
+
+async function audioRangeResponse(request, cachedResponse) {
+  const range = request.headers.get('range');
+  if (!range) return cachedResponse;
+
+  const match = /^bytes=(\d+)-(\d*)$/i.exec(range);
+  if (!match) return cachedResponse;
+  const buffer = await cachedResponse.arrayBuffer();
+  const start = Number(match[1]);
+  const requestedEnd = match[2] ? Number(match[2]) : buffer.byteLength - 1;
+  const end = Math.min(requestedEnd, buffer.byteLength - 1);
+  if (!Number.isFinite(start) || start < 0 || start > end) {
+    return new Response(null, {
+      status: 416,
+      headers: { 'Content-Range': `bytes */${buffer.byteLength}` },
+    });
+  }
+
+  return new Response(buffer.slice(start, end + 1), {
+    status: 206,
+    headers: {
+      'Accept-Ranges': 'bytes',
+      'Content-Range': `bytes ${start}-${end}/${buffer.byteLength}`,
+      'Content-Length': String(end - start + 1),
+      'Content-Type': cachedResponse.headers.get('Content-Type') || 'audio/mpeg',
+    },
+  });
 }
 
 // Installation du service worker
@@ -264,6 +292,37 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Next génère des chunks qui doivent tous provenir du même build. Une
+  // stratégie cache-first ici peut mélanger deux versions et rendre l'app
+  // entièrement blanche après une mise à jour.
+  if (url.origin === self.location.origin && url.pathname.startsWith('/_next/')) {
+    event.respondWith(fetch(event.request, { cache: 'no-store' }));
+    return;
+  }
+
+  const audioPath = url.pathname.toLowerCase();
+  const isAudioRequest =
+    event.request.destination === 'audio' ||
+    /\.(mp3|m4a|aac|ogg|opus|wav|flac)$/i.test(audioPath);
+  if (isAudioRequest) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok && response.status === 200 && canCacheRequest(event.request)) {
+            caches.open(AUDIO_CACHE_NAME).then((cache) => cache.put(event.request, response.clone())).catch(() => {});
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cache = await caches.open(AUDIO_CACHE_NAME);
+          const cached = await cache.match(event.request.url, { ignoreSearch: false });
+          if (!cached) return new Response('Audio hors ligne indisponible', { status: 503 });
+          return audioRangeResponse(event.request, cached);
+        })
+    );
+    return;
+  }
+
   // IMPORTANT: ne jamais intercepter/cacher des flux vidéo/live (HLS) ou des requêtes Range
   // (ça provoque des freezes/écrans noirs sur le player dans l'app)
   try {
@@ -332,10 +391,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache des ressources statiques
-  if (event.request.destination === 'image' || 
-      event.request.destination === 'script' || 
-      event.request.destination === 'style') {
+  // Les images sont sûres en cache-first car le cache est versionné.
+  if (event.request.destination === 'image') {
     event.respondWith(
       caches.open(CACHE_NAME).then((cache) => {
         return cache.match(event.request).then((response) => {
@@ -354,6 +411,21 @@ self.addEventListener('fetch', (event) => {
           });
         });
       })
+    );
+    return;
+  }
+
+  // Les scripts et feuilles de style hors de /_next restent network-first.
+  if (event.request.destination === 'script' || event.request.destination === 'style') {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+        .then((response) => {
+          if (response.status === 200 && canCacheRequest(event.request)) {
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone())).catch(() => {});
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
     );
     return;
   }
@@ -377,4 +449,4 @@ self.addEventListener('error', (event) => {
 self.addEventListener('unhandledrejection', (event) => {
   // Empêcher la propagation de l'erreur
   event.preventDefault();
-}); 
+});

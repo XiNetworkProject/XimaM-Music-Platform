@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 
 export interface BoosterCatalogItem {
   id: string;
@@ -32,6 +33,7 @@ interface InventoryResponse {
 }
 
 export function useBoosters() {
+  const { status } = useSession();
   const [loading, setLoading] = useState<boolean>(false);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [cooldownMs, setCooldownMs] = useState<number>(24 * 3_600_000);
@@ -59,10 +61,20 @@ export function useBoosters() {
   }, [remainingMs, tickRemaining]);
 
   const fetchInventory = useCallback(async () => {
+    if (status !== "authenticated") {
+      setInventory([]);
+      setRemainingMs(0);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const res = await fetch("/api/boosters", { cache: "no-store" });
-      if (!res.ok) throw new Error("Failed inventory");
+      if (!res.ok) {
+        setInventory([]);
+        return;
+      }
       const data: InventoryResponse = await res.json();
       setInventory(data.inventory || []);
       setCooldownMs(data.cooldownMs || 24 * 3_600_000);
@@ -71,14 +83,16 @@ export function useBoosters() {
       if (data.plan) setPlan(data.plan);
       if (data.pity) setPity(data.pity);
       if (data.packs) setPacks(data.packs);
+    } catch {
+      setInventory([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [status]);
 
   useEffect(() => {
-    fetchInventory();
-  }, [fetchInventory]);
+    if (status !== "loading") void fetchInventory();
+  }, [fetchInventory, status]);
 
   const openDaily = useCallback(async () => {
     if (!canOpen) return { ok: false as const };

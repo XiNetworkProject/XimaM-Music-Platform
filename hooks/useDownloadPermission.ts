@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { getEntitlements } from '@/lib/entitlements';
+import { OFFLINE_AUDIO_CACHE } from '@/lib/offlineLibrary';
 
 export interface DownloadPermission {
   canDownload: boolean;
@@ -89,6 +90,20 @@ export async function downloadAudioFile(
 
     // Convertir en blob
     const blob = await response.blob();
+
+    if (typeof window !== 'undefined' && 'caches' in window) {
+      const cache = await window.caches.open(OFFLINE_AUDIO_CACHE);
+      await cache.put(
+        audioUrl,
+        new Response(blob, {
+          status: 200,
+          headers: {
+            'Content-Type': blob.type || response.headers.get('Content-Type') || 'audio/mpeg',
+            'Content-Length': String(blob.size),
+          },
+        }),
+      );
+    }
     
     if (onProgress) {
       onProgress(70);

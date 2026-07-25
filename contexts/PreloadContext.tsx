@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { useAppPreload } from '@/hooks/useAppPreload';
-import PreloadBanner from '@/components/PreloadBanner';
 
 interface PreloadContextType {
   isLoading: boolean;
@@ -15,16 +15,12 @@ interface PreloadContextType {
 const PreloadContext = createContext<PreloadContextType | undefined>(undefined);
 
 export function PreloadProvider({ children }: { children: ReactNode }) {
-  const preloadState = useAppPreload();
+  const pathname = usePathname();
+  const preloadState = useAppPreload(pathname === '/');
 
   return (
     <PreloadContext.Provider value={preloadState}>
       {children}
-      <PreloadBanner
-        isLoading={preloadState.isLoading}
-        currentTask={preloadState.currentTask}
-        error={preloadState.error}
-      />
     </PreloadContext.Provider>
   );
 }

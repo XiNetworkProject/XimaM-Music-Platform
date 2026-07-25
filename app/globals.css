@@ -184,6 +184,7 @@ html[data-synaura-theme='light'] {
   --syn-contrast-bg: #111111;
   --syn-contrast-text: #FFFFFF;
   --syn-shadow: rgba(30, 25, 20, 0.12);
+  --synaura-primary-dock-space: calc(env(safe-area-inset-bottom, 0px) + 68px);
   --bg: #F7F6F3;
   --bg-muted: #EEECE7;
   --surface: #FFFFFF;
@@ -237,6 +238,189 @@ html[data-synaura-theme='dark'] .synaura-shell-atmosphere {
     linear-gradient(118deg, rgba(217, 109, 99, 0.08) 0%, transparent 24%),
     linear-gradient(242deg, rgba(115, 87, 198, 0.09) 0%, transparent 28%),
     linear-gradient(180deg, transparent 58%, rgba(74, 158, 170, 0.05) 100%);
+}
+
+/* The native app uses semantic colors throughout. Older web surfaces still
+ * contain a handful of cream/ink utility classes, so this compatibility layer
+ * keeps those screens readable when the shared theme resolves to dark. */
+.synaura-shell-root,
+.synaura-shell-root * {
+  letter-spacing: 0 !important;
+}
+
+html[data-synaura-theme='dark'] .synaura-shell-root :is(
+  [class~="text-black"],
+  [class~="text-[#111111]"],
+  [class~="text-[#171313]"]
+) {
+  color: var(--syn-text-primary) !important;
+}
+
+html[data-synaura-theme='dark'] .synaura-shell-root :is(
+  [class~="text-black/16"],
+  [class~="text-black/20"],
+  [class~="text-black/22"],
+  [class~="text-black/24"],
+  [class~="text-black/25"],
+  [class~="text-black/26"],
+  [class~="text-black/28"],
+  [class~="text-black/30"],
+  [class~="text-black/32"],
+  [class~="text-black/34"],
+  [class~="text-black/35"]
+) {
+  color: rgba(247, 246, 243, 0.48) !important;
+}
+
+html[data-synaura-theme='dark'] .synaura-shell-root :is(
+  [class~="text-black/36"],
+  [class~="text-black/38"],
+  [class~="text-black/40"],
+  [class~="text-black/42"],
+  [class~="text-black/44"],
+  [class~="text-black/45"],
+  [class~="text-black/46"],
+  [class~="text-black/48"],
+  [class~="text-black/50"],
+  [class~="text-black/52"],
+  [class~="text-black/54"]
+) {
+  color: rgba(247, 246, 243, 0.62) !important;
+}
+
+html[data-synaura-theme='dark'] .synaura-shell-root :is(
+  [class~="text-black/55"],
+  [class~="text-black/56"],
+  [class~="text-black/58"],
+  [class~="text-black/60"],
+  [class~="text-black/62"],
+  [class~="text-black/64"],
+  [class~="text-black/66"],
+  [class~="text-black/68"],
+  [class~="text-black/72"],
+  [class~="text-[#171313]/68"]
+) {
+  color: rgba(247, 246, 243, 0.74) !important;
+}
+
+html[data-synaura-theme='dark'] .synaura-shell-root :is(
+  [class~="text-[#5f5650]"],
+  [class~="text-[#6c6157]"],
+  [class~="text-[#6e5f54]"],
+  [class~="text-[#7f7065]"],
+  [class~="text-[#8b7868]"]
+) {
+  color: var(--syn-text-secondary) !important;
+}
+
+html[data-synaura-theme='dark'] .synaura-shell-root :is(
+  [class~="border-black/[0.05]"],
+  [class~="border-black/[0.06]"],
+  [class~="border-black/[0.07]"],
+  [class~="border-black/[0.08]"],
+  [class~="border-black/[0.10]"],
+  [class~="border-black/[0.12]"],
+  [class~="border-black/10"],
+  [class~="border-black/12"]
+) {
+  border-color: var(--syn-border) !important;
+}
+
+html[data-synaura-theme='dark'] .synaura-shell-root :is(
+  [class~="bg-black/[0.02]"],
+  [class~="bg-black/[0.025]"],
+  [class~="bg-black/[0.03]"],
+  [class~="bg-black/[0.035]"],
+  [class~="bg-black/[0.04]"],
+  [class~="bg-black/[0.045]"],
+  [class~="bg-black/[0.05]"],
+  [class~="bg-black/[0.055]"],
+  [class~="bg-black/[0.06]"],
+  [class~="bg-black/[0.07]"],
+  [class~="bg-black/[0.08]"]
+) {
+  background-color: var(--syn-soft) !important;
+}
+
+html[data-synaura-theme='dark'] .synaura-shell-root :is(
+  [class~="bg-white"],
+  [class~="bg-[#F7F6F3]"],
+  [class~="bg-[#fffaf2]"],
+  [class~="bg-[#fffaf2]/70"],
+  [class~="bg-[#fffaf2]/72"],
+  [class~="bg-[#fffaf2]/82"],
+  [class~="bg-[#fffaf2]/84"],
+  [class~="bg-[#fffaf2]/88"],
+  [class~="bg-[#fffaf2]/90"],
+  [class~="bg-[#fffaf2]/92"],
+  [class~="bg-[#fffaf2]/95"],
+  [class~="bg-[#fff7ec]"],
+  [class~="bg-[#fff8ed]"],
+  [class~="bg-[#fff8ee]"],
+  [class~="bg-[#fff8ef]"],
+  [class~="bg-[#fff1e8]"],
+  [class~="bg-[#fff1ec]"]
+) {
+  background-color: var(--syn-surface) !important;
+}
+
+html[data-synaura-theme='dark'] .synaura-shell-root :is(
+  [class~="bg-[#EEECE7]"],
+  [class~="bg-[#efe4d4]"],
+  [class~="bg-[#f4eadc]"],
+  [class~="bg-[#f4ecdf]"],
+  [class~="bg-[#f4efe6]"],
+  [class~="bg-[#f5eadb]"],
+  [class~="bg-[#f5ecde]"],
+  [class~="bg-[#f7efe2]"],
+  [class~="bg-[#f7efe4]"]
+) {
+  background-color: var(--syn-surface-muted) !important;
+}
+
+html[data-synaura-theme='dark'] .synaura-shell-root [class~="bg-[#fffaf2]"][class~="text-[#171313]"] {
+  background-color: var(--syn-contrast-bg) !important;
+  color: var(--syn-contrast-text) !important;
+}
+
+.synaura-player-surface,
+.synaura-player-surface * {
+  letter-spacing: 0 !important;
+}
+
+html[data-synaura-theme='dark'] .synaura-player-surface :is(
+  [class~="text-black/26"],
+  [class~="text-black/32"],
+  [class~="text-black/34"],
+  [class~="text-black/38"],
+  [class~="text-black/42"],
+  [class~="text-black/45"],
+  [class~="text-black/48"],
+  [class~="text-black/55"],
+  [class~="text-black/58"]
+) {
+  color: var(--syn-text-secondary) !important;
+}
+
+html[data-synaura-theme='dark'] .synaura-player-surface [class~="text-[#171313]"] {
+  color: var(--syn-text-primary) !important;
+}
+
+html[data-synaura-theme='dark'] .synaura-player-surface :is(
+  [class~="bg-[#fffaf2]/98"],
+  [class~="bg-white"]
+) {
+  background-color: var(--syn-elevated-surface) !important;
+}
+
+html[data-synaura-theme='dark'] .synaura-player-surface :is(
+  [class~="bg-black/[0.04]"],
+  [class~="bg-black/[0.05]"],
+  [class~="bg-black/[0.06]"],
+  [class~="bg-black/[0.08]"],
+  [class~="bg-black/[0.1]"]
+) {
+  background-color: var(--syn-soft) !important;
 }
 
 .synaura-theme-hero {

@@ -52,24 +52,24 @@ export default function AndroidAppPrompt() {
   };
 
   return (
-    <aside className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] z-[80] mx-auto max-w-md rounded-[1.35rem] border border-black/[0.09] bg-[#fffaf2]/95 p-3 shadow-[0_20px_60px_rgba(23,19,19,0.24)] backdrop-blur-2xl sm:bottom-5 sm:left-auto sm:right-5 sm:mx-0 sm:w-[390px]">
+    <aside className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] z-[80] mx-auto max-w-md rounded-[14px] border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] p-3 text-[var(--syn-text-primary)] shadow-[0_20px_60px_var(--syn-shadow)] backdrop-blur-2xl sm:bottom-5 sm:left-auto sm:right-5 sm:mx-0 sm:w-[390px]">
       <div className="flex items-center gap-3">
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[1rem] bg-white shadow-[0_8px_20px_rgba(23,19,19,0.1)]">
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px] bg-[var(--syn-surface)] shadow-[0_8px_20px_var(--syn-shadow)]">
           <Image src="/brand/2026/synaura-symbol-2026.png" alt="" width={42} height={42} className="h-10 w-10 object-contain" unoptimized />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-black text-[#171313]">Synaura existe aussi en app</p>
-          <p className="mt-0.5 truncate text-[10px] font-bold text-black/46">Audio en arrière-plan · version {release.versionName}</p>
+          <p className="text-sm font-black text-[var(--syn-text-primary)]">Synaura existe aussi en app</p>
+          <p className="mt-0.5 truncate text-[10px] font-bold text-[var(--syn-text-secondary)]">Audio en arrière-plan · version {release.versionName}</p>
         </div>
-        <button onClick={close} aria-label="Fermer" className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black/[0.055] text-black/50">
+        <button onClick={close} aria-label="Fermer" className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--syn-soft)] text-[var(--syn-text-secondary)]">
           <X className="h-4 w-4" />
         </button>
       </div>
       <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
-        <Link href="/download" className="inline-flex h-10 items-center justify-center rounded-full bg-black/[0.055] px-4 text-xs font-black text-black/60">
+        <Link href="/download" className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[var(--syn-soft)] px-4 text-xs font-black text-[var(--syn-text-secondary)]">
           Voir les détails
         </Link>
-        <a href={release.apkUrl} download onClick={close} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-[#171313] px-4 text-xs font-black text-white">
+        <a href={release.apkUrl} download onClick={close} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-[10px] bg-[var(--syn-contrast-bg)] px-4 text-xs font-black text-[var(--syn-contrast-text)]">
           <Download className="h-3.5 w-3.5" /> Installer
         </a>
       </div>

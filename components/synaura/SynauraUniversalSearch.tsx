@@ -101,11 +101,11 @@ function normalizePost(raw: any): SearchPost | null {
 
 function AvatarMark({ value, image }: { value: string; image?: string | null }) {
   if (image) {
-    return <img src={image} alt="" className="h-10 w-10 rounded-full border border-black/[0.08] object-cover" />;
+    return <img src={image} alt="" className="h-10 w-10 rounded-full border border-[var(--syn-border)] object-cover" />;
   }
 
   return (
-    <div className="grid h-10 w-10 place-items-center rounded-full border border-black/[0.08] bg-black/[0.055] text-xs font-black uppercase text-black/50">
+    <div className="grid h-10 w-10 place-items-center rounded-full border border-[var(--syn-border)] bg-[var(--syn-soft)] text-xs font-black uppercase text-[var(--syn-text-secondary)]">
       {value.slice(0, 1) || '?'}
     </div>
   );
@@ -195,7 +195,7 @@ export default function SynauraUniversalSearch({
   return (
     <div ref={rootRef} className={`relative ${compact ? 'min-w-0 flex-1' : 'hidden max-w-2xl flex-1 lg:block'}`}>
       <div className="relative">
-        <Search className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-black/35 ${compact ? 'left-2.5 h-3.5 w-3.5' : 'left-3 h-4 w-4 sm:left-4'}`} />
+        <Search className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-[var(--syn-text-secondary)] ${compact ? 'left-2.5 h-3.5 w-3.5' : 'left-3 h-4 w-4 sm:left-4'}`} />
         <input
           value={query}
           onChange={(event) => {
@@ -214,8 +214,8 @@ export default function SynauraUniversalSearch({
           }}
           placeholder={placeholder}
           className={compact
-            ? 'h-8 w-full rounded-full border border-transparent bg-black/[0.055] pl-8 pr-9 text-[11px] font-semibold text-[#171313] outline-none placeholder:text-black/35 transition focus:border-black/[0.12] focus:bg-[#fffaf2]'
-            : 'h-10 w-full rounded-full border border-transparent bg-black/[0.055] pl-9 pr-10 text-xs font-semibold text-[#171313] outline-none placeholder:text-black/35 transition focus:border-black/[0.12] focus:bg-[#fffaf2] sm:h-11 sm:pl-11 sm:text-sm'
+            ? 'h-9 w-full rounded-[10px] border border-transparent bg-[var(--syn-soft)] pl-8 pr-9 text-[11px] font-semibold text-[var(--syn-text-primary)] outline-none placeholder:text-[var(--syn-text-secondary)] transition focus:border-[var(--syn-border)] focus:bg-[var(--syn-surface)]'
+            : 'h-10 w-full rounded-[12px] border border-transparent bg-[var(--syn-soft)] pl-9 pr-10 text-xs font-semibold text-[var(--syn-text-primary)] outline-none placeholder:text-[var(--syn-text-secondary)] transition focus:border-[var(--syn-border)] focus:bg-[var(--syn-surface)] sm:h-11 sm:pl-11 sm:text-sm'
           }
           aria-label="Recherche globale"
         />
@@ -223,7 +223,7 @@ export default function SynauraUniversalSearch({
           <button
             type="button"
             onClick={clearSearch}
-            className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-black/[0.06] text-black/42 transition hover:bg-black hover:text-white"
+            className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-[var(--syn-soft)] text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-contrast-bg)] hover:text-[var(--syn-contrast-text)]"
             aria-label="Effacer la recherche"
           >
             <X className="h-3.5 w-3.5" />
@@ -232,24 +232,24 @@ export default function SynauraUniversalSearch({
       </div>
 
       {open ? (
-        <div className="fixed left-3 right-3 top-[5.2rem] z-[1000] max-h-[min(72vh,620px)] overflow-y-auto rounded-[1.35rem] border border-[#d8cbb8] bg-[#fff7ec] p-2 shadow-[0_28px_90px_rgba(30,25,20,0.28)] sm:left-1/2 sm:right-auto sm:w-[min(760px,calc(100vw-2rem))] sm:-translate-x-1/2 lg:absolute lg:left-0 lg:right-0 lg:top-[calc(100%+0.55rem)] lg:w-auto lg:translate-x-0">
-          <div className="flex items-center justify-between rounded-[1rem] bg-[#efe4d4] px-3 py-2">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-black/48">
+        <div className="fixed left-3 right-3 top-[5.2rem] z-[1000] max-h-[min(72vh,620px)] overflow-y-auto rounded-[14px] border border-[var(--syn-border)] bg-[var(--syn-elevated-surface)] p-2 shadow-[0_28px_90px_var(--syn-shadow)] sm:left-1/2 sm:right-auto sm:w-[min(760px,calc(100vw-2rem))] sm:-translate-x-1/2 lg:absolute lg:left-0 lg:right-0 lg:top-[calc(100%+0.55rem)] lg:w-auto lg:translate-x-0">
+          <div className="flex items-center justify-between rounded-[10px] bg-[var(--syn-surface-muted)] px-3 py-2">
+            <p className="text-xs font-black uppercase text-[var(--syn-text-secondary)]">
               {loading ? 'Recherche...' : totalResults ? `${totalResults} résultat(s)` : 'Recherche'}
             </p>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin text-black/35" /> : null}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin text-[var(--syn-text-secondary)]" /> : null}
           </div>
 
           {!loading && !totalResults ? (
-            <div className="rounded-[1rem] bg-[#efe4d4] p-5 text-center">
-              <Search className="mx-auto h-7 w-7 text-black/24" />
-              <p className="mt-2 text-sm font-black text-black/58">Aucun résultat pour "{query}"</p>
+            <div className="rounded-[10px] bg-[var(--syn-surface-muted)] p-5 text-center">
+              <Search className="mx-auto h-7 w-7 text-[var(--syn-text-secondary)]" />
+              <p className="mt-2 text-sm font-black text-[var(--syn-text-secondary)]">Aucun résultat pour "{query}"</p>
             </div>
           ) : null}
 
           {results.tracks.length ? (
             <div className="mt-2 space-y-1">
-              <p className="px-2 pt-1 text-[10px] font-black uppercase tracking-[0.18em] text-black/42">Sons</p>
+              <p className="px-2 pt-1 text-[10px] font-black uppercase text-[var(--syn-text-secondary)]">Sons</p>
               {results.tracks.slice(0, 4).map((track) => (
                 <button
                   key={track.id}
@@ -272,14 +272,14 @@ export default function SynauraUniversalSearch({
                     }
                     setOpen(false);
                   }}
-                  className="flex w-full items-center gap-3 rounded-[1rem] bg-[#fffaf2] p-2 text-left transition hover:bg-[#f2e7d7]"
+                  className="flex w-full items-center gap-3 rounded-[10px] bg-[var(--syn-surface)] p-2 text-left transition hover:bg-[var(--syn-soft-strong)]"
                 >
-                  <img src={track.coverUrl || '/default-cover.svg'} alt="" className="h-11 w-11 rounded-[0.8rem] object-cover" />
+                  <img src={track.coverUrl || '/default-cover.svg'} alt="" className="h-11 w-11 rounded-[8px] object-cover" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-black text-[#171313]">{track.title}</span>
-                    <span className="block truncate text-xs font-semibold text-black/40">{track.artist}</span>
+                    <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{track.title}</span>
+                    <span className="block truncate text-xs font-semibold text-[var(--syn-text-secondary)]">{track.artist}</span>
                   </span>
-                  <Play className="h-4 w-4 text-black/42" />
+                  <Play className="h-4 w-4 text-[var(--syn-text-secondary)]" />
                 </button>
               ))}
             </div>
@@ -287,13 +287,13 @@ export default function SynauraUniversalSearch({
 
           {results.posts.length ? (
             <div className="mt-2 space-y-1">
-              <p className="px-2 pt-1 text-[10px] font-black uppercase tracking-[0.18em] text-black/42">Posts</p>
+              <p className="px-2 pt-1 text-[10px] font-black uppercase text-[var(--syn-text-secondary)]">Posts</p>
               {results.posts.slice(0, 4).map((post) => (
-                <Link key={post.id} href={`/posts/${encodeURIComponent(post.id)}`} onClick={() => setOpen(false)} className="flex items-start gap-3 rounded-[1rem] bg-[#fffaf2] p-2 transition hover:bg-[#f2e7d7]">
+                <Link key={post.id} href={`/posts/${encodeURIComponent(post.id)}`} onClick={() => setOpen(false)} className="flex items-start gap-3 rounded-[10px] bg-[var(--syn-surface)] p-2 transition hover:bg-[var(--syn-soft-strong)]">
                   <AvatarMark value={post.author} image={post.avatar} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-black text-[#171313]">{post.author}</span>
-                    <span className="line-clamp-2 text-xs font-semibold leading-5 text-black/46">{post.content}</span>
+                    <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{post.author}</span>
+                    <span className="line-clamp-2 text-xs font-semibold leading-5 text-[var(--syn-text-secondary)]">{post.content}</span>
                   </span>
                 </Link>
               ))}
@@ -303,22 +303,22 @@ export default function SynauraUniversalSearch({
           {(results.artists.length || results.playlists.length) ? (
             <div className="mt-2 grid gap-1 sm:grid-cols-2">
               {results.artists.slice(0, 3).map((artist) => (
-                <Link key={artist.id} href={`/profile/${encodeURIComponent(artist.username)}`} onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-[1rem] bg-[#fffaf2] p-2 transition hover:bg-[#f2e7d7]">
+                <Link key={artist.id} href={`/profile/${encodeURIComponent(artist.username)}`} onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-[10px] bg-[var(--syn-surface)] p-2 transition hover:bg-[var(--syn-soft-strong)]">
                   <AvatarMark value={artist.name || artist.username} image={artist.avatar} />
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-black">{artist.name}</span>
-                    <span className="block truncate text-xs text-black/38">@{artist.username}</span>
+                    <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{artist.name}</span>
+                    <span className="block truncate text-xs text-[var(--syn-text-secondary)]">@{artist.username}</span>
                   </span>
                 </Link>
               ))}
               {results.playlists.slice(0, 3).map((playlist) => (
-                <Link key={playlist.id} href={`/playlists/${encodeURIComponent(playlist.id)}`} onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-[1rem] bg-[#fffaf2] p-2 transition hover:bg-[#f2e7d7]">
-                  <div className="grid h-10 w-10 place-items-center rounded-[0.85rem] bg-black/[0.06]">
-                    <Library className="h-4 w-4 text-black/42" />
+                <Link key={playlist.id} href={`/playlists/${encodeURIComponent(playlist.id)}`} onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-[10px] bg-[var(--syn-surface)] p-2 transition hover:bg-[var(--syn-soft-strong)]">
+                  <div className="grid h-10 w-10 place-items-center rounded-[8px] bg-[var(--syn-soft)]">
+                    <Library className="h-4 w-4 text-[var(--syn-text-secondary)]" />
                   </div>
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-black">{playlist.title}</span>
-                    <span className="block truncate text-xs text-black/38">{playlist.trackCount || 0} sons</span>
+                    <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{playlist.title}</span>
+                    <span className="block truncate text-xs text-[var(--syn-text-secondary)]">{playlist.trackCount || 0} sons</span>
                   </span>
                 </Link>
               ))}
@@ -328,7 +328,7 @@ export default function SynauraUniversalSearch({
           <button
             type="button"
             onClick={goToSearchPage}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-[1rem] bg-[#171313] px-4 py-3 text-sm font-black text-white transition hover:scale-[1.01]"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--syn-contrast-bg)] px-4 py-3 text-sm font-black text-[var(--syn-contrast-text)] transition hover:opacity-90"
           >
             <FileText className="h-4 w-4" />
             Voir tous les résultats

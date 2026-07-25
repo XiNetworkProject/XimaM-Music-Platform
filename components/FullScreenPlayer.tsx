@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ChevronDown, ChevronUp, EyeOff, Info, ListMusic, MessageSquare, Pause, Play, Radio, Repeat2, Share2, SkipBack, SkipForward, SlidersHorizontal, Sparkles, ThumbsDown, ThumbsUp, Trash2, X } from 'lucide-react';
 import { useAudioPlayer, useAudioTime } from '@/app/providers';
 import TikTokPlayer from './TikTokPlayer';
@@ -9,6 +10,7 @@ import TrackCover from './TrackCover';
 import TrackCreateRemixActions from './TrackCreateRemixActions';
 import TrackShareCardModal from './share/TrackShareCardModal';
 import { recommendationReasonLabel } from '@/lib/recommendation/reasonLabels';
+import { shouldRenderGlobalMiniPlayer } from '@/lib/routeChrome';
 
 function toTime(seconds: number) {
   const safe = Math.max(0, Math.floor(seconds || 0));
@@ -257,6 +259,7 @@ function TastePanel({
 }
 
 export default function SynauraMiniPlayer() {
+  const pathname = usePathname();
   const {
     audioState,
     albumContext,
@@ -430,7 +433,7 @@ export default function SynauraMiniPlayer() {
     return () => window.removeEventListener('synaura:open-full-player', open);
   }, []);
 
-  if (!currentTrack || !audioState.showPlayer) return null;
+  if (!currentTrack || !audioState.showPlayer || !shouldRenderGlobalMiniPlayer(pathname)) return null;
 
   return (
     <>
@@ -444,8 +447,8 @@ export default function SynauraMiniPlayer() {
 
       {!showTikTok ? (
         <>
-          <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+4.55rem)] z-[60] pointer-events-none sm:bottom-0">
-            <div className="pointer-events-auto px-2 pb-1 sm:px-4 sm:pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
+          <div className="synaura-player-surface pointer-events-none fixed inset-x-0 bottom-[var(--synaura-primary-dock-space)] z-[60] sm:bottom-0">
+            <div className="pointer-events-auto px-0 pb-0 sm:px-4 sm:pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
               {showQueue ? (
                 <QueuePanel
                   currentTrack={currentTrack as any}
@@ -472,7 +475,7 @@ export default function SynauraMiniPlayer() {
                   onClose={() => setShowTaste(false)}
                 />
               ) : null}
-              <div className="mx-auto max-w-[980px] overflow-hidden rounded-[1.1rem] border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] text-[var(--syn-text-primary)] shadow-[0_18px_48px_var(--syn-shadow)] backdrop-blur-2xl sm:rounded-[1.45rem] sm:shadow-[0_22px_60px_var(--syn-shadow)]">
+              <div className="mx-auto max-w-[640px] overflow-hidden rounded-t-[14px] border border-b-0 border-white/15 bg-[rgba(28,28,28,0.98)] text-[#F7F6F3] shadow-[0_-10px_34px_rgba(0,0,0,0.24)] backdrop-blur-2xl sm:max-w-[980px] sm:rounded-[20px] sm:border sm:border-[var(--syn-border)] sm:bg-[var(--syn-surface-translucent)] sm:text-[var(--syn-text-primary)] sm:shadow-[0_22px_60px_var(--syn-shadow)]">
                 <div
                   ref={progressRef}
                   onClick={onProgressClick}
@@ -654,14 +657,14 @@ export default function SynauraMiniPlayer() {
                       setShowTaste((value) => !value);
                       setShowQueue(false);
                     }}
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--syn-soft)] text-[var(--syn-text-secondary)]"
+                    className="hidden h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--syn-soft)] text-[var(--syn-text-secondary)] sm:grid"
                     aria-label="Affiner le Flow"
                   >
                     <SlidersHorizontal className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => setShowTikTok(true)}
-                    className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black/[0.05] text-black/55"
+                    className="relative hidden h-9 w-9 shrink-0 place-items-center rounded-full bg-black/[0.05] text-black/55 sm:grid"
                     aria-label="À suivre"
                   >
                     <ListMusic className="w-4 h-4" />

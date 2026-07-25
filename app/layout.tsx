@@ -148,7 +148,7 @@ export default function RootLayout({
               </ConditionalNav>
             </div>
           </div>
-          <Analytics />
+          {process.env.VERCEL ? <Analytics /> : null}
           <AndroidAppPrompt />
         </Providers>
         </SynauraThemeProvider>
