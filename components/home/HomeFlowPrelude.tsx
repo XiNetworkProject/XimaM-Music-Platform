@@ -57,6 +57,8 @@ const PUNCHLINES = [
   'Alerte : risque élevé de remettre ce son en boucle.',
 ];
 
+const BANNER_ROTATION_MS = 4200;
+
 function artistName(track: ScrollTrack) {
   return track.artist?.name || track.artist?.username || 'Artiste Synaura';
 }
@@ -100,6 +102,7 @@ export default function HomeFlowPrelude(props: Props) {
 
   const [leaving, setLeaving] = useState(false);
   const [phraseIndex, setPhraseIndex] = useState(0);
+  const [bannerIndex, setBannerIndex] = useState(0);
   const leavingRef = useRef(false);
   const leaveTimerRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
@@ -121,44 +124,89 @@ export default function HomeFlowPrelude(props: Props) {
   const isCurrentTrack = Boolean(featuredTrack && currentTrack?._id === featuredTrack._id);
   const isPlayingFeatured = Boolean(isCurrentTrack && currentPlaying);
 
+  const bannerItems = useMemo(
+    () => [
+      latestPost
+        ? `${latestPost.creator.name || latestPost.creator.username} vient de publier`
+        : 'La communauté se réveille doucement',
+      featuredTrack
+        ? `Fais partie des premiers sur « ${featuredTrack.title} »`
+        : 'Ton prochain son est en approche',
+      'Quelqu’un pourrait t’avoir suivi récemment 👀',
+      'Le Radar pense avoir trouvé ta prochaine boucle',
+      'Pas de drama, juste des sons à découvrir',
+      'Ton algorithme a bossé pendant ton absence',
+    ],
+    [featuredTrack, latestPost],
+  );
+
+  const avatarCandidates = playableTracks
+    .map((track) => track.artist?.avatar)
+    .filter((avatar): avatar is string => Boolean(avatar))
+    .slice(0, 3);
+
   useEffect(() => {
     if (open) {
       leavingRef.current = false;
       wheelDeltaRef.current = 0;
       setLeaving(false);
       setPhraseIndex(Math.floor(Math.random() * PUNCHLINES.length));
+      setBannerIndex(0);
     }
+
     return () => {
       if (leaveTimerRef.current != null) window.clearTimeout(leaveTimerRef.current);
       leaveTimerRef.current = null;
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open || bannerItems.length < 2) return;
+
+    const intervalId = window.setInterval(() => {
+      setBannerIndex((current) => (current + 1) % bannerItems.length);
+    }, BANNER_ROTATION_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [bannerItems.length, open]);
+
   const enterFlow = useCallback(() => {
     if (leavingRef.current) return;
     leavingRef.current = true;
+
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       onEnterFlow();
       return;
     }
+
     setLeaving(true);
     leaveTimerRef.current = window.setTimeout(onEnterFlow, 320);
   }, [onEnterFlow]);
 
   useEffect(() => {
     if (!open) return;
+
     const handleWheel = (event: WheelEvent) => {
       if (event.deltaY <= 0 || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+
       let node = event.target instanceof HTMLElement ? event.target : null;
       while (node && node !== document.body) {
         const style = window.getComputedStyle(node);
         const zIndex = Number.parseInt(style.zIndex || '0', 10);
-        if (style.position === 'fixed' && zIndex > 120 && !node.classList.contains('synaura-home-prelude')) return;
+        if (
+          style.position === 'fixed' &&
+          zIndex > 120 &&
+          !node.classList.contains('synaura-home-prelude')
+        ) {
+          return;
+        }
         node = node.parentElement;
       }
+
       wheelDeltaRef.current += event.deltaY;
       if (wheelDeltaRef.current >= 70) enterFlow();
     };
+
     window.addEventListener('wheel', handleWheel, { passive: true, capture: true });
     return () => window.removeEventListener('wheel', handleWheel, { capture: true });
   }, [enterFlow, open]);
@@ -171,24 +219,6 @@ export default function HomeFlowPrelude(props: Props) {
     { label: 'Studio IA', sub: 'Crée maintenant', icon: Sparkles, accent: '#D96D63', onClick: onStudio },
     { label: 'Événements', sub: 'La scène Synaura', icon: CalendarDays, accent: '#A98BE8', onClick: onEvents },
   ];
-
-  const bannerItems = [
-    latestPost
-      ? `${latestPost.creator.name || latestPost.creator.username} vient de publier`
-      : 'La communauté se réveille doucement',
-    featuredTrack
-      ? `Fais partie des premiers sur « ${featuredTrack.title} »`
-      : 'Ton prochain son est en approche',
-    'Quelqu’un pourrait t’avoir suivi récemment 👀',
-    'Le Radar pense avoir trouvé ta prochaine boucle',
-    'Pas de drama, juste des sons à découvrir',
-    'Ton algorithme a bossé pendant ton absence',
-  ];
-
-  const avatarCandidates = playableTracks
-    .map((track) => track.artist?.avatar)
-    .filter((avatar): avatar is string => Boolean(avatar))
-    .slice(0, 3);
 
   return (
     <div
@@ -222,9 +252,13 @@ export default function HomeFlowPrelude(props: Props) {
           from { opacity: 0; transform: translateY(16px) scale(.98); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        @keyframes synaura-marquee {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
+        @keyframes synaura-banner-enter {
+          from { opacity: 0; transform: translateY(7px); filter: blur(4px); }
+          to { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+        @keyframes synaura-banner-progress {
+          from { width: 0; }
+          to { width: 100%; }
         }
         @keyframes synaura-float {
           0%, 100% { transform: translateY(0) rotate(-.4deg); }
@@ -256,7 +290,8 @@ export default function HomeFlowPrelude(props: Props) {
         .synaura-home-prelude.is-leaving .synaura-home-stage { opacity: 0; transform: translateY(-42px) scale(.985); }
         .synaura-aurora-a { animation: synaura-aurora-one 9s ease-in-out infinite; }
         .synaura-aurora-b { animation: synaura-aurora-two 11s ease-in-out infinite; }
-        .synaura-marquee-track { animation: synaura-marquee 28s linear infinite; }
+        .synaura-banner-message { animation: synaura-banner-enter 360ms ease both; }
+        .synaura-banner-progress { animation: synaura-banner-progress ${BANNER_ROTATION_MS}ms linear both; }
         .synaura-rail-card { animation: synaura-card-enter .55s both; }
         .synaura-floating-card { animation: synaura-float 5s ease-in-out infinite; }
         .synaura-swipe-finger { animation: synaura-swipe-finger 2.05s cubic-bezier(.45,.05,.2,1) infinite; }
@@ -275,6 +310,13 @@ export default function HomeFlowPrelude(props: Props) {
         .synaura-rail-card:hover { transform: translateY(-4px) scale(1.012); box-shadow: 0 18px 48px rgba(0,0,0,.28); }
         .synaura-action-bubble { transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease; }
         .synaura-action-bubble:hover { transform: scale(1.09); }
+
+        @media (min-width: 1280px) {
+          .synaura-pulse-zone { height: clamp(300px, 42vh, 400px) !important; min-height: 300px !important; }
+          .synaura-punchline { max-width: 980px !important; font-size: clamp(2rem, 3.05vw, 3.35rem) !important; }
+          .synaura-rail-card { min-width: 285px; }
+          .synaura-quick-card { min-width: 190px; }
+        }
         @media (max-width: 760px) {
           .synaura-pulse-zone { height: min(43vh, 322px) !important; min-height: 246px !important; }
           .synaura-punchline { font-size: clamp(1.45rem, 7.5vw, 2rem) !important; }
@@ -284,6 +326,7 @@ export default function HomeFlowPrelude(props: Props) {
           .synaura-rail { padding-right: 1rem !important; }
           .synaura-flow-actions { right: .65rem !important; }
           .synaura-swipe-guide { right: 3.8rem !important; }
+          .synaura-banner-label { display: none !important; }
         }
         @media (max-height: 650px) {
           .synaura-pulse-zone { height: 220px !important; min-height: 220px !important; }
@@ -305,7 +348,7 @@ export default function HomeFlowPrelude(props: Props) {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(255,255,255,.1),transparent_42%)]" />
         </div>
 
-        <header className="relative z-30 mx-auto flex w-full max-w-[1320px] shrink-0 items-center justify-between gap-3 px-4 pb-2 pt-[max(env(safe-area-inset-top),0.65rem)] sm:px-6 lg:px-8">
+        <header className="relative z-30 flex w-full shrink-0 items-center justify-between gap-3 px-4 pb-2 pt-[max(env(safe-area-inset-top),0.65rem)] sm:px-6 lg:px-8 xl:px-10">
           <button type="button" onClick={enterFlow} className="group flex min-w-0 items-center gap-2.5 text-left" aria-label="Ouvrir le Flow">
             <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[#F7F6F3] shadow-[0_12px_34px_rgba(115,87,198,.28)]">
               <span className="synaura-pulse-ring absolute inset-0 rounded-[13px] border border-[#A98BE8]/60" />
@@ -330,39 +373,46 @@ export default function HomeFlowPrelude(props: Props) {
           </div>
         </header>
 
-        <section className="synaura-pulse-zone relative z-20 mx-auto h-[clamp(246px,38vh,338px)] min-h-[246px] w-full max-w-[1320px] shrink-0 overflow-hidden px-4 pb-3 sm:px-6 lg:px-8">
-          <div className="flex h-full flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(18,17,24,.9),rgba(10,10,13,.76))] shadow-[0_22px_75px_rgba(0,0,0,.3)] backdrop-blur-2xl">
-            <div className="flex shrink-0 items-end justify-between gap-4 px-4 pb-2 pt-3 sm:px-5">
+        <section className="synaura-pulse-zone relative z-20 h-[clamp(260px,39vh,350px)] min-h-[260px] w-full shrink-0 overflow-hidden px-4 pb-3 sm:px-6 lg:px-8 xl:px-10">
+          <div className="flex h-full flex-col overflow-hidden rounded-[26px] border border-white/10 bg-[linear-gradient(180deg,rgba(18,17,24,.92),rgba(10,10,13,.78))] shadow-[0_22px_75px_rgba(0,0,0,.3)] backdrop-blur-2xl">
+            <div className="flex shrink-0 items-end justify-between gap-5 px-4 pb-2.5 pt-3.5 sm:px-5 lg:px-6 lg:pt-4">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full border border-[#A98BE8]/30 bg-[#7357C6]/18 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.15em] text-[#DCCEFF]">Pendant ton absence</span>
                   <span className="rounded-full border border-[#72BBC5]/25 bg-[#4A9EAA]/14 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.13em] text-[#A8DEE5]">Swipe les cartes</span>
                 </div>
-                <h1 className="synaura-punchline mt-2 max-w-[760px] text-[clamp(1.65rem,3.2vw,2.8rem)] font-black leading-[.94] tracking-[-0.052em] text-white">{PUNCHLINES[phraseIndex]}</h1>
-                <p className="synaura-punch-copy mt-1.5 max-w-xl text-[11px] font-semibold leading-4 text-white/42">Nouveaux posts, sons à tester, petits signaux sociaux et accès rapides : pioche ce qui te donne envie.</p>
+                <h1 className="synaura-punchline mt-2 max-w-[820px] text-[clamp(1.65rem,3.2vw,2.9rem)] font-black leading-[.94] tracking-[-0.052em] text-white">{PUNCHLINES[phraseIndex]}</h1>
+                <p className="synaura-punch-copy mt-1.5 max-w-2xl text-[11px] font-semibold leading-4 text-white/42">Nouveaux posts, sons à tester, petits signaux sociaux et accès rapides : pioche ce qui te donne envie.</p>
               </div>
-              <button type="button" onClick={enterFlow} className="hidden h-10 shrink-0 items-center gap-2 rounded-[13px] bg-white px-4 text-xs font-black text-[#111111] shadow-[0_12px_38px_rgba(247,246,243,.12)] transition hover:-translate-y-0.5 sm:inline-flex">
+
+              <button type="button" onClick={enterFlow} className="hidden h-11 shrink-0 items-center gap-2 rounded-[14px] bg-white px-5 text-xs font-black text-[#111111] shadow-[0_12px_38px_rgba(247,246,243,.12)] transition hover:-translate-y-0.5 sm:inline-flex">
                 <Radio className="h-4 w-4 text-[#7357C6]" />
                 Ouvrir le Flow
                 <ChevronUp className="h-3.5 w-3.5" />
               </button>
             </div>
 
-            <div className="synaura-ticker relative mx-4 shrink-0 overflow-hidden rounded-full border border-white/8 bg-white/[0.045] sm:mx-5">
-              <div className="synaura-marquee-track flex min-w-max items-center gap-2 px-2 py-1.5">
-                {[...bannerItems, ...bannerItems].map((item, index) => (
-                  <span key={`${item}-${index}`} className="inline-flex items-center gap-2 rounded-full border border-white/9 bg-black/18 px-3 py-1 text-[9px] font-black text-white/66">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#72BBC5] shadow-[0_0_8px_#72BBC5]" />
-                    {item}
+            <div className="synaura-ticker relative mx-4 shrink-0 overflow-hidden rounded-[14px] border border-white/9 bg-[linear-gradient(90deg,rgba(115,87,198,.12),rgba(255,255,255,.045),rgba(74,158,170,.11))] sm:mx-5 lg:mx-6">
+              <div key={bannerIndex} className="synaura-banner-message flex min-h-[38px] items-center justify-between gap-3 px-3.5 py-2 sm:px-4">
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-[#72BBC5]/24 bg-[#4A9EAA]/16 text-[#A8DEE5]">
+                    <Zap className="h-3 w-3" />
                   </span>
-                ))}
+                  <span className="synaura-banner-label shrink-0 text-[8px] font-black uppercase tracking-[0.14em] text-[#DCCEFF]">En ce moment</span>
+                  <span className="truncate text-[10px] font-black text-white/72">{bannerItems[bannerIndex]}</span>
+                </span>
+                <span className="shrink-0 text-[8px] font-black tabular-nums text-white/28">
+                  {String(bannerIndex + 1).padStart(2, '0')} / {String(bannerItems.length).padStart(2, '0')}
+                </span>
               </div>
+              <span key={`banner-progress-${bannerIndex}`} className="synaura-banner-progress absolute bottom-0 left-0 h-[2px] bg-[linear-gradient(90deg,#7357C6,#4A9EAA,#D96D63)]" />
             </div>
 
-            <div className="synaura-rail-wrap relative mt-2 min-h-0 flex-1">
+            <div className="synaura-rail-wrap relative mt-2.5 min-h-0 flex-1">
               <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-7 bg-gradient-to-r from-[#101014] to-transparent" />
-              <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-10 bg-gradient-to-l from-[#101014] to-transparent" />
-              <div className="synaura-rail synaura-scroll-x flex h-full snap-x snap-mandatory gap-2.5 overflow-x-auto scroll-smooth px-4 pb-3 pr-10 sm:px-5 sm:pr-12">
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-12 bg-gradient-to-l from-[#101014] to-transparent" />
+
+              <div className="synaura-rail synaura-scroll-x flex h-full snap-x snap-mandatory gap-2.5 overflow-x-auto scroll-smooth px-4 pb-3 pr-12 sm:px-5 sm:pr-14 lg:px-6 lg:pr-16">
                 <button
                   type="button"
                   onClick={() => latestPost && onOpenPost(latestPost)}
@@ -514,15 +564,26 @@ export default function HomeFlowPrelude(props: Props) {
               <h2 className="line-clamp-2 text-[clamp(1.65rem,5vw,3.8rem)] font-black leading-[.96] tracking-[-0.045em] text-white drop-shadow-[0_8px_25px_rgba(0,0,0,.35)]">{featuredTrack?.title || 'Ton Flow se prépare'}</h2>
               <p className="mt-2 truncate text-xs font-bold text-white/62 sm:text-sm">{featuredTrack ? artistName(featuredTrack) : 'Synaura prépare ta sélection'}</p>
             </button>
+
             {featuredTrack ? (
               <div className="synaura-preview-meta mt-2 flex items-center gap-3 text-[10px] font-bold text-white/38">
-                <span>{compactCount(featuredTrack.plays)} écoutes</span><span className="h-1 w-1 rounded-full bg-white/24" /><span>{compactCount(countOf(featuredTrack.likes))} j’aime</span>{nextTrack ? <span className="hidden truncate text-white/28 sm:inline">Ensuite : {nextTrack.title}</span> : null}
+                <span>{compactCount(featuredTrack.plays)} écoutes</span>
+                <span className="h-1 w-1 rounded-full bg-white/24" />
+                <span>{compactCount(countOf(featuredTrack.likes))} j’aime</span>
+                {nextTrack ? <span className="hidden truncate text-white/28 sm:inline">Ensuite : {nextTrack.title}</span> : null}
               </div>
             ) : null}
+
             <div className="mt-3 flex items-center gap-2.5">
               <button type="button" disabled={!featuredTrack} onClick={() => featuredTrack && onPlayTrack(featuredTrack)} className="group relative grid h-12 w-12 place-items-center rounded-full bg-[#F7F6F3] text-[#111111] shadow-[0_15px_45px_rgba(0,0,0,.32)] transition hover:scale-105 disabled:opacity-50">
                 <span className="synaura-pulse-ring absolute inset-0 rounded-full border border-white/60" />
-                {isPlayingFeatured ? <span className="relative flex h-4 items-end gap-[2px]">{[0, 1, 2, 3].map((bar) => <span key={bar} className="synaura-eq-bar h-4 w-[2px] rounded-full bg-[#7357C6]" />)}</span> : <Play className="relative ml-0.5 h-5 w-5 fill-current" />}
+                {isPlayingFeatured ? (
+                  <span className="relative flex h-4 items-end gap-[2px]">
+                    {[0, 1, 2, 3].map((bar) => <span key={bar} className="synaura-eq-bar h-4 w-[2px] rounded-full bg-[#7357C6]" />)}
+                  </span>
+                ) : (
+                  <Play className="relative ml-0.5 h-5 w-5 fill-current" />
+                )}
               </button>
               <button type="button" onClick={enterFlow} className="inline-flex h-11 items-center gap-2 rounded-[14px] border border-white/16 bg-black/28 px-4 text-xs font-black text-white backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white hover:text-[#111111]"><Radio className="h-4 w-4" />Voir en plein écran</button>
             </div>
@@ -537,8 +598,16 @@ export default function HomeFlowPrelude(props: Props) {
           </div>
 
           <button type="button" onClick={enterFlow} className="synaura-swipe-guide absolute right-[4.25rem] top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-1 rounded-[22px] border border-white/12 bg-black/24 px-3 py-3 text-white backdrop-blur-xl transition hover:bg-black/42 sm:right-[5.4rem]" aria-label="Glisser vers le haut pour ouvrir le Flow">
-            <span className="flex flex-col items-center -space-y-1"><ChevronUp className="synaura-swipe-chevron h-4 w-4 text-[#DCCEFF]" /><ChevronUp className="synaura-swipe-chevron h-4 w-4 text-[#A8DEE5]" /><ChevronUp className="synaura-swipe-chevron h-4 w-4 text-[#F0AAA2]" /></span>
-            <span className="relative mt-1 h-[54px] w-[28px]"><span className="synaura-swipe-finger absolute bottom-0 left-1/2 h-[38px] w-[18px] -translate-x-1/2 rounded-[10px_10px_8px_8px] border-2 border-white/82 bg-white/13 shadow-[0_10px_24px_rgba(0,0,0,.25)]"><span className="absolute left-1/2 top-[5px] h-[5px] w-[5px] -translate-x-1/2 rounded-full bg-[#DCCEFF] shadow-[0_0_10px_#A98BE8]" /></span></span>
+            <span className="flex flex-col items-center -space-y-1">
+              <ChevronUp className="synaura-swipe-chevron h-4 w-4 text-[#DCCEFF]" />
+              <ChevronUp className="synaura-swipe-chevron h-4 w-4 text-[#A8DEE5]" />
+              <ChevronUp className="synaura-swipe-chevron h-4 w-4 text-[#F0AAA2]" />
+            </span>
+            <span className="relative mt-1 h-[54px] w-[28px]">
+              <span className="synaura-swipe-finger absolute bottom-0 left-1/2 h-[38px] w-[18px] -translate-x-1/2 rounded-[10px_10px_8px_8px] border-2 border-white/82 bg-white/13 shadow-[0_10px_24px_rgba(0,0,0,.25)]">
+                <span className="absolute left-1/2 top-[5px] h-[5px] w-[5px] -translate-x-1/2 rounded-full bg-[#DCCEFF] shadow-[0_0_10px_#A98BE8]" />
+              </span>
+            </span>
             <span className="text-[8px] font-black uppercase tracking-[0.12em] text-white/58">Glisse</span>
           </button>
         </section>
