@@ -201,6 +201,7 @@ function SynauraRuntime() {
   const [playerOpen, setPlayerOpen] = React.useState(false);
   const [activeRoute, setActiveRoute] = React.useState('Swipe');
   const { resolvedTheme } = useMobileSettings();
+  const usesDarkSystemChrome = resolvedTheme === 'dark' || activeRoute === 'Swipe';
   const navigationTheme = React.useMemo(() => ({
     ...DefaultTheme,
     dark: resolvedTheme === 'dark',
@@ -224,9 +225,8 @@ function SynauraRuntime() {
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
-    void NavigationBar.setBackgroundColorAsync(resolvedTheme === 'dark' ? '#0D0D0D' : '#F7F6F3').catch(() => {});
-    void NavigationBar.setButtonStyleAsync(resolvedTheme === 'dark' ? 'light' : 'dark').catch(() => {});
-  }, [resolvedTheme]);
+    void NavigationBar.setButtonStyleAsync(usesDarkSystemChrome ? 'light' : 'dark').catch(() => {});
+  }, [usesDarkSystemChrome]);
 
   return (
     <AuthProvider>
@@ -250,8 +250,8 @@ function SynauraRuntime() {
                     }}
                   >
                     <StatusBar
-                      style={resolvedTheme === 'dark' ? 'light' : 'dark'}
-                      backgroundColor={resolvedTheme === 'dark' ? '#0D0D0D' : '#F7F6F3'}
+                      style={usesDarkSystemChrome ? 'light' : 'dark'}
+                      backgroundColor={usesDarkSystemChrome ? '#0D0D0D' : '#F7F6F3'}
                     />
                     <RootStackNavigator />
                     <MiniPlayer activeRoute={activeRoute} onOpen={() => setPlayerOpen(true)} />

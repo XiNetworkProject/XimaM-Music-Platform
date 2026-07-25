@@ -1,0 +1,53 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {
+  HOME_PUNCHLINES,
+  pickNextPunchlineIndex,
+  resolveHomePreludeMetrics,
+} from '../synaura-app/src/components/swipe/homePreludeModel.ts';
+
+test('the native home picks one stable, non-repeating phrase per reopen', () => {
+  const first = pickNextPunchlineIndex(-1, 0.5);
+  const nextFromStart = pickNextPunchlineIndex(first, 0);
+  const nextFromEnd = pickNextPunchlineIndex(first, 0.999999);
+
+  assert.ok(first >= 0 && first < HOME_PUNCHLINES.length);
+  assert.notEqual(nextFromStart, first);
+  assert.notEqual(nextFromEnd, first);
+});
+
+test('the pulse area stays near 42 percent while preserving the Flow preview', () => {
+  const viewports = [
+    { width: 320, height: 568, topInset: 24, bottomPad: 83 },
+    { width: 360, height: 740, topInset: 24, bottomPad: 83 },
+    { width: 390, height: 844, topInset: 24, bottomPad: 87 },
+    { width: 430, height: 932, topInset: 28, bottomPad: 91 },
+  ];
+
+  for (const viewport of viewports) {
+    const metrics = resolveHomePreludeMetrics({
+      ...viewport,
+      isPhoneLandscape: false,
+      isVeryShort: viewport.height - viewport.topInset < 560,
+    });
+    const ratio = metrics.pulseHeight / metrics.availableHeight;
+    assert.ok(ratio >= 0.39 && ratio <= 0.43, `${viewport.width}px pulse ratio: ${ratio}`);
+    assert.ok(metrics.previewHeight >= 188, `${viewport.width}px preview: ${metrics.previewHeight}`);
+    assert.ok(metrics.railCardWidth < viewport.width, `${viewport.width}px rail card`);
+  }
+});
+
+test('phone landscape remains usable without hiding the Flow preview', () => {
+  const metrics = resolveHomePreludeMetrics({
+    width: 740,
+    height: 360,
+    topInset: 0,
+    bottomPad: 83,
+    isPhoneLandscape: true,
+    isVeryShort: true,
+  });
+
+  assert.equal(metrics.compactTop, true);
+  assert.ok(metrics.pulseHeight >= 120 && metrics.pulseHeight <= 176);
+  assert.ok(metrics.previewHeight >= 96);
+});

@@ -113,7 +113,8 @@ function primaryIcon(routeName: (typeof PRIMARY_ROUTES)[number], focused: boolea
 function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
   const layout = useResponsiveLayout();
   const { resolvedTheme } = useMobileSettings();
-  const dark = resolvedTheme === 'dark';
+  const activeRouteName = state.routes[state.index]?.name;
+  const dark = resolvedTheme === 'dark' || activeRouteName === 'Swipe';
   const routes = state.routes.filter((route) => PRIMARY_ROUTES.includes(route.name as any));
   const dockWidth = Math.min(layout.safeWidth, layout.isTablet ? 640 : 560);
 
@@ -122,6 +123,7 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
       pointerEvents="box-none"
       style={[
         styles.dockWrap,
+        dark && styles.dockWrapDark,
         {
           left: 0,
           right: 0,
@@ -279,6 +281,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 80,
     backgroundColor: colors.background,
+  },
+  dockWrapDark: {
+    backgroundColor: '#0D0D0D',
   },
   dock: {
     alignSelf: 'center',

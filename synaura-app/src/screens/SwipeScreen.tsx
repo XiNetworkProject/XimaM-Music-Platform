@@ -182,7 +182,10 @@ export function SwipeScreen() {
   const [shareOpen, setShareOpen] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
-  const [homePreludeVisible, setHomePreludeVisible] = useState(false);
+  const [homePreludeVisible, setHomePreludeVisible] = useState(() => (
+    route.params?.mode !== 'clips' && !sourceTrackFilter && !clipIdFilter
+  ));
+  const [preludeActionTrack, setPreludeActionTrack] = useState<Track | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [commentTimestamp, setCommentTimestamp] = useState<number | null>(null);
   const [remixTrack, setRemixTrack] = useState<Track | null>(null);
@@ -250,6 +253,10 @@ export function SwipeScreen() {
       if (feedMode !== 'clips') setFeedMode('clips');
     }
   }, [feedMode, route.params?.mode]);
+
+  useEffect(() => {
+    if (sourceTrackFilter || clipIdFilter) setHomePreludeVisible(false);
+  }, [clipIdFilter, sourceTrackFilter]);
 
   // Feed mixte candidat : la trame reste les morceaux (>=75%), les cartes non musicales
   // (artiste, collection, défi, annonce) sont réparties avec parcimonie. Aucune
@@ -999,6 +1006,44 @@ export function SwipeScreen() {
     }
   }, [activeItem, activeTrack, auth.user, likedMap, likesMap, navigation, rememberLiveTaste, scheduleLiveRefresh, triggerBurst]);
 
+  const handlePreludeToggleLike = useCallback(async (track: Track) => {
+    if (!auth.user) {
+      navigation.getParent()?.navigate('Login', { returnTo: { screen: 'Tabs', params: { screen: 'Swipe' } } });
+      return;
+    }
+    if (!track?._id || track._id.startsWith('ai-')) return;
+    const id = track._id;
+    const wasLiked = likedMap[id] ?? Boolean(track.isLiked);
+    const willLike = !wasLiked;
+    const previousCount = likesMap[id] ?? track.likesCount ?? track.likes?.length ?? 0;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setLikedMap((current) => ({ ...current, [id]: willLike }));
+    setLikesMap((current) => ({
+      ...current,
+      [id]: Math.max(0, previousCount + (willLike ? 1 : -1)),
+    }));
+    if (willLike) triggerBurst();
+    try {
+      const result = await setTrackLike(id, willLike);
+      if (!result) throw new Error('Interaction non enregistree');
+      setLikedMap((current) => ({ ...current, [id]: result.liked }));
+      setLikesMap((current) => ({ ...current, [id]: result.likesCount }));
+      rememberLiveTaste(track, result.liked ? 'like' : 'unlike', result.liked ? 4 : 2);
+      scheduleLiveRefresh(result.liked ? 4 : 2);
+    } catch {
+      setLikedMap((current) => ({ ...current, [id]: wasLiked }));
+      setLikesMap((current) => ({ ...current, [id]: previousCount }));
+    }
+  }, [
+    auth.user,
+    likedMap,
+    likesMap,
+    navigation,
+    rememberLiveTaste,
+    scheduleLiveRefresh,
+    triggerBurst,
+  ]);
+
   const handleDoubleTapLike = useCallback(() => {
     if (!activeTrack) return;
     const key = activeItem?.kind === 'clip' ? clipInteractionKey(activeItem.clip.id) : activeTrack._id;
@@ -1018,6 +1063,7 @@ export function SwipeScreen() {
 
   const handleSlideAction = useCallback((action: 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save' | 'remix' | 'useSound' | 'more') => {
     if (!activeTrack) return;
+    setPreludeActionTrack(null);
     if (action === 'more') {
       setCommentsOpen(false);
       setShareOpen(false);
@@ -1115,6 +1161,8 @@ export function SwipeScreen() {
 
   const enterPreludeFlow = useCallback(() => {
     setHomePreludeVisible(false);
+    setPreludeActionTrack(null);
+    setPlayingClipId(null);
     const target = playableTrackOfItem(feedItems[activeIndexRef.current]) || playableQueue[0] || null;
     if (!target?.audioUrl) return;
     if (player.current?._id === target._id) {
@@ -1132,6 +1180,8 @@ export function SwipeScreen() {
   const openPreludeTrack = useCallback((track: Track) => {
     const index = feedItems.findIndex((item) => playableTrackOfItem(item)?._id === track._id);
     setHomePreludeVisible(false);
+    setPreludeActionTrack(null);
+    setPlayingClipId(null);
     if (index >= 0) {
       activeIndexRef.current = index;
       lastCommittedIndexRef.current = index;
@@ -1147,6 +1197,25 @@ export function SwipeScreen() {
       void player.playTrack(track);
     }
   }, [feedItems, player]);
+
+  const openPreludeComments = useCallback((track: Track) => {
+    Haptics.selectionAsync().catch(() => {});
+    openPreludeTrack(track);
+    setPreludeActionTrack(track);
+    setCommentTimestamp(null);
+    setShareOpen(false);
+    setLyricsOpen(false);
+    setCommentsOpen(true);
+  }, [openPreludeTrack]);
+
+  const sharePreludeTrack = useCallback((track: Track) => {
+    Haptics.selectionAsync().catch(() => {});
+    openPreludeTrack(track);
+    setPreludeActionTrack(track);
+    setCommentsOpen(false);
+    setLyricsOpen(false);
+    setShareOpen(true);
+  }, [openPreludeTrack]);
 
   // La lecture change une seule fois, apres stabilisation de la page native.
   const commitIndex = useCallback((idx: number) => {
@@ -1300,7 +1369,7 @@ export function SwipeScreen() {
   }, [loadMore]);
 
   const renderItem = useCallback(({ item, index }: { item: ScrollFeedItem; index: number }) => {
-    const isActive = isFocused && index === activeIndex;
+    const isActive = isFocused && !homePreludeVisible && index === activeIndex;
 
     if (item.kind === 'clip') {
       const isPlayingThis = isActive && appIsActive && playingClipId === item.clip.id;
@@ -1336,6 +1405,7 @@ export function SwipeScreen() {
           onToggleLike={() => void handleToggleLike()}
           onOpenComments={() => {
             Haptics.selectionAsync().catch(() => {});
+            setPreludeActionTrack(null);
             setShareOpen(false);
             setLyricsOpen(false);
             setCommentsOpen(true);
@@ -1350,6 +1420,7 @@ export function SwipeScreen() {
           }}
           onToggleFollowCreator={() => void handleToggleFollow(creatorKey)}
           onShare={() => {
+            setPreludeActionTrack(null);
             setCommentsOpen(false);
             setLyricsOpen(false);
             setShareOpen(true);
@@ -1524,6 +1595,7 @@ export function SwipeScreen() {
     handleSlideAction,
     handleToggleFollow,
     handleToggleLike,
+    homePreludeVisible,
     insets.top,
     itemHeight,
     isFocused,
@@ -1657,7 +1729,8 @@ export function SwipeScreen() {
       ) : null}
 
       <HomeFlowPrelude
-        visible={homePreludeVisible && feedMode === 'reco'}
+        visible={isFocused && homePreludeVisible && feedMode === 'reco'}
+        loading={loadState === 'loading'}
         tracks={tracks}
         posts={posts}
         currentTrack={player.current}
@@ -1665,9 +1738,15 @@ export function SwipeScreen() {
         userName={auth.user?.name || auth.user?.username}
         topPad={insets.top}
         bottomPad={tabBarHeight}
+        likedMap={likedMap}
+        likesMap={likesMap}
+        commentsMap={commentsCounts}
         onEnterFlow={enterPreludeFlow}
         onPlayTrack={playPreludeTrack}
         onOpenTrack={openPreludeTrack}
+        onToggleLike={(track) => void handlePreludeToggleLike(track)}
+        onOpenComments={openPreludeComments}
+        onShareTrack={sharePreludeTrack}
         onOpenPost={(post) => navigation.navigate('PostDetail', { postId: post.id })}
         onSearch={() => navigation.navigate('Search')}
         onNotifications={() => navigation.navigate(auth.requireAuth() ? 'Notifications' : 'Profile')}
@@ -1681,20 +1760,34 @@ export function SwipeScreen() {
 
       <CommentsSheet
         visible={commentsOpen}
-        track={activeTrack}
-        clip={activeClip}
-        commentCount={activeClip
+        track={preludeActionTrack || activeTrack}
+        clip={preludeActionTrack ? null : activeClip}
+        commentCount={preludeActionTrack
+          ? commentsCounts[preludeActionTrack._id] ?? preludeActionTrack.commentsCount ?? 0
+          : activeClip
           ? commentsCounts[clipInteractionKey(activeClip.id)] ?? activeClip.commentsCount
           : activeTrack ? commentsCounts[activeTrack._id] ?? activeTrack.commentsCount ?? 0 : 0}
-        onClose={() => setCommentsOpen(false)}
+        onClose={() => {
+          setCommentsOpen(false);
+          setPreludeActionTrack(null);
+        }}
         initialTimestamp={commentTimestamp}
         onCountChange={(id, next) => setCommentsCounts((current) => ({
           ...current,
-          [activeClip ? clipInteractionKey(id) : id]: next,
+          [preludeActionTrack ? id : activeClip ? clipInteractionKey(id) : id]: next,
         }))}
       />
 
-      {activeClip ? (
+      {preludeActionTrack ? (
+        <ShareSheet
+          visible={shareOpen}
+          track={preludeActionTrack}
+          onClose={() => {
+            setShareOpen(false);
+            setPreludeActionTrack(null);
+          }}
+        />
+      ) : activeClip ? (
         <ClipShareSheet visible={shareOpen} clip={activeClip} onClose={() => setShareOpen(false)} />
       ) : (
         <ShareSheet visible={shareOpen} track={activeTrack} onClose={() => setShareOpen(false)} />
