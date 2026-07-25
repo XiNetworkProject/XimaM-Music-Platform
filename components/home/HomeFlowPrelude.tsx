@@ -4,16 +4,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell,
   CalendarDays,
+  ChevronUp,
   Compass,
   Heart,
   MessageCircle,
-  Pause,
   Play,
   Radar,
   Radio,
   Search,
+  Share2,
   Sparkles,
-  type LucideIcon,
 } from 'lucide-react';
 import MessageInboxButton from '@/components/messaging/MessageInboxButton';
 import { type ScrollPost, type ScrollTrack } from '@/lib/scrollFeed';
@@ -35,14 +35,6 @@ type Props = {
   onRadar: () => void;
   onStudio: () => void;
   onEvents: () => void;
-};
-
-type Shortcut = {
-  label: string;
-  description: string;
-  icon: LucideIcon;
-  accent: string;
-  onClick: () => void;
 };
 
 function artistName(track: ScrollTrack) {
@@ -95,11 +87,11 @@ export default function HomeFlowPrelude(props: Props) {
   const playableTracks = useMemo(() => tracks.filter((track) => Boolean(track.audioUrl)), [tracks]);
   const firstTrack = playableTracks[0] || null;
   const featuredTrack = currentTrack?.audioUrl ? currentTrack : firstTrack;
-  const isCurrentTrack = Boolean(featuredTrack && currentTrack?._id === featuredTrack._id);
-  const isResume = Boolean(isCurrentTrack && currentTrack?.audioUrl);
-  const rotationTracks = playableTracks.filter((track) => track._id !== featuredTrack?._id).slice(0, 3);
+  const nextTrack = playableTracks.find((track) => track._id !== featuredTrack?._id) || null;
   const latestPost = posts[0] || null;
   const greetingName = userName?.trim().split(/\s+/)[0] || null;
+  const isCurrentTrack = Boolean(featuredTrack && currentTrack?._id === featuredTrack._id);
+  const isPlayingFeatured = Boolean(isCurrentTrack && currentPlaying);
 
   useEffect(() => {
     if (open) {
@@ -136,7 +128,7 @@ export default function HomeFlowPrelude(props: Props) {
         node = node.parentElement;
       }
       wheelDeltaRef.current += event.deltaY;
-      if (wheelDeltaRef.current >= 70) enterFlow();
+      if (wheelDeltaRef.current >= 48) enterFlow();
     };
     window.addEventListener('wheel', handleWheel, { passive: true, capture: true });
     return () => window.removeEventListener('wheel', handleWheel, { capture: true });
@@ -144,41 +136,17 @@ export default function HomeFlowPrelude(props: Props) {
 
   if (!open) return null;
 
-  const shortcuts: Shortcut[] = [
-    {
-      label: 'Découvrir',
-      description: 'Genres et sélections',
-      icon: Compass,
-      accent: '#F4A261',
-      onClick: onDiscover,
-    },
-    {
-      label: 'Radar',
-      description: 'Ce qui monte',
-      icon: Radar,
-      accent: '#4A9EAA',
-      onClick: onRadar,
-    },
-    {
-      label: 'Studio',
-      description: 'Créer un morceau',
-      icon: Sparkles,
-      accent: '#D96D63',
-      onClick: onStudio,
-    },
-    {
-      label: 'Événements',
-      description: 'La scène Synaura',
-      icon: CalendarDays,
-      accent: '#A78BFA',
-      onClick: onEvents,
-    },
+  const shortcuts = [
+    { label: 'Découvrir', sub: 'Trouve ton mood', icon: Compass, accent: '#F4A261', onClick: onDiscover },
+    { label: 'Radar', sub: 'Ce qui monte', icon: Radar, accent: '#4A9EAA', onClick: onRadar },
+    { label: 'Studio IA', sub: 'Crée maintenant', icon: Sparkles, accent: '#D96D63', onClick: onStudio },
+    { label: 'Événements', sub: 'La scène Synaura', icon: CalendarDays, accent: '#9F7AEA', onClick: onEvents },
   ];
 
   return (
     <div
-      className={`synaura-home-prelude fixed inset-x-0 bottom-[var(--synaura-primary-dock-space)] top-0 z-[120] overflow-hidden bg-[#0B0B0C] text-[#F7F6F3] transition-[transform,opacity] duration-300 ease-out lg:bottom-0 ${
-        leaving ? 'is-leaving -translate-y-full opacity-70' : 'translate-y-0 opacity-100'
+      className={`synaura-home-prelude fixed inset-x-0 bottom-[var(--synaura-primary-dock-space)] top-0 z-[120] overflow-hidden bg-[#08080A] text-[#F7F6F3] transition-[transform,opacity] duration-300 ease-out lg:bottom-0 ${
+        leaving ? 'is-leaving -translate-y-full opacity-60' : 'translate-y-0 opacity-100'
       }`}
       onTouchStart={(event) => {
         touchStartYRef.current = event.touches[0]?.clientY ?? null;
@@ -187,7 +155,7 @@ export default function HomeFlowPrelude(props: Props) {
         const start = touchStartYRef.current;
         const end = event.changedTouches[0]?.clientY;
         touchStartYRef.current = null;
-        if (start != null && end != null && start - end > 64) enterFlow();
+        if (start != null && end != null && start - end > 48) enterFlow();
       }}
       onKeyDown={(event) => {
         if (event.key === 'ArrowDown' || event.key === 'PageDown' || event.key === ' ') enterFlow();
@@ -195,188 +163,252 @@ export default function HomeFlowPrelude(props: Props) {
       tabIndex={-1}
     >
       <style>{`
-        .synaura-home-v2 { transition: opacity 280ms ease, transform 320ms ease; }
-        .synaura-home-prelude.is-leaving .synaura-home-v2 { opacity: 0; transform: translateY(-44px) scale(.975); }
-        .synaura-home-card { transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease; }
-        .synaura-home-card:hover { transform: translateY(-2px); }
-        @media (max-width: 1023px) {
-          .synaura-home-rotation, .synaura-home-community { display: none !important; }
-          .synaura-home-hero { min-height: min(52vh, 420px) !important; }
+        @keyframes synaura-aurora-one {
+          0%, 100% { transform: translate3d(-8%, -4%, 0) scale(1); opacity: .58; }
+          50% { transform: translate3d(12%, 8%, 0) scale(1.18); opacity: .9; }
         }
-        @media (max-height: 720px) {
-          .synaura-home-community { display: none !important; }
-          .synaura-home-hero { min-height: 220px !important; }
+        @keyframes synaura-aurora-two {
+          0%, 100% { transform: translate3d(8%, 6%, 0) scale(1.08); opacity: .52; }
+          50% { transform: translate3d(-12%, -8%, 0) scale(.92); opacity: .82; }
         }
-        @media (max-height: 590px) {
-          .synaura-home-rotation { display: none !important; }
-          .synaura-home-hero-copy { padding-bottom: .25rem !important; }
+        @keyframes synaura-card-float {
+          0%, 100% { transform: translateY(0) rotate(-1deg); }
+          50% { transform: translateY(-7px) rotate(1deg); }
+        }
+        @keyframes synaura-swipe-finger {
+          0% { transform: translateY(32px) scale(.92); opacity: 0; }
+          16% { opacity: 1; }
+          72% { opacity: 1; }
+          100% { transform: translateY(-42px) scale(1.04); opacity: 0; }
+        }
+        @keyframes synaura-swipe-chevron {
+          0%, 100% { transform: translateY(5px); opacity: .18; }
+          50% { transform: translateY(-4px); opacity: .95; }
+        }
+        @keyframes synaura-pulse-ring {
+          0% { transform: scale(.72); opacity: .72; }
+          100% { transform: scale(1.55); opacity: 0; }
+        }
+        @keyframes synaura-cover-breathe {
+          0%, 100% { transform: scale(1.015); }
+          50% { transform: scale(1.075); }
+        }
+        @keyframes synaura-eq {
+          0%, 100% { transform: scaleY(.35); }
+          50% { transform: scaleY(1); }
+        }
+        .synaura-home-stage { transition: opacity 280ms ease, transform 320ms ease; }
+        .synaura-home-prelude.is-leaving .synaura-home-stage { opacity: 0; transform: translateY(-42px) scale(.985); }
+        .synaura-aurora-a { animation: synaura-aurora-one 9s ease-in-out infinite; }
+        .synaura-aurora-b { animation: synaura-aurora-two 11s ease-in-out infinite; }
+        .synaura-floating-post { animation: synaura-card-float 4.8s ease-in-out infinite; }
+        .synaura-swipe-finger { animation: synaura-swipe-finger 2.05s cubic-bezier(.45,.05,.2,1) infinite; }
+        .synaura-swipe-chevron { animation: synaura-swipe-chevron 1.15s ease-in-out infinite; }
+        .synaura-swipe-chevron:nth-child(2) { animation-delay: .14s; }
+        .synaura-swipe-chevron:nth-child(3) { animation-delay: .28s; }
+        .synaura-pulse-ring { animation: synaura-pulse-ring 1.8s ease-out infinite; }
+        .synaura-cover-image { animation: synaura-cover-breathe 13s ease-in-out infinite; }
+        .synaura-shortcut { transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease; }
+        .synaura-shortcut:hover { transform: translateY(-4px) scale(1.015); box-shadow: 0 18px 42px rgba(0,0,0,.26); }
+        .synaura-action-bubble { transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease; }
+        .synaura-action-bubble:hover { transform: scale(1.1); }
+        .synaura-eq-bar { transform-origin: center bottom; animation: synaura-eq .72s ease-in-out infinite; }
+        .synaura-eq-bar:nth-child(2) { animation-delay: .12s; }
+        .synaura-eq-bar:nth-child(3) { animation-delay: .24s; }
+        .synaura-eq-bar:nth-child(4) { animation-delay: .36s; }
+        @media (max-width: 760px) {
+          .synaura-floating-post { display: none !important; }
+          .synaura-home-intro { min-height: 172px !important; }
+          .synaura-home-heading { font-size: clamp(1.65rem, 7.8vw, 2.25rem) !important; }
+          .synaura-shortcut-sub { display: none !important; }
+        }
+        @media (max-height: 650px) {
+          .synaura-home-intro { min-height: 146px !important; }
+          .synaura-home-copy { display: none !important; }
+          .synaura-shortcut { min-height: 52px !important; }
+          .synaura-preview-meta { display: none !important; }
         }
         @media (prefers-reduced-motion: reduce) {
           .synaura-home-prelude, .synaura-home-prelude * { animation: none !important; transition: none !important; }
         }
       `}</style>
 
-      <div className="synaura-home-v2 grid h-full grid-rows-[auto_minmax(0,1fr)_auto]">
-        <header className="mx-auto flex w-full max-w-[1220px] items-center justify-between gap-3 px-4 pb-3 pt-[max(env(safe-area-inset-top),0.9rem)] sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-[#F7F6F3] shadow-[0_12px_34px_rgba(0,0,0,.34)]">
-              <img src="/brand/2026/synaura-symbol-2026.png" alt="" className="h-6 w-6 object-contain" />
+      <div className="synaura-home-stage relative flex h-full flex-col overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="synaura-aurora-a absolute -left-[16%] -top-[34%] h-[72%] w-[72%] rounded-full bg-[#7357C6]/42 blur-[90px]" />
+          <div className="synaura-aurora-b absolute -right-[18%] top-[-8%] h-[62%] w-[62%] rounded-full bg-[#D96D63]/34 blur-[90px]" />
+          <div className="absolute left-[38%] top-[8%] h-[34%] w-[34%] rounded-full bg-[#4A9EAA]/22 blur-[80px]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(255,255,255,.09),transparent_44%)]" />
+        </div>
+
+        <header className="relative z-30 mx-auto flex w-full max-w-[1240px] shrink-0 items-center justify-between gap-3 px-4 pb-2.5 pt-[max(env(safe-area-inset-top),0.8rem)] sm:px-6 lg:px-8">
+          <button type="button" onClick={enterFlow} className="group flex min-w-0 items-center gap-2.5 text-left" aria-label="Ouvrir le Flow">
+            <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[#F7F6F3] shadow-[0_12px_34px_rgba(115,87,198,.28)]">
+              <span className="synaura-pulse-ring absolute inset-0 rounded-[13px] border border-[#A98BE8]/60" />
+              <img src="/brand/2026/synaura-symbol-2026.png" alt="" className="relative h-6 w-6 object-contain transition group-hover:scale-110" />
             </span>
-            <div className="min-w-0">
-              <strong className="block text-[17px] font-black leading-none tracking-[-0.02em]">Synaura</strong>
-              <span className="mt-1 block truncate text-[10px] font-bold text-white/42">
-                {greetingName ? `Content de te revoir, ${greetingName}` : 'Ta musique, ta communauté, ton Flow'}
+            <span className="min-w-0">
+              <strong className="block text-[17px] font-black leading-none tracking-[-0.025em]">Synaura</strong>
+              <span className="mt-1 block truncate text-[10px] font-bold text-white/45">
+                {greetingName ? `Salut ${greetingName}, ton Flow est prêt` : 'Écoute, crée, partage'}
               </span>
-            </div>
-          </div>
+            </span>
+          </button>
 
           <div className="flex shrink-0 items-center gap-1.5">
-            <button type="button" onClick={onSearch} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.055] text-white/68 transition hover:bg-white/12 hover:text-white" aria-label="Rechercher" title="Rechercher">
+            <button type="button" onClick={onSearch} className="synaura-action-bubble grid h-10 w-10 place-items-center rounded-full border border-white/12 bg-white/[0.075] text-white/72 backdrop-blur-xl hover:border-white/22 hover:bg-white/14 hover:text-white" aria-label="Rechercher" title="Rechercher">
               <Search className="h-4 w-4" />
             </button>
-            <MessageInboxButton className="h-10 w-10 border border-white/10 bg-white/[0.055] text-white/68 hover:bg-white/12 hover:text-white" />
-            <button type="button" onClick={onNotifications} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.055] text-white/68 transition hover:bg-white/12 hover:text-white" aria-label="Notifications" title="Notifications">
+            <MessageInboxButton className="synaura-action-bubble h-10 w-10 border border-white/12 bg-white/[0.075] text-white/72 backdrop-blur-xl hover:border-white/22 hover:bg-white/14 hover:text-white" />
+            <button type="button" onClick={onNotifications} className="synaura-action-bubble grid h-10 w-10 place-items-center rounded-full border border-white/12 bg-white/[0.075] text-white/72 backdrop-blur-xl hover:border-white/22 hover:bg-white/14 hover:text-white" aria-label="Notifications" title="Notifications">
               <Bell className="h-4 w-4" />
             </button>
           </div>
         </header>
 
-        <main className="mx-auto grid min-h-0 w-full max-w-[1220px] gap-3 overflow-hidden px-4 pb-3 sm:px-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,.75fr)] lg:px-8">
-          <section className="synaura-home-hero synaura-home-card relative min-h-[260px] overflow-hidden rounded-[22px] border border-white/10 bg-[#171719] shadow-[0_30px_90px_rgba(0,0,0,.38)]">
-            {featuredTrack?.coverUrl ? (
-              <img src={featuredTrack.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            ) : (
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_24%,rgba(115,87,198,.52),transparent_34%),radial-gradient(circle_at_26%_74%,rgba(74,158,170,.35),transparent_38%),#171719]" />
-            )}
-            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,8,9,.96)_0%,rgba(8,8,9,.68)_46%,rgba(8,8,9,.08)_100%)]" />
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,9,.04)_20%,rgba(8,8,9,.92)_100%)]" />
-            <div className="absolute right-4 top-4 rounded-full border border-white/12 bg-black/24 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-white/72 backdrop-blur-xl">
-              {isResume ? 'À reprendre' : 'Choisi pour toi'}
+        <section className="synaura-home-intro relative z-20 mx-auto flex h-[clamp(172px,27vh,242px)] min-h-[172px] w-full max-w-[1240px] shrink-0 flex-col justify-between px-4 pb-3 pt-1 sm:px-6 lg:px-8">
+          <div className="relative flex min-h-0 items-start justify-between gap-5">
+            <div className="min-w-0 max-w-[700px]">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-[#A98BE8]/30 bg-[#7357C6]/18 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-[#DCCEFF]">Ton monde musical</span>
+                <span className="rounded-full border border-[#72BBC5]/25 bg-[#4A9EAA]/14 px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-[#A8DEE5]">Le Flow commence dessous</span>
+              </div>
+              <h1 className="synaura-home-heading mt-2.5 max-w-[680px] text-[clamp(2rem,4.2vw,3.75rem)] font-black leading-[.92] tracking-[-0.055em] text-white">
+                Ta prochaine claque est déjà là.
+              </h1>
+              <p className="synaura-home-copy mt-2 max-w-xl text-xs font-semibold leading-5 text-white/48 sm:text-sm">
+                Lance le premier son ou glisse directement dans une sélection qui ne s’arrête jamais.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button type="button" onClick={enterFlow} className="group inline-flex h-10 items-center gap-2 rounded-[13px] bg-[#F7F6F3] px-4 text-xs font-black text-[#111111] shadow-[0_12px_38px_rgba(247,246,243,.12)] transition hover:-translate-y-0.5 hover:bg-white">
+                  <Radio className="h-4 w-4 text-[#7357C6]" />
+                  Entrer dans le Flow
+                  <ChevronUp className="h-3.5 w-3.5 transition group-hover:-translate-y-0.5" />
+                </button>
+                <button type="button" onClick={onStudio} className="inline-flex h-10 items-center gap-2 rounded-[13px] border border-[#D96D63]/35 bg-[#D96D63]/15 px-4 text-xs font-black text-[#FFD9D4] backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-[#D96D63]/24">
+                  <Sparkles className="h-4 w-4" />
+                  Créer un son
+                </button>
+              </div>
             </div>
 
-            <div className="synaura-home-hero-copy relative z-10 flex h-full max-w-[620px] flex-col justify-end p-5 sm:p-7 lg:p-8">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#E7DBFF]">Ton point de départ</p>
-              <button type="button" disabled={!featuredTrack} onClick={() => featuredTrack && onOpenTrack(featuredTrack)} className="mt-2 block max-w-full text-left disabled:cursor-default">
-                <h1 className="line-clamp-2 text-[clamp(2rem,5vw,4.4rem)] font-black leading-[.94] tracking-[-0.055em] text-white">
-                  {featuredTrack?.title || 'Ton Flow se prépare'}
-                </h1>
-                <p className="mt-3 truncate text-sm font-bold text-white/62">
-                  {featuredTrack ? artistName(featuredTrack) : 'Synaura prépare une sélection rien que pour toi'}
-                </p>
+            {latestPost ? (
+              <button type="button" onClick={() => onOpenPost(latestPost)} className="synaura-floating-post hidden w-[260px] shrink-0 items-start gap-3 rounded-[18px] border border-white/12 bg-[#161319]/82 p-3 text-left shadow-[0_22px_60px_rgba(0,0,0,.35)] backdrop-blur-2xl md:flex">
+                <img src={latestPost.creator.avatar || '/brand/2026/synaura-symbol-2026-white.png'} alt="" className="h-10 w-10 shrink-0 rounded-full bg-white/8 object-cover ring-2 ring-[#D96D63]/35" />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#D96D63] shadow-[0_0_12px_#D96D63]" />
+                    <span className="text-[9px] font-black uppercase tracking-[0.13em] text-[#F0AAA2]">Ça bouge maintenant</span>
+                  </span>
+                  <strong className="mt-1 block truncate text-xs font-black text-white/90">{latestPost.creator.name || latestPost.creator.username}</strong>
+                  <span className="mt-1 line-clamp-2 block text-[10px] font-semibold leading-4 text-white/42">{postPreview(latestPost)}</span>
+                </span>
               </button>
+            ) : null}
+          </div>
 
-              {featuredTrack ? (
-                <div className="mt-3 flex items-center gap-3 text-[11px] font-bold text-white/42">
-                  <span>{compactCount(featuredTrack.plays)} écoutes</span>
-                  <span className="h-1 w-1 rounded-full bg-white/25" />
-                  <span>{compactCount(countOf(featuredTrack.likes))} j’aime</span>
-                </div>
-              ) : null}
-
-              <div className="mt-5 flex flex-wrap items-center gap-2.5">
-                <button type="button" disabled={!featuredTrack} onClick={() => featuredTrack && onPlayTrack(featuredTrack)} className="inline-flex h-11 items-center justify-center gap-2 rounded-[13px] bg-[#F7F6F3] px-5 text-sm font-black text-[#111111] transition hover:bg-white disabled:opacity-50">
-                  {isCurrentTrack && currentPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
-                  {isCurrentTrack && currentPlaying ? 'En écoute' : 'Écouter'}
-                </button>
-                <button type="button" onClick={enterFlow} className="inline-flex h-11 items-center justify-center gap-2 rounded-[13px] border border-white/18 bg-white/[0.09] px-5 text-sm font-black text-white backdrop-blur-xl transition hover:bg-white/[0.15]">
-                  <Radio className="h-4 w-4" />
-                  Ouvrir le Flow
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <aside className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3 overflow-hidden">
-            <section className="rounded-[20px] border border-white/[0.075] bg-[#151517] p-3.5">
-              <div className="mb-3 flex items-center justify-between gap-3 px-1">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-white/38">Explorer Synaura</p>
-                  <h2 className="mt-1 text-sm font-black">Où tu veux aller ?</h2>
-                </div>
-                <span className="text-[10px] font-bold text-white/28">4 espaces</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {shortcuts.map((shortcut) => {
-                  const Icon = shortcut.icon;
-                  return (
-                    <button key={shortcut.label} type="button" onClick={shortcut.onClick} className="synaura-home-card flex min-h-[74px] items-center gap-3 rounded-[15px] border border-white/[0.07] bg-white/[0.035] p-3 text-left hover:border-white/14 hover:bg-white/[0.07]">
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px]" style={{ backgroundColor: `${shortcut.accent}1F`, color: shortcut.accent }}>
-                        <Icon className="h-[18px] w-[18px]" />
-                      </span>
-                      <span className="min-w-0">
-                        <strong className="block truncate text-xs font-black text-white/92">{shortcut.label}</strong>
-                        <span className="mt-1 block truncate text-[9px] font-semibold text-white/36">{shortcut.description}</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            <section className="synaura-home-rotation rounded-[20px] border border-white/[0.075] bg-[#151517] p-3.5">
-              <div className="mb-2.5 flex items-center justify-between px-1">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#8AC3CB]">En rotation</p>
-                  <h2 className="mt-1 text-sm font-black">À écouter ensuite</h2>
-                </div>
-                <button type="button" onClick={onDiscover} className="text-[10px] font-black text-white/42 transition hover:text-white">Tout voir</button>
-              </div>
-              <div className="grid gap-1.5">
-                {rotationTracks.length ? rotationTracks.map((track, index) => (
-                  <button key={track._id} type="button" onClick={() => onOpenTrack(track)} className="group flex min-w-0 items-center gap-3 rounded-[13px] px-2 py-1.5 text-left transition hover:bg-white/[0.055]">
-                    <span className="w-4 shrink-0 text-center text-[10px] font-black text-white/24">{String(index + 1).padStart(2, '0')}</span>
-                    <img src={track.coverUrl || '/brand/2026/synaura-symbol-2026-white.png'} alt="" className="h-9 w-9 shrink-0 rounded-[10px] bg-white/5 object-cover" />
-                    <span className="min-w-0 flex-1">
-                      <strong className="block truncate text-xs font-black text-white/86">{track.title}</strong>
-                      <span className="mt-0.5 block truncate text-[9px] font-semibold text-white/34">{artistName(track)}</span>
-                    </span>
-                    <Play className="h-3.5 w-3.5 shrink-0 text-white/22 transition group-hover:text-white/78" />
-                  </button>
-                )) : (
-                  <p className="rounded-[13px] bg-white/[0.035] px-3 py-4 text-xs font-semibold text-white/34">Les prochaines recommandations arrivent.</p>
-                )}
-              </div>
-            </section>
-
-            <section className="synaura-home-community min-h-0 rounded-[20px] border border-white/[0.075] bg-[#151517] p-3.5">
-              <div className="mb-2.5 flex items-center justify-between px-1">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#E8A79F]">Communauté</p>
-                  <h2 className="mt-1 text-sm font-black">Ça bouge maintenant</h2>
-                </div>
-                <MessageCircle className="h-4 w-4 text-white/24" />
-              </div>
-
-              {latestPost ? (
-                <button type="button" onClick={() => onOpenPost(latestPost)} className="synaura-home-card flex w-full min-w-0 items-start gap-3 rounded-[15px] border border-white/[0.06] bg-white/[0.035] p-3 text-left hover:border-white/14 hover:bg-white/[0.065]">
-                  <img src={latestPost.creator.avatar || '/brand/2026/synaura-symbol-2026-white.png'} alt="" className="h-10 w-10 shrink-0 rounded-full bg-white/5 object-cover" />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <strong className="truncate text-xs font-black text-white/90">{latestPost.creator.name || latestPost.creator.username}</strong>
-                      <span className="shrink-0 text-[9px] font-semibold text-white/26">vient de publier</span>
-                    </span>
-                    <span className="mt-1.5 line-clamp-2 block text-[11px] font-semibold leading-4 text-white/48">{postPreview(latestPost)}</span>
-                    <span className="mt-2 flex items-center gap-3 text-[9px] font-bold text-white/28">
-                      <span className="inline-flex items-center gap-1"><Heart className="h-3 w-3" />{latestPost.likes_count}</span>
-                      <span className="inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{latestPost.comments_count}</span>
-                    </span>
+          <div className="synaura-no-scrollbar flex gap-2 overflow-x-auto pb-0.5">
+            {shortcuts.map((shortcut) => {
+              const Icon = shortcut.icon;
+              return (
+                <button key={shortcut.label} type="button" onClick={shortcut.onClick} className="synaura-shortcut flex min-h-[58px] min-w-[136px] flex-1 items-center gap-3 rounded-[16px] border p-2.5 text-left backdrop-blur-xl sm:min-w-[150px]" style={{ borderColor: `${shortcut.accent}38`, background: `linear-gradient(135deg, ${shortcut.accent}22, rgba(255,255,255,.035))` }}>
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px]" style={{ backgroundColor: `${shortcut.accent}24`, color: shortcut.accent, boxShadow: `0 8px 28px ${shortcut.accent}18` }}>
+                    <Icon className="h-[18px] w-[18px]" />
+                  </span>
+                  <span className="min-w-0">
+                    <strong className="block truncate text-xs font-black text-white/92">{shortcut.label}</strong>
+                    <span className="synaura-shortcut-sub mt-1 block truncate text-[9px] font-semibold text-white/38">{shortcut.sub}</span>
                   </span>
                 </button>
-              ) : (
-                <p className="rounded-[15px] bg-white/[0.035] px-3 py-4 text-xs font-semibold text-white/34">Les premiers posts de la communauté apparaîtront ici.</p>
-              )}
-            </section>
-          </aside>
-        </main>
+              );
+            })}
+          </div>
+        </section>
 
-        <button type="button" onClick={enterFlow} aria-label="Entrer dans le Flow" className="group relative mx-auto mb-[max(env(safe-area-inset-bottom),0.55rem)] flex h-12 w-[calc(100%_-_2rem)] max-w-[1220px] items-center justify-center overflow-hidden rounded-[15px] border border-white/[0.08] bg-[#121214] px-4 sm:w-[calc(100%_-_3rem)] lg:w-[calc(100%_-_4rem)]">
-          {firstTrack?.coverUrl ? <img src={firstTrack.coverUrl} alt="" className="absolute inset-[-30%] h-[160%] w-[160%] object-cover opacity-16 blur-3xl" /> : null}
-          <span className="absolute inset-0 bg-[linear-gradient(90deg,rgba(74,158,170,.12),transparent_38%,rgba(115,87,198,.12))]" />
-          <span className="relative flex items-center gap-2.5 text-xs font-black text-white/68 transition group-hover:text-white">
-            <Radio className="h-4 w-4 text-[#72BBC5]" />
-            Glisse vers le haut pour entrer dans le Flow
-          </span>
-        </button>
+        <section className="relative z-20 min-h-0 flex-1 overflow-hidden rounded-t-[30px] border-t border-white/14 bg-[#131116] shadow-[0_-24px_80px_rgba(0,0,0,.38)]">
+          {featuredTrack?.coverUrl ? (
+            <img src={featuredTrack.coverUrl} alt="" className="synaura-cover-image absolute inset-0 h-full w-full object-cover" />
+          ) : (
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(115,87,198,.72),transparent_35%),radial-gradient(circle_at_18%_72%,rgba(74,158,170,.55),transparent_42%),linear-gradient(145deg,#2B172D,#0B0B0D)]" />
+          )}
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,7,9,.2)_0%,rgba(7,7,9,.08)_26%,rgba(7,7,9,.82)_78%,rgba(7,7,9,.98)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,7,9,.68)_0%,transparent_56%,rgba(7,7,9,.18)_100%)]" />
+          <div className="absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(115,87,198,.2),transparent)]" />
+
+          <button type="button" onClick={enterFlow} className="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/12 bg-black/28 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-white/66 backdrop-blur-xl transition hover:bg-black/44 hover:text-white">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#72BBC5] shadow-[0_0_12px_#72BBC5]" />
+            Aperçu du Flow
+          </button>
+
+          <div className="absolute left-4 top-14 z-20 flex flex-wrap gap-1.5 sm:left-6">
+            <button type="button" onClick={onDiscover} className="rounded-full border border-white/12 bg-black/25 px-3 py-1.5 text-[9px] font-black text-white/72 backdrop-blur-xl transition hover:bg-white hover:text-[#111111]">Pour toi</button>
+            <button type="button" onClick={onRadar} className="rounded-full border border-[#D96D63]/30 bg-[#D96D63]/16 px-3 py-1.5 text-[9px] font-black text-[#FFD4CE] backdrop-blur-xl transition hover:bg-[#D96D63] hover:text-white">Ça monte</button>
+          </div>
+
+          <div className="absolute bottom-[max(env(safe-area-inset-bottom),1rem)] left-4 z-20 max-w-[min(72vw,620px)] sm:left-6 lg:left-8">
+            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#DCCEFF]">{isCurrentTrack ? 'Reprendre maintenant' : 'Premier son de ton Flow'}</p>
+            <button type="button" disabled={!featuredTrack} onClick={() => featuredTrack && onOpenTrack(featuredTrack)} className="mt-1.5 block max-w-full text-left disabled:cursor-default">
+              <h2 className="line-clamp-2 text-[clamp(1.65rem,5vw,3.8rem)] font-black leading-[.96] tracking-[-0.045em] text-white drop-shadow-[0_8px_25px_rgba(0,0,0,.35)]">
+                {featuredTrack?.title || 'Ton Flow se prépare'}
+              </h2>
+              <p className="mt-2 truncate text-xs font-bold text-white/62 sm:text-sm">{featuredTrack ? artistName(featuredTrack) : 'Synaura prépare ta sélection'}</p>
+            </button>
+
+            {featuredTrack ? (
+              <div className="synaura-preview-meta mt-2 flex items-center gap-3 text-[10px] font-bold text-white/38">
+                <span>{compactCount(featuredTrack.plays)} écoutes</span>
+                <span className="h-1 w-1 rounded-full bg-white/24" />
+                <span>{compactCount(countOf(featuredTrack.likes))} j’aime</span>
+                {nextTrack ? <span className="hidden truncate text-white/28 sm:inline">Ensuite : {nextTrack.title}</span> : null}
+              </div>
+            ) : null}
+
+            <div className="mt-3 flex items-center gap-2.5">
+              <button type="button" disabled={!featuredTrack} onClick={() => featuredTrack && onPlayTrack(featuredTrack)} className="group relative grid h-12 w-12 place-items-center rounded-full bg-[#F7F6F3] text-[#111111] shadow-[0_15px_45px_rgba(0,0,0,.32)] transition hover:scale-105 disabled:opacity-50">
+                <span className="synaura-pulse-ring absolute inset-0 rounded-full border border-white/60" />
+                {isPlayingFeatured ? (
+                  <span className="relative flex h-4 items-end gap-[2px]">
+                    {[0, 1, 2, 3].map((bar) => <span key={bar} className="synaura-eq-bar h-4 w-[2px] rounded-full bg-[#7357C6]" />)}
+                  </span>
+                ) : (
+                  <Play className="relative ml-0.5 h-5 w-5 fill-current" />
+                )}
+              </button>
+              <button type="button" onClick={enterFlow} className="inline-flex h-11 items-center gap-2 rounded-[14px] border border-white/16 bg-black/28 px-4 text-xs font-black text-white backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white hover:text-[#111111]">
+                <Radio className="h-4 w-4" />
+                Voir en plein écran
+              </button>
+            </div>
+          </div>
+
+          <div className="absolute bottom-[max(env(safe-area-inset-bottom),1rem)] right-3 z-30 flex flex-col items-center gap-2 sm:right-5">
+            <button type="button" disabled={!featuredTrack} onClick={() => featuredTrack && onOpenTrack(featuredTrack)} className="synaura-action-bubble grid h-11 w-11 place-items-center rounded-full border border-white/14 bg-black/30 text-white backdrop-blur-xl disabled:opacity-50" aria-label="Aimer">
+              <Heart className="h-[18px] w-[18px]" />
+            </button>
+            <span className="text-[9px] font-black text-white/52">{featuredTrack ? compactCount(countOf(featuredTrack.likes)) : '0'}</span>
+            <button type="button" disabled={!featuredTrack} onClick={() => featuredTrack && onOpenTrack(featuredTrack)} className="synaura-action-bubble grid h-11 w-11 place-items-center rounded-full border border-white/14 bg-black/30 text-white backdrop-blur-xl disabled:opacity-50" aria-label="Commentaires">
+              <MessageCircle className="h-[18px] w-[18px]" />
+            </button>
+            <span className="text-[9px] font-black text-white/52">{featuredTrack ? compactCount(countOf(featuredTrack.comments)) : '0'}</span>
+            <button type="button" disabled={!featuredTrack} onClick={() => featuredTrack && onOpenTrack(featuredTrack)} className="synaura-action-bubble grid h-11 w-11 place-items-center rounded-full border border-white/14 bg-black/30 text-white backdrop-blur-xl disabled:opacity-50" aria-label="Partager">
+              <Share2 className="h-[18px] w-[18px]" />
+            </button>
+          </div>
+
+          <button type="button" onClick={enterFlow} className="absolute right-[4.25rem] top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-1 rounded-[22px] border border-white/12 bg-black/24 px-3 py-3 text-white backdrop-blur-xl transition hover:bg-black/42 sm:right-[5.4rem]" aria-label="Glisser vers le haut pour ouvrir le Flow">
+            <span className="flex flex-col items-center -space-y-1">
+              <ChevronUp className="synaura-swipe-chevron h-4 w-4 text-[#DCCEFF]" />
+              <ChevronUp className="synaura-swipe-chevron h-4 w-4 text-[#A8DEE5]" />
+              <ChevronUp className="synaura-swipe-chevron h-4 w-4 text-[#F0AAA2]" />
+            </span>
+            <span className="relative mt-1 h-[54px] w-[28px]">
+              <span className="synaura-swipe-finger absolute bottom-0 left-1/2 h-[38px] w-[18px] -translate-x-1/2 rounded-[10px_10px_8px_8px] border-2 border-white/82 bg-white/13 shadow-[0_10px_24px_rgba(0,0,0,.25)]">
+                <span className="absolute left-1/2 top-[5px] h-[5px] w-[5px] -translate-x-1/2 rounded-full bg-[#DCCEFF] shadow-[0_0_10px_#A98BE8]" />
+              </span>
+            </span>
+            <span className="text-[8px] font-black uppercase tracking-[0.12em] text-white/58">Glisse</span>
+          </button>
+        </section>
       </div>
     </div>
   );
