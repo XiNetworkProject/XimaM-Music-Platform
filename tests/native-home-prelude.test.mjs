@@ -31,7 +31,11 @@ test('the pulse area stays near 42 percent while preserving the Flow preview', (
       isVeryShort: viewport.height - viewport.topInset < 560,
     });
     const ratio = metrics.pulseHeight / metrics.availableHeight;
-    assert.ok(ratio >= 0.39 && ratio <= 0.43, `${viewport.width}px pulse ratio: ${ratio}`);
+    if (metrics.pulseHeight < 322) {
+      assert.ok(ratio >= 0.39 && ratio <= 0.43, `${viewport.width}px pulse ratio: ${ratio}`);
+    } else {
+      assert.equal(metrics.pulseHeight, 322, `${viewport.width}px web-aligned pulse cap`);
+    }
     assert.ok(metrics.previewHeight >= 188, `${viewport.width}px preview: ${metrics.previewHeight}`);
     assert.ok(metrics.railCardWidth < viewport.width, `${viewport.width}px rail card`);
   }

@@ -56,11 +56,11 @@ export function pickNextPunchlineIndex(
 export function resolveHomePreludeMetrics(input: PreludeMetricInput): HomePreludeMetrics {
   const width = Math.max(1, input.width);
   const availableHeight = Math.max(240, input.height - Math.max(0, input.bottomPad));
-  const headerContentHeight = input.isPhoneLandscape ? 44 : 52;
+  const headerContentHeight = input.isPhoneLandscape ? 44 : 50;
   const headerHeight = Math.max(0, input.topInset) + headerContentHeight;
   const compactTop = input.isPhoneLandscape || input.isVeryShort;
   const minPulseHeight = input.isPhoneLandscape ? 132 : input.isVeryShort ? 202 : 246;
-  const maxPulseHeight = input.isPhoneLandscape ? 176 : 350;
+  const maxPulseHeight = input.isPhoneLandscape ? 176 : 322;
   const minPreviewHeight = input.isPhoneLandscape ? 96 : input.isVeryShort ? 188 : 214;
   const desiredPulseHeight = Math.round(availableHeight * 0.42);
   const roomLimitedPulseHeight = availableHeight - headerHeight - minPreviewHeight;
@@ -73,9 +73,9 @@ export function resolveHomePreludeMetrics(input: PreludeMetricInput): HomePrelud
   const previewHeight = Math.max(0, availableHeight - headerHeight - pulseHeight);
   const boundedContentWidth = Math.min(width, 520);
   const railCardWidth = Math.round(clamp(
-    boundedContentWidth * 0.72,
-    width < 330 ? 206 : 220,
-    width >= 600 ? 300 : 276,
+    input.isPhoneLandscape ? boundedContentWidth * 0.34 : 220,
+    220,
+    width >= 600 ? 285 : 220,
   ));
 
   return {

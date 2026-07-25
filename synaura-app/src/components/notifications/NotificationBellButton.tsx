@@ -11,10 +11,12 @@ export function NotificationBellButton({
   dark = false,
   compact = false,
   onPress,
+  size,
 }: {
   dark?: boolean;
   compact?: boolean;
   onPress?: () => void;
+  size?: number;
 }) {
   const navigation = useNavigation<any>();
   const auth = useAuth();
@@ -35,10 +37,11 @@ export function NotificationBellButton({
         styles.button,
         compact && styles.buttonCompact,
         dark && styles.buttonDark,
+        size ? { width: size, height: size, borderRadius: size / 2 } : null,
       ]}
       scaleTo={0.9}
     >
-      <Ionicons name={count ? 'notifications' : 'notifications-outline'} size={compact ? 19 : 20} color={dark ? colors.paper : colors.text} />
+      <Ionicons name={count ? 'notifications' : 'notifications-outline'} size={size ? 17 : compact ? 19 : 20} color={dark ? colors.paper : colors.text} />
       {count ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{count > 9 ? '9+' : count}</Text>

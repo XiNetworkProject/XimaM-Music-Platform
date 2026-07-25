@@ -90,7 +90,7 @@ function AnimatedTabButton({ children, accessibilityState, onPress, style, ...pr
 function SynauraScrollIcon({ focused, dark }: { focused: boolean; dark: boolean }) {
   return (
     <View style={[styles.scrollTab, dark && styles.scrollTabDark, focused && styles.scrollTabActive, dark && focused && styles.scrollTabActiveDark]}>
-      <Ionicons name={focused ? 'pulse' : 'pulse-outline'} size={22} color={focused ? colors.cyan : colors.textTertiary} />
+      <Ionicons name={focused ? 'pulse' : 'pulse-outline'} size={18} color={focused ? colors.cyan : colors.textTertiary} />
     </View>
   );
 }
@@ -171,7 +171,7 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
                 <View style={[styles.iconDock, focused && styles.iconDockActive, dark && focused && styles.iconDockActiveDark]}>
                   <Ionicons
                     name={primaryIcon(route.name as (typeof PRIMARY_ROUTES)[number], focused)}
-                    size={21}
+                    size={18}
                     color={focused ? colors.cyan : colors.textTertiary}
                   />
                 </View>
@@ -305,20 +305,21 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   dockItemCreate: { paddingBottom: 1 },
-  createDock: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper, borderWidth: 3, borderColor: colors.background, shadowColor: colors.black, shadowOpacity: 0.34, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 8, transform: [{ translateY: -7 }] },
+  createDock: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper, borderWidth: 3, borderColor: colors.background, shadowColor: colors.black, shadowOpacity: 0.34, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 8, transform: [{ translateY: -4 }] },
   createDockCompact: { width: 42, height: 42, borderRadius: 21 },
   createDockDark: { backgroundColor: colors.paper },
   dockLabel: {
     maxWidth: '100%',
     color: colors.textTertiary,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
+    fontFamily: 'Inter_700Bold',
   },
   dockLabelDark: { color: 'rgba(255,255,255,0.48)' },
   dockLabelNarrow: { fontSize: 9 },
-  dockLabelActive: { color: colors.black },
+  dockLabelActive: { color: colors.black, fontFamily: 'Inter_900Black' },
   dockLabelActiveDark: { color: colors.cyan },
-  dockLabelCreate: { marginTop: -7 },
+  dockLabelCreate: { marginTop: -4 },
   activeIndicator: { position: 'absolute', top: 0, width: 22, height: 2, borderRadius: 1, backgroundColor: colors.cyan },
   activeIndicatorDark: {},
 });

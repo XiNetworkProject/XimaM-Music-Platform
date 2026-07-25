@@ -34,6 +34,10 @@ import {
 const brandSymbol = require('../../assets/synaura-symbol-2026.png');
 const EMPTY_BOOLEAN_MAP: Record<string, boolean> = {};
 const EMPTY_NUMBER_MAP: Record<string, number> = {};
+const FONT_SEMIBOLD = 'Inter_600SemiBold';
+const FONT_BOLD = 'Inter_700Bold';
+const FONT_EXTRABOLD = 'Inter_800ExtraBold';
+const FONT_BLACK = 'Inter_900Black';
 
 type Props = {
   visible: boolean;
@@ -203,9 +207,10 @@ export function HomeFlowPrelude(props: Props) {
     : responsive.isTablet
       ? 920
       : 520;
+  const homeGutter = responsive.isPhoneLandscape ? 16 : responsive.isTablet ? 24 : 16;
   const framedSide = Math.max(
-    responsive.gutter,
-    (responsive.safeWidth - Math.min(responsive.safeWidth, maxContentWidth)) / 2 + responsive.gutter,
+    homeGutter,
+    (responsive.safeWidth - Math.min(responsive.safeWidth, maxContentWidth)) / 2 + homeGutter,
   );
   const safeLeft = responsive.insets.left + framedSide;
   const safeRight = responsive.insets.right + framedSide;
@@ -255,20 +260,19 @@ export function HomeFlowPrelude(props: Props) {
   }, [refreshPhrase, visible]);
 
   const bannerItems = useMemo(() => {
-    const items = [
+    return [
       latestPost
         ? `${latestPost.author || latestPost.handle || 'La communauté'} vient de publier`
-        : 'La communauté prépare ses prochaines ondes.',
+        : 'La communauté se réveille doucement',
       featuredTrack
-        ? `À tester maintenant : ${featuredTrack.title}`
-        : 'Ton Flow affine sa prochaine sélection.',
-      nextTrack
-        ? `${nextTrack.title} commence à circuler dans le Radar.`
-        : 'Le Radar cherche les sons qui montent.',
-      'Le Studio est prêt pour ta prochaine idée.',
+        ? `Fais partie des premiers sur « ${featuredTrack.title} »`
+        : 'Ton prochain son est en approche',
+      'Quelqu’un pourrait t’avoir suivi récemment 👀',
+      'Le Radar pense avoir trouvé ta prochaine boucle',
+      'Pas de drama, juste des sons à découvrir',
+      'Ton algorithme a bossé pendant ton absence',
     ];
-    return items.filter(Boolean);
-  }, [featuredTrack, latestPost, nextTrack]);
+  }, [featuredTrack, latestPost]);
 
   useEffect(() => {
     setBannerIndex((current) => current % Math.max(1, bannerItems.length));
@@ -602,7 +606,7 @@ export function HomeFlowPrelude(props: Props) {
           scaleTo={0.97}
         >
           <LinearGradient
-            colors={['rgba(217,109,99,0.34)', 'rgba(31,19,28,0.98)', 'rgba(244,162,97,0.16)']}
+            colors={['rgba(217,109,99,0.24)', 'rgba(20,17,23,0.96)', 'rgba(244,162,97,0.13)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFillObject}
@@ -611,7 +615,7 @@ export function HomeFlowPrelude(props: Props) {
             <View style={styles.railTopLine}>
               <View style={styles.railEyebrowRow}>
                 <View style={[styles.signalDot, styles.signalDotCoral]} />
-                <Text style={[styles.railEyebrow, styles.coralText]}>ÇA BOUGE</Text>
+                <Text style={[styles.railEyebrow, styles.coralText]}>ÇA BOUGE MAINTENANT</Text>
               </View>
               <Ionicons name="trending-up" size={15} color="#F4A261" />
             </View>
@@ -634,14 +638,6 @@ export function HomeFlowPrelude(props: Props) {
               </Text>
             </View>
           </View>
-          {!metrics.compactTop ? (
-            <View style={styles.postStats}>
-              <Ionicons name="heart-outline" size={12} color="rgba(255,255,255,0.46)" />
-              <Text style={styles.statText}>{fmtCount(item.post.likesCount)}</Text>
-              <Ionicons name="chatbubble-outline" size={12} color="rgba(255,255,255,0.46)" />
-              <Text style={styles.statText}>{fmtCount(item.post.commentsCount)}</Text>
-            </View>
-          ) : null}
         </MotionPressable>
       );
     }
@@ -920,6 +916,14 @@ export function HomeFlowPrelude(props: Props) {
     inputRange: [0, 1],
     outputRange: [2, -3],
   });
+  const fingerTranslateY = guideMotion.interpolate({
+    inputRange: [0, 1],
+    outputRange: responsive.isVeryShort ? [12, -12] : [24, -24],
+  });
+  const fingerOpacity = guideMotion.interpolate({
+    inputRange: [0, 0.16, 0.78, 1],
+    outputRange: [0, 1, 1, 0],
+  });
   const auroraATranslateX = auroraA.interpolate({
     inputRange: [0, 1],
     outputRange: [-24, 28],
@@ -936,6 +940,7 @@ export function HomeFlowPrelude(props: Props) {
     inputRange: [0, 1],
     outputRange: [8, -20],
   });
+  const punchlineSize = Math.min(32, Math.max(24, responsive.safeWidth * 0.075));
 
   return (
     <Animated.View
@@ -967,7 +972,7 @@ export function HomeFlowPrelude(props: Props) {
               ]}
             >
               <LinearGradient
-                colors={['rgba(115,87,198,0.56)', 'rgba(217,109,99,0.28)', 'rgba(8,8,11,0)']}
+                colors={['rgba(115,87,198,0.16)', 'rgba(217,109,99,0.045)', 'rgba(9,9,11,0)']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
@@ -980,7 +985,7 @@ export function HomeFlowPrelude(props: Props) {
               ]}
             >
               <LinearGradient
-                colors={['rgba(74,158,170,0.42)', 'rgba(244,162,97,0.24)', 'rgba(8,8,11,0)']}
+                colors={['rgba(74,158,170,0.12)', 'rgba(244,162,97,0.035)', 'rgba(9,9,11,0)']}
                 start={{ x: 1, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
@@ -994,8 +999,8 @@ export function HomeFlowPrelude(props: Props) {
                 styles.headerInner,
                 {
                   maxWidth: maxContentWidth,
-                  paddingLeft: responsive.pagePaddingLeft,
-                  paddingRight: responsive.pagePaddingRight,
+                  paddingLeft: safeLeft,
+                  paddingRight: safeRight,
                 },
               ]}
             >
@@ -1005,7 +1010,7 @@ export function HomeFlowPrelude(props: Props) {
                 style={styles.brandButton}
                 scaleTo={0.97}
               >
-                <View style={[styles.logo, responsive.compactControls && styles.logoCompact]}>
+                <View style={styles.logo}>
                   <SynauraImage source={brandSymbol} contentFit="contain" style={styles.logoImage} />
                 </View>
                 <View style={styles.brandCopy}>
@@ -1020,13 +1025,13 @@ export function HomeFlowPrelude(props: Props) {
                 <MotionPressable
                   accessibilityLabel="Rechercher"
                   onPress={onSearch}
-                  style={[styles.headerAction, responsive.compactControls && styles.headerActionCompact]}
+                  style={styles.headerAction}
                   scaleTo={0.9}
                 >
-                  <Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.78)" />
+                  <Ionicons name="search-outline" size={16} color="rgba(255,255,255,0.78)" />
                 </MotionPressable>
-                <MessageInboxButton dark compact />
-                <NotificationBellButton dark compact onPress={onNotifications} />
+                <MessageInboxButton dark size={40} />
+                <NotificationBellButton dark size={40} onPress={onNotifications} />
               </View>
             </View>
           </View>
@@ -1043,80 +1048,77 @@ export function HomeFlowPrelude(props: Props) {
           >
             <View style={[styles.pulsePanel, responsive.isPhoneLandscape && styles.pulsePanelLandscape]}>
               <LinearGradient
-                colors={['rgba(24,21,31,0.98)', 'rgba(14,14,18,0.97)', 'rgba(12,16,18,0.96)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                colors={['rgba(18,17,24,0.98)', 'rgba(10,10,13,0.97)']}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
               />
               <View style={[styles.pulseLead, responsive.isPhoneLandscape && styles.pulseLeadLandscape]}>
                 <View style={[styles.pulseIntro, metrics.compactTop && styles.pulseIntroCompact]}>
-                  {!responsive.isPhoneLandscape ? (
-                    <View style={styles.badgeRow}>
-                      <View style={styles.absenceBadge}>
-                        <Text style={styles.absenceBadgeText}>PENDANT TON ABSENCE</Text>
-                      </View>
-                      {!responsive.isTiny ? (
-                        <View style={styles.swipeBadge}>
-                          <Text style={styles.swipeBadgeText}>SWIPE LES CARTES</Text>
-                        </View>
-                      ) : null}
+                  <View style={styles.badgeRow}>
+                    <View style={styles.absenceBadge}>
+                      <Text style={styles.absenceBadgeText}>PENDANT TON ABSENCE</Text>
                     </View>
-                  ) : null}
+                    <View style={styles.swipeBadge}>
+                      <Text style={styles.swipeBadgeText}>SWIPE LES CARTES</Text>
+                    </View>
+                  </View>
                   <Text
                     maxFontSizeMultiplier={1.12}
-                    numberOfLines={metrics.compactTop ? 1 : 2}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.72}
+                    numberOfLines={responsive.isPhoneLandscape ? 2 : 3}
+                    adjustsFontSizeToFit={responsive.isPhoneLandscape}
+                    minimumFontScale={0.82}
                     style={[
                       styles.punchline,
                       responsive.isTiny && styles.punchlineTiny,
                       responsive.isPhoneLandscape && styles.punchlineLandscape,
+                      !responsive.isPhoneLandscape && {
+                        fontSize: punchlineSize,
+                        lineHeight: punchlineSize * 0.94,
+                      },
                     ]}
                   >
                     {HOME_PUNCHLINES[phraseIndex]}
                   </Text>
-                  {!metrics.compactTop && !responsive.hasVeryLargeText ? (
+                  {responsive.isTablet && !metrics.compactTop && !responsive.hasVeryLargeText ? (
                     <Text numberOfLines={1} style={styles.punchCopy}>
-                      Nouveaux posts, sons à tester, signaux sociaux et accès rapides.
+                      Nouveaux posts, sons à tester, petits signaux sociaux et accès rapides : pioche ce qui te donne envie.
                     </Text>
                   ) : null}
                 </View>
 
-                <View style={[styles.banner, metrics.compactTop && styles.bannerCompact]}>
-                  <Animated.View
-                    style={[
-                      styles.bannerMessage,
-                      { opacity: bannerEntrance, transform: [{ translateY: bannerTranslateY }] },
-                    ]}
-                  >
-                    <View style={styles.bannerIcon}>
-                      <Ionicons name="flash-outline" size={13} color="#A8DEE5" />
-                    </View>
-                    {!responsive.isTiny && !responsive.isPhoneLandscape ? (
-                      <Text style={styles.bannerLabel}>EN CE MOMENT</Text>
-                    ) : null}
-                    <Text numberOfLines={1} style={styles.bannerText}>{banner}</Text>
-                    <View style={styles.bannerDots}>
-                      {bannerItems.map((_, index) => (
-                        <View
-                          key={index}
-                          style={[styles.bannerDot, index === bannerIndex && styles.bannerDotActive]}
-                        />
-                      ))}
-                    </View>
-                  </Animated.View>
-                  <Animated.View
-                    style={[
-                      styles.bannerProgress,
-                      {
-                        width: bannerProgress.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: ['0%', '100%'],
-                        }),
-                      },
-                    ]}
-                  />
-                </View>
+                {!responsive.isVeryShort ? (
+                  <View style={[styles.banner, metrics.compactTop && styles.bannerCompact]}>
+                    <Animated.View
+                      style={[
+                        styles.bannerMessage,
+                        { opacity: bannerEntrance, transform: [{ translateY: bannerTranslateY }] },
+                      ]}
+                    >
+                      <View style={styles.bannerIcon}>
+                        <Ionicons name="flash-outline" size={13} color="#A8DEE5" />
+                      </View>
+                      {responsive.isTablet && !responsive.isPhoneLandscape ? (
+                        <Text style={styles.bannerLabel}>EN CE MOMENT</Text>
+                      ) : null}
+                      <Text numberOfLines={1} style={styles.bannerText}>{banner}</Text>
+                      <Text style={styles.bannerCount}>
+                        {String(bannerIndex + 1).padStart(2, '0')} / {String(bannerItems.length).padStart(2, '0')}
+                      </Text>
+                    </Animated.View>
+                    <Animated.View
+                      style={[
+                        styles.bannerProgress,
+                        {
+                          width: bannerProgress.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['0%', '100%'],
+                          }),
+                        },
+                      ]}
+                    />
+                  </View>
+                ) : null}
               </View>
 
               <FlatList
@@ -1127,11 +1129,11 @@ export function HomeFlowPrelude(props: Props) {
                 style={[styles.rail, responsive.isPhoneLandscape && styles.railLandscape]}
                 contentContainerStyle={[
                   styles.railContent,
-                  {
-                    gap: metrics.railGap,
-                    paddingLeft: 12,
-                    paddingRight: Math.max(22, metrics.railGap + 12),
-                  },
+                   {
+                     gap: metrics.railGap,
+                     paddingLeft: 16,
+                     paddingRight: 16,
+                   },
                 ]}
                 showsHorizontalScrollIndicator={false}
                 decelerationRate="fast"
@@ -1155,8 +1157,8 @@ export function HomeFlowPrelude(props: Props) {
           <View style={styles.flowPreview}>
             <BreathingView
               active={visible}
-              scaleTo={1.025}
-              duration={3_400}
+              scaleTo={1.055}
+              duration={6_500}
               style={styles.previewMedia}
             >
               {featuredCover ? (
@@ -1280,27 +1282,80 @@ export function HomeFlowPrelude(props: Props) {
               </View>
             ) : (
               <>
-            <View style={[styles.previewBadges, { left: safeLeft }]}>
+            <MotionPressable
+              accessibilityLabel="Ouvrir le Flow"
+              onPress={finish}
+              style={[
+                styles.flowPreviewBadge,
+                responsive.isVeryShort && styles.flowPreviewBadgeVeryShort,
+                responsive.isVeryShort
+                  ? { right: safeRight + metrics.actionSize + 8 }
+                  : null,
+              ]}
+              scaleTo={0.95}
+            >
+              <View style={styles.flowPreviewSignal} />
+              <Text
+                style={[
+                  styles.flowPreviewBadgeText,
+                  responsive.isVeryShort && styles.flowPreviewBadgeTextVeryShort,
+                ]}
+              >
+                APERÇU DU FLOW
+              </Text>
+            </MotionPressable>
+
+            <View
+              style={[
+                styles.previewBadges,
+                responsive.isVeryShort && styles.previewBadgesVeryShort,
+                { left: safeLeft },
+              ]}
+            >
               <MotionPressable accessibilityLabel="Découvrir ta sélection" onPress={onDiscover} style={styles.previewBadge} scaleTo={0.94}>
-                <Text style={styles.previewBadgeText}>POUR TOI</Text>
+                <Text style={styles.previewBadgeText}>Pour toi</Text>
               </MotionPressable>
-              {!responsive.isTiny ? (
-                <MotionPressable accessibilityLabel="Ouvrir le Radar" onPress={onRadar} style={styles.previewBadgeRadar} scaleTo={0.94}>
-                  <Text style={styles.previewBadgeRadarText}>ÇA MONTE</Text>
-                </MotionPressable>
-              ) : null}
+              <MotionPressable accessibilityLabel="Ouvrir le Radar" onPress={onRadar} style={styles.previewBadgeRadar} scaleTo={0.94}>
+                <Text style={styles.previewBadgeRadarText}>Ça monte</Text>
+              </MotionPressable>
             </View>
 
             <MotionPressable
               accessibilityLabel="Glisser vers le haut pour ouvrir le Flow"
               onPress={finish}
-              style={styles.swipeGuide}
+              style={[
+                styles.swipeGuide,
+                responsive.isVeryShort && styles.swipeGuideVeryShort,
+                {
+                  top: responsive.isVeryShort
+                    ? 42
+                    : Math.max(8, (metrics.previewHeight - 144) / 2),
+                },
+              ]}
               scaleTo={0.94}
             >
-              <Animated.View style={{ transform: [{ translateY: guideTranslateY }] }}>
-                <Ionicons name="chevron-up" size={16} color="#DCCEFF" />
+              <Animated.View style={[styles.swipeChevrons, { transform: [{ translateY: guideTranslateY }] }]}>
+                <Ionicons name="chevron-up" size={responsive.isVeryShort ? 10 : 13} color="#DCCEFF" />
+                <Ionicons name="chevron-up" size={responsive.isVeryShort ? 10 : 13} color="#A8DEE5" />
+                <Ionicons name="chevron-up" size={responsive.isVeryShort ? 10 : 13} color="#F0AAA2" />
               </Animated.View>
-              <Text style={styles.swipeGuideText}>GLISSE</Text>
+              <View style={[styles.swipeFingerTrack, responsive.isVeryShort && styles.swipeFingerTrackVeryShort]}>
+                <Animated.View
+                  style={[
+                    styles.swipeFinger,
+                    responsive.isVeryShort && styles.swipeFingerVeryShort,
+                    {
+                      opacity: fingerOpacity,
+                      transform: [{ translateY: fingerTranslateY }],
+                    },
+                  ]}
+                >
+                  <View style={styles.swipeFingerDot} />
+                </Animated.View>
+              </View>
+              <Text style={[styles.swipeGuideText, responsive.isVeryShort && styles.swipeGuideTextVeryShort]}>
+                GLISSE
+              </Text>
             </MotionPressable>
 
             <View
@@ -1308,7 +1363,9 @@ export function HomeFlowPrelude(props: Props) {
                 styles.previewCopy,
                 {
                   left: safeLeft,
-                  right: safeRight + metrics.actionSize + 16,
+                  right: responsive.isVeryShort
+                    ? safeRight + metrics.actionSize + 49
+                    : safeRight + metrics.actionSize + 16,
                 },
                 responsive.isVeryShort && styles.previewCopyCompact,
               ]}
@@ -1360,7 +1417,7 @@ export function HomeFlowPrelude(props: Props) {
                   accessibilityLabel={isPlayingFeatured ? 'Mettre en pause' : 'Écouter'}
                   disabled={!featuredTrack}
                   onPress={() => featuredTrack && onPlayTrack(featuredTrack)}
-                  style={[styles.playButton, { width: metrics.actionSize, height: metrics.actionSize }]}
+                  style={[styles.playButton, { width: 48, height: 48, borderRadius: 24 }]}
                   scaleTo={0.9}
                 >
                   {isPlayingFeatured ? (
@@ -1375,8 +1432,8 @@ export function HomeFlowPrelude(props: Props) {
                   style={[styles.fullScreenButton, { height: metrics.actionSize }]}
                   scaleTo={0.95}
                 >
-                  <Ionicons name="scan-outline" size={17} color="#FFFFFF" />
-                  <Text numberOfLines={1} adjustsFontSizeToFit style={styles.fullScreenText}>Plein écran</Text>
+                  <Ionicons name="radio-outline" size={17} color="#FFFFFF" />
+                  <Text numberOfLines={1} adjustsFontSizeToFit style={styles.fullScreenText}>Voir en plein écran</Text>
                 </MotionPressable>
               </View>
             </View>
@@ -1430,36 +1487,32 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 40,
     overflow: 'hidden',
-    backgroundColor: '#08080B',
+    backgroundColor: '#09090B',
   },
   surface: {
     flex: 1,
-    backgroundColor: '#08080B',
+    backgroundColor: '#09090B',
   },
   stage: {
     flex: 1,
     overflow: 'hidden',
-    backgroundColor: '#08080B',
+    backgroundColor: '#09090B',
   },
   auroraFieldA: {
     position: 'absolute',
-    left: -190,
-    top: -145,
-    width: 560,
-    height: 380,
-    borderRadius: 190,
-    overflow: 'hidden',
-    opacity: 0.76,
+    left: -80,
+    top: -105,
+    width: '125%',
+    height: 330,
+    opacity: 0.72,
   },
   auroraFieldB: {
     position: 'absolute',
-    right: -220,
-    top: 38,
-    width: 580,
-    height: 410,
-    borderRadius: 205,
-    overflow: 'hidden',
-    opacity: 0.66,
+    right: -95,
+    top: 20,
+    width: '120%',
+    height: 340,
+    opacity: 0.58,
   },
   header: {
     zIndex: 10,
@@ -1484,7 +1537,7 @@ const styles = StyleSheet.create({
   logo: {
     width: 40,
     height: 40,
-    borderRadius: 8,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F7F6F3',
@@ -1511,8 +1564,9 @@ const styles = StyleSheet.create({
   brand: {
     color: '#F7F6F3',
     fontSize: 17,
-    lineHeight: 19,
+    lineHeight: 18,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   greeting: {
     marginTop: 2,
@@ -1520,6 +1574,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     lineHeight: 12,
     fontWeight: '700',
+    fontFamily: FONT_BOLD,
   },
   headerActions: {
     flexShrink: 0,
@@ -1545,7 +1600,7 @@ const styles = StyleSheet.create({
   pulseOuter: {
     zIndex: 5,
     width: '100%',
-    paddingBottom: 9,
+    paddingBottom: 12,
   },
   pulsePanel: {
     flex: 1,
@@ -1553,10 +1608,10 @@ const styles = StyleSheet.create({
     maxWidth: 920,
     alignSelf: 'center',
     overflow: 'hidden',
-    borderRadius: 8,
+    borderRadius: 26,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.13)',
-    backgroundColor: '#111116',
+    backgroundColor: '#101014',
     shadowColor: '#000000',
     shadowOpacity: 0.34,
     shadowRadius: 26,
@@ -1575,63 +1630,68 @@ const styles = StyleSheet.create({
   },
   pulseIntro: {
     flexShrink: 0,
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 6,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
   },
   pulseIntroCompact: {
-    paddingTop: 7,
-    paddingBottom: 4,
+    paddingTop: 10,
+    paddingBottom: 7,
   },
   badgeRow: {
-    minHeight: 18,
+    minHeight: 20,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 6,
   },
   absenceBadge: {
-    minHeight: 18,
+    minHeight: 20,
     justifyContent: 'center',
-    borderRadius: 9,
+    borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(169,139,232,0.38)',
     backgroundColor: 'rgba(115,87,198,0.2)',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
   },
   absenceBadgeText: {
     color: '#DCCEFF',
-    fontSize: 7,
+    fontSize: 8,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   swipeBadge: {
-    minHeight: 18,
+    minHeight: 20,
     justifyContent: 'center',
-    borderRadius: 9,
+    borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(114,187,197,0.32)',
     backgroundColor: 'rgba(74,158,170,0.16)',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
   },
   swipeBadgeText: {
     color: '#A8DEE5',
-    fontSize: 7,
+    fontSize: 8,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   punchline: {
-    marginTop: 6,
+    marginTop: 8,
     color: '#FFFFFF',
-    fontSize: 25,
-    lineHeight: 26,
+    fontSize: 29,
+    lineHeight: 27.5,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   punchlineTiny: {
-    fontSize: 22,
-    lineHeight: 23,
+    fontSize: 24,
+    lineHeight: 22.6,
   },
   punchlineLandscape: {
-    marginTop: 0,
-    fontSize: 20,
-    lineHeight: 22,
+    marginTop: 7,
+    fontSize: 18,
+    lineHeight: 18,
+    fontFamily: FONT_BLACK,
   },
   punchCopy: {
     marginTop: 4,
@@ -1639,34 +1699,35 @@ const styles = StyleSheet.create({
     fontSize: 9,
     lineHeight: 12,
     fontWeight: '600',
+    fontFamily: FONT_SEMIBOLD,
   },
   banner: {
     flexShrink: 0,
-    height: 36,
-    marginHorizontal: 12,
-    marginBottom: 7,
+    height: 42,
+    marginHorizontal: 16,
+    marginBottom: 10,
     overflow: 'hidden',
-    borderRadius: 8,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.11)',
     backgroundColor: 'rgba(255,255,255,0.055)',
   },
   bannerCompact: {
-    height: 30,
-    marginBottom: 5,
+    height: 38,
+    marginBottom: 7,
   },
   bannerMessage: {
     flex: 1,
     minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 9,
+    gap: 10,
+    paddingHorizontal: 14,
   },
   bannerIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(74,158,170,0.18)',
@@ -1678,29 +1739,21 @@ const styles = StyleSheet.create({
     color: '#DCCEFF',
     fontSize: 7,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   bannerText: {
     flex: 1,
     minWidth: 0,
     color: 'rgba(255,255,255,0.76)',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
+    fontFamily: FONT_BLACK,
   },
-  bannerDots: {
+  bannerCount: {
     flexShrink: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  bannerDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-  },
-  bannerDotActive: {
-    width: 8,
-    backgroundColor: '#72BBC5',
+    color: 'rgba(255,255,255,0.34)',
+    fontSize: 8,
+    fontFamily: FONT_BLACK,
   },
   bannerProgress: {
     position: 'absolute',
@@ -1719,20 +1772,20 @@ const styles = StyleSheet.create({
   },
   railContent: {
     alignItems: 'stretch',
-    paddingBottom: 9,
+    paddingBottom: 12,
   },
   railCard: {
     height: '100%',
     minHeight: 68,
     overflow: 'hidden',
-    borderRadius: 8,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.13)',
     backgroundColor: '#18171D',
-    padding: 11,
+    padding: 14,
   },
   railCardCompact: {
-    padding: 8,
+    padding: 11,
   },
   skeletonCard: {
     justifyContent: 'center',
@@ -1791,8 +1844,9 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   railEyebrow: {
-    fontSize: 7,
+    fontSize: 8,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   coralText: {
     color: '#F0AAA2',
@@ -1800,7 +1854,7 @@ const styles = StyleSheet.create({
   postIdentity: {
     flex: 1,
     minHeight: 0,
-    marginTop: 9,
+    marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
@@ -1810,11 +1864,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   avatar: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     flexShrink: 0,
     overflow: 'hidden',
-    borderRadius: 20,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -1836,16 +1890,18 @@ const styles = StyleSheet.create({
   },
   railTitle: {
     color: 'rgba(255,255,255,0.94)',
-    fontSize: 12,
-    lineHeight: 15,
+    fontSize: 14,
+    lineHeight: 18,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   railBody: {
     marginTop: 3,
     color: 'rgba(255,255,255,0.5)',
-    fontSize: 8,
-    lineHeight: 11,
+    fontSize: 10,
+    lineHeight: 14,
     fontWeight: '600',
+    fontFamily: FONT_SEMIBOLD,
   },
   railBodyCompact: {
     marginTop: 1,
@@ -1853,6 +1909,7 @@ const styles = StyleSheet.create({
     fontSize: 8,
     lineHeight: 10,
     fontWeight: '600',
+    fontFamily: FONT_SEMIBOLD,
   },
   compactRailRow: {
     flex: 1,
@@ -1871,6 +1928,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 15,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   postStats: {
     marginTop: 6,
@@ -1883,6 +1941,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.45)',
     fontSize: 8,
     fontWeight: '800',
+    fontFamily: FONT_EXTRABOLD,
   },
   communityTitle: {
     marginTop: 10,
@@ -1890,6 +1949,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 17,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   socialBadge: {
     borderRadius: 9,
@@ -1901,6 +1961,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.58)',
     fontSize: 7,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   avatarStack: {
     marginTop: 8,
@@ -1940,6 +2001,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.45)',
     fontSize: 8,
     fontWeight: '700',
+    fontFamily: FONT_BOLD,
   },
   trackBadge: {
     alignSelf: 'flex-start',
@@ -1954,6 +2016,7 @@ const styles = StyleSheet.create({
     color: '#A8DEE5',
     fontSize: 7,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   trackRailBottom: {
     flex: 1,
@@ -1965,12 +2028,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 16,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   trackRailArtist: {
     marginTop: 2,
     color: 'rgba(255,255,255,0.62)',
     fontSize: 8,
     fontWeight: '700',
+    fontFamily: FONT_BOLD,
   },
   trackRailStat: {
     marginTop: 5,
@@ -1982,11 +2047,12 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.72)',
     fontSize: 8,
     fontWeight: '800',
+    fontFamily: FONT_EXTRABOLD,
   },
   musicFallbackIcon: {
     width: 38,
     height: 38,
-    borderRadius: 8,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(74,158,170,0.18)',
@@ -2009,7 +2075,7 @@ const styles = StyleSheet.create({
   shortcutIconViolet: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(115,87,198,0.26)',
@@ -2017,7 +2083,7 @@ const styles = StyleSheet.create({
   shortcutIconCyan: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(74,158,170,0.24)',
@@ -2025,7 +2091,7 @@ const styles = StyleSheet.create({
   shortcutIconOrange: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(244,162,97,0.2)',
@@ -2045,6 +2111,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   shortcutSubtitle: {
     marginTop: 3,
@@ -2052,11 +2119,12 @@ const styles = StyleSheet.create({
     fontSize: 8,
     lineHeight: 11,
     fontWeight: '600',
+    fontFamily: FONT_SEMIBOLD,
   },
   studioIcon: {
     width: 38,
     height: 38,
-    borderRadius: 8,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -2067,6 +2135,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 17,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   studioTitleCompact: {
     flex: 1,
@@ -2085,11 +2154,14 @@ const styles = StyleSheet.create({
     color: '#F0AAA2',
     fontSize: 8,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   flowPreview: {
     flex: 1,
     minHeight: 0,
     overflow: 'hidden',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(255,255,255,0.15)',
     backgroundColor: '#131116',
@@ -2137,18 +2209,21 @@ const styles = StyleSheet.create({
     fontSize: 7,
     lineHeight: 9,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   landscapeTrackTitle: {
     color: '#FFFFFF',
     fontSize: 15,
     lineHeight: 17,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   landscapeTrackArtist: {
     color: 'rgba(255,255,255,0.62)',
     fontSize: 8,
     lineHeight: 10,
     fontWeight: '700',
+    fontFamily: FONT_BOLD,
   },
   landscapeGuide: {
     height: 40,
@@ -2166,6 +2241,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.72)',
     fontSize: 7,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   landscapeIconAction: {
     width: 42,
@@ -2196,75 +2272,171 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.72)',
     fontSize: 8,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
+  },
+  flowPreviewBadge: {
+    position: 'absolute',
+    top: 12,
+    zIndex: 5,
+    alignSelf: 'center',
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minWidth: 138,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(0,0,0,0.34)',
+    paddingHorizontal: 12,
+  },
+  flowPreviewBadgeVeryShort: {
+    alignSelf: 'auto',
+    minWidth: 108,
+    gap: 6,
+    paddingHorizontal: 8,
+  },
+  flowPreviewSignal: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#72BBC5',
+    shadowColor: '#72BBC5',
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+  },
+  flowPreviewBadgeText: {
+    color: 'rgba(255,255,255,0.74)',
+    fontSize: 9,
+    fontFamily: FONT_BLACK,
+  },
+  flowPreviewBadgeTextVeryShort: {
+    fontSize: 8,
   },
   previewBadges: {
     position: 'absolute',
-    top: 10,
+    top: 56,
     zIndex: 3,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
   },
+  previewBadgesVeryShort: {
+    top: 12,
+  },
   previewBadge: {
     minHeight: 27,
     justifyContent: 'center',
-    borderRadius: 14,
+    borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.18)',
     backgroundColor: 'rgba(0,0,0,0.34)',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
   },
   previewBadgeText: {
     color: 'rgba(255,255,255,0.82)',
-    fontSize: 7,
+    fontSize: 9,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   previewBadgeRadar: {
     minHeight: 27,
     justifyContent: 'center',
-    borderRadius: 14,
+    borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(217,109,99,0.38)',
     backgroundColor: 'rgba(217,109,99,0.2)',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
   },
   previewBadgeRadarText: {
     color: '#FFD4CE',
-    fontSize: 7,
+    fontSize: 9,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   swipeGuide: {
     position: 'absolute',
     zIndex: 4,
-    top: 8,
-    alignSelf: 'center',
-    minHeight: 30,
-    flexDirection: 'row',
+    right: 61,
+    width: 60,
+    height: 144,
     alignItems: 'center',
-    gap: 3,
-    borderRadius: 15,
+    justifyContent: 'center',
+    gap: 4,
+    borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: 'rgba(0,0,0,0.36)',
-    paddingHorizontal: 9,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    paddingVertical: 10,
+  },
+  swipeGuideVeryShort: {
+    right: 61,
+    width: 46,
+    height: 76,
+    gap: 1,
+    borderRadius: 18,
+    paddingVertical: 4,
+  },
+  swipeChevrons: {
+    alignItems: 'center',
+    marginBottom: -4,
+  },
+  swipeFingerTrack: {
+    width: 28,
+    height: 54,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  swipeFingerTrackVeryShort: {
+    width: 22,
+    height: 26,
+  },
+  swipeFinger: {
+    width: 18,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.82)',
+    backgroundColor: 'rgba(255,255,255,0.13)',
+  },
+  swipeFingerVeryShort: {
+    width: 14,
+    height: 22,
+    borderRadius: 8,
+    borderWidth: 1.5,
+  },
+  swipeFingerDot: {
+    width: 5,
+    height: 5,
+    marginTop: 5,
+    borderRadius: 3,
+    backgroundColor: '#DCCEFF',
   },
   swipeGuideText: {
     color: 'rgba(255,255,255,0.66)',
-    fontSize: 7,
+    fontSize: 8,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
+  },
+  swipeGuideTextVeryShort: {
+    fontSize: 7,
   },
   previewCopy: {
     position: 'absolute',
     zIndex: 3,
-    bottom: 11,
+    bottom: 16,
   },
   previewCopyCompact: {
     bottom: 7,
   },
   previewKicker: {
     color: '#DCCEFF',
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   previewTrackCopy: {
     minWidth: 0,
@@ -2272,16 +2444,17 @@ const styles = StyleSheet.create({
   },
   previewTitle: {
     color: '#FFFFFF',
-    fontSize: 30,
-    lineHeight: 31,
+    fontSize: 26.4,
+    lineHeight: 25.5,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
     textShadowColor: 'rgba(0,0,0,0.45)',
     textShadowRadius: 12,
     textShadowOffset: { width: 0, height: 4 },
   },
   previewTitleTiny: {
-    fontSize: 25,
-    lineHeight: 27,
+    fontSize: 24,
+    lineHeight: 24,
   },
   previewTitleLandscape: {
     fontSize: 23,
@@ -2292,6 +2465,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.68)',
     fontSize: 11,
     fontWeight: '700',
+    fontFamily: FONT_BOLD,
   },
   previewMeta: {
     minWidth: 0,
@@ -2305,6 +2479,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.48)',
     fontSize: 8,
     fontWeight: '700',
+    fontFamily: FONT_BOLD,
   },
   metaDot: {
     width: 3,
@@ -2318,6 +2493,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.34)',
     fontSize: 8,
     fontWeight: '700',
+    fontFamily: FONT_BOLD,
   },
   previewButtons: {
     marginTop: 8,
@@ -2342,9 +2518,9 @@ const styles = StyleSheet.create({
   },
   fullScreenButton: {
     flexShrink: 1,
-    minWidth: 0,
-    maxWidth: 142,
-    borderRadius: 8,
+    width: 170,
+    maxWidth: 172,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2357,8 +2533,9 @@ const styles = StyleSheet.create({
   fullScreenText: {
     flexShrink: 1,
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   equalizer: {
     height: 18,
@@ -2375,7 +2552,7 @@ const styles = StyleSheet.create({
   flowActions: {
     position: 'absolute',
     zIndex: 4,
-    bottom: 10,
+    bottom: 16,
     alignItems: 'center',
   },
   flowAction: {
@@ -2398,6 +2575,7 @@ const styles = StyleSheet.create({
     fontSize: 8,
     lineHeight: 12,
     fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
 });
 

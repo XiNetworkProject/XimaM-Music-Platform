@@ -7,7 +7,15 @@ import { useAuth } from '@/auth/AuthProvider';
 import { useMessagingUnread } from '@/messaging/useMessagingUnread';
 import { colors } from '@/theme/tokens';
 
-export function MessageInboxButton({ dark = false, compact = false }: { dark?: boolean; compact?: boolean }) {
+export function MessageInboxButton({
+  dark = false,
+  compact = false,
+  size,
+}: {
+  dark?: boolean;
+  compact?: boolean;
+  size?: number;
+}) {
   const navigation = useNavigation<any>();
   const auth = useAuth();
   const unread = useMessagingUnread();
@@ -16,10 +24,15 @@ export function MessageInboxButton({ dark = false, compact = false }: { dark?: b
     <MotionPressable
       accessibilityLabel={count ? `Messages, ${count} élément${count > 1 ? 's' : ''} non lu${count > 1 ? 's' : ''}` : 'Messages'}
       onPress={() => navigation.navigate(auth.requireAuth() ? 'Messages' : 'Login', auth.requireAuth() ? undefined : { returnTo: { screen: 'Messages' } })}
-      style={[styles.button, compact && styles.buttonCompact, dark && styles.buttonDark]}
+      style={[
+        styles.button,
+        compact && styles.buttonCompact,
+        dark && styles.buttonDark,
+        size ? { width: size, height: size, borderRadius: size / 2 } : null,
+      ]}
       scaleTo={0.9}
     >
-      <Ionicons name={count ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'} size={compact ? 18 : 20} color={dark ? colors.paper : colors.text} />
+      <Ionicons name={count ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'} size={size ? 17 : compact ? 18 : 20} color={dark ? colors.paper : colors.text} />
       {count ? <View style={styles.badge}><Text style={styles.badgeText}>{count > 9 ? '9+' : count}</Text></View> : null}
     </MotionPressable>
   );
