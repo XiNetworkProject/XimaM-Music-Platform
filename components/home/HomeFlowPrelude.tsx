@@ -199,6 +199,10 @@ export default function HomeFlowPrelude(props: Props) {
         .synaura-home-prelude.is-leaving .synaura-home-v2 { opacity: 0; transform: translateY(-44px) scale(.975); }
         .synaura-home-card { transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease; }
         .synaura-home-card:hover { transform: translateY(-2px); }
+        @media (max-width: 1023px) {
+          .synaura-home-rotation, .synaura-home-community { display: none !important; }
+          .synaura-home-hero { min-height: min(52vh, 420px) !important; }
+        }
         @media (max-height: 720px) {
           .synaura-home-community { display: none !important; }
           .synaura-home-hero { min-height: 220px !important; }
