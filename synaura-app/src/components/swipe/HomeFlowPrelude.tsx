@@ -195,7 +195,7 @@ export function HomeFlowPrelude(props: Props) {
   const auroraA = useRef(new Animated.Value(0)).current;
   const auroraB = useRef(new Animated.Value(0)).current;
   const guideMotion = useRef(new Animated.Value(0)).current;
-  const pulseRing = useRef(new Animated.Value(0)).current;
+  const playPulse = useRef(new Animated.Value(0)).current;
   const cardFloat = useRef(new Animated.Value(0)).current;
   const railScrollX = useRef(new Animated.Value(0)).current;
   const skeletonPulse = useRef(new Animated.Value(0.38)).current;
@@ -219,12 +219,8 @@ export function HomeFlowPrelude(props: Props) {
       ? 920
       : 520;
   const homeGutter = responsive.isPhoneLandscape ? 16 : responsive.isTablet ? 24 : 16;
-  const framedSide = Math.max(
-    homeGutter,
-    (responsive.safeWidth - Math.min(responsive.safeWidth, maxContentWidth)) / 2 + homeGutter,
-  );
-  const safeLeft = responsive.insets.left + framedSide;
-  const safeRight = responsive.insets.right + framedSide;
+  const safeLeft = responsive.insets.left + homeGutter;
+  const safeRight = responsive.insets.right + homeGutter;
 
   const playableTracks = useMemo(
     () => tracks.filter((track) => Boolean(track?._id && track.audioUrl)),
@@ -366,14 +362,14 @@ export function HomeFlowPrelude(props: Props) {
     auroraA.stopAnimation();
     auroraB.stopAnimation();
     guideMotion.stopAnimation();
-    pulseRing.stopAnimation();
+    playPulse.stopAnimation();
     cardFloat.stopAnimation();
     skeletonPulse.stopAnimation();
     if (!visible || settings.reducedMotion) {
       auroraA.setValue(0);
       auroraB.setValue(0);
       guideMotion.setValue(0);
-      pulseRing.setValue(0);
+      playPulse.setValue(0);
       cardFloat.setValue(0);
       skeletonPulse.setValue(0.5);
       return;
@@ -420,12 +416,20 @@ export function HomeFlowPrelude(props: Props) {
         useNativeDriver: true,
       }),
     ]));
-    const pulseRingLoop = Animated.loop(Animated.timing(pulseRing, {
-      toValue: 1,
-      duration: 1_800,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }));
+    const playPulseLoop = Animated.loop(Animated.sequence([
+      Animated.timing(playPulse, {
+        toValue: 1,
+        duration: 1_250,
+        easing: Easing.inOut(Easing.sin),
+        useNativeDriver: true,
+      }),
+      Animated.timing(playPulse, {
+        toValue: 0,
+        duration: 1_250,
+        easing: Easing.inOut(Easing.sin),
+        useNativeDriver: true,
+      }),
+    ]));
     const cardFloatLoop = Animated.loop(Animated.sequence([
       Animated.timing(cardFloat, {
         toValue: 1,
@@ -447,14 +451,14 @@ export function HomeFlowPrelude(props: Props) {
     auroraALoop.start();
     auroraBLoop.start();
     guideLoop.start();
-    pulseRingLoop.start();
+    playPulseLoop.start();
     cardFloatLoop.start();
     if (loading && !playableTracks.length && !posts.length) skeletonLoop.start();
     return () => {
       auroraALoop.stop();
       auroraBLoop.stop();
       guideLoop.stop();
-      pulseRingLoop.stop();
+      playPulseLoop.stop();
       cardFloatLoop.stop();
       skeletonLoop.stop();
     };
@@ -465,8 +469,8 @@ export function HomeFlowPrelude(props: Props) {
     guideMotion,
     loading,
     playableTracks.length,
+    playPulse,
     posts.length,
-    pulseRing,
     settings.reducedMotion,
     skeletonPulse,
     visible,
@@ -1223,25 +1227,21 @@ export function HomeFlowPrelude(props: Props) {
     inputRange: [0, 1],
     outputRange: [-24, 28],
   });
-  const auroraATranslateY = auroraA.interpolate({
+  const auroraAOpacity = auroraA.interpolate({
     inputRange: [0, 1],
-    outputRange: [-12, 18],
+    outputRange: [0.5, 0.78],
   });
   const auroraBTranslateX = auroraB.interpolate({
     inputRange: [0, 1],
-    outputRange: [30, -24],
+    outputRange: [18, -18],
   });
-  const auroraBTranslateY = auroraB.interpolate({
+  const auroraBOpacity = auroraB.interpolate({
     inputRange: [0, 1],
-    outputRange: [8, -20],
+    outputRange: [0.16, 0.34],
   });
-  const pulseRingScale = pulseRing.interpolate({
+  const playPulseOpacity = playPulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.72, 1.55],
-  });
-  const pulseRingOpacity = pulseRing.interpolate({
-    inputRange: [0, 0.22, 1],
-    outputRange: [0.72, 0.48, 0],
+    outputRange: [0, 0.14],
   });
   const punchlineSize = Math.min(32, Math.max(24, responsive.safeWidth * 0.075));
 
@@ -1270,27 +1270,47 @@ export function HomeFlowPrelude(props: Props) {
           <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
             <Animated.View
               style={[
-                styles.auroraFieldA,
-                { transform: [{ translateX: auroraATranslateX }, { translateY: auroraATranslateY }] },
+                styles.atmosphereBand,
+                {
+                  opacity: auroraAOpacity,
+                  transform: [{ translateX: auroraATranslateX }],
+                },
               ]}
             >
               <LinearGradient
-                colors={['rgba(115,87,198,0.3)', 'rgba(217,109,99,0.08)', 'rgba(9,9,11,0)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                colors={[
+                  'rgba(115,87,198,0.24)',
+                  'rgba(217,109,99,0.12)',
+                  'rgba(74,158,170,0.1)',
+                  'rgba(115,87,198,0.08)',
+                ]}
+                locations={[0, 0.34, 0.72, 1]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <LinearGradient
+                colors={['rgba(9,9,11,0)', 'rgba(9,9,11,0.54)', '#09090B']}
+                locations={[0, 0.56, 1]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
               />
             </Animated.View>
             <Animated.View
               style={[
-                styles.auroraFieldB,
-                { transform: [{ translateX: auroraBTranslateX }, { translateY: auroraBTranslateY }] },
+                styles.atmosphereSheen,
+                {
+                  opacity: auroraBOpacity,
+                  transform: [{ translateX: auroraBTranslateX }],
+                },
               ]}
             >
               <LinearGradient
-                colors={['rgba(74,158,170,0.22)', 'rgba(244,162,97,0.065)', 'rgba(9,9,11,0)']}
-                start={{ x: 1, y: 0 }}
-                end={{ x: 0, y: 1 }}
+                colors={['rgba(74,158,170,0.18)', 'rgba(244,162,97,0.08)', 'rgba(9,9,11,0)']}
+                locations={[0, 0.36, 1]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
               />
             </Animated.View>
@@ -1314,16 +1334,6 @@ export function HomeFlowPrelude(props: Props) {
                 scaleTo={0.97}
               >
                 <View style={styles.logo}>
-                  <Animated.View
-                    pointerEvents="none"
-                    style={[
-                      styles.logoPulseRing,
-                      {
-                        opacity: pulseRingOpacity,
-                        transform: [{ scale: pulseRingScale }],
-                      },
-                    ]}
-                  />
                   <SynauraImage source={brandSymbol} contentFit="contain" style={styles.logoImage} />
                 </View>
                 <View style={styles.brandCopy}>
@@ -1591,13 +1601,7 @@ export function HomeFlowPrelude(props: Props) {
                 >
                   <Animated.View
                     pointerEvents="none"
-                    style={[
-                      styles.playPulseRing,
-                      {
-                        opacity: pulseRingOpacity,
-                        transform: [{ scale: pulseRingScale }],
-                      },
-                    ]}
+                    style={[styles.playSurfacePulse, { opacity: playPulseOpacity }]}
                   />
                   {isPlayingFeatured ? (
                     <Equalizer active reducedMotion={settings.reducedMotion} />
@@ -1817,13 +1821,7 @@ export function HomeFlowPrelude(props: Props) {
                 >
                   <Animated.View
                     pointerEvents="none"
-                    style={[
-                      styles.playPulseRing,
-                      {
-                        opacity: pulseRingOpacity,
-                        transform: [{ scale: pulseRingScale }],
-                      },
-                    ]}
+                    style={[styles.playSurfacePulse, { opacity: playPulseOpacity }]}
                   />
                   {isPlayingFeatured ? (
                     <Equalizer active reducedMotion={settings.reducedMotion} />
@@ -1903,21 +1901,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#09090B',
   },
-  auroraFieldA: {
+  atmosphereBand: {
     position: 'absolute',
-    left: -80,
-    top: -105,
-    width: '125%',
-    height: 330,
-    opacity: 0.72,
-  },
-  auroraFieldB: {
-    position: 'absolute',
-    right: -95,
-    top: 20,
-    width: '120%',
+    left: -48,
+    right: -48,
+    top: -18,
     height: 340,
-    opacity: 0.58,
+    overflow: 'hidden',
+  },
+  atmosphereSheen: {
+    position: 'absolute',
+    left: -36,
+    right: -36,
+    top: -20,
+    height: 280,
   },
   header: {
     zIndex: 10,
@@ -1953,12 +1950,6 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 7 },
     elevation: 7,
-  },
-  logoPulseRing: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: 'rgba(169,139,232,0.62)',
   },
   logoCompact: {
     width: 36,
@@ -2791,11 +2782,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F7F6F3',
   },
-  playPulseRing: {
+  playSurfacePulse: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(168,222,229,0.68)',
+    backgroundColor: '#7357C6',
   },
   landscapeTrackCopy: {
     flex: 1,

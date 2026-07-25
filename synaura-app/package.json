@@ -1,12 +1,12 @@
 {
   "name": "synaura-app",
-  "version": "0.25.2",
+  "version": "0.25.3",
   "private": true,
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "build:release": "cd android && gradlew.bat assembleRelease",
+    "build:release": "set NODE_ENV=production&& cd android && gradlew.bat assembleRelease",
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
     "type-check": "tsc --noEmit",

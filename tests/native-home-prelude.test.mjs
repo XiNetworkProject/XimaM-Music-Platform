@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import test from 'node:test';
 import {
   HOME_PUNCHLINES,
   pickNextPunchlineIndex,
   resolveHomePreludeMetrics,
 } from '../synaura-app/src/components/swipe/homePreludeModel.ts';
+
+const nativePreludeSource = fs.readFileSync(
+  new URL('../synaura-app/src/components/swipe/HomeFlowPrelude.tsx', import.meta.url),
+  'utf8',
+);
 
 test('the native home picks one stable, non-repeating phrase per reopen', () => {
   const first = pickNextPunchlineIndex(-1, 0.5);
@@ -91,4 +97,11 @@ test('tablet cards use the broader web rail proportions', () => {
   assert.equal(mobileBreakpoint.railCardWidth, 220);
   assert.equal(wideBreakpoint.railCardWidth, 285);
   assert.equal(wideBreakpoint.pulseHeight, 400);
+});
+
+test('the native atmosphere stays diffuse without decorative bubble outlines', () => {
+  assert.match(nativePreludeSource, /styles\.atmosphereBand/);
+  assert.match(nativePreludeSource, /styles\.atmosphereSheen/);
+  assert.match(nativePreludeSource, /styles\.playSurfacePulse/);
+  assert.doesNotMatch(nativePreludeSource, /logoPulseRing|playPulseRing|auroraField/);
 });
