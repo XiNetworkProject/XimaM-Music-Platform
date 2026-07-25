@@ -1,6 +1,6 @@
 export const HOME_PUNCHLINES = [
   'POV : tu voulais juste écouter un son.',
-  "On t'a gardé du lourd pendant ton absence.",
+  'On t’a gardé du lourd pendant ton absence.',
   'Petit scroll innocent, grosse obsession musicale.',
   'Ton Flow a bossé pendant que tu vivais ta vie.',
   'Ça sent le son envoyé à quatre potes direct.',
@@ -9,7 +9,7 @@ export const HOME_PUNCHLINES = [
   'Promis, juste deux minutes. On connaît.',
   'Ta prochaine claque est peut-être à un swipe.',
   'Ton FYP imaginaire aurait validé ça.',
-  "Il s'est passé deux-trois trucs pas mal ici.",
+  'Il s’est passé deux-trois trucs pas mal ici.',
   'Alerte : risque élevé de remettre ce son en boucle.',
 ] as const;
 
@@ -59,10 +59,28 @@ export function resolveHomePreludeMetrics(input: PreludeMetricInput): HomePrelud
   const headerContentHeight = input.isPhoneLandscape ? 44 : 50;
   const headerHeight = Math.max(0, input.topInset) + headerContentHeight;
   const compactTop = input.isPhoneLandscape || input.isVeryShort;
-  const minPulseHeight = input.isPhoneLandscape ? 132 : input.isVeryShort ? 202 : 246;
-  const maxPulseHeight = input.isPhoneLandscape ? 176 : 322;
+  const isWideDesktop = !input.isPhoneLandscape && width >= 1_280;
+  const isTabletWidth = !input.isPhoneLandscape && width >= 768;
+  const minPulseHeight = input.isPhoneLandscape
+    ? 132
+    : input.isVeryShort
+      ? 202
+      : isWideDesktop
+        ? 300
+        : isTabletWidth
+          ? 260
+          : 246;
+  const maxPulseHeight = input.isPhoneLandscape
+    ? 176
+    : isWideDesktop
+      ? 400
+      : isTabletWidth
+        ? 350
+        : 322;
   const minPreviewHeight = input.isPhoneLandscape ? 96 : input.isVeryShort ? 188 : 214;
-  const desiredPulseHeight = Math.round(availableHeight * 0.42);
+  const desiredPulseHeight = Math.round(
+    availableHeight * (isTabletWidth && !isWideDesktop ? 0.39 : 0.42),
+  );
   const roomLimitedPulseHeight = availableHeight - headerHeight - minPreviewHeight;
   const boundedPulseHeight = Math.round(clamp(
     Math.min(desiredPulseHeight, roomLimitedPulseHeight),
@@ -72,10 +90,17 @@ export function resolveHomePreludeMetrics(input: PreludeMetricInput): HomePrelud
   const pulseHeight = Math.max(Math.min(minPulseHeight, roomLimitedPulseHeight), boundedPulseHeight);
   const previewHeight = Math.max(0, availableHeight - headerHeight - pulseHeight);
   const boundedContentWidth = Math.min(width, 520);
+  const desiredRailCardWidth = input.isPhoneLandscape
+    ? boundedContentWidth * 0.34
+    : width >= 1_280
+      ? 285
+      : width >= 768
+        ? 270
+        : 220;
   const railCardWidth = Math.round(clamp(
-    input.isPhoneLandscape ? boundedContentWidth * 0.34 : 220,
+    desiredRailCardWidth,
     220,
-    width >= 600 ? 285 : 220,
+    width >= 768 ? 285 : 220,
   ));
 
   return {

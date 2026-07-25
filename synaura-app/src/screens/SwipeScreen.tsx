@@ -1731,6 +1731,7 @@ export function SwipeScreen() {
       <HomeFlowPrelude
         visible={isFocused && homePreludeVisible && feedMode === 'reco'}
         loading={loadState === 'loading'}
+        error={loadState === 'error'}
         tracks={tracks}
         posts={posts}
         currentTrack={player.current}
@@ -1754,6 +1755,7 @@ export function SwipeScreen() {
         onRadar={() => navigation.navigate('Radar')}
         onStudio={() => navigation.navigate('AIStudio')}
         onEvents={() => navigation.navigate('City')}
+        onRetry={() => setReloadKey((value) => value + 1)}
       />
 
       <HeartBurst visible={burstVisible} burstKey={burstKey} />

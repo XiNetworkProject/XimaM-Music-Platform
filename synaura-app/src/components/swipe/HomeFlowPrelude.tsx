@@ -3,7 +3,6 @@ import {
   Animated,
   AppState,
   Easing,
-  FlatList,
   PanResponder,
   StyleSheet,
   Text,
@@ -42,6 +41,7 @@ const FONT_BLACK = 'Inter_900Black';
 type Props = {
   visible: boolean;
   loading?: boolean;
+  error?: boolean;
   tracks: Track[];
   posts: HomePost[];
   currentTrack?: Track | null;
@@ -65,13 +65,16 @@ type Props = {
   onRadar: () => void;
   onStudio: () => void;
   onEvents: () => void;
+  onRetry?: () => void;
 };
 
-type ShortcutTarget = 'discover' | 'radar' | 'events';
+type ShortcutTarget = 'discover' | 'radar' | 'studio' | 'events';
 
 type RailItem =
   | { id: string; kind: 'skeleton' }
   | { id: string; kind: 'post'; post: HomePost }
+  | { id: string; kind: 'recent-post'; post: HomePost }
+  | { id: string; kind: 'error' }
   | { id: string; kind: 'community' }
   | { id: string; kind: 'social'; avatars: string[] }
   | { id: string; kind: 'track'; track: Track; eyebrow: string }
@@ -83,7 +86,7 @@ type RailItem =
     icon: keyof typeof Ionicons.glyphMap;
     title: string;
     subtitle: string;
-    accent: 'violet' | 'cyan' | 'orange';
+    accent: 'violet' | 'cyan' | 'coral' | 'orange';
   }
   | { id: string; kind: 'studio' };
 
@@ -152,6 +155,7 @@ export function HomeFlowPrelude(props: Props) {
   const {
     visible,
     loading = false,
+    error = false,
     tracks,
     posts,
     currentTrack,
@@ -175,6 +179,7 @@ export function HomeFlowPrelude(props: Props) {
     onRadar,
     onStudio,
     onEvents,
+    onRetry,
   } = props;
   const responsive = useResponsiveLayout();
   const { settings } = useMobileSettings();
@@ -190,6 +195,9 @@ export function HomeFlowPrelude(props: Props) {
   const auroraA = useRef(new Animated.Value(0)).current;
   const auroraB = useRef(new Animated.Value(0)).current;
   const guideMotion = useRef(new Animated.Value(0)).current;
+  const pulseRing = useRef(new Animated.Value(0)).current;
+  const cardFloat = useRef(new Animated.Value(0)).current;
+  const railScrollX = useRef(new Animated.Value(0)).current;
   const skeletonPulse = useRef(new Animated.Value(0.38)).current;
   const finishingRef = useRef(false);
   const lastRailIndexRef = useRef(0);
@@ -202,6 +210,9 @@ export function HomeFlowPrelude(props: Props) {
     isPhoneLandscape: responsive.isPhoneLandscape,
     isVeryShort: responsive.isVeryShort,
   });
+  const compactRail = metrics.compactTop
+    || metrics.pulseHeight < 290
+    || responsive.hasLargeText;
   const maxContentWidth = responsive.isPhoneLandscape
     ? responsive.safeWidth
     : responsive.isTablet
@@ -355,11 +366,15 @@ export function HomeFlowPrelude(props: Props) {
     auroraA.stopAnimation();
     auroraB.stopAnimation();
     guideMotion.stopAnimation();
+    pulseRing.stopAnimation();
+    cardFloat.stopAnimation();
     skeletonPulse.stopAnimation();
     if (!visible || settings.reducedMotion) {
       auroraA.setValue(0);
       auroraB.setValue(0);
       guideMotion.setValue(0);
+      pulseRing.setValue(0);
+      cardFloat.setValue(0);
       skeletonPulse.setValue(0.5);
       return;
     }
@@ -405,6 +420,26 @@ export function HomeFlowPrelude(props: Props) {
         useNativeDriver: true,
       }),
     ]));
+    const pulseRingLoop = Animated.loop(Animated.timing(pulseRing, {
+      toValue: 1,
+      duration: 1_800,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }));
+    const cardFloatLoop = Animated.loop(Animated.sequence([
+      Animated.timing(cardFloat, {
+        toValue: 1,
+        duration: 2_500,
+        easing: Easing.inOut(Easing.sin),
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardFloat, {
+        toValue: 0,
+        duration: 2_500,
+        easing: Easing.inOut(Easing.sin),
+        useNativeDriver: true,
+      }),
+    ]));
     const skeletonLoop = Animated.loop(Animated.sequence([
       Animated.timing(skeletonPulse, { toValue: 0.76, duration: 720, useNativeDriver: true }),
       Animated.timing(skeletonPulse, { toValue: 0.38, duration: 720, useNativeDriver: true }),
@@ -412,20 +447,26 @@ export function HomeFlowPrelude(props: Props) {
     auroraALoop.start();
     auroraBLoop.start();
     guideLoop.start();
+    pulseRingLoop.start();
+    cardFloatLoop.start();
     if (loading && !playableTracks.length && !posts.length) skeletonLoop.start();
     return () => {
       auroraALoop.stop();
       auroraBLoop.stop();
       guideLoop.stop();
+      pulseRingLoop.stop();
+      cardFloatLoop.stop();
       skeletonLoop.stop();
     };
   }, [
     auroraA,
     auroraB,
+    cardFloat,
     guideMotion,
     loading,
     playableTracks.length,
     posts.length,
+    pulseRing,
     settings.reducedMotion,
     skeletonPulse,
     visible,
@@ -494,20 +535,25 @@ export function HomeFlowPrelude(props: Props) {
           target: 'radar',
           icon: 'radio-outline',
           title: 'Radar',
-          subtitle: 'Les signaux qui montent',
-          accent: 'violet',
+          subtitle: 'Ce qui chauffe',
+          accent: 'cyan',
         },
       ];
     }
 
-    const items: RailItem[] = latestPost
-      ? [{ id: `post-${latestPost.id}`, kind: 'post', post: latestPost }]
-      : [{ id: 'community-fallback', kind: 'community' }];
+    const items: RailItem[] = error && !playableTracks.length && !posts.length
+      ? [{ id: 'error', kind: 'error' }]
+      : [];
+    if (latestPost) {
+      items.push({ id: `post-${latestPost.id}`, kind: 'post', post: latestPost });
+    } else {
+      items.push({ id: 'community-fallback', kind: 'community' });
+    }
     items.push({ id: 'social', kind: 'social', avatars: avatarCandidates });
 
     const discoveryTracks = playableTracks
       .filter((track) => track._id !== featuredTrack?._id)
-      .slice(0, 3);
+      .slice(0, 4);
     const tracksForRail = discoveryTracks.length
       ? discoveryTracks
       : featuredTrack
@@ -523,8 +569,8 @@ export function HomeFlowPrelude(props: Props) {
     });
     if (!tracksForRail.length) items.push({ id: 'music-fallback', kind: 'music-fallback' });
 
-    posts.slice(1, 2).forEach((post) => {
-      items.push({ id: `post-${post.id}`, kind: 'post', post });
+    posts.slice(1, 3).forEach((post) => {
+      items.push({ id: `recent-post-${post.id}`, kind: 'recent-post', post });
     });
     items.push(
       {
@@ -533,8 +579,8 @@ export function HomeFlowPrelude(props: Props) {
         target: 'discover',
         icon: 'compass-outline',
         title: 'Découvrir',
-        subtitle: 'Explorer sans attendre',
-        accent: 'cyan',
+        subtitle: 'Trouve ton mood',
+        accent: 'orange',
       },
       {
         id: 'shortcut-radar',
@@ -542,8 +588,17 @@ export function HomeFlowPrelude(props: Props) {
         target: 'radar',
         icon: 'radio-outline',
         title: 'Radar',
-        subtitle: 'Repérer les prochains',
-        accent: 'violet',
+        subtitle: 'Ce qui chauffe',
+        accent: 'cyan',
+      },
+      {
+        id: 'shortcut-studio',
+        kind: 'shortcut',
+        target: 'studio',
+        icon: 'sparkles-outline',
+        title: 'Studio IA',
+        subtitle: 'Crée maintenant',
+        accent: 'coral',
       },
       {
         id: 'shortcut-events',
@@ -551,14 +606,15 @@ export function HomeFlowPrelude(props: Props) {
         target: 'events',
         icon: 'calendar-outline',
         title: 'Événements',
-        subtitle: 'Voir ce qui arrive',
-        accent: 'orange',
+        subtitle: 'La scène Synaura',
+        accent: 'violet',
       },
       { id: 'studio', kind: 'studio' },
     );
     return items;
   }, [
     avatarCandidates,
+    error,
     featuredTrack,
     latestPost,
     loading,
@@ -566,26 +622,58 @@ export function HomeFlowPrelude(props: Props) {
     posts,
   ]);
 
+  const getRailItemWidth = useCallback((item: RailItem) => {
+    const mobileRail = responsive.isPhoneLandscape || responsive.safeWidth <= 760;
+    if (mobileRail) return item.kind === 'shortcut' ? 145 : 220;
+    if (responsive.safeWidth >= 1_280) return item.kind === 'shortcut' ? 190 : 285;
+    if (item.kind === 'social') return 245;
+    if (item.kind === 'track' || item.kind === 'music-fallback') return 265;
+    if (item.kind === 'recent-post' || item.kind === 'studio') return 250;
+    if (item.kind === 'shortcut') return 165;
+    return 270;
+  }, [responsive.isPhoneLandscape, responsive.safeWidth]);
+
+  const railItemWidths = useMemo(
+    () => railItems.map((item) => getRailItemWidth(item)),
+    [getRailItemWidth, railItems],
+  );
+  const railOffsets = useMemo(() => {
+    let offset = 0;
+    return railItemWidths.map((width) => {
+      const current = offset;
+      offset += width + metrics.railGap;
+      return current;
+    });
+  }, [metrics.railGap, railItemWidths]);
+
   const openShortcut = useCallback((target: ShortcutTarget) => {
     Haptics.selectionAsync().catch(() => {});
     if (target === 'discover') onDiscover();
     else if (target === 'radar') onRadar();
+    else if (target === 'studio') onStudio();
     else onEvents();
-  }, [onDiscover, onEvents, onRadar]);
+  }, [onDiscover, onEvents, onRadar, onStudio]);
 
   const onRailMomentumEnd = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const interval = metrics.railCardWidth + metrics.railGap;
-    const index = Math.max(0, Math.round(event.nativeEvent.contentOffset.x / interval));
+    const offset = Math.max(0, event.nativeEvent.contentOffset.x);
+    let index = 0;
+    let distance = Number.POSITIVE_INFINITY;
+    railOffsets.forEach((candidate, candidateIndex) => {
+      const nextDistance = Math.abs(candidate - offset);
+      if (nextDistance >= distance) return;
+      index = candidateIndex;
+      distance = nextDistance;
+    });
     if (index === lastRailIndexRef.current) return;
     lastRailIndexRef.current = index;
     Haptics.selectionAsync().catch(() => {});
-  }, [metrics.railCardWidth, metrics.railGap]);
+  }, [railOffsets]);
 
   const renderRailItem = useCallback(({ item }: { item: RailItem }) => {
     const cardStyle = [
       styles.railCard,
-      metrics.compactTop && styles.railCardCompact,
-      { width: metrics.railCardWidth },
+      compactRail && styles.railCardCompact,
+      { width: getRailItemWidth(item) },
     ];
     if (item.kind === 'skeleton') {
       return (
@@ -595,6 +683,49 @@ export function HomeFlowPrelude(props: Props) {
           <View style={styles.skeletonLineWide} />
           <View style={styles.skeletonLineShort} />
         </Animated.View>
+      );
+    }
+    if (item.kind === 'error') {
+      return (
+        <MotionPressable
+          accessibilityLabel="Réessayer de charger l'accueil"
+          disabled={!onRetry}
+          onPress={onRetry}
+          style={[cardStyle, styles.errorRailCard]}
+          scaleTo={0.97}
+        >
+          <LinearGradient
+            colors={['rgba(217,109,99,0.28)', 'rgba(28,18,24,0.98)', 'rgba(115,87,198,0.16)']}
+            style={StyleSheet.absoluteFillObject}
+          />
+          {compactRail ? (
+            <View style={styles.compactRailRow}>
+              <View style={[styles.errorRailIcon, styles.shortcutIconCompact]}>
+                <Ionicons name="cloud-offline-outline" size={17} color="#FFD4CE" />
+              </View>
+              <View style={styles.compactRailCopy}>
+                <Text numberOfLines={1} style={styles.compactRailTitle}>Connexion capricieuse</Text>
+                <Text numberOfLines={1} style={styles.railBodyCompact}>Touche pour réessayer.</Text>
+              </View>
+              <Ionicons name="refresh" size={16} color="#F0AAA2" />
+            </View>
+          ) : (
+            <>
+              <View style={styles.railTopLine}>
+                <View style={styles.errorRailIcon}>
+                  <Ionicons name="cloud-offline-outline" size={18} color="#FFD4CE" />
+                </View>
+                <Text style={styles.errorRailBadge}>HORS LIGNE</Text>
+              </View>
+              <Text numberOfLines={1} style={styles.communityTitle}>Le Flow attend le réseau.</Text>
+              <Text numberOfLines={2} style={styles.railBody}>Touche cette carte pour relancer le chargement.</Text>
+              <View style={styles.errorRailRetry}>
+                <Ionicons name="refresh" size={13} color="#F0AAA2" />
+                <Text style={styles.errorRailRetryText}>Réessayer</Text>
+              </View>
+            </>
+          )}
+        </MotionPressable>
       );
     }
     if (item.kind === 'post') {
@@ -611,7 +742,7 @@ export function HomeFlowPrelude(props: Props) {
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFillObject}
           />
-          {!metrics.compactTop ? (
+          {!compactRail ? (
             <View style={styles.railTopLine}>
               <View style={styles.railEyebrowRow}>
                 <View style={[styles.signalDot, styles.signalDotCoral]} />
@@ -620,8 +751,8 @@ export function HomeFlowPrelude(props: Props) {
               <Ionicons name="trending-up" size={15} color="#F4A261" />
             </View>
           ) : null}
-          <View style={[styles.postIdentity, metrics.compactTop && styles.postIdentityCompact]}>
-            <View style={[styles.avatar, metrics.compactTop && styles.avatarCompact]}>
+          <View style={[styles.postIdentity, compactRail && styles.postIdentityCompact]}>
+            <View style={[styles.avatar, compactRail && styles.avatarCompact]}>
               {item.post.avatar ? (
                 <SynauraImage source={item.post.avatar} style={StyleSheet.absoluteFillObject} />
               ) : (
@@ -631,13 +762,77 @@ export function HomeFlowPrelude(props: Props) {
             <View style={styles.postCopy}>
               <Text numberOfLines={1} style={styles.railTitle}>{item.post.author || item.post.handle}</Text>
               <Text
-                numberOfLines={metrics.compactTop ? 1 : 2}
-                style={[styles.railBody, metrics.compactTop && styles.railBodyCompact]}
+                numberOfLines={compactRail ? 1 : 2}
+                style={[styles.railBody, compactRail && styles.railBodyCompact]}
               >
                 {postPreview(item.post)}
               </Text>
             </View>
           </View>
+          {!compactRail ? (
+            <View style={styles.postCta}>
+              <Text style={styles.postCtaText}>Voir ce que t’as raté</Text>
+              <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.68)" />
+            </View>
+          ) : null}
+        </MotionPressable>
+      );
+    }
+    if (item.kind === 'recent-post') {
+      return (
+        <MotionPressable
+          accessibilityLabel={`Ouvrir la publication de ${item.post.author}`}
+          onPress={() => onOpenPost(item.post)}
+          style={[cardStyle, styles.recentPostCard]}
+          scaleTo={0.97}
+        >
+          <LinearGradient
+            colors={['rgba(244,162,97,0.22)', 'rgba(22,18,22,0.97)', 'rgba(217,109,99,0.1)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={[styles.recentPostHeader, compactRail && styles.recentPostHeaderCompact]}>
+            <View style={[styles.recentPostAvatar, compactRail && styles.avatarCompact]}>
+              <SynauraImage
+                source={item.post.avatar || brandSymbol}
+                contentFit={item.post.avatar ? 'cover' : 'contain'}
+                style={item.post.avatar ? StyleSheet.absoluteFillObject : styles.avatarFallback}
+              />
+            </View>
+            <View style={styles.postCopy}>
+              <Text numberOfLines={1} style={[styles.recentPostTitle, compactRail && styles.compactRailTitle]}>
+                {item.post.author || item.post.handle}
+              </Text>
+              {!compactRail ? <Text style={styles.recentPostEyebrow}>POST À VOIR VITE</Text> : null}
+              {compactRail ? (
+                <>
+                  <Text numberOfLines={1} style={styles.railBodyCompact}>
+                    {postPreview(item.post)}
+                  </Text>
+                  <View style={styles.postStats}>
+                    <Ionicons name="heart-outline" size={10} color="rgba(255,255,255,0.46)" />
+                    <Text style={styles.statText}>{fmtCount(item.post.likesCount)}</Text>
+                    <Ionicons name="chatbubble-outline" size={10} color="rgba(255,255,255,0.46)" />
+                    <Text style={styles.statText}>{fmtCount(item.post.commentsCount)}</Text>
+                  </View>
+                </>
+              ) : null}
+            </View>
+          </View>
+          {!compactRail ? (
+            <>
+              <Text numberOfLines={3} style={styles.recentPostBody}>
+                {postPreview(item.post)}
+              </Text>
+              <View style={styles.postStats}>
+                <Ionicons name="heart-outline" size={12} color="rgba(255,255,255,0.46)" />
+                <Text style={styles.statText}>{fmtCount(item.post.likesCount)}</Text>
+                <Ionicons name="chatbubble-outline" size={12} color="rgba(255,255,255,0.46)" />
+                <Text style={styles.statText}>{fmtCount(item.post.commentsCount)}</Text>
+              </View>
+            </>
+          ) : null}
         </MotionPressable>
       );
     }
@@ -653,7 +848,7 @@ export function HomeFlowPrelude(props: Props) {
             colors={['rgba(217,109,99,0.28)', 'rgba(28,19,27,0.98)', 'rgba(244,162,97,0.12)']}
             style={StyleSheet.absoluteFillObject}
           />
-          {metrics.compactTop ? (
+          {compactRail ? (
             <View style={styles.compactRailRow}>
               <View style={[styles.shortcutIconOrange, styles.shortcutIconCompact]}>
                 <Ionicons name="people-outline" size={17} color="#FFD2A8" />
@@ -692,13 +887,13 @@ export function HomeFlowPrelude(props: Props) {
             colors={['rgba(115,87,198,0.38)', 'rgba(25,20,33,0.98)', 'rgba(74,158,170,0.12)']}
             style={StyleSheet.absoluteFillObject}
           />
-          {metrics.compactTop ? (
+          {compactRail ? (
             <View style={styles.compactRailRow}>
               <View style={[styles.shortcutIconViolet, styles.shortcutIconCompact]}>
                 <Ionicons name="person-add-outline" size={17} color="#DCCEFF" />
               </View>
               <View style={styles.compactRailCopy}>
-                <Text numberOfLines={1} style={styles.compactRailTitle}>Ton réseau a bougé</Text>
+                <Text numberOfLines={1} style={styles.compactRailTitle}>Quelqu’un t’a peut-être suivi</Text>
                 <View style={[styles.avatarStack, styles.avatarStackCompact]}>
                   {(avatars.length ? avatars : [null]).map((avatar, index) => (
                     <View
@@ -727,7 +922,7 @@ export function HomeFlowPrelude(props: Props) {
                 </View>
                 <Text style={styles.socialBadge}>SOCIAL</Text>
               </View>
-              <Text numberOfLines={2} style={styles.communityTitle}>Ton réseau a peut-être bougé récemment.</Text>
+              <Text numberOfLines={2} style={styles.communityTitle}>Quelqu’un t’a peut-être suivi récemment 👀</Text>
               <View style={styles.avatarStack}>
                 {(avatars.length ? avatars : [null]).map((avatar, index) => (
                   <View key={`${avatar || 'brand'}-${index}`} style={[styles.stackAvatar, index > 0 && styles.stackAvatarOverlap]}>
@@ -766,11 +961,21 @@ export function HomeFlowPrelude(props: Props) {
             end={{ x: 1, y: 0.5 }}
             style={StyleSheet.absoluteFillObject}
           />
-          {!metrics.compactTop ? <Text numberOfLines={1} style={styles.trackBadge}>{item.eyebrow}</Text> : null}
+          {!compactRail ? <Text numberOfLines={1} style={styles.trackBadge}>{item.eyebrow}</Text> : null}
           <View style={styles.trackRailBottom}>
-            <Text numberOfLines={metrics.compactTop ? 1 : 2} style={styles.trackRailTitle}>{item.track.title}</Text>
-            <Text numberOfLines={1} style={styles.trackRailArtist}>{trackArtistName(item.track)}</Text>
-            {!metrics.compactTop ? (
+            <Text
+              numberOfLines={compactRail ? 1 : 2}
+              style={[styles.trackRailTitle, compactRail && styles.trackRailTitleCompact]}
+            >
+              {item.track.title}
+            </Text>
+            <Text
+              numberOfLines={1}
+              style={[styles.trackRailArtist, compactRail && styles.trackRailArtistCompact]}
+            >
+              {trackArtistName(item.track)}
+            </Text>
+            {!compactRail ? (
               <View style={styles.trackRailStat}>
                 <Ionicons name="headset-outline" size={12} color="rgba(255,255,255,0.74)" />
                 <Text style={styles.trackRailStatText}>{fmtCount(Number(item.track.plays || 0))} écoutes</Text>
@@ -792,18 +997,18 @@ export function HomeFlowPrelude(props: Props) {
             colors={['rgba(74,158,170,0.32)', 'rgba(16,28,30,0.98)', 'rgba(115,87,198,0.16)']}
             style={StyleSheet.absoluteFillObject}
           />
-          <View style={[metrics.compactTop && styles.compactRailRow]}>
-            <View style={[styles.musicFallbackIcon, metrics.compactTop && styles.shortcutIconCompact]}>
+          <View style={[compactRail && styles.compactRailRow]}>
+            <View style={[styles.musicFallbackIcon, compactRail && styles.shortcutIconCompact]}>
               <Ionicons name="musical-notes-outline" size={22} color="#A8DEE5" />
             </View>
-            {metrics.compactTop ? (
+            {compactRail ? (
               <View style={styles.compactRailCopy}>
                 <Text numberOfLines={1} style={styles.compactRailTitle}>Ton prochain son se prépare</Text>
                 <Text numberOfLines={1} style={styles.railBodyCompact}>Le Flow affine ta sélection.</Text>
               </View>
             ) : null}
           </View>
-          {!metrics.compactTop ? (
+          {!compactRail ? (
             <>
               <Text numberOfLines={2} style={styles.communityTitle}>Ton prochain son se prépare.</Text>
               <Text numberOfLines={2} style={styles.railBody}>Le Flow apparaîtra dès que la sélection sera prête.</Text>
@@ -817,26 +1022,49 @@ export function HomeFlowPrelude(props: Props) {
         ? styles.shortcutViolet
         : item.accent === 'cyan'
           ? styles.shortcutCyan
-          : styles.shortcutOrange;
+          : item.accent === 'coral'
+            ? styles.shortcutCoral
+            : styles.shortcutOrange;
       const iconStyle = item.accent === 'violet'
         ? styles.shortcutIconViolet
         : item.accent === 'cyan'
           ? styles.shortcutIconCyan
-          : styles.shortcutIconOrange;
-      const iconColor = item.accent === 'violet' ? '#DCCEFF' : item.accent === 'cyan' ? '#A8DEE5' : '#FFD2A8';
+          : item.accent === 'coral'
+            ? styles.shortcutIconCoral
+            : styles.shortcutIconOrange;
+      const iconColor = item.accent === 'violet'
+        ? '#DCCEFF'
+        : item.accent === 'cyan'
+          ? '#A8DEE5'
+          : item.accent === 'coral'
+            ? '#FFD4CE'
+            : '#FFD2A8';
+      const gradientColors = item.accent === 'violet'
+        ? ['rgba(115,87,198,0.3)', 'rgba(18,17,21,0.96)'] as const
+        : item.accent === 'cyan'
+          ? ['rgba(74,158,170,0.28)', 'rgba(18,17,21,0.96)'] as const
+          : item.accent === 'coral'
+            ? ['rgba(217,109,99,0.28)', 'rgba(18,17,21,0.96)'] as const
+            : ['rgba(244,162,97,0.25)', 'rgba(18,17,21,0.96)'] as const;
       return (
         <MotionPressable
           accessibilityLabel={`Ouvrir ${item.title}`}
           onPress={() => openShortcut(item.target)}
-          style={[cardStyle, accentStyle, metrics.compactTop && styles.compactHorizontalCard]}
+          style={[cardStyle, accentStyle, compactRail && styles.compactHorizontalCard]}
           scaleTo={0.97}
         >
-          <View style={[iconStyle, metrics.compactTop && styles.shortcutIconCompact]}>
+          <LinearGradient
+            colors={gradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={[iconStyle, compactRail && styles.shortcutIconCompact]}>
             <Ionicons name={item.icon} size={20} color={iconColor} />
           </View>
-          <View style={metrics.compactTop && styles.compactRailCopy}>
-            <Text style={[styles.shortcutTitle, metrics.compactTop && styles.compactRailTitle]}>{item.title}</Text>
-            <Text numberOfLines={metrics.compactTop ? 1 : 2} style={styles.shortcutSubtitle}>{item.subtitle}</Text>
+          <View style={compactRail && styles.compactRailCopy}>
+            <Text style={[styles.shortcutTitle, compactRail && styles.compactRailTitle]}>{item.title}</Text>
+            <Text numberOfLines={compactRail ? 1 : 2} style={styles.shortcutSubtitle}>{item.subtitle}</Text>
           </View>
         </MotionPressable>
       );
@@ -845,39 +1073,106 @@ export function HomeFlowPrelude(props: Props) {
       <MotionPressable
         accessibilityLabel="Ouvrir le Studio"
         onPress={onStudio}
-        style={[cardStyle, metrics.compactTop && styles.compactHorizontalCard]}
+        style={[cardStyle, compactRail && styles.compactHorizontalCard]}
         scaleTo={0.97}
       >
         <LinearGradient
           colors={['rgba(217,109,99,0.38)', 'rgba(115,87,198,0.28)', 'rgba(24,18,28,0.98)']}
           style={StyleSheet.absoluteFillObject}
         />
-        <View style={[styles.studioIcon, metrics.compactTop && styles.shortcutIconCompact]}>
-          <Ionicons name="sparkles-outline" size={21} color="#FFD8D3" />
+        <View style={[styles.studioIcon, compactRail && styles.shortcutIconCompact]}>
+          <Ionicons name="flash-outline" size={21} color="#FFD8D3" />
         </View>
         <Text
-          numberOfLines={metrics.compactTop ? 1 : 2}
-          style={[styles.studioTitle, metrics.compactTop && styles.studioTitleCompact]}
+          numberOfLines={compactRail ? 1 : 2}
+          style={[styles.studioTitle, compactRail && styles.studioTitleCompact]}
         >
-          Ton prochain banger attend juste une idée.
+          Ton prochain banger attend juste un clic.
         </Text>
-        {!metrics.compactTop ? (
+        {!compactRail ? (
           <View style={styles.studioLink}>
-            <Text style={styles.studioLinkText}>Ouvrir le Studio</Text>
+            <Text style={styles.studioLinkText}>Va cuisiner ça</Text>
             <Ionicons name="chevron-forward" size={13} color="#F0AAA2" />
           </View>
         ) : null}
       </MotionPressable>
     );
   }, [
-    metrics.compactTop,
-    metrics.railCardWidth,
+    compactRail,
+    getRailItemWidth,
     onDiscover,
     onOpenPost,
     onOpenTrack,
+    onRetry,
     onStudio,
     openShortcut,
     skeletonPulse,
+  ]);
+
+  const renderAnimatedRailItem = useCallback(({
+    item,
+    index,
+  }: {
+    item: RailItem;
+    index: number;
+  }) => {
+    const width = railItemWidths[index] ?? getRailItemWidth(item);
+    const offset = railOffsets[index] ?? 0;
+    const depthDistance = Math.max(1, width + metrics.railGap);
+    const depthScale = railScrollX.interpolate({
+      inputRange: [offset - depthDistance, offset, offset + depthDistance],
+      outputRange: [0.976, 1, 0.976],
+      extrapolate: 'clamp',
+    });
+    const depthTranslateY = railScrollX.interpolate({
+      inputRange: [offset - depthDistance, offset, offset + depthDistance],
+      outputRange: [2, 0, 2],
+      extrapolate: 'clamp',
+    });
+    const revealStart = index === 0 ? 0.001 : Math.min(0.72, index * 0.045);
+    const revealEnd = Math.min(0.96, revealStart + 0.24);
+    const cardOpacity = entrance.interpolate({
+      inputRange: [0, revealStart, revealEnd, 1],
+      outputRange: [0, 0, 1, 1],
+      extrapolate: 'clamp',
+    });
+    const cardTranslateY = entrance.interpolate({
+      inputRange: [0, revealStart, revealEnd, 1],
+      outputRange: [14, 14, 0, 0],
+      extrapolate: 'clamp',
+    });
+    const floatingTranslateY = cardFloat.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, -4],
+    });
+    return (
+      <Animated.View
+        style={[
+          styles.animatedRailCard,
+          {
+            width,
+            opacity: cardOpacity,
+            transform: [
+              { translateY: cardTranslateY },
+              { translateY: depthTranslateY },
+              { translateY: index === 0 ? floatingTranslateY : 0 },
+              { scale: depthScale },
+            ],
+          },
+        ]}
+      >
+        {renderRailItem({ item })}
+      </Animated.View>
+    );
+  }, [
+    cardFloat,
+    entrance,
+    getRailItemWidth,
+    metrics.railGap,
+    railItemWidths,
+    railOffsets,
+    railScrollX,
+    renderRailItem,
   ]);
 
   if (!visible) return null;
@@ -940,6 +1235,14 @@ export function HomeFlowPrelude(props: Props) {
     inputRange: [0, 1],
     outputRange: [8, -20],
   });
+  const pulseRingScale = pulseRing.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.72, 1.55],
+  });
+  const pulseRingOpacity = pulseRing.interpolate({
+    inputRange: [0, 0.22, 1],
+    outputRange: [0.72, 0.48, 0],
+  });
   const punchlineSize = Math.min(32, Math.max(24, responsive.safeWidth * 0.075));
 
   return (
@@ -972,7 +1275,7 @@ export function HomeFlowPrelude(props: Props) {
               ]}
             >
               <LinearGradient
-                colors={['rgba(115,87,198,0.16)', 'rgba(217,109,99,0.045)', 'rgba(9,9,11,0)']}
+                colors={['rgba(115,87,198,0.3)', 'rgba(217,109,99,0.08)', 'rgba(9,9,11,0)']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
@@ -985,7 +1288,7 @@ export function HomeFlowPrelude(props: Props) {
               ]}
             >
               <LinearGradient
-                colors={['rgba(74,158,170,0.12)', 'rgba(244,162,97,0.035)', 'rgba(9,9,11,0)']}
+                colors={['rgba(74,158,170,0.22)', 'rgba(244,162,97,0.065)', 'rgba(9,9,11,0)']}
                 start={{ x: 1, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
@@ -1011,6 +1314,16 @@ export function HomeFlowPrelude(props: Props) {
                 scaleTo={0.97}
               >
                 <View style={styles.logo}>
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[
+                      styles.logoPulseRing,
+                      {
+                        opacity: pulseRingOpacity,
+                        transform: [{ scale: pulseRingScale }],
+                      },
+                    ]}
+                  />
                   <SynauraImage source={brandSymbol} contentFit="contain" style={styles.logoImage} />
                 </View>
                 <View style={styles.brandCopy}>
@@ -1054,7 +1367,16 @@ export function HomeFlowPrelude(props: Props) {
                 style={StyleSheet.absoluteFillObject}
               />
               <View style={[styles.pulseLead, responsive.isPhoneLandscape && styles.pulseLeadLandscape]}>
-                <View style={[styles.pulseIntro, metrics.compactTop && styles.pulseIntroCompact]}>
+                <View
+                  style={[
+                    styles.pulseIntro,
+                    metrics.compactTop && styles.pulseIntroCompact,
+                    responsive.isTablet
+                      && !metrics.compactTop
+                      && !responsive.hasVeryLargeText
+                      && styles.pulseIntroTablet,
+                  ]}
+                >
                   <View style={styles.badgeRow}>
                     <View style={styles.absenceBadge}>
                       <Text style={styles.absenceBadgeText}>PENDANT TON ABSENCE</Text>
@@ -1087,8 +1409,31 @@ export function HomeFlowPrelude(props: Props) {
                   ) : null}
                 </View>
 
+                {responsive.isTablet && !metrics.compactTop && !responsive.hasVeryLargeText ? (
+                  <MotionPressable
+                    accessibilityLabel="Ouvrir le Flow"
+                    onPress={finish}
+                    style={styles.tabletFlowButton}
+                    scaleTo={0.96}
+                  >
+                    <Ionicons name="radio-outline" size={17} color="#7357C6" />
+                    <Text style={styles.tabletFlowButtonText}>Ouvrir le Flow</Text>
+                    <Ionicons name="chevron-up" size={14} color="#111111" />
+                  </MotionPressable>
+                ) : null}
+
                 {!responsive.isVeryShort ? (
                   <View style={[styles.banner, metrics.compactTop && styles.bannerCompact]}>
+                    <LinearGradient
+                      colors={[
+                        'rgba(115,87,198,0.12)',
+                        'rgba(255,255,255,0.045)',
+                        'rgba(74,158,170,0.11)',
+                      ]}
+                      start={{ x: 0, y: 0.5 }}
+                      end={{ x: 1, y: 0.5 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
                     <Animated.View
                       style={[
                         styles.bannerMessage,
@@ -1116,41 +1461,74 @@ export function HomeFlowPrelude(props: Props) {
                           }),
                         },
                       ]}
-                    />
+                    >
+                      <LinearGradient
+                        colors={['#7357C6', '#4A9EAA', '#D96D63']}
+                        start={{ x: 0, y: 0.5 }}
+                        end={{ x: 1, y: 0.5 }}
+                        style={StyleSheet.absoluteFillObject}
+                      />
+                    </Animated.View>
                   </View>
                 ) : null}
               </View>
 
-              <FlatList
-                horizontal
-                data={railItems}
-                keyExtractor={(item) => item.id}
-                renderItem={renderRailItem}
-                style={[styles.rail, responsive.isPhoneLandscape && styles.railLandscape]}
-                contentContainerStyle={[
-                  styles.railContent,
-                   {
-                     gap: metrics.railGap,
-                     paddingLeft: 16,
-                     paddingRight: 16,
-                   },
+              <View
+                style={[
+                  styles.railWrap,
+                  responsive.isPhoneLandscape && styles.railLandscape,
                 ]}
-                showsHorizontalScrollIndicator={false}
-                decelerationRate="fast"
-                snapToInterval={metrics.railCardWidth + metrics.railGap}
-                snapToAlignment="start"
-                disableIntervalMomentum
-                initialNumToRender={4}
-                maxToRenderPerBatch={4}
-                windowSize={5}
-                removeClippedSubviews
-                onMomentumScrollEnd={onRailMomentumEnd}
-                getItemLayout={(_, index) => ({
-                  index,
-                  length: metrics.railCardWidth + metrics.railGap,
-                  offset: (metrics.railCardWidth + metrics.railGap) * index,
-                })}
-              />
+              >
+                <Animated.FlatList
+                  horizontal
+                  data={railItems}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderAnimatedRailItem}
+                  style={styles.rail}
+                  contentContainerStyle={[
+                    styles.railContent,
+                    {
+                      gap: metrics.railGap,
+                      paddingLeft: 16,
+                      paddingRight: 48,
+                    },
+                  ]}
+                  showsHorizontalScrollIndicator={false}
+                  decelerationRate="fast"
+                  snapToOffsets={railOffsets}
+                  snapToAlignment="start"
+                  disableIntervalMomentum
+                  initialNumToRender={6}
+                  maxToRenderPerBatch={6}
+                  windowSize={7}
+                  removeClippedSubviews={false}
+                  scrollEventThrottle={16}
+                  onScroll={Animated.event(
+                    [{ nativeEvent: { contentOffset: { x: railScrollX } } }],
+                    { useNativeDriver: true },
+                  )}
+                  onMomentumScrollEnd={onRailMomentumEnd}
+                  getItemLayout={(_, index) => ({
+                    index,
+                    length: (railItemWidths[index] ?? metrics.railCardWidth) + metrics.railGap,
+                    offset: railOffsets[index] ?? 0,
+                  })}
+                />
+                <LinearGradient
+                  pointerEvents="none"
+                  colors={['#101014', 'rgba(16,16,20,0)']}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.railFadeLeft}
+                />
+                <LinearGradient
+                  pointerEvents="none"
+                  colors={['rgba(16,16,20,0)', '#101014']}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.railFadeRight}
+                />
+              </View>
             </View>
           </View>
 
@@ -1186,6 +1564,13 @@ export function HomeFlowPrelude(props: Props) {
               end={{ x: 1, y: 0.5 }}
               style={StyleSheet.absoluteFillObject}
             />
+            <LinearGradient
+              pointerEvents="none"
+              colors={['rgba(115,87,198,0.2)', 'rgba(115,87,198,0)']}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.previewTopGlow}
+            />
 
             {responsive.isPhoneLandscape ? (
               <View
@@ -1204,6 +1589,16 @@ export function HomeFlowPrelude(props: Props) {
                   style={styles.landscapePlayButton}
                   scaleTo={0.9}
                 >
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[
+                      styles.playPulseRing,
+                      {
+                        opacity: pulseRingOpacity,
+                        transform: [{ scale: pulseRingScale }],
+                      },
+                    ]}
+                  />
                   {isPlayingFeatured ? (
                     <Equalizer active reducedMotion={settings.reducedMotion} />
                   ) : (
@@ -1420,6 +1815,16 @@ export function HomeFlowPrelude(props: Props) {
                   style={[styles.playButton, { width: 48, height: 48, borderRadius: 24 }]}
                   scaleTo={0.9}
                 >
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[
+                      styles.playPulseRing,
+                      {
+                        opacity: pulseRingOpacity,
+                        transform: [{ scale: pulseRingScale }],
+                      },
+                    ]}
+                  />
                   {isPlayingFeatured ? (
                     <Equalizer active reducedMotion={settings.reducedMotion} />
                   ) : (
@@ -1549,6 +1954,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 7 },
     elevation: 7,
   },
+  logoPulseRing: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: 'rgba(169,139,232,0.62)',
+  },
   logoCompact: {
     width: 36,
     height: 36,
@@ -1556,6 +1967,7 @@ const styles = StyleSheet.create({
   logoImage: {
     width: 25,
     height: 25,
+    zIndex: 1,
   },
   brandCopy: {
     flex: 1,
@@ -1571,7 +1983,7 @@ const styles = StyleSheet.create({
   greeting: {
     marginTop: 2,
     color: 'rgba(255,255,255,0.48)',
-    fontSize: 9,
+    fontSize: 10,
     lineHeight: 12,
     fontWeight: '700',
     fontFamily: FONT_BOLD,
@@ -1623,6 +2035,7 @@ const styles = StyleSheet.create({
   },
   pulseLead: {
     flexShrink: 0,
+    position: 'relative',
   },
   pulseLeadLandscape: {
     width: '42%',
@@ -1637,6 +2050,9 @@ const styles = StyleSheet.create({
   pulseIntroCompact: {
     paddingTop: 10,
     paddingBottom: 7,
+  },
+  pulseIntroTablet: {
+    paddingRight: 190,
   },
   badgeRow: {
     minHeight: 20,
@@ -1696,10 +2112,35 @@ const styles = StyleSheet.create({
   punchCopy: {
     marginTop: 4,
     color: 'rgba(255,255,255,0.43)',
-    fontSize: 9,
-    lineHeight: 12,
+    fontSize: 11,
+    lineHeight: 16,
     fontWeight: '600',
     fontFamily: FONT_SEMIBOLD,
+  },
+  tabletFlowButton: {
+    position: 'absolute',
+    right: 20,
+    top: 42,
+    zIndex: 2,
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderRadius: 14,
+    backgroundColor: '#F7F6F3',
+    paddingHorizontal: 16,
+    shadowColor: '#F7F6F3',
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 5,
+  },
+  tabletFlowButtonText: {
+    color: '#111111',
+    fontSize: 12,
+    fontWeight: '900',
+    fontFamily: FONT_BLACK,
   },
   banner: {
     flexShrink: 0,
@@ -1737,7 +2178,7 @@ const styles = StyleSheet.create({
   bannerLabel: {
     flexShrink: 0,
     color: '#DCCEFF',
-    fontSize: 7,
+    fontSize: 8,
     fontWeight: '900',
     fontFamily: FONT_BLACK,
   },
@@ -1760,7 +2201,12 @@ const styles = StyleSheet.create({
     left: 0,
     bottom: 0,
     height: 2,
-    backgroundColor: '#7357C6',
+    overflow: 'hidden',
+  },
+  railWrap: {
+    flex: 1,
+    minHeight: 0,
+    position: 'relative',
   },
   rail: {
     flex: 1,
@@ -1773,6 +2219,25 @@ const styles = StyleSheet.create({
   railContent: {
     alignItems: 'stretch',
     paddingBottom: 12,
+  },
+  railFadeLeft: {
+    position: 'absolute',
+    zIndex: 3,
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 22,
+  },
+  railFadeRight: {
+    position: 'absolute',
+    zIndex: 3,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 40,
+  },
+  animatedRailCard: {
+    height: '100%',
   },
   railCard: {
     height: '100%',
@@ -1820,6 +2285,45 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: 'rgba(255,255,255,0.09)',
   },
+  errorRailCard: {
+    borderColor: 'rgba(217,109,99,0.36)',
+    backgroundColor: '#1C1218',
+  },
+  errorRailIcon: {
+    width: 36,
+    height: 36,
+    flexShrink: 0,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(217,109,99,0.34)',
+    backgroundColor: 'rgba(217,109,99,0.2)',
+  },
+  errorRailBadge: {
+    borderRadius: 9,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(217,109,99,0.26)',
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    color: '#F0AAA2',
+    fontSize: 7,
+    fontWeight: '900',
+    fontFamily: FONT_BLACK,
+  },
+  errorRailRetry: {
+    marginTop: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  errorRailRetryText: {
+    color: '#F0AAA2',
+    fontSize: 8,
+    fontWeight: '900',
+    fontFamily: FONT_BLACK,
+  },
   railTopLine: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1852,7 +2356,6 @@ const styles = StyleSheet.create({
     color: '#F0AAA2',
   },
   postIdentity: {
-    flex: 1,
     minHeight: 0,
     marginTop: 12,
     flexDirection: 'row',
@@ -1936,18 +2439,78 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
+  postCta: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  postCtaText: {
+    color: 'rgba(255,255,255,0.68)',
+    fontSize: 9,
+    fontWeight: '900',
+    fontFamily: FONT_BLACK,
+  },
   statText: {
     marginRight: 5,
     color: 'rgba(255,255,255,0.45)',
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '800',
     fontFamily: FONT_EXTRABOLD,
+  },
+  recentPostCard: {
+    borderColor: 'rgba(244,162,97,0.3)',
+    backgroundColor: '#161216',
+  },
+  recentPostHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  recentPostHeaderCompact: {
+    flex: 1,
+    minHeight: 0,
+  },
+  recentPostAvatar: {
+    width: 40,
+    height: 40,
+    flexShrink: 0,
+    overflow: 'hidden',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(244,162,97,0.28)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  recentPostTitle: {
+    color: 'rgba(255,255,255,0.94)',
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: '900',
+    fontFamily: FONT_BLACK,
+  },
+  recentPostEyebrow: {
+    marginTop: 1,
+    color: '#F4C18B',
+    fontSize: 7,
+    lineHeight: 10,
+    fontWeight: '900',
+    fontFamily: FONT_BLACK,
+  },
+  recentPostBody: {
+    marginTop: 8,
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '600',
+    fontFamily: FONT_SEMIBOLD,
   },
   communityTitle: {
     marginTop: 10,
     color: '#FFFFFF',
-    fontSize: 14,
-    lineHeight: 17,
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: '900',
     fontFamily: FONT_BLACK,
   },
@@ -1999,7 +2562,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     marginLeft: 7,
     color: 'rgba(255,255,255,0.45)',
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '700',
     fontFamily: FONT_BOLD,
   },
@@ -2017,6 +2580,7 @@ const styles = StyleSheet.create({
     fontSize: 7,
     fontWeight: '900',
     fontFamily: FONT_BLACK,
+    textTransform: 'uppercase',
   },
   trackRailBottom: {
     flex: 1,
@@ -2025,17 +2589,24 @@ const styles = StyleSheet.create({
   },
   trackRailTitle: {
     color: '#FFFFFF',
-    fontSize: 14,
-    lineHeight: 16,
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: '900',
     fontFamily: FONT_BLACK,
+  },
+  trackRailTitleCompact: {
+    fontSize: 12,
+    lineHeight: 14,
   },
   trackRailArtist: {
     marginTop: 2,
     color: 'rgba(255,255,255,0.62)',
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: '700',
     fontFamily: FONT_BOLD,
+  },
+  trackRailArtistCompact: {
+    fontSize: 8,
   },
   trackRailStat: {
     marginTop: 5,
@@ -2067,6 +2638,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(114,187,197,0.34)',
     backgroundColor: 'rgba(74,158,170,0.2)',
   },
+  shortcutCoral: {
+    justifyContent: 'space-between',
+    borderColor: 'rgba(217,109,99,0.36)',
+    backgroundColor: 'rgba(217,109,99,0.18)',
+  },
   shortcutOrange: {
     justifyContent: 'space-between',
     borderColor: 'rgba(244,162,97,0.34)',
@@ -2087,6 +2663,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(74,158,170,0.24)',
+  },
+  shortcutIconCoral: {
+    width: 36,
+    height: 36,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(217,109,99,0.22)',
   },
   shortcutIconOrange: {
     width: 36,
@@ -2116,7 +2700,7 @@ const styles = StyleSheet.create({
   shortcutSubtitle: {
     marginTop: 3,
     color: 'rgba(255,255,255,0.46)',
-    fontSize: 8,
+    fontSize: 9,
     lineHeight: 11,
     fontWeight: '600',
     fontFamily: FONT_SEMIBOLD,
@@ -2132,8 +2716,8 @@ const styles = StyleSheet.create({
   studioTitle: {
     marginTop: 8,
     color: '#FFFFFF',
-    fontSize: 14,
-    lineHeight: 17,
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: '900',
     fontFamily: FONT_BLACK,
   },
@@ -2152,7 +2736,7 @@ const styles = StyleSheet.create({
   },
   studioLinkText: {
     color: '#F0AAA2',
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '900',
     fontFamily: FONT_BLACK,
   },
@@ -2173,6 +2757,13 @@ const styles = StyleSheet.create({
   },
   previewMedia: {
     ...StyleSheet.absoluteFillObject,
+  },
+  previewTopGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 96,
   },
   previewFallback: {
     flex: 1,
@@ -2199,6 +2790,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F7F6F3',
+  },
+  playPulseRing: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(168,222,229,0.68)',
   },
   landscapeTrackCopy: {
     flex: 1,

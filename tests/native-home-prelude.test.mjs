@@ -55,3 +55,40 @@ test('phone landscape remains usable without hiding the Flow preview', () => {
   assert.ok(metrics.pulseHeight >= 120 && metrics.pulseHeight <= 176);
   assert.ok(metrics.previewHeight >= 96);
 });
+
+test('tablet cards use the broader web rail proportions', () => {
+  const metrics = resolveHomePreludeMetrics({
+    width: 800,
+    height: 1_280,
+    topInset: 24,
+    bottomPad: 72,
+    isPhoneLandscape: false,
+    isVeryShort: false,
+  });
+
+  assert.equal(metrics.railCardWidth, 270);
+  assert.equal(metrics.pulseHeight, 350);
+  assert.equal(metrics.compactTop, false);
+  assert.ok(metrics.previewHeight >= 214);
+
+  const mobileBreakpoint = resolveHomePreludeMetrics({
+    width: 760,
+    height: 1_100,
+    topInset: 24,
+    bottomPad: 72,
+    isPhoneLandscape: false,
+    isVeryShort: false,
+  });
+  const wideBreakpoint = resolveHomePreludeMetrics({
+    width: 1_280,
+    height: 1_200,
+    topInset: 24,
+    bottomPad: 72,
+    isPhoneLandscape: false,
+    isVeryShort: false,
+  });
+
+  assert.equal(mobileBreakpoint.railCardWidth, 220);
+  assert.equal(wideBreakpoint.railCardWidth, 285);
+  assert.equal(wideBreakpoint.pulseHeight, 400);
+});
