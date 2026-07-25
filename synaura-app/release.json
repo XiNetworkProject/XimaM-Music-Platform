@@ -1,11 +1,11 @@
 {
-  "title": "Synaura Accueil Web 0.25.4",
+  "title": "Synaura Accueil Glass 0.25.5",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Accueil natif repense pour reproduire plus fidelement l'experience web approuvee",
-    "Banniere d'activite rotative et rail de decouvertes enrichi",
-    "Lecture mise en avant et geste d'acces au Flow affines",
-    "Animations et mise en page adaptees aux differentes tailles d'ecran"
+    "Auras d'arriere-plan remplacees par des degrades radiaux doux sans contours durs",
+    "Contours glass animes restaures sur les cartes et les commandes",
+    "Progression d'activite multicolore remise en place",
+    "Animations des cartes et de la lecture encore affinees"
   ]
 }
