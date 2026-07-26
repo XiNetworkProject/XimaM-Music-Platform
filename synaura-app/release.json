@@ -1,11 +1,11 @@
 {
-  "title": "Synaura Signal Flow 0.25.6",
+  "title": "Synaura Apercu Flow 0.25.7",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Identite Synaura Signal etendue a l'ensemble du Flow",
-    "Accueil superpose au vrai Flow avec une transition verticale continue",
-    "Posts, clips, artistes, collections, defis et annonces entierement harmonises",
-    "Dock mobile redessine avec les couleurs et les contours Signal"
+    "Apercu immersif du Flow restaure directement dans l'accueil",
+    "Pochette, morceau et artiste mis en avant avant le premier swipe",
+    "Commandes de lecture et acces plein ecran rendus immediatement visibles",
+    "Animations Signal et rail de decouvertes conserves autour de l'apercu"
   ]
 }

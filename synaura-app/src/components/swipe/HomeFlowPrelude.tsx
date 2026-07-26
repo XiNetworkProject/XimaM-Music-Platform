@@ -722,13 +722,13 @@ export function HomeFlowPrelude(props: Props) {
 
   return (
     <Animated.View {...panResponder.panHandlers} style={[styles.overlay, { opacity: screenOpacity, transform: [{ translateY: screenTranslateY }] }]}>
-      <View style={[styles.surface, { paddingBottom: bottomPad }]}> 
+      <View style={[styles.surface, { paddingBottom: bottomPad }]}>
         <LinearGradient pointerEvents="none" colors={['#09090B', '#0C0B10', '#09090B']} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFillObject} />
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, auraOneStyle]}><AuraBackground variant="primary" /></Animated.View>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, auraTwoStyle]}><AuraBackground variant="secondary" /></Animated.View>
 
-        <Animated.View style={[styles.stage, { transform: [{ translateY: contentTranslateY }, { scale: contentScale }] }]}> 
-          <View style={[styles.header, { minHeight: topPad + (compact ? 50 : 56), paddingTop: topPad + 6, paddingHorizontal: responsive.gutter }]}> 
+        <Animated.View style={[styles.stage, { transform: [{ translateY: contentTranslateY }, { scale: contentScale }] }]}>
+          <View style={[styles.header, { minHeight: topPad + (compact ? 50 : 56), paddingTop: topPad + 6, paddingHorizontal: responsive.gutter }]}>
             <MotionPressable accessibilityLabel="Entrer dans le Flow" onPress={finish} style={styles.brandRow} scaleTo={0.97}>
               <View style={styles.brandLogo}>
                 <Animated.View style={[styles.brandPulse, { opacity: pulseOpacity, transform: [{ scale: pulseScale }] }]} />
@@ -747,7 +747,7 @@ export function HomeFlowPrelude(props: Props) {
             </View>
           </View>
 
-          <View style={[styles.pulseSection, { height: pulseHeight, paddingHorizontal: responsive.gutter }]}> 
+          <View style={[styles.pulseSection, { height: pulseHeight, paddingHorizontal: responsive.gutter }]}>
             <LinearGradient colors={['rgba(20,18,26,0.96)', 'rgba(12,11,15,0.94)', 'rgba(9,9,11,0.9)']} locations={[0, 0.56, 1]} style={styles.pulseCard}>
               <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { opacity: auraTwo.interpolate({ inputRange: [0, 1], outputRange: [0.48, 0.82] }), transform: [{ translateX: auraTwo.interpolate({ inputRange: [0, 1], outputRange: [-10, 10] }) }, { scale: 1.06 }] }]}>
                 <CardAura color={COLORS.violet} opacity={0.16} id="pulseAura" />
@@ -771,12 +771,12 @@ export function HomeFlowPrelude(props: Props) {
                   <Text numberOfLines={1} style={styles.tickerMessage}>{bannerItems[bannerIndex]}</Text>
                   <Text style={styles.tickerCount}>{String(bannerIndex + 1).padStart(2, '0')} / {String(bannerItems.length).padStart(2, '0')}</Text>
                 </Animated.View>
-                <Animated.View style={[styles.tickerProgressClip, { width: bannerWidth }]}> 
+                <Animated.View style={[styles.tickerProgressClip, { width: bannerWidth }]}>
                   <LinearGradient colors={[COLORS.violet, COLORS.cyan, COLORS.coral]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFillObject} />
                 </Animated.View>
               </View>
 
-              <Animated.View style={[styles.railWrap, { flex: 1, opacity: cardsIn, transform: [{ translateY: cardsTranslateY }] }]}> 
+              <Animated.View style={[styles.railWrap, { flex: 1, opacity: cardsIn, transform: [{ translateY: cardsTranslateY }] }]}>
                 <LinearGradient pointerEvents="none" colors={['#100F14', 'rgba(16,15,20,0)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.leftFade} />
                 <LinearGradient pointerEvents="none" colors={['rgba(16,15,20,0)', '#100F14']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.rightFade} />
                 <FlatList
@@ -888,7 +888,7 @@ const styles = StyleSheet.create({
   brandPulse: { position: 'absolute', width: 40, height: 40, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(169,139,232,0.72)' },
   brandImage: { width: 25, height: 25 },
   brandCopy: { flex: 1, minWidth: 0 },
-  brandName: { color: COLORS.paper, fontFamily: FONT_BLACK, fontSize: 18, lineHeight: 19, fontWeight: '900', letterSpacing: -0.4 },
+  brandName: { color: COLORS.paper, fontFamily: FONT_BLACK, fontSize: 18, lineHeight: 19, fontWeight: '900', letterSpacing: 0 },
   brandLine: { marginTop: 3, color: 'rgba(255,255,255,0.48)', fontFamily: FONT_BOLD, fontSize: 9.5, lineHeight: 12, fontWeight: '700' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   headerButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.075)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)', shadowColor: '#000000', shadowOpacity: 0.22, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
@@ -900,8 +900,8 @@ const styles = StyleSheet.create({
   badgeViolet: { backgroundColor: 'rgba(115,87,198,0.18)', borderColor: 'rgba(169,139,232,0.46)' },
   badgeCyan: { backgroundColor: 'rgba(74,158,170,0.14)', borderColor: 'rgba(114,187,197,0.4)' },
   badgeText: { fontFamily: FONT_BLACK, fontSize: 8, fontWeight: '900', letterSpacing: 1.15 },
-  punchline: { marginTop: 9, maxWidth: '96%', color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 31, lineHeight: 29, fontWeight: '900', letterSpacing: -1.7 },
-  punchlineCompact: { fontSize: 27, lineHeight: 26, letterSpacing: -1.35 },
+  punchline: { marginTop: 9, maxWidth: '96%', color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 31, lineHeight: 29, fontWeight: '900', letterSpacing: 0 },
+  punchlineCompact: { fontSize: 27, lineHeight: 26, letterSpacing: 0 },
   ticker: { minHeight: 42, marginHorizontal: 14, overflow: 'hidden', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.045)' },
   tickerContent: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12 },
   tickerIcon: { width: 25, height: 25, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(74,158,170,0.17)', borderWidth: 1, borderColor: 'rgba(114,187,197,0.44)' },
@@ -925,7 +925,7 @@ const styles = StyleSheet.create({
   postAvatar: { width: '100%', height: '100%' },
   postAvatarFallback: { width: 29, height: 29 },
   postCopy: { flex: 1, minWidth: 0 },
-  postName: { color: 'rgba(255,255,255,0.96)', fontFamily: FONT_BLACK, fontSize: 13.5, fontWeight: '900', letterSpacing: -0.25 },
+  postName: { color: 'rgba(255,255,255,0.96)', fontFamily: FONT_BLACK, fontSize: 13.5, fontWeight: '900', letterSpacing: 0 },
   postText: { marginTop: 4, color: 'rgba(255,255,255,0.52)', fontFamily: FONT_BOLD, fontSize: 9.5, lineHeight: 13, fontWeight: '700' },
   cardFooter: { minHeight: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
   cardCtaRow: { minWidth: 0, flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2 },
@@ -934,7 +934,7 @@ const styles = StyleSheet.create({
   postCountText: { color: 'rgba(255,255,255,0.48)', fontFamily: FONT_BLACK, fontSize: 7.5, fontWeight: '900' },
   socialIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(115,87,198,0.26)', borderWidth: 1, borderColor: 'rgba(169,139,232,0.48)' },
   socialBadge: { alignSelf: 'flex-start', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(0,0,0,0.2)', paddingHorizontal: 9, paddingVertical: 5, color: 'rgba(255,255,255,0.66)', fontFamily: FONT_BLACK, fontSize: 7.5, fontWeight: '900', letterSpacing: 0.8 },
-  socialTitle: { marginTop: 8, flex: 1, color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 16.5, lineHeight: 17.5, fontWeight: '900', letterSpacing: -0.55 },
+  socialTitle: { marginTop: 8, flex: 1, color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 16.5, lineHeight: 17.5, fontWeight: '900', letterSpacing: 0 },
   socialFooter: { minHeight: 27, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 7 },
   avatarStack: { flexDirection: 'row', alignItems: 'center' },
   stackAvatarWrap: { width: 25, height: 25, borderRadius: 13, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#17151B', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.82)' },
@@ -943,7 +943,7 @@ const styles = StyleSheet.create({
   socialHint: { color: 'rgba(255,255,255,0.48)', fontFamily: FONT_BOLD, fontSize: 8, fontWeight: '700' },
   trackCardContent: { flex: 1, justifyContent: 'space-between' },
   trackBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(114,187,197,0.5)', backgroundColor: 'rgba(74,158,170,0.18)', paddingHorizontal: 8, paddingVertical: 5, color: '#A8DEE5', fontFamily: FONT_BLACK, fontSize: 7.5, fontWeight: '900', letterSpacing: 0.75, textTransform: 'uppercase' },
-  trackCardTitle: { color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 15.5, lineHeight: 16.5, fontWeight: '900', letterSpacing: -0.4 },
+  trackCardTitle: { color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 15.5, lineHeight: 16.5, fontWeight: '900', letterSpacing: 0 },
   trackCardArtist: { marginTop: 3, color: 'rgba(255,255,255,0.62)', fontFamily: FONT_BOLD, fontSize: 9, fontWeight: '700' },
   trackMeta: { marginTop: 5, flexDirection: 'row', alignItems: 'center', gap: 4 },
   trackMetaText: { color: 'rgba(255,255,255,0.68)', fontFamily: FONT_BLACK, fontSize: 8, fontWeight: '900' },
@@ -952,7 +952,7 @@ const styles = StyleSheet.create({
   shortcutTitle: { color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 13.5, fontWeight: '900' },
   shortcutSub: { marginTop: 3, color: 'rgba(255,255,255,0.48)', fontFamily: FONT_BOLD, fontSize: 8.5, fontWeight: '700' },
   studioIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(217,109,99,0.22)', borderWidth: 1, borderColor: 'rgba(240,170,162,0.46)' },
-  studioTitle: { marginTop: 8, flex: 1, color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 16, lineHeight: 17.5, fontWeight: '900', letterSpacing: -0.45 },
+  studioTitle: { marginTop: 8, flex: 1, color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 16, lineHeight: 17.5, fontWeight: '900', letterSpacing: 0 },
   studioCtaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   studioCta: { color: COLORS.coralSoft, fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900' },
   flowPreview: { flex: 1, minHeight: 250, overflow: 'hidden', borderTopLeftRadius: 30, borderTopRightRadius: 30, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.22)', backgroundColor: '#121014', shadowColor: '#000000', shadowOpacity: 0.38, shadowRadius: 26, shadowOffset: { width: 0, height: -10 }, elevation: 8 },
@@ -967,8 +967,8 @@ const styles = StyleSheet.create({
   flowCopy: { position: 'absolute', zIndex: 10, bottom: 17 },
   flowKicker: { color: '#DCCEFF', fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900', letterSpacing: 1.25 },
   trackCopy: { minWidth: 0 },
-  flowTitle: { marginTop: 6, color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 29, lineHeight: 28, fontWeight: '900', letterSpacing: -1.35, textShadowColor: 'rgba(0,0,0,0.42)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 12 },
-  flowTitleCompact: { fontSize: 25, lineHeight: 24, letterSpacing: -1.05 },
+  flowTitle: { marginTop: 6, color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 29, lineHeight: 28, fontWeight: '900', letterSpacing: 0, textShadowColor: 'rgba(0,0,0,0.42)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 12 },
+  flowTitleCompact: { fontSize: 25, lineHeight: 24, letterSpacing: 0 },
   flowArtist: { marginTop: 6, color: 'rgba(255,255,255,0.7)', fontFamily: FONT_BLACK, fontSize: 10.5, fontWeight: '900' },
   flowMeta: { marginTop: 7, flexDirection: 'row', alignItems: 'center', gap: 7 },
   flowMetaText: { color: 'rgba(255,255,255,0.58)', fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900' },
