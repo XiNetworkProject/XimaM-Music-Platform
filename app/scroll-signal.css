@@ -1,0 +1,305 @@
+/* Synaura Signal — continuité visuelle entre l'accueil et le vrai Scroll. */
+
+@keyframes syn-scroll-aura {
+  0%, 100% { transform: translate3d(-2%, -1.5%, 0) scale(1.03); opacity: .48; }
+  50% { transform: translate3d(2.5%, 2%, 0) scale(1.1); opacity: .82; }
+}
+
+@keyframes syn-scroll-panel-in {
+  from { opacity: 0; transform: translateY(18px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes syn-scroll-breathe {
+  0%, 100% { transform: scale(1.01); }
+  50% { transform: scale(1.035); }
+}
+
+@keyframes syn-scroll-pulse {
+  from { transform: scale(.72); opacity: .62; }
+  to { transform: scale(1.62); opacity: 0; }
+}
+
+body:has(.synaura-scroll-feed) {
+  background: #09090b;
+}
+
+.synaura-scroll-feed {
+  background: #09090b;
+  color: #f7f6f3;
+  isolation: isolate;
+}
+
+.synaura-scroll-feed > section {
+  isolation: isolate;
+  background: #09090b;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.synaura-scroll-feed > section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(68% 58% at 7% 8%, rgba(115,87,198,.28), transparent 68%),
+    radial-gradient(64% 56% at 96% 18%, rgba(217,109,99,.22), transparent 70%),
+    radial-gradient(58% 52% at 48% 78%, rgba(74,158,170,.14), transparent 72%);
+  animation: syn-scroll-aura 10s ease-in-out infinite;
+}
+
+.synaura-scroll-feed > section::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 50;
+  height: 3px;
+  pointer-events: none;
+  background: linear-gradient(90deg, #7357c6, #4a9eaa, #d96d63);
+  box-shadow: 0 0 14px rgba(74,158,170,.36);
+}
+
+.synaura-scroll-feed > section > * {
+  position: relative;
+}
+
+.synaura-scroll-feed > section > .absolute {
+  position: absolute;
+}
+
+/* Actions verticales */
+.synaura-scroll-feed > section > aside button,
+.synaura-scroll-feed > section > aside a {
+  border-color: rgba(255,255,255,.26) !important;
+  background: rgba(9,9,11,.46) !important;
+  color: #f7f6f3 !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.04);
+  backdrop-filter: blur(18px) saturate(1.15);
+}
+
+.synaura-scroll-feed > section > aside button:hover,
+.synaura-scroll-feed > section > aside a:hover {
+  transform: scale(1.08);
+  border-color: rgba(255,255,255,.42) !important;
+  background: rgba(255,255,255,.13) !important;
+}
+
+/* Grande cover des morceaux */
+.synaura-scroll-feed > section > div.absolute.inset-0.z-10.grid > button.group.relative {
+  border-color: rgba(255,255,255,.28) !important;
+  border-radius: 2rem !important;
+  background: rgba(9,9,11,.34) !important;
+  box-shadow: 0 34px 100px rgba(0,0,0,.46), inset 0 0 0 1px rgba(255,255,255,.05) !important;
+  animation: syn-scroll-breathe 8s ease-in-out infinite;
+}
+
+.synaura-scroll-feed > section > div.absolute.inset-0.z-10.grid > button.group.relative > div:last-child > span {
+  border-color: rgba(255,255,255,.34) !important;
+  background: rgba(9,9,11,.5) !important;
+  box-shadow: 0 14px 36px rgba(0,0,0,.38), inset 0 0 0 1px rgba(255,255,255,.06) !important;
+}
+
+/* Tous les panneaux crème hérités deviennent du verre sombre. */
+.synaura-scroll-feed [class*="bg-[#fffaf2]/95"],
+.synaura-scroll-feed [class*="bg-[#fffaf2]/92"],
+.synaura-scroll-feed [class*="bg-[#fffaf2]"] {
+  color: #f7f6f3 !important;
+  border-color: rgba(255,255,255,.23) !important;
+  background: linear-gradient(145deg, rgba(18,16,23,.82), rgba(9,9,11,.64)) !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,.38), inset 0 0 0 1px rgba(255,255,255,.04) !important;
+  backdrop-filter: blur(24px) saturate(1.16) !important;
+  animation: syn-scroll-panel-in .48s cubic-bezier(.2,.75,.24,1) both;
+}
+
+.synaura-scroll-feed [class*="bg-[#fffaf2]"] [class*="text-[#171313]"],
+.synaura-scroll-feed [class*="bg-[#fffaf2]"] [class*="text-[#111111]"],
+.synaura-scroll-feed [class*="bg-[#fffaf2]"] [class*="text-black"] {
+  color: #f7f6f3 !important;
+}
+
+.synaura-scroll-feed [class*="bg-[#fffaf2]"] [class*="text-black/"] {
+  color: rgba(247,246,243,.62) !important;
+}
+
+.synaura-scroll-feed [class*="bg-[#fffaf2]"] [class*="bg-black/"] {
+  background: rgba(255,255,255,.07) !important;
+}
+
+.synaura-scroll-feed [class*="bg-[#fffaf2]"] button[class*="bg-[#171313]"],
+.synaura-scroll-feed [class*="bg-[#fffaf2]"] a[class*="bg-[#171313]"] {
+  color: #171313 !important;
+  border: 1px solid rgba(255,255,255,.72) !important;
+  background: #f7f6f3 !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,.26);
+}
+
+/* Panneau inférieur du morceau */
+.synaura-scroll-feed > section > div.absolute.bottom-0 > div > div {
+  border-color: rgba(255,255,255,.23) !important;
+}
+
+.synaura-scroll-feed > section > div.absolute.bottom-0 > div > div::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 0;
+  width: 2px;
+  border-radius: 999px;
+  background: #72bbc5;
+}
+
+/* Posts */
+.synaura-scroll-feed article {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 1.65rem;
+  padding: clamp(1rem, 2.3vw, 1.5rem);
+  background: linear-gradient(145deg, rgba(18,16,23,.78), rgba(9,9,11,.58));
+  box-shadow: 0 24px 82px rgba(0,0,0,.38), inset 0 0 0 1px rgba(255,255,255,.035);
+  backdrop-filter: blur(22px) saturate(1.14);
+}
+
+.synaura-scroll-feed article::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20px;
+  bottom: 20px;
+  width: 2px;
+  border-radius: 999px;
+  background: #f0aaa2;
+}
+
+.synaura-scroll-feed article button[class*="rounded-full"] {
+  border-color: rgba(255,255,255,.24) !important;
+  background: rgba(255,255,255,.075) !important;
+}
+
+.synaura-scroll-feed article button[class*="max-h-"] {
+  border-radius: 1.25rem !important;
+  border-color: rgba(255,255,255,.24) !important;
+}
+
+.synaura-scroll-feed article > div[class*="border-y"] {
+  border-color: rgba(255,255,255,.18) !important;
+  border-radius: 1.15rem;
+  padding-inline: .75rem;
+  background: linear-gradient(120deg, rgba(74,158,170,.12), rgba(115,87,198,.08), rgba(255,255,255,.035));
+}
+
+/* Clips */
+.synaura-scroll-feed > section:has(video) > div.absolute.bottom-0 > div > div:last-child {
+  border-color: rgba(255,255,255,.23) !important;
+  background: linear-gradient(145deg, rgba(12,11,15,.78), rgba(9,9,11,.62)) !important;
+  color: #f7f6f3 !important;
+}
+
+.synaura-scroll-feed > section:has(video) [class*="text-[#171313]"] {
+  color: #f7f6f3 !important;
+}
+
+/* Artistes, collections, défis et annonces */
+.synaura-scroll-feed > section > div.absolute.inset-0.z-10.flex.flex-col.items-center {
+  z-index: 12;
+}
+
+.synaura-scroll-feed > section > div.absolute.inset-0.z-10.flex.flex-col.items-center > button,
+.synaura-scroll-feed > section > div.absolute.inset-0.z-10.flex.flex-col.items-center > div:first-child {
+  border-color: rgba(255,255,255,.3) !important;
+  box-shadow: 0 28px 90px rgba(0,0,0,.44), 0 0 55px rgba(115,87,198,.15) !important;
+}
+
+.synaura-scroll-feed > section [class*="rounded-full"][class*="bg-white/12"] {
+  border: 1px solid rgba(255,255,255,.27);
+  background: rgba(9,9,11,.48) !important;
+  box-shadow: 0 14px 36px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.04);
+}
+
+.synaura-scroll-feed > section [class*="bg-white/10"] {
+  border-color: rgba(255,255,255,.18);
+}
+
+/* Header du Scroll */
+body:has(.synaura-scroll-feed) > div [class*="top-0"][class*="z-40"] > div:first-child {
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 1.25rem;
+  padding: .45rem .55rem;
+  background: linear-gradient(90deg, rgba(115,87,198,.12), rgba(9,9,11,.62), rgba(217,109,99,.1));
+  box-shadow: 0 16px 48px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.025);
+  backdrop-filter: blur(22px) saturate(1.16);
+}
+
+body:has(.synaura-scroll-feed) [class*="border-white/14"][class*="bg-white/10"] {
+  border-color: rgba(255,255,255,.26) !important;
+  background: rgba(9,9,11,.46) !important;
+}
+
+body:has(.synaura-scroll-feed) .synaura-no-scrollbar button {
+  border: 1px solid rgba(255,255,255,.14);
+}
+
+body:has(.synaura-scroll-feed) .synaura-no-scrollbar button[aria-pressed="true"] {
+  color: #f7f6f3 !important;
+  border-color: rgba(114,187,197,.4) !important;
+  background: rgba(74,158,170,.16) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+}
+
+/* Dock immersif */
+body:has(.synaura-scroll-feed) nav[aria-label="Navigation principale"] {
+  border-color: rgba(255,255,255,.2) !important;
+  background:
+    linear-gradient(90deg, rgba(115,87,198,.12), rgba(13,10,14,.96), rgba(217,109,99,.11)) !important;
+  box-shadow: 0 -14px 42px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.1);
+}
+
+body:has(.synaura-scroll-feed) nav[aria-label="Navigation principale"]::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, #7357c6, #4a9eaa, #d96d63);
+}
+
+body:has(.synaura-scroll-feed) nav[aria-label="Navigation principale bureau"] {
+  border-color: rgba(255,255,255,.2) !important;
+  background: linear-gradient(90deg, rgba(115,87,198,.14), rgba(13,10,14,.92), rgba(217,109,99,.13)) !important;
+  box-shadow: 0 16px 44px rgba(0,0,0,.32), inset 0 0 0 1px rgba(255,255,255,.035) !important;
+}
+
+/* Etats de chargement / vide */
+body:has(.synaura-scroll-feed) [class*="border-[#dccfbb]"][class*="bg-white"] {
+  color: #f7f6f3 !important;
+  border-color: rgba(255,255,255,.22) !important;
+  background: linear-gradient(145deg, rgba(18,16,23,.86), rgba(9,9,11,.72)) !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,.38) !important;
+}
+
+@media (max-width: 760px) {
+  .synaura-scroll-feed article {
+    border-radius: 1.35rem;
+    padding: 1rem;
+  }
+
+  .synaura-scroll-feed > section > aside button,
+  .synaura-scroll-feed > section > aside a {
+    width: 48px !important;
+    min-height: 48px !important;
+  }
+
+  .synaura-scroll-feed > section > div.absolute.inset-0.z-10.grid > button.group.relative {
+    width: min(82vw, 480px) !important;
+    border-radius: 1.7rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .synaura-scroll-feed > section::before,
+  .synaura-scroll-feed article,
+  .synaura-scroll-feed > section > div.absolute.inset-0.z-10.grid > button.group.relative {
+    animation: none !important;
+  }
+}
