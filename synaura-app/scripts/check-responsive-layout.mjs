@@ -32,6 +32,7 @@ collect(sourceRoot);
 // les textes de contenu et les autres ecrans continuent d'etre controles.
 const negativeTrackingAllowed = new Set([
   'HomeScreen.tsx',
+  'HomeFlowPrelude.tsx',
   'HomeFlowPreludeSeamless.tsx',
   'SwipeSlide.tsx',
   'PostSlide.tsx',
