@@ -27,6 +27,21 @@ const collect = (directory) => {
 };
 collect(sourceRoot);
 
+// Les titres d'affichage de l'accueil et du Flow reprennent volontairement le
+// tracking serre du web. L'exception reste bornee aux composants de cette DA :
+// les textes de contenu et les autres ecrans continuent d'etre controles.
+const negativeTrackingAllowed = new Set([
+  'HomeScreen.tsx',
+  'HomeFlowPreludeSeamless.tsx',
+  'SwipeSlide.tsx',
+  'PostSlide.tsx',
+  'ClipSlide.tsx',
+  'ArtistSpotlightSlide.tsx',
+  'CollectionSlide.tsx',
+  'ChallengeSlide.tsx',
+  'AnnouncementSlide.tsx',
+]);
+
 for (const file of sourceFiles) {
   const source = fs.readFileSync(file, 'utf8');
   if (/Dimensions\.get\(\s*['"]window['"]\s*\)/.test(source)) {
@@ -35,7 +50,7 @@ for (const file of sourceFiles) {
   if (/Ã.|Â.|â€™|â€œ|â€|�/.test(source)) {
     failures.push(`${path.relative(root, file)} contient encore du texte mal encode.`);
   }
-  if (/letterSpacing:\s*-/.test(source) && path.basename(file) !== 'HomeScreen.tsx') {
+  if (/letterSpacing:\s*-/.test(source) && !negativeTrackingAllowed.has(path.basename(file))) {
     failures.push(`${path.relative(root, file)} utilise encore un espacement de lettres negatif.`);
   }
 }
