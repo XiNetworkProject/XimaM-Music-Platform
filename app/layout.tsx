@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import './suno.css';
 import './scroll-signal.css';
+import './home-flow-seamless.css';
 import Providers from './providers';
 import { ConditionalNav, ConditionalNavbar, ConditionalBottomNav } from '@/components/ConditionalNav';
 import LayoutContent from '@/components/LayoutContent';
