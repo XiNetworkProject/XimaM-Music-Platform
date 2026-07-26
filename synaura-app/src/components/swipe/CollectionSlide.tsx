@@ -88,14 +88,14 @@ export function CollectionSlide({ collection, height, topPad, bottomPad, launchi
   }, [aura, cover, settings.reducedMotion]);
 
   return (
-    <View style={[styles.root, { height, paddingTop: topPad + 78, paddingBottom: bottomPad + 18 }]}> 
+    <View style={[styles.root, { height, paddingTop: topPad + 78, paddingBottom: bottomPad + 18 }]}>
       <LinearGradient colors={['#0C0B10', '#111015', SIGNAL.black]} locations={[0, 0.52, 1]} style={StyleSheet.absoluteFillObject} />
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { opacity: aura.interpolate({ inputRange: [0, 1], outputRange: [0.58, 0.94] }), transform: [{ translateX: aura.interpolate({ inputRange: [0, 1], outputRange: [-18, 18] }) }, { translateY: aura.interpolate({ inputRange: [0, 1], outputRange: [-12, 18] }) }, { scale: aura.interpolate({ inputRange: [0, 1], outputRange: [1.05, 1.16] }) }] }]}><CollectionAura colors={colorsPair} /></Animated.View>
       <View pointerEvents="none" style={styles.topEdge}><LinearGradient colors={[colorsPair[0], colorsPair[1], SIGNAL.coral]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFillObject} /></View>
 
       <View style={styles.center}>
         <View style={styles.badge}><View style={[styles.badgeDot, { backgroundColor: colorsPair[1] }]} /><Text style={styles.badgeText}>{(collection.badge || 'Collection du Flow').toUpperCase()}</Text></View>
-        <Animated.View style={[styles.coverShell, { transform: [{ translateY: cover.interpolate({ inputRange: [0, 1], outputRange: [3, -3] }) }, { scale: cover.interpolate({ inputRange: [0, 1], outputRange: [1, 1.015] }) }] }]}> 
+        <Animated.View style={[styles.coverShell, { transform: [{ translateY: cover.interpolate({ inputRange: [0, 1], outputRange: [3, -3] }) }, { scale: cover.interpolate({ inputRange: [0, 1], outputRange: [1, 1.015] }) }] }]}>
           <LinearGradient colors={[`${colorsPair[0]}55`, `${colorsPair[1]}22`]} style={styles.coverGlow} />
           <Image source={{ uri: collection.coverUrl || collection.bannerUrl || undefined }} style={styles.cover} />
           <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.24)']} style={StyleSheet.absoluteFillObject} />
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   coverShell: { marginTop: 18, width: 198, height: 198, overflow: 'visible', borderRadius: 24, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.28)', shadowColor: '#000', shadowOpacity: 0.42, shadowRadius: 26, shadowOffset: { width: 0, height: 14 }, elevation: 10 },
   coverGlow: { position: 'absolute', left: -18, top: -18, right: -18, bottom: -18, borderRadius: 36, opacity: 0.5 },
   cover: { width: '100%', height: '100%', borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.08)' },
-  title: { marginTop: 19, maxWidth: 310, textAlign: 'center', color: '#FFF', fontFamily: FONT_BLACK, fontSize: 26, lineHeight: 28, fontWeight: '900', letterSpacing: -0.8 },
+  title: { marginTop: 19, maxWidth: 310, textAlign: 'center', color: '#FFF', fontFamily: FONT_BLACK, fontSize: 26, lineHeight: 28, fontWeight: '900', letterSpacing: 0 },
   subtitle: { marginTop: 9, maxWidth: 292, textAlign: 'center', color: 'rgba(255,255,255,0.64)', fontFamily: FONT_BOLD, fontSize: 12, lineHeight: 18, fontWeight: '700' },
   countPill: { marginTop: 13, minHeight: 31, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(114,187,197,0.3)', backgroundColor: 'rgba(74,158,170,0.12)', paddingHorizontal: 11 },
   count: { color: 'rgba(255,255,255,0.68)', fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900', letterSpacing: 0.55, textTransform: 'uppercase' },

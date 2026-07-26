@@ -85,7 +85,7 @@ export function AnnouncementSlide({ announcement, height, topPad, bottomPad, onO
   }, [aura, pulse, settings.reducedMotion]);
 
   return (
-    <View style={[styles.root, { height, paddingTop: topPad + 78, paddingBottom: bottomPad + 18 }]}> 
+    <View style={[styles.root, { height, paddingTop: topPad + 78, paddingBottom: bottomPad + 18 }]}>
       <LinearGradient colors={['#0C0B10', '#111015', SIGNAL.black]} locations={[0, 0.52, 1]} style={StyleSheet.absoluteFillObject} />
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { opacity: aura.interpolate({ inputRange: [0, 1], outputRange: [0.58, 0.94] }), transform: [{ translateX: aura.interpolate({ inputRange: [0, 1], outputRange: [-18, 18] }) }, { translateY: aura.interpolate({ inputRange: [0, 1], outputRange: [-12, 18] }) }, { scale: aura.interpolate({ inputRange: [0, 1], outputRange: [1.05, 1.16] }) }] }]}><AnnouncementAura /></Animated.View>
       <View pointerEvents="none" style={styles.topEdge}><LinearGradient colors={[SIGNAL.violet, SIGNAL.cyan, SIGNAL.coral]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFillObject} /></View>
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: SIGNAL.coralSoft, shadowColor: SIGNAL.coralSoft, shadowOpacity: 0.9, shadowRadius: 6, elevation: 3 },
   liveBadgeText: { color: '#A8DEE5', fontFamily: FONT_BLACK, fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
   kicker: { marginTop: 19, color: '#A8DEE5', fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900', letterSpacing: 1.25 },
-  title: { marginTop: 7, color: '#FFF', fontFamily: FONT_BLACK, fontSize: 28, lineHeight: 31, fontWeight: '900', letterSpacing: -0.95 },
+  title: { marginTop: 7, color: '#FFF', fontFamily: FONT_BLACK, fontSize: 28, lineHeight: 31, fontWeight: '900', letterSpacing: 0 },
   text: { marginTop: 11, color: 'rgba(255,255,255,0.64)', fontFamily: FONT_BOLD, fontSize: 12.5, lineHeight: 19, fontWeight: '700' },
   countPill: { marginTop: 16, alignSelf: 'flex-start', minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(114,187,197,0.3)', backgroundColor: 'rgba(74,158,170,0.12)', paddingHorizontal: 11 },
   count: { color: 'rgba(255,255,255,0.68)', fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900', letterSpacing: 0.45 },

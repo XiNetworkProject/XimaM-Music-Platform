@@ -146,17 +146,17 @@ export function ArtistSpotlightSlide({
   };
 
   return (
-    <View style={[styles.root, { height, paddingTop: topPad + 78, paddingBottom: bottomPad + 18 }]}> 
+    <View style={[styles.root, { height, paddingTop: topPad + 78, paddingBottom: bottomPad + 18 }]}>
       <LinearGradient colors={['#0C0B10', '#111015', SIGNAL.black]} locations={[0, 0.52, 1]} style={StyleSheet.absoluteFillObject} />
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, auraOneStyle]}><ArtistAura variant="primary" /></Animated.View>
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, auraTwoStyle]}><ArtistAura variant="secondary" /></Animated.View>
       <View pointerEvents="none" style={styles.topEdge}><LinearGradient colors={[SIGNAL.violet, SIGNAL.cyan, SIGNAL.coral]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFillObject} /></View>
 
-      <Animated.View style={[styles.scene, { opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }]}> 
+      <Animated.View style={[styles.scene, { opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }]}>
         <View style={styles.kickerBadge}><View style={[styles.signalDot, isPlaying && styles.signalDotActive]} /><Text style={styles.kicker}>ARTISTE DU FLOW</Text></View>
 
         <Pressable accessibilityLabel={isPlaying ? 'Mettre en pause' : 'Écouter'} onPress={onPress}>
-          <Animated.View style={[styles.avatarShell, { transform: [{ scale: portraitBreath.interpolate({ inputRange: [0, 1], outputRange: [1, 1.025] }) }] }]}> 
+          <Animated.View style={[styles.avatarShell, { transform: [{ scale: portraitBreath.interpolate({ inputRange: [0, 1], outputRange: [1, 1.025] }) }] }]}>
             {artist.avatar ? <Image source={{ uri: artist.avatar }} style={styles.avatarImage} /> : <View style={styles.avatarFallback}><Text style={styles.avatarLetter}>{artist.name.slice(0, 1).toUpperCase()}</Text></View>}
             <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.32)']} style={StyleSheet.absoluteFillObject} />
             <GlassOutline radius={99} opacity={0.32} />
@@ -171,7 +171,7 @@ export function ArtistSpotlightSlide({
         <View style={styles.featuredPill}><Ionicons name="musical-notes-outline" size={13} color="#A8DEE5" /><Text numberOfLines={1} style={styles.featured}>EN VEDETTE · {track.title}</Text></View>
       </Animated.View>
 
-      <Animated.View style={[styles.footer, { opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }]}> 
+      <Animated.View style={[styles.footer, { opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }]}>
         <LinearGradient colors={['rgba(18,16,23,0.84)', 'rgba(9,9,11,0.7)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
         <GlassOutline radius={22} opacity={0.23} />
         <View style={styles.footerAccent} />
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   playRing: { position: 'absolute', left: 55, top: 55, width: 74, height: 74, borderRadius: 37, borderWidth: 1, borderColor: 'rgba(255,255,255,0.62)' },
   playBadge: { position: 'absolute', right: 12, bottom: 12, width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(9,9,11,0.68)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', shadowColor: '#000', shadowOpacity: 0.32, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, elevation: 5 },
   nameRow: { marginTop: 18, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  name: { color: '#FFF', fontFamily: FONT_BLACK, fontSize: 27, lineHeight: 29, fontWeight: '900', letterSpacing: -0.9 },
+  name: { color: '#FFF', fontFamily: FONT_BLACK, fontSize: 27, lineHeight: 29, fontWeight: '900', letterSpacing: 0 },
   artistStyle: { marginTop: 5, color: '#A8DEE5', fontFamily: FONT_BLACK, fontSize: 9, fontWeight: '900', letterSpacing: 1.15, textTransform: 'uppercase' },
   bio: { marginTop: 10, maxWidth: 300, textAlign: 'center', color: 'rgba(255,255,255,0.64)', fontFamily: FONT_BOLD, fontSize: 12, lineHeight: 18, fontWeight: '700' },
   featuredPill: { marginTop: 13, maxWidth: 292, minHeight: 31, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(114,187,197,0.3)', backgroundColor: 'rgba(74,158,170,0.12)', paddingHorizontal: 11 },

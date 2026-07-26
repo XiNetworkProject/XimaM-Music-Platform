@@ -10,6 +10,8 @@ import type { HomePost, Track } from '@/api/types';
 
 type Props = {
   visible: boolean;
+  loading?: boolean;
+  error?: boolean;
   tracks: Track[];
   posts: HomePost[];
   currentTrack?: Track | null;
@@ -17,9 +19,15 @@ type Props = {
   userName?: string | null;
   topPad: number;
   bottomPad: number;
+  likedMap?: Record<string, boolean>;
+  likesMap?: Record<string, number>;
+  commentsMap?: Record<string, number>;
   onEnterFlow: () => void;
   onPlayTrack: (track: Track) => void;
   onOpenTrack: (track: Track) => void;
+  onToggleLike: (track: Track) => void;
+  onOpenComments: (track: Track) => void;
+  onShareTrack: (track: Track) => void;
   onOpenPost: (post: HomePost) => void;
   onSearch: () => void;
   onNotifications: () => void;
@@ -27,6 +35,7 @@ type Props = {
   onRadar: () => void;
   onStudio: () => void;
   onEvents: () => void;
+  onRetry?: () => void;
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));

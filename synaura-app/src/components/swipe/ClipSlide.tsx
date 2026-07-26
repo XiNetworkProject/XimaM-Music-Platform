@@ -282,7 +282,7 @@ export function ClipSlide({
   };
 
   return (
-    <View style={[styles.page, { height }]}> 
+    <View style={[styles.page, { height }]}>
       <GestureDetector gesture={mediaGesture}>
         <View accessible accessibilityRole="button" accessibilityLabel={isPlaying ? 'Mettre en pause' : 'Lire'} onAccessibilityTap={onPressAudio} style={styles.pressArea}>
           {shouldLoadMedia && clip.videoUrl && !videoFailed ? (
@@ -370,7 +370,7 @@ export function ClipSlide({
         </View>
       </GestureDetector>
 
-      <Animated.View style={[styles.actionsColumn, responsive.compactControls && styles.actionsColumnCompact, { bottom: bottomPad + (responsive.compactControls ? 72 : 92), opacity: reveal, transform: [{ translateX: reveal.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }] }]}> 
+      <Animated.View style={[styles.actionsColumn, responsive.compactControls && styles.actionsColumnCompact, { bottom: bottomPad + (responsive.compactControls ? 72 : 92), opacity: reveal, transform: [{ translateX: reveal.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }] }]}>
         {clip.creator?.username ? (
           <View style={styles.profileCluster}>
             <Pressable accessibilityLabel="Ouvrir le profil du créateur" onPress={onOpenCreator} style={styles.profileAvatar}>
@@ -386,7 +386,7 @@ export function ClipSlide({
         {canUseSound ? <ActionButton icon="film-outline" label={isOwnTrack ? 'Créer un clip officiel' : 'Utiliser ce son'} onPress={onUseSound} /> : null}
       </Animated.View>
 
-      <Animated.View style={[styles.metaPanel, responsive.isNarrow && styles.metaPanelNarrow, { bottom: bottomPad + (responsive.compactControls ? 8 : 14), opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }]}> 
+      <Animated.View style={[styles.metaPanel, responsive.isNarrow && styles.metaPanelNarrow, { bottom: bottomPad + (responsive.compactControls ? 8 : 14), opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }]}>
         <LinearGradient colors={['rgba(12,11,15,0.76)', 'rgba(9,9,11,0.56)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
         <GlassOutline radius={22} opacity={0.23} />
         <View style={styles.metaAccent} />

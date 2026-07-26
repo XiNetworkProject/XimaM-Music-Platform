@@ -58,6 +58,8 @@ const SIGNAL = {
 
 type Props = {
   visible: boolean;
+  loading?: boolean;
+  error?: boolean;
   tracks: Track[];
   posts: HomePost[];
   currentTrack?: Track | null;
@@ -65,9 +67,15 @@ type Props = {
   userName?: string | null;
   topPad: number;
   bottomPad: number;
+  likedMap?: Record<string, boolean>;
+  likesMap?: Record<string, number>;
+  commentsMap?: Record<string, number>;
   onEnterFlow: () => void;
   onPlayTrack: (track: Track) => void;
   onOpenTrack: (track: Track) => void;
+  onToggleLike: (track: Track) => void;
+  onOpenComments: (track: Track) => void;
+  onShareTrack: (track: Track) => void;
   onOpenPost: (post: HomePost) => void;
   onSearch: () => void;
   onNotifications: () => void;
@@ -75,6 +83,7 @@ type Props = {
   onRadar: () => void;
   onStudio: () => void;
   onEvents: () => void;
+  onRetry?: () => void;
 };
 
 type Shortcut = {
@@ -463,7 +472,7 @@ export function HomeFlowPrelude(props: Props) {
           </View>
         </View>
 
-        <View style={[styles.pulseSection, { height: pulseHeight, paddingHorizontal: responsive.gutter }]}> 
+        <View style={[styles.pulseSection, { height: pulseHeight, paddingHorizontal: responsive.gutter }]}>
           <LinearGradient colors={['rgba(20,18,26,0.96)', 'rgba(12,11,15,0.94)', 'rgba(9,9,11,0.9)']} locations={[0, 0.56, 1]} style={styles.pulseCard}>
             <GlassOutline radius={26} opacity={0.21} />
             <View style={styles.pulseHeader}>
@@ -509,7 +518,7 @@ const styles = StyleSheet.create({
   brandLogo: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: SIGNAL.paper, borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', shadowColor: SIGNAL.violet, shadowOpacity: 0.34, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
   brandImage: { width: 25, height: 25 },
   brandCopy: { flex: 1, minWidth: 0 },
-  brandName: { color: SIGNAL.paper, fontFamily: FONT_BLACK, fontSize: 18, lineHeight: 19, fontWeight: '900', letterSpacing: -0.4 },
+  brandName: { color: SIGNAL.paper, fontFamily: FONT_BLACK, fontSize: 18, lineHeight: 19, fontWeight: '900', letterSpacing: 0 },
   brandLine: { marginTop: 3, color: 'rgba(255,255,255,0.48)', fontFamily: FONT_BOLD, fontSize: 9.5, lineHeight: 12, fontWeight: '700' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   headerButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.075)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
@@ -521,8 +530,8 @@ const styles = StyleSheet.create({
   badgeViolet: { backgroundColor: 'rgba(115,87,198,0.18)', borderColor: 'rgba(169,139,232,0.46)' },
   badgeCyan: { backgroundColor: 'rgba(74,158,170,0.14)', borderColor: 'rgba(114,187,197,0.4)' },
   badgeText: { fontFamily: FONT_BLACK, fontSize: 8, fontWeight: '900', letterSpacing: 1.15 },
-  punchline: { marginTop: 9, maxWidth: '96%', color: '#FFF', fontFamily: FONT_BLACK, fontSize: 31, lineHeight: 29, fontWeight: '900', letterSpacing: -1.7 },
-  punchlineCompact: { fontSize: 27, lineHeight: 26, letterSpacing: -1.35 },
+  punchline: { marginTop: 9, maxWidth: '96%', color: '#FFF', fontFamily: FONT_BLACK, fontSize: 31, lineHeight: 29, fontWeight: '900', letterSpacing: 0 },
+  punchlineCompact: { fontSize: 27, lineHeight: 26, letterSpacing: 0 },
   ticker: { minHeight: 42, marginHorizontal: 14, overflow: 'hidden', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.045)' },
   tickerContent: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12 },
   tickerIcon: { width: 25, height: 25, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(74,158,170,0.17)', borderWidth: 1, borderColor: 'rgba(114,187,197,0.44)' },
@@ -546,13 +555,13 @@ const styles = StyleSheet.create({
   postAvatar: { width: '100%', height: '100%' },
   postFallback: { width: 29, height: 29 },
   postCopy: { flex: 1, minWidth: 0 },
-  postName: { color: 'rgba(255,255,255,0.96)', fontFamily: FONT_BLACK, fontSize: 13.5, fontWeight: '900', letterSpacing: -0.25 },
+  postName: { color: 'rgba(255,255,255,0.96)', fontFamily: FONT_BLACK, fontSize: 13.5, fontWeight: '900', letterSpacing: 0 },
   postText: { marginTop: 4, color: 'rgba(255,255,255,0.52)', fontFamily: FONT_BOLD, fontSize: 9.5, lineHeight: 13, fontWeight: '700' },
   cardFooter: { minHeight: 18, flexDirection: 'row', alignItems: 'center', gap: 3 },
   cardCta: { flex: 1, color: 'rgba(255,255,255,0.78)', fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900' },
   socialIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(115,87,198,0.26)', borderWidth: 1, borderColor: 'rgba(169,139,232,0.48)' },
   socialBadge: { borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(0,0,0,0.2)', paddingHorizontal: 9, paddingVertical: 5, color: 'rgba(255,255,255,0.66)', fontFamily: FONT_BLACK, fontSize: 7.5, fontWeight: '900', letterSpacing: 0.8 },
-  socialTitle: { marginTop: 8, flex: 1, color: '#FFF', fontFamily: FONT_BLACK, fontSize: 16.5, lineHeight: 17.5, fontWeight: '900', letterSpacing: -0.55 },
+  socialTitle: { marginTop: 8, flex: 1, color: '#FFF', fontFamily: FONT_BLACK, fontSize: 16.5, lineHeight: 17.5, fontWeight: '900', letterSpacing: 0 },
   socialFooter: { minHeight: 27, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 7 },
   avatarStack: { flexDirection: 'row', alignItems: 'center' },
   stackAvatarWrap: { width: 25, height: 25, borderRadius: 13, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#17151B', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.82)' },
@@ -561,7 +570,7 @@ const styles = StyleSheet.create({
   socialHint: { color: 'rgba(255,255,255,0.48)', fontFamily: FONT_BOLD, fontSize: 8, fontWeight: '700' },
   trackCardContent: { flex: 1, justifyContent: 'space-between' },
   trackBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(114,187,197,0.5)', backgroundColor: 'rgba(74,158,170,0.18)', paddingHorizontal: 8, paddingVertical: 5, color: '#A8DEE5', fontFamily: FONT_BLACK, fontSize: 7.5, fontWeight: '900', letterSpacing: 0.75, textTransform: 'uppercase' },
-  trackTitle: { color: '#FFF', fontFamily: FONT_BLACK, fontSize: 15.5, lineHeight: 16.5, fontWeight: '900', letterSpacing: -0.4 },
+  trackTitle: { color: '#FFF', fontFamily: FONT_BLACK, fontSize: 15.5, lineHeight: 16.5, fontWeight: '900', letterSpacing: 0 },
   trackArtist: { marginTop: 3, color: 'rgba(255,255,255,0.62)', fontFamily: FONT_BOLD, fontSize: 9, fontWeight: '700' },
   trackMeta: { marginTop: 5, flexDirection: 'row', alignItems: 'center', gap: 4 },
   trackMetaText: { color: 'rgba(255,255,255,0.68)', fontFamily: FONT_BLACK, fontSize: 8, fontWeight: '900' },
@@ -570,7 +579,7 @@ const styles = StyleSheet.create({
   shortcutTitle: { color: '#FFF', fontFamily: FONT_BLACK, fontSize: 13.5, fontWeight: '900' },
   shortcutSub: { marginTop: 3, color: 'rgba(255,255,255,0.48)', fontFamily: FONT_BOLD, fontSize: 8.5, fontWeight: '700' },
   studioIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(217,109,99,0.22)', borderWidth: 1, borderColor: 'rgba(240,170,162,0.46)' },
-  studioTitle: { marginTop: 8, flex: 1, color: '#FFF', fontFamily: FONT_BLACK, fontSize: 16, lineHeight: 17.5, fontWeight: '900', letterSpacing: -0.45 },
+  studioTitle: { marginTop: 8, flex: 1, color: '#FFF', fontFamily: FONT_BLACK, fontSize: 16, lineHeight: 17.5, fontWeight: '900', letterSpacing: 0 },
   studioCtaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   studioCta: { color: SIGNAL.coralSoft, fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900' },
   railPosition: { position: 'absolute', right: 12, bottom: 4, zIndex: 8, minWidth: 43, height: 22, borderRadius: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: 'rgba(9,9,11,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },

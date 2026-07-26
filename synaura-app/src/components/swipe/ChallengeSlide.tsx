@@ -121,13 +121,13 @@ export function ChallengeSlide({ challenge, height, topPad, bottomPad, isActive,
   };
 
   return (
-    <View style={[styles.root, { height, paddingTop: topPad + 78, paddingBottom: bottomPad + 18 }]}> 
+    <View style={[styles.root, { height, paddingTop: topPad + 78, paddingBottom: bottomPad + 18 }]}>
       <LinearGradient colors={['#0C0B10', '#111015', SIGNAL.black]} locations={[0, 0.52, 1]} style={StyleSheet.absoluteFillObject} />
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, auraOneStyle]}><ChallengeAura variant="primary" /></Animated.View>
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, auraTwoStyle]}><ChallengeAura variant="secondary" /></Animated.View>
       <View pointerEvents="none" style={styles.topEdge}><LinearGradient colors={[SIGNAL.violet, SIGNAL.cyan, SIGNAL.coral]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFillObject} /></View>
 
-      <Animated.View style={[styles.card, { opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }, { scale: reveal.interpolate({ inputRange: [0, 1], outputRange: [0.975, 1] }) }] }]}> 
+      <Animated.View style={[styles.card, { opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }, { scale: reveal.interpolate({ inputRange: [0, 1], outputRange: [0.975, 1] }) }] }]}>
         <LinearGradient colors={['rgba(24,19,25,0.86)', 'rgba(10,10,13,0.72)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
         <GlassOutline radius={28} opacity={0.24} />
         <View style={styles.cardAccent} />
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   signalDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: SIGNAL.cyanSoft, shadowColor: SIGNAL.cyanSoft, shadowOpacity: 0.9, shadowRadius: 6, elevation: 3 },
   challengeBadgeText: { color: '#DCCEFF', fontFamily: FONT_BLACK, fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
   kicker: { marginTop: 19, color: SIGNAL.coralSoft, fontFamily: FONT_BLACK, fontSize: 8.5, fontWeight: '900', letterSpacing: 1.25 },
-  title: { marginTop: 7, color: '#FFF', fontFamily: FONT_BLACK, fontSize: 29, lineHeight: 31, fontWeight: '900', letterSpacing: -1 },
+  title: { marginTop: 7, color: '#FFF', fontFamily: FONT_BLACK, fontSize: 29, lineHeight: 31, fontWeight: '900', letterSpacing: 0 },
   text: { marginTop: 11, color: 'rgba(255,255,255,0.64)', fontFamily: FONT_BOLD, fontSize: 12.5, lineHeight: 19, fontWeight: '700' },
   stats: { marginTop: 17, flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   stat: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.17)', backgroundColor: 'rgba(255,255,255,0.055)', paddingHorizontal: 10 },

@@ -7,10 +7,10 @@ import {
   resolveHomePreludeMetrics,
 } from '../synaura-app/src/components/swipe/homePreludeModel.ts';
 
-const nativePreludeSource = fs.readFileSync(
-  new URL('../synaura-app/src/components/swipe/HomeFlowPrelude.tsx', import.meta.url),
-  'utf8',
-);
+const nativePreludeSource = [
+  '../synaura-app/src/components/swipe/HomeFlowPrelude.tsx',
+  '../synaura-app/src/components/swipe/HomeFlowPreludeSeamless.tsx',
+].map((relativePath) => fs.readFileSync(new URL(relativePath, import.meta.url), 'utf8')).join('\n');
 
 test('the native home picks one stable, non-repeating phrase per reopen', () => {
   const first = pickNextPunchlineIndex(-1, 0.5);
@@ -100,7 +100,8 @@ test('tablet cards use the broader web rail proportions', () => {
 });
 
 test('the approved native home keeps the activity rail and Flow transition', () => {
-  assert.match(nativePreludeSource, /const BANNER_ROTATION_MS = 4200/);
+  assert.match(nativePreludeSource, /const BANNER_ROTATION_MS = 4_200/);
+  assert.match(nativePreludeSource, /SeamlessHomeFlowPrelude/);
   assert.match(nativePreludeSource, /styles\.pulseCard/);
   assert.match(nativePreludeSource, /styles\.railWrap/);
   assert.match(nativePreludeSource, /PanResponder\.create/);

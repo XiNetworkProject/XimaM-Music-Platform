@@ -120,7 +120,7 @@ function ActionButton({
   };
   return (
     <Pressable accessibilityLabel={label || String(icon)} disabled={disabled} onPress={handlePress} style={[styles.actionButton, responsive.compactControls && styles.actionButtonCompact, disabled && styles.actionButtonDisabled]}>
-      <Animated.View style={[styles.actionCircle, responsive.compactControls && styles.actionCircleCompact, active && { backgroundColor: `${highlightColor || SIGNAL.coral}28`, borderColor: `${highlightColor || SIGNAL.coral}88` }, { transform: [{ scale }] }]}> 
+      <Animated.View style={[styles.actionCircle, responsive.compactControls && styles.actionCircleCompact, active && { backgroundColor: `${highlightColor || SIGNAL.coral}28`, borderColor: `${highlightColor || SIGNAL.coral}88` }, { transform: [{ scale }] }]}>
         <GlassOutline radius={99} opacity={active ? 0.28 : 0.22} />
         <Ionicons name={(active && iconActive ? iconActive : icon) as any} size={responsive.compactControls ? 19 : 22} color={active ? highlightColor || SIGNAL.coral : SIGNAL.paper} />
       </Animated.View>
@@ -286,10 +286,10 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
   };
 
   return (
-    <View style={[styles.page, { height }]}> 
+    <View style={[styles.page, { height }]}>
       <GestureDetector gesture={coverGesture}>
         <View accessible accessibilityRole="button" accessibilityLabel={isPlaying ? 'Mettre en pause' : 'Lire'} onAccessibilityTap={onPress} style={styles.pressArea}>
-          <Animated.View style={[styles.coverShell, { transform: [{ scale: Animated.multiply(coverScale, breath.interpolate({ inputRange: [0, 1], outputRange: [1, 1.012] })) }] }]}> 
+          <Animated.View style={[styles.coverShell, { transform: [{ scale: Animated.multiply(coverScale, breath.interpolate({ inputRange: [0, 1], outputRange: [1, 1.012] })) }] }]}>
             <View style={styles.cover}>
               <TrackCover track={track} active={isActive && isPlaying} autoPlayVideo={isActive && isPlaying} style={StyleSheet.absoluteFill} imageStyle={styles.coverImage} />
               <LinearGradient colors={['rgba(6,6,8,0.04)', 'rgba(6,6,8,0)', 'rgba(6,6,8,0.5)', 'rgba(6,6,8,0.98)']} locations={[0, 0.34, 0.72, 1]} style={StyleSheet.absoluteFill} />
@@ -301,7 +301,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
                 <LinearGradient colors={[SIGNAL.violet, SIGNAL.cyan, SIGNAL.coral]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFillObject} />
               </View>
 
-              <Animated.View pointerEvents="none" style={[styles.playOverlay, { opacity: playButtonOpacity }]}> 
+              <Animated.View pointerEvents="none" style={[styles.playOverlay, { opacity: playButtonOpacity }]}>
                 <Animated.View style={[styles.playPulseRing, { opacity: signalPulse.interpolate({ inputRange: [0, 1], outputRange: [0.62, 0] }), transform: [{ scale: signalPulse.interpolate({ inputRange: [0, 1], outputRange: [0.72, 1.65] }) }] }]} />
                 <View style={styles.playCircle}>
                   <GlassOutline radius={99} opacity={0.3} />
@@ -309,7 +309,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
                 </View>
               </Animated.View>
 
-              <View style={[styles.topBadges, { top: topPad + (responsive.compactControls ? 54 : 63) }]}> 
+              <View style={[styles.topBadges, { top: topPad + (responsive.compactControls ? 54 : 63) }]}>
                 <View style={[styles.badge, styles.signalBadge]}><View style={[styles.signalDot, isPlaying && styles.signalDotActive]} /><Text style={styles.signalBadgeText}>{isPlaying ? 'FLOW EN DIRECT' : 'FLOW SIGNAL'}</Text></View>
                 {track.isBoosted ? <View style={[styles.badge, styles.boostBadge]}><Ionicons name="flash" size={11} color="#171313" /><Text style={[styles.badgeText, { color: '#171313' }]}>BOOST</Text></View> : null}
                 {isAi ? <View style={[styles.badge, styles.aiBadge]}><Ionicons name="sparkles" size={11} color={SIGNAL.paper} /><Text style={styles.badgeText}>IA</Text></View> : null}
@@ -320,7 +320,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
         </View>
       </GestureDetector>
 
-      <Animated.View style={[styles.actionsColumn, responsive.compactControls && styles.actionsColumnCompact, { bottom: bottomPad + (responsive.compactControls ? 72 : 92), opacity: slideReveal, transform: [{ translateX: slideReveal.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }] }]}> 
+      <Animated.View style={[styles.actionsColumn, responsive.compactControls && styles.actionsColumnCompact, { bottom: bottomPad + (responsive.compactControls ? 72 : 92), opacity: slideReveal, transform: [{ translateX: slideReveal.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }] }]}>
         {track.artist?.username ? (
           <View style={styles.profileCluster}>
             <Pressable accessibilityLabel="Ouvrir le profil artiste" onPress={onOpenArtist} style={styles.profileAvatar}>
@@ -336,7 +336,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
         <ActionButton icon="ellipsis-horizontal" label="Plus d'actions" onPress={() => onAction('more')} />
       </Animated.View>
 
-      <Animated.View style={[styles.metaPanel, responsive.isNarrow && styles.metaPanelNarrow, { bottom: bottomPad + (responsive.compactControls ? 8 : 14), opacity: slideReveal, transform: [{ translateY: slideReveal.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }]}> 
+      <Animated.View style={[styles.metaPanel, responsive.isNarrow && styles.metaPanelNarrow, { bottom: bottomPad + (responsive.compactControls ? 8 : 14), opacity: slideReveal, transform: [{ translateY: slideReveal.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }]}>
         <LinearGradient colors={['rgba(12,11,15,0.72)', 'rgba(9,9,11,0.52)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
         <GlassOutline radius={22} opacity={0.22} />
         <View style={styles.metaAccent} />
@@ -418,8 +418,8 @@ const styles = StyleSheet.create({
   forYouLabel: { color: '#DCCEFF', fontFamily: FONT_BLACK, fontSize: 7.5, fontWeight: '900', letterSpacing: 0.9 },
   lyricPreview: { alignSelf: 'flex-start', maxWidth: '95%', marginTop: 7, borderLeftWidth: 2, borderLeftColor: SIGNAL.cyanSoft, paddingLeft: 9, paddingVertical: 3 },
   lyricPreviewText: { color: 'rgba(247,246,243,0.8)', fontFamily: FONT_BOLD, fontSize: 11, lineHeight: 15, fontWeight: '700' },
-  title: { marginTop: 7, color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 28, lineHeight: 28, fontWeight: '900', letterSpacing: -1.15, textShadowColor: 'rgba(0,0,0,0.42)', textShadowOffset: { width: 0, height: 3 }, textShadowRadius: 10 },
-  titleCompact: { marginTop: 5, fontSize: 23, lineHeight: 24, letterSpacing: -0.85 },
+  title: { marginTop: 7, color: '#FFFFFF', fontFamily: FONT_BLACK, fontSize: 28, lineHeight: 28, fontWeight: '900', letterSpacing: 0, textShadowColor: 'rgba(0,0,0,0.42)', textShadowOffset: { width: 0, height: 3 }, textShadowRadius: 10 },
+  titleCompact: { marginTop: 5, fontSize: 23, lineHeight: 24, letterSpacing: 0 },
   artistRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   artistNameButton: { maxWidth: '72%' },
   artist: { color: 'rgba(255,255,255,0.86)', fontFamily: FONT_BLACK, fontSize: 12, fontWeight: '900' },

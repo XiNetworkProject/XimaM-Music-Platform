@@ -1,11 +1,11 @@
 {
-  "title": "Synaura Accueil Glass 0.25.5",
+  "title": "Synaura Signal Flow 0.25.6",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Auras d'arriere-plan remplacees par des degrades radiaux doux sans contours durs",
-    "Contours glass animes restaures sur les cartes et les commandes",
-    "Progression d'activite multicolore remise en place",
-    "Animations des cartes et de la lecture encore affinees"
+    "Identite Synaura Signal etendue a l'ensemble du Flow",
+    "Accueil superpose au vrai Flow avec une transition verticale continue",
+    "Posts, clips, artistes, collections, defis et annonces entierement harmonises",
+    "Dock mobile redessine avec les couleurs et les contours Signal"
   ]
 }

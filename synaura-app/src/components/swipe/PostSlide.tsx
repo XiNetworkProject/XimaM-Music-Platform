@@ -173,15 +173,15 @@ export const PostSlide = memo(function PostSlide(props: Props) {
   const panelScale = cardBreath.interpolate({ inputRange: [0, 1], outputRange: [1, 1.006] });
 
   return (
-    <View style={[styles.page, { height }]}> 
+    <View style={[styles.page, { height }]}>
       {visual ? <SynauraImage source={{ uri: visual }} lowPriority={!active} transition={0} style={styles.backdropImage} /> : <LinearGradient colors={['#2A203D', '#171313', SIGNAL.black]} locations={[0, 0.48, 1]} style={StyleSheet.absoluteFillObject} />}
       <LinearGradient colors={['rgba(9,9,11,0.28)', 'rgba(9,9,11,0.54)', 'rgba(9,9,11,0.96)']} locations={[0, 0.54, 1]} style={StyleSheet.absoluteFillObject} />
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, auraOneStyle]}><PostAura variant="primary" /></Animated.View>
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, auraTwoStyle]}><PostAura variant="secondary" /></Animated.View>
       <View pointerEvents="none" style={styles.topEdge}><LinearGradient colors={[SIGNAL.violet, SIGNAL.cyan, SIGNAL.coral]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={StyleSheet.absoluteFillObject} /></View>
 
-      <Animated.View style={[styles.content, responsive.contentFrame, { paddingTop: topPad + (responsive.isPhoneLandscape ? 54 : responsive.compactControls ? 78 : 96), paddingBottom: bottomPad + (responsive.isPhoneLandscape ? 7 : responsive.compactControls ? 14 : 22), paddingHorizontal: responsive.gutter, opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }]}> 
-        <Animated.View style={[styles.glassPanel, responsive.isVeryShort && styles.glassPanelShort, { transform: [{ scale: panelScale }] }]}> 
+      <Animated.View style={[styles.content, responsive.contentFrame, { paddingTop: topPad + (responsive.isPhoneLandscape ? 54 : responsive.compactControls ? 78 : 96), paddingBottom: bottomPad + (responsive.isPhoneLandscape ? 7 : responsive.compactControls ? 14 : 22), paddingHorizontal: responsive.gutter, opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }]}>
+        <Animated.View style={[styles.glassPanel, responsive.isVeryShort && styles.glassPanelShort, { transform: [{ scale: panelScale }] }]}>
           <LinearGradient colors={['rgba(20,18,25,0.82)', 'rgba(11,10,14,0.68)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
           <GlassOutline radius={26} opacity={0.23} />
           <View style={styles.panelAccent} />
@@ -243,15 +243,15 @@ const styles = StyleSheet.create({
   avatarCompact: { width: 36, height: 36, borderRadius: 18 },
   avatarText: { color: '#FFF', fontFamily: FONT_BLACK, fontSize: 15, fontWeight: '900' },
   authorCopy: { flex: 1, minWidth: 0 },
-  author: { color: '#FFF', fontFamily: FONT_BLACK, fontSize: 14, fontWeight: '900', letterSpacing: -0.2 },
+  author: { color: '#FFF', fontFamily: FONT_BLACK, fontSize: 14, fontWeight: '900', letterSpacing: 0 },
   authorMeta: { marginTop: 3, color: 'rgba(255,255,255,0.5)', fontFamily: FONT_BOLD, fontSize: 10, fontWeight: '700' },
   flowLabel: { minHeight: 26, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(114,187,197,0.34)', backgroundColor: 'rgba(74,158,170,0.14)', paddingHorizontal: 9 },
   flowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: SIGNAL.cyanSoft, shadowColor: SIGNAL.cyanSoft, shadowOpacity: 0.9, shadowRadius: 6, elevation: 3 },
   flowLabelText: { color: '#A8DEE5', fontFamily: FONT_BLACK, fontSize: 7.5, fontWeight: '900', letterSpacing: 0.75 },
   body: { marginTop: 22 },
   bodyCompact: { marginTop: 11 },
-  postText: { color: '#FFF', fontFamily: FONT_BLACK, fontSize: 27, lineHeight: 31, fontWeight: '900', letterSpacing: -0.85, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 3 }, textShadowRadius: 8 },
-  postTextCompact: { fontSize: 21, lineHeight: 25, letterSpacing: -0.55 },
+  postText: { color: '#FFF', fontFamily: FONT_BLACK, fontSize: 27, lineHeight: 31, fontWeight: '900', letterSpacing: 0, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 3 }, textShadowRadius: 8 },
+  postTextCompact: { fontSize: 21, lineHeight: 25, letterSpacing: 0 },
   postImageWrap: { marginTop: 17, height: 220, overflow: 'hidden', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', backgroundColor: 'rgba(255,255,255,0.06)' },
   postImageWrapShort: { height: 130 },
   postImageWrapVeryShort: { height: 76, marginTop: 10 },
