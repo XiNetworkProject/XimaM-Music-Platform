@@ -1,0 +1,9 @@
+.syn-home-chrome > section {
+  height: calc(100% - 62px);
+}
+
+@media (max-width: 760px) {
+  .syn-home-chrome > section {
+    height: calc(100% - 62px);
+  }
+}
