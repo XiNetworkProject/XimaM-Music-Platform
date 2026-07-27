@@ -20,6 +20,7 @@ declare module 'next-auth' {
         youtube?: string;
         spotify?: string;
       };
+      mfaRequired?: boolean;
     };
   }
 
@@ -41,6 +42,7 @@ declare module 'next-auth' {
       youtube?: string;
       spotify?: string;
     };
+    mfaRequired?: boolean;
   }
 }
 
@@ -50,5 +52,8 @@ declare module 'next-auth/jwt' {
     username: string;
     role: 'user' | 'artist' | 'admin';
     isVerified: boolean;
+    mfaRequired?: boolean;
+    authSessionId?: string;
+    mfaCheckedAt?: number;
   }
-} 
+}

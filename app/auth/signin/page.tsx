@@ -55,12 +55,7 @@ function ShowcasePanel() {
       transition={{ duration: 0.5, ease: 'easeOut' }}
       className="relative hidden min-h-[620px] overflow-hidden rounded-[2.2rem] border border-[#d8cbb8] bg-[#fffaf2] p-7 shadow-[0_24px_80px_rgba(44,33,19,0.16)] lg:block"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(255,111,97,0.20),transparent_34%),radial-gradient(circle_at_82%_18%,rgba(124,92,255,0.16),transparent_34%),radial-gradient(circle_at_60%_90%,rgba(0,194,203,0.14),transparent_34%)]" />
-      <motion.div
-        className="absolute right-10 top-20 h-44 w-44 rounded-full bg-[#ff6f61]/18 blur-3xl"
-        animate={{ y: [0, 18, 0], x: [0, -10, 0] }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-      />
+      <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(255,111,97,0.16)_0%,transparent_34%),linear-gradient(320deg,rgba(0,194,203,0.12)_0%,transparent_36%)]" />
 
       <div className="relative z-10 flex h-full flex-col justify-between">
         <SynauraMark label="retour" />
@@ -79,7 +74,7 @@ function ShowcasePanel() {
           </div>
 
           <div className="relative h-56 overflow-hidden rounded-[1.8rem] border border-[#dccfbb] bg-[#171313] p-4 text-white shadow-[0_22px_60px_rgba(23,19,19,0.20)]">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,111,97,0.34),transparent_35%),radial-gradient(circle_at_78%_18%,rgba(124,92,255,0.30),transparent_34%),radial-gradient(circle_at_45%_92%,rgba(0,194,203,0.24),transparent_38%)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(255,111,97,0.36)_0%,transparent_38%),linear-gradient(315deg,rgba(0,194,203,0.26)_0%,transparent_42%)]" />
             <motion.div
               className="relative z-10 ml-auto w-[72%] rounded-[1.4rem] border border-white/12 bg-white/10 p-4 backdrop-blur"
               animate={{ y: [0, -10, 0] }}
@@ -197,9 +192,6 @@ function SignInContent() {
         transition={{ duration: 0.45, ease: 'easeOut' }}
         className="relative overflow-hidden rounded-[2.2rem] border border-[#d8cbb8] bg-[#fff7ec] p-5 text-[#171313] shadow-[0_24px_80px_rgba(44,33,19,0.16)] sm:p-7 lg:p-8"
       >
-        <div className="pointer-events-none absolute -right-16 -top-14 h-44 w-44 rounded-full bg-[#ff6f61]/14 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 left-10 h-56 w-56 rounded-full bg-[#00c2cb]/10 blur-3xl" />
-
         <div className="relative z-10">
           <div className="mb-7 flex items-center justify-between gap-3">
             <SynauraMark />

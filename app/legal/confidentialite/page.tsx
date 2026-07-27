@@ -65,7 +65,7 @@ export default function ConfidentialitePage() {
               <ul className="text-sm text-white/60 space-y-2 mb-6">
                 <li>• Fournir et améliorer nos services</li>
                 <li>• Vérifier l'âge minimum de 15 ans et sécuriser la récupération du compte</li>
-                <li>• Permettre la connexion par email, téléphone ou Google et la double authentification facultative</li>
+                <li>• Permettre la connexion par email ou Google et la double authentification facultative par application TOTP</li>
                 <li>• Personnaliser votre expérience musicale</li>
                 <li>• Traiter les paiements et abonnements</li>
                 <li>• Communiquer avec vous (support, notifications)</li>
@@ -89,7 +89,7 @@ export default function ConfidentialitePage() {
                 Vos données peuvent être partagées avec :
               </p>
               <ul className="text-sm text-white/60 space-y-2 mb-6">
-                <li>• <strong>Prestataires de services :</strong> Supabase (authentification et base de données), Google (si vous choisissez cette connexion), le prestataire SMS configuré (codes de vérification), Firebase (notifications), Stripe (paiements) et Cloudinary (médias)</li>
+                <li>• <strong>Prestataires de services :</strong> Supabase (authentification, base de données et codes TOTP), Google (si vous choisissez cette connexion), Firebase (notifications), Stripe (paiements) et Cloudinary (médias)</li>
                 <li>• <strong>Autorités compétentes :</strong> en cas d'obligation légale</li>
                 <li>• <strong>Partenaires commerciaux :</strong> uniquement avec votre consentement explicite</li>
               </ul>

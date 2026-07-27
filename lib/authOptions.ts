@@ -5,9 +5,9 @@ import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 // Configuration des URLs selon l'environnement
 const getAuthUrls = () => {
-  const baseUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://xima-m-music-platform.vercel.app'
-    : process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXTAUTH_URL
+    || process.env.NEXT_PUBLIC_APP_URL
+    || 'http://localhost:3000';
 
   return {
     baseUrl,
@@ -17,6 +17,16 @@ const getAuthUrls = () => {
 };
 
 const { baseUrl, signInUrl, errorUrl } = getAuthUrls();
+const MFA_STATE_REFRESH_MS = 5 * 60 * 1000;
+
+async function readMfaState(userId: string) {
+  const { data } = await supabaseAdmin
+    .from('account_private')
+    .select('mfa_enabled')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return Boolean(data?.mfa_enabled);
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -51,11 +61,21 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Récupérer le profil utilisateur depuis la table profiles
-          const { data: profile, error: profileError } = await supabaseAdmin
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
+          const [
+            { data: profile, error: profileError },
+            { data: privateAccount },
+          ] = await Promise.all([
+            supabaseAdmin
+              .from('profiles')
+              .select('*')
+              .eq('id', user.id)
+              .single(),
+            supabaseAdmin
+              .from('account_private')
+              .select('mfa_enabled')
+              .eq('user_id', user.id)
+              .maybeSingle(),
+          ]);
 
           if (profileError || !profile) {
             console.log('❌ Erreur récupération profil:', profileError?.message);
@@ -81,6 +101,7 @@ export const authOptions: NextAuthOptions = {
             totalPlays: profile.total_plays || 0,
             totalLikes: profile.total_likes || 0,
             lastSeen: profile.last_seen,
+            mfaRequired: Boolean(privateAccount?.mfa_enabled),
           };
         } catch (error) {
           console.error('❌ Erreur lors de l\'authentification Supabase:', error);
@@ -195,14 +216,19 @@ export const authOptions: NextAuthOptions = {
           console.error('❌ Erreur lors de la récupération de la session Supabase:', error);
         }
       }
+      if (session.user) {
+        (session.user as any).mfaRequired = Boolean(token.mfaRequired);
+      }
       return session;
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger }) {
       if (user) {
+        token.authSessionId = crypto.randomUUID();
+        token.mfaCheckedAt = Date.now();
         if (account?.provider === 'google' && user.email) {
           const { data: privateAccount } = await supabaseAdmin
             .from('account_private')
-            .select('user_id')
+            .select('user_id, mfa_enabled')
             .eq('email', user.email.toLowerCase())
             .maybeSingle();
           const { data: profile } = privateAccount?.user_id
@@ -223,6 +249,7 @@ export const authOptions: NextAuthOptions = {
             token.totalPlays = profile.total_plays || 0;
             token.totalLikes = profile.total_likes || 0;
             token.lastSeen = profile.last_seen;
+            token.mfaRequired = Boolean(privateAccount?.mfa_enabled);
           }
         } else {
           const extendedToken = {
@@ -237,17 +264,34 @@ export const authOptions: NextAuthOptions = {
             totalPlays: user.totalPlays,
             totalLikes: user.totalLikes,
             lastSeen: user.lastSeen,
+            mfaRequired: Boolean((user as any).mfaRequired),
           };
           Object.assign(token, extendedToken);
         }
         console.log('🔑 JWT mis à jour pour:', user.email);
       }
+      if (token.id && !token.authSessionId) {
+        token.authSessionId = crypto.randomUUID();
+      }
+      const checkedAt = typeof token.mfaCheckedAt === 'number' ? token.mfaCheckedAt : 0;
+      if (
+        token.id
+        && (trigger === 'update' || !checkedAt || Date.now() - checkedAt > MFA_STATE_REFRESH_MS)
+      ) {
+        token.mfaRequired = await readMfaState(String(token.id));
+        token.mfaCheckedAt = Date.now();
+      }
       return token;
     },
     async redirect({ url, baseUrl }) {
       console.log('🔄 Redirection Supabase:', { url, baseUrl });
-      
-      // Toujours rediriger vers l'accueil après authentification
+
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      try {
+        if (new URL(url).origin === new URL(baseUrl).origin) return url;
+      } catch {
+        // Invalid callback URLs fall back to the application root.
+      }
       return baseUrl;
     },
   },

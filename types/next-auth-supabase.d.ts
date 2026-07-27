@@ -17,6 +17,7 @@ declare module "next-auth" {
       totalPlays: number
       totalLikes: number
       lastSeen?: string
+      mfaRequired?: boolean
     } & DefaultSession["user"]
   }
 
@@ -34,6 +35,7 @@ declare module "next-auth" {
     totalPlays: number
     totalLikes: number
     lastSeen?: string
+    mfaRequired?: boolean
   }
 }
 
@@ -52,5 +54,8 @@ declare module "next-auth/jwt" {
     totalPlays: number
     totalLikes: number
     lastSeen?: string
+    mfaRequired?: boolean
+    authSessionId?: string
+    mfaCheckedAt?: number
   }
 }

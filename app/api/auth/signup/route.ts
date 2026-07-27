@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     const lastName = typeof body?.lastName === 'string' ? body.lastName.trim() : '';
     const referralCode = typeof body?.referralCode === 'string' ? body.referralCode.trim() : '';
     const isMobile = body?.source === 'mobile';
+    const requiresPrivateIdentity = isMobile || body?.source === 'web';
     const birthValidation = body?.birthDate ? validateBirthDate(body.birthDate) : null;
 
     if (!name || !username || !email || !password) {
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    if (isMobile) {
+    if (requiresPrivateIdentity) {
       if (!firstName || !lastName || !birthValidation?.valid) {
         return NextResponse.json(
           { error: birthValidation && !birthValidation.valid ? birthValidation.error : 'Identite incomplete' },
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
         lastName: lastName || undefined,
         profileComplete: false,
       });
-      if (isMobile && birthValidation?.valid) {
+      if (requiresPrivateIdentity && birthValidation?.valid) {
         const now = new Date().toISOString();
         const { error: privateError } = await supabaseAdmin.from('account_private').upsert({
           user_id: authData.user.id,
