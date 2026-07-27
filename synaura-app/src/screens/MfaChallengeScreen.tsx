@@ -24,15 +24,21 @@ export function MfaChallengeScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const startedRef = useRef(false);
+  const preferredFactor = auth.mfaFactors.find(
+    (factor) => factor.type === 'totp' && factor.status === 'verified',
+  ) || auth.mfaFactors.find((factor) => factor.status === 'verified');
+  const factorType = challenge?.factorType
+    || (preferredFactor?.type === 'phone' ? 'phone' : 'totp');
+  const usesPhone = factorType === 'phone';
 
-  const sendCode = async () => {
+  const startChallenge = async () => {
     setLoading(true);
     setError('');
     try {
       const nextChallenge = await auth.challengeMfa();
       setChallenge(nextChallenge);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'SMS 2FA impossible');
+      setError(caught instanceof Error ? caught.message : 'Verification 2FA impossible');
     } finally {
       setLoading(false);
     }
@@ -41,7 +47,7 @@ export function MfaChallengeScreen() {
   useEffect(() => {
     if (startedRef.current || !auth.mfaRequired || auth.mfaFactors.length === 0) return;
     startedRef.current = true;
-    void sendCode();
+    void startChallenge();
   }, [auth.mfaFactors.length, auth.mfaRequired]);
 
   const verify = async () => {
@@ -72,7 +78,9 @@ export function MfaChallengeScreen() {
         <AuthTitle
           eyebrow="Securite"
           title="Confirme que c'est toi."
-          text={`Entre le code envoye au ${maskedPhone(auth.user?.phone)}.`}
+          text={usesPhone
+            ? `Entre le code envoye au ${maskedPhone(auth.user?.phone)}.`
+            : "Entre le code affiche par ton application d'authentification."}
         />
         {error ? <AuthAlert text={error} /> : null}
         <View style={authStyles.formGap}>
@@ -87,7 +95,7 @@ export function MfaChallengeScreen() {
             placeholder="123456"
             keyboardType="number-pad"
             textContentType="oneTimeCode"
-            autoComplete="sms-otp"
+            autoComplete={usesPhone ? 'sms-otp' : 'off'}
             editable={!loading}
             returnKeyType="done"
             onSubmitEditing={() => void verify()}
@@ -99,17 +107,20 @@ export function MfaChallengeScreen() {
             disabled={!challenge || code.length !== 6}
             onPress={() => void verify()}
           />
-          <Pressable disabled={loading} onPress={() => void sendCode()}>
-            <Text style={[authStyles.link, { textAlign: 'center' }]}>Renvoyer un code</Text>
-          </Pressable>
+          {usesPhone ? (
+            <Pressable disabled={loading} onPress={() => void startChallenge()}>
+              <Text style={[authStyles.link, { textAlign: 'center' }]}>Renvoyer un code</Text>
+            </Pressable>
+          ) : null}
           <AuthInfo
             icon="lock-closed-outline"
             title="Session protegee"
-            text="Cette verification est demandee apres une nouvelle connexion ou une action sensible."
+            text={usesPhone
+              ? 'Cette verification est demandee apres une nouvelle connexion ou une action sensible.'
+              : "Le code change toutes les 30 secondes et fonctionne meme sans reseau mobile."}
           />
         </View>
       </AuthCard>
     </AuthScreen>
   );
 }
-

@@ -23,14 +23,20 @@ export async function GET() {
         email: settings.external?.email !== false,
         google: Boolean(settings.external?.google),
         phone: Boolean(settings.phone_enabled || settings.external?.phone),
-        phoneMfa: Boolean(settings.mfa_enabled || settings.phone_enabled || settings.external?.phone),
+        phoneMfa: Boolean(settings.phone_enabled || settings.external?.phone),
+        totpMfa: process.env.MOBILE_TOTP_MFA_ENABLED !== 'false',
       },
     }, { headers: { 'Cache-Control': 'public, max-age=60' } });
   } catch {
     return NextResponse.json({
       success: true,
-      data: { email: true, google: false, phone: false, phoneMfa: false },
+      data: {
+        email: true,
+        google: false,
+        phone: false,
+        phoneMfa: false,
+        totpMfa: process.env.MOBILE_TOTP_MFA_ENABLED !== 'false',
+      },
     }, { headers: { 'Cache-Control': 'public, max-age=30' } });
   }
 }
-

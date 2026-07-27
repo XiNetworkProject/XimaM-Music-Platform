@@ -1,11 +1,11 @@
 {
-  "title": "Synaura Comptes et securite 0.25.8",
+  "title": "Synaura 2FA gratuite 0.25.9",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Nouveau parcours de compte avec prenom, nom et date de naissance proteges",
-    "Consentements explicites et confidentialite des coordonnees renforces",
-    "Deverrouillage local par empreinte digitale ou reconnaissance faciale",
-    "Connexion Google, telephone et verification SMS integrees selon les fournisseurs actifs"
+    "Double authentification gratuite avec une application compatible TOTP",
+    "Configuration rapide par QR code, ouverture directe ou cle copiable",
+    "Verification des nouvelles connexions meme sans reseau mobile",
+    "Connexion Google, email et verrouillage biometrique conserves"
   ]
 }

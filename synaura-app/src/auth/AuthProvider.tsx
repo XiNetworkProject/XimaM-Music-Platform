@@ -48,6 +48,7 @@ export type AuthCapabilities = {
   google: boolean;
   phone: boolean;
   phoneMfa: boolean;
+  totpMfa: boolean;
 };
 
 export type RegisterInput = {
@@ -106,6 +107,14 @@ export type MfaChallenge = {
   challengeId: string;
   expiresAt?: number;
   phone?: string;
+  factorType: 'phone' | 'totp';
+};
+
+export type MfaTotpEnrollment = MfaChallenge & {
+  factorType: 'totp';
+  qrCode: string;
+  secret: string;
+  uri: string;
 };
 
 type AuthContextValue = {
@@ -133,6 +142,7 @@ type AuthContextValue = {
   challengeMfa: (factorId?: string) => Promise<MfaChallenge>;
   verifyMfa: (challenge: MfaChallenge, code: string) => Promise<void>;
   enrollMfaPhone: (phone: string) => Promise<MfaChallenge>;
+  enrollMfaTotp: () => Promise<MfaTotpEnrollment>;
   removeMfaFactor: (factorId: string) => Promise<void>;
   setBiometricEnabled: (enabled: boolean) => Promise<void>;
   unlockBiometric: () => Promise<boolean>;
@@ -168,6 +178,7 @@ const DEFAULT_CAPABILITIES: AuthCapabilities = {
   google: false,
   phone: false,
   phoneMfa: false,
+  totpMfa: false,
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -709,15 +720,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [applySessionPayload]);
 
   const challengeMfa = useCallback(async (factorId?: string) => {
-    const selected = factorId || mfaFactors.find(
-      (factor) => factor.type === 'phone' && factor.status === 'verified',
-    )?.id;
-    if (!selected) throw new Error('Aucun telephone 2FA verifie');
-    const data = await postMfa({ action: 'challenge', factorId: selected });
+    const selectedFactor = factorId
+      ? mfaFactors.find((factor) => factor.id === factorId)
+      : mfaFactors.find((factor) => factor.type === 'totp' && factor.status === 'verified')
+        || mfaFactors.find((factor) => factor.type === 'phone' && factor.status === 'verified');
+    if (!selectedFactor) throw new Error('Aucun facteur 2FA verifie');
+    const data = await postMfa({ action: 'challenge', factorId: selectedFactor.id });
     return {
-      factorId: selected,
+      factorId: selectedFactor.id,
       challengeId: data.challengeId,
       expiresAt: data.expiresAt,
+      factorType: data.factorType === 'phone' ? 'phone' : 'totp',
     } as MfaChallenge;
   }, [mfaFactors, postMfa]);
 
@@ -747,8 +760,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       challengeId: data.challengeId,
       expiresAt: data.expiresAt,
       phone: data.phone,
+      factorType: 'phone',
     } as MfaChallenge;
   }, [capabilities.phoneMfa, postMfa]);
+
+  const enrollMfaTotp = useCallback(async () => {
+    if (!capabilities.totpMfa) {
+      throw new Error("L'application d'authentification n'est pas activee sur le serveur.");
+    }
+    const data = await postMfa({ action: 'enroll-totp' });
+    const factor: MobileMfaFactor = {
+      id: data.factorId,
+      type: 'totp',
+      status: 'unverified',
+      friendlyName: 'Synaura Authenticator',
+    };
+    setMfaFactors((current) => [...current.filter((item) => item.id !== factor.id), factor]);
+    return {
+      factorId: data.factorId,
+      factorType: 'totp',
+      challengeId: data.challengeId,
+      expiresAt: data.expiresAt,
+      qrCode: String(data.qrCode || ''),
+      secret: String(data.secret || ''),
+      uri: String(data.uri || ''),
+    } as MfaTotpEnrollment;
+  }, [capabilities.totpMfa, postMfa]);
 
   const removeMfaFactor = useCallback(async (factorId: string) => {
     const data = await postMfa({ action: 'unenroll', factorId });
@@ -856,6 +893,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     challengeMfa,
     verifyMfa,
     enrollMfaPhone,
+    enrollMfaTotp,
     removeMfaFactor,
     setBiometricEnabled,
     unlockBiometric,
@@ -871,6 +909,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     challengeMfa,
     completeProfile,
     enrollMfaPhone,
+    enrollMfaTotp,
     getAccountDetails,
     loading,
     login,

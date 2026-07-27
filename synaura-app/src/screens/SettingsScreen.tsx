@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SvgXml } from 'react-native-svg';
 import {
   clearHiddenRecommendationArtists,
   deleteAccount,
@@ -25,7 +27,7 @@ import {
 } from '@/api/client';
 import {
   useAuth,
-  type MfaChallenge,
+  type MfaTotpEnrollment,
   type MobileAccountDetails,
 } from '@/auth/AuthProvider';
 import { ProfileImagePicker } from '@/components/profile/ProfileImagePicker';
@@ -86,6 +88,20 @@ const NOTIFICATION_LABELS: Record<string, string> = {
   weekly_recap: 'Recap hebdomadaire',
 };
 
+function totpQrXml(dataUri: string) {
+  const prefix = 'data:image/svg+xml;utf-8,';
+  const payload = dataUri.startsWith(prefix) ? dataUri.slice(prefix.length) : dataUri;
+  try {
+    return decodeURIComponent(payload);
+  } catch {
+    return payload;
+  }
+}
+
+function formattedTotpSecret(secret: string) {
+  return secret.match(/.{1,4}/g)?.join(' ') || secret;
+}
+
 const SETTINGS_DESCRIPTIONS: Record<Exclude<Tab, 'overview'>, string> = {
   profil: 'Identité, images, bio et liens sociaux',
   compte: 'Session et informations du compte',
@@ -134,9 +150,8 @@ export function SettingsScreen() {
   const [contactPhone, setContactPhone] = useState('');
   const [phoneLinkCode, setPhoneLinkCode] = useState('');
   const [pendingPhoneLink, setPendingPhoneLink] = useState('');
-  const [mfaPhone, setMfaPhone] = useState('');
   const [mfaCode, setMfaCode] = useState('');
-  const [mfaChallenge, setMfaChallenge] = useState<MfaChallenge | null>(null);
+  const [mfaEnrollment, setMfaEnrollment] = useState<MfaTotpEnrollment | null>(null);
   const [accountSaving, setAccountSaving] = useState(false);
   const [securityBusy, setSecurityBusy] = useState(false);
   const [selectedLegalId, setSelectedLegalId] = useState<string | null>(null);
@@ -224,7 +239,6 @@ export function SettingsScreen() {
       });
       setContactEmail(details.user.email || '');
       setContactPhone(details.user.phone || '');
-      setMfaPhone(details.user.phone || '');
     } catch {
       // The public profile settings remain usable if the private account API is offline.
     }
@@ -380,8 +394,8 @@ export function SettingsScreen() {
   const enrollMfa = async () => {
     setSecurityBusy(true);
     try {
-      const challenge = await auth.enrollMfaPhone(mfaPhone);
-      setMfaChallenge(challenge);
+      const enrollment = await auth.enrollMfaTotp();
+      setMfaEnrollment(enrollment);
       setMfaCode('');
     } catch (caught) {
       Alert.alert('2FA indisponible', caught instanceof Error ? caught.message : 'Activation impossible.');
@@ -391,14 +405,17 @@ export function SettingsScreen() {
   };
 
   const verifyMfaEnrollment = async () => {
-    if (!mfaChallenge) return;
+    if (!mfaEnrollment) return;
     setSecurityBusy(true);
     try {
-      await auth.verifyMfa(mfaChallenge, mfaCode);
-      setMfaChallenge(null);
+      await auth.verifyMfa(mfaEnrollment, mfaCode);
+      setMfaEnrollment(null);
       setMfaCode('');
       await loadAccount();
-      Alert.alert('2FA activee', "Les nouvelles connexions dans l'app demanderont aussi un code SMS.");
+      Alert.alert(
+        '2FA activee',
+        "Les nouvelles connexions demanderont le code de ton application d'authentification.",
+      );
     } catch (caught) {
       Alert.alert('Code incorrect', caught instanceof Error ? caught.message : 'Reessaie.');
     } finally {
@@ -407,7 +424,9 @@ export function SettingsScreen() {
   };
 
   const confirmRemoveMfa = (factorId: string) => {
-    Alert.alert('Desactiver le 2FA ?', 'Les nouvelles connexions ne demanderont plus de code SMS.', [
+    const factor = auth.mfaFactors.find((candidate) => candidate.id === factorId);
+    const method = factor?.type === 'phone' ? 'SMS' : "application d'authentification";
+    Alert.alert('Desactiver le 2FA ?', `Le facteur ${method} sera supprime de ton compte.`, [
       { text: 'Annuler', style: 'cancel' },
       {
         text: 'Desactiver',
@@ -476,8 +495,9 @@ export function SettingsScreen() {
 
   const activeCategory = tab === 'overview' ? null : tabs.find((item) => item.key === tab) || null;
   const verifiedMfaFactor = auth.mfaFactors.find(
-    (factor) => factor.type === 'phone' && factor.status === 'verified',
-  );
+    (factor) => factor.type === 'totp' && factor.status === 'verified',
+  ) || auth.mfaFactors.find((factor) => factor.status === 'verified');
+  const qrXml = mfaEnrollment?.qrCode ? totpQrXml(mfaEnrollment.qrCode) : '';
 
   return (
     <SynauraBackground variant="warm">
@@ -928,8 +948,14 @@ export function SettingsScreen() {
                   <Ionicons name="shield-checkmark-outline" size={21} color={colors.success} />
                 </View>
                 <View style={styles.securityCopy}>
-                  <Text style={styles.securityTitle}>SMS 2FA actif</Text>
-                  <Text style={styles.securityText}>Un code est demande dans l'app apres le premier facteur.</Text>
+                  <Text style={styles.securityTitle}>
+                    {verifiedMfaFactor.type === 'phone' ? 'SMS 2FA actif' : 'Application 2FA active'}
+                  </Text>
+                  <Text style={styles.securityText}>
+                    {verifiedMfaFactor.type === 'phone'
+                      ? "Un code SMS est demande apres le premier facteur."
+                      : "Un code temporaire protege les nouvelles connexions."}
+                  </Text>
                 </View>
                 <Pressable
                   disabled={securityBusy}
@@ -942,18 +968,53 @@ export function SettingsScreen() {
               </View>
             ) : (
               <>
-                <Field
-                  label="Telephone pour le 2FA"
-                  value={mfaPhone}
-                  onChangeText={setMfaPhone}
-                  hint="Format +33612345678"
-                />
-                {mfaChallenge ? (
+                {mfaEnrollment ? (
                   <>
+                    <View style={styles.totpSetup}>
+                      {qrXml ? (
+                        <View style={styles.totpQr}>
+                          <SvgXml xml={qrXml} width={176} height={176} />
+                        </View>
+                      ) : null}
+                      <Text style={styles.totpSetupTitle}>Ajoute Synaura dans ton application 2FA</Text>
+                      <Text style={styles.totpSetupText}>
+                        Ouvre Google Authenticator, Microsoft Authenticator, Authy ou une application compatible.
+                      </Text>
+                      <View style={styles.totpActions}>
+                        <Pressable
+                          onPress={() => {
+                            void Linking.openURL(mfaEnrollment.uri).catch(() => {
+                              Alert.alert(
+                                'Application introuvable',
+                                "Copie la cle et ajoute-la manuellement dans ton application 2FA.",
+                              );
+                            });
+                          }}
+                          style={styles.totpAction}
+                        >
+                          <Ionicons name="open-outline" size={17} color={colors.text} />
+                          <Text style={styles.totpActionText}>Ouvrir l'app</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => {
+                            void Clipboard.setStringAsync(mfaEnrollment.secret);
+                            Alert.alert('Cle copiee', "Colle-la dans ton application d'authentification.");
+                          }}
+                          style={styles.totpAction}
+                        >
+                          <Ionicons name="copy-outline" size={17} color={colors.text} />
+                          <Text style={styles.totpActionText}>Copier la cle</Text>
+                        </Pressable>
+                      </View>
+                      <Text selectable style={styles.totpSecret}>
+                        {formattedTotpSecret(mfaEnrollment.secret)}
+                      </Text>
+                    </View>
                     <Field
-                      label="Code SMS a 6 chiffres"
+                      label="Code a 6 chiffres"
                       value={mfaCode}
                       onChangeText={(value) => setMfaCode(value.replace(/\D/g, '').slice(0, 6))}
+                      hint="Genere par ton application"
                     />
                     <Pressable
                       disabled={securityBusy || mfaCode.length !== 6}
@@ -966,16 +1027,16 @@ export function SettingsScreen() {
                   </>
                 ) : (
                   <Pressable
-                    disabled={securityBusy || !auth.capabilities.phoneMfa}
+                    disabled={securityBusy || !auth.capabilities.totpMfa}
                     onPress={() => void enrollMfa()}
-                    style={[styles.primary, (securityBusy || !auth.capabilities.phoneMfa) && styles.disabled]}
+                    style={[styles.primary, (securityBusy || !auth.capabilities.totpMfa) && styles.disabled]}
                   >
-                    {securityBusy ? <ActivityIndicator color="#FFFAF2" /> : <Ionicons name="chatbubble-ellipses-outline" size={17} color="#FFFAF2" />}
-                    <Text style={styles.primaryText}>Activer le 2FA par SMS</Text>
+                    {securityBusy ? <ActivityIndicator color="#FFFAF2" /> : <Ionicons name="key-outline" size={17} color="#FFFAF2" />}
+                    <Text style={styles.primaryText}>Activer avec une application 2FA</Text>
                   </Pressable>
                 )}
-                {!auth.capabilities.phoneMfa ? (
-                  <Text style={styles.themeHint}>Le fournisseur SMS doit encore etre active sur le serveur.</Text>
+                {!auth.capabilities.totpMfa ? (
+                  <Text style={styles.themeHint}>La verification 2FA est temporairement indisponible.</Text>
                 ) : null}
               </>
             )}
@@ -1335,6 +1396,14 @@ const styles = StyleSheet.create({
   securityTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   securityText: { marginTop: 3, color: colors.textSecondary, fontSize: 9, lineHeight: 14, fontWeight: '700' },
   iconAction: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: 'rgba(217,45,32,0.08)' },
+  totpSetup: { alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, padding: 12 },
+  totpQr: { width: 196, height: 196, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: '#FFFFFF', padding: 10 },
+  totpSetupTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '900', textAlign: 'center' },
+  totpSetupText: { color: colors.textSecondary, fontSize: 10, lineHeight: 15, fontWeight: '700', textAlign: 'center' },
+  totpActions: { width: '100%', flexDirection: 'row', gap: 8 },
+  totpAction: { flex: 1, minWidth: 0, minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong, paddingHorizontal: 8 },
+  totpActionText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  totpSecret: { width: '100%', color: colors.text, fontSize: 12, lineHeight: 18, fontWeight: '900', textAlign: 'center' },
   danger: { height: 48, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239,68,68,0.12)' },
   dangerText: { color: '#B91C1C', fontSize: 13, fontWeight: '900' },
   disabled: { opacity: 0.45 },

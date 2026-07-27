@@ -59,6 +59,50 @@ export async function POST(request: NextRequest) {
     const user = await getMobileAuthUser(sessionData.user.id, sessionData.user);
     if (!user) return NextResponse.json({ error: 'Compte introuvable' }, { status: 404 });
 
+    if (action === 'enroll-totp') {
+      const staleFactors = (sessionData.user.factors || []).filter(
+        (factor) => factor.factor_type === 'totp' && factor.status === 'unverified',
+      );
+      await Promise.all(
+        staleFactors.map((factor) => authClient.auth.mfa.unenroll({ factorId: factor.id })),
+      );
+
+      const { data: factor, error: enrollError } = await authClient.auth.mfa.enroll({
+        factorType: 'totp',
+        issuer: 'Synaura',
+        friendlyName: 'Synaura Authenticator',
+      });
+      if (enrollError || !factor) {
+        return NextResponse.json(
+          { error: enrollError?.message || 'Activation 2FA impossible' },
+          { status: 400 },
+        );
+      }
+      const { data: challenge, error: challengeError } = await authClient.auth.mfa.challenge({
+        factorId: factor.id,
+      });
+      if (challengeError || !challenge) {
+        await authClient.auth.mfa.unenroll({ factorId: factor.id }).catch(() => undefined);
+        return NextResponse.json(
+          { error: challengeError?.message || 'Initialisation 2FA impossible' },
+          { status: 400 },
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        data: {
+          factorId: factor.id,
+          factorType: 'totp',
+          challengeId: challenge.id,
+          expiresAt: challenge.expires_at,
+          qrCode: factor.totp.qr_code,
+          secret: factor.totp.secret,
+          uri: factor.totp.uri,
+          session: mobileSessionPayload(sessionData.session, user),
+        },
+      }, { headers: { 'Cache-Control': 'private, no-store' } });
+    }
+
     if (action === 'enroll') {
       const phone = normalizePhoneNumber(body?.phone);
       if (!phone) return NextResponse.json({ error: 'Numero de telephone invalide' }, { status: 400 });
@@ -82,6 +126,7 @@ export async function POST(request: NextRequest) {
         success: true,
         data: {
           factorId: factor.id,
+          factorType: 'phone',
           challengeId: challenge.id,
           expiresAt: challenge.expires_at,
           phone,
@@ -95,17 +140,23 @@ export async function POST(request: NextRequest) {
     if (!factor) return NextResponse.json({ error: 'Facteur 2FA introuvable' }, { status: 404 });
 
     if (action === 'challenge') {
-      const { data: challenge, error } = await authClient.auth.mfa.challenge({
-        factorId,
-        channel: 'sms',
-      });
+      const factorType = factor.factor_type === 'phone' ? 'phone' : 'totp';
+      const { data: challenge, error } = await authClient.auth.mfa.challenge(
+        factorType === 'phone'
+          ? { factorId, channel: 'sms' }
+          : { factorId },
+      );
       if (error || !challenge) {
-        return NextResponse.json({ error: error?.message || 'SMS 2FA impossible' }, { status: 400 });
+        return NextResponse.json(
+          { error: error?.message || 'Verification 2FA impossible' },
+          { status: 400 },
+        );
       }
       return NextResponse.json({
         success: true,
         data: {
           factorId,
+          factorType,
           challengeId: challenge.id,
           expiresAt: challenge.expires_at,
           session: mobileSessionPayload(sessionData.session, user),
