@@ -23,7 +23,11 @@ import {
   type ReferralData,
   type SubscriptionUsage,
 } from '@/api/client';
-import { useAuth } from '@/auth/AuthProvider';
+import {
+  useAuth,
+  type MfaChallenge,
+  type MobileAccountDetails,
+} from '@/auth/AuthProvider';
 import { ProfileImagePicker } from '@/components/profile/ProfileImagePicker';
 import { SynauraBackground } from '@/components/SynauraBackground';
 import { colors } from '@/theme/tokens';
@@ -45,6 +49,14 @@ type EventPrefs = {
   showBadges: boolean;
   resultNotifications: boolean;
   allowPulse: boolean;
+};
+type AccountPrivateForm = {
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  birthdayVisibility: 'private' | 'friends' | 'public';
+  discoverableByEmail: boolean;
+  discoverableByPhone: boolean;
 };
 type LegalDocument = (typeof legalContent)[number];
 const LEGAL_BASE_URL = 'https://www.synaura.fr';
@@ -109,6 +121,24 @@ export function SettingsScreen() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', bio: '', location: '', website: '', artistName: '', genreText: '', isArtist: false, instagram: '', youtube: '', tiktok: '', spotify: '', soundcloud: '', deezer: '', apple_music: '', twitch: '', discord: '', x: '', custom: '', badgesText: '', featuredTrackId: '' });
   const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [accountDetails, setAccountDetails] = useState<MobileAccountDetails | null>(null);
+  const [accountForm, setAccountForm] = useState<AccountPrivateForm>({
+    firstName: '',
+    lastName: '',
+    birthDate: '',
+    birthdayVisibility: 'private',
+    discoverableByEmail: false,
+    discoverableByPhone: false,
+  });
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [phoneLinkCode, setPhoneLinkCode] = useState('');
+  const [pendingPhoneLink, setPendingPhoneLink] = useState('');
+  const [mfaPhone, setMfaPhone] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaChallenge, setMfaChallenge] = useState<MfaChallenge | null>(null);
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [securityBusy, setSecurityBusy] = useState(false);
   const [selectedLegalId, setSelectedLegalId] = useState<string | null>(null);
   const selectedLegal = legalContent.find((document) => document.id === selectedLegalId) || null;
 
@@ -178,6 +208,31 @@ export function SettingsScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const loadAccount = useCallback(async () => {
+    if (!auth.user?.id) return;
+    try {
+      const details = await auth.getAccountDetails();
+      setAccountDetails(details);
+      setAccountForm({
+        firstName: details.private.firstName,
+        lastName: details.private.lastName,
+        birthDate: details.private.birthDate,
+        birthdayVisibility: details.private.birthdayVisibility,
+        discoverableByEmail: details.private.discoverableByEmail,
+        discoverableByPhone: details.private.discoverableByPhone,
+      });
+      setContactEmail(details.user.email || '');
+      setContactPhone(details.user.phone || '');
+      setMfaPhone(details.user.phone || '');
+    } catch {
+      // The public profile settings remain usable if the private account API is offline.
+    }
+  }, [auth.getAccountDetails, auth.user?.id]);
+
+  useEffect(() => {
+    if (tab === 'compte' || tab === 'securite') void loadAccount();
+  }, [loadAccount, tab]);
 
   const saveProfile = async () => {
     if (!profile) return;
@@ -257,6 +312,135 @@ export function SettingsScreen() {
     }
   };
 
+  const savePrivateAccount = async () => {
+    setAccountSaving(true);
+    try {
+      const details = await auth.updateAccount(accountForm);
+      setAccountDetails(details);
+      Alert.alert('Compte mis a jour', 'Tes informations privees ont ete enregistrees.');
+    } catch (caught) {
+      Alert.alert('Mise a jour impossible', caught instanceof Error ? caught.message : 'Reessaie dans un instant.');
+    } finally {
+      setAccountSaving(false);
+    }
+  };
+
+  const sendEmailVerification = async () => {
+    setAccountSaving(true);
+    try {
+      const message = await auth.requestEmailLink(contactEmail);
+      Alert.alert('Verification envoyee', message);
+    } catch (caught) {
+      Alert.alert('Email impossible', caught instanceof Error ? caught.message : 'Adresse invalide.');
+    } finally {
+      setAccountSaving(false);
+    }
+  };
+
+  const sendPhoneVerification = async () => {
+    setAccountSaving(true);
+    try {
+      const phone = await auth.requestPhoneLink(contactPhone);
+      setPendingPhoneLink(phone);
+      setPhoneLinkCode('');
+    } catch (caught) {
+      Alert.alert('SMS impossible', caught instanceof Error ? caught.message : 'Numero invalide.');
+    } finally {
+      setAccountSaving(false);
+    }
+  };
+
+  const verifyPhoneContact = async () => {
+    setAccountSaving(true);
+    try {
+      const message = await auth.verifyPhoneLink(pendingPhoneLink, phoneLinkCode);
+      setPendingPhoneLink('');
+      setPhoneLinkCode('');
+      await loadAccount();
+      Alert.alert('Telephone verifie', message);
+    } catch (caught) {
+      Alert.alert('Code incorrect', caught instanceof Error ? caught.message : 'Reessaie.');
+    } finally {
+      setAccountSaving(false);
+    }
+  };
+
+  const toggleBiometric = async (enabled: boolean) => {
+    setSecurityBusy(true);
+    try {
+      await auth.setBiometricEnabled(enabled);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch (caught) {
+      Alert.alert('Biometrie indisponible', caught instanceof Error ? caught.message : 'Activation impossible.');
+    } finally {
+      setSecurityBusy(false);
+    }
+  };
+
+  const enrollMfa = async () => {
+    setSecurityBusy(true);
+    try {
+      const challenge = await auth.enrollMfaPhone(mfaPhone);
+      setMfaChallenge(challenge);
+      setMfaCode('');
+    } catch (caught) {
+      Alert.alert('2FA indisponible', caught instanceof Error ? caught.message : 'Activation impossible.');
+    } finally {
+      setSecurityBusy(false);
+    }
+  };
+
+  const verifyMfaEnrollment = async () => {
+    if (!mfaChallenge) return;
+    setSecurityBusy(true);
+    try {
+      await auth.verifyMfa(mfaChallenge, mfaCode);
+      setMfaChallenge(null);
+      setMfaCode('');
+      await loadAccount();
+      Alert.alert('2FA activee', "Les nouvelles connexions dans l'app demanderont aussi un code SMS.");
+    } catch (caught) {
+      Alert.alert('Code incorrect', caught instanceof Error ? caught.message : 'Reessaie.');
+    } finally {
+      setSecurityBusy(false);
+    }
+  };
+
+  const confirmRemoveMfa = (factorId: string) => {
+    Alert.alert('Desactiver le 2FA ?', 'Les nouvelles connexions ne demanderont plus de code SMS.', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Desactiver',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            setSecurityBusy(true);
+            try {
+              await auth.removeMfaFactor(factorId);
+              await loadAccount();
+            } catch (caught) {
+              Alert.alert('Desactivation impossible', caught instanceof Error ? caught.message : 'Reessaie.');
+            } finally {
+              setSecurityBusy(false);
+            }
+          })();
+        },
+      },
+    ]);
+  };
+
+  const revokeOtherSessions = async () => {
+    setSecurityBusy(true);
+    try {
+      await auth.revokeOtherSessions();
+      Alert.alert('Sessions fermees', 'Tous les autres appareils ont ete deconnectes.');
+    } catch (caught) {
+      Alert.alert('Action impossible', caught instanceof Error ? caught.message : 'Reessaie.');
+    } finally {
+      setSecurityBusy(false);
+    }
+  };
+
   const confirmDelete = () => {
     if (deleteConfirm.trim().toUpperCase() !== 'SUPPRIMER') {
       Alert.alert('Confirmation requise', 'Tape SUPPRIMER avant de lancer la suppression du compte.');
@@ -291,6 +475,9 @@ export function SettingsScreen() {
   }
 
   const activeCategory = tab === 'overview' ? null : tabs.find((item) => item.key === tab) || null;
+  const verifiedMfaFactor = auth.mfaFactors.find(
+    (factor) => factor.type === 'phone' && factor.status === 'verified',
+  );
 
   return (
     <SynauraBackground variant="warm">
@@ -405,11 +592,137 @@ export function SettingsScreen() {
         ) : null}
 
         {tab === 'compte' ? (
-          <Section title="Compte" text="Identite et session mobile.">
-            <Info label="Email" value={auth.user.email || 'Non renseigne'} />
-            <Info label="Username" value={`@${auth.user.username || profile?.username || 'user'}`} />
-            <Info label="Role" value={profile?.role || auth.user.role || 'user'} />
-            <Pressable onPress={auth.logout} style={styles.secondary}><Text style={styles.secondaryText}>Se deconnecter</Text></Pressable>
+          <Section title="Compte" text="Identite, contacts verifies et confidentialite.">
+            <Text style={styles.groupTitle}>Identifiants de connexion</Text>
+            <Info
+              label="Email"
+              value={auth.user.email
+                ? `${auth.user.email}${auth.user.emailVerified ? ' · verifie' : ' · a verifier'}`
+                : 'Non renseigne'}
+            />
+            <Field
+              label={auth.user.email ? 'Changer mon email' : 'Ajouter un email'}
+              value={contactEmail}
+              onChangeText={setContactEmail}
+              hint="Un lien de verification sera envoye"
+            />
+            {contactEmail.trim().toLowerCase() !== (auth.user.email || '').trim().toLowerCase() ? (
+              <Pressable
+                disabled={accountSaving}
+                onPress={() => void sendEmailVerification()}
+                style={[styles.secondary, accountSaving && styles.disabled]}
+              >
+                <View style={styles.buttonContent}>
+                  <Ionicons name="mail-unread-outline" size={17} color={colors.text} />
+                  <Text style={styles.secondaryText}>Verifier cet email</Text>
+                </View>
+              </Pressable>
+            ) : null}
+            <Info
+              label="Telephone"
+              value={auth.user.phone
+                ? `${auth.user.phone}${auth.user.phoneVerified ? ' · verifie' : ' · a verifier'}`
+                : 'Non renseigne'}
+            />
+            <Field
+              label={auth.user.phone ? 'Changer mon telephone' : 'Ajouter un telephone'}
+              value={contactPhone}
+              onChangeText={setContactPhone}
+              hint="Format +33612345678"
+            />
+            {pendingPhoneLink ? (
+              <>
+                <Field
+                  label={`Code envoye au ${pendingPhoneLink}`}
+                  value={phoneLinkCode}
+                  onChangeText={(value) => setPhoneLinkCode(value.replace(/\D/g, '').slice(0, 6))}
+                />
+                <Pressable
+                  disabled={accountSaving || phoneLinkCode.length !== 6}
+                  onPress={() => void verifyPhoneContact()}
+                  style={[styles.primary, (accountSaving || phoneLinkCode.length !== 6) && styles.disabled]}
+                >
+                  <Ionicons name="checkmark-circle-outline" size={17} color="#FFFAF2" />
+                  <Text style={styles.primaryText}>Verifier le numero</Text>
+                </Pressable>
+              </>
+            ) : contactPhone.trim() !== (auth.user.phone || '').trim() ? (
+              <Pressable
+                disabled={accountSaving}
+                onPress={() => void sendPhoneVerification()}
+                style={[styles.secondary, accountSaving && styles.disabled]}
+              >
+                <View style={styles.buttonContent}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={17} color={colors.text} />
+                  <Text style={styles.secondaryText}>Envoyer le code SMS</Text>
+                </View>
+              </Pressable>
+            ) : null}
+            <Info
+              label="Connexions liees"
+              value={(accountDetails?.identities || [])
+                .map((identity) => identity.provider === 'email' ? 'Email' : identity.provider === 'phone' ? 'Telephone' : 'Google')
+                .join(' · ') || 'Email'}
+            />
+            <Info label="Pseudo" value={`@${auth.user.username || profile?.username || 'user'}`} />
+
+            <Text style={styles.groupTitle}>Informations privees</Text>
+            <Field
+              label="Prenom"
+              value={accountForm.firstName}
+              onChangeText={(firstName) => setAccountForm((current) => ({ ...current, firstName }))}
+            />
+            <Field
+              label="Nom"
+              value={accountForm.lastName}
+              onChangeText={(lastName) => setAccountForm((current) => ({ ...current, lastName }))}
+            />
+            <Field
+              label="Date de naissance"
+              value={accountForm.birthDate}
+              onChangeText={(birthDate) => setAccountForm((current) => ({
+                ...current,
+                birthDate: birthDate.replace(/[^\d-]/g, '').slice(0, 10),
+              }))}
+              hint="AAAA-MM-JJ"
+            />
+            <BirthdayVisibilitySelector
+              value={accountForm.birthdayVisibility}
+              onChange={(birthdayVisibility) => setAccountForm((current) => ({
+                ...current,
+                birthdayVisibility,
+              }))}
+            />
+            <Toggle
+              label="Trouvable par email"
+              value={accountForm.discoverableByEmail}
+              onValueChange={(discoverableByEmail) => setAccountForm((current) => ({
+                ...current,
+                discoverableByEmail,
+              }))}
+            />
+            <Toggle
+              label="Trouvable par telephone"
+              value={accountForm.discoverableByPhone}
+              onValueChange={(discoverableByPhone) => setAccountForm((current) => ({
+                ...current,
+                discoverableByPhone,
+              }))}
+            />
+            <Pressable
+              disabled={accountSaving}
+              onPress={() => void savePrivateAccount()}
+              style={[styles.primary, accountSaving && styles.disabled]}
+            >
+              {accountSaving ? <ActivityIndicator color="#FFFAF2" /> : <Ionicons name="save-outline" size={17} color="#FFFAF2" />}
+              <Text style={styles.primaryText}>Enregistrer</Text>
+            </Pressable>
+            <Pressable onPress={() => void auth.logout()} style={styles.secondary}>
+              <View style={styles.buttonContent}>
+                <Ionicons name="log-out-outline" size={17} color={colors.text} />
+                <Text style={styles.secondaryText}>Se deconnecter</Text>
+              </View>
+            </Pressable>
           </Section>
         ) : null}
 
@@ -584,16 +897,111 @@ export function SettingsScreen() {
         ) : null}
 
         {tab === 'securite' ? (
-          <Section title="Securite" text="Actions sensibles du compte.">
-            <Text style={styles.groupTitle}>Comptes bloqués</Text>
-            <Text style={styles.themeHint}>Ces comptes ne peuvent plus t’ajouter ni t’envoyer de message.</Text>
+          <Section title="Securite" text="Protection locale, double verification et sessions.">
+            <Text style={styles.groupTitle}>Verrouillage de l'app</Text>
+            <View style={styles.securityPanel}>
+              <View style={styles.securityIcon}>
+                <Ionicons name="finger-print-outline" size={21} color={colors.violet} />
+              </View>
+              <View style={styles.securityCopy}>
+                <Text style={styles.securityTitle}>Biometrie</Text>
+                <Text style={styles.securityText}>
+                  Empreinte, visage ou code systeme apres 30 secondes hors de l'app.
+                </Text>
+              </View>
+              <Switch
+                disabled={securityBusy}
+                value={auth.biometricEnabled}
+                onValueChange={(enabled) => void toggleBiometric(enabled)}
+              />
+            </View>
+            {!auth.biometricAvailable && !auth.biometricEnabled ? (
+              <Text style={styles.themeHint}>
+                Le telephone doit avoir une empreinte ou une reconnaissance faciale configuree.
+              </Text>
+            ) : null}
+
+            <Text style={styles.groupTitle}>Verification en deux etapes</Text>
+            {verifiedMfaFactor ? (
+              <View style={styles.securityPanel}>
+                <View style={[styles.securityIcon, styles.securityIconSuccess]}>
+                  <Ionicons name="shield-checkmark-outline" size={21} color={colors.success} />
+                </View>
+                <View style={styles.securityCopy}>
+                  <Text style={styles.securityTitle}>SMS 2FA actif</Text>
+                  <Text style={styles.securityText}>Un code est demande dans l'app apres le premier facteur.</Text>
+                </View>
+                <Pressable
+                  disabled={securityBusy}
+                  accessibilityLabel="Desactiver le 2FA"
+                  onPress={() => confirmRemoveMfa(verifiedMfaFactor.id)}
+                  style={styles.iconAction}
+                >
+                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <Field
+                  label="Telephone pour le 2FA"
+                  value={mfaPhone}
+                  onChangeText={setMfaPhone}
+                  hint="Format +33612345678"
+                />
+                {mfaChallenge ? (
+                  <>
+                    <Field
+                      label="Code SMS a 6 chiffres"
+                      value={mfaCode}
+                      onChangeText={(value) => setMfaCode(value.replace(/\D/g, '').slice(0, 6))}
+                    />
+                    <Pressable
+                      disabled={securityBusy || mfaCode.length !== 6}
+                      onPress={() => void verifyMfaEnrollment()}
+                      style={[styles.primary, (securityBusy || mfaCode.length !== 6) && styles.disabled]}
+                    >
+                      <Ionicons name="shield-checkmark-outline" size={17} color="#FFFAF2" />
+                      <Text style={styles.primaryText}>Confirmer le 2FA</Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  <Pressable
+                    disabled={securityBusy || !auth.capabilities.phoneMfa}
+                    onPress={() => void enrollMfa()}
+                    style={[styles.primary, (securityBusy || !auth.capabilities.phoneMfa) && styles.disabled]}
+                  >
+                    {securityBusy ? <ActivityIndicator color="#FFFAF2" /> : <Ionicons name="chatbubble-ellipses-outline" size={17} color="#FFFAF2" />}
+                    <Text style={styles.primaryText}>Activer le 2FA par SMS</Text>
+                  </Pressable>
+                )}
+                {!auth.capabilities.phoneMfa ? (
+                  <Text style={styles.themeHint}>Le fournisseur SMS doit encore etre active sur le serveur.</Text>
+                ) : null}
+              </>
+            )}
+
+            <Text style={styles.groupTitle}>Appareils connectes</Text>
+            <Pressable
+              disabled={securityBusy}
+              onPress={() => void revokeOtherSessions()}
+              style={[styles.secondary, securityBusy && styles.disabled]}
+            >
+              <View style={styles.buttonContent}>
+                <Ionicons name="phone-portrait-outline" size={17} color={colors.text} />
+                <Text style={styles.secondaryText}>Deconnecter les autres appareils</Text>
+              </View>
+            </Pressable>
+
+            <Text style={styles.groupTitle}>Comptes bloques</Text>
+            <Text style={styles.themeHint}>Ces comptes ne peuvent plus t'ajouter ni t'envoyer de message.</Text>
             {blockedUsers.length ? blockedUsers.map((block) => (
               <View key={block.id} style={styles.blockedRow}>
                 <MessagingAvatar user={block.user} size={42} />
                 <View style={styles.blockedCopy}><Text numberOfLines={1} style={styles.blockedName}>{block.user.name}</Text><Text numberOfLines={1} style={styles.blockedUsername}>@{block.user.username}</Text></View>
-                <Pressable disabled={unblockingUserId === block.user.id} onPress={() => void unblockUser(block.user.id)} style={styles.unblockButton}><Text style={styles.unblockText}>{unblockingUserId === block.user.id ? 'Patiente…' : 'Débloquer'}</Text></Pressable>
+                <Pressable disabled={unblockingUserId === block.user.id} onPress={() => void unblockUser(block.user.id)} style={styles.unblockButton}><Text style={styles.unblockText}>{unblockingUserId === block.user.id ? 'Patiente...' : 'Debloquer'}</Text></Pressable>
               </View>
-            )) : <View style={styles.emptyBlocked}><Text style={styles.emptyBlockedText}>Aucun compte bloqué.</Text></View>}
+            )) : <View style={styles.emptyBlocked}><Text style={styles.emptyBlockedText}>Aucun compte bloque.</Text></View>}
+            <Text style={styles.groupTitle}>Zone sensible</Text>
             <Field label="Tape SUPPRIMER pour confirmer" value={deleteConfirm} onChangeText={setDeleteConfirm} />
             <Pressable onPress={confirmDelete} style={styles.danger}><Text style={styles.dangerText}>Supprimer mon compte</Text></Pressable>
           </Section>
@@ -694,6 +1102,44 @@ function Toggle({ label, value, onValueChange }: { label: string; value: boolean
     <View style={styles.toggleRow}>
       <Text style={styles.toggleLabel}>{label}</Text>
       <Switch value={value} onValueChange={onValueChange} />
+    </View>
+  );
+}
+
+const BIRTHDAY_VISIBILITY_OPTIONS = [
+  { value: 'private', label: 'Prive' },
+  { value: 'friends', label: 'Amis' },
+  { value: 'public', label: 'Public' },
+] as const;
+
+function BirthdayVisibilitySelector({
+  value,
+  onChange,
+}: {
+  value: 'private' | 'friends' | 'public';
+  onChange: (value: 'private' | 'friends' | 'public') => void;
+}) {
+  return (
+    <View style={styles.themeBlock}>
+      <Text style={styles.toggleLabel}>Visibilite de l'anniversaire</Text>
+      <View style={styles.themeSelector} accessibilityRole="radiogroup">
+        {BIRTHDAY_VISIBILITY_OPTIONS.map((option) => {
+          const selected = value === option.value;
+          return (
+            <Pressable
+              key={option.value}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
+              onPress={() => onChange(option.value)}
+              style={[styles.themeOption, selected && styles.themeOptionActive]}
+            >
+              <Text style={[styles.themeOptionText, selected && styles.themeOptionTextActive]}>
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -881,6 +1327,14 @@ const styles = StyleSheet.create({
   primaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   secondary: { height: 46, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   secondaryText: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  buttonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  securityPanel: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, padding: 10 },
+  securityIcon: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violetSoft },
+  securityIconSuccess: { backgroundColor: 'rgba(46,140,98,0.12)' },
+  securityCopy: { flex: 1, minWidth: 0 },
+  securityTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  securityText: { marginTop: 3, color: colors.textSecondary, fontSize: 9, lineHeight: 14, fontWeight: '700' },
+  iconAction: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: 'rgba(217,45,32,0.08)' },
   danger: { height: 48, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239,68,68,0.12)' },
   dangerText: { color: '#B91C1C', fontSize: 13, fontWeight: '900' },
   disabled: { opacity: 0.45 },

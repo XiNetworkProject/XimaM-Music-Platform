@@ -19,23 +19,30 @@ export async function GET(req: NextRequest) {
   const q = norm(searchParams.get('q'));
   const role = norm(searchParams.get('role')) || 'admin';
   const limit = Math.min(50, Math.max(1, Number(searchParams.get('limit') || 20)));
+  const { data: emailMatches } = q
+    ? await supabaseAdmin
+      .from('account_private')
+      .select('user_id')
+      .ilike('email', `%${q}%`)
+      .limit(limit)
+    : { data: [] };
+  const emailMatchIds = (emailMatches || []).map((row) => row.user_id);
 
   let query = supabaseAdmin
     .from('profiles')
-    .select('id,email,username,name,artist_name,role,is_artist,is_verified,updated_at')
+    .select('id,username,name,artist_name,role,is_artist,is_verified,updated_at')
     .order('updated_at', { ascending: false })
     .limit(limit);
 
   if (role && role !== 'all') query = query.eq('role', role);
   if (q) {
-    // search by email or username or name (and artist_name / id as practical fallbacks)
     const clauses = [
-      `email.ilike.%${q}%`,
       `username.ilike.%${q}%`,
       `name.ilike.%${q}%`,
       `artist_name.ilike.%${q}%`,
     ];
     if (isUuid(q)) clauses.push(`id.eq.${q}`);
+    if (emailMatchIds.length) clauses.push(`id.in.(${emailMatchIds.join(',')})`);
     query = query.or(clauses.join(','));
   }
 
@@ -53,7 +60,14 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json({ error: msg }, { status: 500 });
   }
-  return NextResponse.json({ items: data || [] });
+  const ids = (data || []).map((profile) => profile.id);
+  const { data: privateAccounts } = ids.length
+    ? await supabaseAdmin.from('account_private').select('user_id,email').in('user_id', ids)
+    : { data: [] };
+  const emails = new Map((privateAccounts || []).map((account) => [account.user_id, account.email]));
+  return NextResponse.json({
+    items: (data || []).map((profile) => ({ ...profile, email: emails.get(profile.id) || null })),
+  });
 }
 
 export async function PATCH(req: NextRequest) {
@@ -78,11 +92,11 @@ export async function PATCH(req: NextRequest) {
   let resolvedUserId = userId;
   if (!resolvedUserId && email) {
     const { data: byEmail } = await supabaseAdmin
-      .from('profiles')
-      .select('id,email,role')
+      .from('account_private')
+      .select('user_id')
       .ilike('email', email)
       .maybeSingle();
-    resolvedUserId = byEmail?.id || '';
+    resolvedUserId = byEmail?.user_id || '';
     if (!resolvedUserId) {
       return NextResponse.json(
         { error: "Utilisateur introuvable. Il doit créer un compte (et donc un profil) avant qu'on puisse lui attribuer un rôle." },
@@ -93,8 +107,12 @@ export async function PATCH(req: NextRequest) {
 
   // Safety: prevent removing owner access via role change if owner isn't admin yet
   const owners = getOwnerEmails();
-  const { data: target } = await supabaseAdmin.from('profiles').select('id,email,role').eq('id', resolvedUserId).maybeSingle();
-  const targetEmail = (target?.email || '').toLowerCase();
+  const { data: targetAccount } = await supabaseAdmin
+    .from('account_private')
+    .select('email')
+    .eq('user_id', resolvedUserId)
+    .maybeSingle();
+  const targetEmail = (targetAccount?.email || '').toLowerCase();
   const isTargetOwner = targetEmail ? owners.includes(targetEmail) : false;
   if (isTargetOwner && role !== 'admin') {
     return NextResponse.json({ error: 'Impossible de retirer les droits owner (bootstrap)' }, { status: 400 });
@@ -104,7 +122,7 @@ export async function PATCH(req: NextRequest) {
     .from('profiles')
     .update({ role })
     .eq('id', resolvedUserId)
-    .select('id,email,username,name,role,is_artist,is_verified,updated_at')
+    .select('id,username,name,role,is_artist,is_verified,updated_at')
     .single();
   if (error) {
     const msg = String(error.message || 'Erreur update');
@@ -120,7 +138,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, user: data });
+  return NextResponse.json({ ok: true, user: { ...data, email: targetAccount?.email || null } });
 }
 
 // Certains proxies/CDN ne forwardent pas PATCH correctement. Alias en POST pour la prod.

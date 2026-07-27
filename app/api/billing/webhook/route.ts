@@ -78,12 +78,12 @@ export async function POST(req: NextRequest) {
           const email: string | undefined =
             sessionObj.customer_details?.email || sessionObj.metadata?.email;
           if (!userId && email) {
-            const { data: profile } = await supabaseAdmin
-              .from('profiles')
-              .select('id')
+            const { data: privateAccount } = await supabaseAdmin
+              .from('account_private')
+              .select('user_id')
               .eq('email', email)
               .maybeSingle();
-            userId = profile?.id || null;
+            userId = privateAccount?.user_id || null;
           }
 
           let creditsToAdd = 0;

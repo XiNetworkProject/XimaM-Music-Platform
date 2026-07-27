@@ -89,44 +89,57 @@ function ResetPasswordInner() {
             )}
 
             <form onSubmit={onSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[13px] font-medium text-white/70 mb-1.5">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
-                  <input
-                    type="email" value={email} onChange={e => setEmail(e.target.value)}
-                    className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition"
-                    placeholder="vous@example.com"
-                  />
-                </div>
-              </div>
+              {!token ? (
+                <>
+                  <div>
+                    <label className="block text-[13px] font-medium text-white/70 mb-1.5">Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
+                      <input
+                        required
+                        type="email" value={email} onChange={e => setEmail(e.target.value)}
+                        className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition"
+                        placeholder="vous@example.com"
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-[13px] font-medium text-white/70 mb-1.5">Code de vérification</label>
-                <div className="relative">
-                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
-                  <input
-                    type="text" value={code} onChange={e => setCode(e.target.value)}
-                    className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition tracking-[0.3em]"
-                    placeholder="000000" maxLength={6}
-                  />
+                  <div>
+                    <label className="block text-[13px] font-medium text-white/70 mb-1.5">Code de vérification</label>
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
+                      <input
+                        required
+                        type="text" inputMode="numeric" pattern="[0-9]{6}"
+                        value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition tracking-[0.3em]"
+                        placeholder="000000" maxLength={6}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+                  Lien sécurisé reconnu. Choisis simplement ton nouveau mot de passe.
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-[13px] font-medium text-white/70 mb-1.5">Nouveau mot de passe</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
                   <input
+                    required minLength={10}
                     type="password" value={password} onChange={e => setPassword(e.target.value)}
                     className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition"
-                    placeholder="6 caractères min."
+                    placeholder="10 caractères minimum"
                   />
                 </div>
               </div>
 
               <button
-                type="submit" disabled={loading}
+                type="submit"
+                disabled={loading || password.length < 10 || (!token && (!email.trim() || code.length !== 6))}
                 className="w-full h-11 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold transition-all hover:shadow-lg hover:shadow-indigo-500/25 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (

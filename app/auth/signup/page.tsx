@@ -303,8 +303,8 @@ function SignUpContent() {
   const passwordScore = useMemo(() => {
     const password = formData.password;
     let score = 0;
-    if (password.length >= 6) score += 1;
     if (password.length >= 10) score += 1;
+    if (password.length >= 14) score += 1;
     if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score += 1;
     if (/\d/.test(password)) score += 1;
     if (/[^A-Za-z0-9]/.test(password)) score += 1;
@@ -329,7 +329,7 @@ function SignUpContent() {
       if (!formData.email.trim() || !/\S+@\S+\.\S+/.test(formData.email)) return 'Ajoute un email valide.';
     }
     if (targetStep === 2) {
-      if (formData.password.length < 6) return 'Le mot de passe doit contenir au moins 6 caractères.';
+      if (formData.password.length < 10) return 'Le mot de passe doit contenir au moins 10 caractères.';
       if (formData.password !== formData.confirmPassword) return 'Les deux mots de passe ne correspondent pas.';
     }
     return '';
@@ -511,7 +511,7 @@ function SignUpContent() {
                       <Field label="Mot de passe">
                         <span className="relative block">
                           <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/32" />
-                          <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleInputChange} className={`${INPUT} pl-11 pr-12`} placeholder="6 caractères minimum" disabled={isLoading} />
+                          <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleInputChange} className={`${INPUT} pl-11 pr-12`} placeholder="10 caractères minimum" disabled={isLoading} />
                           <button type="button" onClick={() => setShowPassword(value => !value)} className="absolute right-4 top-1/2 -translate-y-1/2 text-black/36 transition hover:text-black/70" aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}>
                             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Utilisateur non connecté' },
         { status: 401 }
@@ -15,10 +15,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Récupérer l'utilisateur depuis Supabase
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await supabaseAdmin
       .from('profiles')
       .select('*')
-      .eq('email', session.user.email)
+      .eq('id', session.user.id)
       .single();
 
     if (userError || !user) {
@@ -140,4 +140,4 @@ function formatTimeAgo(dateString: string): string {
   if (diffDays <= 7) return `Il y a ${diffDays} jours`;
   
   return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-} 
+}

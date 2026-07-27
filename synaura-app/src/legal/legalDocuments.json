@@ -256,7 +256,11 @@
       },
       {
         "type": "bullet",
-        "text": "Données d'identification : nom, prénom, adresse email, nom d'utilisateur"
+        "text": "Données d'identification : nom, prénom, date de naissance, adresse email, numéro de téléphone et nom d'utilisateur"
+      },
+      {
+        "type": "bullet",
+        "text": "Données d'authentification : fournisseur de connexion choisi, état de vérification des contacts, facteurs 2FA et sessions actives"
       },
       {
         "type": "bullet",
@@ -275,6 +279,10 @@
         "text": "Données de paiement : informations de facturation (via Stripe)"
       },
       {
+        "type": "bullet",
+        "text": "Biométrie : l'empreinte ou le visage est vérifié uniquement par le système de votre appareil ; Synaura ne reçoit ni ne conserve aucune donnée biométrique"
+      },
+      {
         "type": "heading",
         "text": "2. Finalités du traitement"
       },
@@ -285,6 +293,14 @@
       {
         "type": "bullet",
         "text": "Fournir et améliorer nos services"
+      },
+      {
+        "type": "bullet",
+        "text": "Vérifier l'âge minimum de 15 ans et sécuriser la récupération du compte"
+      },
+      {
+        "type": "bullet",
+        "text": "Permettre la connexion par email, téléphone ou Google et la double authentification facultative"
       },
       {
         "type": "bullet",
@@ -340,7 +356,7 @@
       },
       {
         "type": "bullet",
-        "text": "Prestataires de services : Stripe (paiements), Supabase (base de données), Cloudinary (stockage)"
+        "text": "Prestataires de services : Supabase (authentification et base de données), Google (si vous choisissez cette connexion), le prestataire SMS configuré (codes de vérification), Firebase (notifications), Stripe (paiements) et Cloudinary (médias)"
       },
       {
         "type": "bullet",
@@ -404,6 +420,10 @@
       },
       {
         "type": "bullet",
+        "text": "Codes de récupération : 10 minutes ; les traces techniques associées sont limitées à la prévention des abus"
+      },
+      {
+        "type": "bullet",
         "text": "Données de facturation : 10 ans (obligation légale)"
       },
       {
@@ -420,7 +440,7 @@
       },
       {
         "type": "paragraph",
-        "text": "Nous mettons en œuvre des mesures techniques et organisationnelles appropriées pour protéger vos données contre la perte, l'utilisation abusive, l'accès non autorisé, la divulgation, l'altération ou la destruction."
+        "text": "Nous mettons en œuvre des mesures techniques et organisationnelles appropriées pour protéger vos données contre la perte, l'utilisation abusive, l'accès non autorisé, la divulgation, l'altération ou la destruction. Les informations civiles, la date de naissance et les contacts sont séparés du profil public. Les jetons mobiles sont conservés dans le stockage sécurisé de l'appareil et le verrouillage biométrique reste entièrement local."
       },
       {
         "type": "heading",
@@ -436,7 +456,7 @@
       },
       {
         "type": "paragraph",
-        "text": "Dernière mise à jour : 25/02/2026"
+        "text": "Dernière mise à jour : 27/07/2026"
       }
     ]
   },
@@ -511,7 +531,7 @@
       },
       {
         "type": "paragraph",
-        "text": "Vous devez avoir au moins 13 ans pour créer un compte. Les mineurs de moins de 16 ans doivent obtenir l'autorisation de leurs parents ou tuteurs légaux."
+        "text": "Vous devez avoir au moins 15 ans pour créer un compte. Synaura n'autorise pas la création d'un compte par une personne âgée de moins de 15 ans."
       },
       {
         "type": "heading",

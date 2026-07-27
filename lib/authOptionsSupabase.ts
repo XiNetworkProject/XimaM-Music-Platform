@@ -1,6 +1,6 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 // Configuration des URLs selon l'environnement
 const getAuthUrls = () => {
@@ -43,7 +43,7 @@ export const authOptionsSupabase: NextAuthOptions = {
           }
 
           // Récupérer le profil utilisateur depuis la table profiles
-          const { data: profile, error: profileError } = await supabase
+          const { data: profile, error: profileError } = await supabaseAdmin
             .from('profiles')
             .select('*')
             .eq('id', user.id)
@@ -54,11 +54,11 @@ export const authOptionsSupabase: NextAuthOptions = {
             return null;
           }
 
-          console.log('✅ Connexion Supabase réussie pour:', profile.email);
+          console.log('✅ Connexion Supabase réussie pour:', user.id);
 
           return {
             id: profile.id,
-            email: profile.email,
+            email: user.email,
             name: profile.name,
             username: profile.username,
             avatar: profile.avatar,
@@ -85,13 +85,13 @@ export const authOptionsSupabase: NextAuthOptions = {
     async session({ session, token }) {
       console.log('🔄 Mise à jour de la session Supabase pour:', session.user?.email);
       
-      if (session.user?.email) {
+      if (token.id) {
         try {
           // Récupérer le profil utilisateur depuis Supabase
-          const { data: profile, error: profileError } = await supabase
+          const { data: profile, error: profileError } = await supabaseAdmin
             .from('profiles')
             .select('*')
-            .eq('email', session.user.email)
+            .eq('id', String(token.id))
             .single();
           
           if (profile && !profileError) {

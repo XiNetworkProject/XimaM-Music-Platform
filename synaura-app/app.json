@@ -3,7 +3,7 @@
     "name": "Synaura",
     "slug": "synaura",
     "scheme": "synaura",
-    "version": "0.25.7",
+    "version": "0.25.8",
     "newArchEnabled": true,
     "icon": "./src/assets/synaura-symbol-2026.png",
     "orientation": "default",
@@ -15,6 +15,7 @@
       "bundleIdentifier": "com.synaura.music",
       "supportsTablet": true,
       "infoPlist": {
+        "NSFaceIDUsageDescription": "Synaura utilise Face ID uniquement pour deverrouiller ta session sur cet appareil.",
         "UIBackgroundModes": [
           "audio"
         ]
@@ -23,7 +24,7 @@
     "android": {
       "package": "com.synaura.music",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 78,
+      "versionCode": 79,
       "newArchEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
@@ -58,8 +59,15 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Synaura utilise Face ID uniquement pour deverrouiller ta session sur cet appareil."
+        }
+      ],
       "./plugins/with-synaura-theme-colors",
-      "./plugins/with-synaura-native-messaging"
+      "./plugins/with-synaura-native-messaging",
+      "expo-web-browser"
     ],
     "androidStatusBar": {
       "backgroundColor": "#0D0D0D",

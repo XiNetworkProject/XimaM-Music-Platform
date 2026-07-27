@@ -51,7 +51,7 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Récupérer le profil utilisateur depuis la table profiles
-          const { data: profile, error: profileError } = await supabase
+          const { data: profile, error: profileError } = await supabaseAdmin
             .from('profiles')
             .select('*')
             .eq('id', user.id)
@@ -62,11 +62,11 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          console.log('✅ Connexion Supabase réussie pour:', profile.email);
+          console.log('✅ Connexion Supabase réussie pour:', user.id);
 
           return {
             id: profile.id,
-            email: profile.email,
+            email: user.email,
             name: profile.name,
             username: profile.username,
             avatar: profile.avatar,
@@ -94,18 +94,18 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === 'google' && user?.email) {
         try {
           const email = user.email.toLowerCase();
-          const { data: existing } = await supabase
-            .from('profiles')
-            .select('id')
+          const { data: existing } = await supabaseAdmin
+            .from('account_private')
+            .select('user_id')
             .eq('email', email)
-            .single();
+            .maybeSingle();
 
           if (!existing) {
             const baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 20);
             let username = baseUsername;
             let suffix = 1;
             while (true) {
-              const { data: taken } = await supabase.from('profiles').select('id').eq('username', username).single();
+              const { data: taken } = await supabaseAdmin.from('profiles').select('id').eq('username', username).maybeSingle();
               if (!taken) break;
               username = `${baseUsername}${suffix++}`;
             }
@@ -133,12 +133,16 @@ export const authOptions: NextAuthOptions = {
               id: supabaseUserId,
               name: user.name || username,
               username,
-              email,
+              email: null,
               avatar: user.image || null,
-              is_verified: true,
+              is_verified: false,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             });
+            await supabaseAdmin.from('account_private').upsert({
+              user_id: supabaseUserId,
+              email,
+            }, { onConflict: 'user_id' });
             console.log('✅ Nouveau profil Google créé:', username);
           }
         } catch (err) {
@@ -151,13 +155,13 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       console.log('🔄 Mise à jour de la session Supabase pour:', session.user?.email);
       
-      if (session.user?.email) {
+      if (token.id) {
         try {
           // Récupérer le profil utilisateur depuis Supabase
-          const { data: profile, error: profileError } = await supabase
+          const { data: profile, error: profileError } = await supabaseAdmin
             .from('profiles')
             .select('*')
-            .eq('email', session.user.email)
+            .eq('id', String(token.id))
             .single();
           
           if (profile && !profileError) {
@@ -196,11 +200,18 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, account }) {
       if (user) {
         if (account?.provider === 'google' && user.email) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
+          const { data: privateAccount } = await supabaseAdmin
+            .from('account_private')
+            .select('user_id')
             .eq('email', user.email.toLowerCase())
-            .single();
+            .maybeSingle();
+          const { data: profile } = privateAccount?.user_id
+            ? await supabaseAdmin
+              .from('profiles')
+              .select('*')
+              .eq('id', privateAccount.user_id)
+              .single()
+            : { data: null };
           if (profile) {
             token.id = profile.id;
             token.username = profile.username;
@@ -251,4 +262,4 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === 'development',
   useSecureCookies: process.env.NODE_ENV === 'production',
-}; 
+};

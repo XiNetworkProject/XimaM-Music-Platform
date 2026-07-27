@@ -163,7 +163,7 @@ export async function GET(
       name: profile.name,
       // L'email est une donnée personnelle : uniquement renvoyé au propriétaire du
       // profil, jamais à un visiteur (clé absente du JSON via `undefined`).
-      email: isOwnProfile ? profile.email : undefined,
+      email: isOwnProfile ? session?.user?.email : undefined,
       avatar: profile.avatar,
       banner: profile.banner || null,
       bio: profile.bio || '',

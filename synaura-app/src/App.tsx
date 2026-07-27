@@ -22,6 +22,10 @@ import { RegisterScreen } from '@/screens/RegisterScreen';
 import { ForgotPasswordScreen } from '@/screens/ForgotPasswordScreen';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
 import { WelcomeScreen } from '@/screens/WelcomeScreen';
+import { PhoneAuthScreen } from '@/screens/PhoneAuthScreen';
+import { CompleteAccountScreen } from '@/screens/CompleteAccountScreen';
+import { MfaChallengeScreen } from '@/screens/MfaChallengeScreen';
+import { BiometricLockScreen } from '@/screens/BiometricLockScreen';
 import { HomeV2Screen } from '@/screens/HomeV2Screen';
 import { RadarScreen } from '@/screens/RadarScreen';
 import { DiscoverMoodScreen } from '@/screens/DiscoverMoodScreen';
@@ -64,6 +68,7 @@ export type RootStackParamList = RootTabsParamList & {
   Tabs: { screen?: string; params?: Record<string, unknown> } | undefined;
   Login: { message?: string; returnTo?: { screen: string; params?: Record<string, unknown> } } | undefined;
   Register: undefined;
+  PhoneAuth: undefined;
   ForgotPassword: undefined;
   Onboarding: { edit?: boolean; returnTo?: { screen: string; params?: Record<string, unknown> } } | undefined;
   Welcome: undefined;
@@ -149,6 +154,18 @@ function RootStackNavigator() {
     };
   }, [auth.loading, authenticated, gate.ready]);
 
+  if (!auth.loading && authenticated && auth.biometricLocked) {
+    return <BiometricLockScreen />;
+  }
+
+  if (!auth.loading && authenticated && auth.mfaRequired) {
+    return <MfaChallengeScreen />;
+  }
+
+  if (!auth.loading && authenticated && auth.user?.profileComplete === false) {
+    return <CompleteAccountScreen />;
+  }
+
   if (!gate.ready) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: colors.background }}>
@@ -195,6 +212,7 @@ function RootStackNavigator() {
       <Stack.Screen name="CreatePost" component={CreatePostScreen} options={{ animation: settings.reducedMotion ? 'none' : 'slide_from_bottom' }} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="PhoneAuth" component={PhoneAuthScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ animation: settings.reducedMotion ? 'none' : 'slide_from_right' }} />
       <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ animation: settings.reducedMotion ? 'none' : 'fade' }} />

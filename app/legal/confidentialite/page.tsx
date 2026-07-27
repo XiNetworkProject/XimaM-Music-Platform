@@ -49,11 +49,13 @@ export default function ConfidentialitePage() {
                 Synaura collecte les données personnelles suivantes :
               </p>
               <ul className="text-sm text-white/60 space-y-2 mb-6">
-                <li>• <strong>Données d'identification :</strong> nom, prénom, adresse email, nom d'utilisateur</li>
+                <li>• <strong>Données d'identification :</strong> nom, prénom, date de naissance, adresse email, numéro de téléphone et nom d'utilisateur</li>
+                <li>• <strong>Données d'authentification :</strong> fournisseur de connexion choisi, état de vérification des contacts, facteurs 2FA et sessions actives</li>
                 <li>• <strong>Données de profil :</strong> photo de profil, biographie, préférences musicales</li>
                 <li>• <strong>Données d'usage :</strong> historique d'écoute, playlists, interactions</li>
                 <li>• <strong>Données techniques :</strong> adresse IP, type de navigateur, système d'exploitation</li>
                 <li>• <strong>Données de paiement :</strong> informations de facturation (via Stripe)</li>
+                <li>• <strong>Biométrie :</strong> l'empreinte ou le visage est vérifié uniquement par le système de votre appareil ; Synaura ne reçoit ni ne conserve aucune donnée biométrique</li>
               </ul>
 
               <h2 className="text-xl font-semibold text-white mb-4 mt-8">2. Finalités du traitement</h2>
@@ -62,6 +64,8 @@ export default function ConfidentialitePage() {
               </p>
               <ul className="text-sm text-white/60 space-y-2 mb-6">
                 <li>• Fournir et améliorer nos services</li>
+                <li>• Vérifier l'âge minimum de 15 ans et sécuriser la récupération du compte</li>
+                <li>• Permettre la connexion par email, téléphone ou Google et la double authentification facultative</li>
                 <li>• Personnaliser votre expérience musicale</li>
                 <li>• Traiter les paiements et abonnements</li>
                 <li>• Communiquer avec vous (support, notifications)</li>
@@ -85,7 +89,7 @@ export default function ConfidentialitePage() {
                 Vos données peuvent être partagées avec :
               </p>
               <ul className="text-sm text-white/60 space-y-2 mb-6">
-                <li>• <strong>Prestataires de services :</strong> Stripe (paiements), Supabase (base de données), Cloudinary (stockage)</li>
+                <li>• <strong>Prestataires de services :</strong> Supabase (authentification et base de données), Google (si vous choisissez cette connexion), le prestataire SMS configuré (codes de vérification), Firebase (notifications), Stripe (paiements) et Cloudinary (médias)</li>
                 <li>• <strong>Autorités compétentes :</strong> en cas d'obligation légale</li>
                 <li>• <strong>Partenaires commerciaux :</strong> uniquement avec votre consentement explicite</li>
               </ul>
@@ -131,6 +135,7 @@ export default function ConfidentialitePage() {
               </p>
               <ul className="text-sm text-white/60 space-y-2 mb-6">
                 <li>• <strong>Données de compte :</strong> jusqu'à la suppression du compte</li>
+                <li>• <strong>Codes de récupération :</strong> 10 minutes ; les traces techniques associées sont limitées à la prévention des abus</li>
                 <li>• <strong>Données de facturation :</strong> 10 ans (obligation légale)</li>
                 <li>• <strong>Données d'usage :</strong> 3 ans maximum</li>
                 <li>• <strong>Cookies :</strong> 13 mois maximum</li>
@@ -140,7 +145,9 @@ export default function ConfidentialitePage() {
               <p className="text-sm text-white/60 mb-4">
                 Nous mettons en œuvre des mesures techniques et organisationnelles appropriées pour protéger 
                 vos données contre la perte, l'utilisation abusive, l'accès non autorisé, la divulgation, 
-                l'altération ou la destruction.
+                l'altération ou la destruction. Les informations civiles, la date de naissance et les contacts
+                sont séparés du profil public. Les jetons mobiles sont conservés dans le stockage sécurisé de
+                l'appareil et le verrouillage biométrique reste entièrement local.
               </p>
 
               <h2 className="text-xl font-semibold text-white mb-4 mt-8">8. Contact</h2>
@@ -156,7 +163,7 @@ export default function ConfidentialitePage() {
 
               <div className="mt-8 p-4 bg-white/[0.04] rounded-xl border border-white/[0.06]">
                 <p className="text-xs text-white/60">
-                  <strong>Dernière mise à jour :</strong> {new Date().toLocaleDateString('fr-FR')}
+                  <strong>Dernière mise à jour :</strong> 27/07/2026
                 </p>
               </div>
             </div>

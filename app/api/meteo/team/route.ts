@@ -40,12 +40,21 @@ export async function GET() {
       const profileMap: Record<string, any> = {};
 
       if (userIds.length > 0) {
-        const { data: profiles } = await supabaseAdmin
-          .from('profiles')
-          .select('id, name, avatar, email')
-          .in('id', userIds);
+        const [{ data: profiles }, { data: privateAccounts }] = await Promise.all([
+          supabaseAdmin
+            .from('profiles')
+            .select('id, name, avatar')
+            .in('id', userIds),
+          supabaseAdmin
+            .from('account_private')
+            .select('user_id, email')
+            .in('user_id', userIds),
+        ]);
+        const emailByUser = new Map(
+          (privateAccounts || []).map((account) => [account.user_id, account.email]),
+        );
         if (profiles) {
-          for (const p of profiles) profileMap[p.id] = p;
+          for (const p of profiles) profileMap[p.id] = { ...p, email: emailByUser.get(p.id) || null };
         }
       }
 
@@ -92,11 +101,18 @@ export async function POST(request: NextRequest) {
     const validRoles = ['admin', 'moderator', 'contributor'];
     const memberRole = validRoles.includes(role) ? role : 'contributor';
 
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('id, name')
+    const { data: privateAccount } = await supabaseAdmin
+      .from('account_private')
+      .select('user_id')
       .eq('email', email.trim().toLowerCase())
       .maybeSingle();
+    const { data: profile } = privateAccount?.user_id
+      ? await supabaseAdmin
+        .from('profiles')
+        .select('id, name')
+        .eq('id', privateAccount.user_id)
+        .maybeSingle()
+      : { data: null };
 
     if (!profile) {
       return NextResponse.json({ error: 'Aucun utilisateur Synaura avec cet email' }, { status: 404 });
