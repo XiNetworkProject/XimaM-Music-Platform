@@ -60,9 +60,9 @@ export async function POST(req: NextRequest) {
 
 async function stripeCustomerEmail(userId: string) {
   const { supabaseAdmin } = await import('@/lib/supabase');
-  const [{ data: profile }, { data: authData }] = await Promise.all([
-    supabaseAdmin.from('profiles').select('email').eq('id', userId).maybeSingle(),
+  const [{ data: privateAccount }, { data: authData }] = await Promise.all([
+    supabaseAdmin.from('account_private').select('email').eq('user_id', userId).maybeSingle(),
     supabaseAdmin.auth.admin.getUserById(userId),
   ]);
-  return profile?.email || authData?.user?.email || null;
+  return privateAccount?.email || authData?.user?.email || null;
 }

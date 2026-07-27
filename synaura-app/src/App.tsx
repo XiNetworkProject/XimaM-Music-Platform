@@ -3,7 +3,12 @@ import { ActivityIndicator, DeviceEventEmitter, Platform, Text, View } from 'rea
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
 import * as NavigationBar from 'expo-navigation-bar';
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
+import { Inter_800ExtraBold } from '@expo-google-fonts/inter/800ExtraBold';
+import { Inter_900Black } from '@expo-google-fonts/inter/900Black';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
@@ -17,6 +22,10 @@ import { RegisterScreen } from '@/screens/RegisterScreen';
 import { ForgotPasswordScreen } from '@/screens/ForgotPasswordScreen';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
 import { WelcomeScreen } from '@/screens/WelcomeScreen';
+import { PhoneAuthScreen } from '@/screens/PhoneAuthScreen';
+import { CompleteAccountScreen } from '@/screens/CompleteAccountScreen';
+import { MfaChallengeScreen } from '@/screens/MfaChallengeScreen';
+import { BiometricLockScreen } from '@/screens/BiometricLockScreen';
 import { HomeV2Screen } from '@/screens/HomeV2Screen';
 import { RadarScreen } from '@/screens/RadarScreen';
 import { DiscoverMoodScreen } from '@/screens/DiscoverMoodScreen';
@@ -59,6 +68,7 @@ export type RootStackParamList = RootTabsParamList & {
   Tabs: { screen?: string; params?: Record<string, unknown> } | undefined;
   Login: { message?: string; returnTo?: { screen: string; params?: Record<string, unknown> } } | undefined;
   Register: undefined;
+  PhoneAuth: undefined;
   ForgotPassword: undefined;
   Onboarding: { edit?: boolean; returnTo?: { screen: string; params?: Record<string, unknown> } } | undefined;
   Welcome: undefined;
@@ -144,6 +154,18 @@ function RootStackNavigator() {
     };
   }, [auth.loading, authenticated, gate.ready]);
 
+  if (!auth.loading && authenticated && auth.biometricLocked) {
+    return <BiometricLockScreen />;
+  }
+
+  if (!auth.loading && authenticated && auth.mfaRequired) {
+    return <MfaChallengeScreen />;
+  }
+
+  if (!auth.loading && authenticated && auth.user?.profileComplete === false) {
+    return <CompleteAccountScreen />;
+  }
+
   if (!gate.ready) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: colors.background }}>
@@ -190,6 +212,7 @@ function RootStackNavigator() {
       <Stack.Screen name="CreatePost" component={CreatePostScreen} options={{ animation: settings.reducedMotion ? 'none' : 'slide_from_bottom' }} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="PhoneAuth" component={PhoneAuthScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ animation: settings.reducedMotion ? 'none' : 'slide_from_right' }} />
       <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ animation: settings.reducedMotion ? 'none' : 'fade' }} />
@@ -201,6 +224,7 @@ function SynauraRuntime() {
   const [playerOpen, setPlayerOpen] = React.useState(false);
   const [activeRoute, setActiveRoute] = React.useState('Swipe');
   const { resolvedTheme } = useMobileSettings();
+  const usesDarkSystemChrome = resolvedTheme === 'dark' || activeRoute === 'Swipe';
   const navigationTheme = React.useMemo(() => ({
     ...DefaultTheme,
     dark: resolvedTheme === 'dark',
@@ -224,9 +248,8 @@ function SynauraRuntime() {
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
-    void NavigationBar.setBackgroundColorAsync(resolvedTheme === 'dark' ? '#0D0D0D' : '#F7F6F3').catch(() => {});
-    void NavigationBar.setButtonStyleAsync(resolvedTheme === 'dark' ? 'light' : 'dark').catch(() => {});
-  }, [resolvedTheme]);
+    void NavigationBar.setButtonStyleAsync(usesDarkSystemChrome ? 'light' : 'dark').catch(() => {});
+  }, [usesDarkSystemChrome]);
 
   return (
     <AuthProvider>
@@ -250,8 +273,8 @@ function SynauraRuntime() {
                     }}
                   >
                     <StatusBar
-                      style={resolvedTheme === 'dark' ? 'light' : 'dark'}
-                      backgroundColor={resolvedTheme === 'dark' ? '#0D0D0D' : '#F7F6F3'}
+                      style={usesDarkSystemChrome ? 'light' : 'dark'}
+                      backgroundColor={usesDarkSystemChrome ? '#0D0D0D' : '#F7F6F3'}
                     />
                     <RootStackNavigator />
                     <MiniPlayer activeRoute={activeRoute} onOpen={() => setPlayerOpen(true)} />
@@ -271,6 +294,17 @@ function SynauraRuntime() {
 }
 
 export default function App() {
+  const [fontsLoaded, fontError] = useFonts({
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+    Inter_900Black,
+  });
+
+  if (!fontsLoaded && !fontError) {
+    return <View style={{ flex: 1, backgroundColor: '#09090B' }} />;
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

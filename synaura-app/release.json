@@ -1,11 +1,11 @@
 {
-  "title": "Synaura Correctifs 0.25.2",
+  "title": "Synaura 2FA gratuite 0.25.9",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Ouverture fiable apres fermeture ou redemarrage, meme si la restauration de session est lente",
-    "Reponses rapides depuis les notifications mises en attente hors ligne puis envoyees sans doublon",
-    "Notifications de conversation regroupees et anciennes alertes expirees automatiquement",
-    "Bulle Android synchronisee une seule fois au passage en arriere-plan"
+    "Double authentification gratuite avec une application compatible TOTP",
+    "Configuration rapide par QR code, ouverture directe ou cle copiable",
+    "Verification des nouvelles connexions meme sans reseau mobile",
+    "Connexion Google, email et verrouillage biometrique conserves"
   ]
 }

@@ -17,6 +17,8 @@
     "test:mobile-flow": "node --experimental-strip-types --test tests/mobile-flow-paging.test.mjs",
     "test:mobile-moments": "node --experimental-strip-types --test tests/mobile-moment-clustering.test.mjs",
     "test:mobile-navigation": "node --experimental-strip-types --test tests/mobile-navigation.test.mjs",
+    "test:account-identity": "node --experimental-strip-types --test tests/account-identity.test.mjs",
+    "test:web-mfa": "node --experimental-strip-types --test tests/web-mfa-marker.test.mjs",
     "test:related-tracks": "node --experimental-strip-types --test tests/related-tracks.test.mjs",
     "deploy": "node scripts/deploy-vercel.js",
     "migrate:supabase": "node scripts/migrate-to-supabase.js",

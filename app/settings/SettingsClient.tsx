@@ -32,6 +32,10 @@ import { UModal, UModalBody } from '@/components/ui/UnifiedUI';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import { registerPushSubscription, unregisterPushSubscription } from '@/lib/pushClient';
 import { SynauraThemeSelector } from '@/components/theme/SynauraThemeProvider';
+import {
+  WebAccountIdentityPanel,
+  WebMfaPanel,
+} from '@/components/settings/WebAccountSecurity';
 
 type SettingsTab = 'profil' | 'compte' | 'parrainage' | 'preferences' | 'events' | 'securite' | 'legal';
 
@@ -1167,6 +1171,8 @@ export default function SettingsClient() {
                       </div>
                     </InnerCard>
 
+                    <WebAccountIdentityPanel onSessionRefresh={refreshSession} />
+
                     <InnerCard>
                       <div className="text-sm font-black text-[#171313]">Accès rapides</div>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -1466,12 +1472,14 @@ export default function SettingsClient() {
               <WarmCard className="space-y-4">
                 <SectionHeader
                   eyebrow="Sécurité"
-                  title="Accès et suppression"
-                  description="Gère la récupération du mot de passe et l’action irréversible de suppression de compte."
+                  title="Accès et double authentification"
+                  description="Protège tes nouvelles connexions, récupère ton mot de passe et gère les accès sensibles."
                 />
 
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
                   <div className="space-y-4">
+                    <WebMfaPanel onSessionRefresh={refreshSession} />
+
                     <InnerCard>
                       <div className="text-sm font-black text-[var(--syn-text-primary)]">Comptes bloqués</div>
                       <div className="mt-1 text-xs font-semibold text-[var(--syn-text-secondary)]">Ces comptes ne peuvent plus t’ajouter ni t’envoyer de message.</div>

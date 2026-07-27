@@ -25,25 +25,48 @@ export async function getSessionFromToken(token: string | null | undefined): Pro
   if (!t) return null;
   try {
     let userId = '';
+    let authEmail: string | null = null;
+    let supabaseAssuranceLevel: string | null = null;
     const { data: supabaseAuth } = await supabaseAdmin.auth.getClaims(t);
     if (supabaseAuth?.claims?.sub) {
       userId = String(supabaseAuth.claims.sub);
+      authEmail = typeof supabaseAuth.claims.email === 'string'
+        ? supabaseAuth.claims.email
+        : null;
+      supabaseAssuranceLevel = typeof supabaseAuth.claims.aal === 'string'
+        ? supabaseAuth.claims.aal
+        : 'aal1';
     } else if (process.env.NEXTAUTH_SECRET) {
       // Temporary compatibility for installed app versions carrying the former JWT.
       const payload = jwt.verify(t, process.env.NEXTAUTH_SECRET) as { id?: string };
       userId = payload?.id || '';
     }
     if (!userId) return null;
-    const { data: profile, error } = await supabaseAdmin
-      .from('profiles')
-      .select('id, email, name, username, avatar, role')
-      .eq('id', userId)
-      .single();
-    if (error || !profile) return null;
+    const [profileResult, privateResult] = await Promise.all([
+      supabaseAdmin
+        .from('profiles')
+        .select('id, email, name, username, avatar, role')
+        .eq('id', userId)
+        .single(),
+      supabaseAdmin
+        .from('account_private')
+        .select('mfa_enabled')
+        .eq('user_id', userId)
+        .maybeSingle(),
+    ]);
+    const profile = profileResult.data;
+    if (profileResult.error || !profile) return null;
+    if (
+      supabaseAssuranceLevel
+      && privateResult.data?.mfa_enabled
+      && supabaseAssuranceLevel !== 'aal2'
+    ) {
+      return null;
+    }
     return {
       user: {
         id: profile.id,
-        email: profile.email,
+        email: authEmail || profile.email,
         name: profile.name,
         username: profile.username,
         avatar: profile.avatar,

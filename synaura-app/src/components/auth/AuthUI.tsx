@@ -184,20 +184,81 @@ export function AuthPrimaryButton({
   );
 }
 
-export function AuthGoogleButton({ onPress }: { onPress: () => void }) {
+export function AuthGoogleButton({
+  onPress,
+  loading,
+  disabled,
+}: {
+  onPress: () => void;
+  loading?: boolean;
+  disabled?: boolean;
+}) {
   return (
-    <MotionPressable onPress={onPress} style={styles.googleButton} scaleTo={0.98}>
-      <Ionicons name="logo-google" size={19} color="#4285F4" />
-      <Text style={styles.googleText}>Continuer avec Google</Text>
+    <MotionPressable
+      disabled={disabled || loading}
+      onPress={onPress}
+      style={[styles.providerButton, (disabled || loading) && styles.disabled]}
+      scaleTo={0.98}
+    >
+      {loading ? <ActivityIndicator color={colors.textSecondary} /> : (
+        <>
+          <Ionicons name="logo-google" size={19} color="#4285F4" />
+          <Text style={styles.providerText}>Continuer avec Google</Text>
+        </>
+      )}
     </MotionPressable>
   );
 }
 
-export function AuthDivider() {
+export function AuthPhoneButton({
+  onPress,
+  disabled,
+}: {
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <MotionPressable
+      disabled={disabled}
+      onPress={onPress}
+      style={[styles.providerButton, disabled && styles.disabled]}
+      scaleTo={0.98}
+    >
+      <Ionicons name="phone-portrait-outline" size={19} color={colors.cyan} />
+      <Text style={styles.providerText}>Continuer avec le telephone</Text>
+    </MotionPressable>
+  );
+}
+
+export function AuthCheckRow({
+  checked,
+  label,
+  onPress,
+}: {
+  checked: boolean;
+  label: React.ReactNode;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      onPress={onPress}
+      style={styles.checkRow}
+    >
+      <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+        {checked ? <Ionicons name="checkmark" size={15} color="#FFFAF2" /> : null}
+      </View>
+      <Text style={styles.checkLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+export function AuthDivider({ label = 'OU AVEC EMAIL' }: { label?: string }) {
   return (
     <View style={styles.divider}>
       <View style={styles.dividerLine} />
-      <Text style={styles.dividerText}>OU AVEC EMAIL</Text>
+      <Text style={styles.dividerText}>{label}</Text>
       <View style={styles.dividerLine} />
     </View>
   );
@@ -297,8 +358,12 @@ const styles = StyleSheet.create({
   primaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   disabled: { opacity: 0.45 },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.88 },
-  googleButton: { height: 52, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceStrong, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  googleText: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  providerButton: { height: 52, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceStrong, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  providerText: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  checkRow: { minHeight: 42, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  checkbox: { width: 22, height: 22, borderRadius: 5, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong, alignItems: 'center', justifyContent: 'center' },
+  checkboxChecked: { borderColor: colors.violet, backgroundColor: colors.violet },
+  checkLabel: { flex: 1, color: colors.textSecondary, fontSize: 11, lineHeight: 17, fontWeight: '700' },
   divider: { marginVertical: 18, flexDirection: 'row', alignItems: 'center', gap: 10 },
   dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
   dividerText: { color: colors.textTertiary, fontSize: 9, fontWeight: '900' },

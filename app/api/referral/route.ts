@@ -8,14 +8,14 @@ const CREDITS_PER_REFERRAL = 50;
 export async function GET(request: NextRequest) {
   try {
     const session = await getApiSession(request);
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('id, referral_code, username')
-      .eq('email', session.user.email)
+      .eq('id', session.user.id)
       .single();
 
     if (!profile) {

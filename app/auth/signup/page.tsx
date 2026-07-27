@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   ArrowRight,
   AtSign,
+  CalendarDays,
   Check,
   Eye,
   EyeOff,
@@ -29,11 +30,16 @@ import {
 } from 'lucide-react';
 
 type FormData = {
+  firstName: string;
+  lastName: string;
+  birthDate: string;
   name: string;
   username: string;
   email: string;
   password: string;
   confirmPassword: string;
+  acceptTerms: boolean;
+  acceptPrivacy: boolean;
 };
 
 type UserCount = {
@@ -45,12 +51,21 @@ type UserCount = {
 
 const steps = [
   {
+    key: 'identity',
+    eyebrow: 'Identité',
+    title: 'Un compte qui est bien le tien',
+    text: 'Tes informations privées restent séparées de ton profil public.',
+    formTitle: 'Qui es-tu ?',
+    formText: 'Ajoute ton prénom, ton nom et ta date de naissance.',
+    icon: CalendarDays,
+  },
+  {
     key: 'discover',
-    eyebrow: 'Découvrir',
+    eyebrow: 'Profil',
     title: 'Découvre un flux vivant',
     text: 'Suis des créateurs, cherche des sons, réagis aux posts.',
-    formTitle: 'Ton identité',
-    formText: 'Pose ton nom public et ton @.',
+    formTitle: 'Ton profil public',
+    formText: 'Choisis le nom et le @ visibles par la communauté.',
     icon: Search,
   },
   {
@@ -75,6 +90,13 @@ const steps = [
 
 const INPUT =
   'h-12 w-full rounded-2xl border border-[#dccfbb] bg-[#fffdf8] px-4 text-sm font-semibold text-[#171313] outline-none transition placeholder:text-black/28 focus:border-[#ff6f61] focus:ring-4 focus:ring-[#ff6f61]/14';
+const PENDING_IDENTITY_KEY = 'synaura.web.pending-google-identity.v1';
+
+function maximumBirthDate() {
+  const date = new Date();
+  date.setUTCFullYear(date.getUTCFullYear() - 15);
+  return date.toISOString().slice(0, 10);
+}
 
 function safeCallbackUrl(value: string | null) {
   if (!value || !value.startsWith('/') || value.startsWith('//')) return '/';
@@ -127,19 +149,8 @@ function CinematicScene({
 
   return (
     <section className="relative hidden min-h-[720px] overflow-hidden rounded-[2.4rem] border border-[#d8cbb8] bg-[#fffaf2] p-7 shadow-[0_24px_80px_rgba(44,33,19,0.16)] lg:block">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(255,111,97,0.24),transparent_34%),radial-gradient(circle_at_88%_18%,rgba(124,92,255,0.18),transparent_34%),radial-gradient(circle_at_52%_96%,rgba(0,194,203,0.14),transparent_34%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(255,111,97,0.18)_0%,transparent_36%),linear-gradient(320deg,rgba(0,194,203,0.13)_0%,transparent_40%)]" />
       <div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(99,80,59,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(99,80,59,0.16)_1px,transparent_1px)] [background-size:32px_32px]" />
-
-      <motion.div
-        className="absolute right-8 top-28 h-52 w-52 rounded-full bg-[#ff6f61]/18 blur-3xl"
-        animate={{ y: [0, 22, 0], x: [0, -14, 0] }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <motion.div
-        className="absolute bottom-6 left-16 h-64 w-64 rounded-full bg-[#00c2cb]/14 blur-3xl"
-        animate={{ y: [0, -18, 0], x: [0, 16, 0] }}
-        transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
-      />
 
       <div className="relative z-10 flex h-full flex-col">
         <div className="flex items-center justify-between">
@@ -170,8 +181,6 @@ function CinematicScene({
         </div>
 
         <div className="relative mt-auto h-[360px]">
-          <div className="absolute inset-x-8 bottom-0 h-28 rounded-[50%] bg-black/10 blur-2xl" />
-
           <motion.div
             className="absolute bottom-8 left-4 w-[270px] rounded-[2rem] border border-[#dccfbb] bg-white p-4 shadow-[0_24px_70px_rgba(44,33,19,0.18)]"
             animate={{ y: [0, -14, 0], rotate: [-1.5, 0.8, -1.5] }}
@@ -207,7 +216,7 @@ function CinematicScene({
             animate={{ y: [0, 12, 0], rotate: [1.5, -0.5, 1.5] }}
             transition={{ duration: 6.8, repeat: Infinity, ease: 'easeInOut' }}
           >
-            <div className="absolute inset-0 rounded-[2rem] bg-[radial-gradient(circle_at_22%_12%,rgba(255,111,97,0.32),transparent_36%),radial-gradient(circle_at_80%_88%,rgba(0,194,203,0.20),transparent_34%)]" />
+            <div className="absolute inset-0 rounded-[2rem] bg-[linear-gradient(145deg,rgba(255,111,97,0.34)_0%,transparent_40%),linear-gradient(320deg,rgba(0,194,203,0.22)_0%,transparent_42%)]" />
             <div className="relative">
               <div className="mb-5 flex items-center justify-between">
                 <span className="text-xs font-black uppercase tracking-[0.16em] text-white/48">Profil</span>
@@ -284,11 +293,16 @@ function SignUpContent() {
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const [formData, setFormData] = useState<FormData>({
+    firstName: '',
+    lastName: '',
+    birthDate: '',
     name: '',
     username: '',
     email: '',
     password: '',
     confirmPassword: '',
+    acceptTerms: false,
+    acceptPrivacy: false,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -303,8 +317,8 @@ function SignUpContent() {
   const passwordScore = useMemo(() => {
     const password = formData.password;
     let score = 0;
-    if (password.length >= 6) score += 1;
     if (password.length >= 10) score += 1;
+    if (password.length >= 14) score += 1;
     if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score += 1;
     if (/\d/.test(password)) score += 1;
     if (/[^A-Za-z0-9]/.test(password)) score += 1;
@@ -322,14 +336,21 @@ function SignUpContent() {
 
   const validateStep = (targetStep = step) => {
     if (targetStep === 0) {
+      if (!formData.firstName.trim()) return 'Ajoute ton prénom.';
+      if (!formData.lastName.trim()) return 'Ajoute ton nom de famille.';
+      if (!formData.birthDate) return 'Ajoute ta date de naissance.';
+      if (formData.birthDate > maximumBirthDate()) return 'Il faut avoir au moins 15 ans pour créer un compte.';
+    }
+    if (targetStep === 1) {
       if (!formData.name.trim()) return 'Ajoute ton nom affiché.';
       if (!formData.username.trim() || formData.username.length < 3) return "Ton nom d'utilisateur doit contenir au moins 3 caractères.";
     }
-    if (targetStep === 1) {
-      if (!formData.email.trim() || !/\S+@\S+\.\S+/.test(formData.email)) return 'Ajoute un email valide.';
-    }
     if (targetStep === 2) {
-      if (formData.password.length < 6) return 'Le mot de passe doit contenir au moins 6 caractères.';
+      if (!formData.email.trim() || !/\S+@\S+\.\S+/.test(formData.email)) return 'Ajoute un email valide.';
+      if (!formData.acceptTerms || !formData.acceptPrivacy) return 'Accepte les conditions et la politique de confidentialité.';
+    }
+    if (targetStep === 3) {
+      if (formData.password.length < 10) return 'Le mot de passe doit contenir au moins 10 caractères.';
       if (formData.password !== formData.confirmPassword) return 'Les deux mots de passe ne correspondent pas.';
     }
     return '';
@@ -352,6 +373,27 @@ function SignUpContent() {
     setStep(value => Math.max(value - 1, 0));
   };
 
+  const startGoogleSignup = async () => {
+    const identityError = validateStep(0) || validateStep(1);
+    if (identityError) {
+      setError(identityError);
+      return;
+    }
+    if (!formData.acceptTerms || !formData.acceptPrivacy) {
+      setError('Accepte les conditions et la politique de confidentialité.');
+      return;
+    }
+    localStorage.setItem(PENDING_IDENTITY_KEY, JSON.stringify({
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      birthDate: formData.birthDate,
+      name: formData.name.trim(),
+      username: formData.username.trim().toLowerCase(),
+    }));
+    const completionUrl = `/auth/google/complete?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+    await signIn('google', { callbackUrl: completionUrl });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (step < steps.length - 1) {
@@ -362,7 +404,7 @@ function SignUpContent() {
       setError('Les inscriptions sont fermées pour le moment.');
       return;
     }
-    const message = validateStep(2);
+    const message = validateStep(steps.length - 1);
     if (message) {
       setError(message);
       return;
@@ -380,6 +422,12 @@ function SignUpContent() {
           username: formData.username.trim().toLowerCase(),
           email: formData.email.trim().toLowerCase(),
           password: formData.password,
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          birthDate: formData.birthDate,
+          acceptTerms: formData.acceptTerms,
+          acceptPrivacy: formData.acceptPrivacy,
+          source: 'web',
           referralCode,
         }),
       });
@@ -407,9 +455,6 @@ function SignUpContent() {
         transition={{ duration: 0.45, ease: 'easeOut' }}
         className="relative overflow-hidden rounded-[2.2rem] border border-[#d8cbb8] bg-[#fff7ec] p-5 text-[#171313] shadow-[0_24px_80px_rgba(44,33,19,0.16)] sm:p-7 lg:min-h-[720px] lg:p-8"
       >
-        <div className="pointer-events-none absolute -right-16 -top-14 h-44 w-44 rounded-full bg-[#ff6f61]/14 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 left-10 h-56 w-56 rounded-full bg-[#00c2cb]/10 blur-3xl" />
-
         <div className="relative z-10 flex min-h-full flex-col">
           <div className="mb-6 flex items-center justify-between gap-3 lg:hidden">
             <SynauraMark caption="inscription" />
@@ -452,7 +497,7 @@ function SignUpContent() {
         </AnimatePresence>
 
           <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
-            <div className="min-h-[280px]">
+            <div className="min-h-[360px]">
               <AnimatePresence mode="wait" custom={direction}>
                 <motion.div
                   key={step}
@@ -465,16 +510,44 @@ function SignUpContent() {
                 >
                   {step === 0 ? (
                     <>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Field label="Prénom">
+                          <span className="relative block">
+                            <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/32" />
+                            <input name="firstName" value={formData.firstName} onChange={handleInputChange} autoComplete="given-name" className={`${INPUT} pl-11`} placeholder="Maxime" disabled={isLoading} />
+                          </span>
+                        </Field>
+                        <Field label="Nom">
+                          <span className="relative block">
+                            <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/32" />
+                            <input name="lastName" value={formData.lastName} onChange={handleInputChange} autoComplete="family-name" className={`${INPUT} pl-11`} placeholder="Vermeulen" disabled={isLoading} />
+                          </span>
+                        </Field>
+                      </div>
+                      <Field label="Date de naissance">
+                        <span className="relative block">
+                          <CalendarDays className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-black/32" />
+                          <input type="date" name="birthDate" value={formData.birthDate} onChange={handleInputChange} max={maximumBirthDate()} autoComplete="bday" className={`${INPUT} pl-11`} disabled={isLoading} />
+                        </span>
+                      </Field>
+                      <div className="rounded-2xl border border-[#dccfbb] bg-white/72 p-3 text-xs font-bold leading-relaxed text-black/48">
+                        Ces informations servent à protéger ton compte et à appliquer l’âge minimum. Elles ne sont pas affichées publiquement.
+                      </div>
+                    </>
+                  ) : null}
+
+                  {step === 1 ? (
+                    <>
                       <Field label="Nom affiché">
                         <span className="relative block">
                           <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/32" />
-                          <input name="name" value={formData.name} onChange={handleInputChange} className={`${INPUT} pl-11`} placeholder="Maxime" disabled={isLoading} />
+                          <input name="name" value={formData.name} onChange={handleInputChange} autoComplete="name" className={`${INPUT} pl-11`} placeholder={`${formData.firstName} ${formData.lastName}`.trim() || 'Ton nom public'} disabled={isLoading} />
                         </span>
                       </Field>
                       <Field label="Nom d'utilisateur">
                         <span className="relative block">
                           <AtSign className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/32" />
-                          <input name="username" value={formData.username} onChange={handleInputChange} className={`${INPUT} pl-11`} placeholder="maxmusic" disabled={isLoading} />
+                          <input name="username" value={formData.username} onChange={handleInputChange} autoComplete="username" className={`${INPUT} pl-11`} placeholder="maxmusic" disabled={isLoading} />
                         </span>
                       </Field>
                       <div className="rounded-2xl border border-[#dccfbb] bg-white/72 p-3 text-xs font-bold leading-relaxed text-black/48">
@@ -483,35 +556,55 @@ function SignUpContent() {
                     </>
                   ) : null}
 
-                  {step === 1 ? (
+                  {step === 2 ? (
                     <>
                       <Field label="Email">
                         <span className="relative block">
                           <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/32" />
-                          <input type="email" name="email" value={formData.email} onChange={handleInputChange} className={`${INPUT} pl-11`} placeholder="vous@example.com" disabled={isLoading} />
+                          <input type="email" name="email" value={formData.email} onChange={handleInputChange} autoComplete="email" className={`${INPUT} pl-11`} placeholder="vous@example.com" disabled={isLoading} />
                         </span>
                       </Field>
-        <button
-          type="button"
-                        onClick={() => signIn('google', { callbackUrl })}
+                      <div className="space-y-2 rounded-2xl border border-[#dccfbb] bg-white/72 p-3">
+                        <label className="flex cursor-pointer items-start gap-3 text-xs font-bold leading-5 text-black/56">
+                          <input
+                            type="checkbox"
+                            checked={formData.acceptTerms}
+                            onChange={(event) => setFormData((current) => ({ ...current, acceptTerms: event.target.checked }))}
+                            className="mt-0.5 h-4 w-4 accent-[#171313]"
+                          />
+                          <span>J&apos;accepte les <Link href="/legal/cgu" target="_blank" className="font-black text-[#171313] underline">conditions d&apos;utilisation</Link>.</span>
+                        </label>
+                        <label className="flex cursor-pointer items-start gap-3 text-xs font-bold leading-5 text-black/56">
+                          <input
+                            type="checkbox"
+                            checked={formData.acceptPrivacy}
+                            onChange={(event) => setFormData((current) => ({ ...current, acceptPrivacy: event.target.checked }))}
+                            className="mt-0.5 h-4 w-4 accent-[#171313]"
+                          />
+                          <span>J&apos;accepte la <Link href="/legal/confidentialite" target="_blank" className="font-black text-[#171313] underline">politique de confidentialité</Link>.</span>
+                        </label>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void startGoogleSignup()}
                         className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl border border-[#dccfbb] bg-white text-sm font-black text-[#171313] shadow-[0_10px_24px_rgba(44,33,19,0.06)] transition hover:-translate-y-0.5"
                       >
                         <GoogleMark />
-          Continuer avec Google
-        </button>
+                        Continuer avec Google
+                      </button>
                       <div className="rounded-2xl border border-[#dccfbb] bg-white/72 p-3">
                         <p className="text-xs font-black uppercase tracking-[0.14em] text-black/36">Pourquoi l’email ?</p>
                         <p className="mt-1 text-xs font-bold leading-relaxed text-black/48">Il sert à sécuriser ton accès, récupérer ton compte et recevoir les notifications importantes.</p>
-        </div>
+                      </div>
                     </>
                   ) : null}
 
-                  {step === 2 ? (
+                  {step === 3 ? (
                     <>
                       <Field label="Mot de passe">
                         <span className="relative block">
                           <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/32" />
-                          <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleInputChange} className={`${INPUT} pl-11 pr-12`} placeholder="6 caractères minimum" disabled={isLoading} />
+                          <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleInputChange} className={`${INPUT} pl-11 pr-12`} placeholder="10 caractères minimum" disabled={isLoading} />
                           <button type="button" onClick={() => setShowPassword(value => !value)} className="absolute right-4 top-1/2 -translate-y-1/2 text-black/36 transition hover:text-black/70" aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}>
                             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
@@ -534,8 +627,9 @@ function SignUpContent() {
                       <div className="rounded-2xl border border-[#dccfbb] bg-white/72 p-3">
                         <p className="text-xs font-black uppercase tracking-[0.14em] text-black/36">Résumé</p>
                         <p className="mt-1 text-sm font-black text-[#171313]">{formData.name || 'Nom'} · @{formData.username || 'pseudo'}</p>
+                        <p className="text-xs font-bold text-black/46">{formData.firstName || 'Prénom'} {formData.lastName || 'Nom'} · {formData.birthDate || 'date de naissance'}</p>
                         <p className="text-xs font-bold text-black/46">{formData.email || 'email'}</p>
-            </div>
+                      </div>
                     </>
                   ) : null}
                 </motion.div>

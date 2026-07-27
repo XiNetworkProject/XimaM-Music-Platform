@@ -7,6 +7,8 @@ create table if not exists public.password_resets (
   code text not null,
   expires_at timestamptz not null,
   used_at timestamptz,
+  attempt_count integer not null default 0,
+  last_attempt_at timestamptz,
   ip text,
   user_agent text,
   created_at timestamptz not null default now()

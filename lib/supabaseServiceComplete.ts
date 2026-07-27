@@ -114,18 +114,22 @@ export class UserService {
   }
 
   static async getByEmail(email: string): Promise<SupabaseUser | null> {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
+    const { data: privateAccount, error } = await supabase
+      .from('account_private')
+      .select('user_id, email')
       .eq('email', email)
-      .single();
+      .maybeSingle();
     
-    if (error) {
+    if (error || !privateAccount) {
       console.error('Erreur récupération utilisateur par email:', error);
       return null;
     }
-    
-    return data;
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', privateAccount.user_id)
+      .maybeSingle();
+    return profile ? { ...profile, email: privateAccount.email } : null;
   }
 
   static async getByUsername(username: string): Promise<SupabaseUser | null> {

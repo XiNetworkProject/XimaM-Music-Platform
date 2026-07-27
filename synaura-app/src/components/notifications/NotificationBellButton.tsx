@@ -7,7 +7,17 @@ import { useAuth } from '@/auth/AuthProvider';
 import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
 import { colors } from '@/theme/tokens';
 
-export function NotificationBellButton({ dark = false, compact = false }: { dark?: boolean; compact?: boolean }) {
+export function NotificationBellButton({
+  dark = false,
+  compact = false,
+  onPress,
+  size,
+}: {
+  dark?: boolean;
+  compact?: boolean;
+  onPress?: () => void;
+  size?: number;
+}) {
   const navigation = useNavigation<any>();
   const auth = useAuth();
   const notifications = useNativeNotifications();
@@ -17,16 +27,21 @@ export function NotificationBellButton({ dark = false, compact = false }: { dark
     <MotionPressable
       accessibilityLabel={count ? `Activité, ${count} notification${count > 1 ? 's' : ''} non lue${count > 1 ? 's' : ''}` : 'Activité'}
       onPress={() => {
+        if (onPress) {
+          onPress();
+          return;
+        }
         if (auth.requireAuth()) navigation.navigate('Notifications');
       }}
       style={[
         styles.button,
         compact && styles.buttonCompact,
         dark && styles.buttonDark,
+        size ? { width: size, height: size, borderRadius: size / 2 } : null,
       ]}
       scaleTo={0.9}
     >
-      <Ionicons name={count ? 'notifications' : 'notifications-outline'} size={compact ? 19 : 20} color={dark ? colors.paper : colors.text} />
+      <Ionicons name={count ? 'notifications' : 'notifications-outline'} size={size ? 17 : compact ? 19 : 20} color={dark ? colors.paper : colors.text} />
       {count ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{count > 9 ? '9+' : count}</Text>
@@ -49,6 +64,7 @@ const styles = StyleSheet.create({
   },
   buttonCompact: { width: 36, height: 36, borderRadius: 9 },
   buttonDark: {
+    borderRadius: 999,
     borderColor: 'rgba(255,250,242,0.14)',
     backgroundColor: 'rgba(255,250,242,0.08)',
   },

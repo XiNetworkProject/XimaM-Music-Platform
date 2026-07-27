@@ -88,8 +88,8 @@ export default function CGUPage() {
                 <div className="p-4 bg-white/[0.04] rounded-lg">
                   <h3 className="text-sm font-medium text-white mb-2">4.2 Âge minimum</h3>
                   <p className="text-sm text-white/60">
-                    Vous devez avoir au moins 13 ans pour créer un compte. Les mineurs de moins de 16 ans doivent 
-                    obtenir l'autorisation de leurs parents ou tuteurs légaux.
+                    Vous devez avoir au moins 15 ans pour créer un compte. Synaura n'autorise pas la création
+                    d'un compte par une personne âgée de moins de 15 ans.
                   </p>
                 </div>
               </div>

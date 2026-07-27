@@ -163,6 +163,8 @@ export async function POST() {
 
 export async function GET() {
   try {
+    const guard = await getAdminGuard();
+    if (!guard.ok) return NextResponse.json({ error: 'Admin requis' }, { status: 403 });
     const checks: Record<string, any> = {};
 
     const tables = ['notifications', 'notification_preferences', 'admin_broadcasts', 'push_subscriptions'];
@@ -201,9 +203,9 @@ export async function GET() {
       // Lister les profiles pour comparaison
       const { data: profiles } = await supabaseAdmin
         .from('profiles')
-        .select('id, username, email')
+        .select('id, username')
         .limit(20);
-      checks.profiles = (profiles || []).map((p: any) => ({ id: p.id, username: p.username, email: p.email }));
+      checks.profiles = profiles || [];
     }
 
     checks.vapid_configured = !!(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);

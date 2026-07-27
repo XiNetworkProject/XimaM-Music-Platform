@@ -5,9 +5,9 @@ import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 // Configuration des URLs selon l'environnement
 const getAuthUrls = () => {
-  const baseUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://xima-m-music-platform.vercel.app'
-    : process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXTAUTH_URL
+    || process.env.NEXT_PUBLIC_APP_URL
+    || 'http://localhost:3000';
 
   return {
     baseUrl,
@@ -17,6 +17,16 @@ const getAuthUrls = () => {
 };
 
 const { baseUrl, signInUrl, errorUrl } = getAuthUrls();
+const MFA_STATE_REFRESH_MS = 5 * 60 * 1000;
+
+async function readMfaState(userId: string) {
+  const { data } = await supabaseAdmin
+    .from('account_private')
+    .select('mfa_enabled')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return Boolean(data?.mfa_enabled);
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -51,22 +61,32 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Récupérer le profil utilisateur depuis la table profiles
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
+          const [
+            { data: profile, error: profileError },
+            { data: privateAccount },
+          ] = await Promise.all([
+            supabaseAdmin
+              .from('profiles')
+              .select('*')
+              .eq('id', user.id)
+              .single(),
+            supabaseAdmin
+              .from('account_private')
+              .select('mfa_enabled')
+              .eq('user_id', user.id)
+              .maybeSingle(),
+          ]);
 
           if (profileError || !profile) {
             console.log('❌ Erreur récupération profil:', profileError?.message);
             return null;
           }
 
-          console.log('✅ Connexion Supabase réussie pour:', profile.email);
+          console.log('✅ Connexion Supabase réussie pour:', user.id);
 
           return {
             id: profile.id,
-            email: profile.email,
+            email: user.email,
             name: profile.name,
             username: profile.username,
             avatar: profile.avatar,
@@ -81,6 +101,7 @@ export const authOptions: NextAuthOptions = {
             totalPlays: profile.total_plays || 0,
             totalLikes: profile.total_likes || 0,
             lastSeen: profile.last_seen,
+            mfaRequired: Boolean(privateAccount?.mfa_enabled),
           };
         } catch (error) {
           console.error('❌ Erreur lors de l\'authentification Supabase:', error);
@@ -94,18 +115,18 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === 'google' && user?.email) {
         try {
           const email = user.email.toLowerCase();
-          const { data: existing } = await supabase
-            .from('profiles')
-            .select('id')
+          const { data: existing } = await supabaseAdmin
+            .from('account_private')
+            .select('user_id')
             .eq('email', email)
-            .single();
+            .maybeSingle();
 
           if (!existing) {
             const baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 20);
             let username = baseUsername;
             let suffix = 1;
             while (true) {
-              const { data: taken } = await supabase.from('profiles').select('id').eq('username', username).single();
+              const { data: taken } = await supabaseAdmin.from('profiles').select('id').eq('username', username).maybeSingle();
               if (!taken) break;
               username = `${baseUsername}${suffix++}`;
             }
@@ -133,12 +154,16 @@ export const authOptions: NextAuthOptions = {
               id: supabaseUserId,
               name: user.name || username,
               username,
-              email,
+              email: null,
               avatar: user.image || null,
-              is_verified: true,
+              is_verified: false,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             });
+            await supabaseAdmin.from('account_private').upsert({
+              user_id: supabaseUserId,
+              email,
+            }, { onConflict: 'user_id' });
             console.log('✅ Nouveau profil Google créé:', username);
           }
         } catch (err) {
@@ -151,13 +176,13 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       console.log('🔄 Mise à jour de la session Supabase pour:', session.user?.email);
       
-      if (session.user?.email) {
+      if (token.id) {
         try {
           // Récupérer le profil utilisateur depuis Supabase
-          const { data: profile, error: profileError } = await supabase
+          const { data: profile, error: profileError } = await supabaseAdmin
             .from('profiles')
             .select('*')
-            .eq('email', session.user.email)
+            .eq('id', String(token.id))
             .single();
           
           if (profile && !profileError) {
@@ -191,16 +216,28 @@ export const authOptions: NextAuthOptions = {
           console.error('❌ Erreur lors de la récupération de la session Supabase:', error);
         }
       }
+      if (session.user) {
+        (session.user as any).mfaRequired = Boolean(token.mfaRequired);
+      }
       return session;
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger }) {
       if (user) {
+        token.authSessionId = crypto.randomUUID();
+        token.mfaCheckedAt = Date.now();
         if (account?.provider === 'google' && user.email) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
+          const { data: privateAccount } = await supabaseAdmin
+            .from('account_private')
+            .select('user_id, mfa_enabled')
             .eq('email', user.email.toLowerCase())
-            .single();
+            .maybeSingle();
+          const { data: profile } = privateAccount?.user_id
+            ? await supabaseAdmin
+              .from('profiles')
+              .select('*')
+              .eq('id', privateAccount.user_id)
+              .single()
+            : { data: null };
           if (profile) {
             token.id = profile.id;
             token.username = profile.username;
@@ -212,6 +249,7 @@ export const authOptions: NextAuthOptions = {
             token.totalPlays = profile.total_plays || 0;
             token.totalLikes = profile.total_likes || 0;
             token.lastSeen = profile.last_seen;
+            token.mfaRequired = Boolean(privateAccount?.mfa_enabled);
           }
         } else {
           const extendedToken = {
@@ -226,17 +264,34 @@ export const authOptions: NextAuthOptions = {
             totalPlays: user.totalPlays,
             totalLikes: user.totalLikes,
             lastSeen: user.lastSeen,
+            mfaRequired: Boolean((user as any).mfaRequired),
           };
           Object.assign(token, extendedToken);
         }
         console.log('🔑 JWT mis à jour pour:', user.email);
       }
+      if (token.id && !token.authSessionId) {
+        token.authSessionId = crypto.randomUUID();
+      }
+      const checkedAt = typeof token.mfaCheckedAt === 'number' ? token.mfaCheckedAt : 0;
+      if (
+        token.id
+        && (trigger === 'update' || !checkedAt || Date.now() - checkedAt > MFA_STATE_REFRESH_MS)
+      ) {
+        token.mfaRequired = await readMfaState(String(token.id));
+        token.mfaCheckedAt = Date.now();
+      }
       return token;
     },
     async redirect({ url, baseUrl }) {
       console.log('🔄 Redirection Supabase:', { url, baseUrl });
-      
-      // Toujours rediriger vers l'accueil après authentification
+
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      try {
+        if (new URL(url).origin === new URL(baseUrl).origin) return url;
+      } catch {
+        // Invalid callback URLs fall back to the application root.
+      }
       return baseUrl;
     },
   },
@@ -251,4 +306,4 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === 'development',
   useSecureCookies: process.env.NODE_ENV === 'production',
-}; 
+};

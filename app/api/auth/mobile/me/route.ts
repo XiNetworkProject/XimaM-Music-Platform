@@ -1,22 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiSession } from '@/lib/getApiSession';
+import {
+  getMobileAuthUser,
+  getMobileMfaFactors,
+  readAuthenticatorAssuranceLevel,
+} from '@/lib/mobileAuth';
+import { supabaseAdmin } from '@/lib/supabase';
 
-/** GET /api/auth/mobile/me — Vérifie que le token Bearer est valide et retourne le profil (pour debug / sync). */
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
-  const session = await getApiSession(req);
-  if (!session?.user?.id) {
+  const authorization = req.headers.get('authorization');
+  const token = authorization?.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+  const { data, error } = token
+    ? await supabaseAdmin.auth.getUser(token)
+    : { data: { user: null }, error: new Error('Missing token') };
+  if (error || !data.user) {
     return NextResponse.json(
-      { error: 'Non authentifié', code: 'UNAUTHORIZED' },
-      { status: 401 }
+      { error: 'Non authentifie', code: 'UNAUTHORIZED' },
+      { status: 401 },
     );
   }
+  const user = await getMobileAuthUser(data.user.id, data.user);
+  if (!user) return NextResponse.json({ error: 'Profil introuvable' }, { status: 404 });
+  const factors = getMobileMfaFactors(data.user);
+  const assuranceLevel = readAuthenticatorAssuranceLevel(token);
   return NextResponse.json({
     success: true,
-    user: {
-      id: session.user.id,
-      email: session.user.email,
-      name: session.user.name,
-      username: session.user.username,
-    },
-  });
+    user,
+    mfaFactors: factors,
+    mfaRequired: assuranceLevel === 'aal1'
+      && factors.some((factor) => factor.status === 'verified'),
+  }, { headers: { 'Cache-Control': 'private, no-store' } });
 }

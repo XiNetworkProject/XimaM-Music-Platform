@@ -7,6 +7,28 @@ import { buildCampaignEmail, CampaignTemplate, CAMPAIGN_PRESETS } from '@/lib/em
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+async function campaignUsers(userIds?: string[]) {
+  let privateQuery = supabaseAdmin
+    .from('account_private')
+    .select('user_id, email')
+    .not('email', 'is', null);
+  if (userIds?.length) privateQuery = privateQuery.in('user_id', userIds);
+  const { data: privateAccounts, error } = await privateQuery;
+  if (error) throw error;
+  const ids = (privateAccounts || []).map((account) => account.user_id);
+  const { data: profiles } = ids.length
+    ? await supabaseAdmin.from('profiles').select('id, name').in('id', ids)
+    : { data: [] };
+  const names = new Map((profiles || []).map((profile) => [profile.id, profile.name]));
+  return (privateAccounts || [])
+    .filter((account): account is typeof account & { email: string } => Boolean(account.email))
+    .map((account) => ({
+      id: account.user_id,
+      email: account.email,
+      name: names.get(account.user_id) || '',
+    }));
+}
+
 export async function POST(req: NextRequest) {
   try {
     const guard = await getAdminGuard();
@@ -43,23 +65,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Template invalide' }, { status: 400 });
     }
 
-    let users: { id: string; email: string; name: string }[] = [];
-
-    if (target === 'specific' && userIds && userIds.length > 0) {
-      const { data, error } = await supabaseAdmin
-        .from('profiles')
-        .select('id, email, name')
-        .in('id', userIds);
-      if (error) throw error;
-      users = (data || []).filter((u) => u.email);
-    } else {
-      const { data, error } = await supabaseAdmin
-        .from('profiles')
-        .select('id, email, name')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      users = (data || []).filter((u) => u.email);
-    }
+    const users = await campaignUsers(target === 'specific' ? userIds : undefined);
 
     if (users.length === 0) {
       return NextResponse.json({ error: 'Aucun destinataire trouvé' }, { status: 400 });
@@ -141,15 +147,43 @@ export async function GET(req: NextRequest) {
       const search = searchParams.get('search') || '';
       let query = supabaseAdmin
         .from('profiles')
-        .select('id, email, name, username, avatar')
+        .select('id, name, username, avatar')
         .order('name', { ascending: true })
         .limit(50);
       if (search) {
-        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,username.ilike.%${search}%`);
+        query = query.or(`name.ilike.%${search}%,username.ilike.%${search}%`);
       }
-      const { data, error } = await query;
+      const [{ data, error }, { data: emailMatches }] = await Promise.all([
+        query,
+        search
+          ? supabaseAdmin
+            .from('account_private')
+            .select('user_id')
+            .ilike('email', `%${search}%`)
+            .limit(50)
+          : Promise.resolve({ data: [] }),
+      ]);
       if (error) throw error;
-      return NextResponse.json({ users: data || [] });
+      const emailIds = (emailMatches || []).map((account) => account.user_id);
+      const missingIds = emailIds.filter((id) => !(data || []).some((profile) => profile.id === id));
+      const { data: emailProfiles } = missingIds.length
+        ? await supabaseAdmin
+          .from('profiles')
+          .select('id, name, username, avatar')
+          .in('id', missingIds)
+        : { data: [] };
+      const profiles = [...(data || []), ...(emailProfiles || [])].slice(0, 50);
+      const ids = profiles.map((profile) => profile.id);
+      const { data: privateAccounts } = ids.length
+        ? await supabaseAdmin
+          .from('account_private')
+          .select('user_id, email')
+          .in('user_id', ids)
+        : { data: [] };
+      const emails = new Map((privateAccounts || []).map((account) => [account.user_id, account.email]));
+      return NextResponse.json({
+        users: profiles.map((profile) => ({ ...profile, email: emails.get(profile.id) || null })),
+      });
     }
 
     if (action === 'count') {

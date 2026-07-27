@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createMobileAuthClient, getMobileAuthUser, mobileSessionPayload } from '@/lib/mobileAuth';
+import { createMobileAuthClient, ensureMobileAuthProfile, mobileSessionPayload } from '@/lib/mobileAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,10 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email ou mot de passe incorrect' }, { status: 401 });
     }
 
-    const user = await getMobileAuthUser(data.user.id);
-    if (!user) {
-      return NextResponse.json({ error: 'Profil utilisateur non trouvé' }, { status: 404 });
-    }
+    const user = await ensureMobileAuthProfile(data.user);
 
     return NextResponse.json({ success: true, data: mobileSessionPayload(data.session, user) }, {
       headers: { 'Cache-Control': 'private, no-store' },
