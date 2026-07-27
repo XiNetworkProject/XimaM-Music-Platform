@@ -78,23 +78,13 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
-      const { data: challenge, error: challengeError } = await authClient.auth.mfa.challenge({
-        factorId: factor.id,
-      });
-      if (challengeError || !challenge) {
-        await authClient.auth.mfa.unenroll({ factorId: factor.id }).catch(() => undefined);
-        return NextResponse.json(
-          { error: challengeError?.message || 'Initialisation 2FA impossible' },
-          { status: 400 },
-        );
-      }
       return NextResponse.json({
         success: true,
         data: {
           factorId: factor.id,
           factorType: 'totp',
-          challengeId: challenge.id,
-          expiresAt: challenge.expires_at,
+          challengeId: 'totp-inline',
+          expiresAt: Math.floor(Date.now() / 1000) + 300,
           qrCode: factor.totp.qr_code,
           secret: factor.totp.secret,
           uri: factor.totp.uri,
@@ -141,11 +131,22 @@ export async function POST(request: NextRequest) {
 
     if (action === 'challenge') {
       const factorType = factor.factor_type === 'phone' ? 'phone' : 'totp';
-      const { data: challenge, error } = await authClient.auth.mfa.challenge(
-        factorType === 'phone'
-          ? { factorId, channel: 'sms' }
-          : { factorId },
-      );
+      if (factorType === 'totp') {
+        return NextResponse.json({
+          success: true,
+          data: {
+            factorId,
+            factorType,
+            challengeId: 'totp-inline',
+            expiresAt: Math.floor(Date.now() / 1000) + 300,
+            session: mobileSessionPayload(sessionData.session, user),
+          },
+        }, { headers: { 'Cache-Control': 'private, no-store' } });
+      }
+      const { data: challenge, error } = await authClient.auth.mfa.challenge({
+        factorId,
+        channel: 'sms',
+      });
       if (error || !challenge) {
         return NextResponse.json(
           { error: error?.message || 'Verification 2FA impossible' },
@@ -167,14 +168,12 @@ export async function POST(request: NextRequest) {
     if (action === 'verify') {
       const challengeId = typeof body?.challengeId === 'string' ? body.challengeId : '';
       const code = typeof body?.code === 'string' ? body.code.replace(/\D/g, '') : '';
-      if (!challengeId || code.length !== 6) {
+      if (code.length !== 6 || (factor.factor_type === 'phone' && !challengeId)) {
         return NextResponse.json({ error: 'Code 2FA invalide' }, { status: 400 });
       }
-      const { data: verified, error } = await authClient.auth.mfa.verify({
-        factorId,
-        challengeId,
-        code,
-      });
+      const { data: verified, error } = factor.factor_type === 'phone'
+        ? await authClient.auth.mfa.verify({ factorId, challengeId, code })
+        : await authClient.auth.mfa.challengeAndVerify({ factorId, code });
       if (error || !verified) {
         return NextResponse.json({ error: 'Code 2FA expire ou incorrect' }, { status: 401 });
       }
