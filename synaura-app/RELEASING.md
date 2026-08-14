@@ -15,13 +15,14 @@ npm run publish:android
 
 La commande de publication :
 
-- depose l'APK signe dans une GitHub Release ;
-- calcule son SHA-256 ;
-- publie `latest.json` et son historique dans le bucket Supabase
-  `mobile-releases`.
+- copie l'APK signe sur le SSD dans `mobile-releases/<version>/synaura.apk` ;
+- calcule son SHA-256 en streaming ;
+- publie atomiquement `latest.json` et l'historique sous
+  `/mnt/Synaura-SSD/apps/synaura/media/mobile-releases`.
 
 L'application lit d'abord l'API web, puis utilise directement le manifeste
-public Supabase si le site n'est pas encore deploye.
+public `https://media.synaura.fr/mobile-releases/latest.json` si le site n'est
+pas encore deploye.
 
 ## Signature
 
