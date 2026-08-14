@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { MessagingConversation, MessagingMessage } from '@/api/client';
+import { toPublicMediaUrl } from '@/media/mediaUrls';
 
 const CACHE_VERSION = 2;
 const CACHE_PREFIX = 'synaura.messaging.cache.v2';
@@ -15,13 +16,57 @@ function key(userId: string, conversationId: string, roomId?: string | null) {
   return `${CACHE_PREFIX}:${userId}:${conversationId}:${roomId || 'main'}`;
 }
 
+function normalizeCachedMessage(message: MessagingMessage): MessagingMessage {
+  const metadata = { ...message.metadata };
+  if (typeof metadata.coverUrl === 'string') metadata.coverUrl = toPublicMediaUrl(metadata.coverUrl) || '';
+  return {
+    ...message,
+    sender: { ...message.sender, avatar: toPublicMediaUrl(message.sender.avatar) },
+    mediaUrl: toPublicMediaUrl(message.mediaUrl),
+    metadata,
+    attachments: message.attachments
+      .map((attachment) => ({
+        ...attachment,
+        url: toPublicMediaUrl(attachment.url) || '',
+        previewUrl: toPublicMediaUrl(attachment.previewUrl),
+      }))
+      .filter((attachment) => Boolean(attachment.url)),
+  };
+}
+
+function normalizeCachedConversation(
+  conversation: CachedConversation['conversation'],
+): CachedConversation['conversation'] {
+  return {
+    ...conversation,
+    avatarUrl: toPublicMediaUrl(conversation.avatarUrl),
+    participants: conversation.participants.map((user) => ({
+      ...user,
+      avatar: toPublicMediaUrl(user.avatar),
+    })),
+    otherUser: conversation.otherUser ? {
+      ...conversation.otherUser,
+      avatar: toPublicMediaUrl(conversation.otherUser.avatar),
+    } : null,
+    preferences: {
+      ...conversation.preferences,
+      wallpaperUrl: toPublicMediaUrl(conversation.preferences.wallpaperUrl),
+    },
+  };
+}
+
 export async function readConversationCache(userId: string, conversationId: string, roomId?: string | null) {
   const raw = await AsyncStorage.getItem(key(userId, conversationId, roomId));
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
     if (parsed?.version !== CACHE_VERSION || !parsed?.data?.conversation || !Array.isArray(parsed?.data?.messages)) return null;
-    return parsed.data as CachedConversation;
+    const cached = parsed.data as CachedConversation;
+    return {
+      ...cached,
+      conversation: normalizeCachedConversation(cached.conversation),
+      messages: cached.messages.map(normalizeCachedMessage),
+    };
   } catch {
     await AsyncStorage.removeItem(key(userId, conversationId, roomId)).catch(() => {});
     return null;

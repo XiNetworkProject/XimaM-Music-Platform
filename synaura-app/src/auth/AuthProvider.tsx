@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, DeviceEventEmitter } from 'react-native';
 import { API_BASE_URL, setAuthRefreshHandler, setAuthTokenProvider } from '@/api/client';
+import { toPublicMediaUrl } from '@/media/mediaUrls';
 import {
   MOBILE_AUTH_EXPIRES_AT_KEY,
   MOBILE_AUTH_REFRESH_TOKEN_KEY,
@@ -57,11 +58,19 @@ const AUTH_REQUEST_TIMEOUT_MS = 15000;
 const REFRESH_EARLY_MS = 2 * 60_000;
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function normalizeMobileUser(value: MobileUser | null | undefined): MobileUser | null {
+  if (!value?.id) return null;
+  return {
+    ...value,
+    avatar: toPublicMediaUrl(value.avatar) || null,
+  };
+}
+
 function parseStoredUser(raw: string | null | undefined) {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    return parsed?.id ? (parsed as MobileUser) : null;
+    return normalizeMobileUser(parsed as MobileUser);
   } catch {
     return null;
   }
@@ -116,18 +125,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     nextExpiresAt: number,
     nextUser: MobileUser | null,
   ) => {
+    const normalizedUser = normalizeMobileUser(nextUser);
     sessionMutationRef.current += 1;
     tokenRef.current = nextToken;
     refreshTokenRef.current = nextRefreshToken;
     expiresAtRef.current = nextExpiresAt;
     setAuthTokenProvider(() => nextToken);
     setToken(nextToken);
-    setUser(nextUser);
+    setUser(normalizedUser);
     await Promise.all([
       secureSet(TOKEN_KEY, nextToken),
       secureSet(REFRESH_TOKEN_KEY, nextRefreshToken),
       secureSet(EXPIRES_AT_KEY, nextExpiresAt > 0 ? String(nextExpiresAt) : null),
-      nextUser ? AsyncStorage.setItem(USER_KEY, JSON.stringify(nextUser)) : AsyncStorage.removeItem(USER_KEY),
+      normalizedUser ? AsyncStorage.setItem(USER_KEY, JSON.stringify(normalizedUser)) : AsyncStorage.removeItem(USER_KEY),
       AsyncStorage.removeItem(TOKEN_KEY),
     ]);
   }, []);
@@ -191,8 +201,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAuthTokenProvider(() => nextToken);
       setToken(nextToken);
       if (session?.user?.id) {
-        setUser((current) => ({ ...current, ...session.user } as MobileUser));
-        void AsyncStorage.setItem(USER_KEY, JSON.stringify(session.user)).catch(() => {});
+        setUser((current) => {
+          const nextUser = normalizeMobileUser({ ...current, ...session.user } as MobileUser);
+          if (nextUser) void AsyncStorage.setItem(USER_KEY, JSON.stringify(nextUser)).catch(() => {});
+          return nextUser;
+        });
       }
     });
     return () => subscription.remove();
@@ -251,9 +264,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!response.ok) return;
         const json = await response.json().catch(() => null);
         if (json?.user?.id && mounted) {
-          const nextUser = { ...restoredUser, ...json.user } as MobileUser;
+          const nextUser = normalizeMobileUser({ ...restoredUser, ...json.user } as MobileUser);
           setUser(nextUser);
-          await AsyncStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+          if (nextUser) await AsyncStorage.setItem(USER_KEY, JSON.stringify(nextUser));
         }
       } catch {
         clearTimeout(restoreTimeout);
@@ -295,9 +308,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!response.ok) return;
     const json = await response.json().catch(() => null);
     if (json?.user?.id) {
-      const nextUser = { ...user, ...json.user } as MobileUser;
+      const nextUser = normalizeMobileUser({ ...user, ...json.user } as MobileUser);
       setUser(nextUser);
-      await AsyncStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+      if (nextUser) await AsyncStorage.setItem(USER_KEY, JSON.stringify(nextUser));
     }
   }, [refreshSession, user]);
 

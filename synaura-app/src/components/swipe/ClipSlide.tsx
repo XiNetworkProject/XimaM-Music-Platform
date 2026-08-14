@@ -12,6 +12,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { SynauraImage } from '@/components/ui/SynauraImage';
+import { toPublicMediaUrl } from '@/media/mediaUrls';
 
 // Un clip reste une slide du Scroll, avec sa propre lecture et ses propres
 // interactions. Sa lecture ne modifie jamais la file ou la position du morceau.
@@ -123,6 +124,9 @@ export function ClipSlide({
   const auth = useAuth();
   const { settings } = useMobileSettings();
   const responsive = useResponsiveLayout();
+  const videoUrl = toPublicMediaUrl(clip.videoUrl);
+  const posterUrl = toPublicMediaUrl(clip.posterUrl);
+  const audioUrl = toPublicMediaUrl(track.audioUrl);
   const isOwnTrack = Boolean(auth.user?.id) && track.artist?._id === auth.user?.id;
   const canUseSound = canUseSoundClientSide({
     isOwner: isOwnTrack,
@@ -164,7 +168,7 @@ export function ClipSlide({
     audioTimeRef.current = clipStart;
     playbackEndedRef.current = false;
     wasActiveRef.current = false;
-  }, [clip.id, clip.videoUrl, clipStart]);
+  }, [audioUrl, clip.id, clipStart, videoUrl]);
 
   // Une session Clip possede sa propre video et son propre extrait audio. Elle
   // ne touche jamais a TrackPlayer, a sa file ou a la position du morceau source.
@@ -226,11 +230,11 @@ export function ClipSlide({
           onAccessibilityTap={onPressAudio}
           style={styles.pressArea}
         >
-        {shouldLoadMedia && clip.videoUrl && !videoFailed ? (
+        {shouldLoadMedia && videoUrl && !videoFailed ? (
           <Video
             ref={videoRef}
-            source={{ uri: clip.videoUrl }}
-            poster={clip.posterUrl || undefined}
+            source={{ uri: videoUrl }}
+            poster={posterUrl || undefined}
             paused={!isActive || !isPlaying}
             repeat={false}
             muted={!audioFailed}
@@ -249,7 +253,7 @@ export function ClipSlide({
             }}
             onEnd={() => {
               if (!isActive || !isPlaying || playbackEndedRef.current) return;
-              if (track.audioUrl && !audioFailed) return;
+              if (audioUrl && !audioFailed) return;
               playbackEndedRef.current = true;
               audioRef.current?.seek(clipStart);
               videoRef.current?.seek(0);
@@ -263,15 +267,15 @@ export function ClipSlide({
             progressUpdateInterval={250}
             style={StyleSheet.absoluteFill}
           />
-        ) : clip.posterUrl ? (
-          <SynauraImage source={{ uri: clip.posterUrl }} lowPriority={!isActive} style={StyleSheet.absoluteFill} />
+        ) : posterUrl ? (
+          <SynauraImage source={{ uri: posterUrl }} lowPriority={!isActive} style={StyleSheet.absoluteFill} />
         ) : (
           <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#171313' }]} />
         )}
-        {shouldLoadMedia && track.audioUrl ? (
+        {shouldLoadMedia && audioUrl ? (
           <Video
             ref={audioRef}
-            source={{ uri: track.audioUrl }}
+            source={{ uri: audioUrl }}
             paused={!isActive || !isPlaying || audioFailed || !audioReady}
             repeat={false}
             muted={false}

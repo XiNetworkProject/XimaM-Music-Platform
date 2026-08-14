@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Track } from '@/api/types';
+import { toPublicMediaUrl } from '@/media/mediaUrls';
 
 type LibraryContextValue = {
   favorites: Track[];
@@ -87,13 +88,14 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
   }, [downloaded]);
 
   const downloadTrack = useCallback(async (track: Track) => {
-    if (!track?._id || !/^https?:\/\//i.test(track.audioUrl || '')) return;
+    const remoteAudioUrl = toPublicMediaUrl(track?.audioUrl);
+    if (!track?._id || !remoteAudioUrl || !/^https?:\/\//i.test(remoteAudioUrl)) return;
     await FileSystem.makeDirectoryAsync(DOWNLOAD_DIRECTORY, { intermediates: true }).catch(() => {});
     const safeId = encodeURIComponent(track._id).replace(/%/g, '_');
     const destination = `${DOWNLOAD_DIRECTORY}${safeId}.audio`;
     await FileSystem.deleteAsync(destination, { idempotent: true }).catch(() => {});
-    const result = await FileSystem.downloadAsync(track.audioUrl, destination);
-    const offlineTrack = { ...track, audioUrl: result.uri, remoteAudioUrl: track.audioUrl } as Track;
+    const result = await FileSystem.downloadAsync(remoteAudioUrl, destination);
+    const offlineTrack = { ...track, audioUrl: result.uri, remoteAudioUrl } as Track;
     const next = [offlineTrack, ...downloaded.filter((item) => item._id !== track._id)].slice(0, 100);
     setDownloaded(next);
     await AsyncStorage.setItem(DOWNLOADED_KEY, JSON.stringify(next));

@@ -204,7 +204,7 @@ function artistName(raw: any) {
 
 function normalizeTrack(raw: any): Track | null {
   const id = raw?._id || raw?.id;
-  const audioUrl = raw?.audioUrl || raw?.audio_url || raw?.stream_audio_url;
+  const audioUrl = absoluteAsset(raw?.audioUrl || raw?.audio_url || raw?.stream_audio_url);
   if (!id || !audioUrl) return null;
 
   const trackData = readObject(raw?.data);
@@ -226,11 +226,11 @@ function normalizeTrack(raw: any): Track | null {
       _id: String(raw?.artist?._id || raw?.artist?.id || raw?.creator_id || ''),
       name: safeString(raw?.artist?.name || raw?.artist?.artistName || label, label),
       username: safeString(raw?.artist?.username, ''),
-      avatar: raw?.artist?.avatar || null,
+      avatar: absoluteAsset(raw?.artist?.avatar) || null,
       artistName: safeString(raw?.artist?.artistName || label, label),
       followersCount: Number(raw?.artist?.followersCount ?? raw?.artist?.follower_count ?? 0),
     },
-    audioUrl: String(audioUrl),
+    audioUrl,
     coverUrl: absoluteAsset(raw?.coverUrl || raw?.cover_url || raw?.imageUrl || raw?.image_url) || fallbackCover,
     coverVideoUrl: absoluteAsset(raw?.coverVideoUrl || raw?.cover_video_url || raw?.video_url) || null,
     coverVideoPosterUrl: absoluteAsset(raw?.coverVideoPosterUrl || raw?.cover_video_poster_url) || null,
@@ -305,7 +305,7 @@ function normalizeClipSource(raw: any): MusicClipSource | null {
     ...track,
     sourceTrackId: String(raw?.sourceTrackId || raw?.source_track_id || track._id.replace(/^ai-/, '')),
     sourceTrackType: raw?.sourceTrackType === 'ai_track' || raw?.source_track_type === 'ai_track' || track._id.startsWith('ai-') ? 'ai_track' : 'track',
-    trackUrl: raw?.trackUrl || raw?.track_url,
+    trackUrl: absoluteAsset(raw?.trackUrl || raw?.track_url) || undefined,
     canCreateClip: Boolean(raw?.canCreateClip ?? raw?.can_create_clip),
   };
 }
@@ -321,7 +321,7 @@ function normalizeMusicClip(raw: any): MusicClip | null {
       id: String(raw?.creator?.id || raw?.creatorId || raw?.creator_id || ''),
       username: safeString(raw?.creator?.username, ''),
       name: safeString(raw?.creator?.name || raw?.creator?.username, 'Createur Synaura'),
-      avatar: raw?.creator?.avatar || null,
+      avatar: absoluteAsset(raw?.creator?.avatar) || null,
     },
     videoUrl: absoluteAsset(raw?.videoUrl || raw?.video_url),
     videoPublicId: raw?.videoPublicId || raw?.video_public_id || null,
@@ -3005,6 +3005,19 @@ export type AIStatusTrack = {
   raw?: Record<string, unknown>;
 };
 
+function normalizeAIStatusTrack(raw: any): AIStatusTrack | null {
+  const id = String(raw?.id || raw?.suno_id || raw?.audioId || raw?.trackId || '');
+  if (!id) return null;
+  return {
+    ...raw,
+    id,
+    title: safeString(raw?.title, 'Creation Synaura'),
+    audio: absoluteAsset(raw?.audio || raw?.audio_url || raw?.audioUrl) || undefined,
+    stream: absoluteAsset(raw?.stream || raw?.stream_audio_url || raw?.streamAudioUrl) || undefined,
+    image: absoluteAsset(raw?.image || raw?.image_url || raw?.imageUrl) || undefined,
+  };
+}
+
 function parseAIStudioSourceLinks(value: unknown): Record<string, any> {
   if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, any>;
   if (typeof value !== 'string' || !value.trim()) return {};
@@ -3039,13 +3052,13 @@ function normalizeAIStudioTrack(raw: any): AIStudioTrack | null {
     id,
     suno_id: raw?.suno_id || raw?.sunoId || raw?.audioId,
     title: safeString(raw?.title, 'Création Synaura'),
-    audio_url: String(raw?.audio_url || raw?.audioUrl || raw?.audio || ''),
-    stream_audio_url: raw?.stream_audio_url || raw?.streamAudioUrl || raw?.stream || undefined,
+    audio_url: absoluteAsset(raw?.audio_url || raw?.audioUrl || raw?.audio) || '',
+    stream_audio_url: absoluteAsset(raw?.stream_audio_url || raw?.streamAudioUrl || raw?.stream) || undefined,
     image_url: absoluteAsset(typeof imageCandidate === 'string' ? imageCandidate : undefined) || undefined,
-    cover_video_url: raw?.cover_video_url || sourceLinks.cover_video_url || undefined,
-    cover_video_poster_url: raw?.cover_video_poster_url || sourceLinks.cover_video_poster_url || undefined,
-    music_video_url: raw?.music_video_url || sourceLinks.music_video_url || undefined,
-    music_video_poster_url: raw?.music_video_poster_url || sourceLinks.music_video_poster_url || undefined,
+    cover_video_url: absoluteAsset(raw?.cover_video_url || sourceLinks.cover_video_url) || undefined,
+    cover_video_poster_url: absoluteAsset(raw?.cover_video_poster_url || sourceLinks.cover_video_poster_url) || undefined,
+    music_video_url: absoluteAsset(raw?.music_video_url || sourceLinks.music_video_url) || undefined,
+    music_video_poster_url: absoluteAsset(raw?.music_video_poster_url || sourceLinks.music_video_poster_url) || undefined,
     music_video_task_id: raw?.music_video_task_id || sourceLinks.music_video_task_id || undefined,
     source_links: raw?.source_links || raw?.sourceLinks || sourceLinks,
     library_folder: String(sourceLinks.library_folder || raw?.library_folder || '').trim() || undefined,
@@ -3180,7 +3193,11 @@ export async function getRemixSource(sourceTrackId: string, sourceTrackType?: 't
   const params = new URLSearchParams({ sourceTrackId });
   if (sourceTrackType) params.set('sourceTrackType', sourceTrackType);
   const json = await request<RemixSourceResponse>(`/api/remixes/source?${params.toString()}`);
-  return json.source;
+  return {
+    ...json.source,
+    coverUrl: absoluteAsset(json.source.coverUrl),
+    trackUrl: absoluteAsset(json.source.trackUrl) || '',
+  };
 }
 
 export async function startAIRemix(input: StartAIGenerationInput & { uploadUrl: string; sourceDurationSec?: number }): Promise<{ taskId: string; model: string; requestedModel?: string; modelAdjusted?: boolean; credits?: { balance?: number } }> {
@@ -3192,7 +3209,9 @@ export async function getAIGenerationStatus(taskId: string): Promise<{ taskId: s
   return {
     taskId,
     status: String(json?.status || 'pending'),
-    tracks: Array.isArray(json?.tracks) ? json.tracks : [],
+    tracks: (Array.isArray(json?.tracks) ? json.tracks : [])
+      .map(normalizeAIStatusTrack)
+      .filter((track: AIStatusTrack | null): track is AIStatusTrack => Boolean(track)),
   };
 }
 

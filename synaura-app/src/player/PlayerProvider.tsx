@@ -16,6 +16,7 @@ import TrackPlayer, {
 import type { Track } from '@/api/types';
 import { useLibrary } from '@/library/LibraryProvider';
 import { getSimilarTracks, recordTrackEvent } from '@/api/client';
+import { toPublicMediaUrl } from '@/media/mediaUrls';
 
 export type PlayerRepeatMode = 'off' | 'one' | 'all';
 
@@ -78,7 +79,7 @@ function isPlayableTrack(track: Track | null | undefined) {
     typeof track?._id === 'string'
     && track._id.length > 0
     && typeof track.audioUrl === 'string'
-    && track.audioUrl.length > 0
+    && toPublicMediaUrl(track.audioUrl)
     && !track._id.startsWith('radio-'),
   );
 }
@@ -86,10 +87,10 @@ function isPlayableTrack(track: Track | null | undefined) {
 function toNativeTrack(track: Track) {
   return {
     id: track._id,
-    url: track.audioUrl,
+    url: toPublicMediaUrl(track.audioUrl) || '',
     title: track.title || 'Sans titre',
     artist: artistName(track),
-    artwork: track.coverUrl || undefined,
+    artwork: toPublicMediaUrl(track.coverUrl) || undefined,
     duration: track.duration || 0,
     album: track.album || 'Synaura',
     genre: track.genre?.join(', ') || undefined,
