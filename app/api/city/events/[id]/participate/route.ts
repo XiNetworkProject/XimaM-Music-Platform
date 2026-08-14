@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -13,7 +13,7 @@ function cityTableMissing(error: any) {
 // Le son doit exister ET appartenir a l'utilisateur qui participe.
 async function trackOwnedByUser(trackId: string, userId: string) {
   if (trackId.startsWith('ai-')) {
-    const { data } = await supabaseAdmin
+    const { data } = await dbAdmin
       .from('ai_tracks')
       .select('id, generation:ai_generations!inner(user_id)')
       .eq('id', trackId.replace(/^ai-/, ''))
@@ -22,7 +22,7 @@ async function trackOwnedByUser(trackId: string, userId: string) {
     const generation = Array.isArray((data as any).generation) ? (data as any).generation[0] : (data as any).generation;
     return { exists: true, owned: String(generation?.user_id || '') === userId };
   }
-  const { data } = await supabaseAdmin.from('tracks').select('id, creator_id').eq('id', trackId).maybeSingle();
+  const { data } = await dbAdmin.from('tracks').select('id, creator_id').eq('id', trackId).maybeSingle();
   if (!data) return { exists: false, owned: false };
   return { exists: true, owned: String((data as any).creator_id || '') === userId };
 }
@@ -30,7 +30,7 @@ async function trackOwnedByUser(trackId: string, userId: string) {
 // Fallback sans migration: la participation vit dans profiles.preferences
 // jusqu'a ce que les tables city_* soient creees.
 async function writeLegacyParticipation(userId: string, eventId: string, trackId: string) {
-  const { data: profile, error: profileError } = await supabaseAdmin
+  const { data: profile, error: profileError } = await dbAdmin
     .from('profiles')
     .select('preferences')
     .eq('id', userId)
@@ -43,7 +43,7 @@ async function writeLegacyParticipation(userId: string, eventId: string, trackId
     : {};
   const now = new Date().toISOString();
   const cityParticipations = { ...previous, [eventId]: { trackId, at: now } };
-  const { error } = await supabaseAdmin
+  const { error } = await dbAdmin
     .from('profiles')
     .update({ preferences: { ...preferences, cityParticipations }, updated_at: now })
     .eq('id', userId);
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (!ownership.exists) return NextResponse.json({ error: 'Son introuvable.' }, { status: 404 });
     if (!ownership.owned) return NextResponse.json({ error: 'Tu ne peux participer qu avec un de tes sons.' }, { status: 403 });
 
-    const { data: event, error: eventError } = await supabaseAdmin
+    const { data: event, error: eventError } = await dbAdmin
       .from('city_events')
       .select('id, kind, status, starts_at, ends_at, challenge_tag, theme')
       .eq('id', eventId)
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'Cet event est termine.' }, { status: 400 });
     }
 
-    const { data: participation, error } = await supabaseAdmin
+    const { data: participation, error } = await dbAdmin
       .from('city_event_participations')
       .upsert({
         event_id: eventId,
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       throw error;
     }
 
-    await supabaseAdmin
+    await dbAdmin
       .from('city_event_tracks')
       .upsert({
         event_id: eventId,

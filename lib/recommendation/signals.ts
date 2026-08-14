@@ -203,12 +203,12 @@ function hydrateTasteAffinities(
 }
 
 export async function buildUserRecommendationSignals({
-  supabase,
+  db,
   userId,
   candidateTracks = [],
   sessionId = null,
 }: {
-  supabase: any;
+  db: any;
   userId: string | null;
   candidateTracks?: any[];
   sessionId?: string | null;
@@ -222,8 +222,8 @@ export async function buildUserRecommendationSignals({
   const since7 = new Date(now - 7 * DAY).toISOString();
 
   const [followsRes, recentEventsRes, likesRes, postLikesRes, postCommentsRes, profileRes, impressionsRes] = await Promise.all([
-    supabase.from('user_follows').select('following_id').eq('follower_id', userId).limit(1000),
-    supabase
+    db.from('user_follows').select('following_id').eq('follower_id', userId).limit(1000),
+    db
       .from('track_events')
       .select('track_id, event_type, created_at, progress_pct, position_ms, duration_ms, is_ai_track, session_id')
       .eq('user_id', userId)
@@ -231,11 +231,11 @@ export async function buildUserRecommendationSignals({
       .in('event_type', ['play_start', 'play_complete', 'play_progress', 'favorite', 'unfavorite', 'like', 'unlike', 'skip', 'next', 'prev'])
       .order('created_at', { ascending: false })
       .limit(1600),
-    supabase.from('track_likes').select('track_id').eq('user_id', userId).limit(500),
-    supabase.from('post_likes').select('post_id').eq('user_id', userId).limit(500),
-    supabase.from('post_comments').select('post_id').eq('user_id', userId).limit(500),
-    supabase.from('profiles').select('preferences').eq('id', userId).single(),
-    supabase
+    db.from('track_likes').select('track_id').eq('user_id', userId).limit(500),
+    db.from('post_likes').select('post_id').eq('user_id', userId).limit(500),
+    db.from('post_comments').select('post_id').eq('user_id', userId).limit(500),
+    db.from('profiles').select('preferences').eq('id', userId).single(),
+    db
       .from('recommendation_impressions')
       .select('content_type, content_id, created_at, session_id')
       .eq('user_id', userId)
@@ -352,10 +352,10 @@ export async function buildUserRecommendationSignals({
   const missingAiIds = tasteIds.filter((id) => id.startsWith('ai-') && !trackById.has(id)).map((id) => id.slice(3));
   const [normalMeta, aiMeta] = await Promise.all([
     missingNormalIds.length
-      ? supabase.from('tracks').select('id, creator_id, genre').in('id', missingNormalIds)
+      ? db.from('tracks').select('id, creator_id, genre').in('id', missingNormalIds)
       : Promise.resolve({ data: [] }),
     missingAiIds.length
-      ? supabase.from('ai_tracks').select('id, tags, generation:ai_generations(user_id)').in('id', missingAiIds)
+      ? db.from('ai_tracks').select('id, tags, generation:ai_generations(user_id)').in('id', missingAiIds)
       : Promise.resolve({ data: [] }),
   ]);
   for (const track of normalMeta.data || []) trackById.set(String(track.id), track);
@@ -375,7 +375,7 @@ export async function buildUserRecommendationSignals({
   try {
     const userLikedIds = Array.from(signals.likedTrackIds).filter((id) => !id.startsWith('ai-')).slice(0, 40);
     if (userLikedIds.length >= 2) {
-      const { data: otherLikers } = await supabase
+      const { data: otherLikers } = await db
         .from('track_likes')
         .select('user_id')
         .in('track_id', userLikedIds)
@@ -389,7 +389,7 @@ export async function buildUserRecommendationSignals({
         .slice(0, 16)
         .map(([id]) => id);
       if (similarUsers.length) {
-        const { data: theirLikes } = await supabase.from('track_likes').select('track_id').in('user_id', similarUsers).limit(600);
+        const { data: theirLikes } = await db.from('track_likes').select('track_id').in('user_id', similarUsers).limit(600);
         for (const row of theirLikes || []) {
           const trackId = String(row.track_id || '');
           if (trackId && !signals.likedTrackIds.has(trackId)) signals.collaborativeTrackIds.add(trackId);
@@ -404,7 +404,7 @@ export async function buildUserRecommendationSignals({
       ...Array.from(signals.commentedPostIds),
     ])).slice(0, 200);
     if (postIds.length) {
-      const { data: posts } = await supabase.from('creator_posts').select('id, creator_id').in('id', postIds);
+      const { data: posts } = await db.from('creator_posts').select('id, creator_id').in('id', postIds);
       for (const post of posts || []) {
         if (post.creator_id) signals.followedPostCreatorIds.add(String(post.creator_id));
       }
@@ -450,11 +450,11 @@ export function buildAnonymousRecommendationSignals(): UserRecommendationSignals
 }
 
 export async function buildSessionRecommendationSignals({
-  supabase,
+  db,
   sessionId,
   candidateTracks = [],
 }: {
-  supabase: any;
+  db: any;
   sessionId: string | null;
   candidateTracks?: any[];
 }): Promise<UserRecommendationSignals> {
@@ -468,14 +468,14 @@ export async function buildSessionRecommendationSignals({
   const recentTrackIds: string[] = [];
   try {
     const [impressionsRes, eventsRes] = await Promise.all([
-      supabase
+      db
         .from('recommendation_impressions')
         .select('content_type, content_id, created_at, session_id')
         .eq('session_id', normalizedSessionId)
         .gte('created_at', since)
         .order('created_at', { ascending: false })
         .limit(1000),
-      supabase
+      db
         .from('track_events')
         .select('track_id, event_type, created_at, progress_pct, position_ms, duration_ms, is_ai_track, session_id')
         .eq('session_id', normalizedSessionId)
@@ -515,21 +515,21 @@ export async function buildSessionRecommendationSignals({
 }
 
 export async function buildRecommendationSignals({
-  supabase,
+  db,
   userId,
   candidateTracks = [],
   sessionId = null,
 }: {
-  supabase: any;
+  db: any;
   userId: string | null;
   candidateTracks?: any[];
   sessionId?: string | null;
 }) {
   if (userId) {
-    return buildUserRecommendationSignals({ supabase, userId, candidateTracks, sessionId });
+    return buildUserRecommendationSignals({ db, userId, candidateTracks, sessionId });
   }
   if (sessionId) {
-    return buildSessionRecommendationSignals({ supabase, sessionId, candidateTracks });
+    return buildSessionRecommendationSignals({ db, sessionId, candidateTracks });
   }
   return buildAnonymousRecommendationSignals();
 }

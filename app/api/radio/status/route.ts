@@ -247,3 +247,5 @@ export async function GET(req: NextRequest) {
   // Fallback simulé — stream toujours accessible (available: true)
   return NextResponse.json(buildResponse(stationCfg, null, 'simulated'), { headers: CORS_HEADERS });
 }
+
+export const dynamic = 'force-dynamic';

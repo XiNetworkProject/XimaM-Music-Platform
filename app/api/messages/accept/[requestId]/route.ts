@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { acceptPendingMessageRequest, getMessagingProfiles } from '@/lib/messaging';
 import { markMessageRequestNotificationResolved, notifyMessageRequestAccepted } from '@/lib/notifications';
 
@@ -15,7 +15,7 @@ export async function POST(
   try {
     const session = await getApiSession(request);
     if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
-    const { data: messageRequest } = await supabaseAdmin
+    const { data: messageRequest } = await dbAdmin
       .from('message_requests')
       .select('id, requester_id, target_id, message, status')
       .eq('id', params.requestId)

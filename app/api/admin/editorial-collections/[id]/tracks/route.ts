@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminGuard } from '@/lib/admin';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { isMissingEditorialCollectionsTable, normalizeLegacyCollectionFromPlaylist } from '@/lib/editorialCollections';
 import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaReference } from '@/lib/localMediaStorage';
 import { toPublicMediaUrl } from '@/lib/mediaUrls';
@@ -64,7 +64,7 @@ function formatTrack(t: any) {
 }
 
 async function getCollection(id: string) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('editorial_collections')
     .select('*')
     .eq('id', id)
@@ -80,7 +80,7 @@ async function getCollectionOrLegacy(id: string, userId?: string | null) {
   } catch (error) {
     if (!isMissingEditorialCollectionsTable(error)) throw error;
   }
-  let query = supabaseAdmin.from('playlists').select('*').eq('id', id);
+  let query = dbAdmin.from('playlists').select('*').eq('id', id);
   if (userId) query = query.eq('creator_id', userId);
   const { data } = await query.maybeSingle();
   const legacy = normalizeLegacyCollectionFromPlaylist(data);
@@ -96,7 +96,7 @@ async function getCollectionOrLegacy(id: string, userId?: string | null) {
 }
 
 async function nextPosition(playlistId: string) {
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('playlist_tracks')
     .select('position')
     .eq('playlist_id', playlistId)
@@ -113,7 +113,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
   try {
     const collection = await getCollectionOrLegacy(params.id, guard.userId);
     if (!collection) return NextResponse.json({ error: 'Collection introuvable' }, { status: 404 });
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('playlist_tracks')
       .select(publicTrackSelect())
       .eq('playlist_id', collection.playlist_id)
@@ -147,19 +147,19 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const errors: Array<{ title?: string; error: string }> = [];
 
     for (const trackId of existingTrackIds) {
-      const { data: track } = await supabaseAdmin.from('tracks').select('id').eq('id', trackId).maybeSingle();
+      const { data: track } = await dbAdmin.from('tracks').select('id').eq('id', trackId).maybeSingle();
       if (!track) {
         errors.push({ title: trackId, error: 'Track introuvable' });
         continue;
       }
-      const { data: existingLink } = await supabaseAdmin
+      const { data: existingLink } = await dbAdmin
         .from('playlist_tracks')
         .select('id')
         .eq('playlist_id', collection.playlist_id)
         .eq('track_id', trackId)
         .maybeSingle();
       if (!existingLink) {
-        const { error } = await supabaseAdmin.from('playlist_tracks').insert({
+        const { error } = await dbAdmin.from('playlist_tracks').insert({
           playlist_id: collection.playlist_id,
           track_id: trackId,
           position: position++,
@@ -221,10 +221,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         },
       };
 
-      let insert = await supabaseAdmin.from('tracks').insert(trackPayload).select('*').single();
+      let insert = await dbAdmin.from('tracks').insert(trackPayload).select('*').single();
       if (insert.error && String(insert.error.message || '').includes('data')) {
         const { data: _drop, ...fallback } = trackPayload;
-        insert = await supabaseAdmin.from('tracks').insert(fallback).select('*').single();
+        insert = await dbAdmin.from('tracks').insert(fallback).select('*').single();
       }
       if (insert.error || !insert.data) {
         if (item.audioPublicId) await deleteLocalMedia(item.audioPublicId).catch(() => false);
@@ -233,14 +233,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         continue;
       }
 
-      const link = await supabaseAdmin.from('playlist_tracks').insert({
+      const link = await dbAdmin.from('playlist_tracks').insert({
         playlist_id: collection.playlist_id,
         track_id: insert.data.id,
         position: position++,
         added_at: new Date().toISOString(),
       });
       if (link.error) {
-        await supabaseAdmin.from('tracks').delete().eq('id', insert.data.id);
+        await dbAdmin.from('tracks').delete().eq('id', insert.data.id);
         if (item.audioPublicId) await deleteLocalMedia(item.audioPublicId).catch(() => false);
         if (item.coverPublicId) await deleteLocalMedia(item.coverPublicId).catch(() => false);
         errors.push({ title, error: link.error.message });
@@ -268,8 +268,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   try {
     const collection = await getCollectionOrLegacy(params.id, guard.userId);
     if (!collection) return NextResponse.json({ error: 'Collection introuvable' }, { status: 404 });
-    await supabaseAdmin.from('playlist_tracks').delete().eq('playlist_id', collection.playlist_id).eq('track_id', trackId);
-    if (deleteTrack) await supabaseAdmin.from('tracks').delete().eq('id', trackId);
+    await dbAdmin.from('playlist_tracks').delete().eq('playlist_id', collection.playlist_id).eq('track_id', trackId);
+    if (deleteTrack) await dbAdmin.from('tracks').delete().eq('id', trackId);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Erreur serveur' }, { status: 500 });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getEntitlements } from '@/lib/entitlements';
 
 export async function GET(request: NextRequest) {
@@ -9,12 +9,12 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.id) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
     const userId = session.user.id;
-    const { data: profile } = await supabaseAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
+    const { data: profile } = await dbAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
     const plan = (profile?.plan || 'free') as any;
     const ent = getEntitlements(plan);
 
-    const { count: tracksCount } = await supabaseAdmin.from('tracks').select('*', { count: 'exact', head: true }).eq('creator_id', userId);
-    const { count: playlistsCount } = await supabaseAdmin.from('playlists').select('*', { count: 'exact', head: true }).eq('user_id', userId);
+    const { count: tracksCount } = await dbAdmin.from('tracks').select('*', { count: 'exact', head: true }).eq('creator_id', userId);
+    const { count: playlistsCount } = await dbAdmin.from('playlists').select('*', { count: 'exact', head: true }).eq('user_id', userId);
     // Stockage supprimé
 
     return NextResponse.json({
@@ -26,3 +26,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

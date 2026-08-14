@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -13,7 +13,7 @@ export async function POST(
   try {
     const bulletinId = params.id;
 
-    const { data: bulletin, error: fetchError } = await supabaseAdmin
+    const { data: bulletin, error: fetchError } = await dbAdmin
       .from('meteo_bulletins')
       .select('id, share_count')
       .eq('id', bulletinId)
@@ -25,7 +25,7 @@ export async function POST(
 
     const newCount = (bulletin.share_count || 0) + 1;
 
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await dbAdmin
       .from('meteo_bulletins')
       .update({ share_count: newCount })
       .eq('id', bulletinId);
@@ -36,7 +36,7 @@ export async function POST(
 
     const session = await getServerSession(authOptions);
     if (session?.user?.id) {
-      await supabaseAdmin
+      await dbAdmin
         .from('meteo_reactions')
         .upsert(
           {

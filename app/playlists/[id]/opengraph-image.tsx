@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { toPublicMediaUrl } from '@/lib/mediaUrls';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getEditorialCollectionBySlug, isUuidLike } from '@/lib/editorialCollections';
 
 export const runtime = 'nodejs';
@@ -19,16 +19,16 @@ export default async function Image({ params }: { params: { id: string } }) {
     const collection = isUuidLike(params.id) ? null : await getEditorialCollectionBySlug(params.id);
     const playlistId = collection?.playlistId || params.id;
     if (isUuidLike(playlistId)) {
-      const { data: playlist } = await supabaseAdmin.from('playlists').select('id, name, description, cover_url, creator_id, is_public').eq('id', playlistId).maybeSingle();
+      const { data: playlist } = await dbAdmin.from('playlists').select('id, name, description, cover_url, creator_id, is_public').eq('id', playlistId).maybeSingle();
       if (playlist && (playlist.is_public || collection?.isPublished)) {
         title = collection?.title || playlist.name || title;
         description = collection?.subtitle || playlist.description || description;
         cover = collection?.coverUrl || collection?.bannerUrl || playlist.cover_url || null;
         if (playlist.creator_id) {
-          const { data: owner } = await supabaseAdmin.from('profiles').select('name, username, artist_name').eq('id', playlist.creator_id).maybeSingle();
+          const { data: owner } = await dbAdmin.from('profiles').select('name, username, artist_name').eq('id', playlist.creator_id).maybeSingle();
           curator = owner?.artist_name || owner?.name || owner?.username || curator;
         }
-        const { data: rows } = await supabaseAdmin.from('playlist_tracks').select('tracks!inner(id, cover_url, is_public, audio_url)').eq('playlist_id', playlist.id).eq('tracks.is_public', true).not('tracks.audio_url', 'is', null);
+        const { data: rows } = await dbAdmin.from('playlist_tracks').select('tracks!inner(id, cover_url, is_public, audio_url)').eq('playlist_id', playlist.id).eq('tracks.is_public', true).not('tracks.audio_url', 'is', null);
         const publicTracks = (rows || []).map((row: any) => row.tracks).filter(Boolean);
         trackCount = publicTracks.length;
         cover = toPublicMediaUrl(cover || publicTracks.find((track: any) => track.cover_url)?.cover_url);

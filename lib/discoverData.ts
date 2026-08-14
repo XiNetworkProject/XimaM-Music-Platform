@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { computeTrackDiscoveryMetrics } from '@/lib/ranking';
 import { loadGlobalTrackCandidates } from '@/lib/recommendation/candidates';
 
@@ -96,7 +96,7 @@ function isMissingColumnError(error: any) {
 export async function getPublicTrackPool(input: { limit?: number; order?: 'plays_desc' | 'plays_asc' | 'recent' } = {}): Promise<PublicTrackRow[]> {
   const limit = input.limit || 300;
   const buildQuery = (withData: boolean) => {
-    let query = supabaseAdmin
+    let query = dbAdmin
       .from('tracks')
       .select(`
         id, title, creator_id, cover_url, audio_url, duration, plays, likes, genre, created_at${withData ? ', data' : ''},
@@ -126,7 +126,7 @@ export async function attachLikedFlag<T extends { _id: string }>(tracks: T[], us
   if (!userId || !tracks.length) return tracks.map((track) => ({ ...track, isLiked: false }));
   const ids = tracks.map((track) => track._id).filter((id) => !id.startsWith('ai-'));
   if (!ids.length) return tracks.map((track) => ({ ...track, isLiked: false }));
-  const { data } = await supabaseAdmin.from('track_likes').select('track_id').eq('user_id', userId).in('track_id', ids);
+  const { data } = await dbAdmin.from('track_likes').select('track_id').eq('user_id', userId).in('track_id', ids);
   const liked = new Set((data || []).map((row: any) => row.track_id));
   return tracks.map((track) => ({ ...track, isLiked: liked.has(track._id) }));
 }

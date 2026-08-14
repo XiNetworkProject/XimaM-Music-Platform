@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaReference } from '@/lib/localMediaStorage';
 import {
   MUSIC_CLIP_MAX_BYTES,
@@ -32,7 +32,7 @@ function isPlayableVideoUrl(value: unknown) {
 }
 
 async function loadOwnClip(id: string, userId: string) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('music_clips')
     .select('*')
     .eq('id', id)
@@ -129,7 +129,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       update.visibility = nextVisibility;
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('music_clips')
       .update(update)
       .eq('id', params.id)
@@ -166,7 +166,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     const loaded = await loadOwnClip(params.id, userId);
     if (loaded.error) return loaded.error;
     const existing = loaded.clip!;
-    const { error } = await supabaseAdmin.from('music_clips').delete().eq('id', params.id);
+    const { error } = await dbAdmin.from('music_clips').delete().eq('id', params.id);
     if (error) throw error;
     if (existing.video_public_id) {
       await deleteLocalMedia(existing.video_public_id).catch(() => false);
@@ -176,3 +176,5 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     return NextResponse.json({ error: error?.message || 'Impossible de supprimer le clip' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

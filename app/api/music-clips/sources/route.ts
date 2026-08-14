@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getClipSourceSummary } from '@/lib/musicClips';
 import { normalizeRemixTrackRef } from '@/lib/remixServer';
 
@@ -28,14 +28,14 @@ export async function GET(request: NextRequest) {
       .replace(/\s+/g, ' ')
       .slice(0, 80);
 
-    let tracksQuery = supabaseAdmin
+    let tracksQuery = dbAdmin
         .from('tracks')
         .select('id')
         .eq('is_public', true)
         .eq('allow_clips', true)
         .order('created_at', { ascending: false })
         .limit(limit);
-    let aiTracksQuery = supabaseAdmin
+    let aiTracksQuery = dbAdmin
         .from('ai_tracks')
         .select('id, generation:ai_generations!inner(status)')
         .eq('is_public', true)
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       tracksQuery = tracksQuery.ilike('title', `%${search}%`);
       aiTracksQuery = aiTracksQuery.ilike('title', `%${search}%`);
     }
-    let ownTracksQuery = supabaseAdmin
+    let ownTracksQuery = dbAdmin
       .from('tracks')
       .select('id')
       .eq('creator_id', userId)
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .limit(limit);
     if (search) ownTracksQuery = ownTracksQuery.ilike('title', `%${search}%`);
-    const ownGenerationsQuery = supabaseAdmin
+    const ownGenerationsQuery = dbAdmin
       .from('ai_generations')
       .select('id')
       .eq('user_id', userId)
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .limit(limit * 2);
     const profilesQuery = search
-      ? supabaseAdmin
+      ? dbAdmin
           .from('profiles')
           .select('id')
           .or(`name.ilike.%${search}%,username.ilike.%${search}%,artist_name.ilike.%${search}%`)
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     let ownAiTracks: Array<{ id: string }> = [];
     const ownGenerationIds = (ownGenerationsRes.data || []).map((row: any) => row.id).filter(Boolean);
     if (ownGenerationIds.length) {
-      let ownAiTracksQuery = supabaseAdmin
+      let ownAiTracksQuery = dbAdmin
         .from('ai_tracks')
         .select('id')
         .eq('is_public', true)
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
     let artistAiTracks: Array<{ id: string }> = [];
     if (search && artistIds.length) {
       const [artistTracksRes, generationsRes] = await Promise.all([
-        supabaseAdmin
+        dbAdmin
           .from('tracks')
           .select('id')
           .eq('is_public', true)
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
           .in('creator_id', artistIds)
           .order('created_at', { ascending: false })
           .limit(limit),
-        supabaseAdmin
+        dbAdmin
           .from('ai_generations')
           .select('id')
           .in('user_id', artistIds)
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
       artistTracks = artistTracksRes.data || [];
       const generationIds = (generationsRes.data || []).map((row: any) => row.id).filter(Boolean);
       if (generationIds.length) {
-        const artistAiTracksRes = await supabaseAdmin
+        const artistAiTracksRes = await dbAdmin
           .from('ai_tracks')
           .select('id')
           .eq('is_public', true)
@@ -189,3 +189,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error?.message || 'Impossible de charger les morceaux autorises' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

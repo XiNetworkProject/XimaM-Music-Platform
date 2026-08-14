@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminGuard } from '@/lib/admin';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export async function GET(req: NextRequest) {
   const guard = await getAdminGuard();
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const limit  = 30;
   const offset = (page - 1) * limit;
 
-  let query = supabaseAdmin
+  let query = dbAdmin
     .from('star_academy_staff_applications')
     .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
@@ -35,3 +35,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ applications: data, total: count, page, limit });
 }
+
+export const dynamic = 'force-dynamic';

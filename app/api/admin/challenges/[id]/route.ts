@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminGuard } from '@/lib/admin';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getMusicChallengeDetail, type ChallengeClubSlug, type ChallengeContentType } from '@/lib/musicChallenges';
 import { getRemixSourceSummary } from '@/lib/remixServer';
 import { getClipSourceSummary } from '@/lib/musicClips';
@@ -34,7 +34,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const { id } = await params;
   const challengeId = decodeURIComponent(id || '');
-  const { data: existing } = await supabaseAdmin.from('music_challenges').select('*').eq('id', challengeId).maybeSingle();
+  const { data: existing } = await dbAdmin.from('music_challenges').select('*').eq('id', challengeId).maybeSingle();
   if (!existing) return NextResponse.json({ error: 'Defi introuvable.' }, { status: 404 });
 
   const body = await request.json().catch(() => ({}));
@@ -128,7 +128,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: 'Aucune modification fournie.' }, { status: 400 });
   }
 
-  const { error } = await supabaseAdmin.from('music_challenges').update(update).eq('id', challengeId);
+  const { error } = await dbAdmin.from('music_challenges').update(update).eq('id', challengeId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ success: true });
@@ -143,7 +143,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const challengeId = decodeURIComponent(id || '');
   // challenge_entries.challenge_id -> ON DELETE CASCADE (scripts/create_music_challenges.sql) :
   // supprime aussi les participations liees, sans toucher aux Clips/Variations/morceaux eux-memes.
-  const { error } = await supabaseAdmin.from('music_challenges').delete().eq('id', challengeId);
+  const { error } = await dbAdmin.from('music_challenges').delete().eq('id', challengeId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ success: true });

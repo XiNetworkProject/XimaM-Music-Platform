@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     // Bonus abonnés: cooldown réduit + meilleures chances
     let plan: 'free' | 'starter' | 'pro' | 'enterprise' = 'free';
     try {
-      const { data: p } = await supabaseAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
+      const { data: p } = await dbAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
       if (p?.plan) plan = p.plan;
     } catch {}
     const isSubscriber = plan !== 'free';
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     const luck = isSubscriber ? (plan === 'pro' || plan === 'enterprise' ? 0.5 : 0.3) : 0;
 
     // Vérifier cooldown quotidien
-    const { data: daily, error: dailyErr } = await supabaseAdmin
+    const { data: daily, error: dailyErr } = await dbAdmin
       .from('user_booster_daily')
       .select('*')
       .eq('user_id', userId)
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     // Charger pity (si la table n'existe pas encore, fallback silencieux)
     let pity = { opens_since_rare: 0, opens_since_epic: 0, opens_since_legendary: 0 };
     try {
-      const { data: pityRow } = await supabaseAdmin
+      const { data: pityRow } = await dbAdmin
         .from('user_booster_pity')
         .select('opens_since_rare, opens_since_epic, opens_since_legendary')
         .eq('user_id', userId)
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     else if (streak > 0 && streak % 7 === 0) minRarity = maxMinRarity(minRarity, 'rare');
 
     // Récupérer boosters actifs pour loot
-    const { data: boosters, error: boostersErr } = await supabaseAdmin
+    const { data: boosters, error: boostersErr } = await dbAdmin
       .from('boosters')
       .select('id, key, name, description, type, rarity, multiplier, duration_hours')
       .eq('enabled', true);
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Donner le booster à l'utilisateur
-    const { data: inv, error: invErr } = await supabaseAdmin
+    const { data: inv, error: invErr } = await dbAdmin
       .from('user_boosters')
       .insert({ user_id: userId, booster_id: picked.id, status: 'owned' })
       .select('id')
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
 
     // Enregistrer historique (best-effort)
     try {
-      await supabaseAdmin.from('user_booster_open_history').insert({
+      await dbAdmin.from('user_booster_open_history').insert({
         user_id: userId,
         source: 'daily',
         booster_id: picked.id,
@@ -179,12 +179,12 @@ export async function POST(request: NextRequest) {
         opens_since_legendary: gotLegendary ? 0 : (Number(pity.opens_since_legendary || 0) + 1),
         updated_at: new Date().toISOString(),
       };
-      await supabaseAdmin.from('user_booster_pity').upsert(nextPity, { onConflict: 'user_id' });
+      await dbAdmin.from('user_booster_pity').upsert(nextPity, { onConflict: 'user_id' });
     } catch {}
 
     // Mettre à jour daily + streak
     const upsertRow = { user_id: userId, last_opened_at: now.toISOString(), streak };
-    const { error: upErr } = await supabaseAdmin
+    const { error: upErr } = await dbAdmin
       .from('user_booster_daily')
       .upsert(upsertRow, { onConflict: 'user_id' });
     if (upErr) {

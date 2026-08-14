@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     // Récupérer les profils avec vraies stats
     console.log('🔍 Récupération des profils avec stats...');
     
-    const { data: artists, error } = await supabase
+    const { data: artists, error } = await db
       .from('profiles')
       .select(`
         id,
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         artists.map(async (artist) => {
           // Récupérer les tracks publiques de l'artiste (les stats affichées ne
           // doivent jamais inclure ses morceaux privés)
-          const { data: tracks, error: tracksError } = await applyPublicTrackFilter(supabase
+          const { data: tracks, error: tracksError } = await applyPublicTrackFilter(db
             .from('tracks')
             .select('plays, likes, is_featured')
             .eq('creator_id', artist.id));

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const cursor = url.searchParams.get('cursor'); // opened_at ISO, fetch older than this
     const sourcePrefix = (url.searchParams.get('sourcePrefix') || '').trim();
 
-    let q = supabaseAdmin
+    let q = dbAdmin
       .from('user_booster_open_history')
       .select('id, opened_at, source, booster_key, rarity, type, multiplier, duration_hours')
       .eq('user_id', userId)

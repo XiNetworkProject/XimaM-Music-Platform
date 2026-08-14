@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { aiGenerationService } from '@/lib/aiGenerationService';
 import { normalizeSunoItem } from "@/lib/suno-normalize";
+import { verifySunoCallback } from '@/lib/sunoWebhook';
 
 // Optionnel: ajoute une vérification d'origine IP/signature si Suno en fournit plus tard.
 type CallbackOk = {
@@ -30,6 +31,9 @@ type CallbackOk = {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!verifySunoCallback(req)) {
+      return NextResponse.json({ received: false, error: 'Signature callback invalide' }, { status: 401 });
+    }
     const body = (await req.json()) as CallbackOk;
     const callbackType = body?.data?.callbackType;
     const taskId = body?.data?.task_id;
@@ -91,3 +95,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Callback processing failed" }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

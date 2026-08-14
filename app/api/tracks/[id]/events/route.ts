@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { applyMissionProgress } from '@/lib/missions/progress';
 
 export const runtime = 'nodejs';
@@ -85,7 +85,7 @@ export async function POST(
       return NextResponse.json({ inserted: 0 });
     }
 
-    const { error } = await supabaseAdmin.from('track_events').insert(rows);
+    const { error } = await dbAdmin.from('track_events').insert(rows);
     if (error) {
       console.error('Erreur insertion track_events:', error);
       return NextResponse.json({ error: 'Erreur insertion' }, { status: 500 });

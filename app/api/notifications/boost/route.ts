@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,13 +15,13 @@ export async function GET() {
     const notifications: Array<{ type: string; title: string; body: string; key: string; expiresAt?: string }> = [];
 
     const [profileResult, dailyResult, spinResult] = await Promise.all([
-      supabaseAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle(),
-      supabaseAdmin
+      dbAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle(),
+      dbAdmin
         .from('user_booster_daily')
         .select('last_opened_at')
         .eq('user_id', userId)
         .maybeSingle(),
-      supabaseAdmin
+      dbAdmin
         .from('user_daily_spin')
         .select('last_spun_at')
         .eq('user_id', userId)
@@ -69,7 +69,7 @@ export async function GET() {
 
     // 3. Check boosts expiring within 1 hour
     const oneHourFromNow = new Date(now.getTime() + 3600000).toISOString();
-    const { data: expiringTrack } = await supabaseAdmin
+    const { data: expiringTrack } = await dbAdmin
       .from('active_track_boosts')
       .select('id, track_id, multiplier, expires_at')
       .eq('user_id', userId)
@@ -86,7 +86,7 @@ export async function GET() {
       });
     }
 
-    const { data: expiringArtist } = await supabaseAdmin
+    const { data: expiringArtist } = await dbAdmin
       .from('active_artist_boosts')
       .select('id, multiplier, expires_at')
       .eq('user_id', userId)

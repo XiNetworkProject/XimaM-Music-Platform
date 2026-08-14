@@ -51,3 +51,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur serveur interne' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

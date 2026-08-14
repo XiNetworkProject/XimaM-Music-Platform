@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 import { canViewTrack } from '@/lib/publicTracks';
 
 const TRACK_REF_RE = /<!--\s*synaura-track:([^>\s]+)\s*-->/i;
@@ -68,7 +68,7 @@ function shouldFallbackSelect(error: any) {
 
 async function attachAuthor(post: any) {
   if (!post || post.profiles) return post;
-  const { data: profile } = await supabase
+  const { data: profile } = await db
     .from('profiles')
     .select('id, name, username, avatar')
     .eq('id', post.user_id)
@@ -91,7 +91,7 @@ export async function GET(
 
     // Récupérer le post avec l'auteur. Fallback sans relation embarquée si le
     // cache PostgREST de prod ne connaît pas la FK user_id -> profiles.
-    let { data: post, error: postError } = await supabase
+    let { data: post, error: postError } = await db
       .from('forum_posts')
       .select(`
         *,
@@ -106,7 +106,7 @@ export async function GET(
       .single();
 
     if (postError && shouldFallbackSelect(postError)) {
-      const retry = await supabase
+      const retry = await db
         .from('forum_posts')
         .select('*')
         .eq('id', id)
@@ -123,7 +123,7 @@ export async function GET(
     const attachedTrackId = getPostTrackId(post);
     let attachedTrack = null;
     if (attachedTrackId) {
-      let { data: track, error: trackError } = await supabase
+      let { data: track, error: trackError } = await db
         .from('tracks')
         .select(`
           *,
@@ -138,14 +138,14 @@ export async function GET(
         .maybeSingle();
 
       if (trackError && shouldFallbackSelect(trackError)) {
-        const retry = await supabase
+        const retry = await db
           .from('tracks')
           .select('*')
           .eq('id', attachedTrackId)
           .maybeSingle();
         track = retry.data;
         if (track?.creator_id) {
-          const { data: profile } = await supabase
+          const { data: profile } = await db
             .from('profiles')
             .select('id, name, username, avatar')
             .eq('id', track.creator_id)
@@ -160,13 +160,13 @@ export async function GET(
 
     // Incrémenter le compteur de vues
     const nextViewsCount = Number(post.views_count || 0) + 1;
-    await supabase
+    await db
       .from('forum_posts')
       .update({ views_count: nextViewsCount })
       .eq('id', id);
 
     // Récupérer les réponses
-    const { data: replies, error: repliesError } = await supabase
+    const { data: replies, error: repliesError } = await db
       .from('forum_replies')
       .select(`
         *,
@@ -226,7 +226,7 @@ export async function PUT(
     }
 
     // Vérifier que l'utilisateur est le propriétaire du post
-    const { data: existingPost, error: checkError } = await supabase
+    const { data: existingPost, error: checkError } = await db
       .from('forum_posts')
       .select('user_id')
       .eq('id', id)
@@ -251,7 +251,7 @@ export async function PUT(
       updatePayload.track_id = body.track_id.trim() || null;
     }
 
-    let { data: post, error } = await supabase
+    let { data: post, error } = await db
       .from('forum_posts')
       .update(updatePayload)
       .eq('id', id)
@@ -268,7 +268,7 @@ export async function PUT(
 
     if (error && 'track_id' in updatePayload) {
       delete updatePayload.track_id;
-      const retry = await supabase
+      const retry = await db
         .from('forum_posts')
         .update(updatePayload)
         .eq('id', id)
@@ -313,7 +313,7 @@ export async function DELETE(
     const { id } = params;
 
     // Vérifier que l'utilisateur est le propriétaire du post
-    const { data: existingPost, error: checkError } = await supabase
+    const { data: existingPost, error: checkError } = await db
       .from('forum_posts')
       .select('user_id')
       .eq('id', id)
@@ -327,7 +327,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 
-    const { error } = await supabase
+    const { error } = await db
       .from('forum_posts')
       .delete()
       .eq('id', id);
@@ -344,3 +344,5 @@ export async function DELETE(
     return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getApiSession } from '@/lib/getApiSession';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const cutoff = new Date(Date.now() - minDaysAgo * 24 * 3600 * 1000).toISOString();
 
     // Find tracks user completed at least `minPlays` times, last played before cutoff
-    const { data: events, error } = await supabaseAdmin
+    const { data: events, error } = await dbAdmin
       .from('track_events')
       .select('track_id, created_at')
       .eq('user_id', userId)
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ tracks: [] });
     }
 
-    const { data: tracks } = await applyPublicTrackFilter(supabaseAdmin
+    const { data: tracks } = await applyPublicTrackFilter(dbAdmin
       .from('tracks')
       .select(`
         id, title, creator_id, created_at, cover_url, audio_url, duration, genre, plays,
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
 
     let likedIds = new Set<string>();
     const ids = tracks.map(t => t.id);
-    const { data: likes } = await supabaseAdmin
+    const { data: likes } = await dbAdmin
       .from('track_likes')
       .select('track_id')
       .eq('user_id', userId)

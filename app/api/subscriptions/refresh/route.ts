@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { stripe } from '@/lib/stripe';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     const customers = await stripe.customers.list({ email: session.user.email, limit: 10 });
     const customer = customers.data.find(c => (c.metadata?.userId === session.user.id) || (c.email === session.user.email));
     if (!customer) {
-      await supabaseAdmin.from('profiles').update({ plan: 'free', subscription_status: 'canceled', subscription_current_period_end: null }).eq('id', session.user.id);
+      await dbAdmin.from('profiles').update({ plan: 'free', subscription_status: 'canceled', subscription_current_period_end: null }).eq('id', session.user.id);
       return NextResponse.json({ ok: true, status: 'free' });
     }
 
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     const subs = await stripe.subscriptions.list({ customer: customer.id, limit: 3, expand: ['data.items.data.price.product'] });
     const current = subs.data[0];
     if (!current) {
-      await supabaseAdmin.from('profiles').update({ plan: 'free', subscription_status: 'canceled', subscription_current_period_end: null }).eq('id', session.user.id);
+      await dbAdmin.from('profiles').update({ plan: 'free', subscription_status: 'canceled', subscription_current_period_end: null }).eq('id', session.user.id);
       return NextResponse.json({ ok: true, status: 'free' });
     }
 
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     const periodEndUnix = (current as any).current_period_end as number | undefined;
     const periodEnd = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
-    await supabaseAdmin.from('profiles').update({ plan, subscription_status: status, subscription_current_period_end: periodEnd }).eq('id', session.user.id);
+    await dbAdmin.from('profiles').update({ plan, subscription_status: status, subscription_current_period_end: periodEnd }).eq('id', session.user.id);
 
     return NextResponse.json({ ok: true, status, plan });
   } catch (e: any) {
@@ -52,4 +52,4 @@ export async function POST(req: NextRequest) {
   }
 }
 
-
+export const dynamic = 'force-dynamic';

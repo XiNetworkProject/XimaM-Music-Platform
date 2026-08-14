@@ -1,6 +1,7 @@
-import { supabaseAdmin } from '@/lib/supabase';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
-export const MOBILE_RELEASE_BUCKET = 'mobile-releases';
+export const MOBILE_RELEASE_DIRECTORY = 'mobile-releases';
 export const MOBILE_RELEASE_MANIFEST = 'latest.json';
 
 export type MobileRelease = {
@@ -45,15 +46,12 @@ export function normalizeMobileRelease(raw: any): MobileRelease | null {
 
 export async function getLatestMobileRelease(): Promise<MobileRelease | null> {
   try {
-    const { data, error } = await supabaseAdmin.storage
-      .from(MOBILE_RELEASE_BUCKET)
-      .download(MOBILE_RELEASE_MANIFEST);
-
-    if (!error && data) {
-      const parsed = JSON.parse(await data.text());
-      const release = normalizeMobileRelease(parsed);
-      if (release) return release;
-    }
+    const mediaRoot = path.resolve(process.env.SYNAURA_MEDIA_ROOT || '/mnt/Synaura-SSD/apps/synaura/media');
+    const manifestPath = path.resolve(mediaRoot, MOBILE_RELEASE_DIRECTORY, MOBILE_RELEASE_MANIFEST);
+    if (!manifestPath.startsWith(`${mediaRoot}${path.sep}`)) throw new Error('Chemin de manifeste invalide');
+    const parsed = JSON.parse(await readFile(manifestPath, 'utf8'));
+    const release = normalizeMobileRelease(parsed);
+    if (release) return release;
   } catch {
     // Environment fallback below keeps local/dev deployments usable.
   }

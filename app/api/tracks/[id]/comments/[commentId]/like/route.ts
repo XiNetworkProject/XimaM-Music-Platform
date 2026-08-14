@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 // POST /api/tracks/[id]/comments/[commentId]/like - toggle like/unlike
 export async function POST(request: NextRequest, { params }: { params: { id: string; commentId: string } }) {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   // Best-effort: table comment_likes (recommandée)
   try {
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await dbAdmin
       .from('comment_likes')
       .select('id')
       .eq('comment_id', commentId)
@@ -22,14 +22,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     let isLiked = false;
     if (existing?.id) {
-      await supabaseAdmin.from('comment_likes').delete().eq('id', existing.id);
+      await dbAdmin.from('comment_likes').delete().eq('id', existing.id);
       isLiked = false;
     } else {
-      await supabaseAdmin.from('comment_likes').insert({ comment_id: commentId, user_id: userId });
+      await dbAdmin.from('comment_likes').insert({ comment_id: commentId, user_id: userId });
       isLiked = true;
     }
 
-    const { data: likesRows } = await supabaseAdmin.from('comment_likes').select('id').eq('comment_id', commentId);
+    const { data: likesRows } = await dbAdmin.from('comment_likes').select('id').eq('comment_id', commentId);
     const likesCount = (likesRows || []).length;
 
     return NextResponse.json({ isLiked, likesCount });
@@ -39,3 +39,4 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 }
 
+export const dynamic = 'force-dynamic';

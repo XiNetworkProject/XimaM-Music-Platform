@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { db, dbAdmin } from '@/lib/database';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export async function GET(request: NextRequest) {
@@ -7,8 +7,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    // Récupérer les pistes les plus aimées depuis Supabase
-    const { data: tracks, error } = await applyPublicTrackFilter(supabase
+    // Récupérer les pistes les plus aimées depuis PostgreSQL
+    const { data: tracks, error } = await applyPublicTrackFilter(db
       .from('tracks')
       .select(`
         *,
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       .limit(limit);
 
     if (error) {
-      console.error('❌ Erreur Supabase most-liked tracks:', error);
+      console.error('❌ Erreur PostgreSQL most-liked tracks:', error);
       return NextResponse.json(
         { error: 'Erreur lors de la récupération des pistes les plus aimées' },
         { status: 500 }
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     let boostMap = new Map<string, number>();
     if (trackIds.length) {
       const nowIso = new Date().toISOString();
-      const { data: boosts } = await supabaseAdmin
+      const { data: boosts } = await dbAdmin
         .from('active_track_boosts')
         .select('track_id, multiplier, expires_at')
         .in('track_id', trackIds)
@@ -87,3 +87,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

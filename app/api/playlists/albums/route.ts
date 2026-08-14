@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Number(searchParams.get('limit') || '20'), 50);
     const offset = Number(searchParams.get('offset') || '0');
 
-    const { data: albums, error } = await supabaseAdmin
+    const { data: albums, error } = await dbAdmin
       .from('playlists')
       .select(`
         id, name, description, cover_url, is_public, created_at,
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error('[albums] Supabase error:', error);
+      console.error('[albums] PostgreSQL error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 

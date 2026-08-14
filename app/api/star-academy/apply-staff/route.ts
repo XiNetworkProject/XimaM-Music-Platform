@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { sendEmail } from '@/lib/email';
 
 const ALLOWED_ROLES = ['coach_vocal', 'coach_scenique', 'direction_musicale', 'jury', 'production', 'autre'];
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Role invalide.' }, { status: 400 });
     }
 
-    const { data: configRows } = await supabaseAdmin
+    const { data: configRows } = await dbAdmin
       .from('star_academy_config')
       .select('key, value');
     const config = Object.fromEntries((configRows ?? []).map((r) => [r.key, r.value]));
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Les inscriptions sont fermees.' }, { status: 403 });
     }
 
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await dbAdmin
       .from('star_academy_staff_applications')
       .select('id')
       .eq('email', email)
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
 
     let userId: string | null = null;
     if (synauraUsername) {
-      const { data: profile } = await supabaseAdmin
+      const { data: profile } = await dbAdmin
         .from('profiles')
         .select('id')
         .eq('username', synauraUsername)
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       if (profile) userId = profile.id;
     }
 
-    const { data: application, error: insertError } = await supabaseAdmin
+    const { data: application, error: insertError } = await dbAdmin
       .from('star_academy_staff_applications')
       .insert({
         full_name: fullName,
@@ -147,3 +147,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Erreur inattendue.' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

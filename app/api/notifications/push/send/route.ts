@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import webpush from 'web-push';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || '';
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Envoi push non autorise' }, { status: 403 });
     }
 
-    const { data: subs } = await supabaseAdmin
+    const { data: subs } = await dbAdmin
       .from('push_subscriptions')
       .select('endpoint, p256dh, auth')
       .eq('user_id', userId);
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     }
 
     if (expired.length) {
-      await supabaseAdmin
+      await dbAdmin
         .from('push_subscriptions')
         .delete()
         .eq('user_id', userId)
@@ -78,3 +78,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err?.message }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

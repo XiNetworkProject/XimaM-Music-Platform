@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 import {
   attachAuthors,
   attachTracks,
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     };
 
     let query = applyFiltersAndSort(
-      supabase
+      db
         .from('forum_posts')
         .select(`
           *,
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     if (error && shouldFallbackSelect(error)) {
       const retry = await applyFiltersAndSort(
-        supabase.from('forum_posts').select('*'),
+        db.from('forum_posts').select('*'),
         sort,
       );
       posts = retry.data;
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     if (error && sort !== 'recent' && shouldFallbackSelect(error)) {
       const retry = await applyFiltersAndSort(
-        supabase.from('forum_posts').select('*'),
+        db.from('forum_posts').select('*'),
         'recent',
       );
       posts = retry.data;
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Compter le total pour la pagination
-    let countQuery = supabase
+    let countQuery = db
       .from('forum_posts')
       .select('*', { count: 'exact', head: true });
 
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
 
     if (session?.user?.id && hydratedPosts.length) {
       const postIds = hydratedPosts.map((post: any) => post.id).filter(Boolean);
-      const { data: ownLikes } = await supabase
+      const { data: ownLikes } = await db
         .from('forum_post_likes')
         .select('post_id')
         .eq('user_id', session.user.id)
@@ -179,3 +179,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

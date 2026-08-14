@@ -111,7 +111,7 @@ export default function CookiesPage() {
                   </p>
                 </div>
                 <div className="p-4 bg-white/[0.04] rounded-lg">
-                  <h3 className="text-sm font-medium text-white mb-2">3.2 Supabase (Base de données)</h3>
+                  <h3 className="text-sm font-medium text-white mb-2">3.2 Infrastructure PostgreSQL Synaura</h3>
                   <p className="text-sm text-white/60">
                     Utilisé pour la gestion des données utilisateur et la synchronisation 
                     en temps réel.

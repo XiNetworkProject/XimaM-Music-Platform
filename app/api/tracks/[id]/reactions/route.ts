@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { canViewTrack } from '@/lib/publicTracks';
 import { isMomentReactionType } from '@/lib/momentReactions';
 
@@ -16,7 +16,7 @@ function isDisabledTrack(trackId: string) {
 }
 
 async function loadViewableTrack(trackId: string, viewerId: string | null) {
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('tracks')
     .select('id, is_public, creator_id, audio_url')
     .eq('id', trackId)
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const track = await loadViewableTrack(trackId, viewerId);
     if (!track) return NextResponse.json({ reactions: [] });
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('track_moment_reactions')
       .select('id, reaction_type, timestamp_seconds')
       .eq('track_id', trackId)
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
     const timestampSeconds = Math.round(rawTimestamp);
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('track_moment_reactions')
       .upsert(
         { track_id: trackId, user_id: userId, reaction_type: reactionType, timestamp_seconds: timestampSeconds },

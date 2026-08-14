@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 import { MUSIC_GENRES, GENRE_CATEGORIES, getGenreColor } from '@/lib/genres';
 
 export async function GET(request: NextRequest) {
   try {
-    // Récupérer les pistes pour analyser les genres depuis Supabase
-    const { data: tracks, error } = await supabase
+    // Récupérer les pistes pour analyser les genres depuis PostgreSQL
+    const { data: tracks, error } = await db
       .from('tracks')
       .select('genre, plays, likes');
 
     if (error) {
-      console.error('❌ Erreur récupération tracks Supabase:', error);
+      console.error('❌ Erreur récupération tracks PostgreSQL:', error);
       return NextResponse.json(
         { error: 'Erreur lors de la récupération des genres' },
         { status: 500 }
@@ -101,4 +101,6 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}
+
+export const dynamic = 'force-dynamic';

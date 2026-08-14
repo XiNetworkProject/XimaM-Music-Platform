@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export async function GET(request: NextRequest) {
@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     console.log('🧪 API Tracks Simple - Début');
 
     // Récupérer les tracks avec toutes les infos
-    const { data: tracks, error: tracksError } = await applyPublicTrackFilter(supabase
+    const { data: tracks, error: tracksError } = await applyPublicTrackFilter(db
       .from('tracks')
       .select(`
         id,
@@ -24,17 +24,17 @@ export async function GET(request: NextRequest) {
         created_at
       `))
       .limit(20);
-    
+
     if (tracksError) {
-      console.error('❌ Erreur Supabase tracks:', tracksError);
-      return NextResponse.json({ 
-        error: 'Erreur Supabase tracks', 
-        details: tracksError.message || tracksError 
+      console.error('❌ Erreur PostgreSQL tracks:', tracksError);
+      return NextResponse.json({
+        error: 'Erreur PostgreSQL tracks',
+        details: tracksError.message || tracksError
       }, { status: 500 });
     }
-    
+
     console.log('✅ Tracks récupérées:', tracks?.length || 0);
-    
+
     // Vérifier la structure des tracks
     if (tracks && tracks.length > 0) {
       console.log('🔍 Structure première track:', {
@@ -45,13 +45,13 @@ export async function GET(request: NextRequest) {
         is_featured: tracks[0].is_featured
       });
     }
-    
+
     // Récupérer les créateurs avec les bonnes colonnes
     const creatorIds = Array.from(new Set(tracks?.map(track => track.creator_id).filter(Boolean) || []));
     let creators: any[] = [];
 
     if (creatorIds.length > 0) {
-      const { data: creatorsData, error: creatorsError } = await supabase
+      const { data: creatorsData, error: creatorsError } = await db
         .from('profiles')
         .select('id, username, name, avatar, bio')
         .in('id', creatorIds);
@@ -62,28 +62,28 @@ export async function GET(request: NextRequest) {
         console.log('🔍 Premier créateur:', creators[0]);
       }
     }
-    
+
     // Formatage intelligent des tracks avec algorithme
     const formattedTracks = (tracks || []).map(track => {
       const creator = creators.find(c => c.id === track.creator_id);
       const now = new Date();
       const trackDate = new Date(track.created_at);
       const daysSinceCreation = Math.floor((now.getTime() - trackDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       // Algorithme pour déterminer si c'est nouveau
       const isNew = daysSinceCreation <= 7;
-      
+
       // Algorithme pour trending (combinaison plays + likes + récence)
       const trendingScore = (track.plays || 0) + ((track.likes || 0) * 2) + Math.max(0, 30 - daysSinceCreation);
       const isTrending = trendingScore > 100;
-      
+
       // Vérifier si c'est en vedette
       const isFeatured = track.is_featured === true;
-      
+
       // Vérifier les genres
       const genres = Array.isArray(track.genre) ? track.genre : [];
       console.log(`🔍 Track "${track.title}" - Genres:`, genres);
-      
+
       return {
         _id: track.id,
         title: track.title,
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
         trendingScore: trendingScore
       };
     });
-    
+
     console.log('✅ Tracks formatées:', formattedTracks.length);
     console.log('✅ Exemple track:', {
       title: formattedTracks[0]?.title,
@@ -132,3 +132,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { PLANS } from '@/lib/billing/pricing';
 
 export async function GET(req: NextRequest) {
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     let profile: any = null;
     let error: any = null;
     {
-      const res = await supabaseAdmin
+      const res = await dbAdmin
         .from('profiles')
         .select('id, plan, subscription_status, subscription_current_period_end')
         .eq('id', session.user.id)
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
     // Fallback si certaines colonnes n'existent pas encore
     if (error) {
-      const res2 = await supabaseAdmin
+      const res2 = await dbAdmin
         .from('profiles')
         .select('id, plan')
         .eq('id', session.user.id)
@@ -46,3 +46,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

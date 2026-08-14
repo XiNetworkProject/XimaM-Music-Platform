@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
+import { verifySunoCallback } from '@/lib/sunoWebhook';
 
 function posterFromVideoUrl(videoUrl: string | null) {
   if (!videoUrl) return null;
@@ -27,6 +28,9 @@ function extractPayload(body: any) {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!verifySunoCallback(req)) {
+      return NextResponse.json({ received: false, error: 'Signature callback invalide' }, { status: 401 });
+    }
     const body = await req.json().catch(() => ({}));
     const { taskId, videoUrl } = extractPayload(body);
     if (!taskId) {
@@ -40,7 +44,7 @@ export async function POST(req: NextRequest) {
       music_video_task_id: taskId,
     };
 
-    const { error } = await supabaseAdmin.from('ai_tracks').update(patch).eq('music_video_task_id', taskId);
+    const { error } = await dbAdmin.from('ai_tracks').update(patch).eq('music_video_task_id', taskId);
     if (!error) return NextResponse.json({ received: true });
 
     const message = String(error.message || error.details || '').toLowerCase();
@@ -48,7 +52,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: false, error: error.message }, { status: 500 });
     }
 
-    const { data: rows } = await supabaseAdmin.from('ai_tracks').select('id, source_links').limit(500);
+    const { data: rows } = await dbAdmin.from('ai_tracks').select('id, source_links').limit(500);
     const match = (rows || []).find((row: any) => {
       try {
         const links = JSON.parse(row.source_links || '{}');
@@ -62,7 +66,7 @@ export async function POST(req: NextRequest) {
       try {
         sourceLinks = JSON.parse((match as any).source_links || '{}');
       } catch {}
-      await supabaseAdmin
+      await dbAdmin
         .from('ai_tracks')
         .update({
           source_links: JSON.stringify({
@@ -80,3 +84,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: false, error: error?.message || 'Erreur callback MP4' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

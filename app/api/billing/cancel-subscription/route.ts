@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { stripe } from '@/lib/stripe';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     // MAJ profil
     const periodEndUnix = (updated as any).current_period_end as number | undefined;
     const periodEnd = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
-    await supabaseAdmin.from('profiles').update({ subscription_status: updated.status, subscription_current_period_end: periodEnd }).eq('id', session.user.id);
+    await dbAdmin.from('profiles').update({ subscription_status: updated.status, subscription_current_period_end: periodEnd }).eq('id', session.user.id);
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {
@@ -30,4 +30,4 @@ export async function POST(req: NextRequest) {
   }
 }
 
-
+export const dynamic = 'force-dynamic';

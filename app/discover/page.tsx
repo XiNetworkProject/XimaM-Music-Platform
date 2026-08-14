@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { attachLikedFlag, getPublicTrackPool, getRadarTracks } from '@/lib/discoverData';
 import { DISCOVER_MOODS, matchesMoodKeywords, type MoodId } from '@/lib/discoverMoods';
 import DiscoverClient from './DiscoverClient';
@@ -63,7 +63,7 @@ async function fetchPopularArtists(baseUrl: string): Promise<any[]> {
 async function fetchFavoriteMoodIds(userId: string | undefined): Promise<string[]> {
   if (!userId) return [];
   try {
-    const { data } = await supabaseAdmin.from('profiles').select('preferences').eq('id', userId).single();
+    const { data } = await dbAdmin.from('profiles').select('preferences').eq('id', userId).single();
     const favoriteMoods = (data as any)?.preferences?.onboarding?.favoriteMoods;
     return Array.isArray(favoriteMoods) ? favoriteMoods.map(String) : [];
   } catch {
@@ -73,7 +73,7 @@ async function fetchFavoriteMoodIds(userId: string | undefined): Promise<string[
 
 async function fetchAiPreviewCovers(): Promise<string[]> {
   try {
-    const { data } = await supabaseAdmin
+    const { data } = await dbAdmin
       .from('ai_tracks')
       .select('image_url, generation:ai_generations!inner(is_public, status)')
       .eq('is_public', true)
@@ -88,7 +88,7 @@ async function fetchAiPreviewCovers(): Promise<string[]> {
 
 async function fetchPublicTrackCount(): Promise<number> {
   try {
-    const { count } = await supabaseAdmin
+    const { count } = await dbAdmin
       .from('tracks')
       .select('id', { count: 'exact', head: true })
       .eq('is_public', true)

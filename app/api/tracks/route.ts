@@ -1,6 +1,6 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { canViewAiTrack, canViewTrack } from '@/lib/publicTracks';
 
 export const runtime = 'nodejs';
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
 
     if (liked && userId) {
       // Récupérer les likes de l'utilisateur (les plus récents d'abord)
-      const { data: likeRows, error: likeErr } = await supabaseAdmin
+      const { data: likeRows, error: likeErr } = await dbAdmin
         .from('track_likes')
         .select('track_id, created_at')
           .eq('user_id', userId)
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
       let tracks: any[] = [];
 
       if (normalIds.length) {
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await dbAdmin
           .from('tracks')
           .select(`
             *,
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
       }
 
       if (aiIds.length) {
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await dbAdmin
           .from('ai_tracks')
           .select(`
             id, title, created_at, image_url, audio_url, duration, tags, is_public,
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
           if (data.length > 0) {
             const userIds = Array.from(new Set(data.map((t: any) => t.generation?.user_id).filter(Boolean)));
             if (userIds.length > 0) {
-              const { data: profiles } = await supabaseAdmin
+              const { data: profiles } = await dbAdmin
                 .from('profiles')
                 .select('id, username, name, avatar')
                 .in('id', userIds);
@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
 
     if (recent && userId) {
       // Récupérer les derniers events de lecture de l'utilisateur
-      const { data: events, error: evErr } = await supabaseAdmin
+      const { data: events, error: evErr } = await dbAdmin
         .from('track_events')
         .select('track_id, created_at')
           .eq('user_id', userId)
@@ -212,7 +212,7 @@ export async function GET(request: NextRequest) {
       let tracks: any[] = [];
 
       if (normalIds.length) {
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await dbAdmin
           .from('tracks')
           .select(`
             *,
@@ -227,7 +227,7 @@ export async function GET(request: NextRequest) {
       }
 
       if (aiIds.length) {
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await dbAdmin
           .from('ai_tracks')
           .select(`
             id, title, created_at, image_url, audio_url, duration, tags, is_public,
@@ -242,7 +242,7 @@ export async function GET(request: NextRequest) {
           if (data.length > 0) {
             const userIds = Array.from(new Set(data.map((t: any) => t.generation?.user_id).filter(Boolean)));
             if (userIds.length > 0) {
-              const { data: profiles } = await supabaseAdmin
+              const { data: profiles } = await dbAdmin
                 .from('profiles')
                 .select('id, username, name, avatar')
                 .in('id', userIds);
@@ -274,7 +274,7 @@ export async function GET(request: NextRequest) {
 
     // Filtres avancés (featured/sort/category)
     if (featured !== null || sort !== null || category) {
-      let query = supabaseAdmin
+      let query = dbAdmin
       .from('tracks')
       .select(`
         *,
@@ -346,7 +346,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Par défaut: dernières pistes publiques
-    const { data: recentTracks, error } = await supabaseAdmin
+    const { data: recentTracks, error } = await dbAdmin
       .from('tracks')
       .select(`
         *,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
     }
 
-    const { data: teamMember } = await supabaseAdmin
+    const { data: teamMember } = await dbAdmin
       .from('meteo_team_members')
       .select('role')
       .eq('user_id', session.user.id)
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     // Si bulletinId n'est pas fourni, récupérer le bulletin actuel
     if (!bulletinIdParam) {
-      const { data: currentBulletin, error: currentError } = await supabaseAdmin
+      const { data: currentBulletin, error: currentError } = await dbAdmin
         .from('meteo_bulletins')
         .select('id')
         .eq('is_current', true)
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Vérifier que le bulletin existe
-    const { data: bulletin, error: bulletinError } = await supabaseAdmin
+    const { data: bulletin, error: bulletinError } = await dbAdmin
       .from('meteo_bulletins')
       .select('id')
       .eq('id', bulletinId)
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     const startDateISO = startDate.toISOString();
 
     // Récupérer toutes les vues pour ce bulletin dans la période
-    const { data: views, error: viewsError } = await supabaseAdmin
+    const { data: views, error: viewsError } = await dbAdmin
       .from('meteo_views')
       .select('created_at, source')
       .eq('bulletin_id', bulletinId)

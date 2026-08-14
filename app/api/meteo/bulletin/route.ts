@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { deleteLocalMedia, storeWebFile } from '@/lib/localMediaStorage';
 
 export const runtime = 'nodejs';
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
     }
 
-    const { data: teamMember } = await supabaseAdmin
+    const { data: teamMember } = await dbAdmin
       .from('meteo_team_members')
       .select('role')
       .eq('user_id', session.user.id)
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     // Si mode = 'publish' : mettre tous les bulletins publiés existants à is_current = false
     if (isPublish) {
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await dbAdmin
         .from('meteo_bulletins')
         .update({ is_current: false })
         .eq('author_id', session.user.id)
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
       insertData.is_current = false;
     }
 
-    const { data: newBulletin, error: insertError } = await supabaseAdmin
+    const { data: newBulletin, error: insertError } = await dbAdmin
       .from('meteo_bulletins')
       .insert(insertData)
       .select()
@@ -202,7 +202,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
     }
 
-    const { data: teamMember } = await supabaseAdmin
+    const { data: teamMember } = await dbAdmin
       .from('meteo_team_members')
       .select('role')
       .eq('user_id', session.user.id)
@@ -216,7 +216,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 
-    let query = supabaseAdmin
+    let query = dbAdmin
       .from('meteo_bulletins')
       .select('*')
       .order('created_at', { ascending: false });

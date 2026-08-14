@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 
 // GET /api/tracks/[id]/creator-check - Vérifier si l'utilisateur est le créateur de la piste
 export async function GET(
@@ -31,7 +31,7 @@ export async function GET(
     }
 
     // Vérifier si la piste existe et récupérer le créateur
-    const { data: track, error: trackError } = await supabase
+    const { data: track, error: trackError } = await db
       .from('tracks')
       .select('id, creator_id')
       .eq('id', trackId)
@@ -61,3 +61,5 @@ export async function GET(
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

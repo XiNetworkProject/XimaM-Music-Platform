@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { assertCanCreateClip, formatMusicClips } from '@/lib/musicClips';
 import { normalizeRemixTrackRef } from '@/lib/remixServer';
 import { buildRecommendationSignals, parseRecommendationExclusions, rankMusicClips } from '@/lib/recommendation';
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const viewerId = session?.user?.id || null;
 
     if (!creatorId && creatorUsername) {
-      const { data: creator } = await supabaseAdmin
+      const { data: creator } = await dbAdmin
         .from('profiles')
         .select('id')
         .eq('username', creatorUsername)
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     }
 
     const isGeneralFeed = !sourceTrackId && !creatorId && !creatorUsername && !clipId;
-    let query = supabaseAdmin
+    let query = dbAdmin
       .from('music_clips')
       .select('*, creator:profiles!music_clips_creator_id_fkey(id, username, name, avatar)')
       .order('created_at', { ascending: false });
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
         createdAt: clip.createdAt,
       }));
       const signals = await buildRecommendationSignals({
-        supabase: supabaseAdmin,
+        db: dbAdmin,
         userId: viewerId,
         candidateTracks: sourceCandidates,
         sessionId: recommendationSessionId,
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
     });
     if (!permission.ok) return NextResponse.json({ error: permission.error }, { status: permission.status });
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('music_clips')
       .insert({
         creator_id: userId,

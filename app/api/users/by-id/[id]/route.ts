@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 
 export async function GET(
   request: NextRequest,
@@ -17,8 +17,8 @@ export async function GET(
 
     console.log(`🔍 Récupération de l'utilisateur par ID: ${id}`);
 
-    // Récupérer le profil utilisateur depuis Supabase
-    const { data: profile, error: profileError } = await supabase
+    // Récupérer le profil utilisateur depuis PostgreSQL
+    const { data: profile, error: profileError } = await db
       .from('profiles')
       .select('id, name, username, avatar')
       .eq('id', id)
@@ -44,3 +44,5 @@ export async function GET(
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

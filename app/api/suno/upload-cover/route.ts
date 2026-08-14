@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getEntitlements } from '@/lib/entitlements';
 import { CREDITS_PER_GENERATION } from '@/lib/credits';
 import { uploadAndCoverAudio, SunoUploadCoverRequest } from '@/lib/suno';
 import { validateSunoGenerationInput, validateSunoTuningInput, validateUploadCoverExtra } from '@/lib/sunoValidation';
+import { buildSunoCallbackUrl } from '@/lib/sunoWebhook';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   const refundCredits = async (userId: string) => {
     if (!debited) return;
     try {
-      await (supabaseAdmin as any).rpc('ai_add_credits', {
+      await (dbAdmin as any).rpc('ai_add_credits', {
         p_user_id: userId, p_amount: CREDITS_PER_GENERATION,
         p_source: 'refund', p_description: 'Remboursement échec upload-cover',
       });
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as Body;
 
     // Entitlements: vérif modèle autorisé
-    const { data: profile } = await supabaseAdmin.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
+    const { data: profile } = await dbAdmin.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
     const plan = (profile?.plan || 'free') as any;
     const entitlements = getEntitlements(plan);
     const allowedModels = entitlements.ai.availableModels || ["V4_5"];
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Crédits: vérifier et débiter (après validation des paramètres)
-    const { data: balanceRow } = await supabaseAdmin
+    const { data: balanceRow } = await dbAdmin
       .from('ai_credit_balances')
       .select('balance')
       .eq('user_id', session.user.id)
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
       }, { status: 402 });
     }
 
-    const { data: debitOk, error: debitError } = await (supabaseAdmin as any)
+    const { data: debitOk, error: debitError } = await (dbAdmin as any)
       .rpc('ai_debit_credits', {
         p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION,
         p_source: 'action_spend', p_description: `Upload cover / Remix (${effectiveModel})`,
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
     const payload: Body = {
       ...body,
       model: effectiveModel,
-      callBackUrl: body.callBackUrl || `${process.env.NEXTAUTH_URL}/api/suno/callback`,
+      callBackUrl: buildSunoCallbackUrl(req, '/api/suno/callback'),
     };
 
     const sunoRes = await uploadAndCoverAudio(payload);
@@ -153,14 +154,14 @@ export async function POST(req: NextRequest) {
         created_at: new Date().toISOString()
       };
 
-      const { error: insertError } = await supabaseAdmin.from('ai_generations').insert(generationData);
+      const { error: insertError } = await dbAdmin.from('ai_generations').insert(generationData);
       if (insertError) {
         console.error('❌ Erreur insertion génération upload-cover:', insertError);
       }
     }
 
     // Retour frontend
-    const { data: newBalanceRow } = await supabaseAdmin
+    const { data: newBalanceRow } = await dbAdmin
       .from('ai_credit_balances')
       .select('balance')
       .eq('user_id', session.user.id)
@@ -185,4 +186,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message || 'Erreur serveur' }, { status: 500 });
   }
 }
-

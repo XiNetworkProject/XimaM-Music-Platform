@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 import { COMMUNITY_CLUBS } from '@/lib/communityClubs';
 import { attachAuthors, attachTracks } from '@/lib/communityPosts';
 
@@ -12,11 +12,11 @@ export async function GET() {
     const clubs = await Promise.all(
       COMMUNITY_CLUBS.map(async (club) => {
         const [{ count }, { data: latestRows }] = await Promise.all([
-          supabase
+          db
             .from('forum_posts')
             .select('id', { count: 'exact', head: true })
             .eq('category', club.category),
-          supabase
+          db
             .from('forum_posts')
             .select(`
               *,

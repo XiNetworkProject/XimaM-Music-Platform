@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getEntitlements } from '@/lib/entitlements';
 import { DEFAULT_REMIX_PERMISSIONS, remixPermissionsToRow, sanitizeRemixPermissions } from '@/lib/remixPermissions';
 import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaReference, isLocalMediaUrl, localPublicIdFromUrl } from '@/lib/localMediaStorage';
@@ -20,11 +20,11 @@ export async function POST(request: NextRequest) {
 
     let ent: ReturnType<typeof getEntitlements> | null = null;
     try {
-      const { data: profile } = await supabaseAdmin.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
+      const { data: profile } = await dbAdmin.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
       const plan = (profile?.plan || 'free') as any;
       ent = getEntitlements(plan);
       if (ent.uploads.maxTracks > -1) {
-        const { count } = await supabaseAdmin.from('tracks').select('*', { count: 'exact', head: true }).eq('creator_id', session.user.id);
+        const { count } = await dbAdmin.from('tracks').select('*', { count: 'exact', head: true }).eq('creator_id', session.user.id);
         if ((count || 0) >= ent.uploads.maxTracks) {
           return NextResponse.json({ error: `Quota atteint: ${ent.uploads.maxTracks} pistes` }, { status: 403 });
         }
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       let error: any = null;
       let currentPayload = insertPayload;
 
-      const insertTrack = (payload: Record<string, any>) => supabaseAdmin.from('tracks').insert(payload).select().single();
+      const insertTrack = (payload: Record<string, any>) => dbAdmin.from('tracks').insert(payload).select().single();
       const shouldRetryWithoutVideoColumns = (err: any) => {
         const msg = String(err?.message || err?.details || '');
         return Boolean(err) && (
@@ -199,13 +199,13 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const { data: artist } = await supabaseAdmin
+        const { data: artist } = await dbAdmin
           .from('profiles')
           .select('username, name')
           .eq('id', session.user.id)
           .maybeSingle();
         if (artist && trackData.isPublic !== false) {
-          const { data: followers } = await supabaseAdmin
+          const { data: followers } = await dbAdmin
             .from('user_follows')
             .select('follower_id')
             .eq('following_id', session.user.id);
@@ -233,3 +233,5 @@ export async function POST(request: NextRequest) {
 export async function GET() { return NextResponse.json({ error: 'Méthode GET non supportée pour cet endpoint' }, { status: 405 }); }
 export async function PUT() { return NextResponse.json({ error: 'Méthode PUT non supportée pour cet endpoint' }, { status: 405 }); }
 export async function DELETE() { return NextResponse.json({ error: 'Méthode DELETE non supportée pour cet endpoint' }, { status: 405 }); }
+
+export const dynamic = 'force-dynamic';

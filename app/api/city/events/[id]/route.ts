@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -22,12 +22,12 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const userId = session?.user?.id || null;
 
     const [eventRes, tracksRes, votesRes, participationsRes, winnersRes, rewardsRes] = await Promise.all([
-      supabaseAdmin.from('city_events').select('*').eq('id', eventId).maybeSingle(),
-      supabaseAdmin.from('city_event_tracks').select('*').eq('event_id', eventId).order('slot', { ascending: true }),
-      supabaseAdmin.from('city_event_votes').select('track_id, user_id, created_at').eq('event_id', eventId),
-      supabaseAdmin.from('city_event_participations').select('*').eq('event_id', eventId).order('created_at', { ascending: false }),
-      supabaseAdmin.from('city_event_winners').select('*').eq('event_id', eventId).order('rank', { ascending: true }),
-      userId ? supabaseAdmin.from('city_user_rewards').select('*').eq('event_id', eventId).eq('user_id', userId) : Promise.resolve({ data: [] } as any),
+      dbAdmin.from('city_events').select('*').eq('id', eventId).maybeSingle(),
+      dbAdmin.from('city_event_tracks').select('*').eq('event_id', eventId).order('slot', { ascending: true }),
+      dbAdmin.from('city_event_votes').select('track_id, user_id, created_at').eq('event_id', eventId),
+      dbAdmin.from('city_event_participations').select('*').eq('event_id', eventId).order('created_at', { ascending: false }),
+      dbAdmin.from('city_event_winners').select('*').eq('event_id', eventId).order('rank', { ascending: true }),
+      userId ? dbAdmin.from('city_user_rewards').select('*').eq('event_id', eventId).eq('user_id', userId) : Promise.resolve({ data: [] } as any),
     ]);
 
     if (eventRes.error) throw eventRes.error;

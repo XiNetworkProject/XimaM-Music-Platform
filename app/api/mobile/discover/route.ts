@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { attachLikedFlag, getRadarTracks } from '@/lib/discoverData';
 import { getFeaturedEditorialCollections } from '@/lib/editorialCollections';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
@@ -26,10 +26,10 @@ export async function GET(request: NextRequest) {
     const userId = session?.user?.id ? String(session.user.id) : null;
     const [candidates, publicCountResult] = await Promise.all([
       loadGlobalTrackCandidates(false),
-      applyPublicTrackFilter(supabaseAdmin.from('tracks').select('id', { count: 'exact', head: true })),
+      applyPublicTrackFilter(dbAdmin.from('tracks').select('id', { count: 'exact', head: true })),
     ]);
     const signals = await buildRecommendationSignals({
-      supabase: supabaseAdmin,
+      db: dbAdmin,
       userId,
       candidateTracks: candidates,
       sessionId,

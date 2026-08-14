@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import {
   buildRecommendationSignals,
   loadGlobalTrackCandidates,
@@ -35,7 +35,7 @@ async function enrichRemixFeedFields(tracks: any[], userId: string | null) {
   const artistIds = Array.from(new Set(tracks.map((track) => String(track.artist?._id || '')).filter(Boolean)));
   const following = new Set<string>();
   if (userId && artistIds.length) {
-    const { data } = await supabaseAdmin
+    const { data } = await dbAdmin
       .from('user_follows')
       .select('following_id')
       .eq('follower_id', userId)
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     const candidatesDuration = Date.now() - candidatesStartedAt;
     const signalsStartedAt = Date.now();
     const signals = await buildRecommendationSignals({
-      supabase: supabaseAdmin,
+      db: dbAdmin,
       userId,
       candidateTracks: candidates,
       sessionId: requestedSessionId,

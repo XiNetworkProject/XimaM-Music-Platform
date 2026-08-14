@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { notifyPostLike } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,7 @@ export async function POST(
     const { id: postId } = params;
     const userId = session.user.id;
 
-    const { error: likeError } = await supabaseAdmin
+    const { error: likeError } = await dbAdmin
       .from('post_likes')
       .insert({ post_id: postId, user_id: userId });
 
@@ -30,14 +30,14 @@ export async function POST(
     }
 
     // Incrémenter le compteur + notifier
-    const { data: post } = await supabaseAdmin
+    const { data: post } = await dbAdmin
       .from('creator_posts')
       .select('likes_count, creator_id')
       .eq('id', postId)
       .single();
 
     if (post) {
-      await supabaseAdmin
+      await dbAdmin
         .from('creator_posts')
         .update({ likes_count: ((post as any).likes_count || 0) + 1 })
         .eq('id', postId);
@@ -68,7 +68,7 @@ export async function DELETE(
     const { id: postId } = params;
     const userId = session.user.id;
 
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('post_likes')
       .delete()
       .eq('post_id', postId)
@@ -77,14 +77,14 @@ export async function DELETE(
     if (error) return NextResponse.json({ error: 'Erreur unlike' }, { status: 500 });
 
     // Décrémenter le compteur
-    const { data: post } = await supabaseAdmin
+    const { data: post } = await dbAdmin
       .from('creator_posts')
       .select('likes_count')
       .eq('id', postId)
       .single();
 
     if (post) {
-      await supabaseAdmin
+      await dbAdmin
         .from('creator_posts')
         .update({ likes_count: Math.max(0, ((post as any).likes_count || 1) - 1) })
         .eq('id', postId);

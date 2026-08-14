@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import EmbedPlayerClient from './EmbedPlayerClient';
 
 interface Props {
@@ -11,7 +11,7 @@ async function getTrack(trackId: string) {
   const realId = isAI ? trackId.slice(3) : trackId;
 
   if (isAI) {
-    const { data } = await supabaseAdmin
+    const { data } = await dbAdmin
       .from('ai_generated_tracks')
       .select('id, title, audio_url, image_url, duration, prompt, ai_generations(prompt, style)')
       .eq('id', realId)
@@ -29,7 +29,7 @@ async function getTrack(trackId: string) {
     };
   }
 
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('tracks')
     .select('id, title, audio_url, cover_url, duration, profiles!tracks_user_id_fkey(username, name, artist_name)')
     .eq('id', realId)

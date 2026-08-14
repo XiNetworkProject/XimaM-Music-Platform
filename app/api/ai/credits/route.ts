@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession, getSessionFromToken } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 async function handleCredits(session: { user: { id: string } } | null) {
   if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   const userId = session.user.id;
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('ai_credit_balances')
     .select('balance')
     .eq('user_id', userId)
@@ -43,4 +43,4 @@ export async function POST(req: NextRequest) {
   }
 }
 
-
+export const dynamic = 'force-dynamic';

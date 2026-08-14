@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
@@ -34,7 +34,7 @@ export async function GET(_req: NextRequest) {
     const tagCounts: CountMap = {};
 
     // 1) Historique IA de l'utilisateur: styles + tags depuis ai_tracks
-    const { data: aiData, error: aiErr } = await supabaseAdmin
+    const { data: aiData, error: aiErr } = await dbAdmin
       .from('ai_tracks')
       .select(`
         style,
@@ -64,7 +64,7 @@ export async function GET(_req: NextRequest) {
     }
 
     // 2) Historique d'écoutes récentes (optionnel): récupérer derniers track_views et genres associés
-    const { data: views, error: viewsErr } = await supabaseAdmin
+    const { data: views, error: viewsErr } = await dbAdmin
       .from('track_views')
       .select('track_id')
       .eq('user_id', userId)
@@ -74,7 +74,7 @@ export async function GET(_req: NextRequest) {
     if (!viewsErr && views && views.length) {
       const ids = Array.from(new Set(views.map((v: any) => v.track_id))).slice(0, 100);
       if (ids.length) {
-        const { data: tracks, error: tracksErr } = await supabaseAdmin
+        const { data: tracks, error: tracksErr } = await dbAdmin
           .from('tracks')
           .select('genre, style')
           .in('id', ids);
@@ -95,7 +95,7 @@ export async function GET(_req: NextRequest) {
     // 3) Popularité globale récente (30 jours)
     const since = new Date();
     since.setDate(since.getDate() - 30);
-    const { data: globalAI, error: globalErr } = await supabaseAdmin
+    const { data: globalAI, error: globalErr } = await dbAdmin
       .from('ai_tracks')
       .select('style,tags,created_at')
       .gte('created_at', since.toISOString())

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { diagnosticsEnabled } from '@/lib/diagnostics';
 
 /**
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const { data: profile, error } = await supabaseAdmin
+  const { data: profile, error } = await dbAdmin
     .from('profiles')
     .select('id')
     .eq('id', userId)
@@ -82,3 +82,5 @@ export async function GET(req: NextRequest) {
     userId,
   });
 }
+
+export const dynamic = 'force-dynamic';

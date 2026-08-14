@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { createNotification } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +26,7 @@ async function activateWinnerShowcase(userId: string, trackId?: string | null): 
   if (!trackId) throw new Error('Le morceau gagnant est introuvable.');
   const now = new Date();
   const expiresAt = new Date(now.getTime() + CITY_WINNER_DURATION_MS).toISOString();
-  const { data: active, error: activeError } = await supabaseAdmin
+  const { data: active, error: activeError } = await dbAdmin
     .from('active_track_boosts')
     .select('id, multiplier, expires_at')
     .eq('track_id', trackId)
@@ -40,7 +40,7 @@ async function activateWinnerShowcase(userId: string, trackId?: string | null): 
   if (active?.id) {
     const mergedExpiresAt = new Date(Math.max(new Date(active.expires_at).getTime(), new Date(expiresAt).getTime())).toISOString();
     const mergedMultiplier = Math.max(CITY_WINNER_MULTIPLIER, Number(active.multiplier || 1));
-    const { data: updated, error } = await supabaseAdmin.from('active_track_boosts').update({
+    const { data: updated, error } = await dbAdmin.from('active_track_boosts').update({
       multiplier: mergedMultiplier,
       expires_at: mergedExpiresAt,
     }).eq('id', active.id).select('track_id, multiplier, expires_at').maybeSingle();
@@ -53,7 +53,7 @@ async function activateWinnerShowcase(userId: string, trackId?: string | null): 
     };
   }
 
-  let { data: booster, error: boosterError } = await supabaseAdmin
+  let { data: booster, error: boosterError } = await dbAdmin
     .from('boosters')
     .select('id')
     .eq('key', 'city-winner-showcase')
@@ -61,7 +61,7 @@ async function activateWinnerShowcase(userId: string, trackId?: string | null): 
     .maybeSingle();
   if (boosterError) throw boosterError;
   if (!booster?.id) {
-    const fallback = await supabaseAdmin
+    const fallback = await dbAdmin
       .from('boosters')
       .select('id')
       .eq('type', 'track')
@@ -74,7 +74,7 @@ async function activateWinnerShowcase(userId: string, trackId?: string | null): 
   }
   if (!booster?.id) throw new Error('Le boost City n est pas configure.');
 
-  const { data: inserted, error: insertError } = await supabaseAdmin.from('active_track_boosts').insert({
+  const { data: inserted, error: insertError } = await dbAdmin.from('active_track_boosts').insert({
     track_id: trackId,
     user_id: userId,
     booster_id: booster.id,
@@ -93,7 +93,7 @@ async function activateWinnerShowcase(userId: string, trackId?: string | null): 
 }
 
 async function readLegacyReward(userId: string, eventId: string) {
-  const { data: profile, error: profileError } = await supabaseAdmin
+  const { data: profile, error: profileError } = await dbAdmin
     .from('profiles')
     .select('preferences')
     .eq('id', userId)
@@ -107,7 +107,7 @@ async function readLegacyReward(userId: string, eventId: string) {
 }
 
 async function winnerHasARealVote(eventId: string, trackId: string) {
-  const { data: event, error: eventError } = await supabaseAdmin
+  const { data: event, error: eventError } = await dbAdmin
     .from('city_events')
     .select('kind')
     .eq('id', eventId)
@@ -119,7 +119,7 @@ async function winnerHasARealVote(eventId: string, trackId: string) {
   if (!event) return false;
   if (event.kind !== 'battle') return true;
 
-  const { count, error: voteError } = await supabaseAdmin
+  const { count, error: voteError } = await dbAdmin
     .from('city_event_votes')
     .select('id', { count: 'exact', head: true })
     .eq('event_id', eventId)
@@ -130,7 +130,7 @@ async function winnerHasARealVote(eventId: string, trackId: string) {
 
 // Fallback sans migration: les recompenses vivent dans profiles.preferences.
 async function claimLegacyReward(userId: string, eventId: string, boost: CityWinnerBoost) {
-  const { data: profile, error: profileError } = await supabaseAdmin
+  const { data: profile, error: profileError } = await dbAdmin
     .from('profiles')
     .select('preferences')
     .eq('id', userId)
@@ -152,7 +152,7 @@ async function claimLegacyReward(userId: string, eventId: string, boost: CityWin
     ...(preferences.cityFeaturedTracks && typeof preferences.cityFeaturedTracks === 'object' ? preferences.cityFeaturedTracks : {}),
     [current.trackId]: { eventId, startsAt: now, endsAt: boost.expiresAt, multiplier: boost.multiplier },
   } : preferences.cityFeaturedTracks;
-  const { error } = await supabaseAdmin
+  const { error } = await dbAdmin
     .from('profiles')
     .update({
       preferences: {
@@ -199,7 +199,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const eventId = decodeURIComponent(params.id || '');
     if (!eventId) return NextResponse.json({ error: 'Event invalide.' }, { status: 400 });
 
-    const { data: reward, error: rewardError } = await supabaseAdmin
+    const { data: reward, error: rewardError } = await dbAdmin
       .from('city_user_rewards')
       .select('*')
       .eq('event_id', eventId)
@@ -233,7 +233,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
     const boost = await activateWinnerShowcase(session.user.id, trackId);
     const claimedAt = new Date().toISOString();
-    const { data: claimedReward, error } = await supabaseAdmin
+    const { data: claimedReward, error } = await dbAdmin
       .from('city_user_rewards')
       .update({
         status: 'claimed',

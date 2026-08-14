@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin as supabase } from '@/lib/supabase';
+import { dbAdmin as db } from '@/lib/database';
 import {
   getEditorialCollectionByPlaylistId,
   getEditorialCollectionBySlug,
@@ -23,7 +23,7 @@ export async function GET(
     let legacyBySlug: any = null;
 
     if (!collectionBySlug && !isUuidLike(id)) {
-      const { data: possibleLegacyPlaylists } = await supabase
+      const { data: possibleLegacyPlaylists } = await db
         .from('playlists')
         .select('*')
         .eq('is_public', true)
@@ -41,7 +41,7 @@ export async function GET(
       return NextResponse.json({ error: 'Playlist non trouvÃ©e' }, { status: 404 });
     }
 
-    const { data: playlist, error } = await supabase
+    const { data: playlist, error } = await db
       .from('playlists')
       .select(`
         *,
@@ -139,7 +139,7 @@ export async function PUT(
     const session = await getApiSession(request);
     if (!session?.user?.id) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-    const { data: existing } = await supabase.from('playlists').select('creator_id').eq('id', id).maybeSingle();
+    const { data: existing } = await db.from('playlists').select('creator_id').eq('id', id).maybeSingle();
     if (!existing) return NextResponse.json({ error: 'Playlist non trouvée' }, { status: 404 });
     if (existing.creator_id !== session.user.id) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
 
@@ -147,7 +147,7 @@ export async function PUT(
     // que des morceaux publiquement visibles (lib/publicTracks.ts). On refuse
     // clairement le changement plutôt que de retirer des morceaux sans confirmation.
     if (isPublic === true) {
-      const { data: rows } = await supabase
+      const { data: rows } = await db
         .from('playlist_tracks')
         .select('tracks(id, title, is_public, audio_url)')
         .eq('playlist_id', id);
@@ -163,7 +163,7 @@ export async function PUT(
       }
     }
 
-    const { data: playlist, error } = await supabase
+    const { data: playlist, error } = await db
       .from('playlists')
       .update({
         name: name?.trim(),
@@ -214,12 +214,12 @@ export async function DELETE(
     const session = await getApiSession(request);
     if (!session?.user?.id) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-    const { data: existing } = await supabase.from('playlists').select('creator_id').eq('id', id).maybeSingle();
+    const { data: existing } = await db.from('playlists').select('creator_id').eq('id', id).maybeSingle();
     if (!existing) return NextResponse.json({ error: 'Playlist non trouvée' }, { status: 404 });
     if (existing.creator_id !== session.user.id) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
 
     // Supprimer d'abord les relations playlist_tracks
-    const { error: tracksError } = await supabase
+    const { error: tracksError } = await db
       .from('playlist_tracks')
       .delete()
       .eq('playlist_id', id);
@@ -229,13 +229,13 @@ export async function DELETE(
     }
 
     // Supprimer la playlist
-    const { error } = await supabase
+    const { error } = await db
       .from('playlists')
       .delete()
       .eq('id', id);
 
     if (error) {
-      console.error('Erreur Supabase:', error);
+      console.error('Erreur PostgreSQL:', error);
       return NextResponse.json({ error: 'Erreur lors de la suppression' }, { status: 500 });
     }
 
@@ -246,3 +246,5 @@ export async function DELETE(
     return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

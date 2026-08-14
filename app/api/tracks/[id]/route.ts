@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { db, dbAdmin } from '@/lib/database';
 import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaReference } from '@/lib/localMediaStorage';
 import { remixPermissionsFromRow, remixPermissionsToRow, sanitizeRemixPermissions } from '@/lib/remixPermissions';
 import { getPublishedVariationCounts, getRemixAttributionForChildren, getRemixSourceSummary, normalizeRemixTrackRef } from '@/lib/remixServer';
@@ -39,10 +39,10 @@ export async function GET(
 
     console.log(`🔍 Récupération de la track: ${id}`);
 
-    // Récupérer la track depuis Supabase
+    // Récupérer la track depuis PostgreSQL
     const ref = normalizeRemixTrackRef(id);
     if (ref.type === 'ai_track') {
-      const { data: aiTrack, error: aiError } = await supabaseAdmin
+      const { data: aiTrack, error: aiError } = await dbAdmin
         .from('ai_tracks')
         .select('*, generation:ai_generations!inner(id, user_id, prompt, metadata, is_public, status)')
         .eq('id', ref.id)
@@ -87,7 +87,7 @@ export async function GET(
       });
     }
 
-    const { data: track, error: trackError } = await supabase
+    const { data: track, error: trackError } = await db
       .from('tracks')
       .select('*')
       .eq('id', id)
@@ -186,7 +186,7 @@ export async function PUT(
     // Vérifier que la track existe et que l'utilisateur est le propriétaire
     // (select * plutôt qu'une liste de colonnes : reste valide même si la migration
     // des droits de création n'a pas encore été appliquée sur cet environnement)
-    const { data: existingTrack, error: trackError } = await supabaseAdmin
+    const { data: existingTrack, error: trackError } = await dbAdmin
       .from('tracks')
       .select('*')
       .eq('id', id)
@@ -200,7 +200,7 @@ export async function PUT(
       });
       
       // Ajouter une recherche de debug pour voir quelles tracks existent
-      const { data: allTracks } = await supabaseAdmin
+      const { data: allTracks } = await dbAdmin
         .from('tracks')
         .select('id, title, creator_id')
         .limit(5);
@@ -254,7 +254,7 @@ export async function PUT(
     let updatedTrack: any = null;
     let updateError: any = null;
     {
-      const result = await supabaseAdmin.from('tracks').update(updateData).eq('id', id).select().single();
+      const result = await dbAdmin.from('tracks').update(updateData).eq('id', id).select().single();
       updatedTrack = result.data;
       updateError = result.error;
     }
@@ -265,7 +265,7 @@ export async function PUT(
       const isMissingRemixColumn = ['allow_clips', 'allow_audio_remix', 'allow_ai_variation', 'remix_approval_required', 'remix_visibility', 'Could not find', 'schema cache'].some((needle) => msg.includes(needle));
       if (isMissingRemixColumn) {
         const { allow_clips, allow_audio_remix, allow_ai_variation, remix_approval_required, remix_visibility, ...rest } = updateData;
-        const retry = await supabaseAdmin.from('tracks').update(rest).eq('id', id).select().single();
+        const retry = await dbAdmin.from('tracks').update(rest).eq('id', id).select().single();
         updatedTrack = retry.data;
         updateError = retry.error;
       }
@@ -338,7 +338,7 @@ export async function DELETE(
     console.log(`🗑️  Suppression de la track: ${id}`);
 
     // Récupérer les references locales avant suppression et verifier le propriétaire.
-    const { data: existing, error: fetchErr } = await supabaseAdmin
+    const { data: existing, error: fetchErr } = await dbAdmin
       .from('tracks')
       .select('*')
       .eq('id', id)
@@ -365,7 +365,7 @@ export async function DELETE(
     }
 
     // Supprimer la track en base
-    const { error: deleteError } = await supabaseAdmin
+    const { error: deleteError } = await dbAdmin
       .from('tracks')
       .delete()
       .eq('id', id);
@@ -401,3 +401,5 @@ export async function DELETE(
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

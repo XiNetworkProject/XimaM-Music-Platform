@@ -57,3 +57,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message || "Erreur serveur" }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

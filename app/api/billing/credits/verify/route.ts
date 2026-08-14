@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession, getSessionFromToken } from '@/lib/getApiSession';
 import { stripe } from '@/lib/stripe';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { findPackById } from '@/lib/billing/pricing';
 
 export async function POST(req: NextRequest) {
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     if (creditsToAdd <= 0) return NextResponse.json({ error: 'Pack non déterminé' }, { status: 400 });
 
-    await supabaseAdmin.rpc('ai_add_credits', {
+    await dbAdmin.rpc('ai_add_credits', {
       p_user_id: session.user.id,
       p_amount: creditsToAdd,
       p_source: 'pack_purchase',
@@ -47,3 +47,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e.message || 'Erreur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

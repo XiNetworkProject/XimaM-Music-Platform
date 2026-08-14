@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getPlanByPriceId, findPackById, PLANS } from '@/lib/billing/pricing';
 
 export const runtime = 'nodejs';
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
         const planKey = detected?.planKey || 'free';
 
         if (userId) {
-          await supabaseAdmin.from('profiles').update({
+          await dbAdmin.from('profiles').update({
             plan: status === 'active' ? planKey : 'free',
             subscription_status: status,
             subscription_current_period_end: currentPeriodEnd,
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
           detected &&
           detected.monthlyCredits > 0
         ) {
-          await supabaseAdmin.rpc('ai_add_credits', {
+          await dbAdmin.rpc('ai_add_credits', {
             p_user_id: userId,
             p_amount: detected.monthlyCredits,
             p_source: 'subscription_grant',
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
           const email: string | undefined =
             sessionObj.customer_details?.email || sessionObj.metadata?.email;
           if (!userId && email) {
-            const { data: profile } = await supabaseAdmin
+            const { data: profile } = await dbAdmin
               .from('profiles')
               .select('id')
               .eq('email', email)
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
           }
 
           if (userId && creditsToAdd > 0) {
-            await supabaseAdmin.rpc('ai_add_credits', {
+            await dbAdmin.rpc('ai_add_credits', {
               p_user_id: userId,
               p_amount: creditsToAdd,
               p_source: 'pack_purchase',

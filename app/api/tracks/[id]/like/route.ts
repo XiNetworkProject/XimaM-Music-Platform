@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { applyMissionProgress } from '@/lib/missions/progress';
 import { notifyNewLike, notifyLikeMilestone, checkMilestone } from '@/lib/notifications';
 
@@ -31,7 +31,7 @@ export async function GET(
     }
 
     // Vérifier si l'utilisateur a liké
-    const { data: likeRow, error: likeErr } = await supabaseAdmin
+    const { data: likeRow, error: likeErr } = await dbAdmin
       .from('track_likes')
       .select('id')
       .eq('track_id', trackId)
@@ -43,7 +43,7 @@ export async function GET(
     }
 
     // Récupérer le compteur depuis track_stats (créé par triggers)
-    const { data: stats, error: statsErr } = await supabaseAdmin
+    const { data: stats, error: statsErr } = await dbAdmin
       .from('track_stats')
       .select('likes_count')
       .eq('track_id', trackId)
@@ -53,7 +53,7 @@ export async function GET(
     if (statsErr || stats == null) {
       // Fallback: compter directement les likes si stats indisponible
       console.warn('likes GET: stats indisponible, fallback count', statsErr);
-      const { count, error: countErr } = await supabaseAdmin
+      const { count, error: countErr } = await dbAdmin
         .from('track_likes')
         .select('*', { count: 'exact', head: true })
         .eq('track_id', trackId);
@@ -108,7 +108,7 @@ export async function POST(
     // Ajouter le like
     console.log('POST like - Tentative d\'insertion:', { trackId, userId });
     
-    const { data: insertedData, error: insErr } = await supabaseAdmin
+    const { data: insertedData, error: insErr } = await dbAdmin
       .from('track_likes')
       .insert({ track_id: trackId, user_id: userId })
       .select();
@@ -126,7 +126,7 @@ export async function POST(
     }
 
     // Log event like
-    const { error: evErr } = await supabaseAdmin.from('track_events').insert({
+    const { error: evErr } = await dbAdmin.from('track_events').insert({
       track_id: trackId,
       user_id: userId,
       session_id: recommendationSessionId,
@@ -145,14 +145,14 @@ export async function POST(
     } catch {}
 
     // Lire état final
-    const { data: likeRow, error: likeErr } = await supabaseAdmin
+    const { data: likeRow, error: likeErr } = await dbAdmin
       .from('track_likes')
       .select('id')
       .eq('track_id', trackId)
       .eq('user_id', userId)
       .maybeSingle();
 
-    const { data: stats, error: statsErr } = await supabaseAdmin
+    const { data: stats, error: statsErr } = await dbAdmin
       .from('track_stats')
       .select('likes_count')
       .eq('track_id', trackId)
@@ -165,7 +165,7 @@ export async function POST(
     let likesCount = stats?.likes_count ?? 0;
     if (statsErr || stats == null) {
       console.warn('likes POST: stats indisponible, fallback count', statsErr);
-      const { count, error: countErr } = await supabaseAdmin
+      const { count, error: countErr } = await dbAdmin
         .from('track_likes')
         .select('*', { count: 'exact', head: true })
         .eq('track_id', trackId);
@@ -179,13 +179,13 @@ export async function POST(
 
     if (likeRow && !insErr) {
       try {
-        const { data: track } = await supabaseAdmin
+        const { data: track } = await dbAdmin
           .from('tracks')
           .select('title, creator_id')
           .eq('id', trackId)
           .maybeSingle();
         if (track && track.creator_id && track.creator_id !== userId) {
-          const { data: liker } = await supabaseAdmin
+          const { data: liker } = await dbAdmin
             .from('profiles')
             .select('username, name')
             .eq('id', userId)
@@ -245,7 +245,7 @@ export async function DELETE(
     // Supprimer le like s'il existe
     console.log('DELETE like - Tentative de suppression:', { trackId, userId });
     
-    const { data: deletedData, error: delErr } = await supabaseAdmin
+    const { data: deletedData, error: delErr } = await dbAdmin
       .from('track_likes')
       .delete()
       .eq('track_id', trackId)
@@ -260,7 +260,7 @@ export async function DELETE(
     }
 
     // Log event unlike
-    const { error: evErr } = await supabaseAdmin.from('track_events').insert({
+    const { error: evErr } = await dbAdmin.from('track_events').insert({
       track_id: trackId,
       user_id: userId,
       session_id: recommendationSessionId,
@@ -274,7 +274,7 @@ export async function DELETE(
     }
 
     // Récupérer le compteur mis à jour
-    const { data: stats, error: statsErr } = await supabaseAdmin
+    const { data: stats, error: statsErr } = await dbAdmin
       .from('track_stats')
       .select('likes_count')
       .eq('track_id', trackId)
@@ -282,7 +282,7 @@ export async function DELETE(
 
     let likesCount = stats?.likes_count ?? 0;
     if (statsErr || stats == null) {
-      const { count, error: countErr } = await supabaseAdmin
+      const { count, error: countErr } = await dbAdmin
         .from('track_likes')
         .select('*', { count: 'exact', head: true })
         .eq('track_id', trackId);
@@ -303,3 +303,5 @@ export async function DELETE(
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

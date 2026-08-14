@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,13 +15,13 @@ export async function GET(request: NextRequest) {
     }
 
     const nowIso = new Date().toISOString();
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('active_track_boosts')
       .select('track_id, multiplier, expires_at')
       .eq('user_id', userId)
       .gt('expires_at', nowIso)
       .order('expires_at', { ascending: false });
-    const { data: artistBoosts, error: artErr } = await supabaseAdmin
+    const { data: artistBoosts, error: artErr } = await dbAdmin
       .from('active_artist_boosts')
       .select('artist_id, multiplier, expires_at')
       .eq('artist_id', userId)

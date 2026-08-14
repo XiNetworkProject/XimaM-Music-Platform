@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import {
   MAX_REQUEST_LENGTH,
   acceptPendingMessageRequest,
@@ -35,13 +35,13 @@ export async function GET(request: NextRequest) {
     const userId = session.user.id;
 
     const [{ data: received, error: receivedError }, { data: sent, error: sentError }] = await Promise.all([
-      supabaseAdmin
+      dbAdmin
         .from('message_requests')
         .select('id, requester_id, target_id, message, status, created_at, updated_at')
         .eq('target_id', userId)
         .eq('status', 'pending')
         .order('created_at', { ascending: false }),
-      supabaseAdmin
+      dbAdmin
         .from('message_requests')
         .select('id, requester_id, target_id, message, status, created_at, updated_at')
         .eq('requester_id', userId)
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     if (!targetId) return NextResponse.json({ error: 'Destinataire requis' }, { status: 400 });
     if (targetId === requesterId) return NextResponse.json({ error: 'Tu ne peux pas t’ajouter toi-meme' }, { status: 400 });
 
-    const { data: target } = await supabaseAdmin
+    const { data: target } = await dbAdmin
       .from('profiles')
       .select('id, name, username, avatar, is_verified, last_seen, preferences')
       .eq('id', targetId)
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cette personne n’accepte pas de nouvelles demandes' }, { status: 403 });
     }
     if (privacy === 'following') {
-      const { data: followsRequester } = await supabaseAdmin
+      const { data: followsRequester } = await dbAdmin
         .from('user_follows')
         .select('id')
         .eq('follower_id', targetId)
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { data: outgoing } = await supabaseAdmin
+    const { data: outgoing } = await dbAdmin
       .from('message_requests')
       .select('id, status')
       .eq('requester_id', requesterId)
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     if (outgoing) return NextResponse.json({ alreadySent: true, requestId: outgoing.id });
 
-    const { data: incoming } = await supabaseAdmin
+    const { data: incoming } = await dbAdmin
       .from('message_requests')
       .select('id, requester_id, target_id, message, status')
       .eq('requester_id', targetId)
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ alreadyConnected: true, autoAccepted: true, conversationId: conversation.id });
     }
 
-    const { data: created, error } = await supabaseAdmin
+    const { data: created, error } = await dbAdmin
       .from('message_requests')
       .insert({ requester_id: requesterId, target_id: targetId, message: message || null, status: 'pending' })
       .select('id')
@@ -163,14 +163,14 @@ export async function POST(request: NextRequest) {
     if (error || !created) {
       if (error?.code === '23505') {
         const [{ data: racedOutgoing }, { data: racedIncoming }] = await Promise.all([
-          supabaseAdmin
+          dbAdmin
             .from('message_requests')
             .select('id, requester_id, target_id, message, status')
             .eq('requester_id', requesterId)
             .eq('target_id', targetId)
             .eq('status', 'pending')
             .maybeSingle(),
-          supabaseAdmin
+          dbAdmin
             .from('message_requests')
             .select('id, requester_id, target_id, message, status')
             .eq('requester_id', targetId)

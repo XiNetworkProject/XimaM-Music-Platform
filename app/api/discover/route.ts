@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getApiSession } from '@/lib/getApiSession';
 import {
   buildRecommendationSignals,
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
       if (!categoryFilter) return true;
       return normalizeGenres(track.genre).some((genre) => genre.includes(categoryFilter));
     });
-    const signals = await buildRecommendationSignals({ supabase: supabaseAdmin, userId, candidateTracks: candidates, sessionId });
+    const signals = await buildRecommendationSignals({ db: dbAdmin, userId, candidateTracks: candidates, sessionId });
     const strategy = strategyForSort(sort);
     let source = candidates;
 

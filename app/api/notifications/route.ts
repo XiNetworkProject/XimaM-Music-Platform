@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getApiSession } from '@/lib/getApiSession';
 
 export const runtime = 'nodejs';
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     if (countOnly) {
-      const { count: unreadCount, error: unreadError } = await supabaseAdmin
+      const { count: unreadCount, error: unreadError } = await dbAdmin
         .from('notifications')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId)
@@ -36,23 +36,23 @@ export async function GET(request: NextRequest) {
 
       if (unreadError) {
         console.error('[notifications] unread count error:', unreadError);
-        return NextResponse.json({ error: 'Compteur Supabase indisponible' }, { status: 503 });
+        return NextResponse.json({ error: 'Compteur PostgreSQL indisponible' }, { status: 503 });
       }
 
       return NextResponse.json({
         unread: unreadCount || 0,
-        source: 'supabase',
+        source: 'db',
         syncedAt: new Date().toISOString(),
       });
     }
 
-    const unreadCountPromise = supabaseAdmin
+    const unreadCountPromise = dbAdmin
       .from('notifications')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('is_read', false);
 
-    let query = supabaseAdmin
+    let query = dbAdmin
       .from('notifications')
       .select('*', { count: 'exact' })
       .eq('user_id', userId)
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     // Fallback: si le filtre category cause une erreur (colonne inexistante), re-essayer sans
     if (error && category && category !== 'all') {
       console.warn('[notifications] category filter failed, retrying without:', error.message);
-      let fallbackQuery = supabaseAdmin
+      let fallbackQuery = dbAdmin
         .from('notifications')
         .select('*', { count: 'exact' })
         .eq('user_id', userId)
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[notifications] fetch error:', error);
-      return NextResponse.json({ error: 'Lecture Supabase indisponible' }, { status: 503 });
+      return NextResponse.json({ error: 'Lecture PostgreSQL indisponible' }, { status: 503 });
     }
 
     // Enrichir les notifs du schema de base avec les metadonnees stockees dans data
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
 
     if (unreadError) {
       console.error('[notifications] unread count error:', unreadError);
-      return NextResponse.json({ error: 'Compteur Supabase indisponible' }, { status: 503 });
+      return NextResponse.json({ error: 'Compteur PostgreSQL indisponible' }, { status: 503 });
     }
 
     return NextResponse.json({
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
       unread: unreadCount || 0,
       page,
       limit,
-      source: 'supabase',
+      source: 'db',
       syncedAt: new Date().toISOString(),
     });
   } catch (e: any) {
@@ -129,32 +129,32 @@ export async function PATCH(request: NextRequest) {
     const { action, notificationId, notificationIds } = body;
 
     if (action === 'mark_read' && notificationId) {
-      const { error } = await supabaseAdmin
+      const { error } = await dbAdmin
         .from('notifications')
         .update({ is_read: true })
         .eq('id', notificationId)
         .eq('user_id', userId);
-      if (error) return NextResponse.json({ error: 'Mise à jour Supabase impossible' }, { status: 500 });
+      if (error) return NextResponse.json({ error: 'Mise à jour PostgreSQL impossible' }, { status: 500 });
       return NextResponse.json({ ok: true });
     }
 
     if (action === 'mark_all_read') {
-      const { error } = await supabaseAdmin
+      const { error } = await dbAdmin
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', userId)
         .eq('is_read', false);
-      if (error) return NextResponse.json({ error: 'Mise à jour Supabase impossible' }, { status: 500 });
+      if (error) return NextResponse.json({ error: 'Mise à jour PostgreSQL impossible' }, { status: 500 });
       return NextResponse.json({ ok: true });
     }
 
     if (action === 'mark_batch_read' && Array.isArray(notificationIds)) {
-      const { error } = await supabaseAdmin
+      const { error } = await dbAdmin
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', userId)
         .in('id', notificationIds);
-      if (error) return NextResponse.json({ error: 'Mise à jour Supabase impossible' }, { status: 500 });
+      if (error) return NextResponse.json({ error: 'Mise à jour PostgreSQL impossible' }, { status: 500 });
       return NextResponse.json({ ok: true });
     }
 
@@ -174,21 +174,21 @@ export async function DELETE(request: NextRequest) {
     const { notificationId, clearAll } = body;
 
     if (clearAll) {
-      const { error } = await supabaseAdmin
+      const { error } = await dbAdmin
         .from('notifications')
         .delete()
         .eq('user_id', userId);
-      if (error) return NextResponse.json({ error: 'Suppression Supabase impossible' }, { status: 500 });
+      if (error) return NextResponse.json({ error: 'Suppression PostgreSQL impossible' }, { status: 500 });
       return NextResponse.json({ ok: true });
     }
 
     if (notificationId) {
-      const { error } = await supabaseAdmin
+      const { error } = await dbAdmin
         .from('notifications')
         .delete()
         .eq('id', notificationId)
         .eq('user_id', userId);
-      if (error) return NextResponse.json({ error: 'Suppression Supabase impossible' }, { status: 500 });
+      if (error) return NextResponse.json({ error: 'Suppression PostgreSQL impossible' }, { status: 500 });
       return NextResponse.json({ ok: true });
     }
 

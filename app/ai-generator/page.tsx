@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { Suspense, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
@@ -517,7 +517,7 @@ function AIGeneratorContent() {
   const activeGenerationCount = activeGenerations.size;
   const isRemixMode = generationModeKind === 'remix';
 
-  // â”€â”€ Persistence des prÃ©fÃ©rences studio dans Supabase â”€â”€
+  // â”€â”€ Persistence des prÃ©fÃ©rences studio dans PostgreSQL â”€â”€
   const prefsLoadedRef = useRef(false);
   const prefsSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

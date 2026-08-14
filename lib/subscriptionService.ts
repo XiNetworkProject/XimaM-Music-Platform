@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { db } from './database';
 
 export interface SubscriptionLimits {
   uploads: number;
@@ -39,7 +39,7 @@ class SubscriptionService {
   // Récupérer l'abonnement actuel d'un utilisateur
   async getUserSubscription(userId: string): Promise<any | null> {
     try {
-      const { data: userSub, error } = await supabase
+      const { data: userSub, error } = await db
         .from('user_subscriptions')
         .select(`
           *,
@@ -184,7 +184,7 @@ class SubscriptionService {
     action: 'uploads' | 'comments' | 'plays' | 'playlists'
   ): Promise<void> {
     try {
-      const { error } = await supabase
+      const { error } = await db
         .from('user_subscriptions')
         .upsert({
           user_id: userId,
@@ -296,7 +296,7 @@ class SubscriptionService {
       const now = new Date();
       const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
       
-      const { error } = await supabase
+      const { error } = await db
         .from('user_subscriptions')
         .update({
           usage: { uploads: 0, comments: 0, plays: 0, playlists: 0 },

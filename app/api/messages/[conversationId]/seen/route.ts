@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { requireConversationParticipant } from '@/lib/messaging';
 
 export const dynamic = 'force-dynamic';
@@ -19,12 +19,12 @@ export async function PUT(
 
     const now = new Date().toISOString();
     const [{ error: participantError }, { error: messageError }] = await Promise.all([
-      supabaseAdmin
+      dbAdmin
         .from('conversation_participants')
         .update({ last_read_at: now })
         .eq('conversation_id', conversationId)
         .eq('user_id', session.user.id),
-      supabaseAdmin
+      dbAdmin
         .from('messages')
         .update({ is_read: true })
         .eq('conversation_id', conversationId)

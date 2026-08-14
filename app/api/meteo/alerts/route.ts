@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 async function getTeamMember(userId: string) {
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('meteo_team_members')
     .select('*')
     .eq('user_id', userId)
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get('active') === 'true';
 
-    let query = supabaseAdmin
+    let query = dbAdmin
       .from('meteo_alerts')
       .select('*')
       .order('sent_at', { ascending: false });
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Sévérité invalide (info, warning, danger, critical)' }, { status: 400 });
     }
 
-    const { data: alert, error: insertError } = await supabaseAdmin
+    const { data: alert, error: insertError } = await dbAdmin
       .from('meteo_alerts')
       .insert({
         title: title.trim(),

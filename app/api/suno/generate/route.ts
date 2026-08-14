@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateCustomMusic, createProductionPrompt } from "@/lib/suno";
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { CREDITS_PER_GENERATION } from '@/lib/credits';
 import { getEntitlements } from '@/lib/entitlements';
 import { validateSunoGenerationInput, validateSunoTuningInput } from '@/lib/sunoValidation';
 import { assertCanCreateAiVariation } from '@/lib/remixServer';
 import { sanitizeRemixPrompt, sanitizeRemixPromptVisibility, sanitizeRemixType } from '@/lib/remixOptions';
+import { buildSunoCallbackUrl } from '@/lib/sunoWebhook';
 
 const BASE = "https://api.sunoapi.org";
 
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Vérification du plan pour les modèles autorisés
-    const { data: profile } = await supabaseAdmin.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
+    const { data: profile } = await dbAdmin.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
     const plan = (profile?.plan || 'free') as any;
     const entitlements = getEntitlements(plan);
     
@@ -109,7 +110,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Vérifier le solde de crédits et débiter avant l'appel Suno
-    const { data: balanceRow } = await supabaseAdmin
+    const { data: balanceRow } = await dbAdmin
       .from('ai_credit_balances')
       .select('balance')
       .eq('user_id', session.user.id)
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Débit des crédits (sécurisé en SQL, avec ledger)
-    const { data: debitOk, error: debitError } = await (supabaseAdmin as any)
+    const { data: debitOk, error: debitError } = await (dbAdmin as any)
       .rpc('ai_debit_credits', {
         p_user_id: session.user.id,
         p_amount: CREDITS_PER_GENERATION,
@@ -190,7 +191,7 @@ export async function POST(req: NextRequest) {
       customMode: isCustomMode,
       instrumental: body.instrumental,
       model: effectiveModel,
-      callBackUrl: body.callBackUrl || `${process.env.NEXTAUTH_URL}/api/suno/callback`,
+      callBackUrl: buildSunoCallbackUrl(req, '/api/suno/callback'),
     };
 
     if (isCustomMode) {
@@ -227,7 +228,7 @@ export async function POST(req: NextRequest) {
     if (!response.ok || json?.code !== 200) {
       console.error("❌ Erreur API Suno:", json);
       try {
-        await (supabaseAdmin as any).rpc('ai_add_credits', {
+        await (dbAdmin as any).rpc('ai_add_credits', {
           p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION,
           p_source: 'refund', p_description: 'Remboursement échec API Suno',
         });
@@ -244,7 +245,7 @@ export async function POST(req: NextRequest) {
     const taskId = json?.data?.taskId || json?.taskId;
     if (!taskId) {
       try {
-        await (supabaseAdmin as any).rpc('ai_add_credits', {
+        await (dbAdmin as any).rpc('ai_add_credits', {
           p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION,
           p_source: 'refund', p_description: 'Remboursement taskId manquant',
         });
@@ -297,7 +298,7 @@ export async function POST(req: NextRequest) {
         effectiveModel
       });
       
-      const { error: insertError } = await supabaseAdmin.from('ai_generations').insert(generationData);
+      const { error: insertError } = await dbAdmin.from('ai_generations').insert(generationData);
       if (insertError) {
         console.error("❌ Erreur insertion génération:", insertError);
         console.error("❌ Données qui ont échoué:", generationData);
@@ -309,7 +310,7 @@ export async function POST(req: NextRequest) {
     console.log("✅ Génération Suno réussie:", json);
     // Retourner un schéma compatible frontend: taskId à la racine
     const rootTaskId = json?.data?.taskId || json?.taskId || taskId;
-    const { data: newBalanceRow } = await supabaseAdmin
+    const { data: newBalanceRow } = await dbAdmin
       .from('ai_credit_balances')
       .select('balance')
       .eq('user_id', session.user.id)

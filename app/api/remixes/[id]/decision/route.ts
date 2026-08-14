@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getRemixSourceSummary } from '@/lib/remixServer';
 import { notifyRemixApproved, notifyRemixRejected } from '@/lib/notifications';
 import { recordChallengeEntry } from '@/lib/musicChallenges';
@@ -33,7 +33,7 @@ export async function PATCH(
   }
 
   try {
-    const { data: remix, error: remixError } = await supabaseAdmin
+    const { data: remix, error: remixError } = await dbAdmin
       .from('track_remixes')
       .select('*')
       .eq('id', remixId)
@@ -62,7 +62,7 @@ export async function PATCH(
 
     // Pour notifier le createur de la variation sur "Mes variations" (jamais un
     // titre/statut prive dans le texte, juste un lien vers son propre profil).
-    const { data: creatorProfile } = await supabaseAdmin
+    const { data: creatorProfile } = await dbAdmin
       .from('profiles')
       .select('username')
       .eq('id', remix.creator_id)
@@ -74,7 +74,7 @@ export async function PATCH(
     if (decision === 'reject') {
       // Statut 'rejected' uniquement : le brouillon du createur n'est jamais
       // supprime, et is_public reste tel quel (deja prive).
-      const { data: updated, error: updateError } = await supabaseAdmin
+      const { data: updated, error: updateError } = await dbAdmin
         .from('track_remixes')
         .update({ status: 'rejected', decided_by: session.user.id, decided_at: now, updated_at: now })
         .eq('id', remixId)
@@ -103,7 +103,7 @@ export async function PATCH(
       );
     }
 
-    const { data: updated, error: updateError } = await supabaseAdmin
+    const { data: updated, error: updateError } = await dbAdmin
       .from('track_remixes')
       .update({ status: 'published', decided_by: session.user.id, decided_at: now, updated_at: now })
       .eq('id', remixId)
@@ -113,7 +113,7 @@ export async function PATCH(
     if (updateError) throw updateError;
     if (!updated) return NextResponse.json({ error: "Cette variation n'est plus en attente d'approbation" }, { status: 409 });
 
-    const { data: childTrack, error: childError } = await supabaseAdmin
+    const { data: childTrack, error: childError } = await dbAdmin
       .from('ai_tracks')
       .update({ is_public: true })
       .eq('id', remix.child_track_id)
@@ -122,7 +122,7 @@ export async function PATCH(
     if (childError) throw childError;
 
     if (childTrack?.generation_id) {
-      await supabaseAdmin.from('ai_generations').update({ is_public: true }).eq('id', childTrack.generation_id);
+      await dbAdmin.from('ai_generations').update({ is_public: true }).eq('id', childTrack.generation_id);
     }
 
     if (creatorActionUrl) {

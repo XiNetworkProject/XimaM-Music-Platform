@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminGuard } from '@/lib/admin';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import {
   isMissingEditorialCollectionsTable,
   normalizeEditorialCollection,
@@ -22,14 +22,14 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 async function getCollection(id: string) {
-  const query = supabaseAdmin.from('editorial_collections').select('*');
+  const query = dbAdmin.from('editorial_collections').select('*');
   const { data, error } = await query.eq('id', id).maybeSingle();
   if (error) throw error;
   return data as any;
 }
 
 async function getLegacyPlaylist(id: string, userId?: string | null) {
-  let query = supabaseAdmin.from('playlists').select('*').eq('id', id);
+  let query = dbAdmin.from('playlists').select('*').eq('id', id);
   if (userId) query = query.eq('creator_id', userId);
   const { data } = await query.maybeSingle();
   return data && normalizeLegacyCollectionFromPlaylist(data) ? data : null;
@@ -113,7 +113,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       commentsEnabled: boolPatch(body, 'commentsEnabled', 'comments_enabled', meta.commentsEnabled !== false),
       position: Number(body?.position ?? meta.position ?? 0),
     };
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('playlists')
       .update({
         name: title,
@@ -150,7 +150,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     .filter((value): value is string => Boolean(value));
   const nextSlug = body?.slug ? slugifyCollectionTitle(String(body.slug)) : existing.slug;
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('editorial_collections')
     .update({
       slug: nextSlug,
@@ -177,7 +177,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  await supabaseAdmin
+  await dbAdmin
     .from('playlists')
     .update({
       name: title,
@@ -214,7 +214,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
     localPublicIdFromUrl(existing.banner_url),
   ].filter((value): value is string => Boolean(value));
 
-  const { error } = await supabaseAdmin.from('playlists').delete().eq('id', isLegacy ? existing.id : existing.playlist_id);
+  const { error } = await dbAdmin.from('playlists').delete().eq('id', isLegacy ? existing.id : existing.playlist_id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   await Promise.all(mediaIds.map((publicId) => deleteLocalMedia(publicId).catch(() => false)));
   return NextResponse.json({ success: true });

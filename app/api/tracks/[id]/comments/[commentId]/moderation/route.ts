@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 // POST /api/tracks/[id]/comments/[commentId]/moderation
 // Actions: delete, favorite, filter, unfilter
@@ -20,14 +20,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   if (!action) return NextResponse.json({ error: 'Action manquante' }, { status: 400 });
 
   // Vérifier que l'utilisateur est le créateur du track
-  const { data: track } = await supabaseAdmin.from('tracks').select('id, creator_id').eq('id', trackId).maybeSingle();
+  const { data: track } = await dbAdmin.from('tracks').select('id, creator_id').eq('id', trackId).maybeSingle();
   if (!track) return NextResponse.json({ error: 'Piste introuvable' }, { status: 404 });
   if ((track as any).creator_id !== userId) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
 
   // Charger l'état actuel
   let current: any = null;
   try {
-    const { data } = await supabaseAdmin
+    const { data } = await dbAdmin
       .from('comment_moderation')
       .select('*')
       .eq('comment_id', commentId)
@@ -64,9 +64,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ error: 'Action invalide' }, { status: 400 });
   }
 
-  const { error } = await supabaseAdmin.from('comment_moderation').upsert(patch);
+  const { error } = await dbAdmin.from('comment_moderation').upsert(patch);
   if (error) return NextResponse.json({ error: 'Impossible de modérer' }, { status: 500 });
 
   return NextResponse.json({ success: true });
 }
 
+export const dynamic = 'force-dynamic';

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import contentModerator from '@/lib/contentModeration';
 import {
   countMusicClipCommentsStored,
@@ -10,7 +10,7 @@ import {
 } from '@/lib/musicClipInteractionStore';
 
 async function getPublishedClip(clipId: string) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('music_clips')
     .select('id, creator_id, visibility, comments_count')
     .eq('id', clipId)
@@ -22,7 +22,7 @@ async function getPublishedClip(clipId: string) {
 
 async function syncCommentCount(clipId: string) {
   const commentsCount = await countMusicClipCommentsStored(clipId);
-  await supabaseAdmin.from('music_clips').update({ comments_count: commentsCount }).eq('id', clipId);
+  await dbAdmin.from('music_clips').update({ comments_count: commentsCount }).eq('id', clipId);
   return commentsCount;
 }
 
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const rows = await listMusicClipCommentsStored(params.id, limit, offset);
     const userIds = Array.from(new Set(rows.map((row) => row.userId).filter(Boolean)));
     const { data: users, error: usersError } = userIds.length
-      ? await supabaseAdmin.from('profiles').select('id, username, name, avatar').in('id', userIds)
+      ? await dbAdmin.from('profiles').select('id, username, name, avatar').in('id', userIds)
       : { data: [], error: null };
     if (usersError) throw usersError;
     const usersById = new Map((users || []).map((user: any) => [String(user.id), user]));
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const inserted = await createMusicClipCommentStored(params.id, userId, content);
 
-    const { data: user } = await supabaseAdmin
+    const { data: user } = await dbAdmin
       .from('profiles')
       .select('id, username, name, avatar')
       .eq('id', userId)
@@ -99,3 +99,5 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ error: error?.message || 'Impossible de publier le commentaire' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

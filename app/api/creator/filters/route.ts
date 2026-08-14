@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 // GET /api/creator/filters  -> liste des mots filtrés (par créateur)
 // POST /api/creator/filters -> ajoute un mot
@@ -12,7 +12,7 @@ export async function GET() {
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
   try {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('creator_comment_filters')
       .select('word')
       .eq('creator_id', userId)
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (word.length > 64) return NextResponse.json({ error: 'Mot trop long' }, { status: 400 });
 
   try {
-    const { error } = await supabaseAdmin.from('creator_comment_filters').insert({
+    const { error } = await dbAdmin.from('creator_comment_filters').insert({
       creator_id: userId,
       word,
     });
@@ -60,7 +60,7 @@ export async function DELETE(req: NextRequest) {
   if (!word) return NextResponse.json({ error: 'Mot manquant' }, { status: 400 });
 
   try {
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('creator_comment_filters')
       .delete()
       .eq('creator_id', userId)
@@ -72,3 +72,4 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
+export const dynamic = 'force-dynamic';

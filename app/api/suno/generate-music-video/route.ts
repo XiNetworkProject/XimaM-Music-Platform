@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { generateMusicVideo } from '@/lib/suno';
+import { buildSunoCallbackUrl } from '@/lib/sunoWebhook';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ async function updateAiTrackWithMusicVideo(trackId: string, videoUrl: string | n
     music_video_poster_url: posterUrl,
     music_video_task_id: videoTaskId,
   };
-  const { error } = await supabaseAdmin.from('ai_tracks').update(patch).eq('id', trackId);
+  const { error } = await dbAdmin.from('ai_tracks').update(patch).eq('id', trackId);
   if (!error) return;
 
   const message = String(error.message || error.details || '').toLowerCase();
@@ -25,7 +26,7 @@ async function updateAiTrackWithMusicVideo(trackId: string, videoUrl: string | n
     throw error;
   }
 
-  const { data: existing } = await supabaseAdmin
+  const { data: existing } = await dbAdmin
     .from('ai_tracks')
     .select('source_links')
     .eq('id', trackId)
@@ -38,7 +39,7 @@ async function updateAiTrackWithMusicVideo(trackId: string, videoUrl: string | n
     sourceLinks = {};
   }
 
-  await supabaseAdmin
+  await dbAdmin
     .from('ai_tracks')
     .update({
       source_links: JSON.stringify({
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'trackId, taskId et audioId requis' }, { status: 400 });
     }
 
-    const { data: track, error: trackError } = await supabaseAdmin
+    const { data: track, error: trackError } = await dbAdmin
       .from('ai_tracks')
       .select('id, suno_id, title, generation:ai_generations!inner(user_id, task_id)')
       .eq('id', trackId)
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Cette piste ne correspond pas aux IDs Suno fournis' }, { status: 400 });
     }
 
-    const { data: balanceRow } = await supabaseAdmin
+    const { data: balanceRow } = await dbAdmin
       .from('ai_credit_balances')
       .select('balance')
       .eq('user_id', userId)
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
       }, { status: 402 });
     }
 
-    const { data: debitOk, error: debitError } = await (supabaseAdmin as any).rpc('ai_debit_credits', {
+    const { data: debitOk, error: debitError } = await (dbAdmin as any).rpc('ai_debit_credits', {
       p_user_id: userId,
       p_amount: MUSIC_VIDEO_CREDIT_COST,
       p_source: 'action_spend',
@@ -121,13 +122,13 @@ export async function POST(req: NextRequest) {
         audioId,
         author: user?.name || user?.username || 'Synaura',
         domainName: new URL(siteUrl).hostname,
-        callBackUrl: `${siteUrl}/api/suno/music-video-callback`,
+        callBackUrl: buildSunoCallbackUrl(req, '/api/suno/music-video-callback'),
       });
 
       const videoTaskId = result?.data?.taskId || (result as any)?.taskId || null;
       await updateAiTrackWithMusicVideo(trackId, null, null, videoTaskId);
 
-      const { data: newBalanceRow } = await supabaseAdmin
+      const { data: newBalanceRow } = await dbAdmin
         .from('ai_credit_balances')
         .select('balance')
         .eq('user_id', userId)
@@ -144,7 +145,7 @@ export async function POST(req: NextRequest) {
       });
     } catch (error: any) {
       try {
-        await (supabaseAdmin as any).rpc('ai_add_credits', {
+        await (dbAdmin as any).rpc('ai_add_credits', {
           p_user_id: userId,
           p_amount: MUSIC_VIDEO_CREDIT_COST,
           p_source: 'refund',

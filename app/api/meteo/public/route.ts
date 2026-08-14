@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     // Récupérer le bulletin courant (public, pas besoin d'authentification)
     // On accepte les bulletins avec status='published' OU sans status (pour compatibilité avec les anciens bulletins)
     // Priorité 1 : bulletin avec is_current=true
-    let { data: bulletin, error } = await supabaseAdmin
+    let { data: bulletin, error } = await dbAdmin
       .from('meteo_bulletins')
       .select('id, title, content, image_url, category, tags, allow_comments, views_count, share_count, created_at, updated_at')
       .eq('is_current', true)
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     // Si aucun bulletin avec is_current=true, prendre le dernier bulletin publié (ou sans status)
     if (!bulletin && (!error || error.code === 'PGRST116')) {
-      const { data: fallbackBulletin, error: fallbackError } = await supabaseAdmin
+      const { data: fallbackBulletin, error: fallbackError } = await dbAdmin
         .from('meteo_bulletins')
         .select('id, title, content, image_url, category, tags, allow_comments, views_count, share_count, created_at, updated_at')
         .or('status.eq.published,status.is.null')
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       // Ne pas attendre la fin de l'insertion pour répondre
       (async () => {
         try {
-          await supabaseAdmin
+          await dbAdmin
             .from('meteo_views')
             .insert({
               bulletin_id: bulletin.id,
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     let recentBulletins: any[] = [];
     if (searchParams.get('history') === 'true') {
-      const { data: recent } = await supabaseAdmin
+      const { data: recent } = await dbAdmin
         .from('meteo_bulletins')
         .select('id, title, image_url, category, created_at')
         .or('status.eq.published,status.is.null')

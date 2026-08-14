@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminGuard } from '@/lib/admin';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { sendEmail } from '@/lib/email';
 import { buildCampaignEmail, CampaignTemplate, CAMPAIGN_PRESETS } from '@/lib/emailCampaigns';
 
@@ -46,14 +46,14 @@ export async function POST(req: NextRequest) {
     let users: { id: string; email: string; name: string }[] = [];
 
     if (target === 'specific' && userIds && userIds.length > 0) {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await dbAdmin
         .from('profiles')
         .select('id, email, name')
         .in('id', userIds);
       if (error) throw error;
       users = (data || []).filter((u) => u.email);
     } else {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await dbAdmin
         .from('profiles')
         .select('id, email, name')
         .order('created_at', { ascending: false });
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      await supabaseAdmin.from('admin_email_campaigns').insert({
+      await dbAdmin.from('admin_email_campaigns').insert({
         admin_id: guard.userId,
         template,
         subject,
@@ -139,7 +139,7 @@ export async function GET(req: NextRequest) {
 
     if (action === 'users') {
       const search = searchParams.get('search') || '';
-      let query = supabaseAdmin
+      let query = dbAdmin
         .from('profiles')
         .select('id, email, name, username, avatar')
         .order('name', { ascending: true })
@@ -153,7 +153,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (action === 'count') {
-      const { count, error } = await supabaseAdmin
+      const { count, error } = await dbAdmin
         .from('profiles')
         .select('id', { count: 'exact', head: true });
       if (error) throw error;
@@ -162,7 +162,7 @@ export async function GET(req: NextRequest) {
 
     if (action === 'history') {
       try {
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await dbAdmin
           .from('admin_email_campaigns')
           .select('*')
           .order('created_at', { ascending: false })

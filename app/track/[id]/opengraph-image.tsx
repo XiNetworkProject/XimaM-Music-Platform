@@ -1,8 +1,8 @@
 import { ImageResponse } from 'next/og';
 import { toPublicMediaUrl } from '@/lib/mediaUrls';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 export const alt = 'Synaura Track';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
@@ -19,7 +19,7 @@ export default async function Image({ params }: { params: { id: string } }) {
 
   try {
     if (isAI) {
-      const { data } = await supabaseAdmin
+      const { data } = await dbAdmin
         .from('ai_tracks')
         .select('title, image_url, tags, is_public, generation:ai_generations!inner(user_id, is_public, status)')
         .eq('id', cleanId)
@@ -30,12 +30,12 @@ export default async function Image({ params }: { params: { id: string } }) {
         coverUrl = toPublicMediaUrl(data.image_url);
         genre = Array.isArray(data.tags) ? String(data.tags[0] || '') : '';
         if (generation?.user_id) {
-          const { data: profile } = await supabaseAdmin.from('profiles').select('name, username, artist_name').eq('id', generation.user_id).maybeSingle();
+          const { data: profile } = await dbAdmin.from('profiles').select('name, username, artist_name').eq('id', generation.user_id).maybeSingle();
           artist = profile?.artist_name || profile?.name || profile?.username || 'Artiste IA';
         }
       }
     } else {
-      const { data: track } = await supabaseAdmin
+      const { data: track } = await dbAdmin
         .from('tracks')
         .select('title, cover_url, genre, creator_id, audio_url, is_public')
         .eq('id', id)
@@ -45,7 +45,7 @@ export default async function Image({ params }: { params: { id: string } }) {
         coverUrl = toPublicMediaUrl(track.cover_url);
         genre = track.genre?.[0] || '';
         if (track.creator_id) {
-          const { data: profile } = await supabaseAdmin.from('profiles').select('name, username, artist_name').eq('id', track.creator_id).maybeSingle();
+          const { data: profile } = await dbAdmin.from('profiles').select('name, username, artist_name').eq('id', track.creator_id).maybeSingle();
           artist = profile?.artist_name || profile?.name || profile?.username || 'Artiste';
         }
       }

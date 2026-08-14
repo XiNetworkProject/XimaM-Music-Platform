@@ -1,5 +1,5 @@
 import { unstable_cache } from 'next/cache';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { applyPublicAiTrackFilter, applyPublicTrackFilter } from '@/lib/publicTracks';
 import { remixPermissionsFromRow } from '@/lib/remixPermissions';
 import { computeTrackDiscoveryMetrics, globalDiscoveryScore } from '@/lib/ranking';
@@ -120,7 +120,7 @@ function buildMomentum(events: any[], now: number) {
 async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<RecommendedTrack[]> {
   const now = Date.now();
   const since7d = new Date(now - 7 * DAY_MS).toISOString();
-  const countResult = await applyPublicTrackFilter(supabaseAdmin
+  const countResult = await applyPublicTrackFilter(dbAdmin
     .from('tracks')
     .select('id', { count: 'exact', head: true }));
   const publicTrackCount = Math.max(0, Number(countResult.count || 0));
@@ -129,23 +129,23 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
   const catalogOffset = maxCatalogOffset > 0
     ? (dayNumber * CATALOG_CANDIDATE_LIMIT) % (maxCatalogOffset + 1)
     : 0;
-  const normalQuery = applyPublicTrackFilter(supabaseAdmin
+  const normalQuery = applyPublicTrackFilter(dbAdmin
     .from('tracks')
     .select(NORMAL_TRACK_SELECT))
     .order('created_at', { ascending: false })
     .limit(RECENT_CANDIDATE_LIMIT);
-  const popularQuery = applyPublicTrackFilter(supabaseAdmin
+  const popularQuery = applyPublicTrackFilter(dbAdmin
     .from('tracks')
     .select(NORMAL_TRACK_SELECT))
     .order('plays', { ascending: false, nullsFirst: false })
     .limit(POPULAR_CANDIDATE_LIMIT);
-  const catalogQuery = applyPublicTrackFilter(supabaseAdmin
+  const catalogQuery = applyPublicTrackFilter(dbAdmin
     .from('tracks')
     .select(NORMAL_TRACK_SELECT))
     .order('created_at', { ascending: true })
     .range(catalogOffset, catalogOffset + CATALOG_CANDIDATE_LIMIT - 1);
   const aiQuery = includeAi
-    ? applyPublicAiTrackFilter(supabaseAdmin
+    ? applyPublicAiTrackFilter(dbAdmin
         .from('ai_tracks')
         .select(`
           *,
@@ -161,19 +161,19 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
     optionalRows<any>(() => popularQuery),
     optionalRows<any>(() => catalogQuery),
     aiQuery,
-    optionalRows<any>(() => supabaseAdmin
+    optionalRows<any>(() => dbAdmin
       .from('track_stats_rolling_30d')
       .select('*')
       .order('plays_30d', { ascending: false })
       .limit(1500)),
-    optionalRows<any>(() => supabaseAdmin
+    optionalRows<any>(() => dbAdmin
       .from('track_events')
       .select('track_id, event_type, created_at, user_id, session_id, is_ai_track')
       .gte('created_at', since7d)
       .in('event_type', ['view', 'play_start', 'play_progress', 'play_complete', 'like', 'favorite', 'share', 'add_to_playlist'])
       .order('created_at', { ascending: false })
       .limit(12000)),
-    optionalRows<any>(() => supabaseAdmin
+    optionalRows<any>(() => dbAdmin
       .from('active_track_boosts')
       .select('track_id, multiplier, expires_at')
       .gt('expires_at', new Date(now).toISOString())
@@ -194,7 +194,7 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
     .slice(0, QUALITY_CANDIDATE_LIMIT)
     .map((row: any) => String(row.track_id));
   const qualityRows = qualityIds.length
-    ? await optionalRows<any>(() => applyPublicTrackFilter(supabaseAdmin
+    ? await optionalRows<any>(() => applyPublicTrackFilter(dbAdmin
         .from('tracks')
         .select(NORMAL_TRACK_SELECT))
         .in('id', qualityIds))
@@ -215,19 +215,19 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
 
   const [aiProfiles, commentRows, saveRows, reactionRows] = await Promise.all([
     aiOwnerIds.length
-      ? optionalRows<any>(() => supabaseAdmin
+      ? optionalRows<any>(() => dbAdmin
           .from('profiles')
           .select('id, username, name, avatar, bio, is_verified, follower_count, created_at')
           .in('id', aiOwnerIds))
       : Promise.resolve([]),
     allIds.length
-      ? optionalRows<any>(() => supabaseAdmin.from('comments').select('track_id').in('track_id', allIds).gte('created_at', since30d).limit(10000))
+      ? optionalRows<any>(() => dbAdmin.from('comments').select('track_id').in('track_id', allIds).gte('created_at', since30d).limit(10000))
       : Promise.resolve([]),
     normalIds.length
-      ? optionalRows<any>(() => supabaseAdmin.from('playlist_tracks').select('track_id').in('track_id', normalIds).gte('added_at', since30d).limit(10000))
+      ? optionalRows<any>(() => dbAdmin.from('playlist_tracks').select('track_id').in('track_id', normalIds).gte('added_at', since30d).limit(10000))
       : Promise.resolve([]),
     allIds.length
-      ? optionalRows<any>(() => supabaseAdmin.from('track_moment_reactions').select('track_id').in('track_id', allIds).gte('created_at', since30d).limit(10000))
+      ? optionalRows<any>(() => dbAdmin.from('track_moment_reactions').select('track_id').in('track_id', allIds).gte('created_at', since30d).limit(10000))
       : Promise.resolve([]),
   ]);
 

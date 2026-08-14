@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { createNotification } from '@/lib/notifications';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const userId = session?.user?.id;
   if (!userId) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
 
-  const { count, error } = await supabaseAdmin
+  const { count, error } = await dbAdmin
     .from('push_subscriptions')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     registered: Number(count || 0) > 0,
     devices: Number(count || 0),
-    database: 'supabase',
+    database: 'db',
     transport: 'expo',
   });
 }
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
   const now = new Date().toISOString();
   const platform = body?.platform === 'ios' ? 'ios' : 'android';
 
-  const { error } = await supabaseAdmin
+  const { error } = await dbAdmin
     .from('push_subscriptions')
     .upsert({
       user_id: userId,
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Impossible d’enregistrer ce téléphone' }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, registered: true, database: 'supabase', transport: 'expo' });
+  return NextResponse.json({ ok: true, registered: true, database: 'db', transport: 'expo' });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -76,7 +76,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Jeton push Expo invalide' }, { status: 400 });
   }
 
-  const { error } = await supabaseAdmin
+  const { error } = await dbAdmin
     .from('push_subscriptions')
     .delete()
     .eq('user_id', userId)
@@ -85,7 +85,7 @@ export async function DELETE(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: 'Suppression du téléphone impossible' }, { status: 500 });
 
-  return NextResponse.json({ ok: true, database: 'supabase' });
+  return NextResponse.json({ ok: true, database: 'db' });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -93,7 +93,7 @@ export async function PATCH(request: NextRequest) {
   const userId = session?.user?.id;
   if (!userId) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
 
-  const { count: registeredDevices, error: registrationError } = await supabaseAdmin
+  const { count: registeredDevices, error: registrationError } = await dbAdmin
     .from('push_subscriptions')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
@@ -107,7 +107,7 @@ export async function PATCH(request: NextRequest) {
     userId,
     type: 'general',
     title: 'Centre de notifications actif',
-    message: 'Cette alerte est enregistrée dans Supabase et disponible dans la cloche Synaura.',
+    message: 'Cette alerte est enregistrée dans PostgreSQL et disponible dans la cloche Synaura.',
     actionUrl: '/notifications',
     skipPrefCheck: true,
     data: { nativePushTest: true },
@@ -115,7 +115,7 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json({
     ok: Boolean(notification),
-    database: 'supabase',
+    database: 'db',
     transport: 'expo',
     pushRequested: Number(registeredDevices || 0) > 0,
   });

@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { remixPermissionsFromRow, type RemixVisibility } from '@/lib/remixPermissions';
 import { normalizeRemixTrackRef, type RemixTrackType } from '@/lib/remixServer';
 import { canCreateClip } from '@/lib/clipPermissions';
@@ -73,7 +73,7 @@ function publicTrackId(source: MusicClipSource) {
 
 async function isFollower(userId: string | null | undefined, creatorId: string | null | undefined) {
   if (!userId || !creatorId) return false;
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('user_follows')
     .select('following_id')
     .eq('follower_id', userId)
@@ -99,7 +99,7 @@ export async function getClipSourceSummary(input: {
   if (!ref.id) return null;
 
   if (ref.type === 'ai_track') {
-    const { data } = await supabaseAdmin
+    const { data } = await dbAdmin
       .from('ai_tracks')
       .select('*, generation:ai_generations!inner(id, user_id, prompt, metadata, is_public, status)')
       .eq('id', ref.id)
@@ -108,7 +108,7 @@ export async function getClipSourceSummary(input: {
 
     const creatorId = String((data as any).generation?.user_id || '');
     const { data: profile } = creatorId
-      ? await supabaseAdmin.from('profiles').select('id, username, name, avatar').eq('id', creatorId).maybeSingle()
+      ? await dbAdmin.from('profiles').select('id, username, name, avatar').eq('id', creatorId).maybeSingle()
       : { data: null as any };
     const permissions = remixPermissionsFromRow(data);
     const isPublic = data.is_public === true
@@ -147,7 +147,7 @@ export async function getClipSourceSummary(input: {
     };
   }
 
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('tracks')
     .select('*, profiles:profiles!tracks_creator_id_fkey(id, username, name, avatar)')
     .eq('id', ref.id)
@@ -275,13 +275,13 @@ async function getClipSourceSummaries(rows: any[], viewerId?: string | null) {
   const aiIds = refs.filter((ref) => ref.type === 'ai_track').map((ref) => ref.id);
   const [normalResult, aiResult] = await Promise.all([
     normalIds.length
-      ? supabaseAdmin
+      ? dbAdmin
           .from('tracks')
           .select('*, profiles:profiles!tracks_creator_id_fkey(id, username, name, avatar)')
           .in('id', normalIds)
       : Promise.resolve({ data: [] } as any),
     aiIds.length
-      ? supabaseAdmin
+      ? dbAdmin
           .from('ai_tracks')
           .select('*, generation:ai_generations!inner(id, user_id, prompt, metadata, is_public, status)')
           .in('id', aiIds)
@@ -291,7 +291,7 @@ async function getClipSourceSummaries(rows: any[], viewerId?: string | null) {
   const aiRows = aiResult.data || [];
   const aiOwnerIds = Array.from(new Set(aiRows.map((row: any) => one(row.generation)?.user_id).filter(Boolean)));
   const { data: aiProfiles } = aiOwnerIds.length
-    ? await supabaseAdmin.from('profiles').select('id, username, name, avatar').in('id', aiOwnerIds)
+    ? await dbAdmin.from('profiles').select('id, username, name, avatar').in('id', aiOwnerIds)
     : { data: [] as any[] };
   const profileMap = new Map((aiProfiles || []).map((profile: any) => [String(profile.id), profile]));
   const creatorIds = Array.from(new Set([
@@ -300,7 +300,7 @@ async function getClipSourceSummaries(rows: any[], viewerId?: string | null) {
   ].filter(Boolean)));
   const followed = new Set<string>();
   if (viewerId && creatorIds.length) {
-    const { data } = await supabaseAdmin
+    const { data } = await dbAdmin
       .from('user_follows')
       .select('following_id')
       .eq('follower_id', viewerId)
@@ -399,7 +399,7 @@ export async function formatMusicClips(rows: any[], options: { viewerId?: string
 export async function getPublishedClipCounts(sources: Array<{ id: string; type: RemixTrackType }>) {
   const result = new Map<string, number>();
   for (const source of sources) {
-    const { count } = await supabaseAdmin
+    const { count } = await dbAdmin
       .from('music_clips')
       .select('id', { count: 'exact', head: true })
       .eq('source_track_id', source.id)

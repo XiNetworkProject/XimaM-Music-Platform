@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaUrl, localPublicIdFromUrl } from '@/lib/localMediaStorage';
 import { sameMediaUrl } from '@/lib/mediaUrls';
 import {
@@ -107,14 +107,14 @@ export async function GET(
     const participation = await requireConversationParticipant(conversationId, session.user.id);
     if (!participation) return NextResponse.json({ error: 'Acces refuse' }, { status: 403 });
 
-    const { data: conversation } = await supabaseAdmin
+    const { data: conversation } = await dbAdmin
       .from('conversations')
       .select('id, name, description, avatar_url, owner_id, is_group, is_active')
       .eq('id', conversationId)
       .maybeSingle();
     if (!conversation) return NextResponse.json({ error: 'Conversation introuvable' }, { status: 404 });
 
-    const { data: roomRows } = await supabaseAdmin
+    const { data: roomRows } = await dbAdmin
       .from('conversation_rooms')
       .select('id, name, room_type, position, created_by, created_at, updated_at')
       .eq('conversation_id', conversationId)
@@ -128,7 +128,7 @@ export async function GET(
 
     const limit = Math.min(80, Math.max(10, Number(request.nextUrl.searchParams.get('limit') || MESSAGE_PAGE_SIZE)));
     const before = request.nextUrl.searchParams.get('before');
-    let messagesQuery = supabaseAdmin
+    let messagesQuery = dbAdmin
       .from('messages')
       .select('id, client_id, conversation_id, room_id, sender_id, content, message_type, media_url, shared_entity_type, shared_entity_id, metadata, reply_to_id, is_read, deleted_at, created_at, updated_at, edited_at')
       .eq('conversation_id', conversationId)
@@ -147,7 +147,7 @@ export async function GET(
     let page = (rows || []).slice(0, limit).reverse();
     const candidateIds = page.map((message) => message.id);
     if (candidateIds.length) {
-      const { data: hiddenRows } = await supabaseAdmin
+      const { data: hiddenRows } = await dbAdmin
         .from('message_hidden_users')
         .select('message_id')
         .eq('user_id', session.user.id)
@@ -164,7 +164,7 @@ export async function GET(
     );
     const missingReplyIds = replyIds.filter((id) => !replyById.has(id));
     if (missingReplyIds.length) {
-      const { data: replyRows } = await supabaseAdmin
+      const { data: replyRows } = await dbAdmin
         .from('messages')
         .select('id, sender_id, content, message_type, deleted_at')
         .in('id', missingReplyIds)
@@ -176,16 +176,16 @@ export async function GET(
     const pinnedMessageIds = new Set<string>();
     if (messageIds.length) {
       const [{ data: reactions }, { data: attachments }, { data: pins }] = await Promise.all([
-        supabaseAdmin
+        dbAdmin
           .from('message_reactions')
           .select('message_id, user_id, reaction')
           .in('message_id', messageIds),
-        supabaseAdmin
+        dbAdmin
           .from('message_attachments')
           .select('id, message_id, attachment_type, url, preview_url, mime_type, file_name, size_bytes, width, height, duration_ms, waveform, position, metadata')
           .in('message_id', messageIds)
           .order('position', { ascending: true }),
-        supabaseAdmin
+        dbAdmin
           .from('message_pins')
           .select('message_id')
           .eq('conversation_id', conversationId)
@@ -225,7 +225,7 @@ export async function GET(
       );
     });
 
-    await supabaseAdmin
+    await dbAdmin
       .from('conversation_participants')
       .update({ last_delivered_at: new Date().toISOString() })
       .eq('conversation_id', conversationId)
@@ -279,7 +279,7 @@ export async function POST(
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 });
     }
 
-    const { data: conversation } = await supabaseAdmin
+    const { data: conversation } = await dbAdmin
       .from('conversations')
       .select('id, is_group, is_active')
       .eq('id', conversationId)
@@ -304,7 +304,7 @@ export async function POST(
       : null;
     let roomId: string | null = null;
     if (conversation.is_group) {
-      const { data: rooms } = await supabaseAdmin
+      const { data: rooms } = await dbAdmin
         .from('conversation_rooms')
         .select('id, name')
         .eq('conversation_id', conversationId)
@@ -359,7 +359,7 @@ export async function POST(
     let replyToId: string | null = typeof body?.replyToId === 'string' ? body.replyToId : null;
     let replyTo: any = null;
     if (replyToId) {
-      const { data: reply } = await supabaseAdmin
+      const { data: reply } = await dbAdmin
         .from('messages')
         .select('id, sender_id, content, message_type, deleted_at')
         .eq('id', replyToId)
@@ -369,7 +369,7 @@ export async function POST(
       else replyTo = reply;
     }
 
-    const { data: createdMessage, error } = await supabaseAdmin
+    const { data: createdMessage, error } = await dbAdmin
       .from('messages')
       .insert({
         id: crypto.randomUUID(),
@@ -391,7 +391,7 @@ export async function POST(
     let inserted = createdMessage;
     let createdNow = true;
     if (error?.code === '23505' && clientId) {
-      const { data: existing } = await supabaseAdmin
+      const { data: existing } = await dbAdmin
         .from('messages')
         .select('id, client_id, conversation_id, room_id, sender_id, content, message_type, media_url, shared_entity_type, shared_entity_id, metadata, reply_to_id, is_read, deleted_at, created_at, updated_at, edited_at')
         .eq('conversation_id', conversationId)
@@ -407,7 +407,7 @@ export async function POST(
     }
 
     if (createdNow && attachments.length) {
-      const { error: attachmentError } = await supabaseAdmin.from('message_attachments').insert(
+      const { error: attachmentError } = await dbAdmin.from('message_attachments').insert(
         attachments.map((attachment: any) => ({
           ...attachment,
           message_id: inserted.id,
@@ -415,25 +415,25 @@ export async function POST(
         })),
       );
       if (attachmentError) {
-        await supabaseAdmin.from('messages').delete().eq('id', inserted.id);
+        await dbAdmin.from('messages').delete().eq('id', inserted.id);
         console.error('[messages/conversation] attachments failed:', attachmentError.message);
         return NextResponse.json({ error: 'Pieces jointes impossibles a enregistrer' }, { status: 500 });
       }
     }
 
-    const { data: storedAttachments } = await supabaseAdmin
+    const { data: storedAttachments } = await dbAdmin
       .from('message_attachments')
       .select('id, message_id, attachment_type, url, preview_url, mime_type, file_name, size_bytes, width, height, duration_ms, waveform, position, metadata')
       .eq('message_id', inserted.id)
       .order('position', { ascending: true });
 
     const now = new Date().toISOString();
-    await supabaseAdmin
+    await dbAdmin
       .from('conversation_participants')
       .update({ last_read_at: now, archived_at: null })
       .eq('conversation_id', conversationId)
       .eq('user_id', session.user.id);
-    await supabaseAdmin
+    await dbAdmin
       .from('conversation_participants')
       .update({ archived_at: null })
       .eq('conversation_id', conversationId)
@@ -493,7 +493,7 @@ export async function PATCH(
     const action = body?.action;
     if (action === 'customize') {
       const preferences = sanitizeConversationPreferences(body?.preferences);
-      const { data: currentPreferences } = await supabaseAdmin
+      const { data: currentPreferences } = await dbAdmin
         .from('conversation_participants')
         .select('wallpaper_url')
         .eq('conversation_id', params.conversationId)
@@ -508,7 +508,7 @@ export async function PATCH(
       )) {
         return NextResponse.json({ error: 'Le fond doit provenir du stockage Synaura' }, { status: 422 });
       }
-      const { error } = await supabaseAdmin
+      const { error } = await dbAdmin
         .from('conversation_participants')
         .update({
           nickname: preferences.nickname,
@@ -535,7 +535,7 @@ export async function PATCH(
       if (!participant || !['owner', 'moderator'].includes(participant.role || 'member')) {
         return NextResponse.json({ error: 'Permission insuffisante' }, { status: 403 });
       }
-      const { data: currentConversation } = await supabaseAdmin
+      const { data: currentConversation } = await dbAdmin
         .from('conversations')
         .select('avatar_url')
         .eq('id', params.conversationId)
@@ -559,7 +559,7 @@ export async function PATCH(
       };
       const cleanChanges = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined));
       if (!Object.keys(cleanChanges).length) return NextResponse.json({ error: 'Aucune modification' }, { status: 400 });
-      const { error } = await supabaseAdmin.from('conversations').update(cleanChanges).eq('id', params.conversationId).eq('is_group', true);
+      const { error } = await dbAdmin.from('conversations').update(cleanChanges).eq('id', params.conversationId).eq('is_group', true);
       if (error) {
         if (nextAvatarPublicId) await deleteLocalMedia(nextAvatarPublicId).catch(() => false);
         return NextResponse.json({ error: 'Salon impossible a modifier' }, { status: 500 });
@@ -581,7 +581,7 @@ export async function PATCH(
       changes.muted_until = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
     }
     if (action === 'unmute') changes.muted_until = null;
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('conversation_participants')
       .update(changes)
       .eq('conversation_id', params.conversationId)

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { db, dbAdmin } from '@/lib/database';
 import { getApiSession } from '@/lib/getApiSession';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
@@ -12,8 +12,8 @@ export async function GET(request: NextRequest) {
     const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || null;
 
-    // Récupérer les pistes en vedette depuis Supabase
-    const { data: tracks, error } = await applyPublicTrackFilter(supabase
+    // Récupérer les pistes en vedette depuis PostgreSQL
+    const { data: tracks, error } = await applyPublicTrackFilter(db
       .from('tracks')
       .select(`
         *,
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       .limit(limit);
 
     if (error) {
-      console.error('❌ Erreur Supabase featured tracks:', error);
+      console.error('❌ Erreur PostgreSQL featured tracks:', error);
       return NextResponse.json(
         { error: 'Erreur lors de la récupération des pistes en vedette' },
         { status: 500 }
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const trackIds = (tracks || []).map(t => t.id);
     let likedTrackIds = new Set<string>();
     if (userId && trackIds.length) {
-      const { data: likes } = await supabaseAdmin
+      const { data: likes } = await dbAdmin
         .from('track_likes')
         .select('track_id')
         .eq('user_id', userId)
@@ -56,14 +56,14 @@ export async function GET(request: NextRequest) {
     // Personnalisation de l'ordre : genres préférés de l'utilisateur
     let userGenreScores = new Map<string, number>();
     if (userId) {
-      const { data: userLikes } = await supabaseAdmin
+      const { data: userLikes } = await dbAdmin
         .from('track_likes')
         .select('track_id')
         .eq('user_id', userId)
         .limit(150);
       const likedIds = (userLikes || []).map((l: any) => l.track_id).filter(Boolean);
       if (likedIds.length > 0) {
-        const { data: likedTracks } = await supabaseAdmin
+        const { data: likedTracks } = await dbAdmin
           .from('tracks')
           .select('genre')
           .in('id', likedIds)
@@ -129,3 +129,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { isAiTrackPublic } from '@/lib/publicTracks';
 
 // Variations IA d'un createur, pour l'onglet "Variations" de son profil.
@@ -21,7 +21,7 @@ export async function GET(
       return NextResponse.json({ error: "Nom d'utilisateur requis" }, { status: 400 });
     }
 
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const { data: profile, error: profileError } = await dbAdmin
       .from('profiles')
       .select('id, username, name, artist_name')
       .eq('username', username)
@@ -35,7 +35,7 @@ export async function GET(
     const isOwner = Boolean(session?.user?.id) && String(session!.user.id) === String(profile.id);
     const statusFilter = isOwner ? ['published', 'pending_approval', 'rejected'] : ['published'];
 
-    const { data: remixes, error: remixesError } = await supabaseAdmin
+    const { data: remixes, error: remixesError } = await dbAdmin
       .from('track_remixes')
       .select('id, child_track_id, source_track_id, source_track_type, status, created_at')
       .eq('creator_id', profile.id)
@@ -52,7 +52,7 @@ export async function GET(
     }
 
     const childIds = rows.map((row) => row.child_track_id);
-    const { data: aiTracks, error: aiTracksError } = await supabaseAdmin
+    const { data: aiTracks, error: aiTracksError } = await dbAdmin
       .from('ai_tracks')
       .select(`
         id, title, audio_url, image_url, duration, play_count, like_count, created_at, is_public,

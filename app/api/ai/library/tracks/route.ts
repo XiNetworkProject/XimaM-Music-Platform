@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession, getSessionFromToken } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +15,7 @@ async function handleTracks(
   }
   const userId = session.user.id;
 
-  const { data: generations, error } = await supabaseAdmin
+  const { data: generations, error } = await dbAdmin
     .from('ai_generations')
     .select('*, tracks:ai_tracks(*)')
     .eq('user_id', userId)
@@ -33,7 +33,7 @@ async function handleTracks(
 
   const likedSet = new Set<string>();
   if (allTrackIds.length > 0) {
-    const { data: likes } = await supabaseAdmin
+    const { data: likes } = await dbAdmin
       .from('ai_track_likes')
       .select('track_id')
       .eq('user_id', userId)

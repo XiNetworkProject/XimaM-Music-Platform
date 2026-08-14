@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import {
   MAX_GROUP_PARTICIPANTS,
   ensureDirectConversation,
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const userId = session.user.id;
     const includeArchived = request.nextUrl.searchParams.get('archived') === '1';
 
-    let participationQuery = supabaseAdmin
+    let participationQuery = dbAdmin
       .from('conversation_participants')
       .select('conversation_id, last_read_at, archived_at, muted_until, role, nickname, theme_key, accent_color, background_key, wallpaper_url, bubble_enabled')
       .eq('user_id', userId);
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     const conversationIds = (myParticipations || []).map((row) => row.conversation_id);
     if (!conversationIds.length) return NextResponse.json({ conversations: [], total: 0, unread: 0 });
 
-    const { data: conversations, error: conversationError } = await supabaseAdmin
+    const { data: conversations, error: conversationError } = await dbAdmin
       .from('conversations')
       .select('id, name, description, avatar_url, owner_id, is_group, created_at, updated_at, last_message_at, last_message_id, is_active')
       .in('id', conversationIds)
@@ -60,11 +60,11 @@ export async function GET(request: NextRequest) {
     if (!activeIds.length) return NextResponse.json({ conversations: [], total: 0, unread: 0 });
 
     const [{ data: participantRows }, { data: unreadRows }] = await Promise.all([
-      supabaseAdmin
+      dbAdmin
         .from('conversation_participants')
         .select('conversation_id, user_id, last_read_at, role, nickname')
         .in('conversation_id', activeIds),
-      supabaseAdmin
+      dbAdmin
         .from('messages')
         .select('conversation_id')
         .in('conversation_id', activeIds)
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
     const messageIds = (conversations || []).map((row) => row.last_message_id).filter(Boolean);
     const latestMessages = new Map<string, any>();
     if (messageIds.length) {
-      const { data } = await supabaseAdmin
+      const { data } = await dbAdmin
         .from('messages')
         .select('id, conversation_id, sender_id, content, message_type, media_url, shared_entity_type, shared_entity_id, metadata, deleted_at, created_at')
         .in('id', messageIds);
@@ -101,10 +101,10 @@ export async function GET(request: NextRequest) {
       .map((row) => row.user_id)
       .filter((participantId) => participantId !== userId)));
     const [{ data: friendshipsAsUser }, { data: friendshipsAsFriend }, { data: blockRows }] = await Promise.all([
-      supabaseAdmin.from('friendships').select('friend_id').eq('user_id', userId),
-      supabaseAdmin.from('friendships').select('user_id').eq('friend_id', userId),
+      dbAdmin.from('friendships').select('friend_id').eq('user_id', userId),
+      dbAdmin.from('friendships').select('user_id').eq('friend_id', userId),
       otherUserIds.length
-        ? supabaseAdmin.from('user_blocks').select('blocker_id, blocked_id').in('blocker_id', [userId, ...otherUserIds]).in('blocked_id', [userId, ...otherUserIds])
+        ? dbAdmin.from('user_blocks').select('blocker_id, blocked_id').in('blocker_id', [userId, ...otherUserIds]).in('blocked_id', [userId, ...otherUserIds])
         : Promise.resolve({ data: [] as any[] }),
     ]);
     const friendIds = new Set([
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
       if (!name || participantIds.length < 2) {
         return NextResponse.json({ error: 'Choisis un nom et au moins deux amis' }, { status: 400 });
       }
-      const { data: profiles } = await supabaseAdmin.from('profiles').select('id').in('id', participantIds);
+      const { data: profiles } = await dbAdmin.from('profiles').select('id').in('id', participantIds);
       if ((profiles || []).length !== participantIds.length) {
         return NextResponse.json({ error: 'Un participant est introuvable' }, { status: 404 });
       }
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
 
       const now = new Date().toISOString();
       const conversationId = crypto.randomUUID();
-      const { error: conversationError } = await supabaseAdmin.from('conversations').insert({
+      const { error: conversationError } = await dbAdmin.from('conversations').insert({
         id: conversationId,
         name,
         description: typeof body?.description === 'string' ? body.description.trim().slice(0, 180) || null : null,
@@ -200,21 +200,21 @@ export async function POST(request: NextRequest) {
       });
       if (conversationError) return NextResponse.json({ error: 'Salon impossible a creer' }, { status: 500 });
 
-      const { error: participantError } = await supabaseAdmin.from('conversation_participants').insert([
+      const { error: participantError } = await dbAdmin.from('conversation_participants').insert([
         { conversation_id: conversationId, user_id: session.user.id, role: 'owner', last_read_at: now },
         ...participantIds.map((userId) => ({ conversation_id: conversationId, user_id: userId, role: 'member', last_read_at: null })),
       ]);
       if (participantError) {
-        await supabaseAdmin.from('conversations').delete().eq('id', conversationId);
+        await dbAdmin.from('conversations').delete().eq('id', conversationId);
         return NextResponse.json({ error: 'Membres impossibles a ajouter' }, { status: 500 });
       }
 
-      const { data: rooms, error: roomError } = await supabaseAdmin.from('conversation_rooms').insert([
+      const { data: rooms, error: roomError } = await dbAdmin.from('conversation_rooms').insert([
         { conversation_id: conversationId, name: 'general', room_type: 'text', position: 0, created_by: session.user.id },
         { conversation_id: conversationId, name: 'vocaux', room_type: 'voice_notes', position: 1, created_by: session.user.id },
       ]).select('id, name, room_type, position, created_at');
       if (roomError) {
-        await supabaseAdmin.from('conversations').delete().eq('id', conversationId);
+        await dbAdmin.from('conversations').delete().eq('id', conversationId);
         return NextResponse.json({ error: 'Salons impossibles a preparer' }, { status: 500 });
       }
       return NextResponse.json({ id: conversationId, _id: conversationId, type: 'group', rooms }, { status: 201 });
@@ -225,7 +225,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Participant invalide' }, { status: 400 });
     }
 
-    const { data: profile } = await supabaseAdmin.from('profiles').select('id').eq('id', participantId).maybeSingle();
+    const { data: profile } = await dbAdmin.from('profiles').select('id').eq('id', participantId).maybeSingle();
     if (!profile) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
     if (await usersAreBlocked(session.user.id, participantId)) {
       return NextResponse.json({ error: 'Conversation indisponible' }, { status: 403 });
@@ -235,7 +235,7 @@ export async function POST(request: NextRequest) {
     }
 
     const conversation = await ensureDirectConversation(session.user.id, participantId);
-    await supabaseAdmin
+    await dbAdmin
       .from('conversation_participants')
       .update({ archived_at: null })
       .eq('conversation_id', conversation.id)

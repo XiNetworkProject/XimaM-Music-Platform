@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getApiSession } from '@/lib/getApiSession';
 import { checkMilestone, notifyViewMilestone } from '@/lib/notifications';
 
@@ -14,14 +14,14 @@ export async function GET(
     if (trackId.startsWith('ai-')) {
       const aiTrackId = trackId.slice(3);
 
-      const { data: aiTrack, error: aiError } = await supabaseAdmin
+      const { data: aiTrack, error: aiError } = await dbAdmin
         .from('ai_tracks')
         .select('play_count')
         .eq('id', aiTrackId)
         .single();
 
       if (aiError) {
-        console.error('❌ Erreur Supabase AI plays GET:', aiError);
+        console.error('❌ Erreur PostgreSQL AI plays GET:', aiError);
         return NextResponse.json(
           { error: 'Erreur lors de la récupération des lectures (AI)' },
           { status: 500 }
@@ -49,14 +49,14 @@ export async function GET(
     }
 
     // Récupérer le nombre de lectures de la piste
-    const { data: track, error } = await supabaseAdmin
+    const { data: track, error } = await dbAdmin
       .from('tracks')
       .select('plays, title, creator_id')
       .eq('id', trackId)
       .maybeSingle();
 
     if (error) {
-      console.error('❌ Erreur Supabase plays GET:', error);
+      console.error('❌ Erreur PostgreSQL plays GET:', error);
       return NextResponse.json(
         { error: 'Erreur lors de la récupération des lectures' },
         { status: 500 }
@@ -93,14 +93,14 @@ export async function POST(
     if (trackId.startsWith('ai-')) {
       const aiTrackId = trackId.slice(3);
 
-      const { data: aiTrack, error: aiFetchError } = await supabaseAdmin
+      const { data: aiTrack, error: aiFetchError } = await dbAdmin
         .from('ai_tracks')
         .select('play_count')
         .eq('id', aiTrackId)
         .single();
 
       if (aiFetchError) {
-        console.error('❌ Erreur Supabase AI plays POST (fetch):', aiFetchError);
+        console.error('❌ Erreur PostgreSQL AI plays POST (fetch):', aiFetchError);
         return NextResponse.json(
           { error: 'Erreur lors de la récupération de la piste IA' },
           { status: 500 }
@@ -116,13 +116,13 @@ export async function POST(
 
       const newPlays = (aiTrack.play_count || 0) + 1;
 
-      const { error: aiUpdateError } = await supabaseAdmin
+      const { error: aiUpdateError } = await dbAdmin
         .from('ai_tracks')
         .update({ play_count: newPlays })
         .eq('id', aiTrackId);
 
       if (aiUpdateError) {
-        console.error('❌ Erreur Supabase AI plays update:', aiUpdateError);
+        console.error('❌ Erreur PostgreSQL AI plays update:', aiUpdateError);
         return NextResponse.json(
           { error: 'Erreur lors de la mise à jour des lectures (IA)' },
           { status: 500 }
@@ -142,14 +142,14 @@ export async function POST(
     }
 
     // Incrémenter le nombre de lectures de la piste
-    const { data: track, error } = await supabaseAdmin
+    const { data: track, error } = await dbAdmin
       .from('tracks')
       .select('plays, title, creator_id')
       .eq('id', trackId)
       .maybeSingle();
 
     if (error) {
-      console.error('❌ Erreur Supabase plays POST:', error);
+      console.error('❌ Erreur PostgreSQL plays POST:', error);
       return NextResponse.json(
         { error: 'Erreur lors de la récupération de la piste' },
         { status: 500 }
@@ -164,13 +164,13 @@ export async function POST(
     const newPlays = (track.plays || 0) + 1;
 
     // Mettre à jour le nombre de lectures
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await dbAdmin
       .from('tracks')
       .update({ plays: newPlays })
       .eq('id', trackId);
 
     if (updateError) {
-      console.error('❌ Erreur Supabase plays update:', updateError);
+      console.error('❌ Erreur PostgreSQL plays update:', updateError);
       return NextResponse.json(
         { error: 'Erreur lors de la mise à jour des lectures' },
         { status: 500 }
@@ -213,7 +213,7 @@ export async function POST(
       if (country) insertPayload.country = country;
       if (ip) insertPayload.ip = ip;
 
-      const { error: viewError } = await supabaseAdmin
+      const { error: viewError } = await dbAdmin
         .from('track_views')
         .upsert(insertPayload, { onConflict: 'user_id,track_id,viewed_date', ignoreDuplicates: true });
       if (viewError) {
@@ -261,3 +261,5 @@ async function lookupCountryFromIp(ip: string, timeoutMs = 400): Promise<string 
     return null;
   }
 }
+
+export const dynamic = 'force-dynamic';

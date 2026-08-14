@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getApiSession } from '@/lib/getApiSession';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const since24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
 
     // Count play events per track in the last 48h
-    const { data: events48, error: e48 } = await supabaseAdmin
+    const { data: events48, error: e48 } = await dbAdmin
       .from('track_events')
       .select('track_id, created_at')
       .in('event_type', ['play_start', 'play_complete'])
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     const velocityMap = new Map(velocities.map(v => [v.trackId, v]));
 
-    const { data: tracks, error } = await applyPublicTrackFilter(supabaseAdmin
+    const { data: tracks, error } = await applyPublicTrackFilter(dbAdmin
       .from('tracks')
       .select(`
         id, title, creator_id, created_at, cover_url, audio_url, duration, genre, plays,
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     let likedIds = new Set<string>();
     if (userId && topIds.length) {
-      const { data: likes } = await supabaseAdmin
+      const { data: likes } = await dbAdmin
         .from('track_likes')
         .select('track_id')
         .eq('user_id', userId)

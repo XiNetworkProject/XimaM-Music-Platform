@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérifier que le bulletin existe et appartient à l'utilisateur
-    const { data: bulletin, error: fetchError } = await supabaseAdmin
+    const { data: bulletin, error: fetchError } = await dbAdmin
       .from('meteo_bulletins')
       .select('*')
       .eq('id', id)
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Mettre tous les bulletins à is_current = false
-    const { error: updateAllError } = await supabaseAdmin
+    const { error: updateAllError } = await dbAdmin
       .from('meteo_bulletins')
       .update({ is_current: false })
       .eq('author_id', session.user.id)
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Mettre le bulletin cible à is_current = true
-    const { data: restoredBulletin, error: updateError } = await supabaseAdmin
+    const { data: restoredBulletin, error: updateError } = await dbAdmin
       .from('meteo_bulletins')
       .update({ is_current: true })
       .eq('id', id)

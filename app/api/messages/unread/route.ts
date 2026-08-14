@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const session = await getApiSession(request);
     if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
     const userId = session.user.id;
-    const { data: participations } = await supabaseAdmin
+    const { data: participations } = await dbAdmin
       .from('conversation_participants')
       .select('conversation_id')
       .eq('user_id', userId)
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const ids = (participations || []).map((row) => row.conversation_id);
     const [messagesResult, requestsResult] = await Promise.all([
       ids.length
-        ? supabaseAdmin
+        ? dbAdmin
             .from('messages')
             .select('id', { count: 'exact', head: true })
             .in('conversation_id', ids)
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
             .eq('is_read', false)
             .is('deleted_at', null)
         : Promise.resolve({ count: 0, error: null }),
-      supabaseAdmin
+      dbAdmin
         .from('message_requests')
         .select('id', { count: 'exact', head: true })
         .eq('target_id', userId)

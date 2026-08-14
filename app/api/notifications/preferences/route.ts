@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const userId = (session?.user as any)?.id;
     if (!userId) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('notification_preferences')
       .select('*')
       .eq('user_id', userId)
@@ -59,7 +59,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('notification_preferences')
       .upsert(updates, { onConflict: 'user_id' })
       .select('*')

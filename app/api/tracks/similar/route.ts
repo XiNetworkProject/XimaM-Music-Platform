@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getApiSession } from '@/lib/getApiSession';
 import { applyPublicTrackFilter, canViewTrack } from '@/lib/publicTracks';
 import { normalizeLegacyCollectionFromPlaylist } from '@/lib/editorialCollections';
@@ -36,12 +36,12 @@ export async function GET(request: NextRequest) {
     const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id || null;
     const [sourceResult, membershipResult] = await Promise.all([
-      supabaseAdmin
+      dbAdmin
         .from('tracks')
         .select('id, genre, creator_id, title, is_public, audio_url, album, created_at')
         .eq('id', trackId)
         .maybeSingle(),
-      supabaseAdmin
+      dbAdmin
         .from('playlist_tracks')
         .select('playlist_id, position')
         .eq('track_id', trackId)
@@ -60,11 +60,11 @@ export async function GET(request: NextRequest) {
 
     if (playlistIds.length) {
       const [playlistsResult, collectionsResult] = await Promise.all([
-        supabaseAdmin
+        dbAdmin
           .from('playlists')
           .select('id, name, description, cover_url, creator_id, is_public, created_at, updated_at')
           .in('id', playlistIds),
-        supabaseAdmin
+        dbAdmin
           .from('editorial_collections')
           .select('playlist_id, title, is_published')
           .in('playlist_id', playlistIds),
@@ -89,14 +89,14 @@ export async function GET(request: NextRequest) {
 
     const visiblePlaylistIds = Array.from(playlistInfo.keys());
     const playlistCandidatesPromise = visiblePlaylistIds.length
-      ? supabaseAdmin
+      ? dbAdmin
           .from('playlist_tracks')
           .select(`playlist_id, position, track_id, tracks!inner(${TRACK_SELECT})`)
           .in('playlist_id', visiblePlaylistIds)
           .limit(240)
       : Promise.resolve({ data: [] as any[], error: null });
     const genreCandidatesPromise = genres.length
-      ? applyPublicTrackFilter(supabaseAdmin
+      ? applyPublicTrackFilter(dbAdmin
           .from('tracks')
           .select(TRACK_SELECT)
           .neq('id', trackId)
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
           .limit(90)
       : Promise.resolve({ data: [] as any[], error: null });
     const albumCandidatesPromise = source.album
-      ? applyPublicTrackFilter(supabaseAdmin
+      ? applyPublicTrackFilter(dbAdmin
           .from('tracks')
           .select(TRACK_SELECT)
           .neq('id', trackId)
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
           .limit(60)
       : Promise.resolve({ data: [] as any[], error: null });
     const artistCandidatesPromise = source.creator_id
-      ? applyPublicTrackFilter(supabaseAdmin
+      ? applyPublicTrackFilter(dbAdmin
           .from('tracks')
           .select(TRACK_SELECT)
           .neq('id', trackId)
@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
 
     let likedIds = new Set<string>();
     if (userId && ranked.length) {
-      const { data: likes } = await supabaseAdmin
+      const { data: likes } = await dbAdmin
         .from('track_likes')
         .select('track_id')
         .eq('user_id', userId)

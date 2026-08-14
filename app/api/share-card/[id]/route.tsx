@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { toPublicMediaUrl } from '@/lib/mediaUrls';
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { canViewAiTrack, canViewTrack } from '@/lib/publicTracks';
 import {
   formatShareCardDuration,
@@ -39,7 +39,7 @@ async function loadTrack(id: string): Promise<ShareTrack | null> {
   const refId = isAi ? id.slice(3) : id;
 
   if (isAi) {
-    const { data } = await supabaseAdmin
+    const { data } = await dbAdmin
       .from('ai_tracks')
       .select('id, title, image_url, audio_url, duration, play_count, is_public, generation:ai_generations!inner(user_id, is_public, status)')
       .eq('id', refId)
@@ -49,7 +49,7 @@ async function loadTrack(id: string): Promise<ShareTrack | null> {
     const userId = (data as any).generation?.user_id;
     let artist = 'Artiste Synaura';
     if (userId) {
-      const { data: profile } = await supabaseAdmin.from('profiles').select('name, username').eq('id', userId).maybeSingle();
+      const { data: profile } = await dbAdmin.from('profiles').select('name, username').eq('id', userId).maybeSingle();
       artist = profile?.name || profile?.username || artist;
     }
 
@@ -65,7 +65,7 @@ async function loadTrack(id: string): Promise<ShareTrack | null> {
     };
   }
 
-  const { data: track } = await supabaseAdmin
+  const { data: track } = await dbAdmin
     .from('tracks')
     .select('id, title, creator_id, cover_url, audio_url, duration, plays, is_public')
     .eq('id', refId)
@@ -74,7 +74,7 @@ async function loadTrack(id: string): Promise<ShareTrack | null> {
 
   let artist = 'Artiste Synaura';
   if (track.creator_id) {
-    const { data: profile } = await supabaseAdmin.from('profiles').select('name, username, artist_name').eq('id', track.creator_id).maybeSingle();
+    const { data: profile } = await dbAdmin.from('profiles').select('name, username, artist_name').eq('id', track.creator_id).maybeSingle();
     artist = profile?.artist_name || profile?.name || profile?.username || artist;
   }
 
@@ -92,7 +92,7 @@ async function loadTrack(id: string): Promise<ShareTrack | null> {
 
 async function loadWaveform(track: ShareTrack, count: number) {
   try {
-    const { data } = await supabaseAdmin
+    const { data } = await dbAdmin
       .from('track_waveforms')
       .select('peaks')
       .eq('track_id', track.refId)

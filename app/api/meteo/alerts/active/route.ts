@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -8,7 +8,7 @@ export async function GET() {
   try {
     const now = new Date().toISOString();
 
-    const { data: alerts, error } = await supabaseAdmin
+    const { data: alerts, error } = await dbAdmin
       .from('meteo_alerts')
       .select('*')
       .eq('is_active', true)

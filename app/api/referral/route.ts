@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 const MAX_REFERRALS = 20;
 const CREDITS_PER_REFERRAL = 50;
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await dbAdmin
       .from('profiles')
       .select('id, referral_code, username')
       .eq('email', session.user.email)
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Profil introuvable' }, { status: 404 });
     }
 
-    const { data: referrals, count } = await supabaseAdmin
+    const { data: referrals, count } = await dbAdmin
       .from('referrals')
       .select('id, referred_id, referrer_credits_granted, created_at, referred:profiles!referrals_referred_id_fkey(username, name, avatar)', { count: 'exact' })
       .eq('referrer_id', profile.id)
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Code et userId requis' }, { status: 400 });
     }
 
-    const { data: referrer } = await supabaseAdmin
+    const { data: referrer } = await dbAdmin
       .from('profiles')
       .select('id, username')
       .eq('referral_code', referralCode)
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Auto-parrainage interdit' }, { status: 400 });
     }
 
-    const { count } = await supabaseAdmin
+    const { count } = await dbAdmin
       .from('referrals')
       .select('id', { count: 'exact', head: true })
       .eq('referrer_id', referrer.id);
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Limite de parrainages atteinte' }, { status: 400 });
     }
 
-    const { data: existingRef } = await supabaseAdmin
+    const { data: existingRef } = await dbAdmin
       .from('referrals')
       .select('id')
       .eq('referred_id', newUserId)
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Utilisateur déjà parrainé' }, { status: 400 });
     }
 
-    const { error: insertErr } = await supabaseAdmin.from('referrals').insert({
+    const { error: insertErr } = await dbAdmin.from('referrals').insert({
       referrer_id: referrer.id,
       referred_id: newUserId,
       referrer_credits_granted: CREDITS_PER_REFERRAL,
@@ -106,16 +106,16 @@ export async function POST(request: NextRequest) {
 
     if (insertErr) throw insertErr;
 
-    await supabaseAdmin.from('profiles').update({ referred_by: referrer.id }).eq('id', newUserId);
+    await dbAdmin.from('profiles').update({ referred_by: referrer.id }).eq('id', newUserId);
 
-    await supabaseAdmin.rpc('ai_add_credits', {
+    await dbAdmin.rpc('ai_add_credits', {
       p_user_id: referrer.id,
       p_amount: CREDITS_PER_REFERRAL,
       p_source: 'referral_bonus',
       p_description: `Parrainage de ${newUserId}`,
     });
 
-    await supabaseAdmin.rpc('ai_add_credits', {
+    await dbAdmin.rpc('ai_add_credits', {
       p_user_id: newUserId,
       p_amount: CREDITS_PER_REFERRAL,
       p_source: 'referral_bonus',
@@ -132,3 +132,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

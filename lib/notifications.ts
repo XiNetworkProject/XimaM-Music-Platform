@@ -1,5 +1,5 @@
 import 'server-only';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import webpush from 'web-push';
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
@@ -110,7 +110,7 @@ interface CreateNotificationOpts {
 
 async function getUserPrefs(userId: string) {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('notification_preferences')
       .select('*')
       .eq('user_id', userId)
@@ -131,7 +131,7 @@ export async function createNotification(opts: CreateNotificationOpts) {
 
   if (dedupeOnRelatedId && relatedId) {
     try {
-      const { data: existing } = await supabaseAdmin
+      const { data: existing } = await dbAdmin
         .from('notifications')
         .select('id')
         .eq('user_id', userId)
@@ -175,7 +175,7 @@ export async function createNotification(opts: CreateNotificationOpts) {
   let notif: any = null;
   let insertError: any = null;
 
-  const { data: result1, error: err1 } = await supabaseAdmin
+  const { data: result1, error: err1 } = await dbAdmin
     .from('notifications')
     .insert({
       user_id: userId,
@@ -196,7 +196,7 @@ export async function createNotification(opts: CreateNotificationOpts) {
   if (err1) {
     // Fallback: schema de base (sans les colonnes etendues)
     console.warn('[notifications] extended insert failed, trying base schema:', err1.message);
-    const { data: result2, error: err2 } = await supabaseAdmin
+    const { data: result2, error: err2 } = await dbAdmin
       .from('notifications')
       .insert({
         user_id: userId,
@@ -259,7 +259,7 @@ async function sendPushInBackground(
 async function sendWebPush(userId: string, type: NotifType, title: string, body: string, url?: string, data?: Record<string, any>) {
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) return;
 
-  const { data: subs } = await supabaseAdmin
+  const { data: subs } = await dbAdmin
     .from('push_subscriptions')
     .select('endpoint, p256dh, auth')
     .eq('user_id', userId)
@@ -294,7 +294,7 @@ async function sendWebPush(userId: string, type: NotifType, title: string, body:
   }
 
   if (expired.length) {
-    await supabaseAdmin
+    await dbAdmin
       .from('push_subscriptions')
       .delete()
       .eq('user_id', userId)
@@ -303,7 +303,7 @@ async function sendWebPush(userId: string, type: NotifType, title: string, body:
 }
 
 async function sendNativePush(userId: string, type: NotifType, title: string, body: string, url?: string, data?: Record<string, any>) {
-  const { data: subscriptions, error } = await supabaseAdmin
+  const { data: subscriptions, error } = await dbAdmin
     .from('push_subscriptions')
     .select('id, endpoint')
     .eq('user_id', userId)
@@ -343,7 +343,7 @@ async function sendNativePush(userId: string, type: NotifType, title: string, bo
       }))),
     });
   } catch (cause) {
-    await supabaseAdmin
+    await dbAdmin
       .from('push_subscriptions')
       .update({ last_error: cause instanceof Error ? cause.message.slice(0, 160) : 'expo_network_error', updated_at: new Date().toISOString() })
       .eq('user_id', userId)
@@ -352,7 +352,7 @@ async function sendNativePush(userId: string, type: NotifType, title: string, bo
   }
   if (!response.ok) {
     console.warn('[notifications] native push service failed:', response.status);
-    await supabaseAdmin
+    await dbAdmin
       .from('push_subscriptions')
       .update({ last_error: `expo_http_${response.status}`, updated_at: new Date().toISOString() })
       .eq('user_id', userId)
@@ -366,7 +366,7 @@ async function sendNativePush(userId: string, type: NotifType, title: string, bo
     .map((ticket: any, index: number) => ticket?.details?.error === 'DeviceNotRegistered' ? tokens[index] : null)
     .filter(Boolean);
   if (expired.length) {
-    await supabaseAdmin
+    await dbAdmin
       .from('push_subscriptions')
       .delete()
       .eq('p256dh', 'expo')
@@ -377,7 +377,7 @@ async function sendNativePush(userId: string, type: NotifType, title: string, bo
     .map((ticket: any, index: number) => ticket?.status === 'ok' ? tokens[index] : null)
     .filter(Boolean) as string[];
   if (delivered.length) {
-    await supabaseAdmin
+    await dbAdmin
       .from('push_subscriptions')
       .update({ last_error: null, updated_at: new Date().toISOString() })
       .eq('user_id', userId)
@@ -389,7 +389,7 @@ async function sendNativePush(userId: string, type: NotifType, title: string, bo
       ? { endpoint: tokens[index], error: String(ticket?.details?.error || ticket?.message || 'expo_error').slice(0, 160) }
       : null)
     .filter(Boolean) as Array<{ endpoint: string; error: string }>;
-  await Promise.all(failed.map((entry) => supabaseAdmin
+  await Promise.all(failed.map((entry) => dbAdmin
     .from('push_subscriptions')
     .update({ last_error: entry.error, updated_at: new Date().toISOString() })
     .eq('user_id', userId)
@@ -405,7 +405,7 @@ export async function createBroadcast(opts: {
 }) {
   const { adminId, title, message, target = 'all', category = 'announcement' } = opts;
 
-  let query = supabaseAdmin.from('profiles').select('id');
+  let query = dbAdmin.from('profiles').select('id');
   if (target === 'premium') {
     query = query.in('subscription_tier', ['premium', 'pro']);
   } else if (target === 'artists') {
@@ -422,7 +422,7 @@ export async function createBroadcast(opts: {
   // Tenter d'enregistrer le broadcast (table peut ne pas exister)
   let broadcastId: string | null = null;
   try {
-    const { data: broadcast } = await supabaseAdmin
+    const { data: broadcast } = await dbAdmin
       .from('admin_broadcasts')
       .insert({
         admin_id: adminId,
@@ -628,7 +628,7 @@ export async function notifyMessageRequestAccepted(
 }
 
 export async function markMessageRequestNotificationResolved(recipientId: string, requestId: string) {
-  const { error } = await supabaseAdmin
+  const { error } = await dbAdmin
     .from('notifications')
     .update({ is_read: true })
     .eq('user_id', recipientId)

@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getPublicPlaylistTrackCounts } from '@/lib/publicTracks';
 import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
@@ -158,7 +158,7 @@ export function normalizeEditorialCollection(row?: Partial<EditorialCollectionRo
 }
 
 export async function getEditorialCollectionByPlaylistId(playlistId: string) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('editorial_collections')
     .select('*')
     .eq('playlist_id', playlistId)
@@ -172,7 +172,7 @@ export async function getEditorialCollectionByPlaylistId(playlistId: string) {
 }
 
 export async function getEditorialCollectionBySlug(slug: string) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('editorial_collections')
     .select('*')
     .eq('slug', slug)
@@ -187,7 +187,7 @@ export async function getEditorialCollectionBySlug(slug: string) {
 
 export async function getFeaturedEditorialCollections(limit = 12): Promise<EditorialCollectionView[]> {
   const safeLimit = Math.max(1, Math.min(24, limit));
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('editorial_collections')
     .select('*')
     .eq('is_published', true)
@@ -199,7 +199,7 @@ export async function getFeaturedEditorialCollections(limit = 12): Promise<Edito
   let collections: EditorialCollectionView[] = [];
   if (error) {
     if (!isMissingEditorialCollectionsTable(error)) throw error;
-    const { data: playlists } = await supabaseAdmin
+    const { data: playlists } = await dbAdmin
       .from('playlists')
       .select('*')
       .eq('is_public', true)

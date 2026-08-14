@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 import { notifyForumPostReply } from '@/lib/notifications';
 
 export async function GET(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Récupérer les réponses du post
-    const { data: replies, error } = await supabase
+    const { data: replies, error } = await db
       .from('forum_replies')
       .select('*')
       .eq('post_id', post_id)
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     // Récupérer les profils des utilisateurs
     const userIds = Array.from(new Set(replies?.map(reply => reply.user_id) || []));
-    const { data: profiles, error: profilesError } = await supabase
+    const { data: profiles, error: profilesError } = await db
       .from('profiles')
       .select('id, name, username, avatar')
       .in('id', userIds);
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérifier si le post existe
-    const { data: post, error: postError } = await supabase
+    const { data: post, error: postError } = await db
       .from('forum_posts')
       .select('id, user_id, title')
       .eq('id', post_id)
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Créer la réponse
-    const { data: reply, error } = await supabase
+    const { data: reply, error } = await db
       .from('forum_replies')
       .insert({
         post_id,
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Récupérer le profil de l'utilisateur
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await db
       .from('profiles')
       .select('id, name, username, avatar')
       .eq('id', session.user.id)
@@ -131,3 +131,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

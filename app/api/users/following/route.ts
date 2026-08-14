@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getApiSession } from '@/lib/getApiSession';
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
 
-    const { data: follows, error } = await supabaseAdmin
+    const { data: follows, error } = await dbAdmin
       .from('user_follows')
       .select('following_id')
       .eq('follower_id', userId)
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     const followingIds = follows.map(f => f.following_id);
 
-    const { data: profiles } = await supabaseAdmin
+    const { data: profiles } = await dbAdmin
       .from('profiles')
       .select('id, username, name, avatar, is_artist, artist_name, is_verified, total_plays, follower_count')
       .in('id', followingIds);

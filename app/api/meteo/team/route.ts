@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 async function getCallerMember(userId: string) {
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('meteo_team_members')
     .select('id, role, status, display_name')
     .eq('user_id', userId)
@@ -31,7 +31,7 @@ export async function GET() {
     }
 
     if (['admin', 'moderator'].includes(member.role)) {
-      const { data: allMembers } = await supabaseAdmin
+      const { data: allMembers } = await dbAdmin
         .from('meteo_team_members')
         .select('*')
         .order('invited_at', { ascending: false });
@@ -40,7 +40,7 @@ export async function GET() {
       const profileMap: Record<string, any> = {};
 
       if (userIds.length > 0) {
-        const { data: profiles } = await supabaseAdmin
+        const { data: profiles } = await dbAdmin
           .from('profiles')
           .select('id, name, avatar, email')
           .in('id', userIds);
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     const validRoles = ['admin', 'moderator', 'contributor'];
     const memberRole = validRoles.includes(role) ? role : 'contributor';
 
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await dbAdmin
       .from('profiles')
       .select('id, name')
       .eq('email', email.trim().toLowerCase())
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Aucun utilisateur Synaura avec cet email' }, { status: 404 });
     }
 
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await dbAdmin
       .from('meteo_team_members')
       .select('id, status')
       .eq('user_id', profile.id)
@@ -112,14 +112,14 @@ export async function POST(request: NextRequest) {
       if (existing.status === 'active') {
         return NextResponse.json({ error: 'Ce membre fait deja partie de l\'equipe' }, { status: 409 });
       }
-      await supabaseAdmin
+      await dbAdmin
         .from('meteo_team_members')
         .update({ status: 'active', role: memberRole, accepted_at: new Date().toISOString() })
         .eq('id', existing.id);
       return NextResponse.json({ success: true });
     }
 
-    const { error: insertError } = await supabaseAdmin
+    const { error: insertError } = await dbAdmin
       .from('meteo_team_members')
       .insert({
         user_id: profile.id,
@@ -159,7 +159,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'memberId requis' }, { status: 400 });
     }
 
-    const { data: target } = await supabaseAdmin
+    const { data: target } = await dbAdmin
       .from('meteo_team_members')
       .select('id, user_id, role')
       .eq('id', memberId)
@@ -181,7 +181,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Rien a mettre a jour' }, { status: 400 });
     }
 
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('meteo_team_members')
       .update(updates)
       .eq('id', memberId);
@@ -214,7 +214,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'memberId requis' }, { status: 400 });
     }
 
-    const { data: target } = await supabaseAdmin
+    const { data: target } = await dbAdmin
       .from('meteo_team_members')
       .select('user_id')
       .eq('id', memberId)
@@ -228,7 +228,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Vous ne pouvez pas vous retirer vous-meme' }, { status: 400 });
     }
 
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('meteo_team_members')
       .delete()
       .eq('id', memberId);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,19 +10,19 @@ export async function GET(request: NextRequest) {
       implementedSuggestionsResult
     ] = await Promise.all([
       // Questions résolues : posts de catégorie "question" avec replies_count > 0
-      supabase
+      db
         .from('forum_posts')
         .select('id', { count: 'exact', head: true })
         .eq('category', 'question')
         .gt('replies_count', 0),
       
       // Total des posts du forum
-      supabase
+      db
         .from('forum_posts')
         .select('id', { count: 'exact', head: true }),
       
       // Suggestions implémentées : posts de catégorie "suggestion" avec likes_count >= 5
-      supabase
+      db
         .from('forum_posts')
         .select('id', { count: 'exact', head: true })
         .eq('category', 'suggestion')
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
-    const { data: recentUsers, error: recentUsersError } = await supabase
+    const { data: recentUsers, error: recentUsersError } = await db
       .from('forum_posts')
       .select('user_id')
       .gte('created_at', thirtyDaysAgo.toISOString())
@@ -67,3 +67,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

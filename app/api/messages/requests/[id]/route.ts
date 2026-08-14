@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { acceptPendingMessageRequest, getMessagingProfiles } from '@/lib/messaging';
 import { markMessageRequestNotificationResolved, notifyMessageRequestAccepted } from '@/lib/notifications';
 
@@ -16,7 +16,7 @@ async function mutateRequest(request: NextRequest, id: string, forcedAction?: 'c
     return NextResponse.json({ error: 'Action invalide' }, { status: 400 });
   }
 
-  const { data: messageRequest } = await supabaseAdmin
+  const { data: messageRequest } = await dbAdmin
     .from('message_requests')
     .select('id, requester_id, target_id, message, status, created_at')
     .eq('id', id)
@@ -54,7 +54,7 @@ async function mutateRequest(request: NextRequest, id: string, forcedAction?: 'c
 
   const nextStatus = action === 'reject' ? 'rejected' : 'cancelled';
   const now = new Date().toISOString();
-  const { error } = await supabaseAdmin
+  const { error } = await dbAdmin
     .from('message_requests')
     .update({ status: nextStatus, updated_at: now, resolved_at: now })
     .eq('id', id)

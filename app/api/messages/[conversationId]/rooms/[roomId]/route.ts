@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { requireConversationParticipant } from '@/lib/messaging';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +28,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { conver
   if (name) changes.name = name;
   if (body?.type === 'text' || body?.type === 'voice_notes') changes.room_type = body.type;
   if (!Object.keys(changes).length) return NextResponse.json({ error: 'Aucune modification' }, { status: 400 });
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('conversation_rooms')
     .update({ ...changes, updated_at: new Date().toISOString() })
     .eq('id', params.roomId)
@@ -42,7 +42,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { conver
 export async function DELETE(request: NextRequest, { params }: { params: { conversationId: string; roomId: string } }) {
   const checked = await manager(request, params.conversationId);
   if ('error' in checked) return checked.error;
-  const { data: rooms, error: roomsError } = await supabaseAdmin
+  const { data: rooms, error: roomsError } = await dbAdmin
     .from('conversation_rooms')
     .select('id')
     .eq('conversation_id', params.conversationId)
@@ -51,8 +51,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { conve
   if ((rooms || []).length <= 1) return NextResponse.json({ error: 'Garde au moins un salon' }, { status: 409 });
   const replacement = (rooms || []).find((room) => room.id !== params.roomId);
   if (!replacement) return NextResponse.json({ error: 'Salon introuvable' }, { status: 404 });
-  await supabaseAdmin.from('messages').update({ room_id: replacement.id }).eq('conversation_id', params.conversationId).eq('room_id', params.roomId);
-  const { error } = await supabaseAdmin.from('conversation_rooms').delete().eq('id', params.roomId).eq('conversation_id', params.conversationId);
+  await dbAdmin.from('messages').update({ room_id: replacement.id }).eq('conversation_id', params.conversationId).eq('room_id', params.roomId);
+  const { error } = await dbAdmin.from('conversation_rooms').delete().eq('id', params.roomId).eq('conversation_id', params.conversationId);
   if (error) return NextResponse.json({ error: 'Suppression impossible' }, { status: 500 });
   return NextResponse.json({ success: true, replacementRoomId: replacement.id });
 }

@@ -9,12 +9,12 @@ import {
   usersAreFriends,
 } from '@/lib/messaging';
 import { notifyGroupMemberAdded } from '@/lib/notifications';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 type RouteContext = { params: { conversationId: string } };
 
 async function getGroup(conversationId: string) {
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('conversations')
     .select('id, name, is_group, is_active')
     .eq('id', conversationId)
@@ -23,7 +23,7 @@ async function getGroup(conversationId: string) {
 }
 
 async function touchConversation(conversationId: string) {
-  await supabaseAdmin
+  await dbAdmin
     .from('conversations')
     .update({ updated_at: new Date().toISOString() })
     .eq('id', conversationId);
@@ -45,13 +45,13 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'Membre invalide' }, { status: 400 });
   }
   const [{ data: existing }, { count }, profiles] = await Promise.all([
-    supabaseAdmin
+    dbAdmin
       .from('conversation_participants')
       .select('user_id')
       .eq('conversation_id', params.conversationId)
       .eq('user_id', userId)
       .maybeSingle(),
-    supabaseAdmin
+    dbAdmin
       .from('conversation_participants')
       .select('*', { count: 'exact', head: true })
       .eq('conversation_id', params.conversationId),
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   if (blocked) return NextResponse.json({ error: 'Cette personne ne peut pas rejoindre ce groupe' }, { status: 403 });
   if (!friends) return NextResponse.json({ error: 'Ajoute d’abord cette personne a tes amis' }, { status: 403 });
 
-  const { error } = await supabaseAdmin.from('conversation_participants').insert({
+  const { error } = await dbAdmin.from('conversation_participants').insert({
     conversation_id: params.conversationId,
     user_id: userId,
     role: 'member',
@@ -114,7 +114,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   if (!target || target.role === 'owner') {
     return NextResponse.json({ error: 'Membre introuvable' }, { status: 404 });
   }
-  const { error } = await supabaseAdmin
+  const { error } = await dbAdmin
     .from('conversation_participants')
     .update({ role })
     .eq('conversation_id', params.conversationId)
@@ -148,7 +148,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     }
   }
 
-  const { error } = await supabaseAdmin
+  const { error } = await dbAdmin
     .from('conversation_participants')
     .delete()
     .eq('conversation_id', params.conversationId)
@@ -157,3 +157,5 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
   await touchConversation(params.conversationId);
   return NextResponse.json({ success: true, userId, left: userId === session.user.id });
 }
+
+export const dynamic = 'force-dynamic';

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import contentModerator from '@/lib/contentModeration';
 import { notifyNewComment } from '@/lib/notifications';
 
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   // ancrés à un instant précis du morceau (jamais les réponses, jamais les
   // commentaires classiques sans timestamp).
   if (searchParams.get('timestampedOnly') === '1') {
-    const { data: momentRows, error: momentErr } = await supabaseAdmin
+    const { data: momentRows, error: momentErr } = await dbAdmin
       .from('comments')
       .select('id, content, created_at, user_id, timestamp_seconds')
       .eq('track_id', trackId)
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const rows = momentRows || [];
     const userIds = Array.from(new Set(rows.map((c: any) => c.user_id).filter(Boolean)));
-    const { data: users } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').in('id', userIds);
+    const { data: users } = await dbAdmin.from('profiles').select('id, username, name, avatar').in('id', userIds);
     const usersMap = new Map((users || []).map((u: any) => [u.id, u]));
 
     return NextResponse.json({
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 
   // Top-level only (pagination), puis replies pour ces parents
-  const { data: topRows, error: topErr } = await supabaseAdmin
+  const { data: topRows, error: topErr } = await dbAdmin
     .from('comments')
     .select('id, content, created_at, updated_at, user_id, track_id, parent_id, timestamp_seconds')
     .eq('track_id', trackId)
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   let replyRows: any[] = [];
   if (parentIds.length) {
-    const { data: replies } = await supabaseAdmin
+    const { data: replies } = await dbAdmin
       .from('comments')
       .select('id, content, created_at, updated_at, user_id, track_id, parent_id')
       .eq('track_id', trackId)
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   const all = [...parents, ...replyRows];
   const userIds = Array.from(new Set(all.map((c: any) => c.user_id).filter(Boolean)));
-  const { data: users } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').in('id', userIds);
+  const { data: users } = await dbAdmin.from('profiles').select('id, username, name, avatar').in('id', userIds);
   const usersMap = new Map((users || []).map((u: any) => [u.id, u]));
 
   // Likes (best-effort)
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   let likesCountMap = new Map<string, number>();
   let likedByUser = new Set<string>();
   try {
-    const { data: likesRows } = await supabaseAdmin
+    const { data: likesRows } = await dbAdmin
       .from('comment_likes')
       .select('comment_id, user_id')
       .in('comment_id', ids);
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     let inserted: any = null;
     let error: any = null;
 
-    const attempt1 = await supabaseAdmin
+    const attempt1 = await dbAdmin
       .from('comments')
       .insert({ track_id: trackId, user_id: userId, content, timestamp_seconds: timestampSeconds })
       .select('*')
@@ -208,7 +208,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       msg1.includes('null value in column') && msg1.includes('relation "comments"') && msg1.includes('column "text"');
 
     if (needsTextRetry) {
-      const attempt2 = await supabaseAdmin
+      const attempt2 = await dbAdmin
         .from('comments')
         .insert({ track_id: trackId, user_id: userId, content, text: content, timestamp_seconds: timestampSeconds } as any)
         .select('*')
@@ -236,7 +236,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json(
         {
           error: normalized,
-          supabase: {
+          db: {
             code: errAny?.code || null,
             details: errAny?.details || null,
             hint: errAny?.hint || null,
@@ -247,14 +247,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       );
     }
 
-    const { data: user } = await supabaseAdmin
+    const { data: user } = await dbAdmin
       .from('profiles')
       .select('id, username, name, avatar')
       .eq('id', userId)
       .maybeSingle();
 
     try {
-      const { data: track } = await supabaseAdmin
+      const { data: track } = await dbAdmin
         .from('tracks')
         .select('title, creator_id')
         .eq('id', trackId)
@@ -295,3 +295,4 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 }
 
+export const dynamic = 'force-dynamic';

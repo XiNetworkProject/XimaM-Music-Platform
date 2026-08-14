@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminGuard } from '@/lib/admin';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import {
   sendEmail,
   saAcceptedTemplate,
@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   // Récupérer l'application courante
-  const { data: current, error: fetchError } = await supabaseAdmin
+  const { data: current, error: fetchError } = await dbAdmin
     .from('star_academy_applications')
     .select('*')
     .eq('id', id)
@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if ((status === 'accepted' || status === 'winner') && current.user_id) {
     const days = status === 'winner' ? 90 : 30;
     const premiumUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-    await supabaseAdmin
+    await dbAdmin
       .from('profiles')
       .update({
         plan: 'pro',
@@ -56,7 +56,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   // Mettre à jour en base
-  const { data: updated, error: updateError } = await supabaseAdmin
+  const { data: updated, error: updateError } = await dbAdmin
     .from('star_academy_applications')
     .update(updatePayload)
     .eq('id', id)
@@ -106,7 +106,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
       if (emailHtml) {
         await sendEmail({ to: current.email, subject: emailSubject, html: emailHtml });
-        await supabaseAdmin
+        await dbAdmin
           .from('star_academy_applications')
           .update({ notification_sent_at: new Date().toISOString() })
           .eq('id', id);
@@ -127,7 +127,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   // ?audio=1 retourne l URL publique de l audio.
   if (searchParams.get('audio') === '1') {
-    const { data: app, error: dbError } = await supabaseAdmin
+    const { data: app, error: dbError } = await dbAdmin
       .from('star_academy_applications')
       .select('audio_url, audio_filename')
       .eq('id', params.id)
@@ -139,7 +139,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ signedUrl: toPublicMediaUrl(app.audio_url), filename: app.audio_filename });
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('star_academy_applications')
     .select('*')
     .eq('id', params.id)
@@ -148,3 +148,5 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   if (error || !data) return NextResponse.json({ error: 'Introuvable.' }, { status: 404 });
   return NextResponse.json({ application: data });
 }
+
+export const dynamic = 'force-dynamic';

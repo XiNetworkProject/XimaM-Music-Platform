@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,7 +12,7 @@ const DEFAULT_SETTINGS = {
 };
 
 async function getCallerMember(userId: string) {
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('meteo_team_members')
     .select('id, role, status')
     .eq('user_id', userId)
@@ -22,7 +22,7 @@ async function getCallerMember(userId: string) {
 }
 
 async function ensureTable() {
-  const { error } = await supabaseAdmin
+  const { error } = await dbAdmin
     .from('meteo_settings')
     .select('id')
     .limit(1);
@@ -46,7 +46,7 @@ export async function GET() {
       return NextResponse.json({ settings: DEFAULT_SETTINGS });
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('meteo_settings')
       .select('key, value')
       .in('key', Object.keys(DEFAULT_SETTINGS));
@@ -94,7 +94,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Table meteo_settings non disponible. Executez la migration.' }, { status: 500 });
     }
 
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('meteo_settings')
       .upsert(
         { key, value: String(value), updated_at: new Date().toISOString(), updated_by: session.user.id },

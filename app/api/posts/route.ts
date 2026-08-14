@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { isAiTrackPublic, isTrackPublic } from '@/lib/publicTracks';
 import { normalizeRemixTrackRef } from '@/lib/remixServer';
 import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaUrl, localPublicIdFromUrl } from '@/lib/localMediaStorage';
@@ -54,7 +54,7 @@ function readTrackData(value: any): Record<string, any> {
 }
 
 async function loadAiTrack(id: string) {
-  const { data: t, error } = await supabaseAdmin
+  const { data: t, error } = await dbAdmin
     .from('ai_tracks')
     .select('*, generation:ai_generations!inner(user_id, is_public, status)')
     .eq('id', id)
@@ -68,7 +68,7 @@ async function loadAiTrack(id: string) {
 
   const creatorId = String((t as any).generation?.user_id || '');
   const { data: profile } = creatorId
-    ? await supabaseAdmin.from('profiles').select('name, username').eq('id', creatorId).maybeSingle()
+    ? await dbAdmin.from('profiles').select('name, username').eq('id', creatorId).maybeSingle()
     : { data: null as any };
 
   return {
@@ -84,7 +84,7 @@ async function loadAiTrack(id: string) {
 }
 
 async function loadClassicTrack(id: string) {
-  const { data: t, error: trackErr } = await supabaseAdmin
+  const { data: t, error: trackErr } = await dbAdmin
     .from('tracks')
     .select('*')
     .eq('id', id)
@@ -126,7 +126,7 @@ async function loadTrack(trackId?: string | null) {
 async function isPostLiked(postId: string, userId: string | null) {
   if (!userId) return false;
 
-  const { data: like } = await supabaseAdmin
+  const { data: like } = await dbAdmin
     .from('post_likes')
     .select('id')
     .eq('post_id', postId)
@@ -147,7 +147,7 @@ async function enrichPost(post: any, userId: string | null, seen = new Set<strin
     const nextSeen = new Set(seen);
     nextSeen.add(String(post.id));
 
-    const { data: rawOriginal, error: originalError } = await supabaseAdmin
+    const { data: rawOriginal, error: originalError } = await dbAdmin
       .from('creator_posts')
       .select(POST_SELECT)
       .eq('id', post.original_post_id)
@@ -197,7 +197,7 @@ export async function GET(request: NextRequest) {
 
     if (!creatorId && userId) {
       // Feed personnalisé : posts des créateurs suivis en priorité
-      const { data: follows } = await supabaseAdmin
+      const { data: follows } = await dbAdmin
         .from('user_follows')
         .select('following_id')
         .eq('follower_id', userId);
@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
 
       if (followedIds.length > 0) {
         // Récupérer d'abord les posts des suivis
-        const { data: followedPosts } = await supabaseAdmin
+        const { data: followedPosts } = await dbAdmin
           .from('creator_posts')
           .select('id')
           .eq('is_public', true)
@@ -221,7 +221,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Construction de la requête principale
-    let query = supabaseAdmin
+    let query = dbAdmin
       .from('creator_posts')
       .select(POST_SELECT)
       .eq('is_public', true)
@@ -308,7 +308,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (type === 'repost') {
-      const { data: originalPost, error: originalPostError } = await supabaseAdmin
+      const { data: originalPost, error: originalPostError } = await dbAdmin
         .from('creator_posts')
         .select('id, is_public')
         .eq('id', original_post_id)
@@ -326,7 +326,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { data: post, error } = await supabaseAdmin
+    const { data: post, error } = await dbAdmin
       .from('creator_posts')
       .insert({
         creator_id: session.user.id,

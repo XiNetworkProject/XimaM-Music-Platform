@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
+import { buildSunoCallbackUrl } from '@/lib/sunoWebhook';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -109,8 +110,7 @@ export async function POST(req: NextRequest) {
 
     // Docs Suno: max 200 chars on lyrics prompt.
     const prompt = promptRaw.slice(0, 200);
-    const fallbackOrigin = req.nextUrl.origin;
-    const callBackUrl = body.callBackUrl || `${process.env.NEXTAUTH_URL || fallbackOrigin}/api/suno/callback`;
+    const callBackUrl = buildSunoCallbackUrl(req, '/api/suno/callback');
 
     const createRes = await fetch(`${BASE}/api/v1/lyrics`, {
       method: 'POST',

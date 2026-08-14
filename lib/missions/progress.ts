@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 type GoalType = 'plays' | 'likes' | 'shares' | 'boosts';
 
@@ -38,7 +38,7 @@ function shouldReset(um: UserMissionRow | null | undefined, mission: MissionRow,
 }
 
 async function resetUserMission(userId: string, missionId: string) {
-  await supabaseAdmin
+  await dbAdmin
     .from('user_missions')
     .update({ progress: 0, completed_at: null, claimed: false, last_progress_at: null })
     .eq('user_id', userId)
@@ -48,7 +48,7 @@ async function resetUserMission(userId: string, missionId: string) {
 async function markCompletedIfNeeded(userId: string, mission: MissionRow, um: UserMissionRow | null | undefined, progress: number, nowIso: string) {
   if (progress < Number(mission.threshold || 0)) return;
   if (um?.completed_at) return;
-  await supabaseAdmin
+  await dbAdmin
     .from('user_missions')
     .update({ completed_at: nowIso })
     .eq('user_id', userId)
@@ -75,7 +75,7 @@ export async function applyMissionProgress(opts: {
 
   const nowIso = new Date().toISOString();
 
-  const { data: missions } = await supabaseAdmin
+  const { data: missions } = await dbAdmin
     .from('missions')
     .select('id, goal_type, threshold, cooldown_hours, enabled')
     .eq('enabled', true);
@@ -84,7 +84,7 @@ export async function applyMissionProgress(opts: {
   if (!list.length) return;
 
   const missionIds = list.map((m) => m.id);
-  const { data: rows } = await supabaseAdmin
+  const { data: rows } = await dbAdmin
     .from('user_missions')
     .select('id, mission_id, progress, completed_at, claimed, last_progress_at')
     .eq('user_id', userId)
@@ -115,7 +115,7 @@ export async function applyMissionProgress(opts: {
     const next = current + delta;
 
     if (!um) {
-      const { data: inserted } = await supabaseAdmin
+      const { data: inserted } = await dbAdmin
         .from('user_missions')
         .insert({ user_id: userId, mission_id: m.id, progress: next, last_progress_at: nowIso })
         .select('id, mission_id, progress, completed_at, claimed, last_progress_at')
@@ -125,7 +125,7 @@ export async function applyMissionProgress(opts: {
     } else {
       // si déjà réclamée (et pas encore reset), on n'augmente pas
       if (um.claimed) continue;
-      await supabaseAdmin
+      await dbAdmin
         .from('user_missions')
         .update({ progress: next, last_progress_at: nowIso })
         .eq('id', um.id);

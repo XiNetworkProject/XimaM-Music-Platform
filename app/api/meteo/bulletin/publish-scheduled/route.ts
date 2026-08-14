@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -63,7 +63,7 @@ async function publishScheduledBulletins() {
   // Récupérer tous les bulletins programmés dont l'heure est passée
   const now = new Date().toISOString();
   
-  const { data: scheduledBulletins, error: fetchError } = await supabaseAdmin
+  const { data: scheduledBulletins, error: fetchError } = await dbAdmin
     .from('meteo_bulletins')
     .select('*')
     .eq('status', 'scheduled')
@@ -90,7 +90,7 @@ async function publishScheduledBulletins() {
   for (const bulletin of scheduledBulletins) {
     try {
       // Mettre tous les bulletins publiés existants à is_current = false
-      await supabaseAdmin
+      await dbAdmin
         .from('meteo_bulletins')
         .update({ is_current: false })
         .eq('author_id', bulletin.author_id)
@@ -98,7 +98,7 @@ async function publishScheduledBulletins() {
         .eq('status', 'published');
 
       // Publier le bulletin programmé
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await dbAdmin
         .from('meteo_bulletins')
         .update({ 
           status: 'published',

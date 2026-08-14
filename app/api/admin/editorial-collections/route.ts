@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { getAdminGuard } from '@/lib/admin';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import {
   isMissingEditorialCollectionsTable,
   normalizeEditorialCollection,
@@ -19,7 +19,7 @@ async function uniqueSlug(base: string) {
   let slug = slugifyCollectionTitle(base);
   for (let i = 0; i < 30; i++) {
     const candidate = i === 0 ? slug : `${slug}-${i + 1}`;
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('editorial_collections')
       .select('id')
       .eq('slug', candidate)
@@ -32,7 +32,7 @@ async function uniqueSlug(base: string) {
 
 async function getTrackCounts(playlistIds: string[]) {
   if (!playlistIds.length) return new Map<string, number>();
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('playlist_tracks')
     .select('playlist_id')
     .in('playlist_id', playlistIds);
@@ -47,7 +47,7 @@ export async function GET() {
   const guard = await getAdminGuard();
   if (!guard.ok) return NextResponse.json({ error: 'Non autorise' }, { status: 403 });
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('editorial_collections')
     .select('*')
     .order('position', { ascending: true })
@@ -55,7 +55,7 @@ export async function GET() {
 
   if (error) {
     if (isMissingEditorialCollectionsTable(error)) {
-      const { data: playlists } = await supabaseAdmin
+      const { data: playlists } = await dbAdmin
         .from('playlists')
         .select('*')
         .eq('creator_id', guard.userId)
@@ -154,10 +154,10 @@ export async function POST(request: NextRequest) {
     is_album: false,
   };
 
-  let playlistInsert = await supabaseAdmin.from('playlists').insert(playlistPayload).select('id').single();
+  let playlistInsert = await dbAdmin.from('playlists').insert(playlistPayload).select('id').single();
   if (playlistInsert.error && String(playlistInsert.error.message || '').includes('is_album')) {
     const { is_album, ...fallback } = playlistPayload;
-    playlistInsert = await supabaseAdmin.from('playlists').insert(fallback).select('id').single();
+    playlistInsert = await dbAdmin.from('playlists').insert(fallback).select('id').single();
   }
   if (playlistInsert.error) {
     await cleanupUploadedImages();
@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('editorial_collections')
     .insert({
       playlist_id: playlistId,
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    await supabaseAdmin.from('playlists').delete().eq('id', playlistId);
+    await dbAdmin.from('playlists').delete().eq('id', playlistId);
     await cleanupUploadedImages();
     if (isMissingEditorialCollectionsTable(error)) {
       return NextResponse.json({

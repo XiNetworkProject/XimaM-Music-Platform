@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ function cleanIds(value: unknown) {
 }
 
 async function readTaste(userId: string) {
-  const { data: profile, error } = await supabaseAdmin
+  const { data: profile, error } = await dbAdmin
     .from('profiles')
     .select('preferences')
     .eq('id', userId)
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       else hidden.delete(artistId);
       hiddenArtistIds = Array.from(hidden).slice(-250);
 
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await dbAdmin
         .from('profiles')
         .update({
           preferences: {
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     if (trackId && action !== 'show_artist') {
       const eventType = action === 'more' ? 'favorite' : 'skip';
-      const { error: eventError } = await supabaseAdmin.from('track_events').insert({
+      const { error: eventError } = await dbAdmin.from('track_events').insert({
         track_id: trackId,
         artist_id: artistId || null,
         user_id: userId,
@@ -98,7 +98,7 @@ export async function DELETE(request: NextRequest) {
     const userId = String(session?.user?.id || '');
     if (!userId) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     const { preferences, taste } = await readTaste(userId);
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('profiles')
       .update({ preferences: { ...preferences, taste: { ...taste, hiddenArtistIds: [], updatedAt: new Date().toISOString() } } })
       .eq('id', userId);

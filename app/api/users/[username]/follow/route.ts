@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { notifyNewFollower } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +24,7 @@ export async function POST(
     console.log('👤 Follower ID:', followerId, 'Username cible:', username);
 
     // Récupérer l'ID de l'utilisateur à suivre
-    const { data: targetUser, error: userError } = await supabaseAdmin
+    const { data: targetUser, error: userError } = await dbAdmin
       .from('profiles')
       .select('id')
       .eq('username', username)
@@ -50,7 +50,7 @@ export async function POST(
     }
 
     // Vérifier l'état actuel du suivi
-    const { data: existingFollow, error: followCheckError } = await supabaseAdmin
+    const { data: existingFollow, error: followCheckError } = await dbAdmin
       .from('user_follows')
       .select('id')
       .eq('follower_id', followerId)
@@ -61,7 +61,7 @@ export async function POST(
 
     if (existingFollow) {
       // Unfollow
-      const { error: unfollowError } = await supabaseAdmin
+      const { error: unfollowError } = await dbAdmin
         .from('user_follows')
         .delete()
         .eq('follower_id', followerId)
@@ -75,7 +75,7 @@ export async function POST(
       action = 'unfollowed';
     } else {
       // Follow
-      const { error: followError } = await supabaseAdmin
+      const { error: followError } = await dbAdmin
         .from('user_follows')
         .insert({
           follower_id: followerId,
@@ -93,12 +93,12 @@ export async function POST(
     // Mettre à jour les compteurs pour les deux utilisateurs
     try {
       // Mettre à jour les compteurs pour l'utilisateur suivi (follower_count)
-      const { error: updateFollowingError } = await supabaseAdmin.rpc('update_follow_counts', {
+      const { error: updateFollowingError } = await dbAdmin.rpc('update_follow_counts', {
         user_id: followingId
       });
 
       // Mettre à jour les compteurs pour l'utilisateur qui suit (following_count)
-      const { error: updateFollowerError } = await supabaseAdmin.rpc('update_follow_counts', {
+      const { error: updateFollowerError } = await dbAdmin.rpc('update_follow_counts', {
         user_id: followerId
       });
 
@@ -115,7 +115,7 @@ export async function POST(
     console.log('✅ Action terminée:', action);
 
     if (action === 'followed') {
-      const { data: followerProfile } = await supabaseAdmin
+      const { data: followerProfile } = await dbAdmin
         .from('profiles')
         .select('username, name')
         .eq('id', followerId)
@@ -150,7 +150,7 @@ export async function GET(
     const followerId = session.user.id;
 
     // Récupérer l'ID de l'utilisateur à vérifier
-    const { data: targetUser, error: userError } = await supabaseAdmin
+    const { data: targetUser, error: userError } = await dbAdmin
       .from('profiles')
       .select('id')
       .eq('username', username)
@@ -168,7 +168,7 @@ export async function GET(
     const followingId = targetUser.id;
 
     // Vérifier l'état du suivi
-    const { data: followStatus, error: followError } = await supabaseAdmin
+    const { data: followStatus, error: followError } = await dbAdmin
       .from('user_follows')
       .select('id')
       .eq('follower_id', followerId)

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status'); // 'draft', 'published' ou 'scheduled'
 
     // Construire la requête
-    let query = supabaseAdmin
+    let query = dbAdmin
       .from('meteo_bulletins')
       .select('*')
       .eq('author_id', session.user.id);

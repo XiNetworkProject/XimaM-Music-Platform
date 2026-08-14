@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { db } from './database';
 
 interface CreatorFilter {
   id: string;
@@ -26,16 +26,16 @@ class CreatorModerationService {
     this.loadFilters();
   }
 
-  // Charger les filtres depuis Supabase
+  // Charger les filtres depuis PostgreSQL
   async loadFilters() {
     try {
-      const { data: filters, error } = await supabase
+      const { data: filters, error } = await db
         .from('creator_filters')
         .select('*')
         .eq('is_active', true);
 
       if (error) {
-        console.error('❌ Erreur chargement filtres Supabase:', error);
+        console.error('❌ Erreur chargement filtres PostgreSQL:', error);
         return;
       }
 
@@ -47,7 +47,7 @@ class CreatorModerationService {
         this.filters.get(filter.creator_id)!.push(filter);
       });
 
-      console.log('✅ Filtres de modération créateur chargés depuis Supabase');
+      console.log('✅ Filtres de modération créateur chargés depuis PostgreSQL');
     } catch (error) {
       console.error('❌ Erreur chargement filtres:', error);
     }
@@ -62,8 +62,8 @@ class CreatorModerationService {
       }
       this.customFilters.get(creatorId)!.add(word.toLowerCase());
 
-      // Sauvegarder dans Supabase
-      const { error } = await supabase
+      // Sauvegarder dans PostgreSQL
+      const { error } = await db
         .from('creator_filters')
         .insert({
           creator_id: creatorId,
@@ -75,7 +75,7 @@ class CreatorModerationService {
         });
 
       if (error) {
-        console.error('❌ Erreur sauvegarde filtre Supabase:', error);
+        console.error('❌ Erreur sauvegarde filtre PostgreSQL:', error);
         return false;
       }
 
@@ -95,15 +95,15 @@ class CreatorModerationService {
         filters.delete(word.toLowerCase());
       }
 
-      // Supprimer de Supabase
-      const { error } = await supabase
+      // Supprimer de PostgreSQL
+      const { error } = await db
         .from('creator_filters')
         .delete()
         .eq('creator_id', creatorId)
         .eq('filter_value', word.toLowerCase());
 
       if (error) {
-        console.error('❌ Erreur suppression filtre Supabase:', error);
+        console.error('❌ Erreur suppression filtre PostgreSQL:', error);
         return false;
       }
 
@@ -117,15 +117,15 @@ class CreatorModerationService {
   // Obtenir les mots filtrés d'un créateur
   async getCustomFilters(creatorId: string): Promise<string[]> {
     try {
-      // D'abord essayer de récupérer depuis Supabase
-      const { data: filters, error } = await supabase
+      // D'abord essayer de récupérer depuis PostgreSQL
+      const { data: filters, error } = await db
         .from('creator_filters')
         .select('filter_value')
         .eq('creator_id', creatorId)
         .eq('is_active', true);
 
       if (error) {
-        console.error('❌ Erreur récupération filtres Supabase:', error);
+        console.error('❌ Erreur récupération filtres PostgreSQL:', error);
         // Fallback sur la mémoire
         const memoryFilters = this.customFilters.get(creatorId);
         return memoryFilters ? Array.from(memoryFilters) : [];
@@ -216,7 +216,7 @@ class CreatorModerationService {
   // Enregistrer une action de modération
   async logModerationAction(action: ModerationAction): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const { error } = await db
         .from('moderation_actions')
         .insert({
           action: action.action,
@@ -228,7 +228,7 @@ class CreatorModerationService {
         });
 
       if (error) {
-        console.error('❌ Erreur log action modération Supabase:', error);
+        console.error('❌ Erreur log action modération PostgreSQL:', error);
         return false;
       }
 
@@ -242,7 +242,7 @@ class CreatorModerationService {
   // Obtenir l'historique des actions de modération d'un créateur
   async getModerationHistory(creatorId: string, limit: number = 50): Promise<ModerationAction[]> {
     try {
-      const { data: actions, error } = await supabase
+      const { data: actions, error } = await db
         .from('moderation_actions')
         .select('*')
         .eq('creator_id', creatorId)
@@ -250,7 +250,7 @@ class CreatorModerationService {
         .limit(limit);
 
       if (error) {
-        console.error('❌ Erreur récupération historique modération Supabase:', error);
+        console.error('❌ Erreur récupération historique modération PostgreSQL:', error);
         return [];
       }
 
@@ -274,13 +274,13 @@ class CreatorModerationService {
     recentActivity: number;
   }> {
     try {
-      const { data: actions, error } = await supabase
+      const { data: actions, error } = await db
         .from('moderation_actions')
         .select('*')
         .eq('creator_id', creatorId);
 
       if (error) {
-        console.error('❌ Erreur récupération stats modération Supabase:', error);
+        console.error('❌ Erreur récupération stats modération PostgreSQL:', error);
         return { totalActions: 0, actionsByType: {}, recentActivity: 0 };
       }
 
@@ -305,7 +305,7 @@ class CreatorModerationService {
     }
   }
 
-  // Rafraîchir les filtres depuis Supabase
+  // Rafraîchir les filtres depuis PostgreSQL
   async refreshFilters(): Promise<void> {
     await this.loadFilters();
   }

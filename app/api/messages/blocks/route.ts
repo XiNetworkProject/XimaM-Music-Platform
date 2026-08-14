@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { findDirectConversation, getMessagingProfiles, removeFriendship } from '@/lib/messaging';
 
 export const dynamic = 'force-dynamic';
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getApiSession(request);
     if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
-    const { data: rows, error } = await supabaseAdmin
+    const { data: rows, error } = await dbAdmin
       .from('user_blocks')
       .select('id, blocked_id, created_at')
       .eq('blocker_id', session.user.id)
@@ -32,23 +32,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => null);
     const targetId = typeof body?.targetId === 'string' ? body.targetId.trim() : '';
     if (!targetId || targetId === session.user.id) return NextResponse.json({ error: 'Utilisateur invalide' }, { status: 400 });
-    const { data: target } = await supabaseAdmin.from('profiles').select('id').eq('id', targetId).maybeSingle();
+    const { data: target } = await dbAdmin.from('profiles').select('id').eq('id', targetId).maybeSingle();
     if (!target) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
 
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('user_blocks')
       .upsert({ blocker_id: session.user.id, blocked_id: targetId }, { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true });
     if (error) return NextResponse.json({ error: 'Blocage impossible' }, { status: 500 });
     await removeFriendship(session.user.id, targetId).catch(() => {});
     const now = new Date().toISOString();
     await Promise.all([
-      supabaseAdmin
+      dbAdmin
         .from('message_requests')
         .update({ status: 'rejected', resolved_at: now, updated_at: now })
         .eq('status', 'pending')
         .eq('requester_id', session.user.id)
         .eq('target_id', targetId),
-      supabaseAdmin
+      dbAdmin
         .from('message_requests')
         .update({ status: 'rejected', resolved_at: now, updated_at: now })
         .eq('status', 'pending')
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     ]);
     const conversation = await findDirectConversation(session.user.id, targetId);
     if (conversation) {
-      await supabaseAdmin
+      await dbAdmin
         .from('conversation_participants')
         .update({ archived_at: now })
         .eq('conversation_id', conversation.id)
@@ -77,7 +77,7 @@ export async function DELETE(request: NextRequest) {
     const body = await request.json().catch(() => null);
     const targetId = typeof body?.targetId === 'string' ? body.targetId.trim() : '';
     if (!targetId) return NextResponse.json({ error: 'Utilisateur requis' }, { status: 400 });
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('user_blocks')
       .delete()
       .eq('blocker_id', session.user.id)

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { isAiTrackPublic, isTrackPublic } from '@/lib/publicTracks';
 import { normalizeRemixTrackRef } from '@/lib/remixServer';
 import { deleteLocalMedia, localPublicIdFromUrl } from '@/lib/localMediaStorage';
@@ -39,7 +39,7 @@ function readTrackData(value: any): Record<string, any> {
 }
 
 async function loadAiTrack(id: string) {
-  const { data: t, error } = await supabaseAdmin
+  const { data: t, error } = await dbAdmin
     .from('ai_tracks')
     .select('*, generation:ai_generations!inner(user_id, is_public, status)')
     .eq('id', id)
@@ -57,7 +57,7 @@ async function loadAiTrack(id: string) {
 
   const creatorId = String((t as any).generation?.user_id || '');
   const { data: profile } = creatorId
-    ? await supabaseAdmin.from('profiles').select('name, username').eq('id', creatorId).maybeSingle()
+    ? await dbAdmin.from('profiles').select('name, username').eq('id', creatorId).maybeSingle()
     : { data: null as any };
 
   return {
@@ -73,7 +73,7 @@ async function loadAiTrack(id: string) {
 }
 
 async function loadClassicTrack(id: string) {
-  const { data: t, error: trackErr } = await supabaseAdmin
+  const { data: t, error: trackErr } = await dbAdmin
     .from('tracks')
     .select('*')
     .eq('id', id)
@@ -122,7 +122,7 @@ async function enrichPost(post: any, userId: string | null, seen = new Set<strin
     const nextSeen = new Set(seen);
     nextSeen.add(String(post.id));
 
-    const { data: rawOriginal, error: originalError } = await supabaseAdmin
+    const { data: rawOriginal, error: originalError } = await dbAdmin
       .from('creator_posts')
       .select(POST_SELECT)
       .eq('id', post.original_post_id)
@@ -144,7 +144,7 @@ async function enrichPost(post: any, userId: string | null, seen = new Set<strin
 
   let isLiked = false;
   if (userId) {
-    const { data: like } = await supabaseAdmin
+    const { data: like } = await dbAdmin
       .from('post_likes')
       .select('id')
       .eq('post_id', post.id)
@@ -175,7 +175,7 @@ export async function GET(
     const session = await getApiSession(request);
     const userId = session?.user?.id || null;
 
-    const { data: post, error } = await supabaseAdmin
+    const { data: post, error } = await dbAdmin
       .from('creator_posts')
       .select(POST_SELECT)
       .eq('id', id)
@@ -206,7 +206,7 @@ export async function PUT(
     const body = await request.json();
     const { content } = body;
 
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await dbAdmin
       .from('creator_posts')
       .select('creator_id, image_url')
       .eq('id', id)
@@ -216,7 +216,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 
-    const { data: updated, error } = await supabaseAdmin
+    const { data: updated, error } = await dbAdmin
       .from('creator_posts')
       .update({ content: content?.trim() || null, updated_at: new Date().toISOString() })
       .eq('id', id)
@@ -243,7 +243,7 @@ export async function DELETE(
 
     const { id } = params;
 
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await dbAdmin
       .from('creator_posts')
       .select('creator_id')
       .eq('id', id)
@@ -253,7 +253,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('creator_posts')
       .delete()
       .eq('id', id);

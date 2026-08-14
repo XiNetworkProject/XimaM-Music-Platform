@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 import TrackPageClient from './TrackPageClient';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
@@ -19,7 +19,7 @@ async function getTrack(id: string) {
   const userId = (session?.user as any)?.id || null;
 
   if (isAI) {
-    const { data } = await supabase
+    const { data } = await db
       .from('ai_tracks')
       .select('*, generation:ai_generations!inner(id, user_id, prompt, metadata, is_public, status)')
       .eq('id', cleanId)
@@ -56,7 +56,7 @@ async function getTrack(id: string) {
     };
   }
 
-  const { data: track } = await supabase
+  const { data: track } = await db
     .from('tracks')
     .select('*')
     .eq('id', id)
@@ -73,7 +73,7 @@ async function getTrack(id: string) {
 
   let artistProfile: any = null;
   if (track.creator_id) {
-    const { data: p } = await supabase
+    const { data: p } = await db
       .from('profiles')
       .select('username, name, avatar')
       .eq('id', track.creator_id)

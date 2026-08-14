@@ -12,7 +12,7 @@ type PromptRelease = {
 };
 
 const DISMISS_KEY = 'synaura.android-prompt-dismissed';
-const PUBLIC_MANIFEST_URL = 'https://ekddunxvtatdvxbszcsh.supabase.co/storage/v1/object/public/mobile-releases/latest.json';
+const PUBLIC_MANIFEST_URL = 'https://media.synaura.fr/mobile-releases/latest.json';
 
 export default function AndroidAppPrompt() {
   const [release, setRelease] = useState<PromptRelease | null>(null);

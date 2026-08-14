@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { deleteLocalMedia, storeWebFile } from '@/lib/localMediaStorage';
 
 export const runtime = 'nodejs';
@@ -17,7 +17,7 @@ export async function GET(
       return NextResponse.json({ error: 'ID du bulletin requis' }, { status: 400 });
     }
 
-    const { data: bulletin, error: fetchError } = await supabaseAdmin
+    const { data: bulletin, error: fetchError } = await dbAdmin
       .from('meteo_bulletins')
       .select('*')
       .eq('id', id)
@@ -28,7 +28,7 @@ export async function GET(
     }
 
     const session = await getServerSession(authOptions);
-    const isTeam = session?.user?.id ? !!(await supabaseAdmin
+    const isTeam = session?.user?.id ? !!(await dbAdmin
       .from('meteo_team_members')
       .select('id')
       .eq('user_id', session.user.id)
@@ -73,7 +73,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
     }
 
-    const { data: teamMember } = await supabaseAdmin
+    const { data: teamMember } = await dbAdmin
       .from('meteo_team_members')
       .select('role')
       .eq('user_id', session.user.id)
@@ -89,7 +89,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'ID du bulletin requis' }, { status: 400 });
     }
 
-    const { data: existingBulletin, error: fetchError } = await supabaseAdmin
+    const { data: existingBulletin, error: fetchError } = await dbAdmin
       .from('meteo_bulletins')
       .select('*')
       .eq('id', id)
@@ -188,7 +188,7 @@ export async function PATCH(
 
     // Si mode = 'publish' : mettre tous les bulletins publiés existants à is_current = false
     if (isPublish) {
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await dbAdmin
         .from('meteo_bulletins')
         .update({ is_current: false })
         .eq('author_id', session.user.id)
@@ -222,7 +222,7 @@ export async function PATCH(
       updateData.is_current = false;
     }
 
-    const { data: updatedBulletin, error: updateError } = await supabaseAdmin
+    const { data: updatedBulletin, error: updateError } = await dbAdmin
       .from('meteo_bulletins')
       .update(updateData)
       .eq('id', id)

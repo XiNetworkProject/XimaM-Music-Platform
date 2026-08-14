@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { findDirectConversation, getBlockState, usersAreFriends } from '@/lib/messaging';
 
 export const dynamic = 'force-dynamic';
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [{ data: outgoingRows }, { data: incomingRows }] = await Promise.all([
-      supabaseAdmin
+      dbAdmin
         .from('message_requests')
         .select('id, requester_id, target_id, status, created_at')
         .eq('requester_id', userId)
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(1),
-      supabaseAdmin
+      dbAdmin
         .from('message_requests')
         .select('id, requester_id, target_id, status, created_at')
         .eq('requester_id', targetId)

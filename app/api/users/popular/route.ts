@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { db, dbAdmin } from '@/lib/database';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '20');
 
-    // Récupérer les utilisateurs populaires depuis Supabase
+    // Récupérer les utilisateurs populaires depuis PostgreSQL
     // Trier par follower_count, total_plays et total_likes pour obtenir les plus populaires
-    const { data: users, error } = await supabase
+    const { data: users, error } = await db
       .from('profiles')
       .select(`
         id,
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       .limit(limit * 2); // Récupérer plus pour filtrer et trier
 
     if (error) {
-      console.error('❌ Erreur Supabase popular users:', error);
+      console.error('❌ Erreur PostgreSQL popular users:', error);
       return NextResponse.json(
         { error: 'Erreur lors de la récupération des utilisateurs populaires' },
         { status: 500 }
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     let artistBoostMap = new Map<string, number>();
     if (userIds.length) {
       const nowIso = new Date().toISOString();
-      const { data: abs } = await supabaseAdmin
+      const { data: abs } = await dbAdmin
         .from('active_artist_boosts')
         .select('artist_id, multiplier, expires_at')
         .in('artist_id', userIds)
@@ -104,3 +104,4 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export const dynamic = 'force-dynamic';

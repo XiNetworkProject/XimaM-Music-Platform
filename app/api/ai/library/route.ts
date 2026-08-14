@@ -1,7 +1,7 @@
 // app/api/ai/library/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
     const search = searchParams.get('search') || '';
 
-    let query = supabaseAdmin
+    let query = dbAdmin
       .from('ai_generations')
       .select('*, tracks:ai_tracks(*)')
       .eq('user_id', session.user.id)
@@ -42,3 +42,5 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

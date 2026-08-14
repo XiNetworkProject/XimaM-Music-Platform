@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { db, dbAdmin } from '@/lib/database';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
 
 export async function GET(request: NextRequest) {
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     // Recherche dans les pistes (si nécessaire)
     if (filter === 'all' || filter === 'tracks') {
       searchPromises.push(
-        applyPublicTrackFilter(supabase
+        applyPublicTrackFilter(db
           .from('tracks')
           .select(`
             id,
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     // Recherche dans les artistes/utilisateurs (si nécessaire)
     if (filter === 'all' || filter === 'artists') {
       searchPromises.push(
-        supabase
+        db
           .from('profiles')
           .select(`
             id,
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     // Recherche dans les playlists (si nécessaire)
     if (filter === 'all' || filter === 'playlists') {
       searchPromises.push(
-        supabase
+        db
           .from('playlists')
           .select(`
             id,
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
     // Recherche dans les posts publics (si nécessaire)
     if (filter === 'all' || filter === 'posts') {
       searchPromises.push(
-        supabaseAdmin
+        dbAdmin
           .from('creator_posts')
           .select(`
             id,
@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
       const creatorIds = Array.from(new Set(tracksResult.data.map((track: any) => track.creator_id)));
       
       if (creatorIds.length > 0) {
-        const { data: creatorsData, error: creatorsError } = await supabase
+        const { data: creatorsData, error: creatorsError } = await db
           .from('profiles')
           .select('id, username, name, avatar, is_artist, artist_name')
           .in('id', creatorIds);
@@ -197,7 +197,7 @@ export async function GET(request: NextRequest) {
       const playlistCreatorIds = Array.from(new Set(playlistsResult.data.map((playlist: any) => playlist.creator_id)));
       
       if (playlistCreatorIds.length > 0) {
-        const { data: playlistCreatorsData, error: playlistCreatorsError } = await supabase
+        const { data: playlistCreatorsData, error: playlistCreatorsError } = await db
           .from('profiles')
           .select('id, username, name, avatar')
           .in('id', playlistCreatorIds);
@@ -279,3 +279,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Récupérer missions actives et progression utilisateur
-    const { data: missions, error } = await supabaseAdmin
+    const { data: missions, error } = await dbAdmin
       .from('missions')
       .select(`
         id, key, title, goal_type, threshold, cooldown_hours, reward_booster_id, enabled,
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const missionIds = (missions || []).map(m => m.id);
     let progress: any[] = [];
     if (missionIds.length) {
-      const { data: p, error: pErr } = await supabaseAdmin
+      const { data: p, error: pErr } = await dbAdmin
         .from('user_missions')
         .select('mission_id, progress, completed_at, claimed')
         .eq('user_id', userId)
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       const hours = Math.abs(new Date(nowIso).getTime() - new Date(um.completed_at).getTime()) / 3_600_000;
       if (hours >= cd) {
         try {
-          await supabaseAdmin
+          await dbAdmin
             .from('user_missions')
             .update({ progress: 0, completed_at: null, claimed: false, last_progress_at: null })
             .eq('user_id', userId)

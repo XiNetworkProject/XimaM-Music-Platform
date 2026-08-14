@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 async function getTeamMember(userId: string) {
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('meteo_team_members')
     .select('*')
     .eq('user_id', userId)
@@ -38,7 +38,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'is_hidden (boolean) requis' }, { status: 400 });
     }
 
-    const { data: comment, error } = await supabaseAdmin
+    const { data: comment, error } = await dbAdmin
       .from('meteo_comments')
       .update({ is_hidden, updated_at: new Date().toISOString() })
       .eq('id', params.id)
@@ -70,7 +70,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const { data: comment } = await supabaseAdmin
+    const { data: comment } = await dbAdmin
       .from('meteo_comments')
       .select('id, user_id')
       .eq('id', params.id)
@@ -89,7 +89,7 @@ export async function DELETE(
       }
     }
 
-    const { error: deleteError } = await supabaseAdmin
+    const { error: deleteError } = await dbAdmin
       .from('meteo_comments')
       .delete()
       .eq('id', params.id);

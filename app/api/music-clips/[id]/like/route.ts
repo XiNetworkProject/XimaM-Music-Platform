@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import {
   countMusicClipLikesStored,
   hasMusicClipLike,
@@ -9,7 +9,7 @@ import {
 } from '@/lib/musicClipInteractionStore';
 
 async function getPublishedClip(clipId: string) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('music_clips')
     .select('id, creator_id, visibility, likes_count')
     .eq('id', clipId)
@@ -21,7 +21,7 @@ async function getPublishedClip(clipId: string) {
 
 async function countLikes(clipId: string) {
   const likesCount = await countMusicClipLikesStored(clipId);
-  await supabaseAdmin.from('music_clips').update({ likes_count: likesCount }).eq('id', clipId);
+  await dbAdmin.from('music_clips').update({ likes_count: likesCount }).eq('id', clipId);
   return likesCount;
 }
 
@@ -76,3 +76,5 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     return NextResponse.json({ error: error?.message || 'Impossible de retirer le like' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

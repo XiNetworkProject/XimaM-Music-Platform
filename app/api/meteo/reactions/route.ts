@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 async function getReactionCounts(bulletinId: string) {
-  const { data: reactions, error } = await supabaseAdmin
+  const { data: reactions, error } = await dbAdmin
     .from('meteo_reactions')
     .select('type')
     .eq('bulletin_id', bulletinId);
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     const session = await getServerSession(authOptions);
     if (session?.user?.id) {
-      const { data: userReacts } = await supabaseAdmin
+      const { data: userReacts } = await dbAdmin
         .from('meteo_reactions')
         .select('type')
         .eq('bulletin_id', bulletinId)
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Type de réaction invalide (like ou useful)' }, { status: 400 });
     }
 
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await dbAdmin
       .from('meteo_reactions')
       .select('id')
       .eq('bulletin_id', bulletinId)
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     let reacted: boolean;
 
     if (existing) {
-      const { error } = await supabaseAdmin
+      const { error } = await dbAdmin
         .from('meteo_reactions')
         .delete()
         .eq('id', existing.id);
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       }
       reacted = false;
     } else {
-      const { error } = await supabaseAdmin
+      const { error } = await dbAdmin
         .from('meteo_reactions')
         .insert({
           bulletin_id: bulletinId,

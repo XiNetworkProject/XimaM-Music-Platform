@@ -1,5 +1,5 @@
 import 'server-only';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { createNotification } from '@/lib/notifications';
 import { normalizeRemixTrackRef } from '@/lib/remixServer';
 
@@ -63,7 +63,7 @@ async function notifyChallengeStartedIfDue(row: any) {
   const ref = normalizeRemixTrackRef(row.source_track_id, row.source_track_type);
   let ownerId: string | null = null;
   if (ref.type === 'ai_track') {
-    const { data } = await supabaseAdmin
+    const { data } = await dbAdmin
       .from('ai_tracks')
       .select('generation:ai_generations!inner(user_id)')
       .eq('id', ref.id)
@@ -71,13 +71,13 @@ async function notifyChallengeStartedIfDue(row: any) {
     const generation = Array.isArray((data as any)?.generation) ? (data as any).generation[0] : (data as any)?.generation;
     ownerId = generation?.user_id ? String(generation.user_id) : null;
   } else {
-    const { data } = await supabaseAdmin.from('tracks').select('creator_id').eq('id', ref.id).maybeSingle();
+    const { data } = await dbAdmin.from('tracks').select('creator_id').eq('id', ref.id).maybeSingle();
     ownerId = data?.creator_id ? String(data.creator_id) : null;
   }
 
   // Marque comme notifie avant tout, meme si le proprietaire est introuvable, pour ne
   // jamais retenter a chaque lecture suivante.
-  await supabaseAdmin
+  await dbAdmin
     .from('music_challenges')
     .update({ started_notified_at: new Date().toISOString() })
     .eq('id', row.id)
@@ -98,7 +98,7 @@ async function notifyChallengeStartedIfDue(row: any) {
 }
 
 async function countRealEntries(challengeId: string): Promise<number> {
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('challenge_entries')
     .select('id, content_type, content_id')
     .eq('challenge_id', challengeId);
@@ -136,7 +136,7 @@ export async function getLinkedChallengeForSource(
   sourceTrackId: string,
   sourceTrackType: 'track' | 'ai_track',
 ): Promise<MusicChallengeSummary | null> {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('music_challenges')
     .select('*')
     .eq('source_track_id', sourceTrackId)
@@ -156,7 +156,7 @@ export async function getLinkedChallengeForSource(
 }
 
 export async function listMusicChallenges(options: { status?: ChallengeStatus } = {}): Promise<MusicChallengeSummary[]> {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('music_challenges')
     .select('*')
     .order('starts_at', { ascending: false });
@@ -185,7 +185,7 @@ export async function resolveEntryContent(
   expectedUserId?: string,
 ): Promise<{ ownerId: string; username: string; name: string; avatar: string | null; title: string; coverUrl: string | null; audioUrl: string | null; videoUrl: string | null; href: string } | null> {
   if (contentType === 'clip') {
-    const { data } = await supabaseAdmin
+    const { data } = await dbAdmin
       .from('music_clips')
       .select('*, creator:profiles!music_clips_creator_id_fkey(id, username, name, avatar)')
       .eq('id', contentId)
@@ -211,7 +211,7 @@ export async function resolveEntryContent(
 
   if (contentType === 'variation') {
     const childRef = normalizeRemixTrackRef(contentId);
-    const { data: remixRow } = await supabaseAdmin
+    const { data: remixRow } = await dbAdmin
       .from('track_remixes')
       .select('*')
       .eq('child_track_id', childRef.id)
@@ -225,14 +225,14 @@ export async function resolveEntryContent(
     const childId = (remixRow as any).child_track_id;
     const childType = (remixRow as any).child_track_type;
     if (childType === 'ai_track') {
-      const { data: track } = await supabaseAdmin
+      const { data: track } = await dbAdmin
         .from('ai_tracks')
         .select('*, generation:ai_generations!inner(is_public, status)')
         .eq('id', childId)
         .maybeSingle();
       const generation = Array.isArray((track as any)?.generation) ? (track as any).generation[0] : (track as any)?.generation;
       if (!track || track.is_public !== true || generation?.status !== 'completed' || generation?.is_public !== true) return null;
-      const { data: profile } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').eq('id', ownerId).maybeSingle();
+      const { data: profile } = await dbAdmin.from('profiles').select('id, username, name, avatar').eq('id', ownerId).maybeSingle();
       return {
         ownerId,
         username: profile?.username || '',
@@ -245,9 +245,9 @@ export async function resolveEntryContent(
         href: `/track/ai-${childId}`,
       };
     }
-    const { data: track } = await supabaseAdmin.from('tracks').select('*').eq('id', childId).maybeSingle();
+    const { data: track } = await dbAdmin.from('tracks').select('*').eq('id', childId).maybeSingle();
     if (!track || track.is_public !== true) return null;
-    const { data: profile } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').eq('id', ownerId).maybeSingle();
+    const { data: profile } = await dbAdmin.from('profiles').select('id, username, name, avatar').eq('id', ownerId).maybeSingle();
     return {
       ownerId,
       username: profile?.username || '',
@@ -264,7 +264,7 @@ export async function resolveEntryContent(
   // contentType === 'track'
   const ref = normalizeRemixTrackRef(contentId);
   if (ref.type === 'ai_track') {
-    const { data: track } = await supabaseAdmin
+    const { data: track } = await dbAdmin
       .from('ai_tracks')
       .select('*, generation:ai_generations!inner(user_id, is_public, status)')
       .eq('id', ref.id)
@@ -273,7 +273,7 @@ export async function resolveEntryContent(
     if (!track || track.is_public !== true || generation?.status !== 'completed' || generation?.is_public !== true) return null;
     const ownerId = String(generation?.user_id || '');
     if (expectedUserId && ownerId !== expectedUserId) return null;
-    const { data: profile } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').eq('id', ownerId).maybeSingle();
+    const { data: profile } = await dbAdmin.from('profiles').select('id, username, name, avatar').eq('id', ownerId).maybeSingle();
     return {
       ownerId,
       username: profile?.username || '',
@@ -286,7 +286,7 @@ export async function resolveEntryContent(
       href: `/track/ai-${ref.id}`,
     };
   }
-  const { data: track } = await supabaseAdmin
+  const { data: track } = await dbAdmin
     .from('tracks')
     .select('*, profiles:profiles!tracks_creator_id_fkey(id, username, name, avatar)')
     .eq('id', ref.id)
@@ -308,12 +308,12 @@ export async function resolveEntryContent(
 }
 
 export async function getMusicChallengeDetail(id: string, viewerId?: string | null): Promise<MusicChallengeDetail | null> {
-  const { data: row, error } = await supabaseAdmin.from('music_challenges').select('*').eq('id', id).maybeSingle();
+  const { data: row, error } = await dbAdmin.from('music_challenges').select('*').eq('id', id).maybeSingle();
   if (error || !row) return null;
 
   notifyChallengeStartedIfDue(row).catch(() => {});
 
-  const { data: rawEntries } = await supabaseAdmin
+  const { data: rawEntries } = await dbAdmin
     .from('challenge_entries')
     .select('*')
     .eq('challenge_id', id)
@@ -360,7 +360,7 @@ export async function recordChallengeEntry(input: {
    * meme si elle n'est approuvee qu'apres la fin de celui-ci. */
   submittedAt?: string;
 }): Promise<{ ok: true; created: boolean; entry: any } | { ok: false; status: number; error: string }> {
-  const { data: challenge } = await supabaseAdmin.from('music_challenges').select('*').eq('id', input.challengeId).maybeSingle();
+  const { data: challenge } = await dbAdmin.from('music_challenges').select('*').eq('id', input.challengeId).maybeSingle();
   if (!challenge) return { ok: false, status: 404, error: 'Defi introuvable.' };
 
   if (input.submittedAt) {
@@ -382,7 +382,7 @@ export async function recordChallengeEntry(input: {
   const resolved = await resolveEntryContent(input.contentType, input.contentId, input.userId);
   if (!resolved) return { ok: false, status: 403, error: "Ce contenu n'est pas publie ou ne t'appartient pas." };
 
-  const { data: existing } = await supabaseAdmin
+  const { data: existing } = await dbAdmin
     .from('challenge_entries')
     .select('id')
     .eq('challenge_id', input.challengeId)
@@ -391,7 +391,7 @@ export async function recordChallengeEntry(input: {
     .eq('content_id', input.contentId)
     .maybeSingle();
 
-  const { data: entry, error } = await supabaseAdmin
+  const { data: entry, error } = await dbAdmin
     .from('challenge_entries')
     .upsert(
       {
@@ -411,7 +411,7 @@ export async function recordChallengeEntry(input: {
     const ref = normalizeRemixTrackRef(challenge.source_track_id, challenge.source_track_type);
     let sourceOwnerId: string | null = null;
     if (ref.type === 'ai_track') {
-      const { data } = await supabaseAdmin
+      const { data } = await dbAdmin
         .from('ai_tracks')
         .select('generation:ai_generations!inner(user_id)')
         .eq('id', ref.id)
@@ -419,7 +419,7 @@ export async function recordChallengeEntry(input: {
       const generation = Array.isArray((data as any)?.generation) ? (data as any).generation[0] : (data as any)?.generation;
       sourceOwnerId = generation?.user_id ? String(generation.user_id) : null;
     } else {
-      const { data } = await supabaseAdmin.from('tracks').select('creator_id').eq('id', ref.id).maybeSingle();
+      const { data } = await dbAdmin.from('tracks').select('creator_id').eq('id', ref.id).maybeSingle();
       sourceOwnerId = data?.creator_id ? String(data.creator_id) : null;
     }
     if (sourceOwnerId && sourceOwnerId !== input.userId) {

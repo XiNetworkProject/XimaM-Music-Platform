@@ -1,14 +1,10 @@
 import type { Metadata } from 'next';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+import { db } from '@/lib/database';
 const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || 'https://www.synaura.fr').replace(/\/$/, '');
 
 async function getProfile(username: string) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    const { data } = await supabase
+    const { data } = await db
       .from('profiles')
       .select('username, name, bio, avatar, is_artist, artist_name, genre, total_plays, total_likes, followers_count')
       .eq('username', username.toLowerCase())

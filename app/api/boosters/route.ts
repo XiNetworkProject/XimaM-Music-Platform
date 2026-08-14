@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,18 +19,18 @@ export async function GET(request: NextRequest) {
     // Bonus abonnés: cooldown réduit
     let plan: 'free' | 'starter' | 'pro' | 'enterprise' = 'free';
     try {
-      const { data: p } = await supabaseAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
+      const { data: p } = await dbAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
       if (p?.plan) plan = p.plan;
     } catch {}
     const cooldownMs = plan !== 'free' ? 12 * 3_600_000 : 24 * 3_600_000;
 
     const [{ data: inv, error: invErr }, { data: daily, error: dailyErr }] = await Promise.all([
-      supabaseAdmin
+      dbAdmin
         .from('user_boosters')
         .select('id, status, obtained_at, used_at, booster:boosters(id, key, name, description, type, rarity, multiplier, duration_hours)')
         .eq('user_id', userId)
         .order('obtained_at', { ascending: false }),
-      supabaseAdmin
+      dbAdmin
         .from('user_booster_daily')
         .select('*')
         .eq('user_id', userId)
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     // Pity + pack claims (best-effort, tables may not exist yet)
     let pity = { opens_since_rare: 0, opens_since_epic: 0, opens_since_legendary: 0 };
     try {
-      const { data: pityRow } = await supabaseAdmin
+      const { data: pityRow } = await dbAdmin
         .from('user_booster_pity')
         .select('opens_since_rare, opens_since_epic, opens_since_legendary')
         .eq('user_id', userId)
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       const diff = (day + 6) % 7;
       dt.setUTCDate(dt.getUTCDate() - diff);
       const periodStart = dt.toISOString().slice(0, 10);
-      const { data: rows } = await supabaseAdmin
+      const { data: rows } = await dbAdmin
         .from('user_booster_pack_claims')
         .select('pack_key, claimed_count')
         .eq('user_id', userId)

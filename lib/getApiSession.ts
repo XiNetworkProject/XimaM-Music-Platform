@@ -5,8 +5,8 @@
 import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import jwt from 'jsonwebtoken';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getLocalProfileById } from '@/lib/localAuth';
+import { verifyMobileAccessToken } from '@/lib/mobileAuth';
 
 export type ApiSessionUser = {
   id: string;
@@ -24,22 +24,11 @@ export async function getSessionFromToken(token: string | null | undefined): Pro
   const t = token.trim();
   if (!t) return null;
   try {
-    let userId = '';
-    const { data: supabaseAuth } = await supabaseAdmin.auth.getClaims(t);
-    if (supabaseAuth?.claims?.sub) {
-      userId = String(supabaseAuth.claims.sub);
-    } else if (process.env.NEXTAUTH_SECRET) {
-      // Temporary compatibility for installed app versions carrying the former JWT.
-      const payload = jwt.verify(t, process.env.NEXTAUTH_SECRET) as { id?: string };
-      userId = payload?.id || '';
-    }
+    const verified = await verifyMobileAccessToken(t);
+    const userId = verified?.userId || '';
     if (!userId) return null;
-    const { data: profile, error } = await supabaseAdmin
-      .from('profiles')
-      .select('id, email, name, username, avatar, role')
-      .eq('id', userId)
-      .single();
-    if (error || !profile) return null;
+    const profile = await getLocalProfileById(userId);
+    if (!profile) return null;
     return {
       user: {
         id: profile.id,

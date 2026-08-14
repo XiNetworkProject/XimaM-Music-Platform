@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { applyMissionProgress } from '@/lib/missions/progress';
 
 export const runtime = 'nodejs';
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Lire l'item d'inventaire
-    const { data: inv, error: invErr } = await supabaseAdmin
+    const { data: inv, error: invErr } = await dbAdmin
       .from('user_boosters')
       .select('id, status, booster:boosters(id, type, multiplier, duration_hours, enabled)')
       .eq('id', inventoryId)
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       const expiresIso = expires.toISOString();
 
       // Fusionner éventuels boosts actifs artiste
-      const { data: existing, error: existingErr } = await supabaseAdmin
+      const { data: existing, error: existingErr } = await dbAdmin
         .from('active_artist_boosts')
         .select('id, multiplier, expires_at')
         .eq('artist_id', userId)
@@ -71,20 +71,20 @@ export async function POST(request: NextRequest) {
           expires.getTime()
         )).toISOString();
 
-        const { error: upd } = await supabaseAdmin
+        const { error: upd } = await dbAdmin
           .from('active_artist_boosts')
           .update({ multiplier: mergedMultiplier, expires_at: mergedExpires })
           .eq('id', keepId);
         if (upd) return NextResponse.json({ error: 'Erreur maj boost artiste' }, { status: 500 });
       } else {
-        const { error: ins } = await supabaseAdmin
+        const { error: ins } = await dbAdmin
           .from('active_artist_boosts')
           .insert({ artist_id: userId, user_id: userId, booster_id: booster.id, multiplier: booster.multiplier, started_at: nowIso, expires_at: expiresIso, source: 'booster' });
         if (ins) return NextResponse.json({ error: 'Erreur activation artiste' }, { status: 500 });
       }
 
       // Consommer l’inventaire
-      const { error: updErr2 } = await supabaseAdmin
+      const { error: updErr2 } = await dbAdmin
         .from('user_boosters')
         .update({ status: 'used', used_at: new Date().toISOString() })
         .eq('id', inventoryId)
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérifier que la piste existe et appartient à l'utilisateur
-    const { data: trackRow, error: trackErr } = await supabaseAdmin
+    const { data: trackRow, error: trackErr } = await dbAdmin
       .from('tracks')
       .select('id, creator_id')
       .eq('id', targetTrackId)
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     const nowIso = now.toISOString();
 
     // Chercher un boost actif déjà présent pour cette piste et fusionner au besoin
-    const { data: existingBoosts, error: existingErr } = await supabaseAdmin
+    const { data: existingBoosts, error: existingErr } = await dbAdmin
       .from('active_track_boosts')
       .select('id, multiplier, expires_at')
       .eq('track_id', targetTrackId)
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
       const keepId = existingBoosts[0].id;
       const deleteIds = existingBoosts.slice(1).map(b => b.id);
 
-      const { error: updBoostErr } = await supabaseAdmin
+      const { error: updBoostErr } = await dbAdmin
         .from('active_track_boosts')
         .update({ multiplier: mergedMultiplier, expires_at: mergedExpires })
         .eq('id', keepId);
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Erreur mise à jour boost' }, { status: 500 });
       }
       if (deleteIds.length) {
-        await supabaseAdmin
+        await dbAdmin
           .from('active_track_boosts')
           .delete()
           .in('id', deleteIds);
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
       effectiveExpires = mergedExpires;
     } else {
       // Créer le boost
-      const { error: actErr } = await supabaseAdmin
+      const { error: actErr } = await dbAdmin
         .from('active_track_boosts')
         .insert({
           track_id: targetTrackId,
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Marquer l'inventaire comme utilisé
-    const { error: updErr } = await supabaseAdmin
+    const { error: updErr } = await dbAdmin
       .from('user_boosters')
       .update({ status: 'used', used_at: now.toISOString() })
       .eq('id', inventoryId)

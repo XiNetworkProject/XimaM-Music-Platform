@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import contentModerator from '@/lib/contentModeration';
 
 // POST /api/tracks/[id]/comments/[commentId]/replies - ajouter une réponse
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ error: 'Contenu refusé', details: mod }, { status: 400 });
   }
 
-  const { data: inserted, error } = await supabaseAdmin
+  const { data: inserted, error } = await dbAdmin
     .from('comments')
     .insert({ track_id: trackId, user_id: userId, content, parent_id: parentId })
     .select('id, content, created_at, updated_at, user_id')
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   if (error || !inserted) return NextResponse.json({ error: 'Impossible de publier' }, { status: 500 });
 
-  const { data: user } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').eq('id', userId).maybeSingle();
+  const { data: user } = await dbAdmin.from('profiles').select('id, username, name, avatar').eq('id', userId).maybeSingle();
 
   return NextResponse.json({
     reply: {
@@ -51,3 +51,4 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   });
 }
 
+export const dynamic = 'force-dynamic';

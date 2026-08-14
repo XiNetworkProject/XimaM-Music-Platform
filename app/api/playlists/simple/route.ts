@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Version simplifiée de l'API playlists pour tester
 // Utilise un stockage en mémoire temporaire
 
-// Stockage temporaire des playlists (à remplacer par Supabase plus tard)
+// Stockage temporaire des playlists (à remplacer par PostgreSQL plus tard)
 let tempPlaylists: any[] = [];
 let nextId = 1;
 
@@ -77,3 +77,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

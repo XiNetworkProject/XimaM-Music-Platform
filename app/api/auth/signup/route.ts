@@ -1,170 +1,74 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { createLocalUser } from '@/lib/localAuth';
 import { sendEmail, welcomeEmailTemplate } from '@/lib/email';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, username, email, password, referralCode } = await request.json();
+    const body = await request.json().catch(() => null);
+    const name = typeof body?.name === 'string' ? body.name.trim() : '';
+    const username = typeof body?.username === 'string' ? body.username.trim().toLowerCase() : '';
+    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const password = typeof body?.password === 'string' ? body.password : '';
+    const referralCode = typeof body?.referralCode === 'string' ? body.referralCode.trim() : '';
 
     if (!name || !username || !email || !password) {
-      return NextResponse.json(
-        { error: 'Tous les champs sont requis' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Tous les champs sont requis' }, { status: 400 });
+    }
+    if (name.length < 2) {
+      return NextResponse.json({ error: 'Le nom doit contenir au moins 2 caracteres' }, { status: 400 });
+    }
+    if (username.length < 3 || username.length > 24) {
+      return NextResponse.json({ error: 'Le nom utilisateur doit contenir entre 3 et 24 caracteres' }, { status: 400 });
+    }
+    if (!/^[a-z0-9_]+$/i.test(username)) {
+      return NextResponse.json({ error: 'Le nom utilisateur ne peut contenir que des lettres, chiffres et underscores' }, { status: 400 });
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      return NextResponse.json({ error: 'Format email invalide' }, { status: 400 });
+    }
+    if (password.length < 8) {
+      return NextResponse.json({ error: 'Le mot de passe doit contenir au moins 8 caracteres' }, { status: 400 });
     }
 
-    if (name.trim().length < 2) {
-      return NextResponse.json(
-        { error: 'Le nom doit contenir au moins 2 caractères' },
-        { status: 400 }
-      );
-    }
-
-    if (username.trim().length < 3) {
-      return NextResponse.json(
-        { error: 'Le nom d\'utilisateur doit contenir au moins 3 caractères' },
-        { status: 400 }
-      );
-    }
-
-    if (!/^[a-zA-Z0-9_]+$/.test(username.trim())) {
-      return NextResponse.json(
-        { error: 'Le nom d\'utilisateur ne peut contenir que des lettres, chiffres et underscores' },
-        { status: 400 }
-      );
-    }
-
-    if (!/\S+@\S+\.\S+/.test(email.trim())) {
-      return NextResponse.json(
-        { error: 'Format d\'email invalide' },
-        { status: 400 }
-      );
-    }
-
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: 'Le mot de passe doit contenir au moins 6 caractères' },
-        { status: 400 }
-      );
-    }
-
-    const { data: existingEmail, error: emailError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('email', email.trim().toLowerCase())
-      .single();
-
-    if (existingEmail && !emailError) {
-      return NextResponse.json(
-        { error: 'Un compte avec cet email existe déjà' },
-        { status: 409 }
-      );
-    }
-
-    const { data: existingUsername, error: usernameError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('username', username.trim().toLowerCase())
-      .single();
-
-    if (existingUsername && !usernameError) {
-      return NextResponse.json(
-        { error: 'Ce nom d\'utilisateur est déjà pris' },
-        { status: 409 }
-      );
-    }
-
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: email.trim().toLowerCase(),
-      password: password,
-      email_confirm: true
-    });
-
-    if (authError || !user) {
-      console.error('❌ Erreur lors de la création de l\'utilisateur Supabase:', authError);
-      return NextResponse.json(
-        { error: authError?.message || 'Erreur lors de la création du compte' },
-        { status: 500 }
-      );
-    }
-
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .insert({
-        id: user.id,
-        name: name.trim(),
-        username: username.trim().toLowerCase(),
-        email: email.trim().toLowerCase(),
-        is_verified: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (profileError) {
-      console.error('❌ Erreur lors de la création du profil:', profileError);
-      await supabaseAdmin.auth.admin.deleteUser(user.id);
-      return NextResponse.json(
-        { error: profileError?.message || 'Erreur lors de la création du profil' },
-        { status: 500 }
-      );
-    }
-
-    console.log('✅ Nouvel utilisateur créé:', profile.username);
-
-    // Process referral if provided
+    const profile = await createLocalUser({ name, username, email, password });
     let referrerName: string | null = null;
     if (referralCode) {
       try {
-        const refRes = await fetch(
-          `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/referral`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ referralCode, newUserId: user.id }),
-          }
-        );
-        if (refRes.ok) {
-          const refData = await refRes.json();
-          referrerName = refData.referrerUsername || null;
-          console.log('✅ Parrainage appliqué:', referralCode);
+        const referralUrl = new URL('/api/referral', request.url);
+        const response = await fetch(referralUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ referralCode, newUserId: profile.id }),
+        });
+        if (response.ok) {
+          const referral = await response.json();
+          referrerName = referral.referrerUsername || null;
         }
-      } catch (refErr) {
-        console.warn('⚠️ Erreur parrainage (non bloquant):', refErr);
+      } catch (error) {
+        console.warn('[auth] parrainage non applique:', error);
       }
     }
 
-    // Send welcome email (non-blocking)
-    sendEmail({
-      to: email.trim().toLowerCase(),
-      subject: 'Bienvenue sur Synaura ! 🎵',
-      html: welcomeEmailTemplate({
-        name: name.trim(),
-        username: username.trim().toLowerCase(),
-        referrerName,
-      }),
-    }).catch((err: any) => console.warn('⚠️ Erreur envoi email bienvenue:', err));
+    void sendEmail({
+      to: email,
+      subject: 'Bienvenue sur Synaura !',
+      html: welcomeEmailTemplate({ name, username, referrerName }),
+    }).catch((error: unknown) => console.warn('[auth] email de bienvenue non envoye:', error));
 
-    return NextResponse.json(
-      { 
-        message: 'Compte créé avec succès',
-        user: {
-          id: profile.id,
-          name: profile.name,
-          username: profile.username,
-          email: profile.email
-        }
-      },
-      { status: 201 }
-    );
-
-  } catch (error) {
-    console.error('❌ Erreur lors de l\'inscription:', error);
-    
-    return NextResponse.json(
-      { error: 'Erreur interne du serveur' },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      message: 'Compte cree avec succes',
+      user: { id: profile.id, name: profile.name, username: profile.username, email: profile.email },
+    }, { status: 201 });
+  } catch (error: any) {
+    if (error?.code === 'EMAIL_EXISTS') {
+      return NextResponse.json({ error: 'Un compte avec cet email existe deja' }, { status: 409 });
+    }
+    if (error?.code === 'USERNAME_EXISTS') {
+      return NextResponse.json({ error: 'Ce nom utilisateur est deja pris' }, { status: 409 });
+    }
+    console.error('[auth] creation du compte impossible:', error);
+    return NextResponse.json({ error: 'Erreur lors de la creation du compte' }, { status: 500 });
   }
 }

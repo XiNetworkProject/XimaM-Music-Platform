@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,8 +22,8 @@ export async function POST(request: NextRequest) {
 
     // Lire mission + progression
     const [{ data: mission, error: mErr }, { data: um, error: uErr }] = await Promise.all([
-      supabaseAdmin.from('missions').select('id, reward_booster_id, threshold, cooldown_hours').eq('id', missionId).single(),
-      supabaseAdmin.from('user_missions').select('id, progress, completed_at, claimed').eq('user_id', userId).eq('mission_id', missionId).maybeSingle(),
+      dbAdmin.from('missions').select('id, reward_booster_id, threshold, cooldown_hours').eq('id', missionId).single(),
+      dbAdmin.from('user_missions').select('id, progress, completed_at, claimed').eq('user_id', userId).eq('mission_id', missionId).maybeSingle(),
     ]);
     if (mErr || !mission) {
       return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 });
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       const cdMs = Number(mission.cooldown_hours || 0) * 3_600_000;
       const elapsed = Date.now() - new Date(um.completed_at).getTime();
       if (elapsed >= cdMs) {
-        await supabaseAdmin
+        await dbAdmin
           .from('user_missions')
           .update({ progress: 0, completed_at: null, claimed: false, last_progress_at: null })
           .eq('user_id', userId)
@@ -49,12 +49,12 @@ export async function POST(request: NextRequest) {
     // Attribuer booster si dispo
     if (mission.reward_booster_id) {
       const [{ data: booster }, { error: invErr }] = await Promise.all([
-        supabaseAdmin
+        dbAdmin
           .from('boosters')
           .select('id, key, rarity, type, multiplier, duration_hours')
           .eq('id', mission.reward_booster_id)
           .maybeSingle(),
-        supabaseAdmin
+        dbAdmin
           .from('user_boosters')
           .insert({ user_id: userId, booster_id: mission.reward_booster_id, status: 'owned', metadata: { source: 'mission' } }),
       ]);
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
       // Historique best-effort
       try {
-        await supabaseAdmin.from('user_booster_open_history').insert({
+        await dbAdmin.from('user_booster_open_history').insert({
           user_id: userId,
           source: 'mission',
           booster_id: mission.reward_booster_id,
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Marquer claim
-    const { error: updErr } = await supabaseAdmin
+    const { error: updErr } = await dbAdmin
       .from('user_missions')
       .update({ claimed: true, completed_at: um.completed_at || new Date().toISOString() })
       .eq('user_id', userId)

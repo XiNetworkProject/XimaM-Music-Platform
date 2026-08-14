@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { buildRecommendationSignals } from './signals';
 import { loadGlobalTrackCandidates } from './candidates';
 import { rerankTracks } from './engine';
@@ -35,7 +35,7 @@ export async function legacyDiscoveryFeed(request: NextRequest, options: Discove
     const sessionSeed = requestedSessionId || `${userId || 'anonymous'}:${day}:compat:${options.strategy}`;
     const candidates = await loadGlobalTrackCandidates(options.includeAi ?? false);
     const signals = await buildRecommendationSignals({
-      supabase: supabaseAdmin,
+      db: dbAdmin,
       userId,
       candidateTracks: candidates,
       sessionId: requestedSessionId,

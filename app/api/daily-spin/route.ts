@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 type Reward =
   | { kind: 'none'; label: string }
@@ -32,7 +32,7 @@ function pickWeightedIndex() {
 }
 
 async function getStatus(userId: string) {
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('user_daily_spin')
     .select('last_spun_at, streak')
     .eq('user_id', userId)
@@ -54,14 +54,14 @@ async function grantCredits(userId: string, amount: number) {
   const safeAmount = Math.max(0, Math.floor(amount || 0));
   if (safeAmount <= 0) return { before: 0, after: 0 };
 
-  const { data: beforeRow } = await supabaseAdmin
+  const { data: beforeRow } = await dbAdmin
     .from('ai_credit_balances')
     .select('balance')
     .eq('user_id', userId)
     .maybeSingle();
   const before = Number(beforeRow?.balance || 0);
 
-  await supabaseAdmin.rpc('ai_add_credits', {
+  await dbAdmin.rpc('ai_add_credits', {
     p_user_id: userId,
     p_amount: safeAmount,
     p_source: 'daily_spin',
@@ -72,14 +72,14 @@ async function grantCredits(userId: string, amount: number) {
 }
 
 async function grantBooster(userId: string, boosterKey: string) {
-  const { data: booster, error: bErr } = await supabaseAdmin
+  const { data: booster, error: bErr } = await dbAdmin
     .from('boosters')
     .select('id, key, rarity, type, multiplier, duration_hours, name')
     .eq('key', boosterKey)
     .maybeSingle();
   if (bErr || !booster?.id) throw new Error('Booster introuvable');
 
-  const { data: inv, error: iErr } = await supabaseAdmin
+  const { data: inv, error: iErr } = await dbAdmin
     .from('user_boosters')
     .insert({
       user_id: userId,
@@ -92,7 +92,7 @@ async function grantBooster(userId: string, boosterKey: string) {
   if (iErr) throw new Error(iErr.message || 'Erreur inventaire booster');
 
   // log like other sources for history tab
-  await supabaseAdmin.from('user_booster_open_history').insert({
+  await dbAdmin.from('user_booster_open_history').insert({
     user_id: userId,
     source: 'spin',
     booster_id: booster.id,
@@ -134,7 +134,7 @@ export async function POST(_req: NextRequest) {
   const prevTs = status.lastSpunAt ? new Date(status.lastSpunAt).getTime() : null;
   const nextStreak = prevTs != null && (Date.now() - prevTs) <= (48 * 60 * 60 * 1000) ? (status.streak + 1) : 1;
 
-  const { error: upsertError } = await supabaseAdmin
+  const { error: upsertError } = await dbAdmin
     .from('user_daily_spin')
     .upsert({ user_id: userId, last_spun_at: nowIso, streak: nextStreak }, { onConflict: 'user_id' });
   if (upsertError) {
@@ -158,7 +158,7 @@ export async function POST(_req: NextRequest) {
     payload = { kind: 'none', error: e?.message || 'Reward error' };
   }
 
-  await supabaseAdmin.from('user_daily_spin_history').insert({
+  await dbAdmin.from('user_daily_spin_history').insert({
     user_id: userId,
     spun_at: nowIso,
     result_key: entry.key,
@@ -179,3 +179,4 @@ export async function POST(_req: NextRequest) {
   });
 }
 
+export const dynamic = 'force-dynamic';

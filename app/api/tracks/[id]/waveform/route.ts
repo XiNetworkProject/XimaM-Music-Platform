@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { normalizeRemixTrackRef } from '@/lib/remixServer';
 import { canViewAiTrack, canViewTrack } from '@/lib/publicTracks';
 
@@ -12,7 +12,7 @@ const MAX_PEAKS = 1000;
 
 async function loadViewableTrack(ref: { id: string; type: 'track' | 'ai_track' }, viewerId: string | null) {
   if (ref.type === 'ai_track') {
-    const { data } = await supabaseAdmin
+    const { data } = await dbAdmin
       .from('ai_tracks')
       .select('id, is_public, generation:ai_generations!inner(user_id, is_public, status)')
       .eq('id', ref.id)
@@ -20,7 +20,7 @@ async function loadViewableTrack(ref: { id: string; type: 'track' | 'ai_track' }
     if (!data || !canViewAiTrack(data, viewerId)) return null;
     return data;
   }
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('tracks')
     .select('id, is_public, creator_id, audio_url')
     .eq('id', ref.id)
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const track = await loadViewableTrack(ref, viewerId);
     if (!track) return NextResponse.json({ error: 'Track introuvable' }, { status: 404 });
 
-    const { data: cached, error } = await supabaseAdmin
+    const { data: cached, error } = await dbAdmin
       .from('track_waveforms')
       .select('duration, peaks')
       .eq('track_id', ref.id)
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0;
     });
 
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('track_waveforms')
       .upsert(
         { track_id: ref.id, track_type: ref.type, duration, peaks },

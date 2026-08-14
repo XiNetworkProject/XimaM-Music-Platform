@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminGuard } from '@/lib/admin';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { createBroadcast } from '@/lib/notifications';
 
 export const runtime = 'nodejs';
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     if (tab === 'broadcasts') {
       try {
-        const { data, count } = await supabaseAdmin
+        const { data, count } = await dbAdmin
           .from('admin_broadcasts')
           .select('*', { count: 'exact' })
           .order('created_at', { ascending: false })
@@ -30,26 +30,26 @@ export async function GET(request: NextRequest) {
     }
 
     if (tab === 'stats') {
-      const { count: totalNotifs } = await supabaseAdmin
+      const { count: totalNotifs } = await dbAdmin
         .from('notifications')
         .select('id', { count: 'exact', head: true });
 
-      const { count: unreadNotifs } = await supabaseAdmin
+      const { count: unreadNotifs } = await dbAdmin
         .from('notifications')
         .select('id', { count: 'exact', head: true })
         .eq('is_read', false);
 
-      const { count: totalSubs } = await supabaseAdmin
+      const { count: totalSubs } = await dbAdmin
         .from('push_subscriptions')
         .select('id', { count: 'exact', head: true });
 
       let totalBroadcasts = 0;
       try {
-        const res = await supabaseAdmin.from('admin_broadcasts').select('id', { count: 'exact', head: true });
+        const res = await dbAdmin.from('admin_broadcasts').select('id', { count: 'exact', head: true });
         totalBroadcasts = res.count || 0;
       } catch {}
 
-      const { data: recentNotifs } = await supabaseAdmin
+      const { data: recentNotifs } = await dbAdmin
         .from('notifications')
         .select('type')
         .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString());

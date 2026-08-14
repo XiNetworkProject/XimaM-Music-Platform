@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { countCityVotes, selectCityBattleWinner } from '@/lib/cityVoting';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +12,7 @@ async function resolveTrackOwnerId(trackId: string, candidate: any) {
   if (embeddedOwner) return embeddedOwner;
 
   if (trackId.startsWith('ai-')) {
-    const { data } = await supabaseAdmin
+    const { data } = await dbAdmin
       .from('ai_tracks')
       .select('generation:ai_generations!inner(user_id)')
       .eq('id', trackId.slice(3))
@@ -21,7 +21,7 @@ async function resolveTrackOwnerId(trackId: string, candidate: any) {
     return generation?.user_id ? String(generation.user_id) : null;
   }
 
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('tracks')
     .select('creator_id, user_id')
     .eq('id', trackId)
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const session = await getApiSession(request);
     if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifie.' }, { status: 401 });
 
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await dbAdmin
       .from('profiles')
       .select('role')
       .eq('id', session.user.id)
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     const eventId = decodeURIComponent(params.id || '');
-    const { data: event, error: eventError } = await supabaseAdmin
+    const { data: event, error: eventError } = await dbAdmin
       .from('city_events')
       .select('*')
       .eq('id', eventId)
@@ -53,9 +53,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (!event) return NextResponse.json({ error: 'Event introuvable.' }, { status: 404 });
 
     const [tracksRes, votesRes, participationsRes] = await Promise.all([
-      supabaseAdmin.from('city_event_tracks').select('*').eq('event_id', eventId),
-      supabaseAdmin.from('city_event_votes').select('*').eq('event_id', eventId),
-      supabaseAdmin.from('city_event_participations').select('*').eq('event_id', eventId),
+      dbAdmin.from('city_event_tracks').select('*').eq('event_id', eventId),
+      dbAdmin.from('city_event_votes').select('*').eq('event_id', eventId),
+      dbAdmin.from('city_event_participations').select('*').eq('event_id', eventId),
     ]);
     for (const result of [tracksRes, votesRes, participationsRes]) {
       if ((result as any).error) throw (result as any).error;
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const winnerUserId = await resolveTrackOwnerId(String(winner.track_id), winner);
     if (!winnerUserId) return NextResponse.json({ error: 'Le proprietaire du morceau gagnant est introuvable.' }, { status: 409 });
 
-    const { data: winnerRow, error: winnerError } = await supabaseAdmin
+    const { data: winnerRow, error: winnerError } = await dbAdmin
       .from('city_event_winners')
       .upsert({
         event_id: eventId,
@@ -97,9 +97,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       .maybeSingle();
     if (winnerError) throw winnerError;
 
-    await supabaseAdmin.from('city_events').update({ status: 'resolved' }).eq('id', eventId);
+    await dbAdmin.from('city_events').update({ status: 'resolved' }).eq('id', eventId);
     if (winnerUserId) {
-      const { error: rewardError } = await supabaseAdmin.from('city_user_rewards').upsert({
+      const { error: rewardError } = await dbAdmin.from('city_user_rewards').upsert({
         event_id: eventId,
         user_id: winnerUserId,
         reward_key: 'city-winner',

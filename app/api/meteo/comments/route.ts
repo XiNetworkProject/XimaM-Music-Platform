@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     const offset = (page - 1) * limit;
 
-    const { data: comments, error, count } = await supabaseAdmin
+    const { data: comments, error, count } = await dbAdmin
       .from('meteo_comments')
       .select('*', { count: 'exact' })
       .eq('bulletin_id', bulletinId)
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     const profileMap: Record<string, any> = {};
 
     if (userIds.length > 0) {
-      const { data: profiles } = await supabaseAdmin
+      const { data: profiles } = await dbAdmin
         .from('profiles')
         .select('id, name, avatar')
         .in('id', userIds);
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     let replyCounts: Record<string, number> = {};
 
     if (commentIds.length > 0) {
-      const { data: replies } = await supabaseAdmin
+      const { data: replies } = await dbAdmin
         .from('meteo_comments')
         .select('parent_id')
         .in('parent_id', commentIds);
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'bulletinId et content requis' }, { status: 400 });
     }
 
-    const { data: bulletin } = await supabaseAdmin
+    const { data: bulletin } = await dbAdmin
       .from('meteo_bulletins')
       .select('id, allow_comments')
       .eq('id', bulletinId)
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (parentId) {
-      const { data: parentComment } = await supabaseAdmin
+      const { data: parentComment } = await dbAdmin
         .from('meteo_comments')
         .select('id')
         .eq('id', parentId)
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { data: comment, error: insertError } = await supabaseAdmin
+    const { data: comment, error: insertError } = await dbAdmin
       .from('meteo_comments')
       .insert({
         bulletin_id: bulletinId,
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await dbAdmin
       .from('profiles')
       .select('name, avatar')
       .eq('id', session.user.id)

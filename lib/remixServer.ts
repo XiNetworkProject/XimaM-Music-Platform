@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { remixPermissionsFromRow, type RemixVisibility } from '@/lib/remixPermissions';
 import { notifyRemixPendingApproval } from '@/lib/notifications';
 import { sanitizeRemixPrompt, sanitizeRemixPromptVisibility, sanitizeRemixType } from '@/lib/remixOptions';
@@ -47,7 +47,7 @@ function toStringArray(value: any): string[] {
 
 async function isFollower(userId: string | null | undefined, creatorId: string | null | undefined) {
   if (!userId || !creatorId) return false;
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('user_follows')
     .select('following_id')
     .eq('follower_id', userId)
@@ -74,7 +74,7 @@ export async function getRemixSourceSummary(input: {
   if (!ref.id) return null;
 
   if (ref.type === 'ai_track') {
-    const { data } = await supabaseAdmin
+    const { data } = await dbAdmin
       .from('ai_tracks')
       .select('*, generation:ai_generations!inner(id, user_id, prompt, metadata, is_public, status)')
       .eq('id', ref.id)
@@ -83,7 +83,7 @@ export async function getRemixSourceSummary(input: {
 
     const creatorId = String((data as any).generation?.user_id || '');
     const { data: profile } = creatorId
-      ? await supabaseAdmin.from('profiles').select('id, username, name, avatar').eq('id', creatorId).maybeSingle()
+      ? await dbAdmin.from('profiles').select('id, username, name, avatar').eq('id', creatorId).maybeSingle()
       : { data: null as any };
     const permissions = remixPermissionsFromRow(data);
     const isPublic = data.is_public === true && (data as any).generation?.status === 'completed';
@@ -121,7 +121,7 @@ export async function getRemixSourceSummary(input: {
     };
   }
 
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('tracks')
     .select('*, profiles:profiles!tracks_creator_id_fkey(id, username, name, avatar)')
     .eq('id', ref.id)
@@ -177,7 +177,7 @@ export async function assertCanCreateAiVariation(input: {
 }
 
 export async function upsertDraftRemixesForGeneration(generationId: string, userId: string) {
-  const { data: generation } = await supabaseAdmin
+  const { data: generation } = await dbAdmin
     .from('ai_generations')
     .select('id, user_id, metadata')
     .eq('id', generationId)
@@ -199,7 +199,7 @@ export async function upsertDraftRemixesForGeneration(generationId: string, user
   const challengeId = (generation?.metadata as any)?.challengeId || null;
   const remixMeta = remixGenerationMetadata(generationMetadata);
 
-  const { data: tracks } = await supabaseAdmin
+  const { data: tracks } = await dbAdmin
     .from('ai_tracks')
     .select('id')
     .eq('generation_id', generationId);
@@ -218,7 +218,7 @@ export async function upsertDraftRemixesForGeneration(generationId: string, user
     updated_at: new Date().toISOString(),
   }));
   if (!rows.length) return;
-  const { error } = await supabaseAdmin.from('track_remixes').upsert(rows, { onConflict: 'child_track_id,child_track_type,remix_type' });
+  const { error } = await dbAdmin.from('track_remixes').upsert(rows, { onConflict: 'child_track_id,child_track_type,remix_type' });
   if (!error) return;
 
   const canRetryWithoutMetadata =
@@ -229,7 +229,7 @@ export async function upsertDraftRemixesForGeneration(generationId: string, user
   }
 
   const compatRows = rows.map(({ remix_prompt, remix_direction, prompt_visibility, ...row }) => row);
-  const { error: compatError } = await supabaseAdmin.from('track_remixes').upsert(compatRows, { onConflict: 'child_track_id,child_track_type,remix_type' });
+  const { error: compatError } = await dbAdmin.from('track_remixes').upsert(compatRows, { onConflict: 'child_track_id,child_track_type,remix_type' });
   if (compatError) console.error('[remix] fallback upsert draft failed', compatError);
 }
 
@@ -240,7 +240,7 @@ export async function applyRemixPublicationGuard(input: {
 }) {
   const ids = input.childTrackIds.map((id) => String(id || '').trim()).filter(Boolean);
   if (!ids.length) return { effectivePublic: input.requestedPublic, remixStatus: null as RemixStatus | null };
-  const { data: remixes } = await supabaseAdmin
+  const { data: remixes } = await dbAdmin
     .from('track_remixes')
     .select('*')
     .in('child_track_id', ids)
@@ -249,7 +249,7 @@ export async function applyRemixPublicationGuard(input: {
   if (!remixes?.length) return { effectivePublic: input.requestedPublic, remixStatus: null as RemixStatus | null };
 
   if (!input.requestedPublic) {
-    await supabaseAdmin.from('track_remixes').update({ status: 'draft', updated_at: new Date().toISOString() }).in('id', remixes.map((r: any) => r.id));
+    await dbAdmin.from('track_remixes').update({ status: 'draft', updated_at: new Date().toISOString() }).in('id', remixes.map((r: any) => r.id));
     return { effectivePublic: false, remixStatus: 'draft' as RemixStatus };
   }
 
@@ -263,7 +263,7 @@ export async function applyRemixPublicationGuard(input: {
 
   const wasAlreadyPending = remixes.some((r: any) => r.status === 'pending_approval');
   const nextStatus: RemixStatus = permission.source.remixApprovalRequired ? 'pending_approval' : 'published';
-  await supabaseAdmin
+  await dbAdmin
     .from('track_remixes')
     .update({ status: nextStatus, updated_at: new Date().toISOString() })
     .in('id', remixes.map((r: any) => r.id));
@@ -290,11 +290,11 @@ export async function getRemixAttributionForChildren(children: Array<{ id: strin
   const trackIds = children.filter((child) => child.type === 'track').map((child) => child.id);
   let rows: any[] = [];
   if (aiIds.length) {
-    const { data } = await supabaseAdmin.from('track_remixes').select('*').eq('child_track_type', 'ai_track').in('child_track_id', aiIds).eq('status', 'published');
+    const { data } = await dbAdmin.from('track_remixes').select('*').eq('child_track_type', 'ai_track').in('child_track_id', aiIds).eq('status', 'published');
     rows = rows.concat(data || []);
   }
   if (trackIds.length) {
-    const { data } = await supabaseAdmin.from('track_remixes').select('*').eq('child_track_type', 'track').in('child_track_id', trackIds).eq('status', 'published');
+    const { data } = await dbAdmin.from('track_remixes').select('*').eq('child_track_type', 'track').in('child_track_id', trackIds).eq('status', 'published');
     rows = rows.concat(data || []);
   }
 
@@ -326,7 +326,7 @@ export async function getPublishedVariationCounts(sources: Array<{ id: string; t
   if (!unique.length) return result;
   const ids = Array.from(new Set(unique.map((source) => source.id)));
   const allowed = new Set(unique.map((source) => `${source.type}:${source.id}`));
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('track_remixes')
     .select('source_track_id, source_track_type')
     .in('source_track_id', ids)

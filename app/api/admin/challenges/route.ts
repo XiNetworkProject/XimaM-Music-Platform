@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminGuard } from '@/lib/admin';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { listMusicChallenges, type ChallengeContentType, type ChallengeClubSlug } from '@/lib/musicChallenges';
 import { getRemixSourceSummary } from '@/lib/remixServer';
 import { getClipSourceSummary } from '@/lib/musicClips';
@@ -31,7 +31,7 @@ async function uniqueChallengeId(contentType: string, title: string) {
   const base = `defi-${contentType}-${slugify(title)}`;
   for (let i = 0; i < 30; i++) {
     const candidate = i === 0 ? base : `${base}-${i + 1}`;
-    const { data } = await supabaseAdmin.from('music_challenges').select('id').eq('id', candidate).maybeSingle();
+    const { data } = await dbAdmin.from('music_challenges').select('id').eq('id', candidate).maybeSingle();
     if (!data) return candidate;
   }
   return `${base}-${Date.now()}`;
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 
   const id = await uniqueChallengeId(contentType, title);
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('music_challenges')
     .insert({
       id,

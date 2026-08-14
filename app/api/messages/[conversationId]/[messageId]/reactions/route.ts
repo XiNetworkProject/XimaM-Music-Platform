@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { requireConversationParticipant } from '@/lib/messaging';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +12,7 @@ async function validate(request: NextRequest, conversationId: string, messageId:
   if (!await requireConversationParticipant(conversationId, session.user.id)) {
     return { error: NextResponse.json({ error: 'Acces refuse' }, { status: 403 }) };
   }
-  const { data: message } = await supabaseAdmin
+  const { data: message } = await dbAdmin
     .from('messages')
     .select('id')
     .eq('id', messageId)
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest, { params }: { params: { conversa
   try {
     const checked = await validate(request, params.conversationId, params.messageId);
     if (checked.error) return checked.error;
-    const { data: reactions, error } = await supabaseAdmin
+    const { data: reactions, error } = await dbAdmin
       .from('message_reactions')
       .select('user_id, reaction, created_at')
       .eq('message_id', params.messageId)
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest, { params }: { params: { conversa
     if (error) return NextResponse.json({ error: 'Reactions indisponibles' }, { status: 500 });
     const userIds = (reactions || []).map((reaction) => reaction.user_id);
     const { data: profiles } = userIds.length
-      ? await supabaseAdmin.from('profiles').select('id, name, username, avatar').in('id', userIds)
+      ? await dbAdmin.from('profiles').select('id, name, username, avatar').in('id', userIds)
       : { data: [] as any[] };
     const profilesById = new Map((profiles || []).map((profile) => [profile.id, profile]));
     return NextResponse.json({
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest, { params }: { params: { convers
     const body = await request.json().catch(() => null);
     const reaction = typeof body?.reaction === 'string' ? body.reaction : '';
     if (!REACTIONS.has(reaction)) return NextResponse.json({ error: 'Reaction invalide' }, { status: 400 });
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('message_reactions')
       .upsert({ message_id: params.messageId, user_id: checked.userId, reaction }, { onConflict: 'message_id,user_id' });
     if (error) return NextResponse.json({ error: 'Reaction impossible' }, { status: 500 });
@@ -73,7 +73,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { conve
   try {
     const checked = await validate(request, params.conversationId, params.messageId);
     if (checked.error) return checked.error;
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('message_reactions')
       .delete()
       .eq('message_id', params.messageId)

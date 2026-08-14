@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export async function POST(
   request: NextRequest,
@@ -23,7 +23,7 @@ export async function POST(
     console.log(`🌟 Mise en vedette track: ${id}, featured: ${isFeatured}`);
 
     // Vérifier que l'utilisateur est le propriétaire de la track
-    const { data: track, error: trackError } = await supabaseAdmin
+    const { data: track, error: trackError } = await dbAdmin
       .from('tracks')
       .select('id, creator_id')
       .eq('id', id)
@@ -38,7 +38,7 @@ export async function POST(
     }
 
     // Mettre à jour le statut en vedette
-    const { data: updatedTrack, error: updateError } = await supabaseAdmin
+    const { data: updatedTrack, error: updateError } = await dbAdmin
       .from('tracks')
       .update({
         is_featured: isFeatured,
@@ -81,3 +81,5 @@ export async function POST(
     return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

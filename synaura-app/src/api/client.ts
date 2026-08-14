@@ -1202,12 +1202,21 @@ function normalizeMessagingMessage(raw: any): MessagingMessage {
   };
 }
 
-export async function getMessagingRealtimeConfig(): Promise<{ url: string; publishableKey: string }> {
-  const payload = await request<any>('/api/messages/realtime');
-  const url = safeString(payload?.url, '');
-  const publishableKey = safeString(payload?.publishableKey, '');
-  if (!url || !publishableKey) throw new Error('Temps reel indisponible');
-  return { url, publishableKey };
+export async function getMessagingRealtimeSnapshot(conversationId: string, since: string) {
+  return request<{ now: string; events: Array<Record<string, any>> }>(
+    `/api/messages/realtime?conversationId=${encodeURIComponent(conversationId)}&since=${encodeURIComponent(since)}`,
+  );
+}
+
+export async function publishMessagingEphemeral(input: {
+  conversationId: string;
+  type: 'typing' | 'recording' | 'presence';
+  active: boolean;
+}) {
+  return request<{ success: boolean }>('/api/messages/realtime', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
 }
 
 function normalizeConversationPreferences(raw: any): MessagingConversationPreferences {

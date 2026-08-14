@@ -59,10 +59,8 @@ export async function POST(req: NextRequest) {
 }
 
 async function stripeCustomerEmail(userId: string) {
-  const { supabaseAdmin } = await import('@/lib/supabase');
-  const [{ data: profile }, { data: authData }] = await Promise.all([
-    supabaseAdmin.from('profiles').select('email').eq('id', userId).maybeSingle(),
-    supabaseAdmin.auth.admin.getUserById(userId),
-  ]);
-  return profile?.email || authData?.user?.email || null;
+  const { getLocalProfileById } = await import('@/lib/localAuth');
+  return (await getLocalProfileById(userId))?.email || null;
 }
+
+export const dynamic = 'force-dynamic';

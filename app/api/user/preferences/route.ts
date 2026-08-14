@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('profiles')
       .select('preferences')
       .eq('id', session.user.id)
@@ -40,7 +40,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Corps invalide' }, { status: 400 });
     }
 
-    const { data: current } = await supabaseAdmin
+    const { data: current } = await dbAdmin
       .from('profiles')
       .select('preferences')
       .eq('id', session.user.id)
@@ -48,7 +48,7 @@ export async function PATCH(request: NextRequest) {
 
     const merged = { ...(current?.preferences || {}), ...body };
 
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('profiles')
       .update({ preferences: merged })
       .eq('id', session.user.id);

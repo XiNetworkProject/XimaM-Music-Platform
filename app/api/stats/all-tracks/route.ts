@@ -1,18 +1,18 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 async function getUserNormalTracks(userId: string) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('tracks')
     .select('id, title, cover_url, duration, created_at, plays, likes')
     .or(`creator_id.eq.${userId},user_id.eq.${userId}`);
   if (error) {
     console.error('all-tracks: or query failed, fallback:', error.message);
-    const { data: fb } = await supabaseAdmin
+    const { data: fb } = await dbAdmin
       .from('tracks')
       .select('id, title, cover_url, duration, created_at, plays, likes')
       .eq('creator_id', userId);
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     let aiTracks: any[] = [];
     try {
-      const { data: aiRows, error } = await supabaseAdmin
+      const { data: aiRows, error } = await dbAdmin
         .from('ai_tracks')
         .select('id, title, image_url, duration, created_at, play_count, like_count, prompt, model_name, tags, generation:ai_generations!inner(user_id)')
         .eq('generation.user_id', userId);
@@ -63,14 +63,14 @@ export async function GET(request: NextRequest) {
       /* ── Fetch ALL views with both date columns ── */
       let allViewRows: any[] = [];
       try {
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await dbAdmin
           .from('track_views')
           .select('track_id, created_at, viewed_at')
           .in('track_id', allIds)
           .limit(100000);
         if (!error && data) allViewRows = data;
         else if (error) {
-          const { data: fb } = await supabaseAdmin
+          const { data: fb } = await dbAdmin
             .from('track_views')
             .select('track_id, created_at')
             .in('track_id', allIds)
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
 
       /* ── Likes ── */
       try {
-        const { data: allLikesQ } = await supabaseAdmin
+        const { data: allLikesQ } = await dbAdmin
           .from('track_likes')
           .select('track_id')
           .in('track_id', allIds)
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
 
       /* ── Retention from events ── */
       try {
-        const { data: eventsQ } = await supabaseAdmin
+        const { data: eventsQ } = await dbAdmin
           .from('track_events')
           .select('track_id, event_type')
           .in('track_id', allIds)

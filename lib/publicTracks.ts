@@ -5,9 +5,9 @@
  * réellement lisible, ou (IA) la génération parente n'est pas publiée/terminée.
  * Toute route publique qui lit `tracks` ou `ai_tracks` doit passer par ces helpers.
  *
- * Ce module reste volontairement pur (pas d'import Supabase au niveau module) afin
+ * Ce module reste volontairement pur (pas d'import PostgreSQL au niveau module) afin
  * d'être directement testable avec `node --test`, comme lib/clipPermissions.ts.
- * `getPublicPlaylistTrackCounts` importe `supabaseAdmin` dynamiquement, uniquement
+ * `getPublicPlaylistTrackCounts` importe `dbAdmin` dynamiquement, uniquement
  * quand elle est réellement appelée.
  */
 
@@ -54,19 +54,19 @@ export function canViewAiTrack(aiTrack: any, viewerId?: string | null, generatio
 }
 
 // Le cast interne en `any` évite de faire vérifier par TypeScript la chaîne
-// `.eq()/.not()` contre le type (récursif) du PostgrestFilterBuilder de supabase-js,
+// `.eq()/.not()` contre le type (récursif) du PostgrestFilterBuilder de db-js,
 // qui provoque sinon des erreurs "Type instantiation is excessively deep" sur
 // certains call sites. `T` reste néanmoins précisément inféré à l'appel, donc le
 // query builder retourné garde son type concret (chaînage `.order()/.limit()`
 // et typage de `data` après `await` toujours corrects).
 
-/** Applique le filtre de visibilité publique à une requête Supabase sur `tracks`. */
+/** Applique le filtre de visibilité publique à une requête PostgreSQL sur `tracks`. */
 export function applyPublicTrackFilter<T>(query: T): T {
   return (query as any).eq('is_public', true).not('audio_url', 'is', null);
 }
 
 /**
- * Applique le filtre de visibilité publique à une requête Supabase sur `ai_tracks`
+ * Applique le filtre de visibilité publique à une requête PostgreSQL sur `ai_tracks`
  * jointe (`!inner`) à `ai_generations`. Le select doit inclure `is_public` et
  * `status` sur l'alias de génération pour que le filtre s'applique.
  */
@@ -114,8 +114,8 @@ export function findNonPublicTracks<T extends Record<string, any>>(tracks: T[]):
 export async function getPublicPlaylistTrackCounts(playlistIds: string[]): Promise<Map<string, number>> {
   const counts = new Map<string, number>();
   if (!playlistIds.length) return counts;
-  const { supabaseAdmin } = await import('@/lib/supabase');
-  const { data } = await supabaseAdmin
+  const { dbAdmin } = await import('@/lib/database');
+  const { data } = await dbAdmin
     .from('playlist_tracks')
     .select('playlist_id, tracks!inner(is_public, audio_url)')
     .in('playlist_id', playlistIds)

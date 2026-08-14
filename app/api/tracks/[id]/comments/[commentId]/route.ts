@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import contentModerator from '@/lib/contentModeration';
 
 // PUT /api/tracks/[id]/comments/[commentId] - modifier (propriétaire)
@@ -20,7 +20,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   if (!mod.isClean) return NextResponse.json({ error: 'Contenu refusé', details: mod }, { status: 400 });
 
   // Vérifier ownership
-  const { data: existing, error: exErr } = await supabaseAdmin
+  const { data: existing, error: exErr } = await dbAdmin
     .from('comments')
     .select('id, user_id')
     .eq('id', commentId)
@@ -28,7 +28,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   if (exErr || !existing) return NextResponse.json({ error: 'Commentaire introuvable' }, { status: 404 });
   if ((existing as any).user_id !== userId) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
 
-  const { data: updated, error } = await supabaseAdmin
+  const { data: updated, error } = await dbAdmin
     .from('comments')
     .update({ content, updated_at: new Date().toISOString() })
     .eq('id', commentId)
@@ -37,7 +37,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
   if (error || !updated) return NextResponse.json({ error: 'Impossible de modifier' }, { status: 500 });
 
-  const { data: user } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').eq('id', userId).maybeSingle();
+  const { data: user } = await dbAdmin.from('profiles').select('id, username, name, avatar').eq('id', userId).maybeSingle();
 
   return NextResponse.json({
     comment: {
@@ -68,7 +68,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   const commentId = params.commentId;
   if (!trackId || !commentId) return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 });
 
-  const { data: existing, error: exErr } = await supabaseAdmin
+  const { data: existing, error: exErr } = await dbAdmin
     .from('comments')
     .select('id, user_id, track_id')
     .eq('id', commentId)
@@ -78,7 +78,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
   // Soft-delete via table de modération si possible, sinon delete hard
   try {
-    await supabaseAdmin.from('comment_moderation').upsert({
+    await dbAdmin.from('comment_moderation').upsert({
       comment_id: commentId,
       track_id: trackId,
       creator_id: userId,
@@ -88,8 +88,9 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     });
     return NextResponse.json({ success: true });
   } catch {
-    await supabaseAdmin.from('comments').delete().eq('id', commentId);
+    await dbAdmin.from('comments').delete().eq('id', commentId);
     return NextResponse.json({ success: true });
   }
 }
 
+export const dynamic = 'force-dynamic';

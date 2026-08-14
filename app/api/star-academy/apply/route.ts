@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { sendEmail, saConfirmationTemplate } from '@/lib/email';
 import { deleteLocalMedia, isLocalMediaReference } from '@/lib/localMediaStorage';
+import { createLocalUser, findLocalAuthUserIdByEmail } from '@/lib/localAuth';
 
 const ALLOWED_CATEGORIES = ['Chant Solo', 'Rap / Spoken Word', 'Cover / Reprise', 'Mix avec Vocal', 'Duo / Groupe', 'Chant', 'Rap', 'Mix / DJ', 'Performance / Danse', 'Autre'];
 
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Vérifier si le concours est ouvert ─────────────────
-    const { data: configRows } = await supabaseAdmin
+    const { data: configRows } = await dbAdmin
       .from('star_academy_config')
       .select('key, value');
 
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     // ── Vérifier limite de candidats ───────────────────────
     const maxCandidates = parseInt(config.max_candidates ?? '200', 10);
-    const { count } = await supabaseAdmin
+    const { count } = await dbAdmin
       .from('star_academy_applications')
       .select('id', { count: 'exact', head: true });
 
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Vérifier doublon email ─────────────────────────────
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await dbAdmin
       .from('star_academy_applications')
       .select('id')
       .eq('email', email)
@@ -102,37 +103,25 @@ export async function POST(req: NextRequest) {
     let userId: string | null = null;
 
     if (synauraUsername && synauraPassword) {
-      const { data: { users: existingUsers } } = await supabaseAdmin.auth.admin.listUsers();
-      const existingUser = existingUsers?.find((u) => u.email === email);
-
-      if (existingUser) {
-        userId = existingUser.id;
+      const existingUserId = await findLocalAuthUserIdByEmail(email);
+      if (existingUserId) {
+        userId = existingUserId;
       } else {
-        const { data: newUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-          email,
-          password: synauraPassword,
-          email_confirm: true,
-          user_metadata: { username: synauraUsername, full_name: fullName },
-        });
-
-        if (!authError && newUser.user) {
-          userId = newUser.user.id;
-          await supabaseAdmin.from('profiles').upsert({
-            id: userId,
-            username: synauraUsername,
-            display_name: fullName,
+        try {
+          userId = (await createLocalUser({
             email,
-            plan: 'free',
-            created_at: new Date().toISOString(),
-          }, { onConflict: 'id' });
-        } else {
-          console.warn('[star-academy/apply] Auth user creation failed:', authError?.message);
+            password: synauraPassword,
+            username: synauraUsername,
+            name: fullName,
+          })).id;
+        } catch (authError) {
+          console.warn('[star-academy/apply] creation du compte local impossible:', authError);
         }
       }
     }
 
     // ── Insérer la candidature ─────────────────────────────
-    const { data: application, error: insertError } = await supabaseAdmin
+    const { data: application, error: insertError } = await dbAdmin
       .from('star_academy_applications')
       .insert({
         id:               applicationId,
@@ -171,7 +160,7 @@ export async function POST(req: NextRequest) {
         subject: 'Candidature Star Academy TikTok reçue !',
         html: saConfirmationTemplate({ name: fullName, trackingToken, tiktokHandle }),
       });
-      await supabaseAdmin
+      await dbAdmin
         .from('star_academy_applications')
         .update({ notification_sent_at: new Date().toISOString() })
         .eq('id', applicationId);
@@ -190,3 +179,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Erreur inattendue. Réessaie.' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

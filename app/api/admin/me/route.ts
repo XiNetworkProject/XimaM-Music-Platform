@@ -8,3 +8,4 @@ export async function GET() {
   return NextResponse.json({ ok: true, isAdmin: g.isAdmin, isOwner: g.isOwner, userId: g.userId, email: g.email });
 }
 
+export const dynamic = 'force-dynamic';

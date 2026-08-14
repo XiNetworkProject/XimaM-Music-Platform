@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
 
-    let query = supabase
+    let query = db
       .from('faq_items')
       .select('*')
       .eq('is_published', true);
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Compter le total pour la pagination
-    let countQuery = supabase
+    let countQuery = db
       .from('faq_items')
       .select('*', { count: 'exact', head: true })
       .eq('is_published', true);
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Catégorie invalide' }, { status: 400 });
     }
 
-    const { data: faq, error } = await supabase
+    const { data: faq, error } = await db
       .from('faq_items')
       .insert({
         question: question.trim(),
@@ -129,3 +129,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

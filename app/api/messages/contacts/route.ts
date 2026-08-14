@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { directConversationKey, findDirectConversation, getMessagingProfiles, removeFriendship } from '@/lib/messaging';
 
 export const dynamic = 'force-dynamic';
@@ -11,8 +11,8 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
     const userId = session.user.id;
     const [{ data: asUser }, { data: asFriend }] = await Promise.all([
-      supabaseAdmin.from('friendships').select('id, friend_id, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
-      supabaseAdmin.from('friendships').select('id, user_id, created_at').eq('friend_id', userId).order('created_at', { ascending: false }),
+      dbAdmin.from('friendships').select('id, friend_id, created_at').eq('user_id', userId).order('created_at', { ascending: false }),
+      dbAdmin.from('friendships').select('id, user_id, created_at').eq('friend_id', userId).order('created_at', { ascending: false }),
     ]);
     const rows = [
       ...(asUser || []).map((row) => ({ id: row.id, userId: row.friend_id, createdAt: row.created_at })),
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const directKeys = rows.map((row) => directConversationKey(userId, row.userId));
     const conversationsByKey = new Map<string, string>();
     if (directKeys.length) {
-      const { data: conversations } = await supabaseAdmin
+      const { data: conversations } = await dbAdmin
         .from('conversations')
         .select('id, direct_key')
         .in('direct_key', directKeys)
@@ -54,7 +54,7 @@ export async function DELETE(request: NextRequest) {
     await removeFriendship(session.user.id, targetId);
     const conversation = await findDirectConversation(session.user.id, targetId);
     if (conversation) {
-      await supabaseAdmin
+      await dbAdmin
         .from('conversation_participants')
         .update({ archived_at: new Date().toISOString() })
         .eq('conversation_id', conversation.id)

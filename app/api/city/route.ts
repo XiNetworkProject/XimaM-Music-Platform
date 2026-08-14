@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { createNotification } from '@/lib/notifications';
 import { selectCityBattleWinner } from '@/lib/cityVoting';
 import {
@@ -362,7 +362,7 @@ async function hydratePersistedEvents(
     reward: event.reward || cityEventReward(event),
   }));
 
-  const { error: upsertEventsError } = await supabaseAdmin
+  const { error: upsertEventsError } = await dbAdmin
     .from('city_events')
     .upsert(eventRows, { onConflict: 'id' });
   if (upsertEventsError) throw upsertEventsError;
@@ -377,7 +377,7 @@ async function hydratePersistedEvents(
     metadata: { title: track.title, creatorId: track.artist?._id || null },
   })));
   if (eventTrackRows.length) {
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('city_event_tracks')
       .upsert(eventTrackRows, { onConflict: 'event_id,track_id' });
     if (error) throw error;
@@ -427,19 +427,19 @@ async function hydratePersistedEvents(
   }
 
   if (legacyParticipationTrackRows.length) {
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('city_event_tracks')
       .upsert(legacyParticipationTrackRows, { onConflict: 'event_id,track_id' });
     if (error) throw error;
   }
   if (legacyVoteRows.length) {
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('city_event_votes')
       .upsert(legacyVoteRows, { onConflict: 'event_id,user_id' });
     if (error) throw error;
   }
   if (legacyParticipationRows.length) {
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('city_event_participations')
       .upsert(legacyParticipationRows, { onConflict: 'event_id,user_id,track_id' });
     if (error) throw error;
@@ -447,14 +447,14 @@ async function hydratePersistedEvents(
 
   const ids = decorated.map((event) => event.id);
   const [eventsRes, tracksRes, votesRes, participationsRes, winnersRes, rewardsRes, boostsRes] = await Promise.all([
-    supabaseAdmin.from('city_events').select('*').in('id', ids),
-    supabaseAdmin.from('city_event_tracks').select('*').in('event_id', ids).order('slot', { ascending: true }),
-    supabaseAdmin.from('city_event_votes').select('event_id, track_id, user_id, created_at').in('event_id', ids),
-    supabaseAdmin.from('city_event_participations').select('*').in('event_id', ids).order('created_at', { ascending: false }),
-    supabaseAdmin.from('city_event_winners').select('*').in('event_id', ids).order('rank', { ascending: true }),
-    userId ? supabaseAdmin.from('city_user_rewards').select('*').eq('user_id', userId).in('event_id', ids) : Promise.resolve({ data: [] } as any),
+    dbAdmin.from('city_events').select('*').in('id', ids),
+    dbAdmin.from('city_event_tracks').select('*').in('event_id', ids).order('slot', { ascending: true }),
+    dbAdmin.from('city_event_votes').select('event_id, track_id, user_id, created_at').in('event_id', ids),
+    dbAdmin.from('city_event_participations').select('*').in('event_id', ids).order('created_at', { ascending: false }),
+    dbAdmin.from('city_event_winners').select('*').in('event_id', ids).order('rank', { ascending: true }),
+    userId ? dbAdmin.from('city_user_rewards').select('*').eq('user_id', userId).in('event_id', ids) : Promise.resolve({ data: [] } as any),
     userId
-      ? supabaseAdmin.from('active_track_boosts').select('track_id, multiplier, expires_at, source').eq('user_id', userId).eq('source', 'city_winner').gt('expires_at', now.toISOString())
+      ? dbAdmin.from('active_track_boosts').select('track_id, multiplier, expires_at, source').eq('user_id', userId).eq('source', 'city_winner').gt('expires_at', now.toISOString())
       : Promise.resolve({ data: [] } as any),
   ]);
 
@@ -538,7 +538,7 @@ async function hydratePersistedEvents(
         ? selectCityBattleWinner(eventTracks, voteCounts)
         : [...eventTracks].sort((a, b) => b.pulse - a.pulse)[0];
       if (bestTrack) {
-        const { data: inserted } = await supabaseAdmin
+        const { data: inserted } = await dbAdmin
           .from('city_event_winners')
           .upsert({
             event_id: event.id,
@@ -564,7 +564,7 @@ async function hydratePersistedEvents(
           track: bestTrack,
         }];
         if (winnerUserId) {
-          await supabaseAdmin.from('city_user_rewards').upsert({
+          await dbAdmin.from('city_user_rewards').upsert({
             event_id: event.id,
             user_id: winnerUserId,
             reward_key: event.reward?.key || cityEventReward(event).key,
@@ -798,7 +798,7 @@ async function ensureLegacyWinnerReward(events: CityEvent[], userId: string | nu
       updatedAt: createdAt,
     };
   }
-  const { error } = await supabaseAdmin
+  const { error } = await dbAdmin
     .from('profiles')
     .update({ preferences: { ...preferences, cityRewards: nextRewards }, updated_at: createdAt })
     .eq('id', userId);
@@ -859,34 +859,34 @@ export async function GET(request: NextRequest) {
     const since90d = new Date(now.getTime() - 90 * DAY_MS).toISOString();
 
     const [normalRes, aiRes, statsRes, profilesRes, commentsRes, followsRes, userEventsRes, userLikesRes, currentProfileRes, legacyProfilesRes] = await Promise.all([
-      supabaseAdmin
+      dbAdmin
         .from('tracks')
         .select('*, profiles:profiles!tracks_creator_id_fkey(id, username, name, artist_name, avatar, bio, genre, created_at, is_verified)')
         .eq('is_public', true)
         .order('created_at', { ascending: false })
         .limit(180),
-      supabaseAdmin
+      dbAdmin
         .from('ai_tracks')
         .select('id, title, audio_url, image_url, duration, tags, play_count, created_at, generation:ai_generations!inner(user_id, status, is_public)')
         .eq('is_public', true)
         .eq('generation.status', 'completed')
         .order('created_at', { ascending: false })
         .limit(50),
-      supabaseAdmin.from('track_stats_rolling_30d').select('*').limit(1200),
-      supabaseAdmin.from('profiles').select('id, username, name, artist_name, avatar, bio, genre, created_at, preferences').gte('created_at', since90d).order('created_at', { ascending: false }).limit(80),
-      supabaseAdmin.from('comments').select('track_id, created_at').gte('created_at', since7d).limit(2500),
-      supabaseAdmin.from('user_follows').select('following_id, created_at').gte('created_at', since30d).limit(2500),
-      userId ? supabaseAdmin.from('track_events').select('track_id, event_type, created_at').eq('user_id', userId).gte('created_at', since30d).limit(3000) : Promise.resolve({ data: [] } as any),
-      userId ? supabaseAdmin.from('track_likes').select('track_id, created_at').eq('user_id', userId).gte('created_at', since30d).limit(1000) : Promise.resolve({ data: [] } as any),
-      userId ? supabaseAdmin.from('profiles').select('id, username, name, artist_name, avatar, bio, genre, created_at, preferences').eq('id', userId).maybeSingle() : Promise.resolve({ data: null } as any),
-      supabaseAdmin.from('profiles').select('id, username, name, artist_name, avatar, preferences').limit(1000),
+      dbAdmin.from('track_stats_rolling_30d').select('*').limit(1200),
+      dbAdmin.from('profiles').select('id, username, name, artist_name, avatar, bio, genre, created_at, preferences').gte('created_at', since90d).order('created_at', { ascending: false }).limit(80),
+      dbAdmin.from('comments').select('track_id, created_at').gte('created_at', since7d).limit(2500),
+      dbAdmin.from('user_follows').select('following_id, created_at').gte('created_at', since30d).limit(2500),
+      userId ? dbAdmin.from('track_events').select('track_id, event_type, created_at').eq('user_id', userId).gte('created_at', since30d).limit(3000) : Promise.resolve({ data: [] } as any),
+      userId ? dbAdmin.from('track_likes').select('track_id, created_at').eq('user_id', userId).gte('created_at', since30d).limit(1000) : Promise.resolve({ data: [] } as any),
+      userId ? dbAdmin.from('profiles').select('id, username, name, artist_name, avatar, bio, genre, created_at, preferences').eq('id', userId).maybeSingle() : Promise.resolve({ data: null } as any),
+      dbAdmin.from('profiles').select('id, username, name, artist_name, avatar, preferences').limit(1000),
     ]);
 
     const normal = (normalRes.data || []).map(normalTrack).filter(Boolean) as CityTrack[];
     const aiRows = aiRes.data || [];
     const aiUserIds = Array.from(new Set(aiRows.map((row: any) => row?.generation?.user_id).filter(Boolean)));
     const aiProfilesRes = aiUserIds.length
-      ? await supabaseAdmin.from('profiles').select('id, username, name, artist_name, avatar, bio, genre, created_at').in('id', aiUserIds)
+      ? await dbAdmin.from('profiles').select('id, username, name, artist_name, avatar, bio, genre, created_at').in('id', aiUserIds)
       : { data: [] as any[] };
     const aiProfiles = new Map((aiProfilesRes.data || []).map((profile: any) => [String(profile.id), profile]));
     const ai = aiRows

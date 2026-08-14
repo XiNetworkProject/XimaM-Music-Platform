@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { db, dbAdmin } from '@/lib/database';
 import { isMissingEditorialCollectionsTable, normalizeEditorialCollection, normalizeLegacyCollectionFromPlaylist, unpackLegacyCollectionDescription } from '@/lib/editorialCollections';
 import { getPublicPlaylistTrackCounts } from '@/lib/publicTracks';
 
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.max(1, Math.min(50, parseInt(searchParams.get('limit') || '20', 10) || 20));
 
     const [{ data: playlists, error }, editorialResult] = await Promise.all([
-      supabase
+      db
         .from('playlists')
         .select(`
           *,
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
         .eq('is_public', true)
         .order('created_at', { ascending: false })
         .limit(limit),
-      supabaseAdmin
+      dbAdmin
         .from('editorial_collections')
         .select('*')
         .eq('is_published', true)
@@ -155,3 +155,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur serveur interne' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import MeteoDashboardClient from './MeteoDashboardClient';
 
 export default async function MeteoDashboardPage() {
@@ -11,7 +11,7 @@ export default async function MeteoDashboardPage() {
     redirect('/meteo/login');
   }
 
-  const { data: teamMember } = await supabaseAdmin
+  const { data: teamMember } = await dbAdmin
     .from('meteo_team_members')
     .select('role, status')
     .eq('user_id', session.user.id)

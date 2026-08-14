@@ -340,7 +340,7 @@
       },
       {
         "type": "bullet",
-        "text": "Prestataires de services : Stripe (paiements), Supabase (base de données) et l'infrastructure Synaura auto-hébergée (médias)"
+        "text": "Prestataires et infrastructure : Stripe (paiements) et l'infrastructure Synaura auto-hébergée (base PostgreSQL et médias)"
       },
       {
         "type": "bullet",
@@ -977,7 +977,7 @@
       },
       {
         "type": "subheading",
-        "text": "3.2 Supabase (Base de données)"
+        "text": "3.2 Infrastructure PostgreSQL Synaura"
       },
       {
         "type": "paragraph",
@@ -1272,7 +1272,7 @@
       },
       {
         "type": "paragraph",
-        "text": "Certains de nos prestataires (Stripe, Vercel, Supabase) sont situés en dehors de l'UE. Nous nous assurons que ces transferts sont effectués avec des garanties appropriées (clauses contractuelles types, décision d'adéquation)."
+        "text": "Certains de nos prestataires (Stripe, Vercel) sont situés en dehors de l'UE. Nous nous assurons que ces transferts sont effectués avec des garanties appropriées (clauses contractuelles types, décision d'adéquation)."
       },
       {
         "type": "heading",

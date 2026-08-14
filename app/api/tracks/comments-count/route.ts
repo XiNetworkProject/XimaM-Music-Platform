@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ counts: {} });
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('comments')
       .select('track_id')
       .in('track_id', validIds)
@@ -35,3 +35,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ counts: {} });
   }
 }
+
+export const dynamic = 'force-dynamic';

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
             ? [`event:${event_type}`]
             : null,
       }));
-      await supabaseAdmin.from('recommendation_impressions').insert(impressionRows);
+      await dbAdmin.from('recommendation_impressions').insert(impressionRows);
     } catch (error) {
       console.warn('recommendation impressions unavailable:', error);
     }
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     if (trackRows.length) {
       try {
-        await supabaseAdmin.from('track_events').insert(trackRows);
+        await dbAdmin.from('track_events').insert(trackRows);
       } catch (error) {
         console.warn('track impression events unavailable:', error);
       }

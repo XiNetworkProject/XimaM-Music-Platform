@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 async function getTeamMember(userId: string) {
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('meteo_team_members')
     .select('*')
     .eq('user_id', userId)
@@ -54,7 +54,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Aucune modification fournie' }, { status: 400 });
     }
 
-    const { data: alert, error } = await supabaseAdmin
+    const { data: alert, error } = await dbAdmin
       .from('meteo_alerts')
       .update(updates)
       .eq('id', params.id)

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
-import { supabaseAdmin as supabase } from '@/lib/supabase';
+import { dbAdmin as db } from '@/lib/database';
 import { getApiSession } from '@/lib/getApiSession';
 import { getEntitlements } from '@/lib/entitlements';
 import { canViewTrack } from '@/lib/publicTracks';
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
-    let playlistsQuery = supabase
+    let playlistsQuery = db
       .from('playlists')
       .select(`
         *,
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     const { data: playlists, error } = await playlistsQuery;
 
     if (error) {
-      console.error('Erreur Supabase:', error);
+      console.error('Erreur PostgreSQL:', error);
       return NextResponse.json({ error: 'Erreur lors de la récupération des playlists' }, { status: 500 });
     }
 
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Appliquer quota playlists
-    const { data: profile } = await supabase
+    const { data: profile } = await db
       .from('profiles')
       .select('plan')
       .eq('id', session.user.id)
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     const plan = (profile?.plan || 'free') as any;
     const ent = getEntitlements(plan);
     if (ent.uploads.maxPlaylists > -1) {
-      const { count } = await supabase
+      const { count } = await db
         .from('playlists')
         .select('*', { count: 'exact', head: true })
         .eq('creator_id', session.user.id);
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     
     console.log('🎵 Création de playlist:', { name, description, isPublic, userId });
 
-    console.log('🔍 Tentative d\'insertion dans Supabase...');
+    console.log('🔍 Tentative d\'insertion dans PostgreSQL...');
     
     const playlistId = randomUUID();
 
@@ -155,20 +155,20 @@ export async function POST(request: NextRequest) {
     let playlist: any = null;
     let error: any = null;
 
-    const result = await supabase.from('playlists').insert(insertPayload).select().single();
+    const result = await db.from('playlists').insert(insertPayload).select().single();
     playlist = result.data;
     error = result.error;
 
     // Fallback if is_album column doesn't exist yet
     if (error && is_album) {
       const { is_album: _drop, ...fallback } = insertPayload;
-      const retry = await supabase.from('playlists').insert(fallback).select().single();
+      const retry = await db.from('playlists').insert(fallback).select().single();
       playlist = retry.data;
       error = retry.error;
     }
 
     if (error) {
-      console.error('❌ Erreur Supabase:', error);
+      console.error('❌ Erreur PostgreSQL:', error);
       return NextResponse.json({ 
         error: 'Erreur lors de la création de la playlist',
         details: error.message 
@@ -201,3 +201,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

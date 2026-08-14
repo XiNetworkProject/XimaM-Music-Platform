@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     const startMs = startDate.getTime();
     const userId = session.user.id;
 
-    const { data: posts, error } = await supabaseAdmin
+    const { data: posts, error } = await dbAdmin
       .from('creator_posts')
       .select('id, post_type, content, image_url, track_id, likes_count, comments_count, is_public, created_at')
       .eq('creator_id', userId)
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
 
     if (postIds.length) {
       try {
-        const { data: likeRows } = await supabaseAdmin
+        const { data: likeRows } = await dbAdmin
           .from('post_likes')
           .select('post_id, created_at')
           .in('post_id', postIds)
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
       }
 
       try {
-        const { data: commentRows } = await supabaseAdmin
+        const { data: commentRows } = await dbAdmin
           .from('post_comments')
           .select('post_id, created_at')
           .in('post_id', postIds)
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
     const trackTitles = new Map<string, string>();
     if (trackIds.length) {
       try {
-        const { data: tracks } = await supabaseAdmin.from('tracks').select('id, title').in('id', trackIds);
+        const { data: tracks } = await dbAdmin.from('tracks').select('id, title').in('id', trackIds);
         for (const track of tracks || []) trackTitles.set(track.id, track.title || 'Son partagé');
       } catch {}
     }

@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { db } from './database';
 import { getServerSession } from 'next-auth';
 import { authOptions } from './authOptions';
 
@@ -52,14 +52,14 @@ class OnlineStatusService {
         updated_at: new Date().toISOString()
       };
 
-      const { error } = await supabase
+      const { error } = await db
         .from('user_statuses')
         .upsert(statusUpdate, {
           onConflict: 'user_id'
         });
 
       if (error) {
-        console.error('❌ Erreur mise à jour statut Supabase:', error);
+        console.error('❌ Erreur mise à jour statut PostgreSQL:', error);
         return false;
       }
 
@@ -73,7 +73,7 @@ class OnlineStatusService {
   // Obtenir le statut d'un utilisateur
   async getUserStatus(userId: string): Promise<UserStatusData> {
     try {
-      const { data: status, error } = await supabase
+      const { data: status, error } = await db
         .from('user_statuses')
         .select('*')
         .eq('user_id', userId)
@@ -117,7 +117,7 @@ class OnlineStatusService {
   // Obtenir le statut de plusieurs utilisateurs
   async getMultipleUserStatuses(userIds: string[]): Promise<UserStatusData[]> {
     try {
-      const { data: statuses, error } = await supabase
+      const { data: statuses, error } = await db
         .from('user_statuses')
         .select('*')
         .in('user_id', userIds);
@@ -162,7 +162,7 @@ class OnlineStatusService {
   // Marquer un utilisateur comme hors ligne
   async setUserOffline(userId: string): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const { error } = await db
         .from('user_statuses')
         .update({
           is_online: false,
@@ -172,7 +172,7 @@ class OnlineStatusService {
         .eq('user_id', userId);
 
       if (error) {
-        console.error('❌ Erreur mise hors ligne Supabase:', error);
+        console.error('❌ Erreur mise hors ligne PostgreSQL:', error);
         return false;
       }
 
@@ -186,7 +186,7 @@ class OnlineStatusService {
   // Marquer un utilisateur comme en train de taper
   async setUserTyping(userId: string, conversationId?: string): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const { error } = await db
         .from('user_statuses')
         .upsert({
           user_id: userId,
@@ -199,7 +199,7 @@ class OnlineStatusService {
         });
 
       if (error) {
-        console.error('❌ Erreur statut typing Supabase:', error);
+        console.error('❌ Erreur statut typing PostgreSQL:', error);
         return false;
       }
 
@@ -213,7 +213,7 @@ class OnlineStatusService {
   // Arrêter le statut de frappe
   async stopUserTyping(userId: string): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const { error } = await db
         .from('user_statuses')
         .update({
           is_typing: false,
@@ -223,7 +223,7 @@ class OnlineStatusService {
         .eq('user_id', userId);
 
       if (error) {
-        console.error('❌ Erreur arrêt typing Supabase:', error);
+        console.error('❌ Erreur arrêt typing PostgreSQL:', error);
         return false;
       }
 
@@ -239,13 +239,13 @@ class OnlineStatusService {
     try {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       
-      const { error } = await supabase
+      const { error } = await db
         .from('user_statuses')
         .delete()
         .lt('last_activity', oneDayAgo.toISOString());
 
       if (error) {
-        console.error('❌ Erreur nettoyage statuts Supabase:', error);
+        console.error('❌ Erreur nettoyage statuts PostgreSQL:', error);
       } else {
         console.log('🧹 Nettoyage des statuts anciens terminé');
       }

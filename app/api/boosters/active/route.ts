@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     const nowIso = new Date().toISOString();
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('active_track_boosts')
       .select('track_id, multiplier, expires_at')
       .in('track_id', trackIds)

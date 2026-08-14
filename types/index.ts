@@ -32,7 +32,7 @@ export interface Track {
   description?: string;
   lyrics?: string;
   plays: number;
-  likesCount: number; // Nombre total de likes (Supabase)
+  likesCount: number; // Nombre total de likes (PostgreSQL)
   isLiked?: boolean; // Si l'utilisateur actuel a liké cette piste
   comments: Comment[];
   createdAt: Date;
@@ -52,7 +52,7 @@ export interface Comment {
   user: User;
   track: string;
   content: string;
-  likesCount: number; // Nombre total de likes (Supabase)
+  likesCount: number; // Nombre total de likes (PostgreSQL)
   replies: Comment[];
   createdAt: Date;
   updatedAt: Date;
@@ -66,7 +66,7 @@ export interface Playlist {
   creator: User;
   tracks: Track[];
   isPublic: boolean;
-  followers: number; // Nombre total de followers (Supabase)
+  followers: number; // Nombre total de followers (PostgreSQL)
   createdAt: Date;
   updatedAt: Date;
 }

@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { toPublicMediaUrl } from '@/lib/mediaUrls';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { normalizeRemixTrackRef } from '@/lib/remixServer';
 
 export const runtime = 'nodejs';
@@ -20,7 +20,7 @@ export default async function Image({ params }: { params: { id: string } }) {
   let comments = 0;
 
   try {
-    const { data: post } = await supabaseAdmin
+    const { data: post } = await dbAdmin
       .from('creator_posts')
       .select('content, image_url, track_id, likes_count, comments_count, is_public, profiles!creator_posts_creator_id_fkey(username, name, avatar)')
       .eq('id', params.id)
@@ -39,23 +39,23 @@ export default async function Image({ params }: { params: { id: string } }) {
       if ((post as any).track_id) {
         const ref = normalizeRemixTrackRef(String((post as any).track_id));
         if (ref.type === 'ai_track') {
-          const { data: track } = await supabaseAdmin.from('ai_tracks').select('title, image_url, generation:ai_generations!inner(user_id)').eq('id', ref.id).maybeSingle();
+          const { data: track } = await dbAdmin.from('ai_tracks').select('title, image_url, generation:ai_generations!inner(user_id)').eq('id', ref.id).maybeSingle();
           if (track) {
             trackTitle = (track as any).title || 'Création IA';
             media = media || toPublicMediaUrl((track as any).image_url);
             const ownerId = (track as any).generation?.user_id;
             if (ownerId) {
-              const { data: owner } = await supabaseAdmin.from('profiles').select('name, username').eq('id', ownerId).maybeSingle();
+              const { data: owner } = await dbAdmin.from('profiles').select('name, username').eq('id', ownerId).maybeSingle();
               trackArtist = owner?.name || owner?.username || 'Artiste Synaura';
             }
           }
         } else {
-          const { data: track } = await supabaseAdmin.from('tracks').select('title, cover_url, creator_id').eq('id', ref.id).eq('is_public', true).maybeSingle();
+          const { data: track } = await dbAdmin.from('tracks').select('title, cover_url, creator_id').eq('id', ref.id).eq('is_public', true).maybeSingle();
           if (track) {
             trackTitle = track.title || 'Son Synaura';
             media = media || toPublicMediaUrl(track.cover_url);
             if (track.creator_id) {
-              const { data: owner } = await supabaseAdmin.from('profiles').select('name, username, artist_name').eq('id', track.creator_id).maybeSingle();
+              const { data: owner } = await dbAdmin.from('profiles').select('name, username, artist_name').eq('id', track.creator_id).maybeSingle();
               trackArtist = owner?.artist_name || owner?.name || owner?.username || 'Artiste Synaura';
             }
           }

@@ -1,24 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 
 export async function GET(request: NextRequest) {
   try {
-    // Récupérer les statistiques de la communauté depuis Supabase
+    // Récupérer les statistiques de la communauté depuis PostgreSQL
     const [
       { count: totalUsers },
       { count: totalTracks },
       { count: totalPlaylists },
       { count: totalComments }
     ] = await Promise.all([
-      supabase.from('profiles').select('*', { count: 'exact', head: true }),
-      supabase.from('tracks').select('*', { count: 'exact', head: true }),
-      supabase.from('playlists').select('*', { count: 'exact', head: true }),
-      supabase.from('comments').select('*', { count: 'exact', head: true })
+      db.from('profiles').select('*', { count: 'exact', head: true }),
+      db.from('tracks').select('*', { count: 'exact', head: true }),
+      db.from('playlists').select('*', { count: 'exact', head: true }),
+      db.from('comments').select('*', { count: 'exact', head: true })
     ]);
 
     // Récupérer les utilisateurs en ligne (dernière activité dans les 5 dernières minutes)
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const { count: onlineUsers } = await supabase
+    const { count: onlineUsers } = await db
       .from('profiles')
       .select('*', { count: 'exact', head: true })
       .gte('last_seen', fiveMinutesAgo);
@@ -42,3 +42,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

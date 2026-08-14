@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export async function POST(request: Request) {
   try {
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Subscription invalide' }, { status: 400 });
     }
 
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('push_subscriptions')
       .upsert({
         user_id: userId,
@@ -49,7 +49,7 @@ export async function DELETE(request: Request) {
     const { endpoint } = body || {};
     if (!endpoint) return NextResponse.json({ error: 'Endpoint manquant' }, { status: 400 });
 
-    await supabaseAdmin
+    await dbAdmin
       .from('push_subscriptions')
       .delete()
       .eq('user_id', userId)
@@ -60,3 +60,5 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: err?.message }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

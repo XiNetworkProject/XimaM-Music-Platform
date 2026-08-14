@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +10,7 @@ function cityTableMissing(error: any) {
 }
 
 async function writeLegacyVote(userId: string, battleId: string, trackId: string) {
-  const { data: profile, error: profileError } = await supabaseAdmin
+  const { data: profile, error: profileError } = await dbAdmin
     .from('profiles')
     .select('preferences')
     .eq('id', userId)
@@ -22,7 +22,7 @@ async function writeLegacyVote(userId: string, battleId: string, trackId: string
     ? preferences.cityBattleVotes
     : {};
   const cityBattleVotes = { ...previousVotes, [battleId]: trackId };
-  const { error } = await supabaseAdmin
+  const { error } = await dbAdmin
     .from('profiles')
     .update({ preferences: { ...preferences, cityBattleVotes }, updated_at: new Date().toISOString() })
     .eq('id', userId);
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Vote invalide.' }, { status: 400 });
     }
 
-    const { data: event, error: eventError } = await supabaseAdmin
+    const { data: event, error: eventError } = await dbAdmin
       .from('city_events')
       .select('id, kind, status, starts_at, ends_at')
       .eq('id', battleId)
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cette battle est terminee.' }, { status: 400 });
     }
 
-    const { data: eventTrack, error: trackError } = await supabaseAdmin
+    const { data: eventTrack, error: trackError } = await dbAdmin
       .from('city_event_tracks')
       .select('track_id')
       .eq('event_id', battleId)
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     if (trackError) throw trackError;
     if (!eventTrack) return NextResponse.json({ error: 'Ce son ne participe pas a cette battle.' }, { status: 400 });
 
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('city_event_votes')
       .upsert({
         event_id: battleId,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getApiSession } from '@/lib/getApiSession';
 import { applyPublicAiTrackFilter } from '@/lib/publicTracks';
 
@@ -23,8 +23,8 @@ export async function GET(
     const session = await getApiSession(request).catch(() => null);
     const currentUserId = session?.user?.id;
 
-    // Récupérer le profil utilisateur depuis Supabase
-    const { data: profile, error: profileError } = await supabaseAdmin
+    // Récupérer le profil utilisateur depuis PostgreSQL
+    const { data: profile, error: profileError } = await dbAdmin
       .from('profiles')
       .select('*')
       .ilike('username', username)
@@ -42,7 +42,7 @@ export async function GET(
     const isOwnProfile = Boolean(currentUserId && String(currentUserId) === String(profile.id));
     let isFollowing = false;
     if (currentUserId && !isOwnProfile) {
-      const { data: follow } = await supabaseAdmin
+      const { data: follow } = await dbAdmin
         .from('user_follows')
         .select('following_id')
         .eq('follower_id', currentUserId)
@@ -52,7 +52,7 @@ export async function GET(
     }
 
     // Récupérer les tracks "manuelles" de l'utilisateur
-    let tracksQuery = supabaseAdmin
+    let tracksQuery = dbAdmin
       .from('tracks')
       .select('*')
       .eq('creator_id', profile.id)
@@ -69,7 +69,7 @@ export async function GET(
 
     // Récupérer uniquement les tracks IA publiées (is_public=true côté track ET
     // côté génération parente) pour le profil
-    let aiTracksQuery = supabaseAdmin
+    let aiTracksQuery = dbAdmin
       .from('ai_tracks')
       .select(`
         id, title, audio_url, image_url, duration, prompt, tags, play_count, like_count, created_at, is_public,
@@ -92,7 +92,7 @@ export async function GET(
     if (currentUserId && tracks && tracks.length > 0) {
       const trackIds = tracks.map((t: any) => t.id);
       
-      const { data: likes } = await supabaseAdmin
+      const { data: likes } = await dbAdmin
         .from('track_likes')
         .select('track_id')
         .eq('user_id', currentUserId)
@@ -140,7 +140,7 @@ export async function GET(
     });
 
     // Récupérer les playlists de l'utilisateur (uniquement publiques pour un visiteur)
-    let playlistsQuery = supabaseAdmin
+    let playlistsQuery = dbAdmin
       .from('playlists')
       .select('*')
       .eq('creator_id', profile.id)
@@ -223,7 +223,7 @@ export async function PUT(
     console.log(`🔄 Mise à jour du profil pour: ${username}`);
 
     // Vérifier que l'utilisateur existe
-    const { data: existingProfile, error: profileError } = await supabaseAdmin
+    const { data: existingProfile, error: profileError } = await dbAdmin
       .from('profiles')
       .select('id, username')
       .eq('username', username)
@@ -242,7 +242,7 @@ export async function PUT(
     }
 
     // Mettre à jour le profil
-    const { data: updatedProfile, error: updateError } = await supabaseAdmin
+    const { data: updatedProfile, error: updateError } = await dbAdmin
       .from('profiles')
       .update({
         name: body.name,
@@ -277,3 +277,5 @@ export async function PUT(
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

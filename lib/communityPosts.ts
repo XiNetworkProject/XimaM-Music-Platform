@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 import { canViewTrack } from '@/lib/publicTracks';
 
 const TRACK_REF_RE = /<!--\s*synaura-track:([^>\s]+)\s*-->/i;
@@ -60,7 +60,7 @@ export async function attachTracks(posts: any[], viewerId?: string | null) {
   const trackIds = Array.from(new Set(normalizedPosts.map((post) => post._attached_track_id).filter(Boolean)));
   if (!trackIds.length) return normalizedPosts;
 
-  let { data: tracks, error } = await supabase
+  let { data: tracks, error } = await db
     .from('tracks')
     .select(`
       *,
@@ -74,7 +74,7 @@ export async function attachTracks(posts: any[], viewerId?: string | null) {
     .in('id', trackIds);
 
   if (error) {
-    const fallback = await supabase
+    const fallback = await db
       .from('tracks')
       .select('*')
       .in('id', trackIds);
@@ -82,7 +82,7 @@ export async function attachTracks(posts: any[], viewerId?: string | null) {
 
     const creatorIds = Array.from(new Set((tracks || []).map((track: any) => track.creator_id).filter(Boolean)));
     if (creatorIds.length) {
-      const { data: profiles } = await supabase
+      const { data: profiles } = await db
         .from('profiles')
         .select('id, name, username, avatar')
         .in('id', creatorIds);
@@ -133,7 +133,7 @@ export async function attachAuthors(posts: any[]) {
   const userIds = Array.from(new Set((posts || []).map((post) => post.user_id).filter(Boolean)));
   if (!userIds.length) return posts || [];
 
-  const { data: profiles } = await supabase
+  const { data: profiles } = await db
     .from('profiles')
     .select('id, name, username, avatar')
     .in('id', userIds);
@@ -206,7 +206,7 @@ export async function insertForumPost(insertPayload: any) {
 
   let lastError: any = null;
   for (const payload of attempts) {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('forum_posts')
       .insert(payload)
       .select('*')
@@ -222,7 +222,7 @@ export async function insertForumPost(insertPayload: any) {
     const legacyPayload = { ...insertPayload, category: fallbackCategory };
     delete legacyPayload.track_id;
     delete legacyPayload.tags;
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('forum_posts')
       .insert(legacyPayload)
       .select('*')

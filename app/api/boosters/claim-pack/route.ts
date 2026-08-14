@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     // Plan
     let plan: 'free' | 'starter' | 'pro' | 'enterprise' = 'free';
     try {
-      const { data: p } = await supabaseAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
+      const { data: p } = await dbAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
       if (p?.plan) plan = p.plan;
     } catch {}
 
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
     // Claim count (idempotent-ish)
     let claimed = 0;
     try {
-      const { data: row } = await supabaseAdmin
+      const { data: row } = await dbAdmin
         .from('user_booster_pack_claims')
         .select('claimed_count')
         .eq('user_id', userId)
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Available boosters
-    const { data: boosters, error: boostersErr } = await supabaseAdmin
+    const { data: boosters, error: boostersErr } = await dbAdmin
       .from('boosters')
       .select('id, key, name, description, type, rarity, multiplier, duration_hours')
       .eq('enabled', true);
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < rule.size; i++) {
       const picked = chooseBooster(list, { luck: rule.luck, minRarity: rule.minRarity });
       if (!picked) continue;
-      const { data: inv, error: invErr } = await supabaseAdmin
+      const { data: inv, error: invErr } = await dbAdmin
         .from('user_boosters')
         .insert({ user_id: userId, booster_id: picked.id, status: 'owned', metadata: { source: `pack:${packKey}` } })
         .select('id')
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
 
       // history best-effort
       try {
-        await supabaseAdmin.from('user_booster_open_history').insert({
+        await dbAdmin.from('user_booster_open_history').insert({
           user_id: userId,
           source: `pack:${packKey}`,
           booster_id: picked.id,
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
 
     // Upsert claim row
     try {
-      await supabaseAdmin.from('user_booster_pack_claims').upsert(
+      await dbAdmin.from('user_booster_pack_claims').upsert(
         { user_id: userId, pack_key: packKey, period_start: periodStart, claimed_count: claimed + 1, updated_at: new Date().toISOString() },
         { onConflict: 'user_id,pack_key,period_start' } as any,
       );

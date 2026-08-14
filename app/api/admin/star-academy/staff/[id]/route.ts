@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminGuard } from '@/lib/admin';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { sendEmail } from '@/lib/email';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -54,7 +54,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Statut invalide.' }, { status: 400 });
   }
 
-  const { data: current, error: fetchError } = await supabaseAdmin
+  const { data: current, error: fetchError } = await dbAdmin
     .from('star_academy_staff_applications')
     .select('*')
     .eq('id', id)
@@ -68,7 +68,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (status) updatePayload.status = status;
   if (admin_notes !== undefined) updatePayload.admin_notes = admin_notes;
 
-  const { data: updated, error: updateError } = await supabaseAdmin
+  const { data: updated, error: updateError } = await dbAdmin
     .from('star_academy_staff_applications')
     .update(updatePayload)
     .eq('id', id)
@@ -89,7 +89,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           : 'Resultat candidature Staff — Star Academy TikTok',
         html: staffStatusEmail(status, current.full_name, current.role),
       });
-      await supabaseAdmin
+      await dbAdmin
         .from('star_academy_staff_applications')
         .update({ notification_sent_at: new Date().toISOString() })
         .eq('id', id);
@@ -105,7 +105,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const guard = await getAdminGuard();
   if (!guard.ok) return NextResponse.json({ error: 'Non autorise.' }, { status: 403 });
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('star_academy_staff_applications')
     .select('*')
     .eq('id', params.id)
@@ -114,3 +114,5 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   if (error || !data) return NextResponse.json({ error: 'Introuvable.' }, { status: 404 });
   return NextResponse.json({ application: data });
 }
+
+export const dynamic = 'force-dynamic';

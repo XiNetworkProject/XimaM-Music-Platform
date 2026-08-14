@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 // GET /api/tracks/[id]/comments/moderation
 // - Public: commentaires non supprimés et non filtrés
@@ -25,13 +25,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const view = (searchParams.get('view') || 'public') as 'public' | 'creator' | 'all';
 
   // Track + creator id
-  const { data: track } = await supabaseAdmin.from('tracks').select('id, creator_id').eq('id', trackId).maybeSingle();
+  const { data: track } = await dbAdmin.from('tracks').select('id, creator_id').eq('id', trackId).maybeSingle();
   if (!track) return NextResponse.json({ comments: [], total: 0, limit, offset });
   const creatorId = (track as any).creator_id;
   const isCreator = Boolean(userId && creatorId && userId === creatorId);
 
   // Top-level comments (pagination) + replies for these parents
-  const { data: topRows, error: topErr } = await supabaseAdmin
+  const { data: topRows, error: topErr } = await dbAdmin
     .from('comments')
     .select('id, content, created_at, updated_at, user_id, parent_id')
     .eq('track_id', trackId)
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   let replyRows: any[] = [];
   if (parentIds.length) {
-    const { data: replies } = await supabaseAdmin
+    const { data: replies } = await dbAdmin
       .from('comments')
       .select('id, content, created_at, updated_at, user_id, parent_id')
       .eq('track_id', trackId)
@@ -60,14 +60,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const ids = rows.map((r: any) => r.id);
   const userIds = Array.from(new Set(rows.map((r: any) => r.user_id).filter(Boolean)));
 
-  const { data: profiles } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').in('id', userIds);
+  const { data: profiles } = await dbAdmin.from('profiles').select('id, username, name, avatar').in('id', userIds);
   const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
 
   // Likes
   const likesCountMap = new Map<string, number>();
   const likedSet = new Set<string>();
   try {
-    const { data: likesRows } = await supabaseAdmin.from('comment_likes').select('comment_id, user_id').in('comment_id', ids);
+    const { data: likesRows } = await dbAdmin.from('comment_likes').select('comment_id, user_id').in('comment_id', ids);
     for (const lr of likesRows || []) {
       const cid = String((lr as any).comment_id);
       likesCountMap.set(cid, (likesCountMap.get(cid) || 0) + 1);
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   // Modération (creator)
   const moderationMap = new Map<string, any>();
   try {
-    const { data: mods } = await supabaseAdmin
+    const { data: mods } = await dbAdmin
       .from('comment_moderation')
       .select('comment_id, is_deleted, is_filtered, filter_reason, is_creator_favorite')
       .eq('track_id', trackId)
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   // Filtres (creator words)
   let filterWords: string[] = [];
   try {
-    const { data: filterRows } = await supabaseAdmin.from('creator_comment_filters').select('word').eq('creator_id', creatorId);
+    const { data: filterRows } = await dbAdmin.from('creator_comment_filters').select('word').eq('creator_id', creatorId);
     filterWords = (filterRows || []).map((r: any) => String(r.word || '').trim()).filter(Boolean);
   } catch {}
 
@@ -184,3 +184,5 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 export async function POST() {
   return NextResponse.json({ error: 'Utiliser /comments/[commentId]/moderation' }, { status: 400 });
 }
+
+export const dynamic = 'force-dynamic';

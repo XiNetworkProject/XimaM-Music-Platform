@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,7 +20,7 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const desiredState = typeof body?.is_trashed === 'boolean' ? body.is_trashed : null;
 
-    const { data: gen, error: fetchError } = await supabaseAdmin
+    const { data: gen, error: fetchError } = await dbAdmin
       .from('ai_generations')
       .select('*')
       .eq('id', generationId)
@@ -36,7 +36,7 @@ export async function POST(
 
     const newState = desiredState !== null ? desiredState : !((gen as any).is_trashed ?? false);
 
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('ai_generations')
       .update({ is_trashed: newState } as any)
       .eq('id', generationId);

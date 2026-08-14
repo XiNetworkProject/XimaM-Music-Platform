@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export async function GET() {
   try {
     // Compter le nombre total d'utilisateurs dans la table profiles
-    const { count, error } = await supabaseAdmin
+    const { count, error } = await dbAdmin
       .from('profiles')
       .select('*', { count: 'exact', head: true });
 
@@ -28,3 +28,5 @@ export async function GET() {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

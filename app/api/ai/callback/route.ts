@@ -14,3 +14,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur callback' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

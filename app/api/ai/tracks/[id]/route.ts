@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { deleteLocalMedia } from '@/lib/localMediaStorage';
 
 export async function DELETE(
@@ -14,7 +14,7 @@ export async function DELETE(
     }
 
     const trackId = params.id;
-    const { data: track, error } = await supabaseAdmin
+    const { data: track, error } = await dbAdmin
       .from('ai_tracks')
       .select('id, generation_id, source_links, generation:ai_generations!inner(user_id)')
       .eq('id', trackId)
@@ -39,7 +39,7 @@ export async function DELETE(
       console.warn('Suppression media local echouee (continuation):', (e as any)?.message);
     }
 
-    await supabaseAdmin.from('ai_tracks').delete().eq('id', trackId);
+    await dbAdmin.from('ai_tracks').delete().eq('id', trackId);
 
     return NextResponse.json({ success: true });
   } catch (e: any) {
@@ -82,7 +82,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Aucune modification fournie' }, { status: 400 });
     }
 
-    const { data: track, error } = await supabaseAdmin
+    const { data: track, error } = await dbAdmin
       .from('ai_tracks')
       .select('id, source_links, generation:ai_generations!inner(user_id)')
       .eq('id', trackId)
@@ -104,7 +104,7 @@ export async function PATCH(
       library_folder_updated_at: new Date().toISOString(),
     };
 
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await dbAdmin
       .from('ai_tracks')
       .update({ source_links: JSON.stringify(nextSourceLinks) })
       .eq('id', trackId);
@@ -129,7 +129,7 @@ export async function GET(
       return NextResponse.json({ error: 'ID requis' }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('ai_tracks')
       .select('*')
       .eq('id', id)

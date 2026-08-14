@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,13 +16,13 @@ function rangeDays(range: string | null): number {
 }
 
 async function getUserNormalTrackIds(userId: string): Promise<string[]> {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('tracks')
     .select('id')
     .or(`creator_id.eq.${userId},user_id.eq.${userId}`);
   if (error) {
     console.error('overview: or query failed, fallback:', error.message);
-    const { data: fb } = await supabaseAdmin.from('tracks').select('id').eq('creator_id', userId);
+    const { data: fb } = await dbAdmin.from('tracks').select('id').eq('creator_id', userId);
     return (fb || []).map((r: any) => r.id);
   }
   return (data || []).map((r: any) => r.id);
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     let aiTrackIds: string[] = [];
     let aiTrackCount = 0;
     try {
-      const { data: aiRows, error } = await supabaseAdmin
+      const { data: aiRows, error } = await dbAdmin
         .from('ai_tracks')
         .select('id, duration, play_count, like_count, generation:ai_generations!inner(user_id)')
         .eq('generation.user_id', userId);
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     /* ── 1. Fetch ALL views for user's tracks (handles both created_at & viewed_at) ── */
     let allViews: any[] = [];
     try {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await dbAdmin
         .from('track_views')
         .select('track_id, user_id, created_at, viewed_at')
         .in('track_id', allTrackIds)
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
       if (!error && data) allViews = data;
       else if (error) {
         console.error('overview: views query with viewed_at failed, retrying:', error.message);
-        const { data: fb } = await supabaseAdmin
+        const { data: fb } = await dbAdmin
           .from('track_views')
           .select('track_id, user_id, created_at')
           .in('track_id', allTrackIds)
@@ -120,9 +120,9 @@ export async function GET(request: NextRequest) {
 
     /* ── 2. Likes (track_likes always has created_at) ── */
     const [currentLikesQ, prevLikesQ] = await Promise.all([
-      supabaseAdmin.from('track_likes').select('*', { count: 'exact', head: true })
+      dbAdmin.from('track_likes').select('*', { count: 'exact', head: true })
         .in('track_id', allTrackIds).gte('created_at', periodISO),
-      supabaseAdmin.from('track_likes').select('*', { count: 'exact', head: true })
+      dbAdmin.from('track_likes').select('*', { count: 'exact', head: true })
         .in('track_id', allTrackIds).gte('created_at', prevStart.toISOString()).lt('created_at', periodISO),
     ]);
     const curLikes = (currentLikesQ.count as number) || 0;
@@ -130,18 +130,18 @@ export async function GET(request: NextRequest) {
 
     /* ── 3. Events for listen hours & retention ── */
     const [completeEventsQ, startsCountQ, completesCountQ] = await Promise.all([
-      supabaseAdmin.from('track_events')
+      dbAdmin.from('track_events')
         .select('duration_ms, track_id')
         .in('track_id', allTrackIds)
         .eq('event_type', 'play_complete')
         .gte('created_at', periodISO)
         .limit(50000),
-      supabaseAdmin.from('track_events')
+      dbAdmin.from('track_events')
         .select('*', { count: 'exact', head: true })
         .in('track_id', allTrackIds)
         .eq('event_type', 'play_start')
         .gte('created_at', periodISO),
-      supabaseAdmin.from('track_events')
+      dbAdmin.from('track_events')
         .select('*', { count: 'exact', head: true })
         .in('track_id', allTrackIds)
         .eq('event_type', 'play_complete')
@@ -160,11 +160,11 @@ export async function GET(request: NextRequest) {
       try {
         const durations: number[] = [];
         if (normalTrackIds.length) {
-          const { data: nt } = await supabaseAdmin.from('tracks').select('duration').in('id', normalTrackIds);
+          const { data: nt } = await dbAdmin.from('tracks').select('duration').in('id', normalTrackIds);
           if (nt) for (const t of nt) { const d = Number(t.duration); if (d > 0) durations.push(d); }
         }
         if (aiTrackIds.length) {
-          const { data: at } = await supabaseAdmin.from('ai_tracks').select('duration').in('id', aiTrackIds);
+          const { data: at } = await dbAdmin.from('ai_tracks').select('duration').in('id', aiTrackIds);
           if (at) for (const t of at) { const d = Number(t.duration); if (d > 0) durations.push(d); }
         }
         if (durations.length > 0) avgDurationSec = durations.reduce((a, b) => a + b, 0) / durations.length;
@@ -187,11 +187,11 @@ export async function GET(request: NextRequest) {
     /* ── 4. Followers ── */
     let followers = 0;
     try {
-      const { count, error } = await supabaseAdmin
+      const { count, error } = await dbAdmin
         .from('user_follows').select('*', { count: 'exact', head: true }).eq('following_id', userId);
       if (!error) followers = (count as number) || 0;
       else {
-        const { count: c2 } = await supabaseAdmin
+        const { count: c2 } = await dbAdmin
           .from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId);
         followers = (c2 as number) || 0;
       }
@@ -203,10 +203,10 @@ export async function GET(request: NextRequest) {
       let topId = '', topPlays = 0;
       curViewsByTrack.forEach((c, id) => { if (c > topPlays) { topId = id; topPlays = c; } });
       if (topId) {
-        const { data: tData } = await supabaseAdmin.from('tracks').select('id, title').eq('id', topId).single();
+        const { data: tData } = await dbAdmin.from('tracks').select('id, title').eq('id', topId).single();
         if (tData) bestTrack = { id: topId, title: tData.title, plays: topPlays };
         else {
-          const { data: aiData } = await supabaseAdmin.from('ai_tracks').select('id, title').eq('id', topId).single();
+          const { data: aiData } = await dbAdmin.from('ai_tracks').select('id, title').eq('id', topId).single();
           if (aiData) bestTrack = { id: topId, title: aiData.title, plays: topPlays };
         }
       }
@@ -222,7 +222,7 @@ export async function GET(request: NextRequest) {
         }
       }
       try {
-        const { count } = await supabaseAdmin.from('track_likes')
+        const { count } = await dbAdmin.from('track_likes')
           .select('*', { count: 'exact', head: true })
           .in('track_id', aiTrackIds).gte('created_at', periodISO);
         aiLikes = (count as number) || 0;

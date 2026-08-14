@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { notifyPostComment } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ export async function GET(
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50);
     const cursor = searchParams.get('cursor');
 
-    let query = supabaseAdmin
+    let query = dbAdmin
       .from('post_comments')
       .select('id, content, created_at, user_id')
       .eq('post_id', postId)
@@ -36,7 +36,7 @@ export async function GET(
     const userIds = Array.from(new Set((comments || []).map((c: any) => c.user_id).filter(Boolean)));
     const profilesMap: Record<string, any> = {};
     if (userIds.length > 0) {
-      const { data: profilesData } = await supabaseAdmin
+      const { data: profilesData } = await dbAdmin
         .from('profiles')
         .select('id, username, name, avatar, is_verified')
         .in('id', userIds);
@@ -83,7 +83,7 @@ export async function POST(
       return NextResponse.json({ error: 'Contenu requis' }, { status: 400 });
     }
 
-    const { data: comment, error } = await supabaseAdmin
+    const { data: comment, error } = await dbAdmin
       .from('post_comments')
       .insert({ post_id: postId, user_id: userId, content: content.trim() })
       .select('id, content, created_at, user_id')
@@ -94,14 +94,14 @@ export async function POST(
       return NextResponse.json({ error: 'Erreur commentaire' }, { status: 500 });
     }
 
-    const { data: post } = await supabaseAdmin
+    const { data: post } = await dbAdmin
       .from('creator_posts')
       .select('comments_count, creator_id')
       .eq('id', postId)
       .single();
 
     if (post) {
-      await supabaseAdmin
+      await dbAdmin
         .from('creator_posts')
         .update({ comments_count: ((post as any).comments_count || 0) + 1 })
         .eq('id', postId);
@@ -112,7 +112,7 @@ export async function POST(
       }
     }
 
-    const { data: authorProfile } = await supabaseAdmin
+    const { data: authorProfile } = await dbAdmin
       .from('profiles')
       .select('id, username, name, avatar, is_verified')
       .eq('id', userId)
@@ -151,7 +151,7 @@ export async function DELETE(
     const commentId = searchParams.get('comment_id') || searchParams.get('commentId');
     if (!commentId) return NextResponse.json({ error: 'comment_id requis' }, { status: 400 });
 
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await dbAdmin
       .from('post_comments')
       .select('user_id, post_id')
       .eq('id', commentId)
@@ -162,7 +162,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Commentaire introuvable' }, { status: 404 });
     }
 
-    const { data: post } = await supabaseAdmin
+    const { data: post } = await dbAdmin
       .from('creator_posts')
       .select('comments_count, creator_id')
       .eq('id', (existing as any).post_id)
@@ -174,7 +174,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Non autorise' }, { status: 403 });
     }
 
-    const { error: deleteError } = await supabaseAdmin
+    const { error: deleteError } = await dbAdmin
       .from('post_comments')
       .delete()
       .eq('id', commentId)
@@ -185,7 +185,7 @@ export async function DELETE(
     }
 
     if (post) {
-      await supabaseAdmin
+      await dbAdmin
         .from('creator_posts')
         .update({ comments_count: Math.max(0, ((post as any).comments_count || 1) - 1) })
         .eq('id', (existing as any).post_id);

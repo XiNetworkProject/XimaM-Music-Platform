@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { getAdminGuard } from '@/lib/admin';
 import { getEntitlements } from '@/lib/entitlements';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { isLocalMediaKind, storeRequestBody, type LocalMediaKind } from '@/lib/localMediaStorage';
 
 export const runtime = 'nodejs';
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       if (!guard.ok) return NextResponse.json({ error: 'Acces administrateur requis' }, { status: 403 });
     }
     if (kind === 'star-academy-audio') {
-      const { data: rows, error } = await supabaseAdmin.from('star_academy_config').select('key, value');
+      const { data: rows, error } = await dbAdmin.from('star_academy_config').select('key, value');
       const config = Object.fromEntries((rows || []).map((row: any) => [row.key, row.value]));
       const deadline = config.deadline ? new Date(config.deadline) : null;
       if (deadline) deadline.setDate(deadline.getDate() + 15);
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     const declaredLength = Number(request.headers.get('content-length') || request.headers.get('x-file-size') || 0) || null;
     let planMaxBytes: number | undefined;
     if (session?.user?.id && PLAN_LIMITED_KINDS.has(kind)) {
-      const { data: profile } = await supabaseAdmin.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
+      const { data: profile } = await dbAdmin.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
       const entitlements = getEntitlements((profile?.plan || 'free') as any);
       planMaxBytes = entitlements.uploads.maxFileMb * 1024 * 1024;
     }

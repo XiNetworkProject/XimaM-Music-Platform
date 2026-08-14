@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Code requis' }, { status: 400 });
   }
 
-  const { data: profile } = await supabaseAdmin
+  const { data: profile } = await dbAdmin
     .from('profiles')
     .select('id, name, username, avatar')
     .eq('referral_code', code)
@@ -23,3 +23,5 @@ export async function GET(request: NextRequest) {
     referrerAvatar: profile.avatar,
   });
 }
+
+export const dynamic = 'force-dynamic';

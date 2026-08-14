@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAdminGuard } from '@/lib/admin';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,7 @@ export async function POST() {
   try {
     await getAdminGuard();
 
-    const { data: tracks, error } = await supabaseAdmin
+    const { data: tracks, error } = await dbAdmin
       .from('tracks')
       .select('id, title, cover_url')
       .or('cover_url.is.null,cover_url.eq.');
@@ -26,7 +26,7 @@ export async function POST() {
 
     let fixed = 0;
     for (const track of tracks) {
-      const { error: updateErr } = await supabaseAdmin
+      const { error: updateErr } = await dbAdmin
         .from('tracks')
         .update({ cover_url: DEFAULT_COVER })
         .eq('id', track.id);
@@ -48,7 +48,7 @@ export async function GET() {
   try {
     await getAdminGuard();
 
-    const { count, error } = await supabaseAdmin
+    const { count, error } = await dbAdmin
       .from('tracks')
       .select('id', { count: 'exact', head: true })
       .or('cover_url.is.null,cover_url.eq.');

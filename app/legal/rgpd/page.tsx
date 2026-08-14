@@ -11,20 +11,20 @@ export default function RGPDPage() {
       <div className="relative z-10 w-full p-0 sm:p-2">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             className="mb-8"
           >
-            <Link 
-              href="/legal" 
+            <Link
+              href="/legal"
               className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-6"
             >
               <ArrowLeft className="w-4 h-4" />
               Retour au centre légal
             </Link>
-            
+
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-xl bg-white/[0.06] border border-white/[0.06]">
                 <Users className="w-8 h-8 text-white" />
@@ -37,7 +37,7 @@ export default function RGPDPage() {
           </motion.div>
 
           {/* Contenu */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
@@ -58,8 +58,8 @@ export default function RGPDPage() {
 
               <h2 className="text-xl font-semibold text-white mb-4">1. Qu'est-ce que le RGPD ?</h2>
               <p className="text-sm text-white/60 mb-4">
-                Le Règlement Général sur la Protection des Données (RGPD) est un règlement européen 
-                qui renforce et unifie la protection des données personnelles des personnes physiques. 
+                Le Règlement Général sur la Protection des Données (RGPD) est un règlement européen
+                qui renforce et unifie la protection des données personnelles des personnes physiques.
                 Il s'applique depuis le 25 mai 2018.
               </p>
 
@@ -71,7 +71,7 @@ export default function RGPDPage() {
                     <h3 className="text-sm font-medium text-white">Droit d'accès</h3>
                   </div>
                   <p className="text-xs text-white/60">
-                    Vous pouvez demander quelles données personnelles nous traitons à votre sujet 
+                    Vous pouvez demander quelles données personnelles nous traitons à votre sujet
                     et obtenir une copie de ces données.
                   </p>
                 </div>
@@ -81,7 +81,7 @@ export default function RGPDPage() {
                     <h3 className="text-sm font-medium text-white">Droit de rectification</h3>
                   </div>
                   <p className="text-xs text-white/60">
-                    Vous pouvez demander la correction de données inexactes ou incomplètes 
+                    Vous pouvez demander la correction de données inexactes ou incomplètes
                     nous concernant.
                   </p>
                 </div>
@@ -91,7 +91,7 @@ export default function RGPDPage() {
                     <h3 className="text-sm font-medium text-white">Droit à l'effacement</h3>
                   </div>
                   <p className="text-xs text-white/60">
-                    Vous pouvez demander la suppression de vos données personnelles dans 
+                    Vous pouvez demander la suppression de vos données personnelles dans
                     certaines circonstances.
                   </p>
                 </div>
@@ -101,7 +101,7 @@ export default function RGPDPage() {
                     <h3 className="text-sm font-medium text-white">Droit à la portabilité</h3>
                   </div>
                   <p className="text-xs text-white/60">
-                    Vous pouvez recevoir vos données dans un format structuré et les transférer 
+                    Vous pouvez recevoir vos données dans un format structuré et les transférer
                     à un autre responsable de traitement.
                   </p>
                 </div>
@@ -157,7 +157,7 @@ export default function RGPDPage() {
                 <div className="p-4 bg-white/[0.04] rounded-lg">
                   <h3 className="text-sm font-medium text-white mb-2">5.1 Consentement</h3>
                   <p className="text-sm text-white/60">
-                    Pour les communications marketing et les données optionnelles. 
+                    Pour les communications marketing et les données optionnelles.
                     Vous pouvez retirer votre consentement à tout moment.
                   </p>
                 </div>
@@ -188,8 +188,8 @@ export default function RGPDPage() {
                   <h3 className="text-sm font-semibold text-yellow-300">Informations importantes</h3>
                 </div>
                 <p className="text-sm text-yellow-200">
-                  Certains de nos prestataires (Stripe, Vercel, Supabase) sont situés en dehors de l'UE. 
-                  Nous nous assurons que ces transferts sont effectués avec des garanties appropriées 
+                  Certains de nos prestataires (Stripe, Vercel) sont situés en dehors de l'UE.
+                  Nous nous assurons que ces transferts sont effectués avec des garanties appropriées
                   (clauses contractuelles types, décision d'adéquation).
                 </p>
               </div>
@@ -208,8 +208,8 @@ export default function RGPDPage() {
 
               <h2 className="text-xl font-semibold text-white mb-4 mt-8">8. Violation de données</h2>
               <p className="text-sm text-white/60 mb-4">
-                En cas de violation de données personnelles susceptible d'engendrer un risque élevé 
-                pour vos droits et libertés, nous vous informerons dans les meilleurs délais et, 
+                En cas de violation de données personnelles susceptible d'engendrer un risque élevé
+                pour vos droits et libertés, nous vous informerons dans les meilleurs délais et,
                 au plus tard, dans les 72 heures après en avoir pris connaissance.
               </p>
 

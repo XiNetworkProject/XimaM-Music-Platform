@@ -87,4 +87,6 @@ export async function POST(request: NextRequest) {
     console.error('Erreur POST notifications:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
-} 
+}
+
+export const dynamic = 'force-dynamic';

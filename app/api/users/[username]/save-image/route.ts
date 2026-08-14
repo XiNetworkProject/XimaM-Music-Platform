@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaPublicId, isLocalMediaReference } from '@/lib/localMediaStorage';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,7 @@ export async function POST(
     }
 
     // Vérifier que l'utilisateur existe et que c'est bien son profil
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const { data: profile, error: profileError } = await dbAdmin
       .from('profiles')
       .select('id, username, avatar_public_id, banner_public_id')
       .eq('username', username)
@@ -59,7 +59,7 @@ export async function POST(
       [oldPublicIdField]: publicId
     };
 
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await dbAdmin
       .from('profiles')
       .update(updateData)
       .eq('id', session.user.id);

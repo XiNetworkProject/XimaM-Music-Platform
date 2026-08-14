@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 import { notifyForumPostLike } from '@/lib/notifications';
 
 export async function GET(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Récupérer les likes du post
-    const { data: likes, error } = await supabase
+    const { data: likes, error } = await db
       .from('forum_post_likes')
       .select('*')
       .eq('post_id', post_id)
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérifier si le post existe
-    const { data: post, error: postError } = await supabase
+    const { data: post, error: postError } = await db
       .from('forum_posts')
       .select('id, user_id, title')
       .eq('id', post_id)
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérifier si l'utilisateur a déjà liké ce post
-    const { data: existingLike, error: likeError } = await supabase
+    const { data: existingLike, error: likeError } = await db
       .from('forum_post_likes')
       .select('id')
       .eq('post_id', post_id)
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Ajouter le like
-    const { data: like, error } = await supabase
+    const { data: like, error } = await db
       .from('forum_post_likes')
       .insert({
         post_id,
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     if (post.user_id && post.user_id !== session.user.id) {
       try {
-        const { data: profile } = await supabase
+        const { data: profile } = await db
           .from('profiles')
           .select('name, username')
           .eq('id', session.user.id)
@@ -130,7 +130,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Supprimer le like
-    const { error } = await supabase
+    const { error } = await db
       .from('forum_post_likes')
       .delete()
       .eq('post_id', post_id)
@@ -148,3 +148,5 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

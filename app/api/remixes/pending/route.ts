@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getRemixSourceSummary } from '@/lib/remixServer';
 
 // Variations IA en attente d'approbation pour les morceaux source appartenant a
@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
     if (!userId) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
 
     const [{ data: ownedTracks }, { data: ownedGenerations }] = await Promise.all([
-      supabaseAdmin.from('tracks').select('id').eq('creator_id', userId),
-      supabaseAdmin.from('ai_generations').select('id').eq('user_id', userId),
+      dbAdmin.from('tracks').select('id').eq('creator_id', userId),
+      dbAdmin.from('ai_generations').select('id').eq('user_id', userId),
     ]);
 
     const ownedTrackIds = (ownedTracks || []).map((row: any) => String(row.id));
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     let ownedAiTrackIds: string[] = [];
     if (generationIds.length) {
-      const { data: ownedAiTracks } = await supabaseAdmin
+      const { data: ownedAiTracks } = await dbAdmin
         .from('ai_tracks')
         .select('id')
         .in('generation_id', generationIds);
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     const [tracksPending, aiTracksPending] = await Promise.all([
       ownedTrackIds.length
-        ? supabaseAdmin
+        ? dbAdmin
             .from('track_remixes')
             .select('id, source_track_id, source_track_type, child_track_id, creator_id, created_at')
             .eq('remix_type', 'ai_variation')
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
             .in('source_track_id', ownedTrackIds)
         : Promise.resolve({ data: [] as any[] }),
       ownedAiTrackIds.length
-        ? supabaseAdmin
+        ? dbAdmin
             .from('track_remixes')
             .select('id, source_track_id, source_track_type, child_track_id, creator_id, created_at')
             .eq('remix_type', 'ai_variation')
@@ -68,12 +68,12 @@ export async function GET(request: NextRequest) {
     const creatorIds = Array.from(new Set(rows.map((row: any) => String(row.creator_id)).filter(Boolean)));
 
     const [{ data: aiTracks }, { data: creators }] = await Promise.all([
-      supabaseAdmin
+      dbAdmin
         .from('ai_tracks')
         .select('id, title, audio_url, image_url, duration, created_at, generation:ai_generations!inner(id, status)')
         .in('id', childIds),
       creatorIds.length
-        ? supabaseAdmin.from('profiles').select('id, username, name, avatar').in('id', creatorIds)
+        ? dbAdmin.from('profiles').select('id, username, name, avatar').in('id', creatorIds)
         : Promise.resolve({ data: [] as any[] }),
     ]);
 

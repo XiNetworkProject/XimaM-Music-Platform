@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
 import {
   buildRecommendationSignals,
@@ -58,7 +58,7 @@ async function loadTrackCandidates(_limit: number) {
 }
 
 async function loadPostCandidates(limit: number, userId: string | null) {
-  const { data: posts } = await supabaseAdmin
+  const { data: posts } = await dbAdmin
     .from('creator_posts')
     .select(POST_SELECT)
     .eq('is_public', true)
@@ -68,7 +68,7 @@ async function loadPostCandidates(limit: number, userId: string | null) {
   const trackIds = (posts || []).map((post: any) => post.track_id).filter(Boolean);
   const trackMap = new Map<string, any>();
   if (trackIds.length) {
-    const { data: tracks } = await applyPublicTrackFilter(supabaseAdmin
+    const { data: tracks } = await applyPublicTrackFilter(dbAdmin
       .from('tracks')
       .select('*, profiles:profiles!tracks_creator_id_fkey ( username, name )')
       .in('id', Array.from(new Set(trackIds))));
@@ -94,7 +94,7 @@ async function loadPostCandidates(limit: number, userId: string | null) {
 
   const liked = new Set<string>();
   if (userId && posts?.length) {
-    const { data: likes } = await supabaseAdmin
+    const { data: likes } = await dbAdmin
       .from('post_likes')
       .select('post_id')
       .eq('user_id', userId)
@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     const signals = await buildRecommendationSignals({
-      supabase: supabaseAdmin,
+      db: dbAdmin,
       userId,
       candidateTracks: trackCandidates,
       sessionId: recommendationSessionId,

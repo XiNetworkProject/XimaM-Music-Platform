@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { canViewTrack } from '@/lib/publicTracks';
 
 export const runtime = 'nodejs';
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     if (!ids.length) return NextResponse.json({ tracks: [] });
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('tracks')
       .select(
         `

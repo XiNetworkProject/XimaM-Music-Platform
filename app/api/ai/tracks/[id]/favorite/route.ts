@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,7 @@ export async function POST(
     const checkOnly = body?.check_only === true;
     const desiredState = typeof body?.is_favorite === 'boolean' ? body.is_favorite : null;
 
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await dbAdmin
       .from('ai_track_likes')
       .select('id')
       .eq('track_id', trackId)
@@ -34,7 +34,7 @@ export async function POST(
       return NextResponse.json({ is_favorite: currentlyLiked, track_id: trackId });
     }
 
-    const { data: track, error: fetchError } = await supabaseAdmin
+    const { data: track, error: fetchError } = await dbAdmin
       .from('ai_tracks')
       .select('id')
       .eq('id', trackId)
@@ -47,14 +47,14 @@ export async function POST(
     const newState = desiredState !== null ? desiredState : !currentlyLiked;
 
     if (newState && !currentlyLiked) {
-      const { error } = await supabaseAdmin
+      const { error } = await dbAdmin
         .from('ai_track_likes')
         .insert({ track_id: trackId, user_id: userId });
       if (error && error.code !== '23505') {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
     } else if (!newState && currentlyLiked) {
-      const { error } = await supabaseAdmin
+      const { error } = await dbAdmin
         .from('ai_track_likes')
         .delete()
         .eq('track_id', trackId)

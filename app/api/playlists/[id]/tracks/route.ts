@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin as supabase } from '@/lib/supabase';
+import { dbAdmin as db } from '@/lib/database';
 import { getApiSession } from '@/lib/getApiSession';
 import { canAddTrackToPlaylist } from '@/lib/publicTracks';
 
@@ -8,7 +8,7 @@ async function requirePlaylistOwner(request: NextRequest, playlistId: string) {
   if (!session?.user?.id) {
     return { error: NextResponse.json({ error: 'Non autorisé' }, { status: 401 }) };
   }
-  const { data: playlist } = await supabase
+  const { data: playlist } = await db
     .from('playlists')
     .select('id, creator_id, is_public')
     .eq('id', playlistId)
@@ -40,7 +40,7 @@ export async function POST(
     const playlist = ownership.playlist!;
 
     // Vérifier que la track existe
-    const { data: track, error: trackError } = await supabase
+    const { data: track, error: trackError } = await db
       .from('tracks')
       .select('id, creator_id, is_public, audio_url')
       .eq('id', trackId)
@@ -73,7 +73,7 @@ export async function POST(
     }
 
     // Vérifier que la track n'est pas déjà dans la playlist
-    const { data: existingTrack, error: existingError } = await supabase
+    const { data: existingTrack, error: existingError } = await db
       .from('playlist_tracks')
       .select('id')
       .eq('playlist_id', id)
@@ -87,7 +87,7 @@ export async function POST(
     // Trouver la prochaine position
     let nextPosition = 0;
     try {
-      const { data: maxRow } = await supabase
+      const { data: maxRow } = await db
         .from('playlist_tracks')
         .select('position')
         .eq('playlist_id', id)
@@ -98,7 +98,7 @@ export async function POST(
     } catch {}
 
     // Ajouter la track à la playlist avec position
-    const { data: playlistTrack, error: insertError } = await supabase
+    const { data: playlistTrack, error: insertError } = await db
       .from('playlist_tracks')
       .insert({
         playlist_id: id,
@@ -110,7 +110,7 @@ export async function POST(
       .single();
 
     if (insertError) {
-      console.error('Erreur Supabase:', insertError);
+      console.error('Erreur PostgreSQL:', insertError);
       return NextResponse.json({ error: 'Erreur lors de l\'ajout de la track' }, { status: 500 });
     }
 
@@ -151,14 +151,14 @@ export async function DELETE(
     }
 
     // Supprimer la track de la playlist
-    const { error } = await supabase
+    const { error } = await db
       .from('playlist_tracks')
       .delete()
       .eq('playlist_id', id)
       .eq('track_id', trackId);
 
     if (error) {
-      console.error('Erreur Supabase:', error);
+      console.error('Erreur PostgreSQL:', error);
       return NextResponse.json({ error: 'Erreur lors de la suppression de la track' }, { status: 500 });
     }
 
@@ -169,3 +169,5 @@ export async function DELETE(
     return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

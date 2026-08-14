@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { requireConversationParticipant } from '@/lib/messaging';
 import { deleteLocalMedia, localPublicIdFromUrl } from '@/lib/localMediaStorage';
 
@@ -12,7 +12,7 @@ async function messageAccess(request: NextRequest, conversationId: string, messa
   if (!await requireConversationParticipant(conversationId, session.user.id)) {
     return { response: NextResponse.json({ error: 'Acces refuse' }, { status: 403 }) };
   }
-  const { data: message } = await supabaseAdmin
+  const { data: message } = await dbAdmin
     .from('messages')
     .select('id, sender_id, content, message_type, media_url, deleted_at, created_at')
     .eq('id', messageId)
@@ -39,7 +39,7 @@ export async function PATCH(
       const content = typeof body?.content === 'string' ? body.content.trim().slice(0, 2_000) : '';
       if (!content) return NextResponse.json({ error: 'Message vide' }, { status: 400 });
       const editedAt = new Date().toISOString();
-      const { error } = await supabaseAdmin
+      const { error } = await dbAdmin
         .from('messages')
         .update({ content, edited_at: editedAt, updated_at: editedAt })
         .eq('id', params.messageId)
@@ -49,7 +49,7 @@ export async function PATCH(
     }
 
     if (action === 'pin') {
-      const { error } = await supabaseAdmin.from('message_pins').upsert({
+      const { error } = await dbAdmin.from('message_pins').upsert({
         conversation_id: params.conversationId,
         message_id: params.messageId,
         pinned_by: checked.userId,
@@ -59,7 +59,7 @@ export async function PATCH(
     }
 
     if (action === 'unpin') {
-      const { error } = await supabaseAdmin
+      const { error } = await dbAdmin
         .from('message_pins')
         .delete()
         .eq('conversation_id', params.conversationId)
@@ -69,7 +69,7 @@ export async function PATCH(
     }
 
     if (action === 'hide' || action === 'unhide') {
-      const query = supabaseAdmin.from('message_hidden_users');
+      const query = dbAdmin.from('message_hidden_users');
       const { error } = action === 'hide'
         ? await query.upsert({ message_id: params.messageId, user_id: checked.userId }, { onConflict: 'message_id,user_id' })
         : await query.delete().eq('message_id', params.messageId).eq('user_id', checked.userId);
@@ -92,7 +92,7 @@ export async function DELETE(
     const checked = await messageAccess(request, params.conversationId, params.messageId);
     if (checked.response) return checked.response;
     if (request.nextUrl.searchParams.get('scope') === 'me') {
-      const { error } = await supabaseAdmin.from('message_hidden_users').upsert({
+      const { error } = await dbAdmin.from('message_hidden_users').upsert({
         message_id: params.messageId,
         user_id: checked.userId,
       }, { onConflict: 'message_id,user_id' });
@@ -100,11 +100,11 @@ export async function DELETE(
       return NextResponse.json({ success: true, scope: 'me' });
     }
     if (checked.message.sender_id !== checked.userId) return NextResponse.json({ error: 'Acces refuse' }, { status: 403 });
-    const { data: attachments } = await supabaseAdmin
+    const { data: attachments } = await dbAdmin
       .from('message_attachments')
       .select('url, preview_url')
       .eq('message_id', params.messageId);
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('messages')
       .update({ content: '', media_url: null, metadata: {}, deleted_at: new Date().toISOString() })
       .eq('id', params.messageId);

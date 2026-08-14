@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { DEFAULT_REMIX_PERMISSIONS, remixPermissionsToRow, sanitizeRemixPermissions } from '@/lib/remixPermissions';
 import { applyRemixPublicationGuard } from '@/lib/remixServer';
 
@@ -28,7 +28,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'isPublic doit etre un booleen' }, { status: 400 });
     }
 
-    const { data: current, error: fetchError } = await supabaseAdmin
+    const { data: current, error: fetchError } = await dbAdmin
       .from('ai_generations')
       .select('id, user_id, is_public')
       .eq('id', generationId)
@@ -42,7 +42,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Interdit' }, { status: 403 });
     }
 
-    const { data: generationTracks } = await supabaseAdmin
+    const { data: generationTracks } = await dbAdmin
       .from('ai_tracks')
       .select('id')
       .eq('generation_id', generationId);
@@ -53,7 +53,7 @@ export async function PATCH(
     });
     const effectivePublic = publicationGuard.effectivePublic;
 
-    const { data: updated, error: updateError } = await supabaseAdmin
+    const { data: updated, error: updateError } = await dbAdmin
       .from('ai_generations')
       .update({ is_public: effectivePublic })
       .eq('id', generationId)
@@ -71,7 +71,7 @@ export async function PATCH(
       ? sanitizeRemixPermissions(body.remixPermissions, DEFAULT_REMIX_PERMISSIONS)
       : DEFAULT_REMIX_PERMISSIONS;
 
-    await supabaseAdmin
+    await dbAdmin
       .from('ai_tracks')
       .update({ is_public: effectivePublic, ...remixPermissionsToRow(remixPermissions) })
       .eq('generation_id', generationId)

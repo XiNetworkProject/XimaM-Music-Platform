@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 const ALLOWED_SUBJECTS = [
   'Compte / Connexion',
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Message trop court (min 10 caractères).' }, { status: 400 });
     }
 
-    const { error: dbError } = await supabaseAdmin.from('support_tickets').insert({
+    const { error: dbError } = await dbAdmin.from('support_tickets').insert({
       email: email.trim().toLowerCase(),
       subject,
       message: message.trim(),
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (dbError) {
-      console.error('[support/route] Supabase error:', dbError);
+      console.error('[support/route] PostgreSQL error:', dbError);
       return NextResponse.json({ error: 'Erreur serveur. Réessaie plus tard.' }, { status: 500 });
     }
 
@@ -49,3 +49,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Erreur inattendue.' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

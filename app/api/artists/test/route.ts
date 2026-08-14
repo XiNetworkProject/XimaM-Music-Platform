@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 import { diagnosticsEnabled } from '@/lib/diagnostics';
 
 export async function GET(request: NextRequest) {
@@ -7,23 +7,23 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🧪 Test API Artists - Début');
     
-    // Test 1: Vérifier la connexion Supabase
-    console.log('🔍 Test 1: Connexion Supabase');
-    const { data: testData, error: testError } = await supabase
+    // Test 1: Vérifier la connexion PostgreSQL
+    console.log('🔍 Test 1: Connexion PostgreSQL');
+    const { data: testData, error: testError } = await db
       .from('profiles')
       .select('id, username')
       .limit(1);
     
     if (testError) {
-      console.error('❌ Erreur connexion Supabase:', testError);
-      return NextResponse.json({ error: 'Erreur connexion Supabase', details: testError }, { status: 500 });
+      console.error('❌ Erreur connexion PostgreSQL:', testError);
+      return NextResponse.json({ error: 'Erreur connexion PostgreSQL', details: testError }, { status: 500 });
     }
     
-    console.log('✅ Connexion Supabase OK, données:', testData);
+    console.log('✅ Connexion PostgreSQL OK, données:', testData);
     
     // Test 2: Vérifier la structure de la table profiles
     console.log('🔍 Test 2: Structure table profiles');
-    const { data: columnsData, error: columnsError } = await supabase
+    const { data: columnsData, error: columnsError } = await db
       .from('profiles')
       .select('*')
       .limit(1);
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     
     // Test 3: Vérifier la table tracks
     console.log('🔍 Test 3: Table tracks');
-    const { data: tracksData, error: tracksError } = await supabase
+    const { data: tracksData, error: tracksError } = await db
       .from('tracks')
       .select('id, creator_id')
       .limit(1);
@@ -65,3 +65,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

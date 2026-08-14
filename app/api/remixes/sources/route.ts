@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getRemixSourceSummary, normalizeRemixTrackRef } from '@/lib/remixServer';
 
 // Liste les morceaux Synaura publics qui autorisent la variation IA (allow_ai_variation),
@@ -28,14 +28,14 @@ export async function GET(request: NextRequest) {
     const presetType = preset?.type || 'track';
 
     const [tracksRes, aiTracksRes] = await Promise.all([
-      supabaseAdmin
+      dbAdmin
         .from('tracks')
         .select('id')
         .eq('is_public', true)
         .eq('allow_ai_variation', true)
         .order('created_at', { ascending: false })
         .limit(limit),
-      supabaseAdmin
+      dbAdmin
         .from('ai_tracks')
         .select('id, generation:ai_generations!inner(status)')
         .eq('is_public', true)

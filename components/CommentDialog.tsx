@@ -272,8 +272,8 @@ export default function CommentDialog({
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) {
-        const supa = json?.supabase;
-        const extra = supa?.code || supa?.message ? ` (${[supa?.code, supa?.message].filter(Boolean).join(' - ')})` : '';
+        const database = json?.db;
+        const extra = database?.code || database?.message ? ` (${[database?.code, database?.message].filter(Boolean).join(' - ')})` : '';
         throw new Error((json?.error || 'Impossible de publier') + extra);
       }
       const comment = json?.comment as Comment | undefined;

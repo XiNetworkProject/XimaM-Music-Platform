@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { supabaseAdmin as supabase } from '@/lib/supabase';
+import { dbAdmin as db } from '@/lib/database';
 
 export default async function Head({ params }: { params: { id: string } }) {
   const id = params.id;
@@ -8,7 +8,7 @@ export default async function Head({ params }: { params: { id: string } }) {
   let image = '/default-cover.jpg';
 
   try {
-    const { data: playlist } = await supabase
+    const { data: playlist } = await db
       .from('playlists')
       .select('id, name, description, cover_url, is_public')
       .eq('id', id)

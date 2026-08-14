@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { generateCustomMusic } from '@/lib/suno';
 import { aiGenerationService } from '@/lib/aiGenerationService';
+import { buildSunoCallbackUrl } from '@/lib/sunoWebhook';
 
 // Configuration Suno API
 const SUNO_API_KEY = process.env.SUNO_API_KEY;
@@ -90,7 +91,7 @@ async function generateMusicWithSuno(prompt: string, duration: number, style: st
       prompt: enhancedPrompt,
       instrumental: isInstrumental || false,
       model: model || 'V4_5PLUS',
-      callBackUrl: extra?.callBackUrl || `${process.env.NEXTAUTH_URL}/api/suno/callback`,
+      callBackUrl: extra?.callBackUrl,
       styleWeight: extra?.styleWeight,
       weirdnessConstraint: extra?.weirdnessConstraint,
       audioWeight: extra?.audioWeight,
@@ -252,7 +253,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const { prompt, duration, style = 'pop', title, lyrics, isInstrumental, model, customMode, styleWeight, weirdnessConstraint, audioWeight, negativeTags, vocalGender, callBackUrl } = await request.json();
+    const { prompt, duration, style = 'pop', title, lyrics, isInstrumental, model, customMode, styleWeight, weirdnessConstraint, audioWeight, negativeTags, vocalGender } = await request.json();
 
     // Validation et fallback pour le prompt
     const validatedPrompt = prompt?.trim() || 'Musique générée par IA';
@@ -282,7 +283,7 @@ export async function POST(request: NextRequest) {
       audioWeight,
       negativeTags,
       vocalGender,
-      callBackUrl
+      callBackUrl: buildSunoCallbackUrl(request, '/api/suno/callback')
     });
     
     if (sunoResult.success && sunoResult.taskId) {
@@ -374,9 +375,9 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     // Récupérer les générations de l'utilisateur
-    const { supabase } = await import('@/lib/supabase');
+    const { db } = await import('@/lib/database');
     
-    const { data: generations, error } = await supabase
+    const { data: generations, error } = await db
       .from('ai_generations')
       .select('*')
       .eq('user_id', session.user.id)
@@ -402,3 +403,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

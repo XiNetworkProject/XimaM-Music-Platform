@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
         
         try {
           // Mettre à jour l'enregistrement dans ai_generations
-          const { error } = await supabase
+          const { error } = await db
             .from('ai_generations')
             .update({
               audio_url: audioUrls.join('|'), // Stocker toutes les URLs séparées par |
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       console.error(`❌ Génération Suno échouée pour ${taskId}:`, msg);
       
       try {
-        const { error } = await supabase
+        const { error } = await db
           .from('ai_generations')
           .update({
             status: 'failed',
@@ -90,3 +90,5 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

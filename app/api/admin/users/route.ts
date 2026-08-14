@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getAdminGuard, getOwnerEmails } from '@/lib/admin';
 
 function norm(s: any) {
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const role = norm(searchParams.get('role')) || 'admin';
   const limit = Math.min(50, Math.max(1, Number(searchParams.get('limit') || 20)));
 
-  let query = supabaseAdmin
+  let query = dbAdmin
     .from('profiles')
     .select('id,email,username,name,artist_name,role,is_artist,is_verified,updated_at')
     .order('updated_at', { ascending: false })
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Schéma Supabase incomplet: la colonne `profiles.role` est manquante en production. Exécute le script `scripts/add_profiles_role.sql` dans Supabase (SQL Editor), puis réessaie.",
+            "Schéma PostgreSQL incomplet: la colonne `profiles.role` est manquante en production. Exécute le script `scripts/add_profiles_role.sql` dans PostgreSQL (SQL Editor), puis réessaie.",
         },
         { status: 500 },
       );
@@ -77,7 +77,7 @@ export async function PATCH(req: NextRequest) {
   // Resolve target by email if needed
   let resolvedUserId = userId;
   if (!resolvedUserId && email) {
-    const { data: byEmail } = await supabaseAdmin
+    const { data: byEmail } = await dbAdmin
       .from('profiles')
       .select('id,email,role')
       .ilike('email', email)
@@ -93,14 +93,14 @@ export async function PATCH(req: NextRequest) {
 
   // Safety: prevent removing owner access via role change if owner isn't admin yet
   const owners = getOwnerEmails();
-  const { data: target } = await supabaseAdmin.from('profiles').select('id,email,role').eq('id', resolvedUserId).maybeSingle();
+  const { data: target } = await dbAdmin.from('profiles').select('id,email,role').eq('id', resolvedUserId).maybeSingle();
   const targetEmail = (target?.email || '').toLowerCase();
   const isTargetOwner = targetEmail ? owners.includes(targetEmail) : false;
   if (isTargetOwner && role !== 'admin') {
     return NextResponse.json({ error: 'Impossible de retirer les droits owner (bootstrap)' }, { status: 400 });
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('profiles')
     .update({ role })
     .eq('id', resolvedUserId)
@@ -112,7 +112,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Schéma Supabase incomplet: la colonne `profiles.role` est manquante en production. Exécute le script `scripts/add_profiles_role.sql` dans Supabase (SQL Editor), puis réessaie.",
+            "Schéma PostgreSQL incomplet: la colonne `profiles.role` est manquante en production. Exécute le script `scripts/add_profiles_role.sql` dans PostgreSQL (SQL Editor), puis réessaie.",
         },
         { status: 500 },
       );
@@ -127,3 +127,5 @@ export async function PATCH(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return PATCH(req);
 }
+
+export const dynamic = 'force-dynamic';

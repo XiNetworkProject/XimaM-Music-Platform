@@ -1,8 +1,7 @@
 import type { MetadataRoute } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { db } from '@/lib/database';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+export const dynamic = 'force-dynamic';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || 'https://www.synaura.fr').replace(/\/$/, '');
@@ -27,9 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let profilePages: MetadataRoute.Sitemap = [];
 
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data: tracks } = await supabase
+    const { data: tracks } = await db
       .from('tracks')
       .select('id, updated_at')
       .eq('visibility', 'public')
@@ -45,7 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }));
     }
 
-    const { data: profiles } = await supabase
+    const { data: profiles } = await db
       .from('profiles')
       .select('username, updated_at')
       .not('username', 'is', null)

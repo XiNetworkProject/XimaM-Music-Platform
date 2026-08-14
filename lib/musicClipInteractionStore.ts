@@ -1,9 +1,9 @@
 import { randomUUID } from 'crypto';
-import { supabaseAdmin } from '@/lib/supabase';
+import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
-const BUCKET = 'music-clip-interactions';
-const PAGE_SIZE = 100;
-let bucketReady: Promise<void> | null = null;
+const DATA_ROOT = path.resolve(process.env.SYNAURA_DATA_ROOT || '/mnt/Synaura-SSD/apps/synaura/data');
+const STORE_ROOT = path.resolve(DATA_ROOT, 'music-clip-interactions');
 
 export type StoredClipComment = {
   id: string;
@@ -16,153 +16,116 @@ export type StoredClipComment = {
 
 function safeSegment(value: string, label: string) {
   const normalized = String(value || '').trim();
-  if (!normalized || !/^[a-zA-Z0-9_-]+$/.test(normalized)) {
-    throw new Error(`${label} invalide`);
-  }
+  if (!normalized || !/^[a-zA-Z0-9_-]+$/.test(normalized)) throw new Error(`${label} invalide`);
   return normalized;
 }
 
-async function ensureBucket() {
-  if (!bucketReady) {
-    bucketReady = (async () => {
-      const { data, error } = await supabaseAdmin.storage.getBucket(BUCKET);
-      if (data && !error) return;
-      const created = await supabaseAdmin.storage.createBucket(BUCKET, {
-        public: false,
-        allowedMimeTypes: ['application/json'],
-        fileSizeLimit: 64 * 1024,
-      });
-      if (created.error && !/already exists|duplicate/i.test(created.error.message || '')) {
-        throw created.error;
-      }
-    })().catch((error) => {
-      bucketReady = null;
-      throw error;
-    });
+function safeStorePath(...segments: string[]) {
+  const target = path.resolve(STORE_ROOT, ...segments.map((segment) => safeSegment(segment, 'Segment')));
+  if (!target.startsWith(`${STORE_ROOT}${path.sep}`)) throw new Error('Chemin interactions invalide');
+  return target;
+}
+
+function likeDirectory(clipId: string) {
+  return safeStorePath('likes', safeSegment(clipId, 'Clip'));
+}
+
+function likeFile(clipId: string, userId: string) {
+  return path.join(likeDirectory(clipId), `${safeSegment(userId, 'Utilisateur')}.json`);
+}
+
+function commentDirectory(clipId: string) {
+  return safeStorePath('comments', safeSegment(clipId, 'Clip'));
+}
+
+function commentFile(clipId: string, commentId: string) {
+  return path.join(commentDirectory(clipId), `${safeSegment(commentId, 'Commentaire')}.json`);
+}
+
+async function jsonFileNames(directory: string) {
+  try {
+    return (await readdir(directory, { withFileTypes: true }))
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+      .map((entry) => entry.name)
+      .sort((left, right) => right.localeCompare(left));
+  } catch (error: any) {
+    if (error?.code === 'ENOENT') return [];
+    throw error;
   }
-  await bucketReady;
-}
-
-async function listAll(prefix: string) {
-  await ensureBucket();
-  const result: Array<{ name: string; created_at?: string | null }> = [];
-  let offset = 0;
-  while (true) {
-    const { data, error } = await supabaseAdmin.storage.from(BUCKET).list(prefix, {
-      limit: PAGE_SIZE,
-      offset,
-      sortBy: { column: 'name', order: 'desc' },
-    });
-    if (error) throw error;
-    const page = data || [];
-    result.push(...page);
-    if (page.length < PAGE_SIZE) break;
-    offset += page.length;
-  }
-  return result;
-}
-
-function likePrefix(clipId: string) {
-  return `likes/${safeSegment(clipId, 'Clip')}`;
-}
-
-function likePath(clipId: string, userId: string) {
-  return `${likePrefix(clipId)}/${safeSegment(userId, 'Utilisateur')}.json`;
-}
-
-function commentPrefix(clipId: string) {
-  return `comments/${safeSegment(clipId, 'Clip')}`;
-}
-
-function commentPath(clipId: string, commentId: string) {
-  return `${commentPrefix(clipId)}/${safeSegment(commentId, 'Commentaire')}.json`;
 }
 
 export async function hasMusicClipLike(clipId: string, userId: string) {
-  const prefix = likePrefix(clipId);
-  const expected = `${safeSegment(userId, 'Utilisateur')}.json`;
-  await ensureBucket();
-  const { data, error } = await supabaseAdmin.storage.from(BUCKET).list(prefix, {
-    limit: 2,
-    search: expected,
-  });
-  if (error) throw error;
-  return (data || []).some((entry) => entry.name === expected);
+  try {
+    await readFile(likeFile(clipId, userId));
+    return true;
+  } catch (error: any) {
+    if (error?.code === 'ENOENT') return false;
+    throw error;
+  }
 }
 
 export async function setMusicClipLikeStored(clipId: string, userId: string) {
-  await ensureBucket();
-  const payload = Buffer.from(JSON.stringify({ clipId, userId, createdAt: new Date().toISOString() }));
-  const { error } = await supabaseAdmin.storage.from(BUCKET).upload(likePath(clipId, userId), payload, {
-    contentType: 'application/json',
-    upsert: false,
-  });
-  if (error && !/already exists|duplicate/i.test(error.message || '')) throw error;
+  const target = likeFile(clipId, userId);
+  await mkdir(path.dirname(target), { recursive: true });
+  try {
+    await writeFile(target, JSON.stringify({ clipId, userId, createdAt: new Date().toISOString() }), {
+      encoding: 'utf8',
+      flag: 'wx',
+      mode: 0o600,
+    });
+  } catch (error: any) {
+    if (error?.code !== 'EEXIST') throw error;
+  }
 }
 
 export async function removeMusicClipLikeStored(clipId: string, userId: string) {
-  await ensureBucket();
-  const { error } = await supabaseAdmin.storage.from(BUCKET).remove([likePath(clipId, userId)]);
-  if (error) throw error;
+  await unlink(likeFile(clipId, userId)).catch((error: any) => {
+    if (error?.code !== 'ENOENT') throw error;
+  });
 }
 
 export async function countMusicClipLikesStored(clipId: string) {
-  return (await listAll(likePrefix(clipId))).length;
+  return (await jsonFileNames(likeDirectory(clipId))).length;
 }
 
 export async function createMusicClipCommentStored(clipId: string, userId: string, content: string) {
-  await ensureBucket();
   const now = new Date().toISOString();
   const comment: StoredClipComment = {
     id: `${Date.now()}-${randomUUID()}`,
-    clipId,
-    userId,
+    clipId: safeSegment(clipId, 'Clip'),
+    userId: safeSegment(userId, 'Utilisateur'),
     content,
     createdAt: now,
     updatedAt: now,
   };
-  const { error } = await supabaseAdmin.storage.from(BUCKET).upload(
-    commentPath(clipId, comment.id),
-    Buffer.from(JSON.stringify(comment)),
-    { contentType: 'application/json', upsert: false },
-  );
-  if (error) throw error;
+  const target = commentFile(clipId, comment.id);
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, JSON.stringify(comment), { encoding: 'utf8', flag: 'wx', mode: 0o600 });
   return comment;
 }
 
 export async function getMusicClipCommentStored(clipId: string, commentId: string) {
-  await ensureBucket();
-  const { data, error } = await supabaseAdmin.storage.from(BUCKET).download(commentPath(clipId, commentId));
-  if (error || !data) return null;
   try {
-    return JSON.parse(await data.text()) as StoredClipComment;
-  } catch {
-    return null;
+    const parsed = JSON.parse(await readFile(commentFile(clipId, commentId), 'utf8')) as StoredClipComment;
+    return parsed?.id && parsed.clipId === clipId ? parsed : null;
+  } catch (error: any) {
+    if (error?.code === 'ENOENT' || error instanceof SyntaxError) return null;
+    throw error;
   }
 }
 
 export async function listMusicClipCommentsStored(clipId: string, limit: number, offset: number) {
-  await ensureBucket();
-  const prefix = commentPrefix(clipId);
-  const { data, error } = await supabaseAdmin.storage.from(BUCKET).list(prefix, {
-    limit,
-    offset,
-    sortBy: { column: 'name', order: 'desc' },
-  });
-  if (error) throw error;
-  const comments = await Promise.all((data || []).map(async (entry) => {
-    const id = entry.name.replace(/\.json$/i, '');
-    return getMusicClipCommentStored(clipId, id);
-  }));
+  const names = (await jsonFileNames(commentDirectory(clipId))).slice(offset, offset + limit);
+  const comments = await Promise.all(names.map((name) => getMusicClipCommentStored(clipId, name.replace(/\.json$/i, ''))));
   return comments.filter((comment): comment is StoredClipComment => Boolean(comment));
 }
 
 export async function countMusicClipCommentsStored(clipId: string) {
-  return (await listAll(commentPrefix(clipId))).length;
+  return (await jsonFileNames(commentDirectory(clipId))).length;
 }
 
 export async function deleteMusicClipCommentStored(clipId: string, commentId: string) {
-  await ensureBucket();
-  const { error } = await supabaseAdmin.storage.from(BUCKET).remove([commentPath(clipId, commentId)]);
-  if (error) throw error;
+  await unlink(commentFile(clipId, commentId)).catch((error: any) => {
+    if (error?.code !== 'ENOENT') throw error;
+  });
 }

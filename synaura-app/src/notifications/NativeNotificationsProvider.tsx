@@ -105,7 +105,7 @@ function projectId() {
 function readablePushError(cause: unknown) {
   const message = cause instanceof Error ? cause.message : String(cause || '');
   if (/firebase|fcm|google-services|default firebaseapp/i.test(message)) {
-    return "Le centre Supabase est actif, mais le transport push Android n'est pas configuré sur cet APK.";
+    return "Le centre PostgreSQL est actif, mais le transport push Android n'est pas configuré sur cet APK.";
   }
   return message || 'Activation push impossible.';
 }
@@ -168,7 +168,7 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
       DeviceEventEmitter.emit('synaura:notifications-changed', next);
       return next;
     } catch (cause) {
-      setSyncError(cause instanceof Error ? cause.message : 'Synchronisation Supabase indisponible.');
+      setSyncError(cause instanceof Error ? cause.message : 'Synchronisation PostgreSQL indisponible.');
       return 0;
     }
   }, [auth.token]);
@@ -194,7 +194,7 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
           deviceName: Device.deviceName,
           appVersion: Application.nativeApplicationVersion,
         });
-        if (!response.registered) throw new Error("Le telephone n'a pas ete confirme dans Supabase.");
+        if (!response.registered) throw new Error("Le telephone n'a pas ete confirme dans PostgreSQL.");
         lastRegistrationRef.current = { token: nextToken, syncedAt: Date.now() };
       }
 
@@ -268,8 +268,8 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
       if (!result.ok) throw new Error('La notification de test n’a pas été créée.');
       await refreshUnread();
       setNotice(result.pushRequested
-        ? 'Test créé dans Supabase. Le push Android a été demandé.'
-        : 'Test créé dans Supabase. Il est visible dans la cloche.');
+        ? 'Test créé dans PostgreSQL. Le push Android a été demandé.'
+        : 'Test créé dans PostgreSQL. Il est visible dans la cloche.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Test push impossible.');
     }

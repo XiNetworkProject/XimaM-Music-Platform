@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export type MessagingProfile = {
   id: string;
@@ -91,7 +91,7 @@ export async function getMessagingProfiles(userIds: string[]) {
   const profiles = new Map<string, MessagingProfile>();
   if (!uniqueIds.length) return profiles;
 
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('profiles')
     .select('id, name, username, avatar, is_verified, last_seen')
     .in('id', uniqueIds);
@@ -101,7 +101,7 @@ export async function getMessagingProfiles(userIds: string[]) {
 }
 
 export async function usersAreBlocked(firstUserId: string, secondUserId: string) {
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('user_blocks')
     .select('blocker_id, blocked_id')
     .in('blocker_id', [firstUserId, secondUserId])
@@ -111,7 +111,7 @@ export async function usersAreBlocked(firstUserId: string, secondUserId: string)
 }
 
 export async function getBlockState(currentUserId: string, targetUserId: string) {
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('user_blocks')
     .select('blocker_id, blocked_id')
     .in('blocker_id', [currentUserId, targetUserId])
@@ -125,7 +125,7 @@ export async function getBlockState(currentUserId: string, targetUserId: string)
 
 export async function usersAreFriends(firstUserId: string, secondUserId: string) {
   const pair = friendshipPair(firstUserId, secondUserId);
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('friendships')
     .select('id')
     .eq('user_id', pair.userId)
@@ -136,7 +136,7 @@ export async function usersAreFriends(firstUserId: string, secondUserId: string)
 
 export async function createFriendship(firstUserId: string, secondUserId: string, sourceRequestId?: string | null) {
   const pair = friendshipPair(firstUserId, secondUserId);
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('friendships')
     .upsert({
       user_id: pair.userId,
@@ -151,7 +151,7 @@ export async function createFriendship(firstUserId: string, secondUserId: string
 
 export async function removeFriendship(firstUserId: string, secondUserId: string) {
   const pair = friendshipPair(firstUserId, secondUserId);
-  const { error } = await supabaseAdmin
+  const { error } = await dbAdmin
     .from('friendships')
     .delete()
     .eq('user_id', pair.userId)
@@ -161,7 +161,7 @@ export async function removeFriendship(firstUserId: string, secondUserId: string
 
 export async function findDirectConversation(firstUserId: string, secondUserId: string) {
   const directKey = directConversationKey(firstUserId, secondUserId);
-  const { data: keyedConversation } = await supabaseAdmin
+  const { data: keyedConversation } = await dbAdmin
     .from('conversations')
     .select('id, name, is_group, created_at, updated_at, last_message_at, last_message_id, is_active')
     .eq('direct_key', directKey)
@@ -169,14 +169,14 @@ export async function findDirectConversation(firstUserId: string, secondUserId: 
     .maybeSingle();
   if (keyedConversation) return keyedConversation;
 
-  const { data: firstParticipations } = await supabaseAdmin
+  const { data: firstParticipations } = await dbAdmin
     .from('conversation_participants')
     .select('conversation_id')
     .eq('user_id', firstUserId);
   const ids = (firstParticipations || []).map((row) => row.conversation_id);
   if (!ids.length) return null;
 
-  const { data: sharedParticipations } = await supabaseAdmin
+  const { data: sharedParticipations } = await dbAdmin
     .from('conversation_participants')
     .select('conversation_id')
     .eq('user_id', secondUserId)
@@ -184,7 +184,7 @@ export async function findDirectConversation(firstUserId: string, secondUserId: 
   const sharedIds = (sharedParticipations || []).map((row) => row.conversation_id);
   if (!sharedIds.length) return null;
 
-  const { data: conversation } = await supabaseAdmin
+  const { data: conversation } = await dbAdmin
     .from('conversations')
     .select('id, name, is_group, created_at, updated_at, last_message_at, last_message_id, is_active')
     .in('id', sharedIds)
@@ -202,7 +202,7 @@ export async function ensureDirectConversation(firstUserId: string, secondUserId
   const id = crypto.randomUUID();
   const directKey = directConversationKey(firstUserId, secondUserId);
   const now = new Date().toISOString();
-  const { data: conversation, error } = await supabaseAdmin
+  const { data: conversation, error } = await dbAdmin
     .from('conversations')
     .insert({
       id,
@@ -223,7 +223,7 @@ export async function ensureDirectConversation(firstUserId: string, secondUserId
     throw error || new Error('Conversation impossible a creer');
   }
 
-  const { error: participantError } = await supabaseAdmin
+  const { error: participantError } = await dbAdmin
     .from('conversation_participants')
     .upsert([
       { conversation_id: conversation.id, user_id: firstUserId, last_read_at: now },
@@ -247,7 +247,7 @@ export async function acceptPendingMessageRequest(requestRow: {
   const conversation = await ensureDirectConversation(requestRow.requester_id, requestRow.target_id);
 
   if (requestRow.message?.trim()) {
-    const { error: messageError } = await supabaseAdmin
+    const { error: messageError } = await dbAdmin
       .from('messages')
       .upsert({
         id: `request-${requestRow.id}`,
@@ -262,7 +262,7 @@ export async function acceptPendingMessageRequest(requestRow: {
   }
 
   const now = new Date().toISOString();
-  const { error: requestError } = await supabaseAdmin
+  const { error: requestError } = await dbAdmin
     .from('message_requests')
     .update({ status: 'accepted', updated_at: now, resolved_at: now })
     .eq('id', requestRow.id)
@@ -273,7 +273,7 @@ export async function acceptPendingMessageRequest(requestRow: {
 }
 
 export async function requireConversationParticipant(conversationId: string, userId: string) {
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('conversation_participants')
     .select('id, conversation_id, user_id, last_read_at, archived_at, muted_until, role, nickname, theme_key, accent_color, background_key, wallpaper_url, bubble_enabled')
     .eq('conversation_id', conversationId)
@@ -283,7 +283,7 @@ export async function requireConversationParticipant(conversationId: string, use
 }
 
 export async function getConversationParticipantIds(conversationId: string) {
-  const { data } = await supabaseAdmin
+  const { data } = await dbAdmin
     .from('conversation_participants')
     .select('user_id, last_read_at, muted_until, role, nickname')
     .eq('conversation_id', conversationId);

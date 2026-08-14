@@ -13,7 +13,7 @@ type MobileRelease = {
   publishedAt: string;
 };
 
-const PUBLIC_MANIFEST_URL = 'https://ekddunxvtatdvxbszcsh.supabase.co/storage/v1/object/public/mobile-releases/latest.json';
+const PUBLIC_MANIFEST_URL = 'https://media.synaura.fr/mobile-releases/latest.json';
 
 function formatBytes(bytes: number) {
   if (!bytes) return 'APK Android';

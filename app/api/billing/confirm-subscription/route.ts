@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { stripe } from '@/lib/stripe';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import type StripeType from 'stripe';
 
 export async function POST(req: NextRequest) {
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     const periodEndUnix = (subscription as any).current_period_end as number | undefined;
     const periodEnd = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
     // On a besoin de l'userId; on l'a dans la session côté API
-    const { error: upErr } = await supabaseAdmin.from('profiles').update({
+    const { error: upErr } = await dbAdmin.from('profiles').update({
       plan: priceToPlan(),
       subscription_status: subscription.status,
       subscription_current_period_end: periodEnd,
@@ -86,4 +86,4 @@ export async function POST(req: NextRequest) {
   }
 }
 
-
+export const dynamic = 'force-dynamic';

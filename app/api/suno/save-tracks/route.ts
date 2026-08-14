@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getApiSession } from '@/lib/getApiSession';
 import { aiGenerationService } from '@/lib/aiGenerationService';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     
     try {
       // D'abord essayer de trouver la génération existante
-      const { data: existingGeneration } = await supabaseAdmin
+      const { data: existingGeneration } = await dbAdmin
         .from('ai_generations')
         .select('id')
         .eq('task_id', taskId)
@@ -114,3 +114,5 @@ export async function POST(req: NextRequest) {
     }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

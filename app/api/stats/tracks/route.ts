@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getApiSession } from '@/lib/getApiSession';
 
 export const runtime = 'nodejs';
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.id) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
     const userId = session.user.id;
-    const normalOwner = await supabaseAdmin
+    const normalOwner = await dbAdmin
       .from('tracks')
       .select('id')
       .eq('id', trackId)
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     let ownsTrack = Boolean(normalOwner.data);
     if (!ownsTrack && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trackId)) {
-      const aiOwner = await supabaseAdmin
+      const aiOwner = await dbAdmin
         .from('ai_tracks')
         .select('id, generation:ai_generations!inner(user_id)')
         .eq('id', trackId)
@@ -52,14 +52,14 @@ export async function GET(request: NextRequest) {
     /* ── Fetch views with both date columns ── */
     let viewRows: any[] = [];
     try {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await dbAdmin
         .from('track_views')
         .select('created_at, viewed_at, user_id')
         .eq('track_id', trackId)
         .limit(50000);
       if (!error && data) viewRows = data;
       else if (error) {
-        const { data: fb } = await supabaseAdmin
+        const { data: fb } = await dbAdmin
           .from('track_views')
           .select('created_at, user_id')
           .eq('track_id', trackId)
@@ -70,13 +70,13 @@ export async function GET(request: NextRequest) {
 
     /* ── Likes & Events (use created_at, always set) ── */
     const [likesQ, eventsQ, startsQ, p25Q, p50Q, p75Q, completesQ] = await Promise.all([
-      supabaseAdmin.from('track_likes').select('created_at').eq('track_id', trackId).gte('created_at', sinceIso).limit(50000),
-      supabaseAdmin.from('track_events').select('created_at, event_type, duration_ms, source').eq('track_id', trackId).gte('created_at', sinceIso).limit(50000),
-      supabaseAdmin.from('track_events').select('*', { count: 'exact', head: true }).eq('track_id', trackId).eq('event_type', 'play_start').gte('created_at', sinceIso),
-      supabaseAdmin.from('track_events').select('*', { count: 'exact', head: true }).eq('track_id', trackId).eq('event_type', 'play_progress').gte('progress_pct', 25).gte('created_at', sinceIso),
-      supabaseAdmin.from('track_events').select('*', { count: 'exact', head: true }).eq('track_id', trackId).eq('event_type', 'play_progress').gte('progress_pct', 50).gte('created_at', sinceIso),
-      supabaseAdmin.from('track_events').select('*', { count: 'exact', head: true }).eq('track_id', trackId).eq('event_type', 'play_progress').gte('progress_pct', 75).gte('created_at', sinceIso),
-      supabaseAdmin.from('track_events').select('*', { count: 'exact', head: true }).eq('track_id', trackId).eq('event_type', 'play_complete').gte('created_at', sinceIso),
+      dbAdmin.from('track_likes').select('created_at').eq('track_id', trackId).gte('created_at', sinceIso).limit(50000),
+      dbAdmin.from('track_events').select('created_at, event_type, duration_ms, source').eq('track_id', trackId).gte('created_at', sinceIso).limit(50000),
+      dbAdmin.from('track_events').select('*', { count: 'exact', head: true }).eq('track_id', trackId).eq('event_type', 'play_start').gte('created_at', sinceIso),
+      dbAdmin.from('track_events').select('*', { count: 'exact', head: true }).eq('track_id', trackId).eq('event_type', 'play_progress').gte('progress_pct', 25).gte('created_at', sinceIso),
+      dbAdmin.from('track_events').select('*', { count: 'exact', head: true }).eq('track_id', trackId).eq('event_type', 'play_progress').gte('progress_pct', 50).gte('created_at', sinceIso),
+      dbAdmin.from('track_events').select('*', { count: 'exact', head: true }).eq('track_id', trackId).eq('event_type', 'play_progress').gte('progress_pct', 75).gte('created_at', sinceIso),
+      dbAdmin.from('track_events').select('*', { count: 'exact', head: true }).eq('track_id', trackId).eq('event_type', 'play_complete').gte('created_at', sinceIso),
     ]);
 
     const likeRows = likesQ.data || [];

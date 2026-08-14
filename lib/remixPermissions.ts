@@ -48,7 +48,7 @@ export function sanitizeRemixPermissions(input: unknown, fallback: RemixPermissi
   };
 }
 
-/** Objet -> colonnes snake_case pour insert/update Supabase. */
+/** Objet -> colonnes snake_case pour insert/update PostgreSQL. */
 export function remixPermissionsToRow(perms: RemixPermissions) {
   return {
     allow_clips: perms.allowClips,

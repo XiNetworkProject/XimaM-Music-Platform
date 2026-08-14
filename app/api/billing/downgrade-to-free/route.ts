@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { stripe } from '@/lib/stripe';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     // MAJ immédiate profil côté app
-    await supabaseAdmin.from('profiles').update({
+    await dbAdmin.from('profiles').update({
       plan: 'free',
       subscription_status: 'canceled',
       subscription_current_period_end: null,
@@ -33,4 +33,4 @@ export async function POST(req: NextRequest) {
   }
 }
 
-
+export const dynamic = 'force-dynamic';

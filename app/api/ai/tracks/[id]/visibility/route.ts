@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { remixPermissionsFromRow, remixPermissionsToRow, sanitizeRemixPermissions } from '@/lib/remixPermissions';
 import { applyRemixPublicationGuard } from '@/lib/remixServer';
 
@@ -28,7 +28,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'isPublic doit etre un booleen' }, { status: 400 });
     }
 
-    const { data: track, error: fetchError } = await supabaseAdmin
+    const { data: track, error: fetchError } = await dbAdmin
       .from('ai_tracks')
       .select('*, generation:ai_generations!inner(user_id)')
       .eq('id', trackId)
@@ -57,7 +57,7 @@ export async function PATCH(
     });
     const effectivePublic = publicationGuard.effectivePublic;
 
-    const { data: updated, error: updateError } = await supabaseAdmin
+    const { data: updated, error: updateError } = await dbAdmin
       .from('ai_tracks')
       .update({ is_public: effectivePublic, ...remixPermissionsToRow(nextPermissions) })
       .eq('id', trackId)

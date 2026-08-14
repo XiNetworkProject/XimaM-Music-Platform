@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { requireConversationParticipant } from '@/lib/messaging';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: { conversa
   if (!await requireConversationParticipant(params.conversationId, session.user.id)) {
     return NextResponse.json({ error: 'Acces refuse' }, { status: 403 });
   }
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('conversation_rooms')
     .select('id, name, room_type, position, created_by, created_at, updated_at')
     .eq('conversation_id', params.conversationId)
@@ -44,12 +44,12 @@ export async function POST(request: NextRequest, { params }: { params: { convers
   const name = roomName(body?.name);
   const type = body?.type === 'voice_notes' ? 'voice_notes' : 'text';
   if (!name) return NextResponse.json({ error: 'Nom du salon requis' }, { status: 400 });
-  const { count } = await supabaseAdmin
+  const { count } = await dbAdmin
     .from('conversation_rooms')
     .select('id', { count: 'exact', head: true })
     .eq('conversation_id', params.conversationId);
   if (Number(count || 0) >= 20) return NextResponse.json({ error: 'Limite de salons atteinte' }, { status: 409 });
-  const { data, error } = await supabaseAdmin.from('conversation_rooms').insert({
+  const { data, error } = await dbAdmin.from('conversation_rooms').insert({
     conversation_id: params.conversationId,
     name,
     room_type: type,

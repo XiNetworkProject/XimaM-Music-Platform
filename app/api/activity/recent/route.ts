@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Récupérer l'utilisateur depuis Supabase
-    const { data: user, error: userError } = await supabase
+    // Récupérer l'utilisateur depuis PostgreSQL
+    const { data: user, error: userError } = await db
       .from('profiles')
       .select('*')
       .eq('email', session.user.email)
@@ -90,8 +90,8 @@ export async function GET(request: NextRequest) {
       }
     ];
 
-    // Activités récentes de l'utilisateur depuis Supabase
-    const { data: userRecentTracks, error: tracksError } = await supabase
+    // Activités récentes de l'utilisateur depuis PostgreSQL
+    const { data: userRecentTracks, error: tracksError } = await db
       .from('tracks')
       .select('*')
       .eq('creator_id', user.id)
@@ -140,4 +140,6 @@ function formatTimeAgo(dateString: string): string {
   if (diffDays <= 7) return `Il y a ${diffDays} jours`;
   
   return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-} 
+}
+
+export const dynamic = 'force-dynamic';

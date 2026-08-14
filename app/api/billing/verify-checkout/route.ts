@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { stripe } from '@/lib/stripe';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export async function POST(req: NextRequest) {
   try {
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     const periodEnd = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
 
     // Mettre à jour le profil avec le nouveau plan
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await dbAdmin
       .from('profiles')
       .update({
         plan: priceToPlan(),
@@ -97,3 +97,4 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export const dynamic = 'force-dynamic';

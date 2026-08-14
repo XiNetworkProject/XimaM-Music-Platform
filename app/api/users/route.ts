@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { db, dbAdmin } from '@/lib/database';
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,8 +7,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Récupérer les utilisateurs depuis Supabase
-    const { data: users, error } = await supabase
+    // Récupérer les utilisateurs depuis PostgreSQL
+    const { data: users, error } = await db
       .from('profiles')
       .select(`
         id,
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error('❌ Erreur Supabase users:', error);
+      console.error('❌ Erreur PostgreSQL users:', error);
       return NextResponse.json(
         { error: 'Erreur lors de la récupération des utilisateurs' },
         { status: 500 }
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     let artistBoostMap = new Map<string, number>();
     if (userIds.length) {
       const nowIso = new Date().toISOString();
-      const { data: abs } = await supabaseAdmin
+      const { data: abs } = await dbAdmin
         .from('active_artist_boosts')
         .select('artist_id, multiplier, expires_at')
         .in('artist_id', userIds)
@@ -94,3 +94,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const dynamic = 'force-dynamic';

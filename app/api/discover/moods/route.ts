@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getApiSession } from '@/lib/getApiSession';
 import { getMoodById, matchesMoodKeywords } from '@/lib/discoverMoods';
 import { getPublicTrackPool, attachLikedFlag } from '@/lib/discoverData';
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const userId = (session?.user as any)?.id || null;
 
     if (mood.isAiOnly) {
-      const { data: aiRows, error } = await applyPublicAiTrackFilter(supabaseAdmin
+      const { data: aiRows, error } = await applyPublicAiTrackFilter(dbAdmin
         .from('ai_tracks')
         .select(`
           id, title, audio_url, image_url, duration, tags, play_count, created_at,
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       const userIds = Array.from(new Set(playable.map((row: any) => row.generation?.user_id).filter(Boolean)));
       const profiles = new Map<string, any>();
       if (userIds.length) {
-        const { data } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').in('id', userIds);
+        const { data } = await dbAdmin.from('profiles').select('id, username, name, avatar').in('id', userIds);
         (data || []).forEach((profile: any) => profiles.set(profile.id, profile));
       }
 

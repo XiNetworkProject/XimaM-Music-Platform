@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import {
   countMusicClipCommentsStored,
   deleteMusicClipCommentStored,
@@ -24,10 +24,12 @@ export async function DELETE(
 
     await deleteMusicClipCommentStored(params.id, params.commentId);
     const commentsCount = await countMusicClipCommentsStored(params.id);
-    await supabaseAdmin.from('music_clips').update({ comments_count: commentsCount }).eq('id', params.id);
+    await dbAdmin.from('music_clips').update({ comments_count: commentsCount }).eq('id', params.id);
 
     return NextResponse.json({ success: true, commentsCount });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Impossible de supprimer le commentaire' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

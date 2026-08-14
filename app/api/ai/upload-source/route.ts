@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { transcribeAudioFromUrl } from '@/lib/transcribe';
 import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaReference } from '@/lib/localMediaStorage';
 
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
     };
 
-    const { error: genErr } = await supabaseAdmin.from('ai_generations').insert(generationData);
+    const { error: genErr } = await dbAdmin.from('ai_generations').insert(generationData);
     if (genErr) {
       console.error('❌ Erreur insertion generation upload:', genErr);
       await deleteLocalMedia(publicId).catch(() => false);
@@ -71,12 +71,12 @@ export async function POST(request: NextRequest) {
       }),
     };
 
-    const { data: inserted, error: trErr } = await supabaseAdmin.from('ai_tracks').insert(trackData).select('*').single();
+    const { data: inserted, error: trErr } = await dbAdmin.from('ai_tracks').insert(trackData).select('*').single();
     if (trErr) {
       console.error('❌ Erreur insertion track upload:', trErr);
       await Promise.all([
         deleteLocalMedia(publicId).catch(() => false),
-        supabaseAdmin.from('ai_generations').delete().eq('id', generationId),
+        dbAdmin.from('ai_generations').delete().eq('id', generationId),
       ]);
       return NextResponse.json({ error: trErr.message }, { status: 500 });
     }
@@ -84,11 +84,11 @@ export async function POST(request: NextRequest) {
     // Transcription automatique des paroles (Whisper) si la clé OpenAI est configurée
     const lyrics = await transcribeAudioFromUrl(audioUrl);
     if (lyrics && inserted?.id) {
-      await supabaseAdmin
+      await dbAdmin
         .from('ai_tracks')
         .update({ lyrics, prompt: lyrics })
         .eq('id', inserted.id);
-      await supabaseAdmin
+      await dbAdmin
         .from('ai_generations')
         .update({ prompt: lyrics })
         .eq('id', generationId);
@@ -103,4 +103,4 @@ export async function POST(request: NextRequest) {
   }
 }
 
-
+export const dynamic = 'force-dynamic';

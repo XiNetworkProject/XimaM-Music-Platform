@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 async function getUserTrackIds(userId: string): Promise<string[]> {
   const ids: string[] = [];
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await dbAdmin
     .from('tracks').select('id').or(`creator_id.eq.${userId},user_id.eq.${userId}`);
   if (!error && data) for (const r of data) ids.push(r.id);
   else {
-    const { data: fb } = await supabaseAdmin.from('tracks').select('id').eq('creator_id', userId);
+    const { data: fb } = await dbAdmin.from('tracks').select('id').eq('creator_id', userId);
     if (fb) for (const r of fb) ids.push(r.id);
   }
   try {
-    const { data: aiRows, error: aiErr } = await supabaseAdmin
+    const { data: aiRows, error: aiErr } = await dbAdmin
       .from('ai_tracks').select('id, generation:ai_generations!inner(user_id)').eq('generation.user_id', userId);
     if (!aiErr && aiRows) for (const r of aiRows) ids.push(r.id);
   } catch {}
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     /* ── Fetch views with both date columns + audience data ── */
     let views: any[] = [];
     try {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await dbAdmin
         .from('track_views')
         .select('country, device, user_agent, created_at, viewed_at, track_id')
         .in('track_id', trackIds)
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       if (!error && data) views = data;
       else if (error) {
         console.error('audience: views with viewed_at failed, retrying:', error.message);
-        const { data: fb } = await supabaseAdmin
+        const { data: fb } = await dbAdmin
           .from('track_views')
           .select('country, device, user_agent, created_at, track_id')
           .in('track_id', trackIds)

@@ -1,8 +1,8 @@
 import { ImageResponse } from 'next/og';
 import { toPublicMediaUrl } from '@/lib/mediaUrls';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 export const alt = 'Profil artiste Synaura';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
@@ -19,7 +19,7 @@ export default async function Image({ params }: { params: { username: string } }
   let verified = false;
 
   try {
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await dbAdmin
       .from('profiles')
       .select('id, name, username, avatar, banner, bio, follower_count, is_verified')
       .eq('username', params.username)
@@ -37,7 +37,7 @@ export default async function Image({ params }: { params: { username: string } }
     }
 
     if (profileId) {
-      const { count } = await supabaseAdmin
+      const { count } = await dbAdmin
         .from('tracks')
         .select('id', { count: 'exact', head: true })
         .eq('creator_id', profileId)

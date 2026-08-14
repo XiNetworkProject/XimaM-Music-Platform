@@ -1,5 +1,6 @@
 // lib/aiGenerationService.ts
-import { supabase, supabaseAdmin } from './supabase';
+import { db, dbAdmin } from './database';
+import { queryDatabase } from './postgres';
 import { Track } from '@/lib/suno-normalize';
 import { cacheSunoTrackMedia } from '@/lib/suno-media-cache';
 import { upsertDraftRemixesForGeneration } from '@/lib/remixServer';
@@ -95,7 +96,7 @@ class AIGenerationService {
   async createGeneration(userId: string, taskId: string, title: string, style: string, prompt: string, model: string, metadata: any = {}): Promise<AIGeneration> {
     console.log("🔧 Création génération avec userId:", userId);
     
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await dbAdmin
       .from('ai_generations')
       .insert({
         user_id: userId,
@@ -128,7 +129,7 @@ class AIGenerationService {
     console.log("🔄 Mise à jour statut génération par task_id:", taskId, "->", status);
     
     // Trouver la génération par task_id
-    const { data: generation, error: findError } = await supabaseAdmin
+    const { data: generation, error: findError } = await dbAdmin
       .from('ai_generations')
       .select('id')
       .eq('task_id', taskId)
@@ -142,7 +143,7 @@ class AIGenerationService {
     const generationId = generation.id;
     const updateData: any = { status };
 
-    const { error } = await supabaseAdmin
+    const { error } = await dbAdmin
       .from('ai_generations')
       .update(updateData)
       .eq('id', generationId);
@@ -164,7 +165,7 @@ class AIGenerationService {
   // Chaque track persiste : audio_url, stream, image_url (cover), prompt/lyrics (paroles), durée, tags.
   async saveTracks(generationId: string, tracks: Track[]): Promise<void> {
     // Récupérer les tracks existantes pour insert + update (les partial saves doivent être enrichis ensuite)
-    const { data: existingTracks } = await supabaseAdmin
+    const { data: existingTracks } = await dbAdmin
       .from('ai_tracks')
       .select('id, suno_id, audio_url, stream_audio_url, image_url, duration, prompt, title, tags, style, lyrics, source_links')
       .eq('generation_id', generationId);
@@ -176,7 +177,7 @@ class AIGenerationService {
     });
     
     // Récupérer le titre, le style et le modèle de la génération pour les utiliser dans les tracks
-    const { data: generation, error: genError } = await supabaseAdmin
+    const { data: generation, error: genError } = await dbAdmin
       .from('ai_generations')
       .select('metadata, prompt, model, task_id, user_id')
       .eq('id', generationId)
@@ -281,7 +282,7 @@ class AIGenerationService {
 
     if (toInsert.length > 0) {
       console.log("📊 Nouvelles tracks à insérer:", toInsert);
-      const { error: insertError } = await supabaseAdmin
+      const { error: insertError } = await dbAdmin
         .from('ai_tracks')
         .insert(toInsert);
       if (insertError) {
@@ -291,7 +292,7 @@ class AIGenerationService {
     }
 
     for (const upd of toUpdate) {
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await dbAdmin
         .from('ai_tracks')
         .update(upd.patch)
         .eq('generation_id', generationId)
@@ -316,13 +317,13 @@ class AIGenerationService {
 
   // 📊 Obtenir le quota d'un utilisateur
   async getUserQuota(userId: string): Promise<UserQuota> {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .rpc('get_user_quota_remaining', { user_uuid: userId });
 
     if (error) throw new Error(`Erreur quota: ${error.message}`);
 
     // Récupérer les détails du quota
-    const { data: quotaData, error: quotaError } = await supabase
+    const { data: quotaData, error: quotaError } = await db
       .from('user_quotas')
       .select('*')
       .eq('user_id', userId)
@@ -345,7 +346,7 @@ class AIGenerationService {
 
   // 📊 Incrémenter l'utilisation du quota
   async incrementQuota(userId: string): Promise<boolean> {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .rpc('increment_ai_usage', { user_uuid: userId });
 
     if (error) throw new Error(`Erreur incrément quota: ${error.message}`);
@@ -354,7 +355,7 @@ class AIGenerationService {
 
   // 📚 Obtenir la bibliothèque IA d'un utilisateur
   async getUserLibrary(userId: string, limit: number = 50, offset: number = 0): Promise<AIGeneration[]> {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('ai_generations')
       .select(`
         *,
@@ -370,7 +371,7 @@ class AIGenerationService {
 
   // 📊 Obtenir les générations récentes d'un utilisateur
   async getUserGenerations(userId: string): Promise<AIGeneration[]> {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('ai_generations')
       .select(`
         *,
@@ -390,7 +391,7 @@ class AIGenerationService {
 
   // ❤️ Marquer comme favori
   async toggleFavorite(generationId: string, userId: string): Promise<boolean> {
-    const { data: current, error: fetchError } = await supabase
+    const { data: current, error: fetchError } = await db
       .from('ai_generations')
       .select('is_favorite')
       .eq('id', generationId)
@@ -401,7 +402,7 @@ class AIGenerationService {
 
     const newFavoriteState = !current.is_favorite;
 
-    const { error } = await supabase
+    const { error } = await db
       .from('ai_generations')
       .update({ is_favorite: newFavoriteState })
       .eq('id', generationId)
@@ -413,7 +414,7 @@ class AIGenerationService {
 
   // 📈 Obtenir les statistiques d'un utilisateur
   async getUserStats(userId: string, daysBack: number = 30): Promise<AIUsageStats> {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .rpc('get_user_ai_stats', { 
         user_uuid: userId, 
         days_back: daysBack 
@@ -431,7 +432,7 @@ class AIGenerationService {
 
   // 📝 Créer une playlist IA
   async createPlaylist(userId: string, name: string, description?: string, isPublic: boolean = false): Promise<AIPlaylist> {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('ai_playlists')
       .insert({
         user_id: userId,
@@ -448,7 +449,7 @@ class AIGenerationService {
 
   // 🎵 Ajouter une track à une playlist
   async addTrackToPlaylist(playlistId: string, trackId: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await db
       .from('ai_playlist_tracks')
       .insert({
         playlist_id: playlistId,
@@ -461,7 +462,7 @@ class AIGenerationService {
 
   // 📚 Obtenir les playlists d'un utilisateur
   async getUserPlaylists(userId: string): Promise<AIPlaylist[]> {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('ai_playlists')
       .select(`
         *,
@@ -478,43 +479,37 @@ class AIGenerationService {
 
   // 🎵 Incrémenter le compteur de lecture
   async incrementPlayCount(generationId: string): Promise<void> {
-    const { error } = await supabase
-      .from('ai_generations')
-      .update({ 
-        play_count: supabase.rpc('increment', { value: 1 })
-      })
-      .eq('id', generationId);
-
-    if (error) throw new Error(`Erreur incrément plays: ${error.message}`);
+    await queryDatabase(
+      `UPDATE public.ai_generations
+       SET play_count = COALESCE(play_count, 0) + 1
+       WHERE id = $1`,
+      [generationId],
+    );
   }
 
   // 🎵 Incrémenter le compteur de likes
   async incrementLikeCount(generationId: string): Promise<void> {
-    const { error } = await supabase
-      .from('ai_generations')
-      .update({ 
-        like_count: supabase.rpc('increment', { value: 1 })
-      })
-      .eq('id', generationId);
-
-    if (error) throw new Error(`Erreur incrément likes: ${error.message}`);
+    await queryDatabase(
+      `UPDATE public.ai_generations
+       SET like_count = COALESCE(like_count, 0) + 1
+       WHERE id = $1`,
+      [generationId],
+    );
   }
 
   // 🎵 Incrémenter le compteur de partages
   async incrementShareCount(generationId: string): Promise<void> {
-    const { error } = await supabase
-      .from('ai_generations')
-      .update({ 
-        share_count: supabase.rpc('increment', { value: 1 })
-      })
-      .eq('id', generationId);
-
-    if (error) throw new Error(`Erreur incrément shares: ${error.message}`);
+    await queryDatabase(
+      `UPDATE public.ai_generations
+       SET share_count = COALESCE(share_count, 0) + 1
+       WHERE id = $1`,
+      [generationId],
+    );
   }
 
   // 🔍 Rechercher dans la bibliothèque
   async searchLibrary(userId: string, query: string): Promise<AIGeneration[]> {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('ai_generations')
       .select(`
         *,
@@ -530,7 +525,7 @@ class AIGenerationService {
 
   // 🗑️ Supprimer une génération
   async deleteGeneration(generationId: string, userId: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await db
       .from('ai_generations')
       .delete()
       .eq('id', generationId)
@@ -541,7 +536,7 @@ class AIGenerationService {
 
   // 📊 Obtenir les générations publiques (découverte)
   async getPublicGenerations(limit: number = 20, offset: number = 0): Promise<AIGeneration[]> {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('ai_generations')
       .select(`
         *,

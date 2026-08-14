@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getEntitlements } from '@/lib/entitlements';
 
 export async function GET(req: NextRequest) {
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
     const userId = session.user.id;
     // Lire plan depuis profiles
-    const { data: profile } = await supabaseAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
+    const { data: profile } = await dbAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
     const plan = (profile?.plan || 'free') as any;
     const entitlements = getEntitlements(plan);
     const monthly_limit = entitlements.ai.maxGenerationsPerMonth;
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0,0,0,0);
 
-    const { count } = await supabaseAdmin
+    const { count } = await dbAdmin
       .from('ai_generations')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     const used_this_month = count || 0;
     const remaining = Math.max(0, monthly_limit - used_this_month);
     // Ajouter info crédits pour l’UI
-    const { data: creditRow } = await supabaseAdmin
+    const { data: creditRow } = await dbAdmin
       .from('ai_credit_balances')
       .select('balance')
       .eq('user_id', userId)
@@ -55,3 +55,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: e.message || 'Erreur serveur' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

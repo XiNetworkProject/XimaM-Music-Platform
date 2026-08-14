@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 import { getRecordInfo } from '@/lib/suno';
 import { normalizeSunoItem } from '@/lib/suno-normalize';
 import { isLikelyExpiredAIProviderUrl } from '@/lib/media-url-health';
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const limit = Math.max(1, Math.min(200, Number(body?.limit || 50)));
 
-    const { data: generationsRaw, error: genErr } = await supabaseAdmin
+    const { data: generationsRaw, error: genErr } = await dbAdmin
       .from('ai_generations')
       .select('id, task_id, created_at, tracks:ai_tracks(id, suno_id, audio_url, stream_audio_url, image_url, source_links, created_at)')
       .eq('user_id', session.user.id)
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
 
           if (!changed && !Object.keys(cachedMedia.sourceLinksPatch || {}).length) continue;
 
-          const { error: updErr } = await supabaseAdmin
+          const { error: updErr } = await dbAdmin
             .from('ai_tracks')
             .update({
               audio_url: nextAudio,
@@ -185,3 +185,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e?.message || 'Erreur repair tracks' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';

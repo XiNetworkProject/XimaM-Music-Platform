@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { dbAdmin } from '@/lib/database';
 
 export async function GET(req: NextRequest) {
   // Mode count-only (pour la landing page)
   if (req.nextUrl.searchParams.has('count')) {
-    const { count } = await supabaseAdmin
+    const { count } = await dbAdmin
       .from('star_academy_applications')
       .select('id', { count: 'exact', head: true });
     return NextResponse.json({ total: count ?? 0 });
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    let query = supabaseAdmin
+    let query = dbAdmin
       .from('star_academy_applications')
       .select('id, created_at, updated_at, full_name, tiktok_handle, category, status, synaura_username, tracking_token, notification_sent_at, audio_filename');
 
@@ -40,3 +40,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 });
   }
 }
+
+export const dynamic = 'force-dynamic';
