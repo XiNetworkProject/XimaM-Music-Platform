@@ -32,4 +32,4 @@ machine les deux fichiers listes dans `SIGNING.md`.
 ## Site web
 
 La page `/download` et l'invite Android lisent le meme manifeste. Elles sont
-publiees avec le prochain deploiement Vercel du site.
+publiees avec le prochain deploiement du site.

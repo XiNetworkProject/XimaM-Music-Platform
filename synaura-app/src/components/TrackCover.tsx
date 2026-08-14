@@ -5,7 +5,7 @@ import type { Track } from '@/api/types';
 import { SynauraImage } from '@/components/ui/SynauraImage';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { colors } from '@/theme/tokens';
-import { toLegacyMediaFallback, toPublicMediaUrl } from '@/media/mediaUrls';
+import { toPublicMediaUrl } from '@/media/mediaUrls';
 
 type Props = {
   track?: Track | null;
@@ -51,10 +51,6 @@ function inferVideoUrlFromPoster(url?: string | null) {
   }
 }
 
-export function toLegacyVideoFallback(url?: string | null) {
-  return toLegacyMediaFallback(url);
-}
-
 export function getTrackCoverVideo(track?: Track | null) {
   return firstValid(
     track?.coverVideoUrl,
@@ -89,12 +85,9 @@ export function TrackCover({
     [posterSource, source, track, videoSource],
   );
   const [videoFailed, setVideoFailed] = useState(false);
-  const [useVideoFallback, setUseVideoFallback] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
-  const fallbackVideo = toLegacyVideoFallback(video);
-  const activeVideo = useVideoFallback && fallbackVideo ? fallbackVideo : video;
-  const wantsVideo = !!activeVideo && !videoFailed && active && autoPlayVideo && settings.coverVideos && !settings.dataSaver && !settings.reducedMotion;
+  const wantsVideo = !!video && !videoFailed && active && autoPlayVideo && settings.coverVideos && !settings.dataSaver && !settings.reducedMotion;
   const showVideo = wantsVideo && videoReady;
 
   useEffect(() => {
@@ -103,7 +96,6 @@ export function TrackCover({
 
   useEffect(() => {
     setVideoFailed(false);
-    setUseVideoFallback(false);
   }, [video]);
 
   useEffect(() => {
@@ -122,9 +114,9 @@ export function TrackCover({
         transition={80}
         onError={() => setImageFailed(true)}
       />
-      {showVideo && activeVideo ? (
+      {showVideo && video ? (
         <Video
-          source={{ uri: activeVideo }}
+          source={{ uri: video }}
           paused={false}
           muted
           volume={0}
@@ -136,13 +128,7 @@ export function TrackCover({
           ignoreSilentSwitch="ignore"
           poster={image || undefined}
           style={StyleSheet.absoluteFill}
-          onError={() => {
-            if (!useVideoFallback && fallbackVideo && fallbackVideo !== video) {
-              setUseVideoFallback(true);
-              return;
-            }
-            setVideoFailed(true);
-          }}
+          onError={() => setVideoFailed(true)}
         />
       ) : null}
     </View>

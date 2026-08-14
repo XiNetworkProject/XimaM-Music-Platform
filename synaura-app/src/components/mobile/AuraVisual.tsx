@@ -3,7 +3,7 @@ import { Animated, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Video from 'react-native-video';
 import type { Track } from '@/api/types';
-import { getTrackCoverImage, getTrackCoverVideo, toLegacyVideoFallback } from '@/components/TrackCover';
+import { getTrackCoverImage, getTrackCoverVideo } from '@/components/TrackCover';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
 type Props = {
@@ -48,14 +48,11 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
   const { settings } = useMobileSettings();
   const motion = useRef(new Animated.Value(0)).current;
   const [videoFailed, setVideoFailed] = useState(false);
-  const [useVideoFallback, setUseVideoFallback] = useState(false);
   const colors = useMemo(() => colorsForTrack(track), [track]);
   const coverImage = getTrackCoverImage(track);
   const visual = visualSource(track);
   const visualType = track?.visualType || (isVideoUrl(visual) ? 'video' : 'image');
   const image = visual && visualType !== 'video' && visualType !== 'none' ? visual : coverImage;
-  const fallbackVideo = toLegacyVideoFallback(visual);
-  const video = useVideoFallback && fallbackVideo ? fallbackVideo : visual;
   const auraEnabled = track?.auraVisualEnabled !== false && settings.dynamicBackground;
   const animate = Boolean(auraEnabled && active && playing && !settings.reducedMotion);
   const showVideo = Boolean(
@@ -71,7 +68,6 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
 
   useEffect(() => {
     setVideoFailed(false);
-    setUseVideoFallback(false);
   }, [visual]);
 
   useEffect(() => {
@@ -113,9 +109,9 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
           style={[StyleSheet.absoluteFill, styles.coverGlow, { transform: [{ scale: imageScale }] }]}
         />
       ) : null}
-      {showVideo && video ? (
+      {showVideo && visual ? (
         <Video
-          source={{ uri: video }}
+          source={{ uri: visual }}
           paused={!active || !playing}
           muted
           volume={0}
@@ -127,13 +123,7 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
           ignoreSilentSwitch="ignore"
           poster={coverImage || undefined}
           style={[StyleSheet.absoluteFill, styles.video]}
-          onError={() => {
-            if (!useVideoFallback && fallbackVideo && fallbackVideo !== visual) {
-              setUseVideoFallback(true);
-              return;
-            }
-            setVideoFailed(true);
-          }}
+          onError={() => setVideoFailed(true)}
         />
       ) : null}
       {auraEnabled ? <Animated.View style={[styles.colorWash, { opacity: 0.24, transform: [{ translateX: driftA }, { scale: scaleA }] }]}>

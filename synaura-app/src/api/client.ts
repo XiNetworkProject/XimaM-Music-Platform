@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
-import { toLegacyMediaFallback, toPublicMediaUrl } from '@/media/mediaUrls';
+import { toPublicMediaUrl } from '@/media/mediaUrls';
 import { getRecommendationSeenIds, getRecommendationSessionId, rememberRecommendationImpressions } from '@/feed/recommendationSession';
 import type {
   Creator,
@@ -50,8 +50,8 @@ import type {
   CreatorTrackStat,
 } from '@/stats/types';
 
-const fallbackBaseUrl = 'https://xima-m-music-platform.vercel.app';
-const fallbackCover = 'https://xima-m-music-platform.vercel.app/default-cover.svg';
+const fallbackBaseUrl = 'https://synaura.fr';
+const fallbackCover = `${fallbackBaseUrl}/default-cover.svg`;
 const tints = ['#8B5CF6', '#38BDF8', '#FB7185', '#F59E0B', '#14B8A6', '#EF4444'];
 let authTokenProvider: (() => string | null) | null = null;
 let authRefreshHandler: (() => Promise<boolean>) | null = null;
@@ -2167,12 +2167,11 @@ export type CreateUploadedTrackInput = {
   remixPermissions?: RemixPermissions;
 };
 
-function legacyVideoPosterUrl(videoUrl?: string | null) {
+function migratedVideoPosterUrl(videoUrl?: string | null) {
   if (!videoUrl) return null;
-  const legacyUrl = toLegacyMediaFallback(videoUrl);
-  if (!legacyUrl) return null;
-  const withTransform = legacyUrl.replace('/video/upload/', '/video/upload/so_0,f_jpg/');
-  return toPublicMediaUrl(withTransform.replace(/\.(mp4|webm|mov|m4v)(\?.*)?$/i, '.jpg$2'));
+  const migratedUrl = toPublicMediaUrl(videoUrl);
+  if (!migratedUrl || migratedUrl === videoUrl) return null;
+  return migratedUrl.replace(/\.(mp4|webm|mov|m4v)(\?.*)?$/i, '.jpg$2');
 }
 
 export function isUploadCoverVideo(asset: UploadAsset | null | undefined) {
@@ -2182,7 +2181,7 @@ export function isUploadCoverVideo(asset: UploadAsset | null | undefined) {
 }
 
 export function getCoverVideoPosterUrl(videoUrl?: string | null) {
-  return legacyVideoPosterUrl(videoUrl);
+  return migratedVideoPosterUrl(videoUrl);
 }
 
 export async function uploadToLocalMediaMobile(

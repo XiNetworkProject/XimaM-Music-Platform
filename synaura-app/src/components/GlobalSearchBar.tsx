@@ -12,7 +12,7 @@ export function GlobalSearchBar({ visible, onOpen }: { visible: boolean; onOpen:
     <View pointerEvents="box-none" style={[styles.wrap, { top: insets.top + 8 }]}>
       <View style={styles.topBar}>
         <View style={styles.brandBox}>
-          <Image source={{ uri: 'https://xima-m-music-platform.vercel.app/brand/2026/synaura-symbol-2026.png' }} style={styles.logo} />
+          <Image source={{ uri: 'https://synaura.fr/brand/2026/synaura-symbol-2026.png' }} style={styles.logo} />
         </View>
         <View style={styles.brandText}>
           <Text style={styles.brandTitle}>Synaura</Text>

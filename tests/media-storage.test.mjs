@@ -57,6 +57,12 @@ test('rewrites historical Cloudinary paths identically on web and mobile', () =>
     assert.equal(urls.toLegacyMediaFallback(fixture.legacy), fixture.legacy, `fallback: ${fixture.label}`);
     assert.deepEqual(urls.mediaUrlCandidates(fixture.legacy), [fixture.local, fixture.legacy], `candidates: ${fixture.label}`);
   }
+  assert.equal('toLegacyMediaFallback' in mobileUrls, false, 'mobile ne doit pas retenter Cloudinary');
+  assert.equal(
+    mobileUrls.toPublicMediaUrl('https://res.cloudinary.com/demo/unsupported/file.png'),
+    null,
+    'une URL Cloudinary non convertible ne doit pas devenir une requete directe',
+  );
 });
 
 test('accepts safe local identifiers and rejects traversal attempts', () => {

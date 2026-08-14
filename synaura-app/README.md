@@ -34,7 +34,7 @@ npm run android
 Par defaut l'app pointe vers :
 
 ```txt
-https://xima-m-music-platform.vercel.app
+https://synaura.fr
 ```
 
 Tu peux surcharger avec :

@@ -61,24 +61,9 @@ export function toPublicMediaUrl(value?: string | null) {
     const parsed = new URL(input);
     if (!isLegacyHost(parsed.hostname)) return input;
     const migratedPath = migratedCloudinaryPath(parsed.pathname);
-    if (!migratedPath) return input;
+    if (!migratedPath) return null;
     return `${MEDIA_BASE_URL}/cloudinary/${migratedPath}${parsed.search || ''}`;
   } catch {
     return input;
-  }
-}
-
-export function toLegacyMediaFallback(value?: string | null) {
-  const input = String(value || '').trim();
-  if (!input) return null;
-  try {
-    const parsed = new URL(input);
-    if (parsed.hostname.toLowerCase() === LEGACY_MEDIA_HOST) return input;
-    if (isLegacyHost(parsed.hostname)) return `https://${LEGACY_MEDIA_HOST}${parsed.pathname}${parsed.search || ''}`;
-    const mediaBase = new URL(MEDIA_BASE_URL);
-    if (parsed.hostname.toLowerCase() !== mediaBase.hostname.toLowerCase() || !parsed.pathname.startsWith('/cloudinary/')) return null;
-    return null;
-  } catch {
-    return null;
   }
 }

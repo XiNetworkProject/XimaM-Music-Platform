@@ -71,7 +71,7 @@
       "barStyle": "light-content"
     },
     "extra": {
-      "apiBaseUrl": "https://xima-m-music-platform.vercel.app",
+      "apiBaseUrl": "https://synaura.fr",
       "mobileReleaseManifestUrl": "https://media.synaura.fr/mobile-releases/latest.json",
       "eas": {
         "projectId": "9159837f-1150-456d-885a-1751a7f616ea"
