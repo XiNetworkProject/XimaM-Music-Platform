@@ -44,7 +44,7 @@ import {
   startAIGeneration,
   startAIRemix,
   updateUserPreferences,
-  uploadToCloudinaryMobile,
+  uploadToLocalMediaMobile,
   type AIStatusTrack,
   type AIStudioGeneration,
   type AIStudioQuota,
@@ -548,12 +548,12 @@ export function AIStudioScreen() {
           sourceDurationSec: remixSource.duration,
         });
       } else if (mode === 'remix' && remixAsset) {
-        const uploaded = await uploadToCloudinaryMobile({
+        const uploaded = await uploadToLocalMediaMobile({
           uri: remixAsset.uri,
           name: remixAsset.name || `remix-${Date.now()}.mp3`,
           type: remixAsset.mimeType || 'audio/mpeg',
           size: remixAsset.size || null,
-        }, 'video', 'ximam/ai-sources');
+        }, 'ai-audio');
         result = await startAIRemix({ ...payload, uploadUrl: uploaded.secureUrl, sourceDurationSec: uploaded.duration });
       } else {
         result = await startAIGeneration(payload);

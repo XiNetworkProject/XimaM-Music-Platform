@@ -26,7 +26,7 @@ import {
   isUploadCoverVideo,
   participateCityEvent,
   participateInChallenge,
-  uploadToCloudinaryMobile,
+  uploadToLocalMediaMobile,
   type UploadAsset,
 } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
@@ -340,7 +340,7 @@ export function UploadScreen() {
       const sourceTracks = releaseType === 'single' && audio ? [metaFromAsset(audio)] : tracks;
       const uploadedTracks = [];
       for (let i = 0; i < sourceTracks.length; i += 1) {
-        const uploaded = await uploadToCloudinaryMobile(sourceTracks[i], 'video', 'ximam/audio');
+        const uploaded = await uploadToLocalMediaMobile(sourceTracks[i], 'audio');
         rollbackIds.audio.push(uploaded.publicId);
         setTempPublicIds((current) => ({ ...current, audio: [...current.audio, uploaded.publicId] }));
         uploadedTracks.push({ uploaded, meta: sourceTracks[i] });
@@ -353,11 +353,11 @@ export function UploadScreen() {
       const coverAsset = cover!;
       const coverVideo = isUploadCoverVideo(coverAsset);
       setProgress((current) => ({ ...current, cover: 20 }));
-      const coverResult = await uploadToCloudinaryMobile(coverAsset, coverVideo ? 'video' : 'image', coverVideo ? 'ximam/cover-videos' : 'ximam/images');
+      const coverResult = await uploadToLocalMediaMobile(coverAsset, coverVideo ? 'cover-video' : 'cover');
       if (coverVideo) rollbackIds.coverVideo = coverResult.publicId;
       else rollbackIds.cover = coverResult.publicId;
       setTempPublicIds((current) => ({ ...current, [coverVideo ? 'coverVideo' : 'cover']: coverResult.publicId }));
-      const coverVideoPosterUrl = coverVideo ? getCoverVideoPosterUrl(coverResult.secureUrl) : null;
+      const coverVideoPosterUrl = coverVideo ? coverResult.posterUrl || getCoverVideoPosterUrl(coverResult.secureUrl) : null;
       const coverUrl = coverVideo ? coverVideoPosterUrl || coverResult.secureUrl : coverResult.secureUrl;
       setProgress((current) => ({ ...current, cover: 100, save: 15 }));
 
@@ -373,6 +373,7 @@ export function UploadScreen() {
         coverVideoUrl: coverVideo ? coverResult.secureUrl : null,
         coverVideoPublicId: coverVideo ? coverResult.publicId : null,
         coverVideoPosterUrl,
+        coverVideoPosterPublicId: coverVideo ? coverResult.posterPublicId || null : null,
         mood,
         language,
         tags,
@@ -632,7 +633,7 @@ export function UploadScreen() {
                   </View>
                 </View>
               </View>
-              {cover && coverIsVideo ? <Text style={styles.coverInfo}>Cover video selectionnee. Cloudinary generera un poster fallback comme sur le web.</Text> : null}
+              {cover && coverIsVideo ? <Text style={styles.coverInfo}>Cover video selectionnee. Synaura generera un poster fallback comme sur le web.</Text> : null}
 
               <Field dark label="Description" value={description} onChangeText={setDescription} placeholder="Decris ta musique..." multiline />
               <Collapsible title="Genres" icon="musical-notes" defaultOpen>

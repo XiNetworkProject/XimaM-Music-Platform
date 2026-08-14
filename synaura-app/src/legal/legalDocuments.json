@@ -340,7 +340,7 @@
       },
       {
         "type": "bullet",
-        "text": "Prestataires de services : Stripe (paiements), Supabase (base de données), Cloudinary (stockage)"
+        "text": "Prestataires de services : Stripe (paiements), Supabase (base de données) et l'infrastructure Synaura auto-hébergée (médias)"
       },
       {
         "type": "bullet",
@@ -985,7 +985,7 @@
       },
       {
         "type": "subheading",
-        "text": "3.3 Cloudinary (Médias)"
+        "text": "3.3 Infrastructure Synaura (Médias)"
       },
       {
         "type": "paragraph",

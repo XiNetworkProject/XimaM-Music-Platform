@@ -3,7 +3,7 @@ import { Animated, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Video from 'react-native-video';
 import type { Track } from '@/api/types';
-import { getTrackCoverImage, getTrackCoverVideo, toCloudinaryVideoUrl } from '@/components/TrackCover';
+import { getTrackCoverImage, getTrackCoverVideo, toLegacyVideoFallback } from '@/components/TrackCover';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 
 type Props = {
@@ -54,7 +54,7 @@ export function AuraVisual({ track, active = true, playing = false }: Props) {
   const visual = visualSource(track);
   const visualType = track?.visualType || (isVideoUrl(visual) ? 'video' : 'image');
   const image = visual && visualType !== 'video' && visualType !== 'none' ? visual : coverImage;
-  const fallbackVideo = toCloudinaryVideoUrl(visual);
+  const fallbackVideo = toLegacyVideoFallback(visual);
   const video = useVideoFallback && fallbackVideo ? fallbackVideo : visual;
   const auraEnabled = track?.auraVisualEnabled !== false && settings.dynamicBackground;
   const animate = Boolean(auraEnabled && active && playing && !settings.reducedMotion);

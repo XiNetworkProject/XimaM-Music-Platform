@@ -598,13 +598,6 @@ class ApiService {
   }
 
   // ===== UPLOAD =====
-  async getUploadSignature(params: { timestamp: number; publicId: string; folder?: string }): Promise<ApiResponse<{ signature: string; timestamp: number; apiKey: string; cloudName: string }>> {
-    return this.request<{ signature: string; timestamp: number; apiKey: string; cloudName: string }>('/api/upload/signature', {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-  }
-
   async publishTrack(data: Record<string, any>): Promise<ApiResponse<{ track: ApiTrack }>> {
     return this.request<{ track: ApiTrack }>('/api/upload', {
       method: 'POST',
@@ -739,4 +732,3 @@ export type CommunityPost = {
 };
 
 export const api = new ApiService();
-

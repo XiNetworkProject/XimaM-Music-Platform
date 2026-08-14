@@ -5,6 +5,7 @@ import type { Track } from '@/api/types';
 import { SynauraImage } from '@/components/ui/SynauraImage';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { colors } from '@/theme/tokens';
+import { toLegacyMediaFallback, toPublicMediaUrl } from '@/media/mediaUrls';
 
 type Props = {
   track?: Track | null;
@@ -19,7 +20,8 @@ type Props = {
 };
 
 function firstValid(...values: Array<string | null | undefined>) {
-  return values.map((value) => String(value || '').trim()).find(Boolean) || null;
+  const value = values.map((entry) => String(entry || '').trim()).find(Boolean) || null;
+  return toPublicMediaUrl(value);
 }
 
 function isVideoUrl(url?: string | null) {
@@ -49,19 +51,8 @@ function inferVideoUrlFromPoster(url?: string | null) {
   }
 }
 
-// Les videos hebergees sur Bunny CDN repliquent le path Cloudinary: on retombe
-// sur res.cloudinary.com si la lecture CDN echoue cote mobile.
-export function toCloudinaryVideoUrl(url?: string | null) {
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname.includes('b-cdn.net') && parsed.pathname.includes('/video/upload/')) {
-      return `https://res.cloudinary.com${parsed.pathname}${parsed.search || ''}`;
-    }
-  } catch {
-    return null;
-  }
-  return null;
+export function toLegacyVideoFallback(url?: string | null) {
+  return toLegacyMediaFallback(url);
 }
 
 export function getTrackCoverVideo(track?: Track | null) {
@@ -101,7 +92,7 @@ export function TrackCover({
   const [useVideoFallback, setUseVideoFallback] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
-  const fallbackVideo = toCloudinaryVideoUrl(video);
+  const fallbackVideo = toLegacyVideoFallback(video);
   const activeVideo = useVideoFallback && fallbackVideo ? fallbackVideo : video;
   const wantsVideo = !!activeVideo && !videoFailed && active && autoPlayVideo && settings.coverVideos && !settings.dataSaver && !settings.reducedMotion;
   const showVideo = wantsVideo && videoReady;

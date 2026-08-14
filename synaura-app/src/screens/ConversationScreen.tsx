@@ -28,6 +28,7 @@ import Video from 'react-native-video';
 import {
   addConversationParticipant,
   blockMessageUser,
+  cleanupLocalMediaUploads,
   createConversationRoom,
   deleteConversationRoom,
   deleteConversationMessage,
@@ -674,8 +675,10 @@ export function ConversationScreen() {
     setUploading(true);
     setUploadProgress(0);
     setErrorMessage('');
+    let uploadedPublicId: string | null = null;
     try {
       const uploaded = await uploadMessageMedia(asset, type, { onProgress: setUploadProgress });
+      uploadedPublicId = uploaded.publicId;
       await send({
         type,
         mediaUrl: uploaded.url,
@@ -695,6 +698,7 @@ export function ConversationScreen() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       return true;
     } catch (error) {
+      await cleanupLocalMediaUploads([uploadedPublicId]);
       setErrorMessage(error instanceof Error ? error.message : 'Pièce jointe non envoyée');
       return false;
     } finally {

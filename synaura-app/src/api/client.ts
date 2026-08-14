@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
+import { toLegacyMediaFallback, toPublicMediaUrl } from '@/media/mediaUrls';
 import { getRecommendationSeenIds, getRecommendationSessionId, rememberRecommendationImpressions } from '@/feed/recommendationSession';
 import type {
   Creator,
@@ -154,9 +155,9 @@ function pickTint(seed: string) {
 
 function absoluteAsset(url: string | null | undefined) {
   if (!url) return null;
-  if (/^https?:\/\//i.test(url)) return url;
+  if (/^https?:\/\//i.test(url)) return toPublicMediaUrl(url);
   if (url.startsWith('/')) return `${API_BASE_URL}${url}`;
-  return url;
+  return toPublicMediaUrl(url);
 }
 
 function isLikelyExpiredMobileAIMedia(url: unknown, createdAt?: unknown) {
@@ -1409,69 +1410,21 @@ export async function uploadMessageMedia(
     assetSize = fileInfo?.exists && 'size' in fileInfo ? Number(fileInfo.size || 0) : 0;
   }
   if (assetSize > 25 * 1024 * 1024) throw new Error('La limite est de 25 Mo.');
-  const publicId = `message_${type}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-  const fallbackMime = type === 'image' ? 'image/jpeg' : type === 'video' ? 'video/mp4' : 'audio/mp4';
-  let lastError: unknown = new Error('L’envoi a été interrompu.');
+  const uploaded = await uploadToLocalMediaMobile(
+    { ...asset, size: assetSize || asset.size },
+    `message-${type}` as 'message-image' | 'message-video' | 'message-audio',
+    options,
+  );
+  return { url: uploaded.secureUrl, publicId: uploaded.publicId, duration: uploaded.duration, bytes: uploaded.bytes };
+}
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const timestamp = Math.round(Date.now() / 1000);
-      const signature = await request<any>('/api/messages/upload', {
-        method: 'POST',
-        body: JSON.stringify({ timestamp, publicId, type }),
-      });
-      if (!signature?.cloudName || !signature?.apiKey || !signature?.signature) {
-        throw new Error('Préparation de l’envoi impossible.');
-      }
-
-      const parameters: Record<string, string> = {
-        folder: String(signature.folder),
-        public_id: String(signature.publicId || publicId),
-        timestamp: String(signature.timestamp || timestamp),
-        api_key: String(signature.apiKey),
-        signature: String(signature.signature),
-      };
-      if (type === 'audio') parameters.format = 'mp3';
-
-      const uploadTask = FileSystem.createUploadTask(
-        `https://api.cloudinary.com/v1_1/${signature.cloudName}/${signature.resourceType}/upload`,
-        asset.uri,
-        {
-          httpMethod: 'POST',
-          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-          fieldName: 'file',
-          mimeType: asset.type || fallbackMime,
-          parameters,
-        },
-        ({ totalBytesExpectedToSend, totalBytesSent }) => {
-          if (totalBytesExpectedToSend > 0) options.onProgress?.(Math.min(1, totalBytesSent / totalBytesExpectedToSend));
-        },
-      );
-      const response = await uploadTask.uploadAsync();
-      if (!response) throw new Error('L’envoi a été interrompu.');
-      let uploaded: any = null;
-      try { uploaded = JSON.parse(response.body || '{}'); } catch { /* invalid response */ }
-      if (response.status < 200 || response.status >= 300 || !uploaded?.secure_url) {
-        const message = String(uploaded?.error?.message || `Téléversement impossible (${response.status})`);
-        if (/too large|file size|maximum|entity too large|413/i.test(message)) throw new Error('La limite est de 25 Mo.');
-        if (/signature|timestamp/i.test(message)) throw new Error('La session d’envoi a expiré.');
-        throw new Error(message);
-      }
-      options.onProgress?.(1);
-      return {
-        url: String(uploaded.secure_url),
-        publicId: String(uploaded.public_id || parameters.public_id),
-        duration: Number(uploaded.duration || 0) || undefined,
-        bytes: Number(uploaded.bytes || assetSize || 0) || undefined,
-      };
-    } catch (error) {
-      lastError = error;
-      if (error instanceof Error && error.message.includes('25 Mo')) throw error;
-      if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 650));
-    }
-  }
-
-  throw lastError instanceof Error ? lastError : new Error('L’envoi a été interrompu.');
+export async function cleanupLocalMediaUploads(publicIds: Array<string | null | undefined>): Promise<void> {
+  const ids = publicIds.filter((value): value is string => Boolean(value));
+  if (!ids.length) return;
+  await request('/api/upload/cleanup', {
+    method: 'POST',
+    body: JSON.stringify({ publicIds: ids }),
+  }).catch(() => null);
 }
 
 export async function uploadMessageImage(uri: string, name = `synaura-message-${Date.now()}.jpg`, mimeType = 'image/jpeg'): Promise<string> {
@@ -2146,19 +2099,8 @@ export async function createPost(input: { content: string; imageUrl?: string | n
 }
 
 export async function uploadPostImage(uri: string, name = 'synaura-mobile.jpg'): Promise<string> {
-  const form = new FormData();
-  form.append('file', {
-    uri,
-    name,
-    type: 'image/jpeg',
-  } as any);
-  const json = await request<any>('/api/posts/upload-image', {
-    method: 'POST',
-    body: form,
-  });
-  const url = json?.url || json?.imageUrl || json?.secure_url;
-  if (!url) throw new Error('Upload image impossible');
-  return absoluteAsset(url) || url;
+  const uploaded = await uploadToLocalMediaMobile({ uri, name, type: 'image/jpeg' }, 'post-image');
+  return absoluteAsset(uploaded.secureUrl) || uploaded.secureUrl;
 }
 
 export type UploadAsset = {
@@ -2168,13 +2110,15 @@ export type UploadAsset = {
   size?: number | null;
 };
 
-export type CloudinaryResourceType = 'image' | 'video';
+export type LocalMediaUploadKind = 'audio' | 'cover' | 'cover-video' | 'message-image' | 'message-video' | 'message-audio' | 'clip-video' | 'ai-audio' | 'avatar' | 'banner' | 'post-image';
 
-export type CloudinaryUploadResult = {
+export type LocalMediaUploadResult = {
   secureUrl: string;
   publicId: string;
   duration?: number;
   bytes?: number;
+  posterUrl?: string | null;
+  posterPublicId?: string | null;
 };
 
 export type CreateUploadedTrackInput = {
@@ -2187,6 +2131,7 @@ export type CreateUploadedTrackInput = {
   coverVideoUrl?: string | null;
   coverVideoPublicId?: string | null;
   coverVideoPosterUrl?: string | null;
+  coverVideoPosterPublicId?: string | null;
   duration?: number;
   trackData: {
     title: string;
@@ -2213,10 +2158,12 @@ export type CreateUploadedTrackInput = {
   remixPermissions?: RemixPermissions;
 };
 
-function cloudinaryPosterUrl(videoUrl?: string | null) {
+function legacyVideoPosterUrl(videoUrl?: string | null) {
   if (!videoUrl) return null;
-  const withTransform = videoUrl.replace('/video/upload/', '/video/upload/so_0,f_jpg/');
-  return withTransform.replace(/\.(mp4|webm|mov|m4v)(\?.*)?$/i, '.jpg$2');
+  const legacyUrl = toLegacyMediaFallback(videoUrl);
+  if (!legacyUrl) return null;
+  const withTransform = legacyUrl.replace('/video/upload/', '/video/upload/so_0,f_jpg/');
+  return toPublicMediaUrl(withTransform.replace(/\.(mp4|webm|mov|m4v)(\?.*)?$/i, '.jpg$2'));
 }
 
 export function isUploadCoverVideo(asset: UploadAsset | null | undefined) {
@@ -2226,53 +2173,30 @@ export function isUploadCoverVideo(asset: UploadAsset | null | undefined) {
 }
 
 export function getCoverVideoPosterUrl(videoUrl?: string | null) {
-  return cloudinaryPosterUrl(videoUrl);
+  return legacyVideoPosterUrl(videoUrl);
 }
 
-export async function uploadToCloudinaryMobile(
+export async function uploadToLocalMediaMobile(
   asset: UploadAsset,
-  resourceType: CloudinaryResourceType,
-  folder?: string,
+  kind: LocalMediaUploadKind,
   options: { onProgress?: (progress: number) => void } = {},
-): Promise<CloudinaryUploadResult> {
-  const timestamp = Math.round(Date.now() / 1000);
-  const stem = resourceType === 'video' ? 'track' : 'cover';
-  const publicId = `${stem}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-  const uploadFolder = folder || (resourceType === 'video' ? 'ximam/audio' : 'ximam/images');
-
-  const signature = await request<any>('/api/upload/signature', {
-    method: 'POST',
-    body: JSON.stringify({
-      timestamp,
-      publicId,
-      resourceType,
-      folder: uploadFolder,
-    }),
-  });
-
-  const cloudName = signature?.cloudName;
-  const apiKey = signature?.apiKey;
-  if (!cloudName || !apiKey || !signature?.signature) throw new Error('Signature Cloudinary invalide');
-  const signedTimestamp = Number(signature.timestamp || timestamp);
-  const signedPublicId = String(signature.publicId || publicId);
-  const signedFolder = String(signature.folder || uploadFolder);
-
-  const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
+): Promise<LocalMediaUploadResult> {
+  const fallbackMime = kind.includes('image') || kind === 'cover' || kind === 'avatar' || kind === 'banner'
+    ? 'image/jpeg'
+    : kind.includes('video')
+      ? 'video/mp4'
+      : 'audio/mpeg';
   const uploadTask = FileSystem.createUploadTask(
-    uploadUrl,
+    `${API_BASE_URL}/api/media/upload?kind=${encodeURIComponent(kind)}`,
     asset.uri,
     {
       httpMethod: 'POST',
-      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-      fieldName: 'file',
-      mimeType: asset.type || (resourceType === 'image' ? 'image/jpeg' : 'video/mp4'),
-      parameters: {
-        folder: signedFolder,
-        public_id: signedPublicId,
-        timestamp: String(signedTimestamp),
-        api_key: String(apiKey),
-        signature: String(signature.signature),
-      },
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      headers: authHeaders({
+        'Content-Type': asset.type || fallbackMime,
+        'X-File-Name': encodeURIComponent(asset.name || 'upload.bin'),
+        'X-File-Size': String(asset.size || 0),
+      }) as Record<string, string>,
     },
     ({ totalBytesExpectedToSend, totalBytesSent }) => {
       if (totalBytesExpectedToSend > 0) {
@@ -2285,8 +2209,7 @@ export async function uploadToCloudinaryMobile(
   let json: any = null;
   try { json = JSON.parse(result.body || '{}'); } catch { /* reponse invalide */ }
   if (result.status < 200 || result.status >= 300 || !json?.secure_url) {
-    const message = String(json?.error?.message || `Envoi vidéo impossible (${result.status})`);
-    if (/signature|timestamp/i.test(message)) throw new Error('La session d’envoi a expiré. Réessaie depuis le Flow.');
+    const message = String(json?.error || json?.message || `Envoi impossible (${result.status})`);
     if (/too large|file size|maximum|entity too large|413/i.test(message)) {
       throw new Error('Cette vidéo dépasse 95 Mo. Choisis une version plus légère.');
     }
@@ -2296,9 +2219,11 @@ export async function uploadToCloudinaryMobile(
 
   return {
     secureUrl: String(json.secure_url),
-    publicId: String(json.public_id || signedPublicId),
+    publicId: String(json.public_id),
     duration: Number(json.duration || 0) || undefined,
     bytes: Number(json.bytes || asset.size || 0) || undefined,
+    posterUrl: json.poster_url ? String(json.poster_url) : null,
+    posterPublicId: json.poster_public_id ? String(json.poster_public_id) : null,
   };
 }
 
@@ -2315,6 +2240,7 @@ export async function createUploadedTrack(input: CreateUploadedTrackInput): Prom
       coverVideoUrl: input.coverVideoUrl || null,
       coverVideoPublicId: input.coverVideoPublicId || null,
       coverVideoPosterUrl: input.coverVideoPosterUrl || null,
+      coverVideoPosterPublicId: input.coverVideoPosterPublicId || null,
       duration: input.duration || 0,
       trackData: input.trackData,
       mood: input.mood || null,
@@ -2658,34 +2584,13 @@ export async function removeFeaturedTrack(): Promise<void> {
 }
 
 export async function uploadProfileImage(username: string, type: 'avatar' | 'banner', asset: UploadAsset): Promise<string> {
-  const timestamp = Math.round(Date.now() / 1000);
-  const publicId = `${username}_${type}_${timestamp}`;
-  const signature = await request<any>(`/api/users/${encodeURIComponent(username)}/upload-image`, {
-    method: 'POST',
-    body: JSON.stringify({ timestamp, publicId, type }),
-  });
-  const cloudName = signature?.cloudName;
-  const apiKey = signature?.apiKey;
-  if (!cloudName || !apiKey || !signature?.signature) throw new Error('Signature image invalide');
-
-  const form = new FormData();
-  form.append('file', { uri: asset.uri, name: asset.name, type: asset.type || 'image/jpeg' } as any);
-  form.append('timestamp', String(timestamp));
-  form.append('public_id', publicId);
-  form.append('folder', `ximam/profiles/${username}`);
-  form.append('resource_type', 'image');
-  form.append('api_key', apiKey);
-  form.append('signature', signature.signature);
-
-  const upload = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: form });
-  const uploadJson = await upload.json().catch(() => null);
-  if (!upload.ok || !uploadJson?.secure_url) throw new Error(uploadJson?.error?.message || 'Upload image profil impossible');
+  const uploaded = await uploadToLocalMediaMobile(asset, type);
 
   const saved = await request<any>(`/api/users/${encodeURIComponent(username)}/save-image`, {
     method: 'POST',
-    body: JSON.stringify({ imageUrl: uploadJson.secure_url, type, publicId }),
+    body: JSON.stringify({ imageUrl: uploaded.secureUrl, type, publicId: uploaded.publicId }),
   });
-  return absoluteAsset(saved?.imageUrl || uploadJson.secure_url) || uploadJson.secure_url;
+  return absoluteAsset(saved?.imageUrl || uploaded.secureUrl) || uploaded.secureUrl;
 }
 
 export async function followUser(username: string): Promise<{ isFollowing: boolean; action: 'followed' | 'unfollowed' }> {

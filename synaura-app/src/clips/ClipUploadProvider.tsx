@@ -9,8 +9,8 @@ import {
   participateInChallenge,
   recordClipFunnelEvent,
   updateMusicClip,
-  uploadToCloudinaryMobile,
-  type CloudinaryUploadResult,
+  uploadToLocalMediaMobile,
+  type LocalMediaUploadResult,
   type UploadAsset,
 } from '@/api/client';
 import type { MusicClipSource } from '@/api/types';
@@ -33,7 +33,7 @@ export type ClipUploadTask = {
   tags: string[];
   challengeId?: string;
   clipId?: string;
-  upload?: CloudinaryUploadResult;
+  upload?: LocalMediaUploadResult;
   status: ClipUploadStatus;
   progress: number;
   error?: string;
@@ -217,7 +217,7 @@ export function ClipUploadProvider({ children }: { children: React.ReactNode }) 
             try {
               let lastReportedProgress = 0;
               patchTask(task.id, { status: 'uploading', progress: 0.1 });
-              upload = await uploadToCloudinaryMobile(workingAsset, 'video', 'ximam/music-clips', {
+              upload = await uploadToLocalMediaMobile(workingAsset, 'clip-video', {
                 onProgress: (progress) => {
                   if (progress < 1 && progress - lastReportedProgress < 0.02) return;
                   lastReportedProgress = progress;
@@ -237,7 +237,8 @@ export function ClipUploadProvider({ children }: { children: React.ReactNode }) 
         await updateMusicClip(clipId, {
           videoUrl: upload.secureUrl,
           videoPublicId: upload.publicId,
-          posterUrl: getCoverVideoPosterUrl(upload.secureUrl),
+          posterUrl: upload.posterUrl || getCoverVideoPosterUrl(upload.secureUrl),
+          posterPublicId: upload.posterPublicId || null,
           videoBytes: upload.bytes,
           videoDurationSeconds: upload.duration || task.duration,
           caption: task.caption,
