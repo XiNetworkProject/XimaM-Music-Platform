@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import cloudinary from '@/lib/cloudinary';
+import { deleteLocalMedia, isLocalMediaPublicId } from '@/lib/localMediaStorage';
+
+async function deleteMedia(publicId: string, resourceType: 'image' | 'video') {
+  if (isLocalMediaPublicId(publicId)) {
+    await deleteLocalMedia(publicId);
+    return;
+  }
+  await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,9 +20,9 @@ export async function POST(request: NextRequest) {
     if (!audioPublicId && !coverPublicId && !coverVideoPublicId) return NextResponse.json({ ok: true });
 
     try {
-      if (audioPublicId) await cloudinary.uploader.destroy(audioPublicId, { resource_type: 'video' });
-      if (coverPublicId) await cloudinary.uploader.destroy(coverPublicId, { resource_type: 'image' });
-      if (coverVideoPublicId) await cloudinary.uploader.destroy(coverVideoPublicId, { resource_type: 'video' });
+      if (audioPublicId) await deleteMedia(audioPublicId, 'video');
+      if (coverPublicId) await deleteMedia(coverPublicId, 'image');
+      if (coverVideoPublicId) await deleteMedia(coverVideoPublicId, 'video');
     } catch {}
 
     return NextResponse.json({ ok: true });
