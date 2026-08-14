@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import cloudinary from '@/lib/cloudinary';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
+import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaReference } from '@/lib/localMediaStorage';
 import {
   MUSIC_CLIP_MAX_BYTES,
   MUSIC_CLIP_MAX_SECONDS,
   MUSIC_CLIP_MIN_SECONDS,
   assertCanCreateClip,
   clampClipDuration,
-  cloudinaryVideoPosterUrl,
+  legacyVideoPosterUrl,
   formatMusicClips,
   sanitizeClipOffset,
   sanitizeClipTags,
@@ -56,15 +56,22 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const existing = loaded.clip!;
     const body = await request.json().catch(() => ({}));
     const update: Record<string, any> = {};
+    let oldVideoPublicIdToDelete: string | null = null;
 
     if (body.videoUrl !== undefined) {
       if (!isPlayableVideoUrl(body.videoUrl)) {
         return NextResponse.json({ error: 'La video doit etre un MP4, WebM, MOV ou M4V lisible' }, { status: 422 });
       }
+      if (!isLocalMediaReference(body.videoUrl, body.videoPublicId, 'clip-video') || !isLocalMediaOwnedBy(body.videoPublicId, userId) ||
+        (body.posterUrl && (!isLocalMediaReference(body.posterUrl, body.posterPublicId, 'clip-video') || !isLocalMediaOwnedBy(body.posterPublicId, userId)))) {
+        if (body.videoPublicId) await deleteLocalMedia(body.videoPublicId).catch(() => false);
+        return NextResponse.json({ error: 'La video doit provenir du stockage Synaura' }, { status: 422 });
+      }
+      oldVideoPublicIdToDelete = existing.video_public_id;
       update.video_url = String(body.videoUrl).trim();
       update.poster_url = typeof body.posterUrl === 'string' && body.posterUrl.trim()
         ? body.posterUrl.trim()
-        : cloudinaryVideoPosterUrl(update.video_url);
+        : legacyVideoPosterUrl(update.video_url);
     }
     if (body.videoPublicId !== undefined) update.video_public_id = typeof body.videoPublicId === 'string' ? body.videoPublicId.trim() : null;
     if (body.posterUrl !== undefined && update.poster_url === undefined) update.poster_url = typeof body.posterUrl === 'string' && body.posterUrl.trim() ? body.posterUrl.trim() : null;
@@ -102,7 +109,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         });
         if (!permission.ok) return NextResponse.json({ error: permission.error }, { status: permission.status });
         const nextVideoUrl = update.video_url ?? existing.video_url;
-        const nextPosterUrl = update.poster_url ?? existing.poster_url ?? cloudinaryVideoPosterUrl(nextVideoUrl);
+        const nextPosterUrl = update.poster_url ?? existing.poster_url ?? legacyVideoPosterUrl(nextVideoUrl);
         if (!isPlayableVideoUrl(nextVideoUrl)) {
           return NextResponse.json({ error: 'Ajoute une video lisible avant publication' }, { status: 422 });
         }
@@ -128,7 +135,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       .eq('id', params.id)
       .select('*, creator:profiles!music_clips_creator_id_fkey(id, username, name, avatar)')
       .single();
-    if (error) throw error;
+    if (error) {
+      if (body.videoPublicId) await deleteLocalMedia(body.videoPublicId).catch(() => false);
+      throw error;
+    }
+    if (oldVideoPublicIdToDelete && oldVideoPublicIdToDelete !== body.videoPublicId) {
+      await deleteLocalMedia(oldVideoPublicIdToDelete).catch(() => false);
+    }
     const [clip] = await formatMusicClips([data], { viewerId: userId });
 
     if (notifySourceOwnerId) {
@@ -156,7 +169,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     const { error } = await supabaseAdmin.from('music_clips').delete().eq('id', params.id);
     if (error) throw error;
     if (existing.video_public_id) {
-      await cloudinary.uploader.destroy(existing.video_public_id, { resource_type: 'video' }).catch(() => null);
+      await deleteLocalMedia(existing.video_public_id).catch(() => false);
     }
     return NextResponse.json({ success: true });
   } catch (error: any) {

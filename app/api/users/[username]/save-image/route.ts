@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
-import { deleteFile } from '@/lib/cloudinary';
+import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaPublicId, isLocalMediaReference } from '@/lib/localMediaStorage';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,21 +46,12 @@ export async function POST(
     if (!['avatar', 'banner'].includes(type)) {
       return NextResponse.json({ error: 'Type doit être avatar ou banner' }, { status: 400 });
     }
+    if (!isLocalMediaReference(imageUrl, publicId, type) || !isLocalMediaOwnedBy(publicId, session.user.id)) {
+      return NextResponse.json({ error: 'Reference media locale invalide' }, { status: 422 });
+    }
 
-    // Supprimer l'ancienne image de Cloudinary si elle existe
     const oldPublicIdField = type === 'avatar' ? 'avatar_public_id' : 'banner_public_id';
     const oldPublicId = profile[oldPublicIdField];
-    
-    if (oldPublicId) {
-      try {
-        console.log(`🗑️ Suppression ancienne image ${type}:`, oldPublicId);
-        await deleteFile(oldPublicId, 'image');
-        console.log(`✅ Ancienne image ${type} supprimée avec succès`);
-      } catch (error) {
-        console.error(`❌ Erreur suppression ancienne image ${type}:`, error);
-        // Ne pas bloquer le processus si la suppression échoue
-      }
-    }
 
     // Mettre à jour le profil avec la nouvelle image et son public_id
     const updateData: any = { 
@@ -75,7 +66,12 @@ export async function POST(
 
     if (updateError) {
       console.error('Erreur mise à jour profil:', updateError);
+      await deleteLocalMedia(publicId).catch(() => false);
       return NextResponse.json({ error: 'Erreur mise à jour profil' }, { status: 500 });
+    }
+
+    if (isLocalMediaPublicId(oldPublicId) && oldPublicId !== publicId) {
+      await deleteLocalMedia(oldPublicId).catch(() => false);
     }
 
     return NextResponse.json({ 
@@ -83,7 +79,7 @@ export async function POST(
       imageUrl,
       type,
       publicId,
-      oldImageDeleted: !!oldPublicId
+      oldImageDeleted: isLocalMediaPublicId(oldPublicId)
     });
 
   } catch (error: any) {

@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
-import { deleteFile } from '@/lib/cloudinary';
+import { deleteLocalMedia, isLocalMediaPublicId, localPublicIdFromUrl } from '@/lib/localMediaStorage';
 
 export const dynamic = 'force-dynamic';
 
-/** Extrait le public_id Cloudinary depuis une URL (image ou video). */
-function cloudinaryPublicIdFromUrl(url: string | null): string | null {
-  if (!url || !url.includes('cloudinary.com')) return null;
-  const uploadIndex = url.indexOf('/upload/');
-  if (uploadIndex === -1) return null;
-  const afterUpload = url.substring(uploadIndex + 8);
-  const versionRemoved = afterUpload.replace(/^v\d+\//, '');
-  const publicIdWithExt = versionRemoved;
-  const publicId = publicIdWithExt.split('.')[0];
-  return publicId || null;
+function parseSourceLinks(value: unknown): Record<string, any> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, any>;
+  if (typeof value !== 'string') return {};
+  try { return JSON.parse(value) || {}; } catch { return {}; }
 }
 
 export async function POST(request: NextRequest) {
@@ -26,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id as string;
 
-    // 1) Récupérer le profil (images Cloudinary)
+    // Inventorier les references avant de supprimer les lignes en base.
     const { data: profile, error: profileErr } = await supabaseAdmin
       .from('profiles')
       .select('id, avatar, banner, avatar_public_id, banner_public_id')
@@ -37,10 +31,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Profil introuvable' }, { status: 404 });
     }
 
-    // 2) Récupérer toutes les pistes du créateur (Cloudinary)
     const { data: tracks, error: tracksErr } = await supabaseAdmin
       .from('tracks')
-      .select('id, audio_public_id, cover_public_id, audio_url, cover_url')
+      .select('*')
       .eq('creator_id', userId);
 
     if (tracksErr) {
@@ -48,30 +41,48 @@ export async function POST(request: NextRequest) {
     }
 
     const tracksList = tracks || [];
+    const [{ data: posts }, { data: clips }, { data: messages }, { data: generations }, { data: conversationPreferences }] = await Promise.all([
+      supabaseAdmin.from('creator_posts').select('image_url').eq('creator_id', userId),
+      supabaseAdmin.from('music_clips').select('video_public_id, poster_url').eq('creator_id', userId),
+      supabaseAdmin.from('messages').select('id, media_url').eq('sender_id', userId),
+      supabaseAdmin.from('ai_generations').select('id').eq('user_id', userId),
+      supabaseAdmin.from('conversation_participants').select('wallpaper_url').eq('user_id', userId),
+    ]);
+    const messageIds = (messages || []).map((message: any) => message.id).filter(Boolean);
+    const genIds = (generations || []).map((generation: any) => generation.id).filter(Boolean);
+    const { data: attachments } = messageIds.length
+      ? await supabaseAdmin.from('message_attachments').select('url, preview_url').in('message_id', messageIds)
+      : { data: [] as any[] };
+    const { data: aiTracks } = genIds.length
+      ? await supabaseAdmin.from('ai_tracks').select('source_links, audio_url, stream_audio_url, image_url').in('generation_id', genIds)
+      : { data: [] as any[] };
 
-    // 3) Supprimer les médias sur Cloudinary (best-effort, ne pas bloquer)
-    const deleteCloudinary = async (publicId: string | null, resourceType: 'image' | 'video') => {
-      if (!publicId) return;
-      try {
-        await deleteFile(publicId, resourceType);
-      } catch (e) {
-        console.warn('Suppression Cloudinary ignorée:', publicId, e);
-      }
+    const localIds = new Set<string>();
+    const collect = (publicId?: unknown, url?: unknown) => {
+      if (typeof publicId === 'string' && isLocalMediaPublicId(publicId)) localIds.add(publicId);
+      const fromUrl = localPublicIdFromUrl(url);
+      if (fromUrl) localIds.add(fromUrl);
     };
-
-    // Avatar / bannière
-    const avatarId = (profile as any).avatar_public_id || cloudinaryPublicIdFromUrl((profile as any).avatar);
-    const bannerId = (profile as any).banner_public_id || cloudinaryPublicIdFromUrl((profile as any).banner);
-    await deleteCloudinary(avatarId || null, 'image');
-    await deleteCloudinary(bannerId || null, 'image');
-
-    // Pistes : audio (video) et cover (image)
-    for (const t of tracksList) {
-      const audioId = (t as any).audio_public_id || cloudinaryPublicIdFromUrl((t as any).audio_url);
-      const coverId = (t as any).cover_public_id || cloudinaryPublicIdFromUrl((t as any).cover_url);
-      await deleteCloudinary(audioId || null, 'video');
-      await deleteCloudinary(coverId || null, 'image');
+    collect((profile as any).avatar_public_id, (profile as any).avatar);
+    collect((profile as any).banner_public_id, (profile as any).banner);
+    for (const track of tracksList as any[]) {
+      collect(track.audio_public_id, track.audio_url);
+      collect(track.cover_public_id, track.cover_url);
+      collect(track.cover_video_public_id, track.cover_video_url);
+      collect(null, track.cover_video_poster_url);
     }
+    for (const post of posts || []) collect(null, (post as any).image_url);
+    for (const clip of clips || []) { collect((clip as any).video_public_id); collect(null, (clip as any).poster_url); }
+    for (const message of messages || []) collect(null, (message as any).media_url);
+    for (const attachment of attachments || []) { collect(null, (attachment as any).url); collect(null, (attachment as any).preview_url); }
+    for (const preferences of conversationPreferences || []) collect(null, (preferences as any).wallpaper_url);
+    for (const track of aiTracks || []) {
+      const links = parseSourceLinks((track as any).source_links);
+      collect(links.local_media_public_id, (track as any).audio_url);
+      collect(links.local_audio_public_id, (track as any).stream_audio_url);
+      collect(links.local_image_public_id, (track as any).image_url);
+    }
+    for (const publicId of Array.from(localIds)) await deleteLocalMedia(publicId).catch(() => false);
 
     // 4) Supprimer les données en base (ordre respectant les FKs)
     const tablesToDelete: { table: string; column: string; value: string }[] = [
@@ -79,6 +90,8 @@ export async function POST(request: NextRequest) {
       { table: 'comment_reactions', column: 'user_id', value: userId },
       { table: 'track_likes', column: 'user_id', value: userId },
       { table: 'comments', column: 'user_id', value: userId },
+      { table: 'creator_posts', column: 'creator_id', value: userId },
+      { table: 'music_clips', column: 'creator_id', value: userId },
       { table: 'tracks', column: 'creator_id', value: userId },
       { table: 'playlists', column: 'creator_id', value: userId },
       { table: 'user_follows', column: 'follower_id', value: userId },
@@ -113,11 +126,6 @@ export async function POST(request: NextRequest) {
     }
 
     // AI: générations et pistes IA
-    const { data: generations } = await supabaseAdmin
-      .from('ai_generations')
-      .select('id')
-      .eq('user_id', userId);
-    const genIds = (generations || []).map((g: { id: string }) => g.id);
     if (genIds.length > 0) {
       try {
         await supabaseAdmin.from('ai_tracks').delete().in('generation_id', genIds);

@@ -39,6 +39,7 @@ import {
 } from '@/components/synaura/SynauraShell';
 import SynauraStudioEventBar from '@/components/synaura/SynauraStudioEventBar';
 import CreateArrivalBanner from '@/components/create/CreateArrivalBanner';
+import { uploadLocalMedia } from '@/lib/clientMediaUpload';
 
 const DEBUG_AI_STUDIO = process.env.NODE_ENV !== 'production';
 
@@ -924,8 +925,8 @@ function AIGeneratorContent() {
       allTracks.filter((t: any) => {
         const isUploadModel = String((t as any)?.model_name || '').toUpperCase() === 'UPLOAD';
         const links = parseSourceLinks((t as any)?.source_links);
-        const hasCloudinaryUpload = Boolean(links?.cloudinary_public_id);
-        return isUploadModel || hasCloudinaryUpload;
+        const hasStoredUpload = Boolean(links?.local_media_public_id || links?.cloudinary_public_id);
+        return isUploadModel || hasStoredUpload;
       }),
     [allTracks]
   );
@@ -2276,30 +2277,7 @@ function AIGeneratorContent() {
     uploadAbortRef.current = new AbortController();
     const signal = uploadAbortRef.current.signal;
     try {
-      const timestamp = Math.round(new Date().getTime() / 1000);
-      const publicId = `remix_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const sigRes = await fetch('/api/upload/signature', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timestamp, publicId, resourceType: 'video' })
-      });
-      if (!sigRes.ok) throw new Error('Erreur signature Cloudinary');
-      const { signature, apiKey, cloudName } = await sigRes.json();
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('folder', 'ximam/audio');
-      formData.append('public_id', publicId);
-      formData.append('resource_type', 'video');
-      formData.append('timestamp', String(timestamp));
-      formData.append('api_key', apiKey);
-      formData.append('signature', signature);
-      const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, {
-        method: 'POST',
-        body: formData,
-        signal,
-      });
-      if (!uploadResponse.ok) throw new Error('Erreur upload Cloudinary');
-      const uploaded = await uploadResponse.json();
+      const uploaded = await uploadLocalMedia(file, 'ai-audio', { signal });
       const secureUrl = uploaded?.secure_url as string;
       const uploadedPublicId = uploaded?.public_id as string | undefined;
       const uploadedDuration = typeof uploaded?.duration === 'number' ? uploaded.duration : undefined;
@@ -5625,7 +5603,7 @@ function AIGeneratorContent() {
                           Play
                         </button>
                         {(String((track as any)?.model_name || '').toUpperCase() === 'UPLOAD' ||
-                          Boolean(parseSourceLinks((track as any)?.source_links)?.cloudinary_public_id)) && (
+                          Boolean(parseSourceLinks((track as any)?.source_links)?.local_media_public_id || parseSourceLinks((track as any)?.source_links)?.cloudinary_public_id)) && (
                           <button
                             type="button"
                             onClick={() => useLibraryTrackForRemix(track)}

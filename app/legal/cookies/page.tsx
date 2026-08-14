@@ -118,9 +118,9 @@ export default function CookiesPage() {
                   </p>
                 </div>
                 <div className="p-4 bg-white/[0.04] rounded-lg">
-                  <h3 className="text-sm font-medium text-white mb-2">3.3 Cloudinary (Médias)</h3>
+                  <h3 className="text-sm font-medium text-white mb-2">3.3 Infrastructure Synaura (Médias)</h3>
                   <p className="text-sm text-white/60">
-                    Utilisé pour l'hébergement et l'optimisation des fichiers audio et images.
+                    Utilisée pour l'hébergement des fichiers audio, vidéo et images sur le serveur Synaura.
                   </p>
                 </div>
               </div>

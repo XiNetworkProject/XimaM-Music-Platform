@@ -195,7 +195,7 @@ export default function PostPage() {
   const isOwn = !!(session && post && ((session.user as any)?.id === post.creator.id || (session.user as any)?.username === post.creator.username));
 
   const coverSrc = post?.type === 'photo'
-    ? (imgError ? null : post.image_url)
+    ? (imgError ? null : getCdnUrl(post.image_url) || post.image_url)
     : post?.type === 'track_share'
     ? post.track?.cover_url
     : post?.type === 'repost'
@@ -332,7 +332,7 @@ export default function PostPage() {
               {post.type === 'photo' && post.image_url && !imgError ? (
                 <div className="overflow-hidden rounded-[1.5rem] bg-black/[0.05]">
                   <img
-                    src={post.image_url}
+                    src={getCdnUrl(post.image_url) || post.image_url}
                     alt=""
                     className="max-h-[640px] w-full object-cover"
                     onError={() => setImgError(true)}
@@ -393,7 +393,7 @@ export default function PostPage() {
                     ) : null}
 
                     {!post.original_post.track && post.original_post.image_url ? (
-                      <img src={post.original_post.image_url} alt="" className="max-h-[640px] w-full object-cover border-t border-black/[0.08]" />
+                      <img src={getCdnUrl(post.original_post.image_url) || post.original_post.image_url} alt="" className="max-h-[640px] w-full object-cover border-t border-black/[0.08]" />
                     ) : null}
                   </div>
                 ) : (

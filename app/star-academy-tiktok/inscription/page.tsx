@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { uploadLocalMedia } from "@/lib/clientMediaUpload";
 
 // ─── Dates cles ─────────────────────────────────────────
 const INSCRIPTION_OPEN  = new Date("2026-03-17T00:00:00");
@@ -1056,45 +1057,10 @@ function InscriptionForm() {
     if (!audioFile) { setError("Fichier audio requis."); setLoading(false); return; }
 
     try {
-      // 1. Upload audio vers Cloudinary
+      // 1. Envoi audio vers le stockage Synaura
       setProgress(5);
-      const timestamp = Math.round(Date.now() / 1000);
-      const publicId = `sa_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-
-      const sigRes = await fetch("/api/star-academy/signature", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ timestamp, publicId }),
-      });
-      if (!sigRes.ok) throw new Error("Impossible de préparer l'upload audio.");
-      const { signature, apiKey, cloudName } = await sigRes.json();
-
-      setProgress(10);
-
-      const cloudinaryUrl = await new Promise<string>((resolve, reject) => {
-        const fd = new FormData();
-        fd.append("file", audioFile);
-        fd.append("folder", "ximam/star-academy");
-        fd.append("public_id", publicId);
-        fd.append("resource_type", "video");
-        fd.append("timestamp", timestamp.toString());
-        fd.append("api_key", apiKey);
-        fd.append("signature", signature);
-
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`);
-        xhr.upload.onprogress = e => {
-          if (e.lengthComputable) setProgress(10 + Math.round((e.loaded / e.total) * 70));
-        };
-        xhr.onload = () => {
-          try {
-            const data = JSON.parse(xhr.responseText);
-            if (xhr.status < 300 && data.secure_url) resolve(data.secure_url);
-            else reject(new Error(data.error?.message || "Erreur upload audio"));
-          } catch { reject(new Error("Réponse Cloudinary invalide")); }
-        };
-        xhr.onerror = () => reject(new Error("Erreur réseau lors de l'upload audio"));
-        xhr.send(fd);
+      const uploaded = await uploadLocalMedia(audioFile, 'star-academy-audio', {
+        onProgress: (value) => setProgress(10 + Math.round(value * 70)),
       });
 
       setProgress(85);
@@ -1102,7 +1068,8 @@ function InscriptionForm() {
       // 2. Envoyer la candidature en JSON
       const payload: Record<string, string> = {};
       Object.entries(fields).forEach(([k, v]) => { if (typeof v === "string") payload[k] = v; });
-      payload.audioUrl = cloudinaryUrl;
+      payload.audioUrl = uploaded.secure_url;
+      payload.audioPublicId = uploaded.public_id;
       payload.audioFilename = audioFile.name;
 
       const res = await fetch("/api/star-academy/apply", {

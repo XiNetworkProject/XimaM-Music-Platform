@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Play, Download, Share2, Music, AlertTriangle, CheckCircle2, Loader2, Wand2, MoreVertical, Copy, RotateCcw } from 'lucide-react';
 import type { GeneratedTrack } from '@/lib/aiStudioTypes';
 import { isLikelyExpiredAIProviderUrl } from '@/lib/media-url-health';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
 type GenerationStatus = 'idle' | 'pending' | 'completed' | 'failed';
 
@@ -39,7 +40,7 @@ const sanitizeCoverUrl = (url?: string, createdAt?: string) => {
   try {
     new URL(trimmed);
     if (isLikelyExpiredAIProviderUrl(trimmed, createdAt)) return '';
-    return trimmed;
+    return toPublicMediaUrl(trimmed) || trimmed;
   } catch {
     return '';
   }

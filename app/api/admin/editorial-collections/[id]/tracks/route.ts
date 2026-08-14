@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminGuard } from '@/lib/admin';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isMissingEditorialCollectionsTable, normalizeLegacyCollectionFromPlaylist } from '@/lib/editorialCollections';
+import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaReference } from '@/lib/localMediaStorage';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -45,13 +47,13 @@ function formatTrack(t: any) {
       _id: t.creator_id,
       username: t.profiles?.username,
       name: t.profiles?.name,
-      avatar: t.profiles?.avatar,
+      avatar: toPublicMediaUrl(t.profiles?.avatar),
       isArtist: t.profiles?.is_artist,
       artistName: t.profiles?.artist_name,
     },
     duration: t.duration || 0,
-    coverUrl: t.cover_url,
-    audioUrl: t.audio_url,
+    coverUrl: toPublicMediaUrl(t.cover_url),
+    audioUrl: toPublicMediaUrl(t.audio_url),
     album: t.album || null,
     genre: Array.isArray(t.genre) ? t.genre : [],
     likes: [],
@@ -176,6 +178,18 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         errors.push({ title, error: 'Audio URL manquante' });
         continue;
       }
+      if (!isLocalMediaReference(audioUrl, item.audioPublicId, 'editorial-audio') || !isLocalMediaOwnedBy(item.audioPublicId, guard.userId!)) {
+        if (item.audioPublicId) await deleteLocalMedia(item.audioPublicId).catch(() => false);
+        errors.push({ title, error: 'Reference audio locale invalide' });
+        continue;
+      }
+      const itemCoverUrl = String(item.coverUrl || '').trim() || null;
+      if (itemCoverUrl && (!isLocalMediaReference(itemCoverUrl, item.coverPublicId, 'editorial-image') || !isLocalMediaOwnedBy(item.coverPublicId, guard.userId!))) {
+        if (item.coverPublicId) await deleteLocalMedia(item.coverPublicId).catch(() => false);
+        await deleteLocalMedia(item.audioPublicId!).catch(() => false);
+        errors.push({ title, error: 'Reference de cover locale invalide' });
+        continue;
+      }
 
       const genre = asStringList(item.genre);
       const tags = asStringList(item.tags);
@@ -186,7 +200,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         lyrics: null,
         genre,
         audio_url: audioUrl,
-        cover_url: String(item.coverUrl || collection.cover_url || collection.banner_url || '').trim() || null,
+        cover_url: itemCoverUrl || collection.cover_url || collection.banner_url || null,
         album: collection.title,
         duration: Math.round(Number(item.duration || 0) || 0),
         creator_id: guard.userId,
@@ -213,6 +227,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         insert = await supabaseAdmin.from('tracks').insert(fallback).select('*').single();
       }
       if (insert.error || !insert.data) {
+        if (item.audioPublicId) await deleteLocalMedia(item.audioPublicId).catch(() => false);
+        if (item.coverPublicId) await deleteLocalMedia(item.coverPublicId).catch(() => false);
         errors.push({ title, error: insert.error?.message || 'Insertion impossible' });
         continue;
       }
@@ -224,6 +240,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         added_at: new Date().toISOString(),
       });
       if (link.error) {
+        await supabaseAdmin.from('tracks').delete().eq('id', insert.data.id);
+        if (item.audioPublicId) await deleteLocalMedia(item.audioPublicId).catch(() => false);
+        if (item.coverPublicId) await deleteLocalMedia(item.coverPublicId).catch(() => false);
         errors.push({ title, error: link.error.message });
         continue;
       }

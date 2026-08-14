@@ -10,6 +10,7 @@ import {
   normalizeThemeColors,
   slugifyCollectionTitle,
 } from '@/lib/editorialCollections';
+import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaUrl, localPublicIdFromUrl } from '@/lib/localMediaStorage';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -113,6 +114,14 @@ export async function POST(request: NextRequest) {
   const playlistId = randomUUID();
   const coverUrl = String(body?.coverUrl || body?.cover_url || '').trim() || null;
   const bannerUrl = String(body?.bannerUrl || body?.banner_url || '').trim() || null;
+  const uploadedImageIds = [coverUrl, bannerUrl].map(localPublicIdFromUrl).filter((value): value is string => Boolean(value));
+  if ([coverUrl, bannerUrl].some((url) => url && (!isLocalMediaUrl(url, 'editorial-image') || !isLocalMediaOwnedBy(localPublicIdFromUrl(url), guard.userId!)))) {
+    await Promise.all(uploadedImageIds.map((publicId) => deleteLocalMedia(publicId).catch(() => false)));
+    return NextResponse.json({ error: 'Les images doivent provenir du stockage Synaura' }, { status: 422 });
+  }
+  const cleanupUploadedImages = async () => {
+    await Promise.all(uploadedImageIds.map((publicId) => deleteLocalMedia(publicId).catch(() => false)));
+  };
   const subtitle = String(body?.subtitle || '').trim();
   const description = String(body?.description || '').trim();
   const badge = String(body?.badge || 'Synaura Originals').trim() || 'Synaura Originals';
@@ -151,6 +160,7 @@ export async function POST(request: NextRequest) {
     playlistInsert = await supabaseAdmin.from('playlists').insert(fallback).select('id').single();
   }
   if (playlistInsert.error) {
+    await cleanupUploadedImages();
     return NextResponse.json({ error: playlistInsert.error.message }, { status: 500 });
   }
 
@@ -194,6 +204,7 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     await supabaseAdmin.from('playlists').delete().eq('id', playlistId);
+    await cleanupUploadedImages();
     if (isMissingEditorialCollectionsTable(error)) {
       return NextResponse.json({
         error: 'Table editorial_collections manquante',

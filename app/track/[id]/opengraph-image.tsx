@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'edge';
@@ -26,7 +27,7 @@ export default async function Image({ params }: { params: { id: string } }) {
       const generation = (data as any)?.generation;
       if (data?.is_public === true && generation?.is_public === true && generation?.status === 'completed') {
         title = data.title || 'Création IA';
-        coverUrl = data.image_url;
+        coverUrl = toPublicMediaUrl(data.image_url);
         genre = Array.isArray(data.tags) ? String(data.tags[0] || '') : '';
         if (generation?.user_id) {
           const { data: profile } = await supabaseAdmin.from('profiles').select('name, username, artist_name').eq('id', generation.user_id).maybeSingle();
@@ -41,7 +42,7 @@ export default async function Image({ params }: { params: { id: string } }) {
         .maybeSingle();
       if (track?.is_public === true && track.audio_url) {
         title = track.title;
-        coverUrl = track.cover_url;
+        coverUrl = toPublicMediaUrl(track.cover_url);
         genre = track.genre?.[0] || '';
         if (track.creator_id) {
           const { data: profile } = await supabaseAdmin.from('profiles').select('name, username, artist_name').eq('id', track.creator_id).maybeSingle();

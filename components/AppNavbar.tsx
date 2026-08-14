@@ -24,6 +24,7 @@ import { useAudioPlayer } from '../app/providers';
 import { useSidebar } from '@/app/providers';
 import NotificationCenter from './NotificationCenter';
 import Avatar from './Avatar';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
 interface Track {
   _id: string;
@@ -228,12 +229,8 @@ export default function AppNavbar() {
       return url;
     }
 
-    if (url.includes('cloudinary.com')) {
-      return url;
-    }
-
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
+      return toPublicMediaUrl(url);
     }
 
     return fallback;

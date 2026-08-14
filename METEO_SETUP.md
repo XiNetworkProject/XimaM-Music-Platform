@@ -83,16 +83,17 @@ CREATE TRIGGER meteo_bulletins_updated_at
 
 - **POST** `/api/meteo/bulletin` : Publier un bulletin
 - **GET** `/api/meteo/bulletin` : Récupérer le bulletin actuel
-- **POST** `/api/cloudinary/delete` : Supprimer une image Cloudinary
+- La suppression de l'image locale est effectuée automatiquement avec le bulletin.
 
-## 6. Configuration Cloudinary
+## 6. Configuration du stockage média
 
 Assurez-vous que ces variables sont définies dans `.env.local` :
 
 ```
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
+SYNAURA_MEDIA_ROOT=/mnt/Synaura-SSD/apps/synaura/media
+MEDIA_BASE_URL=https://media.synaura.fr
+NEXT_PUBLIC_MEDIA_BASE_URL=https://media.synaura.fr
+MEDIA_STORAGE_SECRET=replace_with_a_long_random_secret
 ```
 
 ## 7. Test

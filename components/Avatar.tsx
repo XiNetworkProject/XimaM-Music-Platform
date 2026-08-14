@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { getCdnUrl } from '@/lib/cdn';
+import { toLegacyMediaFallback } from '@/lib/mediaUrls';
 
 interface AvatarProps {
   src?: string | null | undefined;
@@ -40,6 +41,7 @@ function getColorFromName(name: string): string {
 
 export default function Avatar({ src, name, username, size = 'md', className = '' }: AvatarProps) {
   const [imageError, setImageError] = React.useState(false);
+  const [useLegacyFallback, setUseLegacyFallback] = React.useState(false);
   const displayName = name || username || '?';
   const initial = displayName.charAt(0).toUpperCase();
   const bgColor = getColorFromName(displayName);
@@ -52,6 +54,13 @@ export default function Avatar({ src, name, username, size = 'md', className = '
     xl: 'w-16 h-16 text-xl',
     '2xl': 'w-20 h-20 text-2xl',
   };
+  const imageUrl = src ? (src.startsWith('/') ? src : (getCdnUrl(src) || src)) : null;
+  const legacyFallback = toLegacyMediaFallback(src);
+
+  React.useEffect(() => {
+    setImageError(false);
+    setUseLegacyFallback(false);
+  }, [src]);
   
   // Si pas de src ou erreur de chargement, afficher le fallback
   if (!src || imageError) {
@@ -66,15 +75,18 @@ export default function Avatar({ src, name, username, size = 'md', className = '
   }
   
   // Ne pas appliquer le CDN aux URLs locales (commençant par /)
-  const imageUrl = src.startsWith('/') ? src : (getCdnUrl(src) || src);
-  
   return (
     <img
-      src={imageUrl}
+      src={(useLegacyFallback && legacyFallback ? legacyFallback : imageUrl) || undefined}
       alt={displayName}
       className={`${sizeClasses[size]} rounded-full object-cover ${className}`}
-      onError={() => setImageError(true)}
+      onError={() => {
+        if (!useLegacyFallback && legacyFallback && legacyFallback !== imageUrl) {
+          setUseLegacyFallback(true);
+          return;
+        }
+        setImageError(true);
+      }}
     />
   );
 }
-

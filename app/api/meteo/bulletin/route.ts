@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
-import { uploadImage, uploadImageDirect } from '@/lib/cloudinary';
+import { deleteLocalMedia, storeWebFile } from '@/lib/localMediaStorage';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -74,22 +74,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'L\'image ne doit pas depasser 10MB' }, { status: 400 });
       }
 
-      const bytes = await imageFile.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
-      let uploadResult;
-      try {
-        uploadResult = await uploadImage(buffer, {
-          folder: 'meteo-bulletins',
-          resource_type: 'image',
-          public_id: `bulletin_${Date.now()}`,
-          quality: 'auto',
-        });
-      } catch (e) {
-        uploadResult = await uploadImageDirect(buffer, {
-          folder: 'meteo-bulletins',
-        });
-      }
+      const uploadResult = await storeWebFile(imageFile, 'weather-image', undefined, session.user.id);
 
       secure_url = uploadResult.secure_url;
       public_id = uploadResult.public_id;
@@ -184,6 +169,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
+      if (imageFile && public_id) await deleteLocalMedia(public_id).catch(() => false);
       return NextResponse.json({ 
         error: 'Erreur lors de la création du bulletin',
         details: insertError.message 

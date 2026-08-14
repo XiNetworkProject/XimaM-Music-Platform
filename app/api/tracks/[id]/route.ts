@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
-import cloudinary from '@/lib/cloudinary';
+import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaReference } from '@/lib/localMediaStorage';
 import { remixPermissionsFromRow, remixPermissionsToRow, sanitizeRemixPermissions } from '@/lib/remixPermissions';
 import { getPublishedVariationCounts, getRemixAttributionForChildren, getRemixSourceSummary, normalizeRemixTrackRef } from '@/lib/remixServer';
 import { getPublishedClipCounts } from '@/lib/musicClips';
 import { canViewAiTrack, canViewTrack } from '@/lib/publicTracks';
 import { getLinkedChallengeForSource } from '@/lib/musicChallenges';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
 function readTrackData(value: any): Record<string, any> {
   if (!value) return {};
@@ -67,8 +68,8 @@ export async function GET(
           artistName: source?.artist || 'Artiste Synaura',
         },
         artistUsername: source?.artistUsername || '',
-        coverUrl: aiTrack.image_url || null,
-        audioUrl: aiTrack.audio_url || aiTrack.stream_audio_url,
+        coverUrl: toPublicMediaUrl(aiTrack.image_url),
+        audioUrl: toPublicMediaUrl(aiTrack.audio_url || aiTrack.stream_audio_url),
         duration: aiTrack.duration || 0,
         genre: Array.isArray(aiTrack.tags) ? aiTrack.tags : [],
         plays: aiTrack.play_count || 0,
@@ -123,14 +124,14 @@ export async function GET(
         artistName: source?.artist || track.artist_name || track.creator_name || 'Artiste inconnu',
       },
       artistUsername: source?.artistUsername || '',
-      coverUrl: track.cover_url,
-      coverVideoUrl: track.cover_video_url || trackData.cover_video_url || trackData.coverVideoUrl || null,
-      coverVideoPosterUrl: track.cover_video_poster_url || trackData.cover_video_poster_url || trackData.coverVideoPosterUrl || null,
-      visualUrl: trackData.visual_url || trackData.visualUrl || null,
+      coverUrl: toPublicMediaUrl(track.cover_url),
+      coverVideoUrl: toPublicMediaUrl(track.cover_video_url || trackData.cover_video_url || trackData.coverVideoUrl),
+      coverVideoPosterUrl: toPublicMediaUrl(track.cover_video_poster_url || trackData.cover_video_poster_url || trackData.coverVideoPosterUrl),
+      visualUrl: toPublicMediaUrl(trackData.visual_url || trackData.visualUrl),
       visualType: trackData.visual_type || trackData.visualType || null,
       dominantColors: Array.isArray(trackData.dominant_colors) ? trackData.dominant_colors : Array.isArray(trackData.dominantColors) ? trackData.dominantColors : [],
       auraVisualEnabled: trackData.aura_visual_enabled !== false && trackData.auraVisualEnabled !== false,
-      audioUrl: track.audio_url,
+      audioUrl: toPublicMediaUrl(track.audio_url),
       duration: track.duration,
       genre: track.genre || [],
       plays: track.plays || 0,
@@ -238,19 +239,15 @@ export async function PUT(
       Object.assign(updateData, remixPermissionsToRow(nextPermissions));
     }
 
+    let oldCoverPublicIdToDelete: string | null = null;
     if (body.coverUrl) {
-      const oldCoverPublicId = existingTrack.cover_public_id;
+      if (!isLocalMediaReference(body.coverUrl, body.coverPublicId, 'cover') || !isLocalMediaOwnedBy(body.coverPublicId, session.user.id)) {
+        if (body.coverPublicId) await deleteLocalMedia(body.coverPublicId).catch(() => false);
+        return NextResponse.json({ error: 'La cover doit provenir du stockage Synaura' }, { status: 422 });
+      }
+      oldCoverPublicIdToDelete = existingTrack.cover_public_id;
       updateData.cover_url = body.coverUrl;
       updateData.cover_public_id = body.coverPublicId || null;
-
-      if (oldCoverPublicId && oldCoverPublicId !== body.coverPublicId) {
-        try {
-          await cloudinary.uploader.destroy(oldCoverPublicId, { resource_type: 'image' });
-          console.log('🗑️ Ancienne cover supprimee:', oldCoverPublicId);
-        } catch (e) {
-          console.warn('Echec suppression ancienne cover:', e);
-        }
-      }
     }
 
     // Mettre à jour la track
@@ -276,10 +273,15 @@ export async function PUT(
 
     if (updateError) {
       console.error('❌ Erreur lors de la mise à jour:', updateError);
+      if (body.coverPublicId) await deleteLocalMedia(body.coverPublicId).catch(() => false);
       return NextResponse.json(
         { error: `Erreur lors de la mise à jour: ${updateError.message}` },
         { status: 500 }
       );
+    }
+
+    if (oldCoverPublicIdToDelete && oldCoverPublicIdToDelete !== body.coverPublicId) {
+      await deleteLocalMedia(oldCoverPublicIdToDelete).catch(() => false);
     }
 
     console.log(`✅ Track mise à jour: ${id}`);
@@ -293,8 +295,8 @@ export async function PUT(
       tags: updatedTrack.tags || [],
       is_featured: updatedTrack.is_featured,
       is_public: updatedTrack.is_public,
-      cover_url: updatedTrack.cover_url,
-      audio_url: updatedTrack.audio_url,
+      cover_url: toPublicMediaUrl(updatedTrack.cover_url),
+      audio_url: toPublicMediaUrl(updatedTrack.audio_url),
       duration: updatedTrack.duration,
       plays: updatedTrack.plays || 0,
       likes: updatedTrack.likes || 0,
@@ -335,10 +337,10 @@ export async function DELETE(
 
     console.log(`🗑️  Suppression de la track: ${id}`);
 
-    // Récupérer d'abord les URLs et public_id Cloudinary pour suppression + vérifier propriétaire
+    // Récupérer les references locales avant suppression et verifier le propriétaire.
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('tracks')
-      .select('audio_url, cover_url, audio_public_id, cover_public_id, creator_id')
+      .select('*')
       .eq('id', id)
       .maybeSingle();
     
@@ -349,7 +351,13 @@ export async function DELETE(
     }
 
     // Vérifier les droits de propriété
-    if (existing && existing.creator_id !== session.user.id) {
+    if (fetchErr) {
+      return NextResponse.json({ error: 'Impossible de verifier la piste avant suppression' }, { status: 500 });
+    }
+    if (!existing) {
+      return NextResponse.json({ error: 'Track non trouvee' }, { status: 404 });
+    }
+    if (existing.creator_id !== session.user.id) {
       return NextResponse.json(
         { error: 'Non autorisé - vous n\'êtes pas le propriétaire de cette track' },
         { status: 403 }
@@ -372,80 +380,15 @@ export async function DELETE(
 
     console.log(`✅ Track supprimée: ${id}`);
 
-    // Supprimer les fichiers Cloudinary associés
+    // Les references historiques distantes sont volontairement conservees comme fallback.
     if (existing) {
-      console.log('🗑️ Tentative suppression Cloudinary:', {
-        audio_public_id: existing.audio_public_id,
-        cover_public_id: existing.cover_public_id,
-        audio_url: existing.audio_url,
-        cover_url: existing.cover_url
-      });
-      
-      try {
-        // Supprimer l'audio
-        if (existing.audio_public_id) {
-          console.log('🎵 Suppression audio Cloudinary:', existing.audio_public_id);
-          const audioResult = await cloudinary.uploader.destroy(existing.audio_public_id, { resource_type: 'video' });
-          console.log('✅ Résultat suppression audio:', audioResult);
-        } else if (existing.audio_url && existing.audio_url.includes('cloudinary.com')) {
-          // Extraire public_id depuis l'URL Cloudinary
-          // URL format: https://res.cloudinary.com/dtgglgtfx/video/upload/v1234567890/ximam/audio/filename.mp3
-          // Public_id = ximam/audio/filename
-          
-          const url = existing.audio_url;
-          const uploadIndex = url.indexOf('/upload/');
-          if (uploadIndex !== -1) {
-            const afterUpload = url.substring(uploadIndex + 8); // Après "/upload/"
-            const versionRemoved = afterUpload.replace(/^v\d+\//, ''); // Supprimer v1234567890/
-            const publicIdWithExt = versionRemoved; // ximam/audio/filename.mp3
-            const publicId = publicIdWithExt.split('.')[0]; // ximam/audio/filename
-            
-            console.log('🎵 Extraction public_id audio:', {
-              url,
-              afterUpload,
-              versionRemoved,
-              publicId
-            });
-            
-            const audioResult = await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
-            console.log('✅ Résultat suppression audio:', audioResult);
-          }
-        }
-        
-        // Supprimer la cover
-        if (existing.cover_public_id) {
-          console.log('🖼️ Suppression cover Cloudinary:', existing.cover_public_id);
-          const coverResult = await cloudinary.uploader.destroy(existing.cover_public_id, { resource_type: 'image' });
-          console.log('✅ Résultat suppression cover:', coverResult);
-        } else if (existing.cover_url && existing.cover_url.includes('cloudinary.com')) {
-          // Extraire public_id depuis l'URL Cloudinary
-          // URL format: https://res.cloudinary.com/dtgglgtfx/image/upload/v1234567890/ximam/images/filename.jpg
-          // Public_id = ximam/images/filename
-          
-          const url = existing.cover_url;
-          const uploadIndex = url.indexOf('/upload/');
-          if (uploadIndex !== -1) {
-            const afterUpload = url.substring(uploadIndex + 8); // Après "/upload/"
-            const versionRemoved = afterUpload.replace(/^v\d+\//, ''); // Supprimer v1234567890/
-            const publicIdWithExt = versionRemoved; // ximam/images/filename.jpg
-            const publicId = publicIdWithExt.split('.')[0]; // ximam/images/filename
-            
-            console.log('🖼️ Extraction public_id cover:', {
-              url,
-              afterUpload,
-              versionRemoved,
-              publicId
-            });
-            
-            const coverResult = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
-            console.log('✅ Résultat suppression cover:', coverResult);
-          }
-        }
-      } catch (e) {
-        console.error('❌ Erreur suppression Cloudinary:', (e as any)?.message || e);
-      }
+      await Promise.all([
+        existing.audio_public_id,
+        existing.cover_public_id,
+        existing.cover_video_public_id,
+      ].filter((value): value is string => Boolean(value)).map((value) => deleteLocalMedia(value).catch(() => false)));
     } else {
-      console.warn('⚠️ Aucune donnée track trouvée pour suppression Cloudinary');
+      console.warn('⚠️ Aucune donnée track trouvée pour suppression des medias locaux');
     }
 
     return NextResponse.json({ success: true });

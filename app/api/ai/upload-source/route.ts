@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
 import { transcribeAudioFromUrl } from '@/lib/transcribe';
+import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaReference } from '@/lib/localMediaStorage';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,6 +15,9 @@ export async function POST(request: NextRequest) {
     const { audioUrl, publicId, title, duration, fileName } = await request.json();
     if (!audioUrl || !publicId) {
       return NextResponse.json({ error: 'audioUrl et publicId requis' }, { status: 400 });
+    }
+    if (!isLocalMediaReference(audioUrl, publicId, 'ai-audio') || !isLocalMediaOwnedBy(publicId, session.user.id)) {
+      return NextResponse.json({ error: 'Reference audio locale invalide' }, { status: 422 });
     }
 
     const generationId = crypto.randomUUID();
@@ -38,6 +42,7 @@ export async function POST(request: NextRequest) {
     const { error: genErr } = await supabaseAdmin.from('ai_generations').insert(generationData);
     if (genErr) {
       console.error('❌ Erreur insertion generation upload:', genErr);
+      await deleteLocalMedia(publicId).catch(() => false);
       return NextResponse.json({ error: genErr.message }, { status: 500 });
     }
 
@@ -60,8 +65,8 @@ export async function POST(request: NextRequest) {
       style: null,
       lyrics: null,
       source_links: JSON.stringify({
-        cloudinary_public_id: publicId,
-        resource_type: 'video',
+        local_media_public_id: publicId,
+        storage: 'local',
         original_file_name: cleanFileName,
       }),
     };
@@ -69,6 +74,10 @@ export async function POST(request: NextRequest) {
     const { data: inserted, error: trErr } = await supabaseAdmin.from('ai_tracks').insert(trackData).select('*').single();
     if (trErr) {
       console.error('❌ Erreur insertion track upload:', trErr);
+      await Promise.all([
+        deleteLocalMedia(publicId).catch(() => false),
+        supabaseAdmin.from('ai_generations').delete().eq('id', generationId),
+      ]);
       return NextResponse.json({ error: trErr.message }, { status: 500 });
     }
 

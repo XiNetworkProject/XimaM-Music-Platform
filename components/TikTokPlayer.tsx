@@ -202,9 +202,7 @@ function coverUrl(track: Track | null): string | null {
   const raw = track?.coverUrl;
   if (!raw) return null;
   const url = getCdnUrl(raw) || raw;
-  return typeof url === 'string' && url.includes('res.cloudinary.com')
-    ? url.replace('/upload/', '/upload/f_auto,q_auto/')
-    : url;
+  return url;
 }
 
 function coverVideoUrl(track: Track | null): string | null {

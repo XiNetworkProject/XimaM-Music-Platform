@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
-import { uploadImage, uploadImageDirect } from '@/lib/cloudinary';
+import { deleteLocalMedia, storeWebFile } from '@/lib/localMediaStorage';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -165,6 +165,7 @@ export async function PATCH(
 
     let image_url = existingBulletin.image_url;
     let image_public_id = existingBulletin.image_public_id;
+    let replacedImagePublicId: string | null = null;
 
     // Si une nouvelle image est fournie, l'uploader
     if (imageFile) {
@@ -178,38 +179,11 @@ export async function PATCH(
         return NextResponse.json({ error: 'L\'image ne doit pas dépasser 10MB' }, { status: 400 });
       }
 
-      // Supprimer l'ancienne image Cloudinary si elle existe
-      if (existingBulletin.image_public_id) {
-        try {
-          const { deleteFile } = await import('@/lib/cloudinary');
-          await deleteFile(existingBulletin.image_public_id, 'image');
-        } catch (deleteError) {
-          console.error('Erreur suppression ancienne image:', deleteError);
-          // On continue même si la suppression échoue
-        }
-      }
-
-      // Convertir le fichier en buffer
-      const bytes = await imageFile.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
-      // Upload vers Cloudinary
-      let uploadResult;
-      try {
-        uploadResult = await uploadImage(buffer, {
-          folder: 'meteo-bulletins',
-          resource_type: 'image',
-          public_id: `bulletin_${Date.now()}`,
-          quality: 'auto',
-        });
-      } catch (e) {
-        uploadResult = await uploadImageDirect(buffer, {
-          folder: 'meteo-bulletins',
-        });
-      }
+      const uploadResult = await storeWebFile(imageFile, 'weather-image', undefined, session.user.id);
 
       image_url = uploadResult.secure_url;
       image_public_id = uploadResult.public_id;
+      replacedImagePublicId = existingBulletin.image_public_id || null;
     }
 
     // Si mode = 'publish' : mettre tous les bulletins publiés existants à is_current = false
@@ -256,10 +230,15 @@ export async function PATCH(
       .single();
 
     if (updateError) {
+      if (imageFile && image_public_id) await deleteLocalMedia(image_public_id).catch(() => false);
       return NextResponse.json({ 
         error: 'Erreur lors de la mise à jour du bulletin',
         details: updateError.message 
       }, { status: 500 });
+    }
+
+    if (replacedImagePublicId && replacedImagePublicId !== image_public_id) {
+      await deleteLocalMedia(replacedImagePublicId).catch(() => false);
     }
 
     return NextResponse.json({ 

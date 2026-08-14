@@ -164,17 +164,9 @@ export const performanceUtils = {
   // Optimiser les images selon l'appareil
   getOptimizedImageUrl: (url: string, size: 'THUMBNAIL' | 'MEDIUM' | 'LARGE') => {
     if (!url) return url;
-    
-    // Si c'est une image Cloudinary, optimiser
-    if (url.includes('res.cloudinary.com')) {
-      const quality = PERFORMANCE_CONFIG.IMAGE_QUALITY[size === 'LARGE' ? 'HIGH' : size];
-      const width = PERFORMANCE_CONFIG.IMAGE_SIZES[size];
-      
-      // Ajouter les paramètres d'optimisation
-      const separator = url.includes('?') ? '&' : '?';
-      return `${url}${separator}q=${quality}&w=${width}&f=auto`;
-    }
-    
+    // Les fichiers locaux sont servis tels quels; Next/Image gère les variantes
+    // d'affichage sans modifier l'URL persistée.
+    void size;
     return url;
   },
 
@@ -248,4 +240,4 @@ export const cacheConfig = {
     API: 2 * 60 * 1000, // 2min
     AUDIO: 60 * 60 * 1000 // 1h
   }
-}; 
+};

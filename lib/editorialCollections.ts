@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { getPublicPlaylistTrackCounts } from '@/lib/publicTracks';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
 export type EditorialCollectionRow = {
   id: string;
@@ -78,8 +79,8 @@ export function normalizeLegacyCollectionFromPlaylist(playlist: any): EditorialC
     subtitle: String(meta.subtitle || ''),
     description: String(meta.description || unpacked.description || ''),
     kind: String(meta.kind || 'collection'),
-    bannerUrl: typeof meta.bannerUrl === 'string' ? meta.bannerUrl : (playlist.cover_url || null),
-    coverUrl: typeof meta.coverUrl === 'string' ? meta.coverUrl : (playlist.cover_url || null),
+    bannerUrl: toPublicMediaUrl(typeof meta.bannerUrl === 'string' ? meta.bannerUrl : playlist.cover_url),
+    coverUrl: toPublicMediaUrl(typeof meta.coverUrl === 'string' ? meta.coverUrl : playlist.cover_url),
     themeColors: normalizeThemeColors(meta.themeColors),
     badge: String(meta.badge || 'Synaura Originals'),
     isFeatured: meta.isFeatured !== false,
@@ -141,8 +142,8 @@ export function normalizeEditorialCollection(row?: Partial<EditorialCollectionRo
     subtitle: row.subtitle || '',
     description: row.description || '',
     kind: row.kind || 'collection',
-    bannerUrl: row.banner_url || null,
-    coverUrl: row.cover_url || null,
+    bannerUrl: toPublicMediaUrl(row.banner_url),
+    coverUrl: toPublicMediaUrl(row.cover_url),
     themeColors: colors,
     badge: row.badge || 'Synaura Originals',
     isFeatured: row.is_featured !== false,

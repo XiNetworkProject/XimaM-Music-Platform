@@ -28,6 +28,7 @@ import {
 import type { AITrack, AIGeneration } from '@/lib/aiGenerationService';
 import type { GeneratedTrack } from '@/lib/aiStudioTypes';
 import { isLikelyExpiredAIProviderUrl } from '@/lib/media-url-health';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
 type ChipKey = 'all' | 'instrumental' | 'voix' | 'liked' | 'trashed';
 type SortKey = 'newest' | 'oldest' | 'title';
@@ -88,7 +89,7 @@ function sanitizeCoverUrl(url?: string, createdAt?: string): string {
   } catch {
     return '';
   }
-  return t;
+  return toPublicMediaUrl(t) || t;
 }
 
 export interface LibraryMiddlePanelProps {

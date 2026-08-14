@@ -269,7 +269,7 @@ function main() {
     console.log('\n🎉 Configuration AudioCraft terminée avec succès !');
     console.log('\n📋 Prochaines étapes :');
     console.log('   1. Intégrer le script dans l\'API');
-    console.log('   2. Configurer Cloudinary pour l\'upload');
+    console.log('   2. Configurer le stockage média local pour l\'upload');
     console.log('   3. Tester la génération via l\'interface');
     console.log('   4. Optimiser les performances');
   } else {

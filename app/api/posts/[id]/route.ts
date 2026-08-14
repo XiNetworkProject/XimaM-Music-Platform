@@ -3,6 +3,7 @@ import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isAiTrackPublic, isTrackPublic } from '@/lib/publicTracks';
 import { normalizeRemixTrackRef } from '@/lib/remixServer';
+import { deleteLocalMedia, localPublicIdFromUrl } from '@/lib/localMediaStorage';
 
 export const dynamic = 'force-dynamic';
 
@@ -207,7 +208,7 @@ export async function PUT(
 
     const { data: existing } = await supabaseAdmin
       .from('creator_posts')
-      .select('creator_id')
+      .select('creator_id, image_url')
       .eq('id', id)
       .single();
 
@@ -258,6 +259,8 @@ export async function DELETE(
       .eq('id', id);
 
     if (error) return NextResponse.json({ error: 'Erreur suppression' }, { status: 500 });
+    const imagePublicId = localPublicIdFromUrl((existing as any).image_url);
+    if (imagePublicId) await deleteLocalMedia(imagePublicId).catch(() => false);
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error('[posts/id] DELETE error:', e);

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { getEntitlements } from '@/lib/entitlements';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
 export interface AudioQualityInfo {
   maxQualityKbps: number;
@@ -107,18 +108,9 @@ export function useAudioQuality(): AudioQualityInfo {
 // Fonction utilitaire pour obtenir l'URL audio avec la bonne qualité
 export function getAudioUrlWithQuality(originalUrl: string, qualityKbps: number): string {
   if (!originalUrl) return originalUrl;
-  
-  // Si c'est une URL Cloudinary, on peut ajouter des paramètres de qualité
-  if (originalUrl.includes('cloudinary.com')) {
-    const qualityParam = qualityKbps === 128 ? 'q_auto:low' : 
-                        qualityKbps === 256 ? 'q_auto:good' : 
-                        'q_auto:best';
-    
-    // Ajouter le paramètre de qualité à l'URL Cloudinary
-    const separator = originalUrl.includes('?') ? '&' : '?';
-    return `${originalUrl}${separator}${qualityParam}`;
-  }
-  
-  // Pour les autres URLs, retourner l'URL originale
-  return originalUrl;
+
+  // Le serveur média local sert le fichier original. Le niveau de qualité reste
+  // disponible pour l'UI et pour un futur transcodage côté serveur.
+  void qualityKbps;
+  return toPublicMediaUrl(originalUrl) || originalUrl;
 }

@@ -5,10 +5,6 @@ import { supabaseAdmin } from '@/lib/supabase';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const GRADIENT_COVERS = [
-  'https://res.cloudinary.com/demo/image/upload/w_800,h_800,c_fill/e_gradient_fade:symmetric_pad,x_0.5,b_rgb:8b5cf6/e_colorize:60,co_rgb:6366f1/sample.jpg',
-];
-
 const DEFAULT_COVER = '/default-cover.svg';
 
 export async function POST() {

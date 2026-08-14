@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendEmail, saConfirmationTemplate } from '@/lib/email';
+import { deleteLocalMedia, isLocalMediaReference } from '@/lib/localMediaStorage';
 
 const ALLOWED_CATEGORIES = ['Chant Solo', 'Rap / Spoken Word', 'Cover / Reprise', 'Mix avec Vocal', 'Duo / Groupe', 'Chant', 'Rap', 'Mix / DJ', 'Performance / Danse', 'Autre'];
 
@@ -22,23 +23,34 @@ export async function POST(req: NextRequest) {
     const synauraUsername = (body.synauraUsername as string | undefined)?.trim() || null;
     const synauraPassword = (body.synauraPassword as string | undefined) || null;
     const audioUrl     = (body.audioUrl    as string | undefined)?.trim() || null;
+    const audioPublicId = (body.audioPublicId as string | undefined)?.trim() || null;
     const audioFilename = (body.audioFilename as string | undefined)?.trim() || null;
+    const cleanupAudio = async () => {
+      if (audioPublicId) await deleteLocalMedia(audioPublicId).catch(() => false);
+    };
 
     // ── Validation ─────────────────────────────────────────
     if (!fullName || !email || !location || !tiktokHandle || !bio || !category) {
+      await cleanupAudio();
       return NextResponse.json({ error: 'Champs requis manquants.' }, { status: 400 });
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      await cleanupAudio();
       return NextResponse.json({ error: 'Email invalide.' }, { status: 400 });
     }
     if (isNaN(age) || age < 13 || age > 99) {
+      await cleanupAudio();
       return NextResponse.json({ error: 'Âge invalide (13–99).' }, { status: 400 });
     }
     if (!ALLOWED_CATEGORIES.includes(category)) {
+      await cleanupAudio();
       return NextResponse.json({ error: 'Catégorie invalide.' }, { status: 400 });
     }
     if (!audioUrl) {
       return NextResponse.json({ error: 'Un fichier audio est requis.' }, { status: 400 });
+    }
+    if (!isLocalMediaReference(audioUrl, audioPublicId, 'star-academy-audio')) {
+      return NextResponse.json({ error: 'Reference audio locale invalide.' }, { status: 422 });
     }
 
     // ── Vérifier si le concours est ouvert ─────────────────
@@ -48,6 +60,7 @@ export async function POST(req: NextRequest) {
 
     const config = Object.fromEntries((configRows ?? []).map((r) => [r.key, r.value]));
     if (config.is_open !== 'true') {
+      await cleanupAudio();
       return NextResponse.json({ error: 'Les inscriptions sont fermées.' }, { status: 403 });
     }
     if (config.deadline) {
@@ -55,6 +68,7 @@ export async function POST(req: NextRequest) {
       // Prolongation exceptionnelle de 15 jours
       deadline.setDate(deadline.getDate() + 15);
       if (new Date() > deadline) {
+        await cleanupAudio();
         return NextResponse.json({ error: 'La date limite d\'inscription est dépassée.' }, { status: 403 });
       }
     }
@@ -66,6 +80,7 @@ export async function POST(req: NextRequest) {
       .select('id', { count: 'exact', head: true });
 
     if ((count ?? 0) >= maxCandidates) {
+      await cleanupAudio();
       return NextResponse.json({ error: 'Le nombre maximum de candidats est atteint.' }, { status: 403 });
     }
 
@@ -77,6 +92,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (existing) {
+      await cleanupAudio();
       return NextResponse.json({ error: 'Une candidature existe déjà pour cet email.' }, { status: 409 });
     }
 
@@ -142,6 +158,7 @@ export async function POST(req: NextRequest) {
 
     if (insertError) {
       console.error('[star-academy/apply] Insert error:', insertError);
+      await cleanupAudio();
       return NextResponse.json({ error: 'Erreur lors de l\'enregistrement. Réessaie.' }, { status: 500 });
     }
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Music2 } from 'lucide-react';
+import { sameMediaUrl, toLegacyMediaFallback, toPublicMediaUrl } from '@/lib/mediaUrls';
 
 const FALLBACK_GRADIENTS: [string, string][] = [
   ['#7c3aed', '#3b82f6'],
@@ -22,21 +23,7 @@ function getGradient(seed?: string): [string, string] {
 }
 
 function normalizeVideoUrl(url?: string | null): string | null {
-  if (!url) return null;
-  return url;
-}
-
-function toCloudinaryVideoUrl(url?: string | null): string | null {
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname.includes('b-cdn.net') && parsed.pathname.includes('/video/upload/')) {
-      return `https://res.cloudinary.com${parsed.pathname}${parsed.search || ''}`;
-    }
-  } catch {
-    return url;
-  }
-  return null;
+  return toPublicMediaUrl(url);
 }
 
 function inferVideoUrlFromPoster(url?: string | null): string | null {
@@ -52,7 +39,7 @@ function inferVideoUrlFromPoster(url?: string | null): string | null {
       .replace('/video/upload/f_jpg,so_0/', '/video/upload/f_mp4,q_auto/')
       .replace(/\.(jpg|jpeg|png|webp)$/i, '.mp4');
 
-    return `${parsed.origin}${path}${parsed.search || ''}`;
+    return toPublicMediaUrl(`${parsed.origin}${path}${parsed.search || ''}`);
   } catch {
     return null;
   }
@@ -84,14 +71,7 @@ type ActiveTrackMedia = {
 };
 
 function sameMedia(a?: string | null, b?: string | null) {
-  if (!a || !b) return false;
-  const variants = (value: string) => {
-    const normalized = normalizeVideoUrl(value);
-    const cloudinary = toCloudinaryVideoUrl(normalized);
-    return [value, normalized, cloudinary].filter(Boolean) as string[];
-  };
-  const aVariants = new Set(variants(a));
-  return variants(b).some((value) => aVariants.has(value));
+  return sameMediaUrl(a, b);
 }
 
 export default function TrackCover({
@@ -111,14 +91,18 @@ export default function TrackCover({
   objectFit = 'cover',
 }: TrackCoverProps) {
   const [errored, setErrored] = useState(false);
+  const [useImageFallback, setUseImageFallback] = useState(false);
   const [videoErrored, setVideoErrored] = useState(false);
   const [useVideoFallback, setUseVideoFallback] = useState(false);
   const [activeMedia, setActiveMedia] = useState<ActiveTrackMedia | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [from, to] = getGradient(title);
-  const imageSrc = src || posterSrc || null;
+  const originalImageSrc = src || posterSrc || null;
+  const primaryImageSrc = toPublicMediaUrl(originalImageSrc);
+  const fallbackImageSrc = toLegacyMediaFallback(originalImageSrc || primaryImageSrc);
+  const imageSrc = useImageFallback && fallbackImageSrc ? fallbackImageSrc : primaryImageSrc;
   const primaryVideoSrc = normalizeVideoUrl(videoSrc) || inferVideoUrlFromPoster(posterSrc || src);
-  const fallbackVideoSrc = toCloudinaryVideoUrl(primaryVideoSrc);
+  const fallbackVideoSrc = toLegacyMediaFallback(videoSrc || primaryVideoSrc);
   const activeVideoSrc = useVideoFallback && fallbackVideoSrc ? fallbackVideoSrc : primaryVideoSrc;
   const showVideo = Boolean(activeVideoSrc && !videoErrored);
   const isActiveTrackVideo = Boolean(
@@ -140,6 +124,11 @@ export default function TrackCover({
     setVideoErrored(false);
     setUseVideoFallback(false);
   }, [primaryVideoSrc]);
+
+  useEffect(() => {
+    setErrored(false);
+    setUseImageFallback(false);
+  }, [primaryImageSrc]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -200,7 +189,7 @@ export default function TrackCover({
       <video
         ref={videoRef}
         src={activeVideoSrc!}
-        poster={posterSrc || src || undefined}
+        poster={imageSrc || undefined}
         className={`${rounded} ${className}`}
         style={{
           objectFit,
@@ -255,7 +244,13 @@ export default function TrackCover({
         height: size ? size : undefined,
         ...style,
       }}
-      onError={() => setErrored(true)}
+      onError={() => {
+        if (!useImageFallback && fallbackImageSrc && fallbackImageSrc !== imageSrc) {
+          setUseImageFallback(true);
+          return;
+        }
+        setErrored(true);
+      }}
       loading="lazy"
       decoding="async"
     />

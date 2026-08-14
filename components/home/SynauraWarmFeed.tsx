@@ -17,6 +17,7 @@ import SynauraAndroidHomeBanner from '@/components/mobile/SynauraAndroidHomeBann
 import SynauraEventsRail from '@/components/synaura/SynauraEventsRail';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { sendTrackEvents } from '@/lib/analyticsClient';
+import { cleanupLocalMediaUploads, uploadLocalMedia } from '@/lib/clientMediaUpload';
 import { getRecommendationSessionId } from '@/lib/recommendation/clientSession';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
 import {
@@ -1367,15 +1368,13 @@ function ComposerCard({ onPostCreated }: { onPostCreated: (post: PostItem) => vo
     }
 
     setSubmitting(true);
+    let uploadedImageId: string | null = null;
     try {
       let imageUrl = '';
       if (mode === 'photo' && imageFile) {
-        const formData = new FormData();
-        formData.append('file', imageFile);
-        const uploadResponse = await fetch('/api/posts/upload-image', { method: 'POST', body: formData });
-        const uploadPayload = await uploadResponse.json().catch(() => null);
-        if (!uploadResponse.ok) throw new Error(uploadPayload?.error || 'Upload image impossible');
-        imageUrl = uploadPayload?.url || '';
+        const uploaded = await uploadLocalMedia(imageFile, 'post-image');
+        imageUrl = uploaded.secure_url;
+        uploadedImageId = uploaded.public_id;
       }
 
       const response = await fetch('/api/posts', {
@@ -1397,6 +1396,7 @@ function ComposerCard({ onPostCreated }: { onPostCreated: (post: PostItem) => vo
       setMode('text');
       notify.success('Post publie', 'Il est deja dans le feed.');
     } catch (error: any) {
+      await cleanupLocalMediaUploads([uploadedImageId]);
       notify.error('', error?.message || 'Impossible de publier');
     } finally {
       setSubmitting(false);

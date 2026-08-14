@@ -26,6 +26,8 @@ import TrackCreateRemixActions from '@/components/TrackCreateRemixActions';
 import PendingApprovalsModal, { type PendingVariation } from '@/components/variations/PendingApprovalsModal';
 import SynauraPulseBar from '@/components/synaura/SynauraPulseBar';
 import { getArtistLevel } from '@/lib/synauraCity';
+import { uploadLocalMedia } from '@/lib/clientMediaUpload';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
 const BoosterOpenModal = dynamic(() => import('@/components/BoosterOpenModal'), { ssr: false });
 
@@ -225,34 +227,16 @@ export default function SynauraProfile() {
   const handleFollow = async () => { if (!session?.user) { router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`); return; } try { if (!usernameStr) return; const r = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/follow`, { method: 'POST' }); if (!r.ok) throw new Error(); const d = await r.json(); setProfile((p: any) => ({ ...p, isFollowing: d.action === 'followed', followerCount: p.followerCount + (d.action === 'followed' ? 1 : -1) })); } catch { notify.error('Erreur', 'Impossible'); } };
   useEffect(() => { if (!session?.user?.id || !profile?.id || isOwnProfile) return; (async () => { try { const r = await fetch(`/api/messages/requests/status?targetId=${profile.id}`); if (r.ok) { const d = await r.json(); setMessageRequestStatus(d.relationship || 'none'); setExistingConvId(d.relationship === 'friends' ? d.conversationId || null : null); } } catch {} })(); }, [session?.user?.id, profile?.id, isOwnProfile]);
   const handleSendMessageRequest = async () => { if (!session?.user) { router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`); return; } if (!profile?.id) return; setSendingRequest(true); try { const r = await fetch('/api/messages/requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetId: profile.id, message: messageText.trim() || null }) }); const d = await r.json(); if (!r.ok) { notify.error('Demande', d.error || 'Envoi impossible'); return; } if (d.alreadyConnected || d.autoAccepted) { setMessageRequestStatus('friends'); setExistingConvId(d.conversationId || null); setShowMessageModal(false); router.push(d.conversationId ? `/messages/${d.conversationId}` : '/messages'); return; } setMessageRequestStatus('outgoing'); setShowMessageModal(false); setMessageText(''); notify.success('Demande envoyée', `${profile.name} pourra l’accepter depuis sa messagerie.`); } catch { notify.error('Demande', 'Connexion impossible'); } finally { setSendingRequest(false); } };
-  const handleImageUpload = async (type: 'avatar' | 'banner', file: File) => { setUploading(true); try { const ts = Math.round(Date.now() / 1000); const pid = `${usernameStr || 'u'}_${type}_${ts}`; if (!usernameStr) throw new Error(); const s = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/upload-image`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timestamp: ts, publicId: pid, type }) }); if (!s.ok) throw new Error(); const { signature, apiKey, cloudName } = await s.json(); const fd = new FormData(); fd.append('file', file); fd.append('timestamp', String(ts)); fd.append('public_id', pid); fd.append('folder', `ximam/profiles/${username}`); fd.append('resource_type', 'image'); fd.append('api_key', apiKey); fd.append('signature', signature); const u = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd }); if (!u.ok) throw new Error(); const ud = await u.json(); const sv = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/save-image`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: ud.secure_url, type, publicId: pid }) }); if (!sv.ok) throw new Error(); const sd = await sv.json(); setProfile((p: any) => ({ ...p, [type]: sd.imageUrl })); notify.success('OK', 'Image mise a jour'); } catch { notify.error('Erreur', 'Upload echoue'); } finally { setUploading(false); } };
+  const handleImageUpload = async (type: 'avatar' | 'banner', file: File) => { setUploading(true); try { if (!usernameStr) throw new Error(); const uploaded = await uploadLocalMedia(file, type); const sv = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/save-image`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: uploaded.secure_url, type, publicId: uploaded.public_id }) }); if (!sv.ok) throw new Error(); const sd = await sv.json(); setProfile((p: any) => ({ ...p, [type]: sd.imageUrl })); notify.success('OK', 'Image mise a jour'); } catch { notify.error('Erreur', 'Upload echoue'); } finally { setUploading(false); } };
   const handleEdit = () => router.push('/settings?tab=profil');
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [coverUploading, setCoverUploading] = useState(false);
   const handleEditTrack = (t: any) => { setEditingTrack(t); setTrackEditData({ title: t.title, description: t.description || '', genre: Array.isArray(t.genre) ? t.genre.join(', ') : (t.genre || ''), tags: t.tags?.join(', ') || '', isPublic: t.is_public !== false }); setCoverFile(null); setCoverPreview(t.cover_url || t.coverUrl || null); setShowEditTrackModal(true); closeCtx(); };
-  const uploadCoverToCloudinary = async (file: File) => {
-      const timestamp = Math.round(Date.now() / 1000);
-    const publicId = `cover_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const sigRes = await fetch('/api/upload/signature', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timestamp, publicId, resourceType: 'image' }) });
-      if (!sigRes.ok) throw new Error('Erreur signature');
-      const { signature, apiKey, cloudName } = await sigRes.json();
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('folder', 'ximam/images');
-    fd.append('public_id', publicId);
-    fd.append('resource_type', 'image');
-    fd.append('timestamp', timestamp.toString());
-    fd.append('api_key', apiKey);
-    fd.append('signature', signature);
-    fd.append('width', '800');
-    fd.append('height', '800');
-    fd.append('crop', 'fill');
-    const upRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd });
-    if (!upRes.ok) throw new Error('Erreur upload image');
-    return upRes.json();
+  const uploadCoverToLocalStorage = async (file: File) => {
+    return uploadLocalMedia(file, 'cover');
   };
-  const handleSaveTrackEdit = async () => { if (!editingTrack) return; setUploading(true); try { const tid = editingTrack.id; let coverUrl: string | undefined; let coverPublicId: string | undefined; if (coverFile) { setCoverUploading(true); const result = await uploadCoverToCloudinary(coverFile); coverUrl = result.secure_url; coverPublicId = result.public_id; setCoverUploading(false); } const payload: any = { title: trackEditData.title, description: trackEditData.description, genre: trackEditData.genre.split(',').map((g: string) => g.trim()).filter(Boolean), tags: trackEditData.tags.split(',').map((t: string) => t.trim()).filter(Boolean), isPublic: trackEditData.isPublic }; if (coverUrl) { payload.coverUrl = coverUrl; payload.coverPublicId = coverPublicId; } const r = await fetch(`/api/tracks/${tid}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (!r.ok) throw new Error((await r.json()).error); const u = await r.json(); setUserTracks(p => p.map(t => t.id === tid ? { ...t, ...u, cover_url: coverUrl || t.cover_url } : t)); setProfile((p: any) => ({ ...p, tracks: (p.tracks || []).map((t: any) => t.id === tid ? { ...t, ...u, cover_url: coverUrl || t.cover_url } : t) })); setShowEditTrackModal(false); setCoverFile(null); notify.success('OK', 'Modifiee'); } catch (e: any) { notify.error('Erreur', e.message); setCoverUploading(false); } finally { setUploading(false); } };
+  const handleSaveTrackEdit = async () => { if (!editingTrack) return; setUploading(true); try { const tid = editingTrack.id; let coverUrl: string | undefined; let coverPublicId: string | undefined; if (coverFile) { setCoverUploading(true); const result = await uploadCoverToLocalStorage(coverFile); coverUrl = result.secure_url; coverPublicId = result.public_id; setCoverUploading(false); } const payload: any = { title: trackEditData.title, description: trackEditData.description, genre: trackEditData.genre.split(',').map((g: string) => g.trim()).filter(Boolean), tags: trackEditData.tags.split(',').map((t: string) => t.trim()).filter(Boolean), isPublic: trackEditData.isPublic }; if (coverUrl) { payload.coverUrl = coverUrl; payload.coverPublicId = coverPublicId; } const r = await fetch(`/api/tracks/${tid}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (!r.ok) throw new Error((await r.json()).error); const u = await r.json(); setUserTracks(p => p.map(t => t.id === tid ? { ...t, ...u, cover_url: coverUrl || t.cover_url } : t)); setProfile((p: any) => ({ ...p, tracks: (p.tracks || []).map((t: any) => t.id === tid ? { ...t, ...u, cover_url: coverUrl || t.cover_url } : t) })); setShowEditTrackModal(false); setCoverFile(null); notify.success('OK', 'Modifiee'); } catch (e: any) { notify.error('Erreur', e.message); setCoverUploading(false); } finally { setUploading(false); } };
   const getProfileUrl = useCallback(() => `${window.location.origin}/profile/${encodeURIComponent(usernameStr || '')}`, [usernameStr]);
   const copyProfileLink = useCallback(async () => {
     try {
@@ -437,7 +421,7 @@ export default function SynauraProfile() {
           <div className="relative">
             <div className="relative h-[260px] overflow-hidden sm:h-[320px] md:h-[360px]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={profile.banner || '/default-cover.svg'} alt="" className="h-full w-full object-cover" />
+              <img src={toPublicMediaUrl(profile.banner) || '/default-cover.svg'} alt="" className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(23,19,19,0.08)_0%,rgba(23,19,19,0.18)_34%,rgba(23,19,19,0.76)_76%,#171313_100%)]" />
               {!isOwnProfile ? (
                 <button

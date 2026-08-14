@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Appel Suno upload-cover
-    // Utiliser directement l'URL Cloudinary (publique) comme uploadUrl, conforme à la doc
+    // Utiliser directement l'URL média publique comme uploadUrl, conformément à la doc
     const payload: Body = {
       ...body,
       model: effectiveModel,
@@ -185,5 +185,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message || 'Erreur serveur' }, { status: 500 });
   }
 }
-
 

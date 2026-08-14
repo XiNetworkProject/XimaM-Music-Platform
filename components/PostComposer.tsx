@@ -6,6 +6,7 @@ import { Image as ImageIcon, Loader2, MessageCircle, Music2, Search, Send, Wand2
 import { useSession } from 'next-auth/react';
 import { notify } from '@/components/NotificationCenter';
 import { getCdnUrl } from '@/lib/cdn';
+import { cleanupLocalMediaUploads, uploadLocalMedia } from '@/lib/clientMediaUpload';
 import TrackCover from '@/components/TrackCover';
 import type { Post } from '@/components/PostCard';
 
@@ -119,15 +120,13 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
     }
 
     setSubmitting(true);
+    let uploadedImageId: string | null = null;
     try {
       let imageUrl = '';
       if (mode === 'photo' && imageFile) {
-        const formData = new FormData();
-        formData.append('file', imageFile);
-        const uploadResponse = await fetch('/api/posts/upload-image', { method: 'POST', body: formData });
-        const uploadPayload = await uploadResponse.json().catch(() => null);
-        if (!uploadResponse.ok) throw new Error(uploadPayload?.error || 'Upload image impossible');
-        imageUrl = uploadPayload?.url || '';
+        const uploaded = await uploadLocalMedia(imageFile, 'post-image');
+        imageUrl = uploaded.secure_url;
+        uploadedImageId = uploaded.public_id;
       }
 
       const body: any = {
@@ -153,6 +152,7 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
       setMode('text');
       notify.success('Post publie', 'Il est deja dans le feed.');
     } catch (error: any) {
+      await cleanupLocalMediaUploads([uploadedImageId]);
       notify.error('', error?.message || 'Impossible de publier');
     } finally {
       setSubmitting(false);

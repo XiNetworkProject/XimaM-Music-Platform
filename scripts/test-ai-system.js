@@ -312,7 +312,7 @@ async function main() {
     console.log('\n📋 Prochaines étapes :');
     console.log('   1. Lancer l\'application: npm run dev');
     console.log('   2. Tester l\'interface: http://localhost:3000/ai-generator');
-    console.log('   3. Configurer Cloudinary pour l\'upload');
+    console.log('   3. Configurer le stockage média local pour l\'upload');
     console.log('   4. Optimiser les performances');
   } else {
     console.log('\n⚠️ Certains tests ont échoué. Vérifiez les erreurs ci-dessus.');

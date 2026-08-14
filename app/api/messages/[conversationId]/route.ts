@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
+import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaUrl, localPublicIdFromUrl } from '@/lib/localMediaStorage';
+import { sameMediaUrl } from '@/lib/mediaUrls';
 import {
   MAX_MESSAGE_LENGTH,
   MESSAGE_PAGE_SIZE,
@@ -346,6 +348,12 @@ export async function POST(
     if (['image', 'audio', 'video'].includes(type) && !/^https:\/\//i.test(mediaUrl)) {
       return NextResponse.json({ error: 'Media invalide' }, { status: 400 });
     }
+    if (['image', 'audio', 'video'].includes(type)) {
+      const expectedKind = `message-${type}` as 'message-image' | 'message-audio' | 'message-video';
+      if (!isLocalMediaUrl(mediaUrl, expectedKind) || !isLocalMediaOwnedBy(localPublicIdFromUrl(mediaUrl), session.user.id)) {
+        return NextResponse.json({ error: 'Le media doit provenir du stockage Synaura' }, { status: 422 });
+      }
+    }
     if (sharedEntityType && !sharedEntityId) return NextResponse.json({ error: 'Contenu partage introuvable' }, { status: 400 });
 
     let replyToId: string | null = typeof body?.replyToId === 'string' ? body.replyToId : null;
@@ -485,6 +493,21 @@ export async function PATCH(
     const action = body?.action;
     if (action === 'customize') {
       const preferences = sanitizeConversationPreferences(body?.preferences);
+      const { data: currentPreferences } = await supabaseAdmin
+        .from('conversation_participants')
+        .select('wallpaper_url')
+        .eq('conversation_id', params.conversationId)
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+      const previousWallpaperUrl = currentPreferences?.wallpaper_url || null;
+      const wallpaperChanged = preferences.wallpaperUrl !== previousWallpaperUrl && !sameMediaUrl(preferences.wallpaperUrl, previousWallpaperUrl);
+      const nextWallpaperPublicId = wallpaperChanged ? localPublicIdFromUrl(preferences.wallpaperUrl) : null;
+      if (wallpaperChanged && preferences.wallpaperUrl && (
+        !isLocalMediaUrl(preferences.wallpaperUrl, 'message-image') ||
+        !isLocalMediaOwnedBy(nextWallpaperPublicId, session.user.id)
+      )) {
+        return NextResponse.json({ error: 'Le fond doit provenir du stockage Synaura' }, { status: 422 });
+      }
       const { error } = await supabaseAdmin
         .from('conversation_participants')
         .update({
@@ -497,7 +520,14 @@ export async function PATCH(
         })
         .eq('conversation_id', params.conversationId)
         .eq('user_id', session.user.id);
-      if (error) return NextResponse.json({ error: 'Personnalisation impossible' }, { status: 500 });
+      if (error) {
+        if (nextWallpaperPublicId) await deleteLocalMedia(nextWallpaperPublicId).catch(() => false);
+        return NextResponse.json({ error: 'Personnalisation impossible' }, { status: 500 });
+      }
+      const previousWallpaperPublicId = wallpaperChanged ? localPublicIdFromUrl(previousWallpaperUrl) : null;
+      if (previousWallpaperPublicId && previousWallpaperPublicId !== nextWallpaperPublicId) {
+        await deleteLocalMedia(previousWallpaperPublicId).catch(() => false);
+      }
       return NextResponse.json({ success: true, action, preferences });
     }
     if (action === 'update_group') {
@@ -505,17 +535,39 @@ export async function PATCH(
       if (!participant || !['owner', 'moderator'].includes(participant.role || 'member')) {
         return NextResponse.json({ error: 'Permission insuffisante' }, { status: 403 });
       }
+      const { data: currentConversation } = await supabaseAdmin
+        .from('conversations')
+        .select('avatar_url')
+        .eq('id', params.conversationId)
+        .eq('is_group', true)
+        .maybeSingle();
+      const requestedAvatarUrl = body?.avatarUrl === null
+        ? null
+        : typeof body?.avatarUrl === 'string' && /^https:\/\//i.test(body.avatarUrl) ? body.avatarUrl.slice(0, 800) : undefined;
+      const avatarChanged = requestedAvatarUrl !== undefined && requestedAvatarUrl !== currentConversation?.avatar_url && !sameMediaUrl(requestedAvatarUrl, currentConversation?.avatar_url);
+      const nextAvatarPublicId = avatarChanged ? localPublicIdFromUrl(requestedAvatarUrl) : null;
+      if (avatarChanged && requestedAvatarUrl && (
+        !isLocalMediaUrl(requestedAvatarUrl, 'message-image') ||
+        !isLocalMediaOwnedBy(nextAvatarPublicId, session.user.id)
+      )) {
+        return NextResponse.json({ error: 'L avatar doit provenir du stockage Synaura' }, { status: 422 });
+      }
       const changes = {
         name: typeof body?.name === 'string' ? body.name.trim().slice(0, 64) : undefined,
         description: typeof body?.description === 'string' ? body.description.trim().slice(0, 180) || null : undefined,
-        avatar_url: body?.avatarUrl === null
-          ? null
-          : typeof body?.avatarUrl === 'string' && /^https:\/\//i.test(body.avatarUrl) ? body.avatarUrl.slice(0, 800) : undefined,
+        avatar_url: requestedAvatarUrl,
       };
       const cleanChanges = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined));
       if (!Object.keys(cleanChanges).length) return NextResponse.json({ error: 'Aucune modification' }, { status: 400 });
       const { error } = await supabaseAdmin.from('conversations').update(cleanChanges).eq('id', params.conversationId).eq('is_group', true);
-      if (error) return NextResponse.json({ error: 'Salon impossible a modifier' }, { status: 500 });
+      if (error) {
+        if (nextAvatarPublicId) await deleteLocalMedia(nextAvatarPublicId).catch(() => false);
+        return NextResponse.json({ error: 'Salon impossible a modifier' }, { status: 500 });
+      }
+      const previousAvatarPublicId = avatarChanged ? localPublicIdFromUrl(currentConversation?.avatar_url) : null;
+      if (previousAvatarPublicId && previousAvatarPublicId !== nextAvatarPublicId) {
+        await deleteLocalMedia(previousAvatarPublicId).catch(() => false);
+      }
       return NextResponse.json({ success: true, action });
     }
     if (!['archive', 'unarchive', 'mute', 'unmute'].includes(action)) {

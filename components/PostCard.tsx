@@ -617,7 +617,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
   if (compact) {
     const previewPost = post.type === 'repost' && post.original_post ? post.original_post : post;
     const thumbSrc = previewPost.type === 'photo'
-      ? (imgError ? null : previewPost.image_url)
+      ? (imgError ? null : getCdnUrl(previewPost.image_url) || previewPost.image_url)
       : previewPost.track?.cover_url || null;
 
     return (
@@ -819,7 +819,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
                   {!post.original_post.track && post.original_post.image_url && !embeddedImgError ? (
                     <div className="border-t border-black/[0.07] bg-black/[0.02]">
                       <img
-                        src={post.original_post.image_url}
+                        src={getCdnUrl(post.original_post.image_url) || post.original_post.image_url}
                         alt=""
                         className="max-h-[320px] w-full object-cover"
                         onError={() => setEmbeddedImgError(true)}
@@ -843,7 +843,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onPostCreated, compact
             {!post.track && post.image_url && !imgError ? (
               <div className="mt-4 overflow-hidden rounded-[1.35rem] bg-black/[0.055]">
             <img
-              src={post.image_url}
+              src={getCdnUrl(post.image_url) || post.image_url}
               alt=""
                   className={`max-h-[220px] w-full object-cover transition-opacity duration-300 sm:max-h-[360px] ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
               onLoad={() => setImgLoaded(true)}

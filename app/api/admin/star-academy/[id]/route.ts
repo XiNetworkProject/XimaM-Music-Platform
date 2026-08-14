@@ -8,6 +8,7 @@ import {
   saRejectedTemplate,
   saReviewingTemplate,
 } from '@/lib/email';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const guard = await getAdminGuard();
@@ -124,7 +125,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const { searchParams } = req.nextUrl;
 
-  // ?audio=1 → retourne l'URL Cloudinary de l'audio
+  // ?audio=1 retourne l URL publique de l audio.
   if (searchParams.get('audio') === '1') {
     const { data: app, error: dbError } = await supabaseAdmin
       .from('star_academy_applications')
@@ -135,7 +136,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     if (dbError || !app) return NextResponse.json({ error: 'Introuvable.' }, { status: 404 });
     if (!app.audio_url) return NextResponse.json({ error: 'Aucun audio.' }, { status: 404 });
 
-    return NextResponse.json({ signedUrl: app.audio_url, filename: app.audio_filename });
+    return NextResponse.json({ signedUrl: toPublicMediaUrl(app.audio_url), filename: app.audio_filename });
   }
 
   const { data, error } = await supabaseAdmin

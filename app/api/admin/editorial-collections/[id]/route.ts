@@ -10,6 +10,13 @@ import {
   normalizeThemeColors,
   slugifyCollectionTitle,
 } from '@/lib/editorialCollections';
+import {
+  deleteLocalMedia,
+  isLocalMediaOwnedBy,
+  isLocalMediaReference,
+  localPublicIdFromUrl,
+} from '@/lib/localMediaStorage';
+import { sameMediaUrl } from '@/lib/mediaUrls';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -68,6 +75,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   });
   if (!existing) return NextResponse.json({ error: 'Collection introuvable' }, { status: 404 });
 
+  const validateChangedImage = (value: string | null, changed: boolean) => {
+    if (!changed || !value) return true;
+    const publicId = localPublicIdFromUrl(value);
+    return isLocalMediaReference(value, publicId, 'editorial-image') && isLocalMediaOwnedBy(publicId, guard.userId!);
+  };
+
   if (isLegacy) {
     const unpacked = unpackLegacyCollectionDescription(existing.description);
     const meta = unpacked.metadata || {};
@@ -75,6 +88,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const description = String(body?.description ?? meta.description ?? unpacked.description ?? '').trim();
     const coverUrl = String(body?.coverUrl ?? body?.cover_url ?? meta.coverUrl ?? existing.cover_url ?? '').trim() || null;
     const bannerUrl = String(body?.bannerUrl ?? body?.banner_url ?? meta.bannerUrl ?? existing.cover_url ?? '').trim() || null;
+    const previousCoverUrl = String(meta.coverUrl ?? existing.cover_url ?? '').trim() || null;
+    const previousBannerUrl = String(meta.bannerUrl ?? existing.cover_url ?? '').trim() || null;
+    const coverChanged = coverUrl !== previousCoverUrl && !sameMediaUrl(coverUrl, previousCoverUrl);
+    const bannerChanged = bannerUrl !== previousBannerUrl && !sameMediaUrl(bannerUrl, previousBannerUrl);
+    if (!validateChangedImage(coverUrl, coverChanged) || !validateChangedImage(bannerUrl, bannerChanged)) {
+      return NextResponse.json({ error: 'Les nouvelles images doivent provenir du stockage Synaura' }, { status: 422 });
+    }
+    const newImageIds = [coverChanged ? localPublicIdFromUrl(coverUrl) : null, bannerChanged ? localPublicIdFromUrl(bannerUrl) : null]
+      .filter((value): value is string => Boolean(value));
     const nextMeta = {
       slug: body?.slug ? slugifyCollectionTitle(String(body.slug)) : String(meta.slug || existing.id),
       title,
@@ -103,7 +125,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       .eq('id', existing.id)
       .select('*')
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      await Promise.all(newImageIds.map((publicId) => deleteLocalMedia(publicId).catch(() => false)));
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    const previousIds = [coverChanged ? localPublicIdFromUrl(previousCoverUrl) : null, bannerChanged ? localPublicIdFromUrl(previousBannerUrl) : null]
+      .filter((value): value is string => Boolean(value) && !newImageIds.includes(value!));
+    await Promise.all(previousIds.map((publicId) => deleteLocalMedia(publicId).catch(() => false)));
     return NextResponse.json({ collection: normalizeLegacyCollectionFromPlaylist(data), legacy: true });
   }
 
@@ -111,6 +139,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   const description = String(body?.description ?? existing.description ?? '').trim();
   const coverUrl = String(body?.coverUrl ?? body?.cover_url ?? existing.cover_url ?? '').trim() || null;
   const bannerUrl = String(body?.bannerUrl ?? body?.banner_url ?? existing.banner_url ?? '').trim() || null;
+  const previousCoverUrl = String(existing.cover_url || '').trim() || null;
+  const previousBannerUrl = String(existing.banner_url || '').trim() || null;
+  const coverChanged = coverUrl !== previousCoverUrl && !sameMediaUrl(coverUrl, previousCoverUrl);
+  const bannerChanged = bannerUrl !== previousBannerUrl && !sameMediaUrl(bannerUrl, previousBannerUrl);
+  if (!validateChangedImage(coverUrl, coverChanged) || !validateChangedImage(bannerUrl, bannerChanged)) {
+    return NextResponse.json({ error: 'Les nouvelles images doivent provenir du stockage Synaura' }, { status: 422 });
+  }
+  const newImageIds = [coverChanged ? localPublicIdFromUrl(coverUrl) : null, bannerChanged ? localPublicIdFromUrl(bannerUrl) : null]
+    .filter((value): value is string => Boolean(value));
   const nextSlug = body?.slug ? slugifyCollectionTitle(String(body.slug)) : existing.slug;
 
   const { data, error } = await supabaseAdmin
@@ -135,7 +172,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     .select('*')
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    await Promise.all(newImageIds.map((publicId) => deleteLocalMedia(publicId).catch(() => false)));
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   await supabaseAdmin
     .from('playlists')
@@ -147,6 +187,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       updated_at: new Date().toISOString(),
     })
     .eq('id', existing.playlist_id);
+
+  const previousIds = [coverChanged ? localPublicIdFromUrl(previousCoverUrl) : null, bannerChanged ? localPublicIdFromUrl(previousBannerUrl) : null]
+    .filter((value): value is string => Boolean(value) && !newImageIds.includes(value!));
+  await Promise.all(previousIds.map((publicId) => deleteLocalMedia(publicId).catch(() => false)));
 
   return NextResponse.json({ collection: normalizeEditorialCollection(data as any) });
 }
@@ -165,7 +209,13 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
   });
   if (!existing) return NextResponse.json({ error: 'Collection introuvable' }, { status: 404 });
 
+  const mediaIds = [
+    localPublicIdFromUrl(existing.cover_url),
+    localPublicIdFromUrl(existing.banner_url),
+  ].filter((value): value is string => Boolean(value));
+
   const { error } = await supabaseAdmin.from('playlists').delete().eq('id', isLegacy ? existing.id : existing.playlist_id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await Promise.all(mediaIds.map((publicId) => deleteLocalMedia(publicId).catch(() => false)));
   return NextResponse.json({ success: true });
 }

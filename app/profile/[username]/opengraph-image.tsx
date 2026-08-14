@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const runtime = 'edge';
@@ -28,8 +29,8 @@ export default async function Image({ params }: { params: { username: string } }
       profileId = profile.id;
       name = profile.name || profile.username;
       username = profile.username;
-      avatar = profile.avatar;
-      banner = profile.banner;
+      avatar = toPublicMediaUrl(profile.avatar);
+      banner = toPublicMediaUrl(profile.banner);
       bio = String(profile.bio || '').slice(0, 150);
       followers = Number(profile.follower_count || 0);
       verified = Boolean(profile.is_verified);

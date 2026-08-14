@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getEditorialCollectionBySlug, isUuidLike } from '@/lib/editorialCollections';
 
@@ -30,7 +31,7 @@ export default async function Image({ params }: { params: { id: string } }) {
         const { data: rows } = await supabaseAdmin.from('playlist_tracks').select('tracks!inner(id, cover_url, is_public, audio_url)').eq('playlist_id', playlist.id).eq('tracks.is_public', true).not('tracks.audio_url', 'is', null);
         const publicTracks = (rows || []).map((row: any) => row.tracks).filter(Boolean);
         trackCount = publicTracks.length;
-        cover = cover || publicTracks.find((track: any) => track.cover_url)?.cover_url || null;
+        cover = toPublicMediaUrl(cover || publicTracks.find((track: any) => track.cover_url)?.cover_url);
       }
     }
   } catch {

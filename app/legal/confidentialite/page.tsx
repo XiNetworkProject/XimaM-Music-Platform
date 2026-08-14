@@ -85,7 +85,7 @@ export default function ConfidentialitePage() {
                 Vos données peuvent être partagées avec :
               </p>
               <ul className="text-sm text-white/60 space-y-2 mb-6">
-                <li>• <strong>Prestataires de services :</strong> Stripe (paiements), Supabase (base de données), Cloudinary (stockage)</li>
+                <li>• <strong>Prestataires de services :</strong> Stripe (paiements), Supabase (base de données) et l'infrastructure Synaura auto-hébergée (médias)</li>
                 <li>• <strong>Autorités compétentes :</strong> en cas d'obligation légale</li>
                 <li>• <strong>Partenaires commerciaux :</strong> uniquement avec votre consentement explicite</li>
               </ul>

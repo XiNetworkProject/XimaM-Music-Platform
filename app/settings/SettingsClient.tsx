@@ -32,6 +32,8 @@ import { UModal, UModalBody } from '@/components/ui/UnifiedUI';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import { registerPushSubscription, unregisterPushSubscription } from '@/lib/pushClient';
 import { SynauraThemeSelector } from '@/components/theme/SynauraThemeProvider';
+import { uploadLocalMedia } from '@/lib/clientMediaUpload';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
 type SettingsTab = 'profil' | 'compte' | 'parrainage' | 'preferences' | 'events' | 'securite' | 'legal';
 
@@ -617,43 +619,17 @@ export default function SettingsClient() {
     if (!username) return;
     setUploading((p) => ({ ...p, [type]: true }));
     try {
-      const timestamp = Math.floor(Date.now() / 1000);
-      const publicId = `ximam_${username}_${type}_${Date.now()}`;
-
-      const sigRes = await fetch(`/api/users/${encodeURIComponent(username)}/upload-image`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timestamp, publicId, type }),
-      });
-      const sig = await sigRes.json();
-      if (!sigRes.ok) throw new Error(sig?.error || 'Signature upload impossible');
-
-      const cloudName = sig.cloudName as string;
-      const apiKey = sig.apiKey as string;
-      const signature = sig.signature as string;
-      if (!cloudName || !apiKey || !signature) throw new Error('Config Cloudinary manquante');
-
-      const form = new FormData();
-      form.append('file', file);
-      form.append('api_key', apiKey);
-      form.append('timestamp', String(timestamp));
-      form.append('public_id', publicId);
-      form.append('folder', `ximam/profiles/${username}`);
-      form.append('signature', signature);
-
-      const upRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: form });
-      const up = await upRes.json();
-      if (!upRes.ok) throw new Error(up?.error?.message || 'Upload Cloudinary échoué');
+      const uploaded = await uploadLocalMedia(file, type);
 
       const saveRes = await fetch(`/api/users/${encodeURIComponent(username)}/save-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: up.secure_url, type, publicId: up.public_id }),
+        body: JSON.stringify({ imageUrl: uploaded.secure_url, type, publicId: uploaded.public_id }),
       });
       const saved = await saveRes.json();
       if (!saveRes.ok) throw new Error(saved?.error || 'Sauvegarde image échouée');
 
-      setProfile((p) => ({ ...p, [type]: up.secure_url }));
+      setProfile((p) => ({ ...p, [type]: uploaded.secure_url }));
       notify.success('Image', type === 'avatar' ? 'Avatar mis à jour' : 'Bannière mise à jour');
       await refreshSession();
     } catch (e: any) {
@@ -752,7 +728,7 @@ export default function SettingsClient() {
   }
 
   const avatarSrc = profile.avatar || '/default-avatar.png';
-  const bannerSrc = profile.banner || null;
+  const bannerSrc = toPublicMediaUrl(profile.banner) || null;
   const profileGenres = parseGenres(profile.genreText);
   const displayName = safeTrim(profile.name) || safeTrim((user as any)?.name) || 'Votre profil';
   const websiteLabel = safeTrim(profile.website).replace(/^https?:\/\//, '');
@@ -1566,7 +1542,7 @@ export default function SettingsClient() {
             <h2 className="text-lg font-black text-[#171313]">Supprimer définitivement mon compte</h2>
           </div>
           <p className="mt-3 text-sm font-semibold leading-6 text-black/58">
-            Cette action est <strong>irréversible</strong>. Seront supprimés : votre profil, vos pistes, playlists, commentaires, likes, abonnements, messages, et tous les médias associés (Cloudinary). Votre compte d’authentification sera également supprimé.
+            Cette action est <strong>irréversible</strong>. Seront supprimés : votre profil, vos pistes, playlists, commentaires, likes, abonnements, messages et tous vos médias locaux Synaura. Votre compte d’authentification sera également supprimé.
           </p>
           <p className="mt-2 text-xs font-semibold text-black/38">
             Pour confirmer, saisissez exactement : <code className="rounded bg-black/[0.05] px-1.5 py-0.5 text-black/62">{DELETE_CONFIRM_PHRASE}</code>

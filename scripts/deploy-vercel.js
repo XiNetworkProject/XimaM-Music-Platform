@@ -40,4 +40,4 @@ console.log('   - NEXTAUTH_SECRET');
 console.log('   - NEXTAUTH_URL (https://ximam-music.vercel.app)');
 console.log('   - GOOGLE_CLIENT_ID');
 console.log('   - GOOGLE_CLIENT_SECRET');
-console.log('   - CLOUDINARY_*'); 
+console.log('   - MEDIA_BASE_URL / NEXT_PUBLIC_MEDIA_BASE_URL');

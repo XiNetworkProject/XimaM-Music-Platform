@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { motion } from 'framer-motion';
 import { CheckCircle2, Copy, Database, Eye, EyeOff, ImageIcon, Library, Loader2, Music2, Plus, RefreshCw, Save, Trash2, UploadCloud, XCircle } from 'lucide-react';
 import { notify } from '@/components/NotificationCenter';
+import { uploadLocalMedia } from '@/lib/clientMediaUpload';
 
 type Collection = {
   id: string;
@@ -73,32 +74,8 @@ function matchRow(file: File, rows: BatchRow[], index: number) {
   return rows.find((row) => row.filename && normalized.includes(row.filename.toLowerCase())) || rows[index] || null;
 }
 
-async function uploadToCloudinary(file: File, resourceType: 'video' | 'image', folder: string) {
-  const timestamp = Math.round(Date.now() / 1000);
-  const publicId = `${resourceType === 'video' ? 'collection_track' : 'collection_asset'}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-  const sigRes = await fetch('/api/upload/signature', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ timestamp, publicId, resourceType, folder }),
-  });
-  if (!sigRes.ok) throw new Error('Signature Cloudinary impossible');
-  const { signature, apiKey, cloudName } = await sigRes.json();
-
-  const form = new FormData();
-  form.append('file', file);
-  form.append('folder', folder);
-  form.append('public_id', publicId);
-  form.append('resource_type', resourceType);
-  form.append('timestamp', String(timestamp));
-  form.append('api_key', apiKey);
-  form.append('signature', signature);
-
-  const upload = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
-    method: 'POST',
-    body: form,
-  });
-  if (!upload.ok) throw new Error(`Upload Cloudinary echoue: ${file.name}`);
-  return upload.json();
+async function uploadEditorialMedia(file: File, kind: 'editorial-audio' | 'editorial-image') {
+  return uploadLocalMedia(file, kind);
 }
 
 async function getAudioDuration(file: File) {
@@ -245,12 +222,12 @@ export default function EditorialCollectionsAdmin() {
       let coverUrl: string | null = null;
       if (bannerFile) {
         setProgress('Upload de la banniere...');
-        const uploaded = await uploadToCloudinary(bannerFile, 'image', 'ximam/editorial-banners');
+        const uploaded = await uploadEditorialMedia(bannerFile, 'editorial-image');
         bannerUrl = uploaded.secure_url;
       }
       if (coverFile) {
         setProgress('Upload de la cover...');
-        const uploaded = await uploadToCloudinary(coverFile, 'image', 'ximam/editorial-covers');
+        const uploaded = await uploadEditorialMedia(coverFile, 'editorial-image');
         coverUrl = uploaded.secure_url;
       }
 
@@ -314,12 +291,12 @@ export default function EditorialCollectionsAdmin() {
       let coverUrl = selected.coverUrl;
       if (editBannerFile) {
         setProgress('Upload nouvelle banniere...');
-        const uploaded = await uploadToCloudinary(editBannerFile, 'image', 'ximam/editorial-banners');
+        const uploaded = await uploadEditorialMedia(editBannerFile, 'editorial-image');
         bannerUrl = uploaded.secure_url;
       }
       if (editCoverFile) {
         setProgress('Upload nouvelle cover...');
-        const uploaded = await uploadToCloudinary(editCoverFile, 'image', 'ximam/editorial-covers');
+        const uploaded = await uploadEditorialMedia(editCoverFile, 'editorial-image');
         coverUrl = uploaded.secure_url;
       }
 
@@ -419,7 +396,7 @@ export default function EditorialCollectionsAdmin() {
       let sharedCoverPublicId: string | null = null;
       if (coverFile) {
         setProgress('Upload cover commune...');
-        const cover = await uploadToCloudinary(coverFile, 'image', 'ximam/editorial-covers');
+        const cover = await uploadEditorialMedia(coverFile, 'editorial-image');
         sharedCoverUrl = cover.secure_url;
         sharedCoverPublicId = cover.public_id;
       }
@@ -431,7 +408,7 @@ export default function EditorialCollectionsAdmin() {
         const row = matchRow(file, rows, i);
         setProgress(`Upload ${i + 1}/${audioFiles.length} - ${file.name}`);
         const [audio, duration] = await Promise.all([
-          uploadToCloudinary(file, 'video', 'ximam/editorial-audio'),
+          uploadEditorialMedia(file, 'editorial-audio'),
           getAudioDuration(file),
         ]);
         items.push({

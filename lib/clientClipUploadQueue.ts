@@ -1,6 +1,7 @@
 'use client';
 
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
+import { uploadLocalMedia } from '@/lib/clientMediaUpload';
 
 type ClipSource = {
   _id: string;
@@ -28,7 +29,6 @@ export type ClientClipUploadState = {
   error?: string;
 };
 
-const CLIP_FOLDER = 'ximam/music-clips';
 let snapshot: ClientClipUploadState = { status: 'idle', progress: 0, source: null };
 const serverSnapshot: ClientClipUploadState = { status: 'idle', progress: 0, source: null };
 let currentInput: QueueInput | null = null;
@@ -42,41 +42,8 @@ function emit(patch: Partial<ClientClipUploadState>) {
   listeners.forEach((listener) => listener());
 }
 
-function posterUrl(videoUrl: string) {
-  return videoUrl.replace('/video/upload/', '/video/upload/so_0,w_720,h_1280,c_fill,f_jpg/').replace(/\.(mp4|webm|mov|m4v)(\?.*)?$/i, '.jpg$2');
-}
-
 async function uploadVideo(file: File, onProgress: (progress: number) => void) {
-  const publicId = `clip_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-  const signatureResponse = await fetch('/api/upload/signature', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ publicId, resourceType: 'video', folder: CLIP_FOLDER }),
-  });
-  const signature = await signatureResponse.json();
-  if (!signatureResponse.ok) throw new Error(signature?.error || 'Signature d’envoi impossible');
-  const form = new FormData();
-  form.append('file', file);
-  form.append('folder', signature.folder || CLIP_FOLDER);
-  form.append('public_id', signature.publicId || publicId);
-  form.append('timestamp', String(signature.timestamp));
-  form.append('api_key', signature.apiKey);
-  form.append('signature', signature.signature);
-  return new Promise<any>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `https://api.cloudinary.com/v1_1/${signature.cloudName}/video/upload`);
-    xhr.timeout = 10 * 60 * 1000;
-    xhr.upload.onprogress = (event) => event.lengthComputable && onProgress(event.loaded / event.total);
-    xhr.onerror = () => reject(new Error('Connexion interrompue pendant l’envoi.'));
-    xhr.ontimeout = () => reject(new Error('L’envoi prend trop de temps.'));
-    xhr.onload = () => {
-      let response: any = null;
-      try { response = JSON.parse(xhr.responseText || '{}'); } catch { /* ignore */ }
-      if (xhr.status < 200 || xhr.status >= 300 || !response?.secure_url) reject(new Error(response?.error?.message || 'Envoi vidéo impossible'));
-      else resolve(response);
-    };
-    xhr.send(form);
-  });
+  return uploadLocalMedia(file, 'clip-video', { onProgress });
 }
 
 async function run() {
@@ -116,7 +83,8 @@ async function run() {
       body: JSON.stringify({
         videoUrl: currentUpload.secure_url,
         videoPublicId: currentUpload.public_id,
-        posterUrl: posterUrl(currentUpload.secure_url),
+        posterUrl: currentUpload.poster_url,
+        posterPublicId: currentUpload.poster_public_id,
         videoBytes: currentUpload.bytes || input.file.size,
         videoDurationSeconds: currentUpload.duration || input.duration,
         caption: input.caption,

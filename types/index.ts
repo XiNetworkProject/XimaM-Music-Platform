@@ -147,13 +147,3 @@ export interface PaginatedResponse<T> {
   limit: number;
   totalPages: number;
 }
-
-export interface CloudinaryUploadResponse {
-  public_id: string;
-  secure_url: string;
-  format: string;
-  resource_type: string;
-  bytes: number;
-  width?: number;
-  height?: number;
-} 

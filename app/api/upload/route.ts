@@ -3,7 +3,11 @@ import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlements } from '@/lib/entitlements';
 import { DEFAULT_REMIX_PERMISSIONS, remixPermissionsToRow, sanitizeRemixPermissions } from '@/lib/remixPermissions';
-import cloudinary from '@/lib/cloudinary';
+import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaReference, isLocalMediaUrl, localPublicIdFromUrl } from '@/lib/localMediaStorage';
+
+async function rollbackLocalUploads(...publicIds: Array<string | null | undefined>) {
+  await Promise.all(publicIds.filter((value): value is string => Boolean(value)).map((value) => deleteLocalMedia(value).catch(() => false)));
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,15 +33,26 @@ export async function POST(request: NextRequest) {
 
     if (contentType.includes('application/json')) {
       const jsonData = await request.json();
-      const { audioUrl, audioPublicId, coverUrl, coverPublicId, coverVideoUrl, coverVideoPublicId, coverVideoPosterUrl, trackData, duration } = jsonData;
+      const { audioUrl, audioPublicId, coverUrl, coverPublicId, coverVideoUrl, coverVideoPublicId, coverVideoPosterUrl, coverVideoPosterPublicId, trackData, duration } = jsonData;
       if (!audioUrl || !trackData?.title) {
-        // rollback best-effort si l'audio a été déjà uploadé
-        try {
-          if (audioPublicId) await cloudinary.uploader.destroy(audioPublicId, { resource_type: 'video' });
-          if (coverPublicId) await cloudinary.uploader.destroy(coverPublicId, { resource_type: 'image' });
-          if (coverVideoPublicId) await cloudinary.uploader.destroy(coverVideoPublicId, { resource_type: 'video' });
-        } catch {}
+        await rollbackLocalUploads(audioPublicId, coverPublicId, coverVideoPublicId, coverVideoPosterPublicId);
         return NextResponse.json({ error: 'URL audio et titre requis' }, { status: 400 });
+      }
+      const validAudio = isLocalMediaReference(audioUrl, audioPublicId, 'audio') && isLocalMediaOwnedBy(audioPublicId, session.user.id);
+      const validCover = !coverUrl || (coverVideoUrl
+        ? isLocalMediaUrl(coverUrl, 'cover-video') && isLocalMediaOwnedBy(localPublicIdFromUrl(coverUrl), session.user.id)
+        : isLocalMediaReference(coverUrl, coverPublicId, 'cover') && isLocalMediaOwnedBy(coverPublicId, session.user.id));
+      const validCoverVideo = !coverVideoUrl || (
+        isLocalMediaReference(coverVideoUrl, coverVideoPublicId, 'cover-video') &&
+        isLocalMediaOwnedBy(coverVideoPublicId, session.user.id) &&
+        (!coverVideoPosterUrl || (
+          isLocalMediaReference(coverVideoPosterUrl, coverVideoPosterPublicId, 'cover-video') &&
+          isLocalMediaOwnedBy(coverVideoPosterPublicId, session.user.id)
+        ))
+      );
+      if (!validAudio || !validCover || !validCoverVideo) {
+        await rollbackLocalUploads(audioPublicId, coverPublicId, coverVideoPublicId, coverVideoPosterPublicId);
+        return NextResponse.json({ error: 'Les medias doivent provenir du stockage Synaura' }, { status: 422 });
       }
 
       const trackDuration = Math.round(parseFloat(duration) || 0);
@@ -46,6 +61,7 @@ export async function POST(request: NextRequest) {
       if (ent && audioBytes > 0) {
         const maxBytes = ent.uploads.maxFileMb * 1024 * 1024;
         if (audioBytes > maxBytes) {
+          await rollbackLocalUploads(audioPublicId, coverPublicId, coverVideoPublicId, coverVideoPosterPublicId);
           return NextResponse.json({ error: `Fichier trop volumineux pour votre plan. Limite: ${ent.uploads.maxFileMb} MB.` }, { status: 413 });
         }
       }
@@ -178,12 +194,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (error) {
-        // rollback Cloudinary (best-effort)
-        try {
-          if (audioPublicId) await cloudinary.uploader.destroy(audioPublicId, { resource_type: 'video' });
-          if (coverPublicId) await cloudinary.uploader.destroy(coverPublicId, { resource_type: 'image' });
-          if (coverVideoPublicId) await cloudinary.uploader.destroy(coverVideoPublicId, { resource_type: 'video' });
-        } catch {}
+        await rollbackLocalUploads(audioPublicId, coverPublicId, coverVideoPublicId, coverVideoPosterPublicId);
         return NextResponse.json({ error: `Erreur lors de la sauvegarde en base de données: ${error.message}` }, { status: 500 });
       }
 

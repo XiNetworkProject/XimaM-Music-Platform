@@ -5,7 +5,7 @@
 - Node.js 18+ installé
 - MongoDB (local ou Atlas)
 - Compte Google Cloud (pour OAuth)
-- Compte Cloudinary (pour l'upload)
+- Un dossier de stockage média accessible en écriture et servi en HTTPS
 
 ## 🔧 Configuration des Variables d'Environnement
 
@@ -47,14 +47,11 @@ MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/ximam
    - `http://localhost:3000/auth/signin`
 6. Copier Client ID et Client Secret
 
-### 4. Configuration Cloudinary
+### 4. Configuration du stockage média
 
-1. Aller sur [Cloudinary](https://cloudinary.com)
-2. Créer un compte gratuit
-3. Dans le Dashboard, copier :
-   - Cloud Name
-   - API Key
-   - API Secret
+1. Créer le dossier média local (en production : `/mnt/Synaura-SSD/apps/synaura/media`).
+2. Le servir publiquement en HTTPS (en production : `https://media.synaura.fr`).
+3. Installer `ffprobe` et `ffmpeg` sur le serveur pour la validation audio/vidéo et les posters.
 
 ### 5. Variables à remplir dans .env.local
 
@@ -63,10 +60,11 @@ MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/ximam
 GOOGLE_CLIENT_ID=your_google_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
 
-# Cloudinary (remplacer par vos valeurs)
-CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
-CLOUDINARY_API_KEY=your_cloudinary_api_key
-CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+# Stockage média local
+SYNAURA_MEDIA_ROOT=/mnt/Synaura-SSD/apps/synaura/media
+MEDIA_BASE_URL=https://media.synaura.fr
+NEXT_PUBLIC_MEDIA_BASE_URL=https://media.synaura.fr
+MEDIA_STORAGE_SECRET=replace_with_a_long_random_secret
 
 # MongoDB (remplacer par votre URI)
 MONGODB_URI=mongodb://localhost:27017/ximam
@@ -142,10 +140,10 @@ UPDATE_CHECK_INTERVAL=3600000
 - Vérifier que l'API Google+ est activée
 - Vérifier les identifiants
 
-### Erreur Cloudinary
-- Vérifier les clés API
-- Vérifier les permissions du compte
-- Vérifier les limites de stockage
+### Erreur de stockage média
+- Vérifier les droits d'écriture sur `SYNAURA_MEDIA_ROOT`
+- Vérifier que `ffprobe` et `ffmpeg` sont disponibles dans le `PATH`
+- Vérifier le proxy Nginx et `MEDIA_BASE_URL`
 
 ## 📞 Support
 

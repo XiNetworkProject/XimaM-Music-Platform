@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireConversationParticipant } from '@/lib/messaging';
+import { deleteLocalMedia, localPublicIdFromUrl } from '@/lib/localMediaStorage';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,7 @@ async function messageAccess(request: NextRequest, conversationId: string, messa
   }
   const { data: message } = await supabaseAdmin
     .from('messages')
-    .select('id, sender_id, content, message_type, deleted_at, created_at')
+    .select('id, sender_id, content, message_type, media_url, deleted_at, created_at')
     .eq('id', messageId)
     .eq('conversation_id', conversationId)
     .maybeSingle();
@@ -99,11 +100,23 @@ export async function DELETE(
       return NextResponse.json({ success: true, scope: 'me' });
     }
     if (checked.message.sender_id !== checked.userId) return NextResponse.json({ error: 'Acces refuse' }, { status: 403 });
+    const { data: attachments } = await supabaseAdmin
+      .from('message_attachments')
+      .select('url, preview_url')
+      .eq('message_id', params.messageId);
     const { error } = await supabaseAdmin
       .from('messages')
       .update({ content: '', media_url: null, metadata: {}, deleted_at: new Date().toISOString() })
       .eq('id', params.messageId);
     if (error) return NextResponse.json({ error: 'Suppression impossible' }, { status: 500 });
+    const mediaPublicId = localPublicIdFromUrl(checked.message.media_url);
+    if (mediaPublicId) await deleteLocalMedia(mediaPublicId).catch(() => false);
+    for (const attachment of attachments || []) {
+      for (const url of [(attachment as any).url, (attachment as any).preview_url]) {
+        const publicId = localPublicIdFromUrl(url);
+        if (publicId) await deleteLocalMedia(publicId).catch(() => false);
+      }
+    }
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[messages/message] DELETE failed:', error);

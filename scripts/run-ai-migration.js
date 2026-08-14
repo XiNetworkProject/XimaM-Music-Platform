@@ -211,7 +211,7 @@ async function main() {
     console.log('📋 Prochaines étapes :');
     console.log('   1. Tester l\'interface /ai-generator');
     console.log('   2. Implémenter AudioCraft');
-    console.log('   3. Configurer Cloudinary');
+    console.log('   3. Configurer le stockage média local');
     console.log('   4. Tester les quotas utilisateur');
   } else {
     console.log('\n❌ Migration échouée');

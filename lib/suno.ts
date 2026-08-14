@@ -98,7 +98,7 @@ export interface SunoMusicVideoRequest {
   callBackUrl?: string;
 }
 
-// Upload du fichier audio VERS Suno à partir d'une URL publique (Cloudinary)
+// Upload du fichier audio vers Suno à partir d'une URL média publique
 export async function uploadAudioByUrlToSuno(sourceUrl: string): Promise<{ uploadUrl: string }> {
   const apiKey = process.env.SUNO_API_KEY;
   if (!apiKey) {

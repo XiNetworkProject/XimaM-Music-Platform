@@ -43,6 +43,8 @@ import {
   X,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import { cleanupLocalMediaUploads, uploadLocalMedia } from "@/lib/clientMediaUpload";
+import { toPublicMediaUrl } from "@/lib/mediaUrls";
 import { notify } from "@/components/NotificationCenter";
 
 type MessagingProfile = {
@@ -508,43 +510,17 @@ export default function ConversationPage() {
     duration?: number
   ) => {
     setUploading(true);
+    let uploadedPublicId: string | null = null;
     try {
-      const timestamp = Math.round(Date.now() / 1000);
-      const publicId = `message_${Date.now()}_${Math.random()
-        .toString(36)
-        .slice(2, 8)}`;
-      const signatureResponse = await fetch("/api/messages/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ timestamp, publicId, type }),
-      });
-      const signature = await signatureResponse.json().catch(() => null);
-      if (!signatureResponse.ok)
-        throw new Error(
-          signature?.error || "Préparation de l’envoi impossible"
-        );
-
-      const form = new FormData();
-      form.append("file", file);
-      form.append("folder", signature.folder);
-      form.append("public_id", signature.publicId);
-      form.append("timestamp", String(signature.timestamp));
-      form.append("api_key", signature.apiKey);
-      form.append("signature", signature.signature);
-      if (type === "audio") form.append("format", "mp3");
-      const uploadResponse = await fetch(
-        `https://api.cloudinary.com/v1_1/${signature.cloudName}/${signature.resourceType}/upload`,
-        { method: "POST", body: form }
-      );
-      const uploaded = await uploadResponse.json().catch(() => null);
-      if (!uploadResponse.ok || !uploaded?.secure_url)
-        throw new Error(uploaded?.error?.message || "Téléversement impossible");
+      const uploaded = await uploadLocalMedia(file, `message-${type}` as 'message-image' | 'message-video' | 'message-audio');
+      uploadedPublicId = uploaded.public_id;
       await sendPayload({
         type,
         mediaUrl: uploaded.secure_url,
         metadata: { duration: Number(uploaded.duration || duration || 0) },
       });
     } catch (error) {
+      await cleanupLocalMediaUploads([uploadedPublicId]);
       notify.error(
         "Pièce jointe non envoyée",
         error instanceof Error ? error.message : "Réessaie dans un instant"
@@ -711,7 +687,7 @@ export default function ConversationPage() {
   };
 
   const playAudio = (message: Message) => {
-    const source = message.mediaUrl || message.content;
+    const source = toPublicMediaUrl(message.mediaUrl || message.content);
     if (!source) return;
     if (playingMessageId === message.id) {
       currentAudioRef.current?.pause();
@@ -2266,7 +2242,7 @@ function MessageBubble({
     ? "text-white rounded-br-sm"
     : "border border-syn-border bg-syn-surface text-syn-textPrimary rounded-bl-sm";
   const ownStyle = own ? { backgroundColor: accentColor } : undefined;
-  const mediaUrl = message.mediaUrl || message.content;
+  const mediaUrl = toPublicMediaUrl(message.mediaUrl || message.content) || "";
   if (message.deleted)
     return (
       <div

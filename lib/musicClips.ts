@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { remixPermissionsFromRow, type RemixVisibility } from '@/lib/remixPermissions';
 import { normalizeRemixTrackRef, type RemixTrackType } from '@/lib/remixServer';
 import { canCreateClip } from '@/lib/clipPermissions';
+import { toLegacyMediaFallback, toPublicMediaUrl } from '@/lib/mediaUrls';
 
 export const MUSIC_CLIP_MIN_SECONDS = 15;
 export const MUSIC_CLIP_MAX_SECONDS = 60;
@@ -81,10 +82,12 @@ async function isFollower(userId: string | null | undefined, creatorId: string |
   return Boolean(data?.following_id);
 }
 
-export function cloudinaryVideoPosterUrl(videoUrl?: string | null) {
+export function legacyVideoPosterUrl(videoUrl?: string | null) {
   if (!videoUrl) return null;
-  const withTransform = videoUrl.replace('/video/upload/', '/video/upload/so_0,w_720,h_1280,c_fill,f_jpg/');
-  return withTransform.replace(/\.(mp4|webm|mov|m4v)(\?.*)?$/i, '.jpg$2');
+  const legacyUrl = toLegacyMediaFallback(videoUrl);
+  if (!legacyUrl) return null;
+  const withTransform = legacyUrl.replace('/video/upload/', '/video/upload/so_0,w_720,h_1280,c_fill,f_jpg/');
+  return toPublicMediaUrl(withTransform.replace(/\.(mp4|webm|mov|m4v)(\?.*)?$/i, '.jpg$2'));
 }
 
 export async function getClipSourceSummary(input: {
@@ -130,10 +133,10 @@ export async function getClipSourceSummary(input: {
         _id: creatorId,
         name: profile?.name || profile?.username || 'Artiste Synaura',
         username: profile?.username || '',
-        avatar: profile?.avatar || null,
+        avatar: toPublicMediaUrl(profile?.avatar),
       },
-      audioUrl: data.audio_url || data.stream_audio_url || '',
-      coverUrl: data.image_url || null,
+      audioUrl: toPublicMediaUrl(data.audio_url || data.stream_audio_url) || '',
+      coverUrl: toPublicMediaUrl(data.image_url),
       duration: safeDuration(data.duration),
       genre: toStringArray(data.tags),
       trackUrl: `/track/ai-${data.id}`,
@@ -173,10 +176,10 @@ export async function getClipSourceSummary(input: {
       _id: creatorId,
       name: data.profiles?.name || data.profiles?.username || data.artist_name || data.creator_name || 'Artiste Synaura',
       username: data.profiles?.username || '',
-      avatar: data.profiles?.avatar || null,
+      avatar: toPublicMediaUrl(data.profiles?.avatar),
     },
-    audioUrl: data.audio_url || '',
-    coverUrl: data.cover_url || null,
+    audioUrl: toPublicMediaUrl(data.audio_url) || '',
+    coverUrl: toPublicMediaUrl(data.cover_url),
     duration: safeDuration(data.duration),
     genre: toStringArray(data.genre),
     trackUrl: `/track/${data.id}`,
@@ -242,11 +245,11 @@ export async function formatMusicClip(
       id: String(row.creator?.id || row.profiles?.id || row.creator_id || ''),
       username: String(row.creator?.username || row.profiles?.username || ''),
       name: String(row.creator?.name || row.creator?.username || row.profiles?.name || row.profiles?.username || 'Createur Synaura'),
-      avatar: row.creator?.avatar || row.profiles?.avatar || null,
+      avatar: toPublicMediaUrl(row.creator?.avatar || row.profiles?.avatar),
     },
-    videoUrl: row.video_url || null,
+    videoUrl: toPublicMediaUrl(row.video_url),
     videoPublicId: row.video_public_id || null,
-    posterUrl: row.poster_url || cloudinaryVideoPosterUrl(row.video_url),
+    posterUrl: toPublicMediaUrl(row.poster_url || legacyVideoPosterUrl(row.video_url)),
     caption: row.caption || null,
     tags: toStringArray(row.tags),
     sourceTrackId: publicTrackId(source),
@@ -328,10 +331,10 @@ async function getClipSourceSummaries(rows: any[], viewerId?: string | null) {
         _id: creatorId,
         name: profile.name || profile.username || (data as any).artist_name || (data as any).creator_name || 'Artiste Synaura',
         username: profile.username || '',
-        avatar: profile.avatar || null,
+        avatar: toPublicMediaUrl(profile.avatar),
       },
-      audioUrl: data.audio_url || '',
-      coverUrl: data.cover_url || null,
+      audioUrl: toPublicMediaUrl(data.audio_url) || '',
+      coverUrl: toPublicMediaUrl(data.cover_url),
       duration: safeDuration(data.duration),
       genre: toStringArray(data.genre),
       trackUrl: `/track/${data.id}`,
@@ -366,10 +369,10 @@ async function getClipSourceSummaries(rows: any[], viewerId?: string | null) {
         _id: creatorId,
         name: profile.name || profile.username || 'Artiste Synaura',
         username: profile.username || '',
-        avatar: profile.avatar || null,
+        avatar: toPublicMediaUrl(profile.avatar),
       },
-      audioUrl: data.audio_url || data.stream_audio_url || '',
-      coverUrl: data.image_url || null,
+      audioUrl: toPublicMediaUrl(data.audio_url || data.stream_audio_url) || '',
+      coverUrl: toPublicMediaUrl(data.image_url),
       duration: safeDuration(data.duration),
       genre: toStringArray(data.tags),
       trackUrl: `/track/ai-${data.id}`,

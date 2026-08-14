@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X, Play, Download, Share2, Clock, Music, Wand2, Copy, ChevronDown, Upload, EyeOff, AlertTriangle, Loader2 } from 'lucide-react';
 import type { GeneratedTrack } from '@/lib/aiStudioTypes';
 import { isLikelyExpiredAIProviderUrl } from '@/lib/media-url-health';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
 interface TrackInspectorProps {
   track: GeneratedTrack | null;
@@ -37,7 +38,7 @@ const sanitizeCoverUrl = (url?: string, createdAt?: string) => {
   try {
     new URL(trimmed);
     if (isLikelyExpiredAIProviderUrl(trimmed, createdAt)) return '';
-    return trimmed;
+    return toPublicMediaUrl(trimmed) || trimmed;
   } catch {
     return '';
   }

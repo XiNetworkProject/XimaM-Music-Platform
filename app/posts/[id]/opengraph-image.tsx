@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 import { supabaseAdmin } from '@/lib/supabase';
 import { normalizeRemixTrackRef } from '@/lib/remixServer';
 
@@ -29,9 +30,9 @@ export default async function Image({ params }: { params: { id: string } }) {
       const profile: any = (post as any).profiles || {};
       author = profile.name || profile.username || author;
       username = profile.username || username;
-      avatar = profile.avatar || null;
+      avatar = toPublicMediaUrl(profile.avatar);
       content = String((post as any).content || content).slice(0, 250);
-      media = (post as any).image_url || null;
+      media = toPublicMediaUrl((post as any).image_url);
       likes = Number((post as any).likes_count || 0);
       comments = Number((post as any).comments_count || 0);
 
@@ -41,7 +42,7 @@ export default async function Image({ params }: { params: { id: string } }) {
           const { data: track } = await supabaseAdmin.from('ai_tracks').select('title, image_url, generation:ai_generations!inner(user_id)').eq('id', ref.id).maybeSingle();
           if (track) {
             trackTitle = (track as any).title || 'Création IA';
-            media = media || (track as any).image_url || null;
+            media = media || toPublicMediaUrl((track as any).image_url);
             const ownerId = (track as any).generation?.user_id;
             if (ownerId) {
               const { data: owner } = await supabaseAdmin.from('profiles').select('name, username').eq('id', ownerId).maybeSingle();
@@ -52,7 +53,7 @@ export default async function Image({ params }: { params: { id: string } }) {
           const { data: track } = await supabaseAdmin.from('tracks').select('title, cover_url, creator_id').eq('id', ref.id).eq('is_public', true).maybeSingle();
           if (track) {
             trackTitle = track.title || 'Son Synaura';
-            media = media || track.cover_url || null;
+            media = media || toPublicMediaUrl(track.cover_url);
             if (track.creator_id) {
               const { data: owner } = await supabaseAdmin.from('profiles').select('name, username, artist_name').eq('id', track.creator_id).maybeSingle();
               trackArtist = owner?.artist_name || owner?.name || owner?.username || 'Artiste Synaura';

@@ -3,6 +3,7 @@ import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isAiTrackPublic, isTrackPublic } from '@/lib/publicTracks';
 import { normalizeRemixTrackRef } from '@/lib/remixServer';
+import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaUrl, localPublicIdFromUrl } from '@/lib/localMediaStorage';
 
 export const dynamic = 'force-dynamic';
 
@@ -275,6 +276,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  let pendingImagePublicId: string | null = null;
   try {
     const session = await getApiSession(request);
     if (!session?.user?.id) {
@@ -292,6 +294,11 @@ export async function POST(request: NextRequest) {
     }
     if (type === 'photo' && !image_url) {
       return NextResponse.json({ error: 'Image requise' }, { status: 400 });
+    }
+    if (type === 'photo') pendingImagePublicId = localPublicIdFromUrl(image_url);
+    if (type === 'photo' && (!isLocalMediaUrl(image_url, 'post-image') || !isLocalMediaOwnedBy(pendingImagePublicId, session.user.id))) {
+      if (pendingImagePublicId && isLocalMediaOwnedBy(pendingImagePublicId, session.user.id)) await deleteLocalMedia(pendingImagePublicId).catch(() => false);
+      return NextResponse.json({ error: 'L image doit provenir du stockage Synaura' }, { status: 422 });
     }
     if (type === 'track_share' && !track_id) {
       return NextResponse.json({ error: 'Track requise' }, { status: 400 });
@@ -336,12 +343,14 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('[posts] insert error:', error);
+      if (pendingImagePublicId) await deleteLocalMedia(pendingImagePublicId).catch(() => false);
       return NextResponse.json({ error: 'Erreur création post' }, { status: 500 });
     }
 
     return NextResponse.json(await enrichPost(post, session.user.id), { status: 201 });
   } catch (e) {
     console.error('[posts] POST error:', e);
+    if (pendingImagePublicId) await deleteLocalMedia(pendingImagePublicId).catch(() => false);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }

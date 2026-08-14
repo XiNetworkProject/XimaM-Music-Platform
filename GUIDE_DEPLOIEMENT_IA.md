@@ -38,10 +38,11 @@ SUPABASE_SERVICE_ROLE_KEY=votre_clé_service_supabase
 NEXTAUTH_SECRET=votre_secret_nextauth
 NEXTAUTH_URL=http://localhost:3000
 
-# Cloudinary (optionnel pour l'instant)
-CLOUDINARY_CLOUD_NAME=votre_cloud_name
-CLOUDINARY_API_KEY=votre_api_key
-CLOUDINARY_API_SECRET=votre_api_secret
+# Stockage média Synaura
+SYNAURA_MEDIA_ROOT=/mnt/Synaura-SSD/apps/synaura/media
+MEDIA_BASE_URL=https://media.synaura.fr
+NEXT_PUBLIC_MEDIA_BASE_URL=https://media.synaura.fr
+MEDIA_STORAGE_SECRET=votre_secret_hmac
 ```
 
 ### 2. Installation des Dépendances
@@ -145,26 +146,12 @@ print(f"CUDA disponible: {torch.cuda.is_available()}")
 print(f"Device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'}")
 ```
 
-### Configuration Cloudinary
+### Configuration du stockage média local
 
 #### Upload Audio
 ```typescript
-// Dans lib/cloudinary.ts
-export async function uploadAudio(audioBuffer: Buffer): Promise<string> {
-  return new Promise((resolve, reject) => {
-    cloudinary.uploader.upload_stream(
-      {
-        resource_type: 'video', // Pour l'audio
-        format: 'mp3',
-        folder: 'ai_generations'
-      },
-      (error, result) => {
-        if (error) reject(error);
-        else resolve(result!.secure_url);
-      }
-    ).end(audioBuffer);
-  });
-}
+// Utiliser storeRemoteMedia(url, 'ai-audio') depuis lib/localMediaStorage.ts.
+// Le téléchargement est streamé, validé avec ffprobe et stocké sur le SSD.
 ```
 
 ### Monitoring et Logs

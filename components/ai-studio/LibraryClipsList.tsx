@@ -4,6 +4,7 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import { Play, Music, Wand2, MoreVertical, Copy, RotateCcw } from 'lucide-react';
 import type { AITrack, AIGeneration } from '@/lib/aiGenerationService';
 import { isLikelyExpiredAIProviderUrl } from '@/lib/media-url-health';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
 function formatDuration(sec: number): string {
   if (!sec && sec !== 0) return '0:00';
@@ -46,7 +47,7 @@ function sanitizeCoverUrl(url?: string, createdAt?: string) {
   } catch {
     return '';
   }
-  return trimmed;
+  return toPublicMediaUrl(trimmed) || trimmed;
 }
 
 export function LibraryClipsList({

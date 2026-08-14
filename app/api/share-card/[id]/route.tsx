@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { toPublicMediaUrl } from '@/lib/mediaUrls';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { canViewAiTrack, canViewTrack } from '@/lib/publicTracks';
@@ -58,7 +59,7 @@ async function loadTrack(id: string): Promise<ShareTrack | null> {
       type: 'ai_track',
       title: data.title || 'Creation IA',
       artist,
-      coverUrl: data.image_url || null,
+      coverUrl: toPublicMediaUrl(data.image_url),
       duration: Number(data.duration || 0),
       plays: Number(data.play_count || 0),
     };
@@ -83,7 +84,7 @@ async function loadTrack(id: string): Promise<ShareTrack | null> {
     type: 'track',
     title: track.title || 'Son Synaura',
     artist,
-    coverUrl: track.cover_url || null,
+    coverUrl: toPublicMediaUrl(track.cover_url),
     duration: Number(track.duration || 0),
     plays: Number(track.plays || 0),
   };

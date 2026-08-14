@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
-import { deleteFile } from '@/lib/cloudinary';
+import { deleteLocalMedia } from '@/lib/localMediaStorage';
 
 export async function DELETE(
   request: NextRequest,
@@ -27,16 +27,16 @@ export async function DELETE(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 
-    // Supprimer du Cloudinary si on a un public_id
+    // Seuls les nouveaux fichiers locaux sont supprimes pendant la transition.
     try {
       if (track.source_links) {
         const links = JSON.parse(track.source_links);
-        if (links?.cloudinary_public_id) {
-          await deleteFile(links.cloudinary_public_id, 'video');
+        if (links?.local_media_public_id) {
+          await deleteLocalMedia(links.local_media_public_id);
         }
       }
     } catch (e) {
-      console.warn('⚠️ Suppression Cloudinary échouée (continuation):', (e as any)?.message);
+      console.warn('Suppression media local echouee (continuation):', (e as any)?.message);
     }
 
     await supabaseAdmin.from('ai_tracks').delete().eq('id', trackId);

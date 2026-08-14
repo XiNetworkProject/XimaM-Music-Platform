@@ -35,6 +35,7 @@ import RemixPermissionsSection, { DEFAULT_REMIX_PERMISSIONS, type RemixPermissio
 import SynauraEventsRail from '@/components/synaura/SynauraEventsRail';
 import SynauraEventEntryPanel from '@/components/synaura/SynauraEventEntryPanel';
 import CreateArrivalBanner from '@/components/create/CreateArrivalBanner';
+import { uploadLocalMedia } from '@/lib/clientMediaUpload';
 
 // ─── Compression image ────────────────────────────────────
 const MAX_COVER_VIDEO_SECONDS = 7;
@@ -98,41 +99,22 @@ async function compressImageIfNeeded(file: File, maxBytes = 10 * 1024 * 1024): P
   } catch { return file; }
 }
 
-// ─── Upload vers Cloudinary ──────────────────────────────
-const uploadToCloudinary = async (file: File, resourceType: 'video' | 'image' = 'video', folder?: string) => {
-  const timestamp = Math.round(Date.now() / 1000);
-  const publicId = `${resourceType === 'video' ? 'track' : 'cover'}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const uploadFolder = folder || (resourceType === 'video' ? 'ximam/audio' : 'ximam/images');
-  const sigRes = await fetch('/api/upload/signature', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timestamp, publicId, resourceType, folder: uploadFolder }) });
-  if (!sigRes.ok) throw new Error('Erreur signature');
-  const { signature, apiKey, cloudName } = await sigRes.json();
+// ─── Upload vers le stockage média Synaura ───────────────
+const uploadToLocalStorage = async (file: File, resourceType: 'video' | 'image' = 'video', purpose?: 'cover-video') => {
   let fileToUpload = file;
   if (resourceType === 'image' && file.size > 10 * 1024 * 1024) { try { fileToUpload = await compressImageIfNeeded(file); } catch {} }
-  const fd = new FormData();
-  fd.append('file', fileToUpload);
-  fd.append('folder', uploadFolder);
-  fd.append('public_id', publicId);
-  fd.append('resource_type', resourceType);
-  fd.append('timestamp', timestamp.toString());
-  fd.append('api_key', apiKey);
-  fd.append('signature', signature);
-  if (resourceType === 'image') { fd.append('width', '800'); fd.append('height', '800'); fd.append('crop', 'fill'); }
-  const upRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, { method: 'POST', body: fd });
-  if (!upRes.ok) throw new Error('Erreur upload Cloudinary');
-  return upRes.json();
+  return uploadLocalMedia(fileToUpload, purpose === 'cover-video' ? 'cover-video' : resourceType === 'image' ? 'cover' : 'audio');
 };
-
-function cloudinaryVideoPosterUrl(videoUrl?: string | null) {
-  if (!videoUrl) return null;
-  const withTransform = videoUrl.replace('/video/upload/', '/video/upload/so_0,f_jpg/');
-  return withTransform.replace(/\.(mp4|webm|mov|m4v)(\?.*)?$/i, '.jpg$2');
-}
 
 // ─── Waveform display ────────────────────────────────────
 function WaveformDisplay({ audioFile, currentTime = 0, duration = 0, onSeek }: { audioFile: File | null; currentTime?: number; duration?: number; onSeek?: (t: number) => void }) {
   const [data, setData] = useState<number[]>([]);
   useEffect(() => {
     if (!audioFile) return;
+    if (audioFile.size > 64 * 1024 * 1024) {
+      setData([]);
+      return;
+    }
     (async () => {
       try {
         const ab = await audioFile.arrayBuffer();
@@ -397,14 +379,14 @@ export default function UploadPage() {
       const uploadedTracks: { secure_url: string; public_id: string; duration?: number; file?: File }[] = [];
 
       if (releaseType === 'single' && audioFile) {
-        const r = await uploadToCloudinary(audioFile, 'video');
+        const r = await uploadToLocalStorage(audioFile, 'video');
         setTempPublicIds((p) => ({ ...p, audio: r.public_id }));
         setUploadProgress((p) => ({ ...p, audio: 75 }));
         uploadedTracks.push({ secure_url: r.secure_url, public_id: r.public_id, duration: r.duration, file: audioFile });
       } else {
         for (let i = 0; i < trackMetas.length; i++) {
           notify.info('Upload piste', `${trackMetas[i].title} (${i + 1}/${trackMetas.length})`, 0);
-          const r = await uploadToCloudinary(trackMetas[i].file, 'video');
+          const r = await uploadToLocalStorage(trackMetas[i].file, 'video');
           uploadedTracks.push({ secure_url: r.secure_url, public_id: r.public_id, duration: r.duration, file: trackMetas[i].file });
           setUploadProgress((p) => ({ ...p, audio: Math.min(90, Math.round(((i + 1) / trackMetas.length) * 85) + 5) }));
         }
@@ -434,19 +416,21 @@ export default function UploadPage() {
 
       // Upload cover
       let coverResult: { public_id?: string; secure_url?: string } | null = null;
-      let coverVideoResult: { public_id?: string; secure_url?: string; duration?: number } | null = null;
+      let coverVideoResult: { public_id?: string; secure_url?: string; duration?: number; poster_url?: string | null; poster_public_id?: string | null } | null = null;
       let coverVideoPosterUrl: string | null = null;
+      let coverVideoPosterPublicId: string | null = null;
       if (coverFile) {
         const coverIsVideo = isCoverVideoFile(coverFile);
         notify.info(coverIsVideo ? 'Upload video' : 'Upload image', coverIsVideo ? 'Upload cover video...' : 'Upload pochette...', 0);
         setUploadProgress((p) => ({ ...p, cover: 25 }));
         if (coverIsVideo) {
-          coverVideoResult = await uploadToCloudinary(coverFile, 'video', 'ximam/cover-videos');
-          coverVideoPosterUrl = cloudinaryVideoPosterUrl(coverVideoResult?.secure_url);
+          coverVideoResult = await uploadToLocalStorage(coverFile, 'video', 'cover-video');
+          coverVideoPosterUrl = coverVideoResult?.poster_url || null;
+          coverVideoPosterPublicId = coverVideoResult?.poster_public_id || null;
           coverResult = { public_id: undefined, secure_url: coverVideoPosterUrl || coverVideoResult?.secure_url };
           setTempPublicIds((p) => ({ ...p, coverVideo: coverVideoResult?.public_id }));
         } else {
-          coverResult = await uploadToCloudinary(coverFile, 'image');
+          coverResult = await uploadToLocalStorage(coverFile, 'image');
           setTempPublicIds((p) => ({ ...p, cover: coverResult?.public_id }));
         }
         setUploadProgress((p) => ({ ...p, cover: 75 }));
@@ -471,6 +455,7 @@ export default function UploadPage() {
             coverVideoUrl: coverVideoResult?.secure_url || null,
             coverVideoPublicId: coverVideoResult?.public_id || null,
             coverVideoPosterUrl: coverVideoPosterUrl || null,
+            coverVideoPosterPublicId,
             trackData: { title, description, lyrics, genre: genres, isExplicit, isPublic, copyright: { owner: user?.name || '', year: copyrightYear, rights: 'Tous droits reserves' }, album: null },
             duration: tr.duration || 0,
             audioBytes: tr.file?.size || 0, coverBytes: coverFile?.size || 0,
@@ -504,6 +489,7 @@ export default function UploadPage() {
               coverVideoUrl: coverVideoResult?.secure_url || null,
               coverVideoPublicId: coverVideoResult?.public_id || null,
               coverVideoPosterUrl: coverVideoPosterUrl || null,
+              coverVideoPosterPublicId,
               trackData: { title: trackTitle, description, lyrics: perLyrics || null, genre: perGenre, isExplicit: perExplicit, isPublic, copyright: { owner: user?.name || '', year: copyrightYear, rights: 'Tous droits reserves' }, album: albumName },
               duration: tr.duration || 0,
               audioBytes: tr.file?.size || 0, coverBytes: coverFile?.size || 0,
