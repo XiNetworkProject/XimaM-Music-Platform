@@ -57,9 +57,12 @@ const nextConfig = {
   
   // Configuration des images
   images: {
-    // Cloudinary reste autorise pendant la migration pour les anciennes URLs.
-    // media.synaura.fr sert les nouveaux fichiers depuis le SSD de la Freebox.
-    domains: ['res.cloudinary.com', 'media.synaura.fr', 'lh3.googleusercontent.com'],
+    remotePatterns: [
+      { protocol: 'https', hostname: 'media.synaura.fr' },
+      // Fallback temporaire si une copie historique manque sur la Freebox.
+      { protocol: 'https', hostname: 'res.cloudinary.com' },
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+    ],
     formats: ['image/webp', 'image/avif'],
   },
   
