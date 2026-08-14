@@ -11,17 +11,52 @@ process.env.MEDIA_STORAGE_SECRET = 'test-only-storage-secret';
 
 const storage = await import('../lib/localMediaStorage.ts');
 const urls = await import('../lib/mediaUrls.ts');
+const mobileUrls = await import('../synaura-app/src/media/mediaUrls.ts');
 
 test.after(async () => {
   await rm(mediaRoot, { recursive: true, force: true });
 });
 
-test('rewrites historical provider URLs to the Freebox mirror and exposes a fallback', () => {
-  const legacy = 'https://res.cloudinary.com/demo/image/upload/v42/covers/%C3%A9t%C3%A9.jpg?x=1';
-  const local = urls.toPublicMediaUrl(legacy);
-  assert.equal(local, 'https://media.synaura.fr/cloudinary/demo/image/upload/v42/covers/%C3%A9t%C3%A9.jpg?x=1');
-  assert.equal(urls.toLegacyMediaFallback(local), legacy);
-  assert.deepEqual(urls.mediaUrlCandidates(legacy), [local, legacy]);
+test('rewrites historical Cloudinary paths identically on web and mobile', () => {
+  const cases = [
+    {
+      label: 'image avec version',
+      legacy: 'https://res.cloudinary.com/demo/image/upload/v123456/ximam/covers/file.png',
+      local: 'https://media.synaura.fr/cloudinary/image/ximam/covers/file.png',
+    },
+    {
+      label: 'audio video avec version et query string',
+      legacy: 'https://res.cloudinary.com/demo/video/upload/v123456/ximam/audio/file.mp3?download=1',
+      local: 'https://media.synaura.fr/cloudinary/video/ximam/audio/file.mp3?download=1',
+    },
+    {
+      label: 'raw sans version',
+      legacy: 'https://res.cloudinary.com/demo/raw/upload/ximam/documents/archive.zip',
+      local: 'https://media.synaura.fr/cloudinary/raw/ximam/documents/archive.zip',
+    },
+    {
+      label: 'transformations chainees avant version',
+      legacy: 'https://res.cloudinary.com/demo/image/upload/c_fill,w_800/e_sharpen:80/q_auto/v987654/ximam/covers/transformed.jpg',
+      local: 'https://media.synaura.fr/cloudinary/image/ximam/covers/transformed.jpg',
+    },
+    {
+      label: 'private avec transformation sans version',
+      legacy: 'https://res.cloudinary.com/demo/video/private/e_volume:40,q_auto/ximam/audio/private.mp3',
+      local: 'https://media.synaura.fr/cloudinary/video/ximam/audio/private.mp3',
+    },
+    {
+      label: 'authenticated raw',
+      legacy: 'https://res.cloudinary.com/demo/raw/authenticated/v7/ximam/private/data.bin?token=abc',
+      local: 'https://media.synaura.fr/cloudinary/raw/ximam/private/data.bin?token=abc',
+    },
+  ];
+
+  for (const fixture of cases) {
+    assert.equal(urls.toPublicMediaUrl(fixture.legacy), fixture.local, `web: ${fixture.label}`);
+    assert.equal(mobileUrls.toPublicMediaUrl(fixture.legacy), fixture.local, `mobile: ${fixture.label}`);
+    assert.equal(urls.toLegacyMediaFallback(fixture.legacy), fixture.legacy, `fallback: ${fixture.label}`);
+    assert.deepEqual(urls.mediaUrlCandidates(fixture.legacy), [fixture.local, fixture.legacy], `candidates: ${fixture.label}`);
+  }
 });
 
 test('accepts safe local identifiers and rejects traversal attempts', () => {
