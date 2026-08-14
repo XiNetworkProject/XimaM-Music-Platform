@@ -67,6 +67,46 @@ type ForeignKey = {
   targetColumns: string[];
 };
 
+function parsePostgresTextArray(value: string): string[] | null {
+  if (!value.startsWith('{') || !value.endsWith('}')) return null;
+  const body = value.slice(1, -1);
+  if (!body) return [];
+
+  const values: string[] = [];
+  let current = '';
+  let quoted = false;
+  let escaped = false;
+  for (const character of body) {
+    if (escaped) {
+      current += character;
+      escaped = false;
+    } else if (quoted && character === '\\') {
+      escaped = true;
+    } else if (character === '"') {
+      quoted = !quoted;
+    } else if (character === ',' && !quoted) {
+      values.push(current);
+      current = '';
+    } else {
+      current += character;
+    }
+  }
+  if (quoted || escaped) return null;
+  values.push(current);
+  return values;
+}
+
+function normalizeCatalogTextArray(value: unknown): string[] {
+  const values = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? (parsePostgresTextArray(value) ?? [value])
+      : [];
+  return values
+    .filter((entry) => entry != null)
+    .map((entry) => String(entry));
+}
+
 const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const FILTER_OPERATORS = new Set([
   'eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'ilike', 'is', 'in',
@@ -226,16 +266,16 @@ async function foreignKeysBetween(table: string, relationTable: string, executor
   const load = queryDatabase<{
     constraint_name: string;
     source_table: string;
-    source_columns: string[];
+    source_columns: unknown;
     target_table: string;
-    target_columns: string[];
+    target_columns: unknown;
   }>(`
     SELECT
-      con.conname AS constraint_name,
-      source.relname AS source_table,
-      array_agg(source_attribute.attname ORDER BY key_columns.ordinality) AS source_columns,
-      target.relname AS target_table,
-      array_agg(target_attribute.attname ORDER BY key_columns.ordinality) AS target_columns
+      con.conname::text AS constraint_name,
+      source.relname::text AS source_table,
+      array_agg(source_attribute.attname::text ORDER BY key_columns.ordinality) AS source_columns,
+      target.relname::text AS target_table,
+      array_agg(target_attribute.attname::text ORDER BY key_columns.ordinality) AS target_columns
     FROM pg_constraint con
     JOIN pg_class source ON source.oid = con.conrelid
     JOIN pg_namespace source_namespace ON source_namespace.oid = source.relnamespace
@@ -253,13 +293,20 @@ async function foreignKeysBetween(table: string, relationTable: string, executor
       AND ((source.relname = $1 AND target.relname = $2)
         OR (source.relname = $2 AND target.relname = $1))
     GROUP BY con.conname, source.relname, target.relname
-  `, [table, relationTable], executor).then(({ rows }) => rows.map((row) => ({
-    constraintName: row.constraint_name,
-    sourceTable: row.source_table,
-    sourceColumns: row.source_columns,
-    targetTable: row.target_table,
-    targetColumns: row.target_columns,
-  })));
+  `, [table, relationTable], executor).then(({ rows }) => rows.map((row) => {
+    const sourceColumns = normalizeCatalogTextArray(row.source_columns);
+    const targetColumns = normalizeCatalogTextArray(row.target_columns);
+    if (!sourceColumns.length || sourceColumns.length !== targetColumns.length) {
+      throw new Error(`Metadonnees de cle etrangere invalides: ${row.constraint_name}`);
+    }
+    return {
+      constraintName: String(row.constraint_name),
+      sourceTable: String(row.source_table),
+      sourceColumns,
+      targetTable: String(row.target_table),
+      targetColumns,
+    };
+  }));
   if (!executor) relationCache.set(cacheKey, load);
   return load;
 }
@@ -812,7 +859,7 @@ class LocalRpcQuery implements PromiseLike<DatabaseResponse<any>> {
     try {
       const entries = Object.entries(this.args);
       const metadata = await queryDatabase<{ proretset: boolean; typtype: string }>(`
-        SELECT procedure.proretset, return_type.typtype
+        SELECT procedure.proretset, return_type.typtype::text AS typtype
         FROM pg_proc procedure
         JOIN pg_namespace namespace ON namespace.oid = procedure.pronamespace
         JOIN pg_type return_type ON return_type.oid = procedure.prorettype
