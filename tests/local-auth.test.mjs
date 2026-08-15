@@ -133,3 +133,39 @@ test('associe Google au compte existant et conserve son UUID', async () => {
   assert.equal(identity.values[2], existingId);
   assert.equal(calls.some(({ sql }) => sql.includes('INSERT INTO auth.users')), false);
 });
+
+test('cree un compte telephone local avec le meme UUID sans inventer d email', async () => {
+  const calls = [];
+  let createdProfile = null;
+  const executor = {
+    async query(sql, values = []) {
+      calls.push({ sql, values });
+      if (sql.includes('SELECT matched.id')) return result([]);
+      if (sql.includes('INSERT INTO auth.users')) return result([], 1);
+      if (sql.includes('INSERT INTO auth.identities')) return result([], 1);
+      if (sql.includes('AS exists') && sql.includes('public.profiles')) return result([{ exists: false }]);
+      if (sql.includes('INSERT INTO public.profiles')) {
+        createdProfile = {
+          id: values[0], email: values[1], name: values[2], username: values[3], avatar: null,
+          role: 'user', is_verified: false, bio: null, location: null, website: null,
+          is_artist: false, artist_name: null, genre: [], total_plays: 0, total_likes: 0, last_seen: null,
+        };
+        return result([], 1);
+      }
+      if (sql.includes('FROM public.profiles')) return result(createdProfile ? [createdProfile] : []);
+      throw new Error(`Requete inattendue: ${sql}`);
+    },
+  };
+
+  const profile = await auth.matchOrCreatePhoneAccount({ phone: '+33612345678' }, executor);
+  const authInsert = calls.find(({ sql }) => sql.includes('INSERT INTO auth.users'));
+  const identityInsert = calls.find(({ sql }) => sql.includes('INSERT INTO auth.identities'));
+  const profileInsert = calls.find(({ sql }) => sql.includes('INSERT INTO public.profiles'));
+  assert.ok(authInsert && identityInsert && profileInsert);
+  assert.equal(profile.id, authInsert.values[0]);
+  assert.equal(identityInsert.values[2], profile.id);
+  assert.equal(profileInsert.values[0], profile.id);
+  assert.equal(profile.email, null);
+  assert.equal(authInsert.values[6], '+33612345678');
+  assert.equal(Object.hasOwn(profile, 'encrypted_password'), false);
+});

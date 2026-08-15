@@ -25,7 +25,7 @@ export async function getSessionFromToken(token: string | null | undefined): Pro
   if (!t) return null;
   try {
     const verified = await verifyMobileAccessToken(t);
-    const userId = verified?.userId || '';
+    const userId = verified?.authorized ? verified.userId : '';
     if (!userId) return null;
     const profile = await getLocalProfileById(userId);
     if (!profile) return null;

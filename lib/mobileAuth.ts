@@ -6,21 +6,38 @@ import {
   type LocalProfile,
 } from '@/lib/localAuth';
 import { queryDatabase, withDatabaseTransaction } from '@/lib/postgres';
+import {
+  getMobileIdentities,
+  getMobilePrivateAccount,
+  hasVerifiedMobileMfaFactor,
+  listMobileMfaFactors,
+  markSessionMfaVerified,
+  sessionHasMfaVerification,
+  type MobileMfaFactor,
+} from '@/lib/mobileAuthSecurity';
 
 export type MobileAuthUser = {
   id: string;
   email?: string | null;
+  phone?: string | null;
   name?: string | null;
   username?: string | null;
   avatar?: string | null;
   role?: string | null;
   isVerified?: boolean;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
+  profileComplete?: boolean;
+  providers?: string[];
 };
+
+export type { MobileMfaFactor } from '@/lib/mobileAuthSecurity';
 
 type AccessClaims = {
   sub: string;
   sid: string;
   type: 'access';
+  aal?: 'aal1' | 'aal2';
   exp: number;
 };
 
@@ -38,21 +55,13 @@ function refreshDigest(token: string) {
   return createHash('sha256').update(token).digest('hex');
 }
 
-function mobileUser(profile: LocalProfile): MobileAuthUser {
-  return {
-    id: profile.id,
-    email: profile.email,
-    name: profile.name,
-    username: profile.username,
-    avatar: profile.avatar,
-    role: profile.role,
-    isVerified: Boolean(profile.is_verified),
-  };
-}
-
-function accessToken(userId: string, sessionId: string) {
+export function issueMobileAccessToken(
+  userId: string,
+  sessionId: string,
+  assuranceLevel: 'aal1' | 'aal2' = 'aal1',
+) {
   return jwt.sign(
-    { sid: sessionId, type: 'access' },
+    { sid: sessionId, type: 'access', aal: assuranceLevel },
     jwtSecret(),
     {
       algorithm: 'HS256',
@@ -64,13 +73,34 @@ function accessToken(userId: string, sessionId: string) {
   );
 }
 
+async function mobileSessionPayload(
+  profile: LocalProfile,
+  sessionId: string,
+  refreshToken: string | null,
+  assuranceLevel: 'aal1' | 'aal2',
+) {
+  const [user, mfaFactors] = await Promise.all([
+    getMobileAuthUser(profile.id),
+    listMobileMfaFactors(profile.id),
+  ]);
+  if (!user) throw new Error('Profil mobile introuvable');
+  return {
+    user,
+    token: issueMobileAccessToken(profile.id, sessionId, assuranceLevel),
+    refreshToken,
+    expiresAt: Math.floor(Date.now() / 1000) + ACCESS_TTL_SECONDS,
+    assuranceLevel,
+    mfaRequired: mfaFactors.some((factor) => factor.status === 'verified') && assuranceLevel !== 'aal2',
+    mfaFactors,
+  };
+}
+
 export async function createMobileSession(
   profile: LocalProfile,
   context: { userAgent?: string | null; ip?: string | null } = {},
 ) {
   const sessionId = randomUUID();
   const refreshToken = randomBytes(48).toString('base64url');
-  const expiresAt = Math.floor(Date.now() / 1000) + ACCESS_TTL_SECONDS;
   await withDatabaseTransaction(async (client) => {
     await queryDatabase(`
       INSERT INTO auth.sessions (
@@ -85,12 +115,7 @@ export async function createMobileSession(
       ) VALUES ($1, $2, false, now(), now(), $3::uuid)
     `, [refreshDigest(refreshToken), profile.id, sessionId], client);
   });
-  return {
-    user: mobileUser(profile),
-    token: accessToken(profile.id, sessionId),
-    refreshToken,
-    expiresAt,
-  };
+  return mobileSessionPayload(profile, sessionId, refreshToken, 'aal1');
 }
 
 export async function signInMobilePassword(
@@ -139,12 +164,8 @@ export async function refreshMobileSession(refreshToken: string) {
       [row.session_id],
       client,
     );
-    return {
-      user: mobileUser(profile),
-      token: accessToken(profile.id, row.session_id),
-      refreshToken: nextRefreshToken,
-      expiresAt: Math.floor(Date.now() / 1000) + ACCESS_TTL_SECONDS,
-    };
+    const assuranceLevel = await sessionHasMfaVerification(row.session_id, client) ? 'aal2' : 'aal1';
+    return mobileSessionPayload(profile, row.session_id, nextRefreshToken, assuranceLevel);
   });
 }
 
@@ -166,7 +187,17 @@ export async function verifyMobileAccessToken(token: string) {
         AND (session.not_after IS NULL OR session.not_after > now())
     ) AS active
   `, [claims.sid, claims.sub]);
-  return active.rows[0]?.active ? { userId: claims.sub, sessionId: claims.sid } : null;
+  if (!active.rows[0]?.active) return null;
+  const assuranceLevel: 'aal1' | 'aal2' = claims.aal === 'aal2' ? 'aal2' : 'aal1';
+  const mfaRequired = await hasVerifiedMobileMfaFactor(claims.sub) && assuranceLevel !== 'aal2';
+  return {
+    userId: claims.sub,
+    sessionId: claims.sid,
+    assuranceLevel,
+    mfaRequired,
+    authorized: !mfaRequired,
+    expiresAt: claims.exp,
+  };
 }
 
 export async function revokeMobileSession(token: string) {
@@ -199,5 +230,92 @@ export async function revokeMobileSession(token: string) {
 
 export async function getMobileAuthUser(userId: string): Promise<MobileAuthUser | null> {
   const profile = await getLocalProfileById(userId);
-  return profile ? mobileUser(profile) : null;
+  if (!profile) return null;
+  const [authResult, privateAccount, identities] = await Promise.all([
+    queryDatabase<{
+      email: string | null;
+      phone: string | null;
+      email_confirmed_at: string | null;
+      phone_confirmed_at: string | null;
+    }>(`
+      SELECT email, phone, email_confirmed_at, phone_confirmed_at
+      FROM auth.users
+      WHERE id = $1::uuid AND deleted_at IS NULL
+      LIMIT 1
+    `, [userId]),
+    getMobilePrivateAccount(userId),
+    getMobileIdentities(userId),
+  ]);
+  const authUser = authResult.rows[0];
+  return {
+    id: profile.id,
+    email: authUser?.email || profile.email,
+    phone: authUser?.phone || null,
+    name: profile.name,
+    username: profile.username,
+    avatar: profile.avatar,
+    role: profile.role,
+    isVerified: Boolean(profile.is_verified),
+    emailVerified: Boolean(authUser?.email_confirmed_at),
+    phoneVerified: Boolean(authUser?.phone_confirmed_at),
+    profileComplete: privateAccount.profileComplete,
+    providers: Array.from(new Set(identities.map((identity) => identity.provider))),
+  };
+}
+
+export function readAuthenticatorAssuranceLevel(token: string) {
+  try {
+    const payload = jwt.decode(token) as AccessClaims | null;
+    return payload?.aal === 'aal2' ? 'aal2' : 'aal1';
+  } catch {
+    return 'aal1';
+  }
+}
+
+export async function elevateMobileSession(token: string) {
+  const verified = await verifyMobileAccessToken(token);
+  if (!verified) return null;
+  await markSessionMfaVerified(verified.sessionId);
+  const profile = await getLocalProfileById(verified.userId);
+  if (!profile) return null;
+  return mobileSessionPayload(profile, verified.sessionId, null, 'aal2');
+}
+
+export async function getMobileSessionPayload(accessTokenValue: string, refreshTokenValue: string) {
+  const verified = await verifyMobileAccessToken(accessTokenValue);
+  if (!verified) return null;
+  const refresh = await queryDatabase<{ valid: boolean }>(`
+    SELECT EXISTS (
+      SELECT 1 FROM auth.refresh_tokens
+      WHERE token = $1 AND session_id = $2::uuid AND user_id = $3 AND revoked = false
+    ) AS valid
+  `, [refreshDigest(refreshTokenValue), verified.sessionId, verified.userId]);
+  if (!refresh.rows[0]?.valid) return null;
+  const profile = await getLocalProfileById(verified.userId);
+  if (!profile) return null;
+  const payload = await mobileSessionPayload(
+    profile,
+    verified.sessionId,
+    refreshTokenValue,
+    verified.assuranceLevel,
+  );
+  return { ...payload, token: accessTokenValue, expiresAt: verified.expiresAt };
+}
+
+export async function revokeOtherMobileSessions(token: string) {
+  const verified = await verifyMobileAccessToken(token);
+  if (!verified?.authorized) return false;
+  await withDatabaseTransaction(async (client) => {
+    await queryDatabase(`
+      UPDATE auth.refresh_tokens
+      SET revoked = true, updated_at = now()
+      WHERE user_id = $1 AND session_id <> $2::uuid
+    `, [verified.userId, verified.sessionId], client);
+    await queryDatabase(`
+      UPDATE auth.sessions
+      SET not_after = now(), updated_at = now()
+      WHERE user_id = $1::uuid AND id <> $2::uuid
+    `, [verified.userId, verified.sessionId], client);
+  });
+  return true;
 }

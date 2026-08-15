@@ -1,0 +1,58 @@
+name: Native app check
+
+on:
+  push:
+    paths:
+      - 'synaura-app/**'
+      - 'tests/native-home-prelude.test.mjs'
+      - 'tests/android-release-config.test.mjs'
+      - 'tests/account-identity.test.mjs'
+      - 'tests/mobile-auth-security.test.mjs'
+      - '.github/workflows/native-app-check.yml'
+  pull_request:
+    paths:
+      - 'synaura-app/**'
+      - 'tests/native-home-prelude.test.mjs'
+      - 'tests/android-release-config.test.mjs'
+      - 'tests/account-identity.test.mjs'
+      - 'tests/mobile-auth-security.test.mjs'
+      - '.github/workflows/native-app-check.yml'
+
+jobs:
+  checks:
+    name: Expo and mobile auth checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            synaura-app/package-lock.json
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: Install native dependencies
+        working-directory: synaura-app
+        run: npm ci
+
+      - name: Type-check native app
+        working-directory: synaura-app
+        run: npm run type-check
+
+      - name: Check responsive contracts
+        working-directory: synaura-app
+        run: npm run check:responsive
+
+      - name: Check theme integrity
+        working-directory: synaura-app
+        run: npm run check:theme
+
+      - name: Run native and auth regression tests
+        run: node --experimental-strip-types --test tests/native-home-prelude.test.mjs tests/android-release-config.test.mjs tests/account-identity.test.mjs tests/mobile-auth-security.test.mjs

@@ -1,85 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-import { dbAdmin } from '@/lib/database';
 import { diagnosticsEnabled } from '@/lib/diagnostics';
+import { getMobileAuthUser, verifyMobileAccessToken } from '@/lib/mobileAuth';
 
-/**
- * GET /api/auth/mobile/debug
- * Diagnostic : indique si le token est reçu et s'il est valide (pour débug "Non authentifié").
- * À appeler avec le même Bearer / X-Auth-Token que les autres routes.
- */
 export async function GET(req: NextRequest) {
   if (!diagnosticsEnabled()) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const auth = req.headers.get('authorization');
+  const authorization = req.headers.get('authorization');
   const xAuth = req.headers.get('x-auth-token');
-  const queryToken = req.nextUrl.searchParams.get('access_token');
-
-  let token: string | null = null;
-  if (auth?.startsWith('Bearer ')) token = auth.slice(7).trim();
-  if (!token && xAuth) token = xAuth;
-  if (!token && queryToken) token = queryToken;
-
-  const authPresent = !!(auth?.startsWith('Bearer '));
-  const xAuthPresent = !!xAuth;
-
+  const token = authorization?.startsWith('Bearer ')
+    ? authorization.slice(7).trim()
+    : xAuth?.trim() || '';
+  const received = { authorization: Boolean(authorization?.startsWith('Bearer ')), xAuthToken: Boolean(xAuth) };
   if (!token) {
-    return NextResponse.json({
-      received: { authorization: authPresent, xAuthToken: xAuthPresent, query: !!queryToken },
-      tokenLength: 0,
-      verify: 'no_token',
-      error: 'Aucun token reçu. Envoie Authorization: Bearer <token> ou X-Auth-Token ou ?access_token=',
-    });
+    return NextResponse.json({ received, tokenLength: 0, verify: 'no_token', error: 'Aucun token recu' });
   }
-
-  const secret = process.env.NEXTAUTH_SECRET || 'your-secret-key';
-  let payload: { id?: string } | null = null;
-  let verifyError: string | null = null;
-
-  try {
-    payload = jwt.verify(token, secret) as { id?: string };
-  } catch (e: any) {
-    verifyError = e?.message || 'invalid';
+  const verified = await verifyMobileAccessToken(token).catch(() => null);
+  if (!verified) {
+    return NextResponse.json({ received, tokenLength: token.length, verify: 'invalid', error: 'Jeton ou session invalide' });
   }
-
-  if (verifyError) {
-    return NextResponse.json({
-      received: { authorization: authPresent, xAuthToken: xAuthPresent, query: !!queryToken },
-      tokenLength: token.length,
-      verify: 'invalid',
-      error: verifyError,
-    });
+  const profile = await getMobileAuthUser(verified.userId);
+  if (!profile) {
+    return NextResponse.json({ received, tokenLength: token.length, verify: 'profile_not_found', error: 'Profil introuvable' });
   }
-
-  const userId = payload?.id;
-  if (!userId) {
-    return NextResponse.json({
-      received: { authorization: authPresent, xAuthToken: xAuthPresent, query: !!queryToken },
-      tokenLength: token.length,
-      verify: 'no_id',
-      error: 'Le JWT ne contient pas d’id',
-    });
-  }
-
-  const { data: profile, error } = await dbAdmin
-    .from('profiles')
-    .select('id')
-    .eq('id', userId)
-    .single();
-
-  if (error || !profile) {
-    return NextResponse.json({
-      received: { authorization: authPresent, xAuthToken: xAuthPresent, query: !!queryToken },
-      tokenLength: token.length,
-      verify: 'profile_not_found',
-      error: error?.message || 'Profil non trouvé pour cet id',
-    });
-  }
-
   return NextResponse.json({
-    received: { authorization: authPresent, xAuthToken: xAuthPresent, query: !!queryToken },
+    received,
     tokenLength: token.length,
     verify: 'ok',
-    userId,
+    userId: verified.userId,
+    assuranceLevel: verified.assuranceLevel,
+    mfaRequired: verified.mfaRequired,
   });
 }
 

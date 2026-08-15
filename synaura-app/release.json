@@ -5,6 +5,8 @@
   "releaseNotes": [
     "Restauration de l'experience native moderne Synaura Signal et Flow",
     "Accueil immersif, slides Signal et dock moderne reintegres",
+    "Parcours de compte complet restaure : Google natif, profil prive et controle des sessions",
+    "Double authentification TOTP et verrouillage biometrique local disponibles sans Supabase",
     "Connexion au backend PostgreSQL local et au stockage media Synaura",
     "Medias servis par l'infrastructure Synaura locale sans dependance runtime Vercel, Supabase ou Cloudinary",
     "Build Android Release explicitement execute en environnement production"

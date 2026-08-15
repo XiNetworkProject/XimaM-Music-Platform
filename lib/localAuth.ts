@@ -48,6 +48,12 @@ export type GoogleAccountInput = {
   emailVerified?: boolean;
 };
 
+export type PhoneAccountInput = {
+  phone: string;
+};
+
+type LocalAuthProvider = 'email' | 'google' | 'phone';
+
 const PROFILE_COLUMNS = `
   id, email, name, username, avatar, role, is_verified, bio, location,
   website, is_artist, artist_name, genre, total_plays, total_likes, last_seen
@@ -70,7 +76,7 @@ export function hashLocalPassword(password: string) {
   return bcrypt.hash(password, passwordRounds());
 }
 
-function authMetadata(provider: 'email' | 'google') {
+function authMetadata(provider: LocalAuthProvider) {
   return { provider, providers: [provider] };
 }
 
@@ -155,22 +161,23 @@ async function insertAuthUser(
   executor: DatabaseExecutor,
   input: {
     id: string;
-    email: string;
+    email: string | null;
     encryptedPassword: string | null;
-    provider: 'email' | 'google';
+    provider: LocalAuthProvider;
     name?: string | null;
     avatar?: string | null;
+    phone?: string | null;
   },
 ) {
   await queryDatabase(`
     INSERT INTO auth.users (
       instance_id, id, aud, role, email, encrypted_password,
       email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
-      created_at, updated_at, is_sso_user, is_anonymous
+      created_at, updated_at, is_sso_user, is_anonymous, phone, phone_confirmed_at
     ) VALUES (
       (SELECT instance_id FROM auth.users WHERE instance_id IS NOT NULL LIMIT 1),
       $1::uuid, 'authenticated', 'authenticated', $2, $3, now(), $4::jsonb,
-      $5::jsonb, now(), now(), $6, false
+      $5::jsonb, now(), now(), $6, false, $7, CASE WHEN $7 IS NULL THEN NULL ELSE now() END
     )
   `, [
     input.id,
@@ -179,6 +186,7 @@ async function insertAuthUser(
     JSON.stringify(authMetadata(input.provider)),
     JSON.stringify({ name: input.name || null, avatar_url: input.avatar || null }),
     input.provider === 'google',
+    input.phone || null,
   ], executor);
 }
 
@@ -186,16 +194,18 @@ async function upsertIdentity(
   executor: DatabaseExecutor,
   input: {
     userId: string;
-    provider: 'email' | 'google';
+    provider: LocalAuthProvider;
     providerAccountId: string;
-    email: string;
+    email?: string | null;
+    phone?: string | null;
     name?: string | null;
     avatar?: string | null;
   },
 ) {
   const identityData = {
     sub: input.providerAccountId,
-    email: input.email,
+    email: input.email || null,
+    phone: input.phone || null,
     email_verified: true,
     full_name: input.name || null,
     avatar_url: input.avatar || null,
@@ -217,7 +227,7 @@ async function upsertProfile(
   executor: DatabaseExecutor,
   input: {
     id: string;
-    email: string;
+    email: string | null;
     name: string;
     username: string;
     avatar?: string | null;
@@ -350,6 +360,70 @@ export async function matchOrCreateGoogleAccount(input: GoogleAccountInput, exec
       [id],
       target,
     );
+    return profile;
+  });
+}
+
+export async function matchOrCreatePhoneAccount(input: PhoneAccountInput, executor?: DatabaseExecutor) {
+  const phone = input.phone.trim();
+  if (!/^\+[1-9]\d{7,14}$/.test(phone)) throw new Error('Numero de telephone invalide');
+
+  return inAuthTransaction(executor, async (target) => {
+    const matched = await queryDatabase<{ id: string }>(`
+      SELECT matched.id
+      FROM (
+        SELECT users.id, 0 AS priority
+        FROM auth.users users
+        WHERE users.phone = $1 AND users.deleted_at IS NULL
+        UNION ALL
+        SELECT identity.user_id AS id, 1 AS priority
+        FROM auth.identities identity
+        WHERE identity.provider = 'phone'
+          AND (identity.provider_id = $1 OR identity.identity_data ->> 'phone' = $1)
+      ) matched
+      ORDER BY matched.priority
+      LIMIT 1
+    `, [phone], target);
+
+    const id = matched.rows[0]?.id || randomUUID();
+    if (!matched.rows[0]) {
+      await insertAuthUser(target, {
+        id,
+        email: null,
+        encryptedPassword: null,
+        provider: 'phone',
+        name: `Membre ${phone.slice(-4)}`,
+        phone,
+      });
+    } else {
+      await queryDatabase(`
+        UPDATE auth.users
+        SET phone = $2, phone_confirmed_at = COALESCE(phone_confirmed_at, now()),
+            last_sign_in_at = now(), updated_at = now()
+        WHERE id = $1::uuid
+      `, [id, phone], target);
+    }
+
+    await upsertIdentity(target, {
+      userId: id,
+      provider: 'phone',
+      providerAccountId: phone,
+      phone,
+    });
+
+    let profile = await getLocalProfileById(id, target);
+    if (!profile) {
+      const username = await uniqueUsername(`membre_${phone.slice(-4)}`, target);
+      await upsertProfile(target, {
+        id,
+        email: null,
+        name: `Membre ${phone.slice(-4)}`,
+        username,
+        verified: false,
+      });
+      profile = await getLocalProfileById(id, target);
+    }
+    if (!profile) throw new Error('Profil telephone local introuvable');
     return profile;
   });
 }

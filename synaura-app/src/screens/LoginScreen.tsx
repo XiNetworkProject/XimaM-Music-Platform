@@ -10,6 +10,7 @@ import {
   AuthDivider,
   AuthField,
   AuthGoogleButton,
+  AuthPhoneButton,
   AuthPrimaryButton,
   AuthScreen,
   AuthTitle,
@@ -25,6 +26,7 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [providerLoading, setProviderLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(route.params?.message || '');
 
@@ -77,6 +79,20 @@ export function LoginScreen() {
     }
   };
 
+  const continueWithGoogle = async () => {
+    setProviderLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await auth.loginWithGoogle();
+      await afterLogin();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Connexion Google impossible.');
+    } finally {
+      setProviderLoading(false);
+    }
+  };
+
   return (
     <AuthScreen>
       <AuthTopBar caption="Connexion" onBack={returnToApp} />
@@ -90,8 +106,22 @@ export function LoginScreen() {
         {success ? <AuthAlert kind="success" text={success} /> : null}
         {error ? <AuthAlert text={error} /> : null}
 
-        <AuthGoogleButton onPress={() => Linking.openURL(`${API_BASE_URL}/auth/signin`)} />
-        <AuthDivider />
+        {auth.capabilities.google ? (
+          <AuthGoogleButton
+            loading={providerLoading}
+            disabled={loading}
+            onPress={() => void continueWithGoogle()}
+          />
+        ) : null}
+        {auth.capabilities.phone ? (
+          <View style={{ marginTop: auth.capabilities.google ? 10 : 0 }}>
+            <AuthPhoneButton
+              disabled={loading || providerLoading}
+              onPress={() => navigation.navigate('PhoneAuth')}
+            />
+          </View>
+        ) : null}
+        {auth.capabilities.google || auth.capabilities.phone ? <AuthDivider /> : null}
 
         <View style={authStyles.formGap}>
           <AuthField
