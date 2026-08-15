@@ -3,6 +3,7 @@ import { Animated, DeviceEventEmitter, Pressable, StyleSheet, Text, View } from 
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { CreateMenuSheet } from '@/components/create/CreateMenuSheet';
 import { DiscoverV2Screen } from '@/screens/DiscoverV2Screen';
@@ -87,10 +88,14 @@ function AnimatedTabButton({ children, accessibilityState, onPress, style, ...pr
   );
 }
 
-function SynauraScrollIcon({ focused, dark }: { focused: boolean; dark: boolean }) {
+function SynauraScrollIcon({ focused, signal }: { focused: boolean; signal: boolean }) {
   return (
-    <View style={[styles.scrollTab, dark && styles.scrollTabDark, focused && styles.scrollTabActive, dark && focused && styles.scrollTabActiveDark]}>
-      <Ionicons name={focused ? 'pulse' : 'pulse-outline'} size={22} color={focused ? colors.cyan : colors.textTertiary} />
+    <View style={[styles.scrollTab, signal && styles.signalIconBubble, focused && styles.scrollTabActive, signal && focused && styles.signalIconBubbleActive]}>
+      <Ionicons
+        name={focused ? 'pulse' : 'pulse-outline'}
+        size={22}
+        color={focused ? colors.cyan : signal ? 'rgba(255,255,255,0.58)' : colors.textTertiary}
+      />
     </View>
   );
 }
@@ -103,6 +108,7 @@ const PRIMARY_LABELS: Record<(typeof PRIMARY_ROUTES)[number], string> = {
   Library: 'Bibliothèque',
   Profile: 'Profil',
 };
+
 function primaryIcon(routeName: (typeof PRIMARY_ROUTES)[number], focused: boolean): keyof typeof Ionicons.glyphMap {
   if (routeName === 'Discover') return focused ? 'compass' : 'compass-outline';
   if (routeName === 'Create') return focused ? 'add-circle' : 'add-circle-outline';
@@ -114,6 +120,9 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
   const layout = useResponsiveLayout();
   const { resolvedTheme } = useMobileSettings();
   const dark = resolvedTheme === 'dark';
+  const activeRouteName = state.routes[state.index]?.name;
+  const flowActive = activeRouteName === 'Swipe';
+  const signal = dark || flowActive;
   const routes = state.routes.filter((route) => PRIMARY_ROUTES.includes(route.name as any));
   const dockWidth = Math.min(layout.safeWidth, layout.isTablet ? 640 : 560);
 
@@ -122,6 +131,7 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
       pointerEvents="box-none"
       style={[
         styles.dockWrap,
+        signal ? styles.dockWrapSignal : styles.dockWrapEditorial,
         {
           left: 0,
           right: 0,
@@ -132,10 +142,35 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
       ]}
     >
       <BlurView
-        intensity={68}
-        tint={dark ? 'dark' : 'light'}
-        style={[styles.dock, { width: dockWidth, height: layout.dockHeight }, dark ? styles.dockDark : styles.dockLight]}
+        intensity={signal ? 78 : 68}
+        tint={signal ? 'dark' : 'light'}
+        style={[
+          styles.dock,
+          { width: dockWidth, height: layout.dockHeight },
+          signal ? styles.dockSignal : styles.dockLight,
+        ]}
       >
+        {signal ? (
+          <>
+            <LinearGradient
+              pointerEvents="none"
+              colors={['rgba(115,87,198,0.18)', 'rgba(74,158,170,0.08)', 'rgba(217,109,99,0.17)']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <View pointerEvents="none" style={styles.signalTopLine}>
+              <LinearGradient
+                colors={['#7357C6', '#4A9EAA', '#D96D63']}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+            </View>
+            <View pointerEvents="none" style={styles.signalWhiteLine} />
+          </>
+        ) : null}
+
         {routes.map((route) => {
           const focused = state.routes[state.index]?.key === route.key;
           const isScroll = route.name === 'Swipe';
@@ -149,6 +184,7 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
             }
             if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
           };
+
           return (
             <AnimatedTabButton
               key={route.key}
@@ -160,24 +196,52 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
               style={[styles.dockItem, { height: layout.dockHeight - 2 }, isCreate && styles.dockItemCreate]}
             >
               {isScroll ? (
-                <SynauraScrollIcon focused={focused} dark={dark} />
+                <SynauraScrollIcon focused={focused} signal={signal} />
               ) : isCreate ? (
-                <View style={[styles.createDock, layout.compactControls && styles.createDockCompact, dark && styles.createDockDark]}>
-                  <Ionicons name="add" size={layout.compactControls ? 23 : 25} color={colors.black} />
-                </View>
+                <LinearGradient
+                  colors={signal ? ['#F7F6F3', '#ECE8FF', '#FBE7E3'] : [colors.paper, colors.paper]}
+                  style={[styles.createDockFrame, layout.compactControls && styles.createDockFrameCompact]}
+                >
+                  <View style={[styles.createDock, layout.compactControls && styles.createDockCompact, signal && styles.createDockSignal]}>
+                    <Ionicons name="add" size={layout.compactControls ? 23 : 25} color={colors.black} />
+                  </View>
+                </LinearGradient>
               ) : (
-                <View style={[styles.iconDock, focused && styles.iconDockActive, dark && focused && styles.iconDockActiveDark]}>
+                <View style={[styles.iconDock, signal && styles.signalIconBubble, focused && styles.iconDockActive, signal && focused && styles.signalIconBubbleActive]}>
                   <Ionicons
                     name={primaryIcon(route.name as (typeof PRIMARY_ROUTES)[number], focused)}
                     size={21}
-                    color={focused ? colors.cyan : colors.textTertiary}
+                    color={focused ? colors.cyan : signal ? 'rgba(255,255,255,0.58)' : colors.textTertiary}
                   />
                 </View>
               )}
-              <Text maxFontSizeMultiplier={1.1} numberOfLines={1} adjustsFontSizeToFit style={[styles.dockLabel, layout.isNarrow && styles.dockLabelNarrow, dark && styles.dockLabelDark, focused && styles.dockLabelActive, dark && focused && styles.dockLabelActiveDark, isCreate && styles.dockLabelCreate]}>
+
+              <Text
+                maxFontSizeMultiplier={1.1}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                style={[
+                  styles.dockLabel,
+                  layout.isNarrow && styles.dockLabelNarrow,
+                  signal && styles.dockLabelSignal,
+                  focused && styles.dockLabelActive,
+                  signal && focused && styles.dockLabelActiveSignal,
+                  isCreate && styles.dockLabelCreate,
+                ]}
+              >
                 {label}
               </Text>
-              {focused && !isCreate ? <View style={styles.activeIndicator} /> : null}
+
+              {focused && !isCreate ? (
+                <View style={styles.activeIndicatorClip}>
+                  <LinearGradient
+                    colors={signal ? ['#7357C6', '#4A9EAA', '#D96D63'] : [colors.cyan, colors.cyan]}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                </View>
+              ) : null}
             </AnimatedTabButton>
           );
         })}
@@ -190,6 +254,7 @@ export function Tabs() {
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const tabNavigationRef = useRef<any>(null);
   const { settings } = useMobileSettings();
+
   const navigateRoot = (name: keyof RootTabsParamList, params?: Record<string, unknown>) => {
     const tabNavigation = tabNavigationRef.current;
     const rootNavigation = tabNavigation?.getParent?.();
@@ -227,6 +292,7 @@ export function Tabs() {
         <Tab.Screen name="Library" component={LibraryScreen} />
         <Tab.Screen name="Profile" component={ProfileScreen} />
       </Tab.Navigator>
+
       <CreateMenuSheet
         visible={createMenuOpen}
         onClose={() => setCreateMenuOpen(false)}
@@ -257,63 +323,32 @@ export function Tabs() {
 
 const styles = StyleSheet.create({
   tabMotion: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  iconDock: {
-    width: 34,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  iconDock: { width: 36, height: 31, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   iconDockActive: { transform: [{ translateY: -1 }] },
-  iconDockActiveDark: { transform: [{ translateY: -1 }] },
-  scrollTab: {
-    width: 34,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollTabDark: {},
+  scrollTab: { width: 36, height: 31, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   scrollTabActive: { transform: [{ translateY: -1 }] },
-  scrollTabActiveDark: { transform: [{ translateY: -1 }] },
-  dockWrap: {
-    position: 'absolute',
-    bottom: 0,
-    zIndex: 80,
-    backgroundColor: colors.background,
-  },
-  dock: {
-    alignSelf: 'center',
-    height: 70,
-    overflow: 'hidden',
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderStrong,
-    paddingHorizontal: 4,
-  },
+  signalIconBubble: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.025)' },
+  signalIconBubbleActive: { borderColor: 'rgba(114,187,197,0.36)', backgroundColor: 'rgba(74,158,170,0.12)', shadowColor: '#4A9EAA', shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  dockWrap: { position: 'absolute', bottom: 0, zIndex: 80 },
+  dockWrapEditorial: { backgroundColor: colors.background },
+  dockWrapSignal: { backgroundColor: 'rgba(9,9,11,0.97)' },
+  dock: { alignSelf: 'center', overflow: 'hidden', flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, paddingHorizontal: 4 },
   dockLight: { borderColor: colors.border, backgroundColor: colors.glassDark },
-  dockDark: { borderColor: colors.borderStrong, backgroundColor: 'rgba(13,13,13,0.97)' },
-  dockItem: {
-    flex: 1,
-    height: 68,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-  },
+  dockSignal: { borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(13,10,14,0.94)' },
+  signalTopLine: { position: 'absolute', top: 0, left: 0, right: 0, height: 2.5, opacity: 0.92 },
+  signalWhiteLine: { position: 'absolute', top: 2.5, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255,255,255,0.18)' },
+  dockItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
   dockItemCreate: { paddingBottom: 1 },
-  createDock: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper, borderWidth: 3, borderColor: colors.background, shadowColor: colors.black, shadowOpacity: 0.34, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 8, transform: [{ translateY: -7 }] },
-  createDockCompact: { width: 42, height: 42, borderRadius: 21 },
-  createDockDark: { backgroundColor: colors.paper },
-  dockLabel: {
-    maxWidth: '100%',
-    color: colors.textTertiary,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  dockLabelDark: { color: 'rgba(255,255,255,0.48)' },
+  createDockFrame: { width: 48, height: 48, borderRadius: 24, padding: 2, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.34, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 8, transform: [{ translateY: -7 }] },
+  createDockFrameCompact: { width: 44, height: 44, borderRadius: 22 },
+  createDock: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper, borderWidth: 2, borderColor: colors.background },
+  createDockCompact: { width: 40, height: 40, borderRadius: 20 },
+  createDockSignal: { borderColor: 'rgba(9,9,11,0.82)' },
+  dockLabel: { maxWidth: '100%', color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
+  dockLabelSignal: { color: 'rgba(255,255,255,0.48)' },
   dockLabelNarrow: { fontSize: 9 },
   dockLabelActive: { color: colors.black },
-  dockLabelActiveDark: { color: colors.cyan },
+  dockLabelActiveSignal: { color: colors.cyan, fontWeight: '900' },
   dockLabelCreate: { marginTop: -7 },
-  activeIndicator: { position: 'absolute', top: 0, width: 22, height: 2, borderRadius: 1, backgroundColor: colors.cyan },
-  activeIndicatorDark: {},
+  activeIndicatorClip: { position: 'absolute', top: 0, width: 28, height: 2.5, overflow: 'hidden', borderRadius: 2 },
 });

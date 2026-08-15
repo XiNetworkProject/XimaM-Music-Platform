@@ -1,12 +1,12 @@
 {
-  "title": "Synaura 0.25.10",
+  "title": "Synaura 0.25.11",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Connexion au nouveau backend Synaura sur synaura.fr",
-    "Migration des services vers PostgreSQL local",
-    "Lecture et envoi des medias via le stockage media Synaura",
-    "Suppression des dependances runtime Vercel, Supabase et Cloudinary",
-    "Ameliorations de la stabilite reseau pour l'authentification, les flux et la messagerie"
+    "Restauration de l'experience native moderne Synaura Signal et Flow",
+    "Accueil immersif, slides Signal et dock moderne reintegres",
+    "Connexion au backend PostgreSQL local et au stockage media Synaura",
+    "Medias servis par l'infrastructure Synaura locale sans dependance runtime Vercel, Supabase ou Cloudinary",
+    "Build Android Release explicitement execute en environnement production"
   ]
 }
