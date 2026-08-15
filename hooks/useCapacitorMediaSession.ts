@@ -27,7 +27,7 @@ export type Controls = {
 const BASE_URL =
   typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_APP_URL
     ? process.env.NEXT_PUBLIC_APP_URL
-    : 'https://xima-m-music-platform.vercel.app';
+    : 'https://synaura.fr';
 
 function toAbsoluteArtwork(artwork: MediaArtwork[] | undefined): MediaArtwork[] {
   if (!artwork?.length) return [{ src: `${BASE_URL}/android-chrome-512x512.png`, sizes: '512x512', type: 'image/png' }];

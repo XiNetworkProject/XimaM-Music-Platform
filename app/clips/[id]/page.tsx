@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getPublicClip } from './clipData';
 
-const PUBLIC_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://xima-m-music-platform.vercel.app';
+const PUBLIC_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://synaura.fr';
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const clip = await getPublicClip(params.id);
