@@ -28,21 +28,19 @@ async function getCollection(id: string) {
   return data as any;
 }
 
-async function getLegacyPlaylist(id: string, userId?: string | null) {
-  let query = dbAdmin.from('playlists').select('*').eq('id', id);
-  if (userId) query = query.eq('creator_id', userId);
-  const { data } = await query.maybeSingle();
+async function getLegacyPlaylist(id: string) {
+  const { data } = await dbAdmin.from('playlists').select('*').eq('id', id).maybeSingle();
   return data && normalizeLegacyCollectionFromPlaylist(data) ? data : null;
 }
 
-async function getCollectionOrLegacy(id: string, userId?: string | null) {
+async function getCollectionOrLegacy(id: string) {
   try {
     const row = await getCollection(id);
     if (row) return { row, isLegacy: false };
   } catch (error) {
     if (!isMissingEditorialCollectionsTable(error)) throw error;
   }
-  const legacy = await getLegacyPlaylist(id, userId);
+  const legacy = await getLegacyPlaylist(id);
   return { row: legacy, isLegacy: Boolean(legacy) };
 }
 
@@ -57,7 +55,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
   if (!guard.ok) return NextResponse.json({ error: 'Non autorise' }, { status: 403 });
 
   try {
-    const { row, isLegacy } = await getCollectionOrLegacy(params.id, guard.userId);
+    const { row, isLegacy } = await getCollectionOrLegacy(params.id);
     if (!row) return NextResponse.json({ error: 'Collection introuvable' }, { status: 404 });
     return NextResponse.json({
       collection: isLegacy ? normalizeLegacyCollectionFromPlaylist(row) : normalizeEditorialCollection(row),
@@ -73,7 +71,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   if (!guard.ok) return NextResponse.json({ error: 'Non autorise' }, { status: 403 });
 
   const body = await request.json().catch(() => ({}));
-  const { row: existing, isLegacy } = await getCollectionOrLegacy(params.id, guard.userId);
+  const { row: existing, isLegacy } = await getCollectionOrLegacy(params.id);
   if (!existing) return NextResponse.json({ error: 'Collection introuvable' }, { status: 404 });
 
   const validateChangedImage = (value: string | null, changed: boolean) => {
@@ -200,7 +198,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
   const guard = await getAdminGuard();
   if (!guard.ok) return NextResponse.json({ error: 'Non autorise' }, { status: 403 });
 
-  const { row: existing, isLegacy } = await getCollectionOrLegacy(params.id, guard.userId);
+  const { row: existing, isLegacy } = await getCollectionOrLegacy(params.id);
   if (!existing) return NextResponse.json({ error: 'Collection introuvable' }, { status: 404 });
 
   const mediaIds = [

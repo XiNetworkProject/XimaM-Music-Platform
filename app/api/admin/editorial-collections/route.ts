@@ -64,7 +64,6 @@ export async function GET() {
   const { data: playlists, error: playlistsError } = await dbAdmin
     .from('playlists')
     .select('*')
-    .eq('creator_id', guard.userId)
     .order('created_at', { ascending: false });
   if (playlistsError) return NextResponse.json({ error: playlistsError.message }, { status: 500 });
 
