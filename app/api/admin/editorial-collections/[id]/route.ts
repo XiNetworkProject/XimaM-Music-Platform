@@ -35,6 +35,17 @@ async function getLegacyPlaylist(id: string, userId?: string | null) {
   return data && normalizeLegacyCollectionFromPlaylist(data) ? data : null;
 }
 
+async function getCollectionOrLegacy(id: string, userId?: string | null) {
+  try {
+    const row = await getCollection(id);
+    if (row) return { row, isLegacy: false };
+  } catch (error) {
+    if (!isMissingEditorialCollectionsTable(error)) throw error;
+  }
+  const legacy = await getLegacyPlaylist(id, userId);
+  return { row: legacy, isLegacy: Boolean(legacy) };
+}
+
 function boolPatch(body: any, camel: string, snake: string, current: boolean) {
   if (typeof body?.[camel] === 'boolean') return body[camel];
   if (typeof body?.[snake] === 'boolean') return body[snake];
@@ -46,16 +57,13 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
   if (!guard.ok) return NextResponse.json({ error: 'Non autorise' }, { status: 403 });
 
   try {
-    const row = await getCollection(params.id);
+    const { row, isLegacy } = await getCollectionOrLegacy(params.id, guard.userId);
     if (!row) return NextResponse.json({ error: 'Collection introuvable' }, { status: 404 });
-    return NextResponse.json({ collection: normalizeEditorialCollection(row) });
+    return NextResponse.json({
+      collection: isLegacy ? normalizeLegacyCollectionFromPlaylist(row) : normalizeEditorialCollection(row),
+      ...(isLegacy ? { legacy: true } : {}),
+    });
   } catch (error: any) {
-    if (isMissingEditorialCollectionsTable(error)) {
-      const legacy = await getLegacyPlaylist(params.id, guard.userId);
-      const collection = normalizeLegacyCollectionFromPlaylist(legacy);
-      if (!collection) return NextResponse.json({ error: 'Collection introuvable' }, { status: 404 });
-      return NextResponse.json({ collection, legacy: true });
-    }
     return NextResponse.json({ error: error.message || 'Erreur serveur' }, { status: 500 });
   }
 }
@@ -65,14 +73,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   if (!guard.ok) return NextResponse.json({ error: 'Non autorise' }, { status: 403 });
 
   const body = await request.json().catch(() => ({}));
-  let isLegacy = false;
-  const existing = await getCollection(params.id).catch(async (error) => {
-    if (isMissingEditorialCollectionsTable(error)) {
-      isLegacy = true;
-      return getLegacyPlaylist(params.id, guard.userId);
-    }
-    throw error;
-  });
+  const { row: existing, isLegacy } = await getCollectionOrLegacy(params.id, guard.userId);
   if (!existing) return NextResponse.json({ error: 'Collection introuvable' }, { status: 404 });
 
   const validateChangedImage = (value: string | null, changed: boolean) => {
@@ -199,14 +200,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
   const guard = await getAdminGuard();
   if (!guard.ok) return NextResponse.json({ error: 'Non autorise' }, { status: 403 });
 
-  let isLegacy = false;
-  const existing = await getCollection(params.id).catch(async (error) => {
-    if (isMissingEditorialCollectionsTable(error)) {
-      isLegacy = true;
-      return getLegacyPlaylist(params.id, guard.userId);
-    }
-    return null;
-  });
+  const { row: existing, isLegacy } = await getCollectionOrLegacy(params.id, guard.userId);
   if (!existing) return NextResponse.json({ error: 'Collection introuvable' }, { status: 404 });
 
   const mediaIds = [

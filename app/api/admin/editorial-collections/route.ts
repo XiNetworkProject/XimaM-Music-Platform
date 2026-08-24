@@ -4,6 +4,7 @@ import { getAdminGuard } from '@/lib/admin';
 import { dbAdmin } from '@/lib/database';
 import {
   isMissingEditorialCollectionsTable,
+  mergeEditorialCollections,
   normalizeEditorialCollection,
   normalizeLegacyCollectionFromPlaylist,
   packLegacyCollectionDescription,
@@ -53,41 +54,36 @@ export async function GET() {
     .order('position', { ascending: true })
     .order('created_at', { ascending: false });
 
-  if (error) {
-    if (isMissingEditorialCollectionsTable(error)) {
-      const { data: playlists } = await dbAdmin
-        .from('playlists')
-        .select('*')
-        .eq('creator_id', guard.userId)
-        .order('created_at', { ascending: false });
-      const legacyCollections = (playlists || [])
-        .map((playlist) => normalizeLegacyCollectionFromPlaylist(playlist))
-        .filter(Boolean) as any[];
-      const counts = await getTrackCounts(legacyCollections.map((collection) => collection.playlistId));
-      return NextResponse.json({
-        collections: legacyCollections.map((collection) => ({
-          ...collection,
-          trackCount: counts.get(collection.playlistId) || 0,
-          legacy: true,
-        })),
-        needsMigration: true,
-        migrationCommand: 'npm run migrate:collections',
-      });
-    }
+  if (error && !isMissingEditorialCollectionsTable(error)) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const collections = (data || [])
+  const modernCollections = error ? [] : (data || [])
     .map((row) => normalizeEditorialCollection(row as any))
     .filter(Boolean) as any[];
+  const { data: playlists, error: playlistsError } = await dbAdmin
+    .from('playlists')
+    .select('*')
+    .eq('creator_id', guard.userId)
+    .order('created_at', { ascending: false });
+  if (playlistsError) return NextResponse.json({ error: playlistsError.message }, { status: 500 });
+
+  const legacyCollections = (playlists || [])
+    .map((playlist) => normalizeLegacyCollectionFromPlaylist(playlist))
+    .filter(Boolean) as any[];
+  const modernPlaylistIds = new Set(modernCollections.map((collection) => collection.playlistId));
+  const legacyOnly = legacyCollections.filter((collection) => !modernPlaylistIds.has(collection.playlistId));
+  const collections = mergeEditorialCollections(modernCollections, legacyOnly);
   const counts = await getTrackCounts(collections.map((collection) => collection.playlistId));
 
   return NextResponse.json({
     collections: collections.map((collection) => ({
       ...collection,
       trackCount: counts.get(collection.playlistId) || 0,
+      legacy: legacyOnly.some((legacy) => legacy.playlistId === collection.playlistId),
     })),
-    needsMigration: false,
+    needsMigration: legacyOnly.length > 0,
+    ...(legacyOnly.length > 0 ? { migrationCommand: 'node scripts/repair-admin-migration-gaps.js' } : {}),
   });
 }
 

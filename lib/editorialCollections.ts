@@ -157,6 +157,17 @@ export function normalizeEditorialCollection(row?: Partial<EditorialCollectionRo
   };
 }
 
+export function mergeEditorialCollections(
+  modernCollections: EditorialCollectionView[],
+  legacyCollections: EditorialCollectionView[],
+) {
+  const modernPlaylistIds = new Set(modernCollections.map((collection) => collection.playlistId));
+  return [
+    ...modernCollections,
+    ...legacyCollections.filter((collection) => !modernPlaylistIds.has(collection.playlistId)),
+  ];
+}
+
 export async function getEditorialCollectionByPlaylistId(playlistId: string) {
   const { data, error } = await dbAdmin
     .from('editorial_collections')
@@ -196,25 +207,29 @@ export async function getFeaturedEditorialCollections(limit = 12): Promise<Edito
     .order('created_at', { ascending: false })
     .limit(safeLimit);
 
-  let collections: EditorialCollectionView[] = [];
+  let modernCollections: EditorialCollectionView[] = [];
   if (error) {
     if (!isMissingEditorialCollectionsTable(error)) throw error;
-    const { data: playlists } = await dbAdmin
-      .from('playlists')
-      .select('*')
-      .eq('is_public', true)
-      .order('created_at', { ascending: false })
-      .limit(80);
-    collections = (playlists || [])
-      .map(normalizeLegacyCollectionFromPlaylist)
-      .filter((collection): collection is EditorialCollectionView => Boolean(collection?.isPublished && collection?.isFeatured))
-      .sort((a, b) => a.position - b.position)
-      .slice(0, safeLimit);
   } else {
-    collections = (data || [])
+    modernCollections = (data || [])
       .map((row) => normalizeEditorialCollection(row as EditorialCollectionRow))
       .filter((collection): collection is EditorialCollectionView => Boolean(collection));
   }
+
+  // A partially completed migration can leave the modern table present but
+  // empty. Keep reading legacy playlist metadata until every row is migrated.
+  const { data: playlists } = await dbAdmin
+    .from('playlists')
+    .select('*')
+    .eq('is_public', true)
+    .order('created_at', { ascending: false })
+    .limit(80);
+  const legacyCollections = (playlists || [])
+    .map(normalizeLegacyCollectionFromPlaylist)
+    .filter((collection): collection is EditorialCollectionView => Boolean(collection?.isPublished && collection?.isFeatured));
+  const collections = mergeEditorialCollections(modernCollections, legacyCollections)
+    .sort((a, b) => a.position - b.position)
+    .slice(0, safeLimit);
 
   const counts = await getPublicPlaylistTrackCounts(collections.map((collection) => collection.playlistId));
   return collections.map((collection) => ({
