@@ -89,7 +89,11 @@ export async function middleware(request: NextRequest) {
       }
       // Rediriger vers la page de connexion
       const signInUrl = new URL('/auth/signin', request.url);
-      signInUrl.searchParams.set('callbackUrl', request.url);
+      // Toujours conserver une destination relative. Derriere nginx, request.url
+      // peut contenir l'origine interne (localhost:3000), ce qui renvoyait
+      // l'utilisateur vers l'accueil apres la connexion en production.
+      const callbackUrl = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+      signInUrl.searchParams.set('callbackUrl', callbackUrl);
       return NextResponse.redirect(signInUrl);
     }
 
