@@ -5,6 +5,7 @@ import {
   authenticateLocalPassword,
   getLocalProfileByEmail,
   getLocalProfileById,
+  getLocalProfileByUsername,
   matchOrCreateGoogleAccount,
   type LocalProfile,
 } from '@/lib/localAuth';
@@ -98,6 +99,12 @@ export const authOptions: NextAuthOptions = {
       let profile = id ? await getLocalProfileById(id).catch(() => null) : null;
       if (!profile && session.user?.email) {
         profile = await getLocalProfileByEmail(session.user.email).catch(() => null);
+      }
+      // Les JWT créés avant la migration PostgreSQL peuvent conserver un ancien
+      // identifiant et ne pas avoir d'email. Le username unique permet alors de
+      // rattacher la session au profil PostgreSQL courant et de rafraîchir son UUID.
+      if (!profile && typeof token.username === 'string' && token.username.trim()) {
+        profile = await getLocalProfileByUsername(token.username).catch(() => null);
       }
       if (profile) session.user = { ...session.user, ...sessionUser(profile) };
       return session;

@@ -108,6 +108,16 @@ export async function getLocalProfileByEmail(email: string, executor?: DatabaseE
   return result.rows[0] || null;
 }
 
+export async function getLocalProfileByUsername(username: string, executor?: DatabaseExecutor) {
+  const result = await queryDatabase<LocalProfile>(`
+    SELECT ${PROFILE_COLUMNS}
+    FROM public.profiles
+    WHERE lower(username) = $1
+    LIMIT 1
+  `, [normalizedUsername(username)], executor);
+  return result.rows[0] || null;
+}
+
 export async function authenticateLocalPassword(
   email: string,
   password: string,

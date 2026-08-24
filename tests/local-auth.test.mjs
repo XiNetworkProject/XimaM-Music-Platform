@@ -8,6 +8,38 @@ function result(rows = [], rowCount = rows.length) {
   return { rows, rowCount };
 }
 
+test('retrouve un profil migre par username normalise quand id et email sont obsoletes', async () => {
+  const profile = {
+    id: 'f64a1b7a-c261-4ad5-955b-c0ad06a1d0bb',
+    email: null,
+    name: 'XimaMOff',
+    username: 'ximamoff',
+    avatar: null,
+    role: 'user',
+    is_verified: true,
+    bio: null,
+    location: null,
+    website: null,
+    is_artist: true,
+    artist_name: 'XimaM',
+    genre: [],
+    total_plays: 0,
+    total_likes: 0,
+    last_seen: null,
+  };
+  const executor = {
+    async query(sql, values = []) {
+      assert.match(sql, /lower\(username\) = \$1/i);
+      assert.deepEqual(values, ['ximamoff']);
+      return result([profile]);
+    },
+  };
+
+  const matched = await auth.getLocalProfileByUsername('  XimaMOff  ', executor);
+  assert.equal(matched?.id, profile.id);
+  assert.equal(matched?.username, 'ximamoff');
+});
+
 test('authentifie un hash bcrypt $2a$ restaure sans le reencoder ni l exposer', async () => {
   const existingHash = bcrypt.hashSync('mot-de-passe-existant', 10).replace(/^\$2[by]\$/, '$2a$');
   const calls = [];
