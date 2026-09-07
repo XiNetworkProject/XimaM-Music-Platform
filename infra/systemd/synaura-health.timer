@@ -1,0 +1,12 @@
+[Unit]
+Description=Controle periodique de sante Synaura
+
+[Timer]
+OnBootSec=3m
+OnUnitActiveSec=5m
+AccuracySec=30s
+Persistent=true
+Unit=synaura-health.service
+
+[Install]
+WantedBy=timers.target

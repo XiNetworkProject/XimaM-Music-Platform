@@ -1,0 +1,43 @@
+[Unit]
+Description=Synaura Next.js production
+Wants=network-online.target postgresql@17-restore.service
+After=network-online.target postgresql@17-restore.service
+RequiresMountsFor=/mnt/Synaura-SSD
+StartLimitIntervalSec=60s
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=synaura
+Group=synaura
+WorkingDirectory=/srv/apps/synaura/current
+EnvironmentFile=/etc/synaura/synaura.env
+Environment=NODE_ENV=production
+ExecStartPre=/usr/local/libexec/synaura/preflight.sh
+Environment=SYNAURA_MEDIA_MOUNT=/mnt/Synaura-SSD
+Environment="SYNAURA_MEDIA_EXPECTED_SOURCE=//mafreebox.freebox.fr/Synaura SSD"
+Environment=SYNAURA_MEDIA_MARKER=/mnt/Synaura-SSD/.synaura-volume.id
+Environment=SYNAURA_MEDIA_EXPECTED_MARKER=/etc/synaura/media-volume.id
+Environment=SYNAURA_POSTGRES_PORT=5433
+ExecStart=/usr/local/bin/npm run start -- --hostname 127.0.0.1 --port 3000
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=90s
+TimeoutStopSec=30s
+KillSignal=SIGTERM
+SuccessExitStatus=0 143
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=synaura
+
+[Install]
+WantedBy=multi-user.target

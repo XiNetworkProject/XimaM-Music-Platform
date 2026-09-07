@@ -1,0 +1,23 @@
+[Unit]
+Description=Sauvegarde des medias Synaura
+RequiresMountsFor=/mnt/Synaura-SSD
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=/etc/synaura/backup.env
+ExecStart=/usr/local/libexec/synaura/backup-media.sh
+UMask=0077
+Nice=15
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/mnt/Synaura-SSD/apps/synaura/media
+ReadWritePaths=/var/backups/synaura/media
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=synaura-media-backup

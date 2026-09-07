@@ -1,0 +1,20 @@
+[Unit]
+Description=Controle local de sante Synaura
+After=synaura.service postgresql@17-restore.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=-/etc/synaura/backup.env
+Environment=SYNAURA_APP_URL=http://127.0.0.1:3000/
+Environment=SYNAURA_PG_SERVICE=synaura_backup
+ExecStart=/usr/local/libexec/synaura/healthcheck.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/mnt/Synaura-SSD/apps/synaura/media
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=synaura-health

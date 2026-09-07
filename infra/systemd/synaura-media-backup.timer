@@ -1,0 +1,11 @@
+[Unit]
+Description=Sauvegarde quotidienne des medias Synaura
+
+[Timer]
+OnCalendar=*-*-* 04:15:00 Europe/Paris
+RandomizedDelaySec=15m
+Persistent=true
+Unit=synaura-media-backup.service
+
+[Install]
+WantedBy=timers.target

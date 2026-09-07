@@ -1,0 +1,23 @@
+[Unit]
+Description=Sauvegarde PostgreSQL Synaura
+After=postgresql@17-restore.service
+RequiresMountsFor=/mnt/Synaura-SSD
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=/etc/synaura/backup.env
+ExecStart=/usr/local/libexec/synaura/backup-postgres.sh
+UMask=0077
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/mnt/Synaura-SSD/apps/synaura/backups/postgres
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=synaura-db-backup

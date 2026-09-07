@@ -1,0 +1,11 @@
+[Unit]
+Description=Sauvegarde quotidienne PostgreSQL Synaura
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 Europe/Paris
+RandomizedDelaySec=10m
+Persistent=true
+Unit=synaura-db-backup.service
+
+[Install]
+WantedBy=timers.target

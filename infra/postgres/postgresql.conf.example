@@ -1,0 +1,10 @@
+# MODELE PARTIEL NON DEPLOYE. Modifier le fichier reel avec l'outil de la
+# distribution et valider avec la version PostgreSQL detectee.
+listen_addresses = 'localhost'
+port = 5433
+password_encryption = 'scram-sha-256'
+ssl = on
+log_connections = on
+log_disconnections = on
+log_min_duration_statement = 1000
+log_line_prefix = '%m [%p] %q%u@%d/%a '
