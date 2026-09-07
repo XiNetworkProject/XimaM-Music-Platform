@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { NextRequest } from 'next/server';
 import { queryDatabase, withDatabaseTransaction } from '@/lib/postgres';
 import { upsertMobilePrivateAccount } from '@/lib/mobileAuthSecurity';
+import { enforceRequestRateLimit } from '@/lib/security/requestSecurity';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,8 @@ function html(message: string, ok: boolean) {
 }
 
 export async function GET(request: NextRequest) {
+  const limited = enforceRequestRateLimit(request, 'auth-mobile-email-verify-ip', 20, 60 * 60_000);
+  if (limited) return limited;
   const token = request.nextUrl.searchParams.get('token') || '';
   const secret = process.env.NEXTAUTH_SECRET?.trim();
   if (!token || !secret) return html('Lien de verification invalide.', false);

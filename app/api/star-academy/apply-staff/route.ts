@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbAdmin } from '@/lib/database';
 import { sendEmail } from '@/lib/email';
+import { enforceRequestRateLimit, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
+import { cleanOptionalHttpUrl, cleanPublicText, escapeHtml } from '@/lib/security/publicForms';
 
 const ALLOWED_ROLES = ['coach_vocal', 'coach_scenique', 'direction_musicale', 'jury', 'production', 'autre'];
 
@@ -45,21 +47,27 @@ Notre equipe va examiner ton profil. Tu seras notifie(e) par email de la suite d
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const originError = rejectUntrustedMutationOrigin(req);
+    if (originError) return originError;
+    const ipLimit = enforceRequestRateLimit(req, 'star-academy-staff-ip', 5, 24 * 60 * 60_000);
+    if (ipLimit) return ipLimit;
+    const parsed = await readLimitedJson<any>(req, 64 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.value;
 
-    const fullName     = (body.fullName     as string | undefined)?.trim() ?? '';
+    const fullName     = cleanPublicText(body.fullName, 120);
     const age          = parseInt(body.age ?? '0', 10);
-    const email        = (body.email        as string | undefined)?.trim().toLowerCase() ?? '';
-    const phone        = (body.phone        as string | undefined)?.trim() || null;
-    const location     = (body.location     as string | undefined)?.trim() ?? '';
-    const role         = (body.role         as string | undefined)?.trim() ?? '';
-    const experience   = (body.experience   as string | undefined)?.trim() ?? '';
-    const speciality   = (body.speciality   as string | undefined)?.trim() || null;
-    const tiktokHandle = (body.tiktok       as string | undefined)?.trim() || null;
-    const portfolioUrl = (body.portfolioUrl as string | undefined)?.trim() || null;
-    const motivation   = (body.motivation   as string | undefined)?.trim() ?? '';
-    const availability = (body.availability as string | undefined)?.trim() ?? '';
-    const synauraUsername = (body.synauraUsername as string | undefined)?.trim() || null;
+    const email        = cleanPublicText(body.email, 254).toLowerCase();
+    const phone        = cleanPublicText(body.phone, 32) || null;
+    const location     = cleanPublicText(body.location, 160);
+    const role         = cleanPublicText(body.role, 80);
+    const experience   = cleanPublicText(body.experience, 5_000, true);
+    const speciality   = cleanPublicText(body.speciality, 160) || null;
+    const tiktokHandle = cleanPublicText(body.tiktok, 80) || null;
+    const portfolioUrl = cleanOptionalHttpUrl(body.portfolioUrl);
+    const motivation   = cleanPublicText(body.motivation, 5_000, true);
+    const availability = cleanPublicText(body.availability, 1_000, true);
+    const synauraUsername = cleanPublicText(body.synauraUsername, 30) || null;
 
     if (!fullName || !email || !location || !role || !experience || !motivation || !availability) {
       return NextResponse.json({ error: 'Champs requis manquants.' }, { status: 400 });
@@ -67,6 +75,11 @@ export async function POST(req: NextRequest) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: 'Email invalide.' }, { status: 400 });
     }
+    if (body.portfolioUrl && portfolioUrl === undefined) {
+      return NextResponse.json({ error: 'URL de portfolio invalide.' }, { status: 400 });
+    }
+    const emailLimit = enforceRequestRateLimit(req, 'star-academy-staff-email', 2, 24 * 60 * 60_000, email);
+    if (emailLimit) return emailLimit;
     if (isNaN(age) || age < 18 || age > 99) {
       return NextResponse.json({ error: 'Age invalide (18+ requis pour le staff).' }, { status: 400 });
     }
@@ -125,7 +138,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (insertError) {
-      console.error('[star-academy/apply-staff] Insert error:', insertError);
+      console.error('[star-academy/apply-staff] insertion impossible');
       return NextResponse.json({ error: 'Erreur lors de l\'enregistrement.' }, { status: 500 });
     }
 
@@ -135,15 +148,15 @@ export async function POST(req: NextRequest) {
       await sendEmail({
         to: email,
         subject: 'Candidature Staff — Star Academy TikTok recue !',
-        html: staffConfirmationTemplate({ name: fullName, role, trackingToken }),
+        html: staffConfirmationTemplate({ name: escapeHtml(fullName), role, trackingToken: escapeHtml(trackingToken) }),
       });
-    } catch (emailErr) {
-      console.warn('[star-academy/apply-staff] Email error:', emailErr);
+    } catch {
+      console.warn('[star-academy/apply-staff] email de confirmation non envoye');
     }
 
     return NextResponse.json({ ok: true, trackingToken, message: 'Candidature staff enregistree !' });
-  } catch (err) {
-    console.error('[star-academy/apply-staff] Unexpected error:', err);
+  } catch {
+    console.error('[star-academy/apply-staff] erreur inattendue');
     return NextResponse.json({ error: 'Erreur inattendue.' }, { status: 500 });
   }
 }

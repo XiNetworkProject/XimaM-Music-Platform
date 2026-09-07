@@ -3,6 +3,7 @@ import { getApiSession } from '@/lib/getApiSession';
 import { dbAdmin } from '@/lib/database';
 import { generateMusicVideo } from '@/lib/suno';
 import { buildSunoCallbackUrl } from '@/lib/sunoWebhook';
+import { enforceRequestRateLimit, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,14 +55,20 @@ async function updateAiTrackWithMusicVideo(trackId: string, videoUrl: string | n
 
 export async function POST(req: NextRequest) {
   try {
+    const originError = rejectUntrustedMutationOrigin(req);
+    if (originError) return originError;
     const session = await getApiSession(req);
     const user = session?.user as any;
     const userId = user?.id;
     if (!userId) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
+    const limited = enforceRequestRateLimit(req, 'suno-music-video-user', 3, 60 * 60_000, userId);
+    if (limited) return limited;
 
-    const body = await req.json().catch(() => ({}));
+    const parsed = await readLimitedJson<any>(req, 8 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.value;
     const trackId = String(body.trackId || '').trim();
     const taskId = String(body.taskId || '').trim();
     const audioId = String(body.audioId || body.sunoAudioId || '').trim();
@@ -137,13 +144,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         taskId: videoTaskId,
-        raw: result,
         credits: {
           debited: MUSIC_VIDEO_CREDIT_COST,
           balance: newBalanceRow?.balance ?? (currentBalance - MUSIC_VIDEO_CREDIT_COST),
         },
       });
-    } catch (error: any) {
+    } catch {
       try {
         await (dbAdmin as any).rpc('ai_add_credits', {
           p_user_id: userId,
@@ -152,9 +158,9 @@ export async function POST(req: NextRequest) {
           p_description: 'Remboursement échec clip vidéo Suno',
         });
       } catch {}
-      return NextResponse.json({ error: error?.message || 'Erreur Suno MP4' }, { status: 502 });
+      return NextResponse.json({ error: 'Service video temporairement indisponible' }, { status: 502 });
     }
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Erreur serveur' }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'Generation video impossible' }, { status: 500 });
   }
 }

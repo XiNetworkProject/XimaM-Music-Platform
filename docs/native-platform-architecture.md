@@ -20,7 +20,7 @@ This document covers the Next.js application at the repository root and the Expo
 5. Logout unregisters the native push token, revokes the Supabase session, and clears local credentials.
 6. API routes accept Bearer headers. Tokens in URL query parameters are rejected.
 
-Diagnostic API routes are disabled in production unless `ENABLE_DIAGNOSTIC_ROUTES=true` is explicitly configured.
+Diagnostic API routes are always disabled in production. They cannot be re-enabled with an environment variable.
 
 ## Data and media cache
 

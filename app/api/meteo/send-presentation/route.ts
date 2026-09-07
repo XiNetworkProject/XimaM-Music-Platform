@@ -1,14 +1,14 @@
-import { NextResponse } from 'next/server';
 import { getTransport } from '@/lib/email';
+import { getAdminGuard } from '@/lib/admin';
+import { dbAdmin } from '@/lib/database';
+import { handleMeteoPresentationRequest } from '@/lib/security/criticalRouteHandlers';
+import { consumeRateLimit } from '@/lib/security/rateLimit';
 import path from 'path';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json().catch(() => ({}));
-    const to = body?.to || 'vermeulenmaxime50@gmail.com';
+async function sendPresentationEmail(recipients: string[]) {
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://synaura.fr';
     const synauraLogo = process.env.EMAIL_LOGO_URL || 'cid:synaura-logo';
 
@@ -132,15 +132,41 @@ export async function POST(request: Request) {
     await transporter.sendMail({
       from,
       replyTo,
-      to,
+      to: recipients,
       subject: 'Alertemps V3.5 — Nouveau Dashboard & Nouvelles Fonctionnalites',
       html,
       attachments,
     });
+}
 
-    return NextResponse.json({ success: true, message: 'Email envoye' });
-  } catch (e: any) {
-    console.error('Erreur envoi email presentation:', e);
-    return NextResponse.json({ error: e.message || 'Erreur envoi' }, { status: 500 });
-  }
+async function getPresentationActor() {
+  const guard = await getAdminGuard();
+  if (!guard.userId) return null;
+  if (guard.ok) return { id: guard.userId, email: guard.email, authorized: true };
+
+  const { data, error } = await dbAdmin
+    .from('meteo_team_members')
+    .select('role')
+    .eq('user_id', guard.userId)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (error) throw new Error('Meteo authorization lookup failed');
+  return {
+    id: guard.userId,
+    email: guard.email,
+    authorized: data?.role === 'admin',
+  };
+}
+
+export async function POST(request: Request) {
+  return handleMeteoPresentationRequest(request, {
+    getActor: getPresentationActor,
+    configuredRecipients: process.env.METEO_PRESENTATION_RECIPIENTS,
+    consumeRateLimit,
+    sendPresentation: sendPresentationEmail,
+    reportFailure: (event) => {
+      console.error('[meteo/send-presentation] request failed', { event });
+    },
+  });
 }

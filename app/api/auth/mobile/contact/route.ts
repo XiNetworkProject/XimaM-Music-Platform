@@ -11,6 +11,7 @@ import {
   verifyPhoneOtpChallenge,
 } from '@/lib/mobileAuthSecurity';
 import { queryDatabase, withDatabaseTransaction } from '@/lib/postgres';
+import { enforceRequestRateLimit, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,8 +28,14 @@ function signingSecret() {
 
 export async function POST(request: NextRequest) {
   try {
+    const originError = rejectUntrustedMutationOrigin(request);
+    if (originError) return originError;
+    const ipLimit = enforceRequestRateLimit(request, 'auth-mobile-contact-ip', 20, 30 * 60_000);
+    if (ipLimit) return ipLimit;
     const accessToken = bearerToken(request);
-    const body = await request.json().catch(() => null);
+    const parsed = await readLimitedJson<any>(request, 32 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.value;
     const refreshToken = typeof body?.refreshToken === 'string' ? body.refreshToken.trim() : '';
     const action = typeof body?.action === 'string' ? body.action : '';
     if (!accessToken || !refreshToken) {
@@ -42,6 +49,14 @@ export async function POST(request: NextRequest) {
     if (!verified.authorized) {
       return NextResponse.json({ error: 'Verification 2FA requise', code: 'MFA_REQUIRED' }, { status: 403 });
     }
+    const actionLimit = enforceRequestRateLimit(
+      request,
+      action.endsWith('-start') ? 'auth-mobile-contact-send-user' : 'auth-mobile-contact-verify-user',
+      action.endsWith('-start') ? 4 : 8,
+      30 * 60_000,
+      verified.userId,
+    );
+    if (actionLimit) return actionLimit;
 
     if (action === 'phone-start') {
       const phone = normalizePhoneNumber(body?.phone);
@@ -129,7 +144,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
     if (code === 'PHONE_EXISTS') return NextResponse.json({ error: 'Ce telephone est deja utilise' }, { status: 409 });
-    console.error('[mobile contact]', error);
+    console.error('[mobile contact] mise a jour impossible');
     return NextResponse.json({ error: 'Mise a jour du contact impossible' }, { status: 500 });
   }
 }

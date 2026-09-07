@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
+import { enforceRequestRateLimit, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 import { dbAdmin } from '@/lib/database';
 import { getRecordInfo } from '@/lib/suno';
 import { normalizeSunoItem } from '@/lib/suno-normalize';
@@ -51,10 +52,14 @@ const parseSourceLinks = (value?: string | null) => {
 
 export async function POST(req: NextRequest) {
   try {
+    const originError = rejectUntrustedMutationOrigin(req);
+    if (originError) return originError;
     const session = await getApiSession(req);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
+    const limited = enforceRequestRateLimit(req, 'suno-repair-tracks-user', 2, 60 * 60_000, session.user.id);
+    if (limited) return limited;
 
     const body = await req.json().catch(() => ({}));
     const limit = Math.max(1, Math.min(200, Number(body?.limit || 50)));

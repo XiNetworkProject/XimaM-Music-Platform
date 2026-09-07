@@ -1,63 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-
-const SUNO_API_KEY = process.env.SUNO_API_KEY;
+import { getApiSession } from '@/lib/getApiSession';
+import { dbAdmin } from '@/lib/database';
+import { enforceRequestRateLimit, isSafeOpaqueIdentifier } from '@/lib/security/requestSecurity';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { taskId: string } }
+  { params }: { params: { taskId: string } },
 ) {
-  try {
-    console.log('🔍 Début vérification statut...');
-    
-    const session = await getServerSession(authOptions);
-    console.log('👤 Session:', session ? 'OK' : 'Non authentifié');
-    
-    if (!session?.user?.id) {
-      console.log('❌ Non authentifié');
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    }
+  const session = await getApiSession(request);
+  if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+  const taskId = params.taskId?.trim() || '';
+  if (!isSafeOpaqueIdentifier(taskId)) return NextResponse.json({ error: 'Task ID invalide' }, { status: 400 });
+  const limited = enforceRequestRateLimit(request, 'ai-legacy-status-user', 20, 60_000, session.user.id);
+  if (limited) return limited;
 
-    const { taskId } = params;
-    console.log('🆔 Task ID:', taskId);
-    
-    if (!taskId) {
-      console.log('❌ Task ID manquant');
-      return NextResponse.json({ error: 'Task ID manquant' }, { status: 400 });
-    }
+  const { data: generation, error } = await dbAdmin
+    .from('ai_generations')
+    .select('id, status')
+    .eq('task_id', taskId)
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+  if (error) return NextResponse.json({ error: 'Verification impossible' }, { status: 500 });
+  if (!generation) return NextResponse.json({ error: 'Generation introuvable' }, { status: 404 });
 
-    if (!SUNO_API_KEY) {
-      console.log('❌ Clé API Suno manquante');
-      return NextResponse.json({ error: 'Clé API Suno manquante' }, { status: 500 });
-    }
-
-    console.log('🔑 Clé API Suno:', SUNO_API_KEY.substring(0, 8) + '...');
-
-    // Suno API ne supporte pas le polling, utiliser les webhooks
-    console.log('🌐 Suno API utilise les webhooks, pas le polling');
-    
-    // Retourner un statut en attente
-    const result = {
-      taskId,
-      status: 'pending',
-      audioUrls: [],
-      error: null,
-      callbackType: 'pending',
-      message: 'Génération en cours via webhook',
-      timestamp: new Date().toISOString()
-    };
-
-    console.log('✅ Résultat (webhook):', result);
-    return NextResponse.json(result);
-
-  } catch (error) {
-    console.error('❌ Erreur vérification statut:', error);
-    return NextResponse.json({ 
-      error: 'Erreur lors de la vérification du statut',
-      details: error instanceof Error ? error.message : 'Erreur inconnue'
-    }, { status: 500 });
-  }
+  return NextResponse.json({
+    taskId,
+    status: generation.status || 'pending',
+    audioUrls: [],
+    callbackType: 'pending',
+    message: 'Generation suivie via webhook',
+  });
 }
 
 export const dynamic = 'force-dynamic';

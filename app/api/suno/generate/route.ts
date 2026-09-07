@@ -8,6 +8,7 @@ import { validateSunoGenerationInput, validateSunoTuningInput } from '@/lib/suno
 import { assertCanCreateAiVariation } from '@/lib/remixServer';
 import { sanitizeRemixPrompt, sanitizeRemixPromptVisibility, sanitizeRemixType } from '@/lib/remixOptions';
 import { buildSunoCallbackUrl } from '@/lib/sunoWebhook';
+import { enforceRequestRateLimit, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 const BASE = "https://api.sunoapi.org";
 
@@ -46,23 +47,16 @@ type Body = {
 };
 
 export async function POST(req: NextRequest) {
-  console.log("🚀 API /api/suno/generate appelée !");
-  console.log("🔍 Headers:", Object.fromEntries(req.headers.entries()));
-  console.log("🔍 URL:", req.url);
-  
-  const apiKey = process.env.SUNO_API_KEY;
-  if (!apiKey) {
-    console.error("❌ SUNO_API_KEY manquant dans les variables d'environnement");
-    return NextResponse.json({ error: "SUNO_API_KEY manquant" }, { status: 500 });
-  }
-
-  // Vérification de l'authentification (cookie web ou Bearer JWT mobile)
+  const originError = rejectUntrustedMutationOrigin(req);
+  if (originError) return originError;
   const session = await getApiSession(req);
-  console.log("🔍 Session:", { hasSession: !!session, userId: session?.user?.id });
   if (!session?.user?.id) {
-    console.log("❌ Non authentifié");
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
+  const limited = enforceRequestRateLimit(req, 'suno-generate-user', 5, 10 * 60_000, session.user.id);
+  if (limited) return limited;
+  const apiKey = process.env.SUNO_API_KEY;
+  if (!apiKey) return NextResponse.json({ error: 'Service IA indisponible' }, { status: 503 });
 
   try {
     const mapProviderStatus = (providerCode: number | undefined, fallback: number) => {
@@ -70,7 +64,9 @@ export async function POST(req: NextRequest) {
       return fallback;
     };
 
-    const body = (await req.json()) as Body;
+    const parsed = await readLimitedJson<Body>(req, 64 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.value;
     const remixSource = body.remixSource?.sourceTrackId
       ? await assertCanCreateAiVariation({
           sourceTrackId: body.remixSource.sourceTrackId,
@@ -82,33 +78,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: remixSource.error }, { status: remixSource.status });
     }
     const challengeId = typeof body.challengeId === 'string' && body.challengeId.trim() ? body.challengeId.trim() : null;
-    console.log("🎵 Requête génération Suno:", { 
-      title: body.title, 
-      style: body.style, 
-      instrumental: body.instrumental,
-      modelDemande: body.model 
-    });
-
     // Vérification du plan pour les modèles autorisés
     const { data: profile } = await dbAdmin.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
     const plan = (profile?.plan || 'free') as any;
     const entitlements = getEntitlements(plan);
     
-    console.log("🔍 Plan utilisateur:", { plan, profile, entitlements: entitlements.features });
-
     // Vérifier que le modèle demandé est autorisé par le plan, sinon fallback contrôlé
     const allowedModels = entitlements.ai.availableModels || ["V4_5"];
     const requestedModel = body.model || "V4_5";
     const effectiveModel = allowedModels.includes(requestedModel) ? requestedModel : (allowedModels.includes("V4_5") ? "V4_5" : allowedModels[0]);
     const modelAdjusted = requestedModel !== effectiveModel;
     
-    console.log("🔍 DEBUG MODÈLE:", {
-      requestedModel,
-      allowedModels,
-      effectiveModel,
-      userPlan: plan
-    });
-
     // Vérifier le solde de crédits et débiter avant l'appel Suno
     const { data: balanceRow } = await dbAdmin
       .from('ai_credit_balances')
@@ -210,23 +190,26 @@ export async function POST(req: NextRequest) {
       // En mode Simple, title/style doivent rester vides selon la doc
     }
 
-    console.log("🚀 Appel API Suno avec payload:", payload);
-
-    const response = await fetch(`${BASE}/api/v1/generate`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+    let response: Response;
+    try {
+      response = await fetch(`${BASE}/api/v1/generate`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const json = await response.json().catch(() => ({}));
-    
-    console.log("📡 Réponse Suno:", { status: response.status, json });
-    
+
     if (!response.ok || json?.code !== 200) {
-      console.error("❌ Erreur API Suno:", json);
       try {
         await (dbAdmin as any).rpc('ai_add_credits', {
           p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION,
@@ -236,7 +219,7 @@ export async function POST(req: NextRequest) {
       const providerCode = Number(json?.code);
       const mappedStatus = mapProviderStatus(Number.isFinite(providerCode) ? providerCode : undefined, response.status);
       return NextResponse.json(
-        { error: json?.msg || "Erreur Suno", raw: json }, 
+        { error: 'Service IA temporairement indisponible' },
         { status: mappedStatus }
       );
     }
@@ -251,7 +234,7 @@ export async function POST(req: NextRequest) {
         });
       } catch {}
       return NextResponse.json(
-        { error: "Réponse Suno invalide: taskId manquant", raw: json },
+        { error: 'Reponse du service IA invalide' },
         { status: 502 }
       );
     }
@@ -292,22 +275,12 @@ export async function POST(req: NextRequest) {
         };
       }
 
-      console.log("💾 INSERTION GÉNÉRATION:", {
-        model: generationData.model,
-        taskId: generationData.task_id,
-        effectiveModel
-      });
-      
       const { error: insertError } = await dbAdmin.from('ai_generations').insert(generationData);
       if (insertError) {
-        console.error("❌ Erreur insertion génération:", insertError);
-        console.error("❌ Données qui ont échoué:", generationData);
-      } else {
-        console.log("✅ Génération insérée avec succès:", taskId, "model:", generationData.model);
+        console.error('[suno/generate] insertion generation impossible');
       }
     }
 
-    console.log("✅ Génération Suno réussie:", json);
     // Retourner un schéma compatible frontend: taskId à la racine
     const rootTaskId = json?.data?.taskId || json?.taskId || taskId;
     const { data: newBalanceRow } = await dbAdmin
@@ -317,9 +290,8 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     return NextResponse.json({
       taskId: rootTaskId,
-      code: json?.code,
-      msg: json?.msg,
-      data: json?.data,
+      code: 200,
+      data: { taskId: rootTaskId },
       prompt: finalPrompt,
       model: payload.model,
       modelAdjusted,
@@ -334,8 +306,8 @@ export async function POST(req: NextRequest) {
         balance: newBalanceRow?.balance ?? (currentBalance - CREDITS_PER_GENERATION)
       }
     });
-  } catch (error) {
-    console.error("❌ Erreur génération personnalisée:", error);
+  } catch {
+    console.error('[suno/generate] generation impossible');
     return NextResponse.json(
       { error: "Erreur interne du serveur" }, 
       { status: 500 }

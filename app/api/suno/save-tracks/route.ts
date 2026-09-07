@@ -3,67 +3,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { getApiSession } from '@/lib/getApiSession';
 import { aiGenerationService } from '@/lib/aiGenerationService';
 import { dbAdmin } from '@/lib/database';
+import { enforceRequestRateLimit, isSafeOpaqueIdentifier, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 export async function POST(req: NextRequest) {
   try {
+    const originError = rejectUntrustedMutationOrigin(req);
+    if (originError) return originError;
     // Vérification de l'authentification
     const session = await getApiSession(req);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }
+    const limited = enforceRequestRateLimit(req, 'suno-save-tracks-user', 20, 60_000, session.user.id);
+    if (limited) return limited;
 
-    const { taskId, tracks, status } = await req.json();
+    const parsed = await readLimitedJson<any>(req, 256 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const { taskId, tracks, status } = parsed.value;
     const normalizedStatus: 'partial' | 'completed' = status === 'completed' ? 'completed' : 'partial';
 
-    console.log("💾 Sauvegarde tracks:", {
-      taskId,
-      tracksCount: tracks?.length,
-      status: normalizedStatus,
-      userId: session.user.id
-    });
-
-    if (!taskId || !tracks || tracks.length === 0) {
+    if (!isSafeOpaqueIdentifier(taskId) || !Array.isArray(tracks) || tracks.length === 0 || tracks.length > 8) {
       return NextResponse.json({ error: "Données manquantes" }, { status: 400 });
     }
 
-    // Vérifier si la génération existe, sinon la créer
-    let generationId: string;
-    
-    try {
-      // D'abord essayer de trouver la génération existante
-      const { data: existingGeneration } = await dbAdmin
-        .from('ai_generations')
-        .select('id')
-        .eq('task_id', taskId)
-        .single();
-
-      if (existingGeneration) {
-        generationId = existingGeneration.id;
-        console.log("✅ Génération existante trouvée:", generationId);
-      } else {
-        throw new Error("Génération non trouvée");
-      }
-    } catch (error: any) {
-      // Si la génération n'existe pas, la créer
-      console.log("⚠️ Génération non trouvée, création avec userId:", session.user.id);
-      console.log("📊 Erreur originale:", error.message);
-      
-      // Fallback sur V4_5 si le modèle n'est pas disponible
-      // Note: Le modelName de Suno (chirp-auk) est un identifiant interne, pas utilisable
-      const inferredModel = 'V4_5';
-      
-      const generation = await aiGenerationService.createGeneration(
-        session.user.id,
-        taskId,
-        'Musique générée',
-        'Custom',
-        '',
-        inferredModel,
-        { duration: 120 }
-      );
-      generationId = generation.id;
-      console.log("✅ Génération créée:", generationId);
-    }
+    const { data: existingGeneration, error: generationError } = await dbAdmin
+      .from('ai_generations')
+      .select('id')
+      .eq('task_id', taskId)
+      .eq('user_id', session.user.id)
+      .maybeSingle();
+    if (generationError) return NextResponse.json({ error: 'Verification impossible' }, { status: 500 });
+    if (!existingGeneration) return NextResponse.json({ error: 'Generation introuvable' }, { status: 404 });
+    const generationId = existingGeneration.id;
 
     // Les previews stream sont acceptees ici pour debloquer la lecture rapide;
     // le callback complete remplace ensuite avec l'audio final quand disponible.
@@ -79,7 +50,6 @@ export async function POST(req: NextRequest) {
         : (tracks || []).filter(hasPlayableAudio);
 
     if (!tracksToPersist || tracksToPersist.length === 0) {
-      console.log("ℹ️ Aucune track persistable pour ce statut:", normalizedStatus);
       return NextResponse.json({
         success: true,
         taskId,
@@ -91,12 +61,10 @@ export async function POST(req: NextRequest) {
 
     // Sauvegarder les tracks (insert + enrichissement des lignes existantes)
     await aiGenerationService.saveTracks(generationId, tracksToPersist);
-    console.log("✅ Tracks sauvegardées avec succès");
 
     // Mettre à jour le statut uniquement à la fin complète.
     if (normalizedStatus === 'completed') {
       await aiGenerationService.updateGenerationStatus(taskId, 'completed');
-      console.log("✅ Statut de génération mis à jour vers 'completed'");
     }
 
     return NextResponse.json({ 
@@ -107,11 +75,9 @@ export async function POST(req: NextRequest) {
       message: 'Musique sauvegardée dans votre bibliothèque IA'
     });
 
-  } catch (error: any) {
-    console.error('❌ Erreur sauvegarde tracks:', error);
-    return NextResponse.json({ 
-      error: error.message || "Erreur serveur" 
-    }, { status: 500 });
+  } catch {
+    console.error('[suno/save-tracks] sauvegarde impossible');
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
 

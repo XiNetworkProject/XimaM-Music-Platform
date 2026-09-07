@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { diagnosticsEnabled } from '@/lib/diagnostics';
 
 export async function POST(request: NextRequest) {
+  if (!diagnosticsEnabled()) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   try {
-    const data = await request.json();
-    console.log('🎵 Callback Suno API reçu:', data);
+    await request.json();
     
     // Traiter le callback de Suno API
     // Ici on peut stocker le résultat ou notifier l'utilisateur
     
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('❌ Erreur callback Suno API:', error);
+  } catch {
+    console.error('[ai/callback] payload invalide');
     return NextResponse.json({ error: 'Erreur callback' }, { status: 500 });
   }
 }

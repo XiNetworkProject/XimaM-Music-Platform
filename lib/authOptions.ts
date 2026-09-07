@@ -9,6 +9,7 @@ import {
   matchOrCreateGoogleAccount,
   type LocalProfile,
 } from '@/lib/localAuth';
+import { consumeRequestRateLimit, normalizeEmailForSecurity } from '@/lib/security/requestSecurity';
 
 function sessionUser(profile: LocalProfile) {
   return {
@@ -46,13 +47,17 @@ export const authOptions: NextAuthOptions = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Mot de passe', type: 'password' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
+        const email = normalizeEmailForSecurity(credentials.email);
+        const byIp = consumeRequestRateLimit(request, 'auth-login-ip', 20, 10 * 60_000);
+        const byAccount = consumeRequestRateLimit(request, 'auth-login-account', 8, 10 * 60_000, email);
+        if (!byIp.allowed || !byAccount.allowed) return null;
         try {
-          const profile = await authenticateLocalPassword(credentials.email, credentials.password);
+          const profile = await authenticateLocalPassword(email, credentials.password);
           return profile ? sessionUser(profile) : null;
-        } catch (error) {
-          console.error('[auth] echec de connexion PostgreSQL:', error);
+        } catch {
+          console.error('[auth] echec de connexion PostgreSQL');
           return null;
         }
       },
@@ -74,8 +79,8 @@ export const authOptions: NextAuthOptions = {
         user.id = profile.id;
         Object.assign(user, sessionUser(profile));
         return true;
-      } catch (error) {
-        console.error('[auth] association du compte Google impossible:', error);
+      } catch {
+        console.error('[auth] association du compte Google impossible');
         return false;
       }
     },

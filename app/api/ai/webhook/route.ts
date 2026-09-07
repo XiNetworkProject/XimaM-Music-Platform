@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
+import { verifySunoCallback } from '@/lib/sunoWebhook';
 
 export async function POST(request: NextRequest) {
   try {
+    if (!verifySunoCallback(request)) {
+      return NextResponse.json({ error: 'Signature callback invalide' }, { status: 401 });
+    }
     const body = await request.json();
-    console.log('🎵 Webhook Suno reçu:', JSON.stringify(body, null, 2));
 
     const { code, msg, data } = body;
 
     // Vérifier la structure du callback selon la documentation
     if (!data || !data.task_id) {
-      console.error('❌ Webhook invalide: task_id manquant');
       return NextResponse.json({ error: 'Webhook invalide' }, { status: 400 });
     }
 
@@ -18,17 +20,9 @@ export async function POST(request: NextRequest) {
     const callbackType = data.callbackType;
     const musicData = data.data || [];
 
-    console.log(`📊 Callback Suno pour ${taskId}:`, {
-      code,
-      callbackType,
-      musicCount: musicData.length
-    });
-
     // Traiter selon le type de callback
     if (code === 200 && callbackType === 'complete') {
       // Génération terminée avec succès
-      console.log(`✅ Génération Suno terminée pour ${taskId}`);
-      
       // Mettre à jour la base de données avec les URLs audio
       if (musicData.length > 0) {
         const audioUrls = musicData.map((item: any) => item.audio_url);
@@ -46,18 +40,14 @@ export async function POST(request: NextRequest) {
             .eq('task_id', taskId);
 
           if (error) {
-            console.error('❌ Erreur mise à jour DB:', error);
-          } else {
-            console.log(`✅ Base de données mise à jour pour ${taskId}`);
+            console.error('[ai/webhook] mise a jour impossible');
           }
-        } catch (error) {
-          console.error('❌ Erreur mise à jour DB:', error);
+        } catch {
+          console.error('[ai/webhook] mise a jour impossible');
         }
       }
     } else if (code !== 200) {
       // Génération échouée
-      console.error(`❌ Génération Suno échouée pour ${taskId}:`, msg);
-      
       try {
         const { error } = await db
           .from('ai_generations')
@@ -68,10 +58,10 @@ export async function POST(request: NextRequest) {
           .eq('task_id', taskId);
 
         if (error) {
-          console.error('❌ Erreur mise à jour DB:', error);
+          console.error('[ai/webhook] mise a jour impossible');
         }
-      } catch (error) {
-        console.error('❌ Erreur mise à jour DB:', error);
+      } catch {
+        console.error('[ai/webhook] mise a jour impossible');
       }
     }
 
@@ -82,12 +72,9 @@ export async function POST(request: NextRequest) {
       callbackType 
     });
 
-  } catch (error) {
-    console.error('❌ Erreur webhook:', error);
-    return NextResponse.json({ 
-      error: 'Erreur traitement webhook',
-      details: error instanceof Error ? error.message : 'Erreur inconnue'
-    }, { status: 500 });
+  } catch {
+    console.error('[ai/webhook] traitement impossible');
+    return NextResponse.json({ error: 'Erreur traitement webhook' }, { status: 500 });
   }
 }
 

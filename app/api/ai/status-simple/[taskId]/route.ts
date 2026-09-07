@@ -1,76 +1,54 @@
-import { NextRequest, NextResponse } from 'next/server';
-
-const SUNO_API_KEY = process.env.SUNO_API_KEY;
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { taskId: string } }
-) {
-  try {
-    console.log('🔍 Début vérification statut simple...');
-    
-    const { taskId } = params;
-    console.log('🆔 Task ID:', taskId);
-    
-    if (!taskId) {
-      console.log('❌ Task ID manquant');
-      return NextResponse.json({ error: 'Task ID manquant' }, { status: 400 });
-    }
-
-    if (!SUNO_API_KEY) {
-      console.log('❌ Clé API Suno manquante');
-      return NextResponse.json({ error: 'Clé API Suno manquante' }, { status: 500 });
-    }
-
-    console.log('🔑 Clé API Suno:', SUNO_API_KEY.substring(0, 8) + '...');
-
-    // Vérifier le statut auprès de Suno API
-    console.log('🌐 Appel Suno API...');
-    const response = await fetch(`https://api.sunoapi.org/api/v1/generate/${taskId}`, {
-      headers: {
-        'Authorization': `Bearer ${SUNO_API_KEY}`,
-      },
-    });
-
-    console.log('📡 Réponse Suno:', response.status, response.statusText);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Erreur Suno API:', errorText);
-      return NextResponse.json({ 
-        error: 'Erreur lors de la vérification du statut',
-        sunoError: errorText
-      }, { status: 500 });
-    }
-
-    const data = await response.json();
-    console.log(`📊 Status check pour ${taskId}:`, JSON.stringify(data, null, 2));
-
-    // Extraire les informations de statut selon la documentation officielle
-    const status = data.data?.status || data.status || 'pending';
-    const audioUrls = data.data?.data?.map((item: any) => item.audio_url) || [];
-    const error = data.data?.error || data.error;
-    const callbackType = data.data?.callbackType || 'pending';
-
-    const result = {
-      taskId,
-      status,
-      audioUrls,
-      error,
-      callbackType,
-      timestamp: new Date().toISOString()
-    };
-
-    console.log('✅ Résultat:', result);
-    return NextResponse.json(result);
-
-  } catch (error) {
-    console.error('❌ Erreur vérification statut:', error);
-    return NextResponse.json({ 
-      error: 'Erreur lors de la vérification du statut',
-      details: error instanceof Error ? error.message : 'Erreur inconnue'
-    }, { status: 500 });
-  }
-}
+import { NextRequest } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
+import { dbAdmin } from '@/lib/database';
+import { handleSunoStatusRequest } from '@/lib/security/criticalRouteHandlers';
+import { consumeRateLimit } from '@/lib/security/rateLimit';
 
 export const dynamic = 'force-dynamic';
+
+async function getAuthenticatedUserId() {
+  const session = await getServerSession(authOptions);
+  return session?.user?.id || null;
+}
+
+async function ownsSunoTask(userId: string, taskId: string) {
+  const { data, error } = await dbAdmin
+    .from('ai_generations')
+    .select('id')
+    .eq('task_id', taskId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) throw new Error('Suno task ownership lookup failed');
+  return Boolean(data?.id);
+}
+
+async function fetchSunoStatus(taskId: string) {
+  const apiKey = process.env.SUNO_API_KEY;
+  if (!apiKey) throw new Error('Suno status unavailable');
+
+  const response = await fetch(`https://api.sunoapi.org/api/v1/generate/${encodeURIComponent(taskId)}`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    cache: 'no-store',
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  if (!response.ok) throw new Error('Suno upstream request failed');
+  return response.json();
+}
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: { taskId: string } },
+) {
+  return handleSunoStatusRequest(params.taskId, {
+    getUserId: getAuthenticatedUserId,
+    ownsTask: ownsSunoTask,
+    consumeRateLimit,
+    fetchStatus: fetchSunoStatus,
+    reportFailure: (event) => {
+      console.error('[ai/status-simple] request failed', { event });
+    },
+  });
+}

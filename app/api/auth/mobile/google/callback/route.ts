@@ -3,15 +3,17 @@ import { authOptions } from '@/lib/authOptions';
 import { getLocalProfileById } from '@/lib/localAuth';
 import { createMobileSession } from '@/lib/mobileAuth';
 import { MOBILE_AUTH_CALLBACK_URL } from '@/lib/accountIdentity';
+import { enforceRequestRateLimit } from '@/lib/security/requestSecurity';
 
 export const dynamic = 'force-dynamic';
 
 function mobileRedirect(parameters: Record<string, string>) {
   const query = new URLSearchParams(parameters).toString();
+  const separator = parameters.access_token || parameters.refresh_token ? '#' : '?';
   return new Response(null, {
     status: 302,
     headers: {
-      Location: `${MOBILE_AUTH_CALLBACK_URL}?${query}`,
+      Location: `${MOBILE_AUTH_CALLBACK_URL}${separator}${query}`,
       'Cache-Control': 'private, no-store',
     },
   });
@@ -19,6 +21,8 @@ function mobileRedirect(parameters: Record<string, string>) {
 
 export async function GET(request: Request) {
   try {
+    const limited = enforceRequestRateLimit(request, 'auth-mobile-google-callback-ip', 20, 10 * 60_000);
+    if (limited) return limited;
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
     if (!userId) return mobileRedirect({ error: 'google_session_missing' });
@@ -32,8 +36,8 @@ export async function GET(request: Request) {
       access_token: data.token,
       refresh_token: data.refreshToken || '',
     });
-  } catch (error) {
-    console.error('[mobile google callback]', error);
+  } catch {
+    console.error('[mobile google callback] finalisation impossible');
     return mobileRedirect({ error: 'google_callback_failed' });
   }
 }

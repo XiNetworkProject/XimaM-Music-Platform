@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { buildSunoCallbackUrl } from '@/lib/sunoWebhook';
+import { enforceRequestRateLimit, isSafeOpaqueIdentifier, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -87,21 +88,24 @@ async function getLyricsTask(taskId: string, apiKey: string): Promise<{ variants
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.SUNO_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: 'SUNO_API_KEY manquant' }, { status: 500 });
-  }
-
+  const originError = rejectUntrustedMutationOrigin(req);
+  if (originError) return originError;
   const session = await getApiSession(req);
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
   }
+  const limited = enforceRequestRateLimit(req, 'suno-lyrics-create-user', 5, 15 * 60_000, session.user.id);
+  if (limited) return limited;
+  const apiKey = process.env.SUNO_API_KEY;
+  if (!apiKey) return NextResponse.json({ error: 'Service IA indisponible' }, { status: 503 });
 
   try {
-    const body = (await req.json().catch(() => ({}))) as {
+    const parsed = await readLimitedJson<{
       prompt?: string;
       callBackUrl?: string;
-    };
+    }>(req, 8 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.value;
 
     const promptRaw = typeof body.prompt === 'string' ? body.prompt.trim() : '';
     if (!promptRaw) {
@@ -126,14 +130,14 @@ export async function POST(req: NextRequest) {
       const providerCode = Number(createJson?.code);
       const status = Number.isFinite(providerCode) && providerCode >= 400 && providerCode <= 599 ? providerCode : createRes.status;
       return NextResponse.json(
-        { error: createJson?.msg || 'Erreur Suno lyrics', raw: createJson },
+        { error: 'Service de paroles temporairement indisponible' },
         { status: Number.isFinite(status) ? status : 502 },
       );
     }
 
     const taskId = createJson?.data?.taskId || createJson?.taskId;
     if (!taskId) {
-      return NextResponse.json({ error: 'taskId manquant dans la reponse Suno', raw: createJson }, { status: 502 });
+      return NextResponse.json({ error: 'Reponse du service de paroles invalide' }, { status: 502 });
     }
 
     // Polling court pour retourner des lyrics directement au frontend.
@@ -159,24 +163,24 @@ export async function POST(req: NextRequest) {
       variants,
       best: variants[0]?.text || null,
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Erreur interne' }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'Service de paroles temporairement indisponible' }, { status: 502 });
   }
 }
 
 export async function GET(req: NextRequest) {
-  const apiKey = process.env.SUNO_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: 'SUNO_API_KEY manquant' }, { status: 500 });
-  }
   const session = await getApiSession(req);
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
   }
+  const limited = enforceRequestRateLimit(req, 'suno-lyrics-status-user', 30, 10 * 60_000, session.user.id);
+  if (limited) return limited;
+  const apiKey = process.env.SUNO_API_KEY;
+  if (!apiKey) return NextResponse.json({ error: 'Service IA indisponible' }, { status: 503 });
 
   const taskId = req.nextUrl.searchParams.get('taskId')?.trim();
-  if (!taskId) {
-    return NextResponse.json({ error: 'taskId requis' }, { status: 400 });
+  if (!isSafeOpaqueIdentifier(taskId)) {
+    return NextResponse.json({ error: 'taskId invalide' }, { status: 400 });
   }
 
   try {
@@ -188,7 +192,7 @@ export async function GET(req: NextRequest) {
       variants,
       best: variants[0]?.text || null,
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Erreur details lyrics' }, { status: 502 });
+  } catch {
+    return NextResponse.json({ error: 'Service de paroles temporairement indisponible' }, { status: 502 });
   }
 }

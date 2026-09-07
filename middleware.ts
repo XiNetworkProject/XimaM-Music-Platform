@@ -6,6 +6,18 @@ import {
   isShutdownAllowedPath,
   SYNAURA_SHUTDOWN_NOTICES_ENABLED,
 } from '@/lib/synauraShutdown';
+import { shouldBlockDiagnosticPage } from '@/lib/diagnostics';
+
+function securePageResponse(response: NextResponse, pathname: string) {
+  if (pathname === '/embed' || pathname.startsWith('/embed/')) {
+    response.headers.set('Content-Security-Policy', 'frame-ancestors *');
+    response.headers.delete('X-Frame-Options');
+  } else {
+    response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+    response.headers.set('Content-Security-Policy', "frame-ancestors 'self'");
+  }
+  return response;
+}
 
 // Pages publiques (accessibles sans authentification)
 const publicPages = [
@@ -41,18 +53,21 @@ const protectedPages = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (shouldBlockDiagnosticPage(pathname)) {
+    return securePageResponse(new NextResponse('Not Found', { status: 404 }), pathname);
+  }
   if (
     !SYNAURA_SHUTDOWN_NOTICES_ENABLED &&
     (pathname === '/fermeture' || pathname === '/arret')
   ) {
-    return NextResponse.redirect(new URL('/', request.url));
+    return securePageResponse(NextResponse.redirect(new URL('/', request.url)), pathname);
   }
 
   // Après la date de fin : seules les pages d'information restent accessibles
   if (isPastShutdownEnd() && !isShutdownAllowedPath(pathname)) {
     const arretUrl = new URL('/arret', request.url);
     if (pathname !== arretUrl.pathname) {
-      return NextResponse.redirect(arretUrl);
+      return securePageResponse(NextResponse.redirect(arretUrl), pathname);
     }
   }
   
@@ -68,7 +83,7 @@ export async function middleware(request: NextRequest) {
   
   // Si c'est une page publique, laisser passer
   if (isPublicPage) {
-    return NextResponse.next();
+    return securePageResponse(NextResponse.next(), pathname);
   }
   
   // Si c'est une page protégée, vérifier l'authentification
@@ -85,7 +100,7 @@ export async function middleware(request: NextRequest) {
         request.cookies.get('__Secure-next-auth.session-token')
       );
       if (hasSessionCookie) {
-        return NextResponse.next();
+        return securePageResponse(NextResponse.next(), pathname);
       }
       // Rediriger vers la page de connexion
       const signInUrl = new URL('/auth/signin', request.url);
@@ -94,7 +109,7 @@ export async function middleware(request: NextRequest) {
       // l'utilisateur vers l'accueil apres la connexion en production.
       const callbackUrl = `${request.nextUrl.pathname}${request.nextUrl.search}`;
       signInUrl.searchParams.set('callbackUrl', callbackUrl);
-      return NextResponse.redirect(signInUrl);
+      return securePageResponse(NextResponse.redirect(signInUrl), pathname);
     }
 
     // Guard admin: /admin nécessite role=admin (ou bootstrap via env ADMIN_OWNER_EMAILS)
@@ -115,14 +130,14 @@ export async function middleware(request: NextRequest) {
       // le guard serveur (getAdminGuard + layout /admin) + les routes API /api/admin/*,
       // qui vérifient le rôle en base.
       if (tokenRole === 'admin' || isOwner) {
-        return NextResponse.next();
+        return securePageResponse(NextResponse.next(), pathname);
       }
-      return NextResponse.next();
+      return securePageResponse(NextResponse.next(), pathname);
     }
   }
   
   // Pour toutes les autres pages, laisser passer
-  return NextResponse.next();
+  return securePageResponse(NextResponse.next(), pathname);
 }
 
 export const config = {

@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { hashLocalPassword, updateLocalPasswordHash } from '@/lib/localAuth';
 import { queryDatabase, withDatabaseTransaction } from '@/lib/postgres';
+import { enforceRequestRateLimit, normalizeEmailForSecurity, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,10 +18,16 @@ type ResetRow = {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json().catch(() => null);
+    const originError = rejectUntrustedMutationOrigin(request);
+    if (originError) return originError;
+    const ipLimit = enforceRequestRateLimit(request, 'auth-reset-ip', 15, 15 * 60_000);
+    if (ipLimit) return ipLimit;
+    const parsed = await readLimitedJson<any>(request, 8 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.value;
     const token = typeof body?.token === 'string' ? body.token.trim() : '';
     const code = typeof body?.code === 'string' ? body.code.trim() : '';
-    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const email = normalizeEmailForSecurity(body?.email);
     const password = typeof body?.password === 'string' ? body.password : '';
     if (password.length < 8) {
       return NextResponse.json({ error: 'Mot de passe trop court' }, { status: 400 });
@@ -28,6 +35,17 @@ export async function POST(request: NextRequest) {
     if (!token && (!code || !email)) {
       return NextResponse.json({ error: 'Lien ou code invalide' }, { status: 400 });
     }
+    if (token.length > 256 || code.length > 12 || password.length > 256) {
+      return NextResponse.json({ error: 'Lien ou code invalide' }, { status: 400 });
+    }
+    const credentialLimit = enforceRequestRateLimit(
+      request,
+      'auth-reset-credential',
+      8,
+      15 * 60_000,
+      token ? `token:${token}` : `email:${email}`,
+    );
+    if (credentialLimit) return credentialLimit;
 
     // Le calcul bcrypt est volontairement effectue avant le verrou de transaction.
     const encryptedPassword = await hashLocalPassword(password);
@@ -69,8 +87,7 @@ export async function POST(request: NextRequest) {
     if (!updated) return NextResponse.json({ error: 'Lien ou code invalide' }, { status: 400 });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[auth] reinitialisation impossible:', error);
+    console.error('[auth] reinitialisation impossible');
     return NextResponse.json({ error: 'Erreur de reinitialisation' }, { status: 500 });
   }
 }
-

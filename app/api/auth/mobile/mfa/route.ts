@@ -18,6 +18,7 @@ import {
   verifyLocalPhoneFactor,
   verifyMfaChallenge,
 } from '@/lib/mobileAuthSecurity';
+import { enforceRequestRateLimit, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,8 +45,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const originError = rejectUntrustedMutationOrigin(request);
+    if (originError) return originError;
+    const ipLimit = enforceRequestRateLimit(request, 'auth-mobile-mfa-ip', 30, 10 * 60_000);
+    if (ipLimit) return ipLimit;
     const token = bearerToken(request);
-    const body = await request.json().catch(() => null);
+    const parsed = await readLimitedJson<any>(request, 32 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.value;
     const refreshToken = typeof body?.refreshToken === 'string' ? body.refreshToken.trim() : '';
     const action = typeof body?.action === 'string' ? body.action : '';
     if (!token || !refreshToken) {
@@ -56,6 +63,14 @@ export async function POST(request: NextRequest) {
       getMobileSessionPayload(token, refreshToken).catch(() => null),
     ]);
     if (!verified || !session) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
+    const actionLimit = enforceRequestRateLimit(
+      request,
+      action === 'verify' ? 'auth-mobile-mfa-verify-user' : 'auth-mobile-mfa-action-user',
+      action === 'verify' ? 10 : 6,
+      10 * 60_000,
+      verified.userId,
+    );
+    if (actionLimit) return actionLimit;
 
     if (action === 'enroll-totp') {
       if (!verified.authorized) {
@@ -161,7 +176,7 @@ export async function POST(request: NextRequest) {
     if (message.includes('UNAVAILABLE') || message.includes('SMS_')) {
       return NextResponse.json({ error: 'Cette methode 2FA n’est pas configuree' }, { status: 503 });
     }
-    console.error('[mobile mfa]', error);
+    console.error('[mobile mfa] operation impossible');
     return NextResponse.json({ error: 'Operation 2FA impossible' }, { status: 500 });
   }
 }

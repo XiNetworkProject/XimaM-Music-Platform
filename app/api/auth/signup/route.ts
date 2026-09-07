@@ -5,15 +5,23 @@ import { isValidUsername, normalizeUsername, validateBirthDate } from '@/lib/acc
 import { upsertMobilePrivateAccount } from '@/lib/mobileAuthSecurity';
 import { sendEmail, welcomeEmailTemplate } from '@/lib/email';
 import { withDatabaseTransaction } from '@/lib/postgres';
+import { enforceRequestRateLimit, normalizeEmailForSecurity, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
+import { escapeHtml } from '@/lib/security/publicForms';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json().catch(() => null);
+    const originError = rejectUntrustedMutationOrigin(request);
+    if (originError) return originError;
+    const ipLimit = enforceRequestRateLimit(request, 'auth-signup-ip', 8, 60 * 60_000);
+    if (ipLimit) return ipLimit;
+    const parsed = await readLimitedJson<any>(request, 16 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.value;
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
     const username = typeof body?.username === 'string' ? body.username.trim().toLowerCase() : '';
-    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const email = normalizeEmailForSecurity(body?.email);
     const password = typeof body?.password === 'string' ? body.password : '';
     const referralCode = typeof body?.referralCode === 'string' ? body.referralCode.trim() : '';
     const mobile = body?.source === 'mobile';
@@ -24,7 +32,7 @@ export async function POST(request: NextRequest) {
     if (!name || !username || !email || !password) {
       return NextResponse.json({ error: 'Tous les champs sont requis' }, { status: 400 });
     }
-    if (name.length < 2) {
+    if (name.length < 2 || name.length > 120) {
       return NextResponse.json({ error: 'Le nom doit contenir au moins 2 caracteres' }, { status: 400 });
     }
     const normalizedUsername = normalizeUsername(username);
@@ -34,8 +42,13 @@ export async function POST(request: NextRequest) {
     if (!/^\S+@\S+\.\S+$/.test(email)) {
       return NextResponse.json({ error: 'Format email invalide' }, { status: 400 });
     }
+    const accountLimit = enforceRequestRateLimit(request, 'auth-signup-email', 3, 24 * 60 * 60_000, email);
+    if (accountLimit) return accountLimit;
     if (password.length < (mobile ? 10 : 8)) {
       return NextResponse.json({ error: `Le mot de passe doit contenir au moins ${mobile ? 10 : 8} caracteres` }, { status: 400 });
+    }
+    if (password.length > 256 || referralCode.length > 128) {
+      return NextResponse.json({ error: 'Donnees invalides' }, { status: 400 });
     }
     if (mobile) {
       if (!firstName || !lastName || !birthValidation?.valid) {
@@ -86,8 +99,12 @@ export async function POST(request: NextRequest) {
     void sendEmail({
       to: email,
       subject: 'Bienvenue sur Synaura !',
-      html: welcomeEmailTemplate({ name, username, referrerName }),
-    }).catch((error: unknown) => console.warn('[auth] email de bienvenue non envoye:', error));
+      html: welcomeEmailTemplate({
+        name: escapeHtml(name),
+        username: escapeHtml(username),
+        referrerName: referrerName ? escapeHtml(referrerName) : null,
+      }),
+    }).catch(() => console.warn('[auth] email de bienvenue non envoye'));
 
     const mobileSession = mobile ? await createMobileSession(profile, {
       userAgent: request.headers.get('user-agent'),
@@ -105,7 +122,7 @@ export async function POST(request: NextRequest) {
     if (error?.code === 'USERNAME_EXISTS') {
       return NextResponse.json({ error: 'Ce nom utilisateur est deja pris' }, { status: 409 });
     }
-    console.error('[auth] creation du compte impossible:', error);
+    console.error('[auth] creation du compte impossible');
     return NextResponse.json({ error: 'Erreur lors de la creation du compte' }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sendEmail, resetEmailTemplate } from '@/lib/email';
 import { findLocalAuthUserIdByEmail } from '@/lib/localAuth';
 import { queryDatabase } from '@/lib/postgres';
+import { enforceRequestRateLimit, normalizeEmailForSecurity, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,11 +16,18 @@ export async function POST(request: NextRequest) {
     message: 'Si un compte existe avec cet email, vous recevrez un lien de reinitialisation',
   });
   try {
-    const body = await request.json().catch(() => null);
-    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const originError = rejectUntrustedMutationOrigin(request);
+    if (originError) return originError;
+    const ipLimit = enforceRequestRateLimit(request, 'auth-forgot-ip', 10, 60 * 60_000);
+    if (ipLimit) return ipLimit;
+    const parsed = await readLimitedJson<any>(request, 4 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const email = normalizeEmailForSecurity(parsed.value?.email);
     if (!/^\S+@\S+\.\S+$/.test(email)) {
       return NextResponse.json({ error: 'Format email invalide' }, { status: 400 });
     }
+    const emailLimit = enforceRequestRateLimit(request, 'auth-forgot-email', 3, 30 * 60_000, email);
+    if (emailLimit) return emailLimit;
 
     const userId = await findLocalAuthUserIdByEmail(email);
     if (!userId) return genericResponse;
@@ -48,7 +56,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     // La reponse reste identique afin de ne pas reveler l'existence d'un compte.
-    console.error('[auth] demande de reinitialisation non traitee:', error);
+    console.error('[auth] demande de reinitialisation non traitee');
   }
   return genericResponse;
 }

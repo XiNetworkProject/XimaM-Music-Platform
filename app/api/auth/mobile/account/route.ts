@@ -9,6 +9,7 @@ import {
   upsertMobilePrivateAccount,
 } from '@/lib/mobileAuthSecurity';
 import { withDatabaseTransaction } from '@/lib/postgres';
+import { enforceRequestRateLimit, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,15 +62,18 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const originError = rejectUntrustedMutationOrigin(request);
+    if (originError) return originError;
     const auth = await authenticatedUser(request);
     if (!auth) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
     if (!auth.authorized) {
       return NextResponse.json({ error: 'Verification 2FA requise', code: 'MFA_REQUIRED' }, { status: 403 });
     }
-    const body = await request.json().catch(() => null);
-    if (!body || typeof body !== 'object') {
-      return NextResponse.json({ error: 'Donnees invalides' }, { status: 400 });
-    }
+    const limited = enforceRequestRateLimit(request, 'auth-mobile-account-user', 20, 10 * 60_000, auth.userId);
+    if (limited) return limited;
+    const parsed = await readLimitedJson<any>(request, 32 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.value;
 
     const completing = body.completeProfile === true;
     const name = typeof body.name === 'string' ? body.name.trim().slice(0, 80) : undefined;
@@ -133,7 +137,7 @@ export async function PATCH(request: NextRequest) {
     if (code === '23505') {
       return NextResponse.json({ error: 'Ce pseudo est deja pris' }, { status: 409 });
     }
-    console.error('[mobile account update]', error);
+    console.error('[mobile account update] mise a jour impossible');
     return NextResponse.json({ error: 'Mise a jour du compte impossible' }, { status: 500 });
   }
 }

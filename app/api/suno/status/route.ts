@@ -1,90 +1,91 @@
-// app/api/suno/status/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { normalizeSunoItem } from "@/lib/suno-normalize";
+import { dbAdmin } from '@/lib/database';
+import { normalizeSunoItem } from '@/lib/suno-normalize';
+import { enforceRequestRateLimit, isSafeOpaqueIdentifier } from '@/lib/security/requestSecurity';
 
-const BASE = "https://api.sunoapi.org";
+const BASE = 'https://api.sunoapi.org';
 
 export async function GET(req: NextRequest) {
+  const session = await getApiSession(req);
+  if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+
+  const userLimit = enforceRequestRateLimit(req, 'suno-status-user', 30, 60_000, session.user.id);
+  if (userLimit) return userLimit;
+  const taskId = req.nextUrl.searchParams.get('taskId')?.trim() || '';
+  if (!isSafeOpaqueIdentifier(taskId)) {
+    return NextResponse.json({ error: 'Task ID invalide' }, { status: 400 });
+  }
+  const taskLimit = enforceRequestRateLimit(req, 'suno-status-task', 12, 60_000, taskId);
+  if (taskLimit) return taskLimit;
+
+  const { data: generation, error: ownershipError } = await dbAdmin
+    .from('ai_generations')
+    .select('id')
+    .eq('task_id', taskId)
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+  if (ownershipError) return NextResponse.json({ error: 'Verification impossible' }, { status: 500 });
+  if (!generation) return NextResponse.json({ error: 'Generation introuvable' }, { status: 404 });
+  if (!process.env.SUNO_API_KEY) return NextResponse.json({ error: 'Service IA indisponible' }, { status: 503 });
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
   try {
-    const session = await getApiSession(req);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
-
-    const taskId = req.nextUrl.searchParams.get("taskId");
-    if (!taskId) {
-      return NextResponse.json({ error: "Missing taskId" }, { status: 400 });
-    }
-
-    console.log(`🔍 Polling Suno pour taskId: ${taskId}`);
-
-    // Timeout de 8 secondes pour éviter les fonctions longues
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-    const res = await fetch(`${BASE}/api/v1/generate/record-info?taskId=${encodeURIComponent(taskId)}`, {
-      headers: { Authorization: `Bearer ${process.env.SUNO_API_KEY!}` },
-      cache: "no-store",
+    const response = await fetch(`${BASE}/api/v1/generate/record-info?taskId=${encodeURIComponent(taskId)}`, {
+      headers: { Authorization: `Bearer ${process.env.SUNO_API_KEY}` },
+      cache: 'no-store',
       signal: controller.signal,
     });
-
-    clearTimeout(timeoutId);
-
-    const json = await res.json().catch(() => ({}));
-
-    if (!res.ok || json?.code !== 200) {
-      const providerCode = Number(json?.code);
-      const mappedStatus = Number.isFinite(providerCode) && providerCode > 0 ? providerCode : res.status;
-      return NextResponse.json({ error: json?.msg || "Suno error", raw: json }, { status: mappedStatus });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || json?.code !== 200) {
+      return NextResponse.json({ error: 'Service IA temporairement indisponible' }, { status: 502 });
     }
 
-    const statusRaw: string = json?.data?.status;
-    const rawCandidates = [
+    const statusRaw = String(json?.data?.status || '');
+    const candidates = [
       ...(Array.isArray(json?.data?.response?.sunoData) ? json.data.response.sunoData : []),
       ...(Array.isArray(json?.data?.sunoData) ? json.data.sunoData : []),
       ...(Array.isArray(json?.data?.data) ? json.data.data : []),
       ...(Array.isArray(json?.data?.tracks) ? json.data.tracks : []),
     ];
-    const dedup = new Map<string, any>();
-    rawCandidates.forEach((x: any, idx: number) => {
-      const explicitKey = String(x?.id || x?.audioId || x?.trackId || '').trim();
-      const key = explicitKey || `__idx_${idx}`;
-      dedup.set(key, { ...(dedup.get(key) || {}), ...x });
+    const deduplicated = new Map<string, any>();
+    candidates.forEach((item: any, index: number) => {
+      const key = String(item?.id || item?.audioId || item?.trackId || `__idx_${index}`);
+      deduplicated.set(key, { ...(deduplicated.get(key) || {}), ...item });
     });
-    const tracks = Array.from(dedup.values()).map((x: any) => normalizeSunoItem(x));
-
-    console.log('🔍 Données brutes Suno:', json.data);
-    console.log('🔍 Response Suno:', json.data?.response);
-    console.log('🔍 SunoData:', json.data?.response?.sunoData);
-    console.log('🎵 Tracks normalisées:', tracks);
-
-    // Mapper les statuts Suno (nouveau + legacy) vers nos statuts UI internes
-    const statusUpper = String(statusRaw || '').toUpperCase();
-    let normalizedStatus = statusRaw;
-    if (statusUpper === 'PENDING' || statusUpper === 'TEXT_SUCCESS' || statusUpper === 'TEXT') {
-      normalizedStatus = 'pending';
-    } else if (statusUpper === 'FIRST_SUCCESS' || statusUpper === 'FIRST') {
-      normalizedStatus = 'FIRST_SUCCESS';
-    } else if (statusUpper === 'SUCCESS' || statusUpper === 'COMPLETE') {
-      normalizedStatus = 'SUCCESS';
-    } else if (
-      statusUpper === 'ERROR' ||
-      statusUpper === 'CREATE_TASK_FAILED' ||
-      statusUpper === 'GENERATE_AUDIO_FAILED' ||
-      statusUpper === 'CALLBACK_EXCEPTION' ||
-      statusUpper === 'SENSITIVE_WORD_ERROR'
-    ) {
-      normalizedStatus = 'ERROR';
-    }
-
-    console.log(`🔄 Statut Suno: "${statusRaw}" → Normalisé: "${normalizedStatus}"`);
-
-    return NextResponse.json({ taskId, status: normalizedStatus, tracks });
-
-  } catch (e: any) {
-    console.error('❌ Erreur polling Suno:', e.message);
-    return NextResponse.json({ error: e.message ?? "Unknown error" }, { status: 500 });
+    const tracks = Array.from(deduplicated.values()).map((item: any) => {
+      const normalized = normalizeSunoItem(item);
+      return {
+        ...normalized,
+        raw: {
+          id: item?.id ?? item?.audioId ?? item?.trackId,
+          title: item?.title,
+          tags: item?.tags,
+          prompt: item?.prompt,
+          audio_url: item?.audio_url ?? item?.audioUrl,
+          stream_audio_url: item?.stream_audio_url ?? item?.streamAudioUrl,
+          image_url: item?.image_url ?? item?.imageUrl,
+          duration: item?.duration,
+        },
+      };
+    });
+    const statusUpper = statusRaw.toUpperCase();
+    const status = ['PENDING', 'TEXT_SUCCESS', 'TEXT'].includes(statusUpper)
+      ? 'pending'
+      : ['FIRST_SUCCESS', 'FIRST'].includes(statusUpper)
+        ? 'FIRST_SUCCESS'
+        : ['SUCCESS', 'COMPLETE'].includes(statusUpper)
+          ? 'SUCCESS'
+          : ['ERROR', 'CREATE_TASK_FAILED', 'GENERATE_AUDIO_FAILED', 'CALLBACK_EXCEPTION', 'SENSITIVE_WORD_ERROR'].includes(statusUpper)
+            ? 'ERROR'
+            : statusRaw;
+    return NextResponse.json({ taskId, status, tracks });
+  } catch {
+    console.error('[suno/status] fournisseur indisponible');
+    return NextResponse.json({ error: 'Service IA temporairement indisponible' }, { status: 502 });
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

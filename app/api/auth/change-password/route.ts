@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { authenticateLocalPassword, updateLocalPassword } from '@/lib/localAuth';
+import { enforceRequestRateLimit, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  const originError = rejectUntrustedMutationOrigin(request);
+  if (originError) return originError;
   const session = await getApiSession(request);
   if (!session?.user?.id || !session.user.email) {
     return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
   }
-  const body = await request.json().catch(() => null);
+  const attemptLimit = enforceRequestRateLimit(request, 'auth-change-password-user', 8, 15 * 60_000, session.user.id);
+  if (attemptLimit) return attemptLimit;
+  const parsed = await readLimitedJson<any>(request, 8 * 1024);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.value;
   const currentPassword = typeof body?.currentPassword === 'string' ? body.currentPassword : '';
   const newPassword = typeof body?.newPassword === 'string' ? body.newPassword : '';
-  if (!currentPassword || newPassword.length < 8) {
+  if (!currentPassword || currentPassword.length > 256 || newPassword.length < 8 || newPassword.length > 256) {
     return NextResponse.json({ error: 'Mot de passe invalide' }, { status: 400 });
   }
   const current = await authenticateLocalPassword(session.user.email, currentPassword);

@@ -1,16 +1,16 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAdminGuard } from '@/lib/admin';
 import { getRemainingCredits } from '@/lib/suno';
+import { enforceRequestRateLimit } from '@/lib/security/requestSecurity';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-  }
+export async function GET(req: NextRequest) {
+  const guard = await getAdminGuard();
+  if (!guard.ok) return NextResponse.json({ error: 'Acces refuse' }, { status: guard.userId ? 403 : 401 });
+  const limited = enforceRequestRateLimit(req, 'suno-provider-credits-admin', 5, 60_000, guard.userId);
+  if (limited) return limited;
 
   try {
     const json = await getRemainingCredits();
@@ -20,7 +20,7 @@ export async function GET() {
       code: json?.code,
       msg: json?.msg,
     });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Erreur serveur' }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'Service IA indisponible' }, { status: 502 });
   }
 }

@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MOBILE_AUTH_CALLBACK_URL, isAllowedMobileAuthRedirect } from '@/lib/accountIdentity';
+import { enforceRequestRateLimit, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null);
+  const originError = rejectUntrustedMutationOrigin(request);
+  if (originError) return originError;
+  const limit = enforceRequestRateLimit(request, 'auth-mobile-google-start-ip', 20, 10 * 60_000);
+  if (limit) return limit;
+  const parsed = await readLimitedJson<any>(request, 4 * 1024);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.value;
   const redirectTo = body?.redirectTo || MOBILE_AUTH_CALLBACK_URL;
   if (!isAllowedMobileAuthRedirect(redirectTo)) {
     return NextResponse.json({ error: 'Redirection OAuth refusee' }, { status: 400 });

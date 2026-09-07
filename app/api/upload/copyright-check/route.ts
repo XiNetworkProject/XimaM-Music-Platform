@@ -1,61 +1,37 @@
-import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { getApiSession } from '@/lib/getApiSession';
+import { isLocalMediaOwnedBy, isLocalMediaUrl, localPublicIdFromUrl } from '@/lib/localMediaStorage';
+import { handleAuddCopyrightCheck } from '@/lib/security/auddCopyrightHandler';
+import { consumeRequestRateLimit } from '@/lib/security/requestSecurity';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: Request) {
-  try {
-    const { audioUrl, title, artist } = await req.json();
-    if (!audioUrl || typeof audioUrl !== 'string') {
-      return NextResponse.json({ error: 'audioUrl requis' }, { status: 400 });
-    }
-
-    const token = process.env.AUDD_API_TOKEN;
-    if (!token) {
-      // Pas de clé → ne pas bloquer, retourner no-op
-      return NextResponse.json({ matched: false, reason: 'NO_TOKEN' });
-    }
-
-    const form = new URLSearchParams();
-    form.set('api_token', token);
-    form.set('url', audioUrl);
-    // Reconnaissance basique
-    // Docs: https://docs.audd.io/
-    const resp = await fetch('https://api.audd.io/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `method=recognize&${form.toString()}`
-    });
-
-    if (!resp.ok) {
-      return NextResponse.json({ matched: false, reason: 'AUDD_ERROR', status: resp.status }, { status: 200 });
-    }
-
-    const data = await resp.json().catch(() => ({}));
-    const result = data?.result || null;
-
-    if (!result) {
-      return NextResponse.json({ matched: false });
-    }
-
-    // Certaines réponses ont un score/accuracy, sinon on renvoie brut
-    const matched = true;
-    const details = {
-      title: result.title || null,
-      artist: result.artist || null,
-      album: result.album || null,
-      label: result.label || null,
-      release_date: result.release_date || null,
-      score: result.score || result.accuracy || null,
-      resultRaw: result,
-      inputTitle: title || null,
-      inputArtist: artist || null,
-    };
-
-    return NextResponse.json({ matched, details });
-  } catch (error) {
-    return NextResponse.json({ matched: false, reason: 'EXCEPTION' }, { status: 200 });
-  }
+export async function POST(req: NextRequest) {
+  return handleAuddCopyrightCheck(req, {
+    getUserId: async (request) => (await getApiSession(request as NextRequest))?.user?.id || null,
+    ownsAudio: (audioUrl, userId) => {
+      const publicId = localPublicIdFromUrl(audioUrl);
+      return Boolean(publicId && isLocalMediaUrl(audioUrl, 'audio') && isLocalMediaOwnedBy(publicId, userId));
+    },
+    consumeRateLimit: (request, userId) => {
+      const byUser = consumeRequestRateLimit(request, 'audd-user', 10, 60 * 60_000, userId);
+      return byUser.allowed
+        ? consumeRequestRateLimit(request, 'audd-ip', 20, 60 * 60_000)
+        : byUser;
+    },
+    recognize: async (audioUrl, signal) => {
+      const token = process.env.AUDD_API_TOKEN;
+      if (!token) return { ok: false };
+      const form = new URLSearchParams({ api_token: token, url: audioUrl, method: 'recognize' });
+      const response = await fetch('https://api.audd.io/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: form.toString(),
+        signal,
+      });
+      return { ok: response.ok, payload: await response.json().catch(() => ({})) };
+    },
+    reportFailure: () => console.error('[copyright-check] fournisseur indisponible'),
+  });
 }
-
-

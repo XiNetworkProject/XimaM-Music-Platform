@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { generateCustomMusic } from '@/lib/suno';
 import { aiGenerationService } from '@/lib/aiGenerationService';
 import { buildSunoCallbackUrl } from '@/lib/sunoWebhook';
+import { enforceRequestRateLimit, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 // Configuration Suno API
 const SUNO_API_KEY = process.env.SUNO_API_KEY;
@@ -51,8 +51,6 @@ async function generateMusicWithSuno(prompt: string, duration: number, style: st
   }
 
   try {
-    console.log(`🎵 Début génération Suno API: "${prompt}" (${duration}s, ${style})`);
-
     // Améliorer le prompt avec le style
     const stylePrompts = {
       "pop": "pop music, catchy melody, upbeat, modern",
@@ -99,12 +97,11 @@ async function generateMusicWithSuno(prompt: string, duration: number, style: st
       vocalGender: extra?.vocalGender
     });
 
-    console.log('✅ Génération Suno initiée:', result);
     return { success: true, taskId: result.data.taskId };
 
-  } catch (error) {
-    console.error('❌ Erreur génération Suno API:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'Erreur inconnue' };
+  } catch {
+    console.error('[ai/generate] fournisseur Suno indisponible');
+    return { success: false, error: 'Service IA indisponible' };
   }
 }
 
@@ -221,6 +218,7 @@ async function recordGeneration(data: {
   audioUrl: string;
   success: boolean;
   model: string;
+  taskId?: string;
 }): Promise<string> {
   try {
     const metadata = {
@@ -231,7 +229,7 @@ async function recordGeneration(data: {
 
     const generation = await aiGenerationService.createGeneration(
       data.userId,
-      `gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      data.taskId || `gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       data.title || 'Musique générée',
       data.style || 'custom',
       data.prompt,
@@ -248,12 +246,18 @@ async function recordGeneration(data: {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const originError = rejectUntrustedMutationOrigin(request);
+    if (originError) return originError;
+    const session = await getApiSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
+    const limited = enforceRequestRateLimit(request, 'ai-legacy-generate-user', 3, 10 * 60_000, session.user.id);
+    if (limited) return limited;
 
-    const { prompt, duration, style = 'pop', title, lyrics, isInstrumental, model, customMode, styleWeight, weirdnessConstraint, audioWeight, negativeTags, vocalGender } = await request.json();
+    const parsed = await readLimitedJson<any>(request, 64 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const { prompt, duration, style = 'pop', title, lyrics, isInstrumental, model, customMode, styleWeight, weirdnessConstraint, audioWeight, negativeTags, vocalGender } = parsed.value;
 
     // Validation et fallback pour le prompt
     const validatedPrompt = prompt?.trim() || 'Musique générée par IA';
@@ -274,8 +278,6 @@ export async function POST(request: NextRequest) {
       }, { status: 429 });
     }
 
-    console.log(`🎵 Début génération IA pour ${session.user.id}: "${prompt}"`);
-
     // Essayer Suno API d'abord
     const sunoResult = await generateMusicWithSuno(validatedPrompt, duration, style, title, lyrics, isInstrumental, model, customMode, {
       styleWeight,
@@ -288,8 +290,6 @@ export async function POST(request: NextRequest) {
     
     if (sunoResult.success && sunoResult.taskId) {
       // Succès avec Suno API - retourner le taskId pour suivi en temps réel
-      console.log(`✅ Génération Suno API initiée: ${sunoResult.taskId}`);
-      
                 // Créer un titre personnalisé basé sur le prompt
       const customTitle = title || validatedPrompt.substring(0, 50) + (validatedPrompt.length > 50 ? '...' : '');
       
@@ -302,7 +302,8 @@ export async function POST(request: NextRequest) {
         title: customTitle,
         audioUrl: '', // Sera mis à jour quand la génération sera terminée
         success: true,
-        model: `suno-${model || 'V4_5'}`
+        model: `suno-${model || 'V4_5'}`,
+        taskId: sunoResult.taskId,
       });
 
       return NextResponse.json({
@@ -320,8 +321,11 @@ export async function POST(request: NextRequest) {
         message: 'Génération en cours...'
       });
     } else {
-      // Fallback vers génération simulée
-      console.log(`⚠️ Suno API échoué, utilisation du fallback: ${sunoResult.error}`);
+      // Le fallback WAV est reserve au developpement : en production il pouvait
+      // remplir le disque local lors d'indisponibilites fournisseur repetees.
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ error: 'Service IA temporairement indisponible' }, { status: 502 });
+      }
       const audioUrl = generateSimulatedMusic(duration);
       
       // Créer un titre personnalisé basé sur le prompt
@@ -354,18 +358,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
-  } catch (error) {
-    console.error('❌ Erreur génération IA:', error);
-    return NextResponse.json({ 
-      error: 'Erreur de génération',
-      details: error instanceof Error ? error.message : 'Erreur inconnue'
-    }, { status: 500 });
+  } catch {
+    console.error('[ai/generate] generation impossible');
+    return NextResponse.json({ error: 'Erreur de generation' }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }

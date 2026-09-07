@@ -6,6 +6,7 @@ import { CREDITS_PER_GENERATION } from '@/lib/credits';
 import { uploadAndCoverAudio, SunoUploadCoverRequest } from '@/lib/suno';
 import { validateSunoGenerationInput, validateSunoTuningInput, validateUploadCoverExtra } from '@/lib/sunoValidation';
 import { buildSunoCallbackUrl } from '@/lib/sunoWebhook';
+import { enforceRequestRateLimit, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -15,15 +16,15 @@ type Body = SunoUploadCoverRequest & {
 };
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.SUNO_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "SUNO_API_KEY manquant" }, { status: 500 });
-  }
-
+  const originError = rejectUntrustedMutationOrigin(req);
+  if (originError) return originError;
   const session = await getApiSession(req);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
+  const limited = enforceRequestRateLimit(req, 'suno-upload-cover-user', 5, 10 * 60_000, session.user.id);
+  if (limited) return limited;
+  if (!process.env.SUNO_API_KEY) return NextResponse.json({ error: 'Service IA indisponible' }, { status: 503 });
 
   let debited = false;
   const refundCredits = async (userId: string) => {
@@ -37,7 +38,9 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    const body = (await req.json()) as Body;
+    const parsed = await readLimitedJson<Body>(req, 64 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.value;
 
     // Entitlements: vérif modèle autorisé
     const { data: profile } = await dbAdmin.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
@@ -60,7 +63,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'uploadUrl requis' }, { status: 400 });
     }
     try {
-      new URL(body.uploadUrl);
+      const uploadUrl = new URL(body.uploadUrl);
+      if (!['http:', 'https:'].includes(uploadUrl.protocol) || uploadUrl.username || uploadUrl.password || body.uploadUrl.length > 2_048) {
+        throw new Error('invalid');
+      }
     } catch {
       return NextResponse.json({ error: 'uploadUrl invalide' }, { status: 400 });
     }
@@ -129,7 +135,7 @@ export async function POST(req: NextRequest) {
     if (!taskId) {
       await refundCredits(session.user.id);
       return NextResponse.json(
-        { error: 'Réponse Suno invalide: taskId manquant', raw: sunoRes },
+        { error: 'Reponse du service IA invalide' },
         { status: 502 }
       );
     }
@@ -156,7 +162,7 @@ export async function POST(req: NextRequest) {
 
       const { error: insertError } = await dbAdmin.from('ai_generations').insert(generationData);
       if (insertError) {
-        console.error('❌ Erreur insertion génération upload-cover:', insertError);
+        console.error('[suno/upload-cover] insertion generation impossible');
       }
     }
 
@@ -180,9 +186,9 @@ export async function POST(req: NextRequest) {
       }
     });
 
-  } catch (error: any) {
+  } catch {
     await refundCredits(session.user.id);
-    console.error('❌ Erreur upload-cover:', error);
-    return NextResponse.json({ error: error.message || 'Erreur serveur' }, { status: 500 });
+    console.error('[suno/upload-cover] generation impossible');
+    return NextResponse.json({ error: 'Service IA temporairement indisponible' }, { status: 502 });
   }
 }

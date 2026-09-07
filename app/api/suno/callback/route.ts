@@ -41,13 +41,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: false, error: 'task_id manquant' }, { status: 400 });
     }
 
-    // Log minimal
+    // Log volontairement sans payload, paroles ni URL fournisseur.
     console.log("🎵 Suno callback reçu:", {
       status: body.code,
       type: callbackType,
       taskId,
-      items: body.data?.data?.length ?? 0,
-      body: JSON.stringify(body, null, 2)
+      items: body.data?.data?.length ?? 0
     });
 
     // Normaliser les tracks s'il y en a (first/complete)
@@ -63,17 +62,6 @@ export async function POST(req: NextRequest) {
         : 'pending';
 
     // Traitement des données reçues
-    if (tracks.length > 0) {
-      console.log("📊 Tracks reçues:", tracks.map(track => ({
-        id: track.id,
-        title: track.title || track.raw?.title,
-        audioUrl: track.audio || track.raw?.audio_url,
-        streamUrl: track.stream || track.raw?.stream_audio_url,
-        imageUrl: track.image || track.raw?.image_url,
-        duration: track.duration
-      })));
-    }
-
     // Mettre à jour la génération même quand c'est une erreur callback sans tracks.
     // Important: "first" est persiste comme preview jouable, puis "complete"
     // enrichit la ligne avec l'audio final.
@@ -83,15 +71,15 @@ export async function POST(req: NextRequest) {
     try {
       await aiGenerationService.updateGenerationStatus(taskId, statusForDb, shouldPersistTracks ? tracks : undefined);
       console.log("✅ Génération mise à jour en base:", taskId, statusForDb);
-    } catch (error) {
-      console.error("❌ Erreur mise à jour base:", error);
+    } catch {
+      console.error('[suno/callback] mise a jour base impossible');
     }
 
     // Répondre vite (<=15s). Le traitement lourd (download audio) doit être asynchrone.
     return NextResponse.json({ received: true }, { status: 200 });
 
-  } catch (error) {
-    console.error('❌ Erreur callback Suno:', error);
+  } catch {
+    console.error('[suno/callback] traitement impossible');
     return NextResponse.json({ error: "Callback processing failed" }, { status: 500 });
   }
 }

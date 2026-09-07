@@ -35,7 +35,6 @@ export async function POST(req: NextRequest) {
       ? await getSessionFromToken(accessToken)
       : await getApiSession(req);
     if (process.env.NODE_ENV === 'development' && req.url) {
-      console.log('[api/ai/credits POST] accessToken:', !!accessToken, 'session:', !!session?.user?.id);
     }
     return handleCredits(session);
   } catch (e: any) {

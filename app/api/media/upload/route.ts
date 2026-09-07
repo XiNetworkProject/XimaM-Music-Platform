@@ -4,6 +4,7 @@ import { getAdminGuard } from '@/lib/admin';
 import { getEntitlements } from '@/lib/entitlements';
 import { dbAdmin } from '@/lib/database';
 import { isLocalMediaKind, storeRequestBody, type LocalMediaKind } from '@/lib/localMediaStorage';
+import { enforceRequestRateLimit, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,14 +15,24 @@ const PLAN_LIMITED_KINDS = new Set<LocalMediaKind>(['audio', 'ai-audio']);
 
 export async function POST(request: NextRequest) {
   try {
+    const originError = rejectUntrustedMutationOrigin(request);
+    if (originError) return originError;
     const kindParam = request.nextUrl.searchParams.get('kind') || '';
     if (!isLocalMediaKind(kindParam)) {
       return NextResponse.json({ error: 'Type de media invalide' }, { status: 400 });
     }
     const kind = kindParam as LocalMediaKind;
+    if (kind === 'star-academy-audio') {
+      const publicUploadLimit = enforceRequestRateLimit(request, 'upload-star-academy-ip', 3, 60 * 60_000);
+      if (publicUploadLimit) return publicUploadLimit;
+    }
     const session = await getApiSession(request);
     if (!session?.user?.id && !PUBLIC_KINDS.has(kind)) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+    }
+    if (session?.user?.id) {
+      const userUploadLimit = enforceRequestRateLimit(request, 'upload-media-user', 30, 60 * 60_000, session.user.id);
+      if (userUploadLimit) return userUploadLimit;
     }
     if (ADMIN_KINDS.has(kind)) {
       const guard = await getAdminGuard();
@@ -74,7 +85,7 @@ export async function POST(request: NextRequest) {
       storage: 'local',
     });
   } catch (error: any) {
-    console.error('Erreur upload media local:', error);
+    console.error('Erreur upload media local');
     const message = String(error?.message || 'Erreur lors de l upload du fichier');
     const status = message.includes('trop volumineux') ? 413 : /supporte|extension|MIME|contenu|fichier est vide/i.test(message) ? 415 : 500;
     return NextResponse.json({ error: message }, { status });
