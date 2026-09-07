@@ -1,0 +1,2 @@
+database_name,owner,encoding,collate,ctype
+postgres,postgres,UTF8,C.UTF-8,C.UTF-8

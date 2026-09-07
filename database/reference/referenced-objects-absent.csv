@@ -1,0 +1,19 @@
+object,operations,runtime_files,support_files
+public._dummy,SELECT,,scripts/run-ai-complete-migration.js
+public.accounts,DELETE,,scripts/delete_test_user.js
+public.admin_email_campaigns,INSERT | SELECT,app/api/admin/emails/route.ts,
+public.ai_generated_tracks,SELECT,app/embed/[trackId]/page.tsx,
+public.creator_filters,DELETE | INSERT | SELECT,lib/creatorModeration.ts,
+public.exec_sql,RPC,,scripts/add_lyrics_column.js | scripts/check_db_structure.js | scripts/create_active_members_function.js | scripts/create_community_tables.js | scripts/fix_schema.js | scripts/migrate-messaging-to-supabase.js | scripts/run-ai-complete-migration.js | scripts/run-ai-migration.js | scripts/run-editorial-collections-migration.js | scripts/run-users-migration.js
+public.follows,DELETE | SELECT,app/api/stats/debug/route.ts | app/api/stats/overview/route.ts,scripts/delete_test_user.js
+public.get_foreign_keys,RPC,,scripts/test-db-structure.js
+public.get_policies,RPC,,scripts/run-ai-migration.js
+public.get_policies_info,RPC,,scripts/check-rls-policies.js
+public.get_table_info,RPC,,scripts/test-db-structure.js
+public.likes,DELETE,,scripts/delete_test_user.js
+public.message_reads,SELECT,,scripts/check-supabase-messaging.js
+public.moderation_actions,INSERT | SELECT,lib/creatorModeration.ts,
+public.plays,DELETE,,scripts/delete_test_user.js
+public.sessions,DELETE,,scripts/delete_test_user.js
+public.user_statuses,DELETE | SELECT | UPDATE | UPSERT,lib/onlineStatusService.ts,
+public.user_subscriptions,SELECT | UPDATE | UPSERT,lib/subscriptionService.ts,

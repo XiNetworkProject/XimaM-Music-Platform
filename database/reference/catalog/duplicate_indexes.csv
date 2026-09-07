@@ -1,0 +1,5 @@
+schema_name,table_name,duplicate_indexes,representative_definition
+public,comment_likes,comment_likes_comment_id_idx | idx_comment_likes_comment_id,CREATE INDEX comment_likes_comment_id_idx ON public.comment_likes USING btree (comment_id)
+public,comment_likes,comment_likes_user_id_idx | idx_comment_likes_user_id,CREATE INDEX comment_likes_user_id_idx ON public.comment_likes USING btree (user_id)
+public,conversation_participants,conversation_participants_conversation_id_user_id_key | conversation_participants_unique_user,"CREATE UNIQUE INDEX conversation_participants_conversation_id_user_id_key ON public.conversation_participants USING btree (conversation_id, user_id)"
+public,track_likes,idx_track_likes_unique | track_likes_track_id_user_id_key,"CREATE UNIQUE INDEX track_likes_track_id_user_id_key ON public.track_likes USING btree (track_id, user_id)"

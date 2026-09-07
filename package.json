@@ -23,6 +23,11 @@
     "test:auth-mobile": "node --experimental-strip-types --test tests/account-identity.test.mjs tests/mobile-auth-security.test.mjs tests/native-auth-experience.test.mjs",
     "test:native-ui": "node --experimental-strip-types --test tests/native-home-prelude.test.mjs tests/android-release-config.test.mjs",
     "test:postgres": "node --experimental-strip-types --test tests/postgres-database.test.mjs",
+    "test:database-contract": "node --experimental-strip-types --test tests/database-contract.test.mjs tests/database-phase-1b.test.mjs tests/postgres-database.test.mjs",
+    "test:database-phase1b": "node --experimental-strip-types --test tests/database-phase-1b.test.mjs",
+    "test:critical-routes": "node --experimental-strip-types --test tests/critical-api-routes.test.mjs",
+    "test:security-phase0b": "node --experimental-strip-types --test tests/security-phase-0b.test.mjs",
+    "db:migrate": "node database/scripts/migrate.mjs",
     "deploy": "node scripts/deploy-vercel.js",
     "publish:android": "node scripts/publish-android-release.js"
   },

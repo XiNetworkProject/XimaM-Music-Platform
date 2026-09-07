@@ -64,7 +64,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ error: 'Action invalide' }, { status: 400 });
   }
 
-  const { error } = await dbAdmin.from('comment_moderation').upsert(patch);
+  const { error } = await dbAdmin.from('comment_moderation').upsert(
+    patch,
+    { onConflict: 'comment_id,creator_id' },
+  );
   if (error) return NextResponse.json({ error: 'Impossible de modérer' }, { status: 500 });
 
   return NextResponse.json({ success: true });

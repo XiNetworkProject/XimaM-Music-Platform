@@ -1,0 +1,472 @@
+schema_name,table_name,constraint_name,constraint_type,definition,is_validated,is_deferrable,initially_deferred
+auth,audit_log_entries,audit_log_entries_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_authorization_url_https,check,CHECK (authorization_url IS NULL OR authorization_url ~~ 'https://%'::text),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_authorization_url_length,check,CHECK (authorization_url IS NULL OR char_length(authorization_url) <= 2048),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_client_id_length,check,CHECK (char_length(client_id) >= 1 AND char_length(client_id) <= 512),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_discovery_url_length,check,CHECK (discovery_url IS NULL OR char_length(discovery_url) <= 2048),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_identifier_format,check,"CHECK (identifier ~ '^[a-z0-9][a-z0-9:-]{0,48}[a-z0-9]$'::text)",t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_issuer_length,check,CHECK (issuer IS NULL OR char_length(issuer) >= 1 AND char_length(issuer) <= 2048),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_jwks_uri_https,check,CHECK (jwks_uri IS NULL OR jwks_uri ~~ 'https://%'::text),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_jwks_uri_length,check,CHECK (jwks_uri IS NULL OR char_length(jwks_uri) <= 2048),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_name_length,check,CHECK (char_length(name) >= 1 AND char_length(name) <= 100),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_oauth2_requires_endpoints,check,CHECK (provider_type <> 'oauth2'::text OR authorization_url IS NOT NULL AND token_url IS NOT NULL AND userinfo_url IS NOT NULL),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_oidc_discovery_url_https,check,CHECK (provider_type <> 'oidc'::text OR discovery_url IS NULL OR discovery_url ~~ 'https://%'::text),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_oidc_issuer_https,check,CHECK (provider_type <> 'oidc'::text OR issuer IS NULL OR issuer ~~ 'https://%'::text),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_oidc_requires_issuer,check,CHECK (provider_type <> 'oidc'::text OR issuer IS NOT NULL),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_provider_type_check,check,"CHECK (provider_type = ANY (ARRAY['oauth2'::text, 'oidc'::text]))",t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_token_url_https,check,CHECK (token_url IS NULL OR token_url ~~ 'https://%'::text),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_token_url_length,check,CHECK (token_url IS NULL OR char_length(token_url) <= 2048),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_userinfo_url_https,check,CHECK (userinfo_url IS NULL OR userinfo_url ~~ 'https://%'::text),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_userinfo_url_length,check,CHECK (userinfo_url IS NULL OR char_length(userinfo_url) <= 2048),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,custom_oauth_providers,custom_oauth_providers_identifier_key,unique,UNIQUE (identifier),t,f,f
+auth,flow_state,flow_state_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,identities,identities_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+auth,identities,identities_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,identities,identities_provider_id_provider_unique,unique,"UNIQUE (provider_id, provider)",t,f,f
+auth,instances,instances_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,mfa_amr_claims,mfa_amr_claims_session_id_fkey,foreign_key,FOREIGN KEY (session_id) REFERENCES auth.sessions(id) ON DELETE CASCADE,t,f,f
+auth,mfa_amr_claims,amr_id_pk,primary_key,PRIMARY KEY (id),t,f,f
+auth,mfa_amr_claims,mfa_amr_claims_session_id_authentication_method_pkey,unique,"UNIQUE (session_id, authentication_method)",t,f,f
+auth,mfa_challenges,mfa_challenges_auth_factor_id_fkey,foreign_key,FOREIGN KEY (factor_id) REFERENCES auth.mfa_factors(id) ON DELETE CASCADE,t,f,f
+auth,mfa_challenges,mfa_challenges_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,mfa_factors,mfa_factors_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+auth,mfa_factors,mfa_factors_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,mfa_factors,mfa_factors_last_challenged_at_key,unique,UNIQUE (last_challenged_at),t,f,f
+auth,oauth_authorizations,oauth_authorizations_authorization_code_length,check,CHECK (char_length(authorization_code) <= 255),t,f,f
+auth,oauth_authorizations,oauth_authorizations_code_challenge_length,check,CHECK (char_length(code_challenge) <= 128),t,f,f
+auth,oauth_authorizations,oauth_authorizations_expires_at_future,check,CHECK (expires_at > created_at),t,f,f
+auth,oauth_authorizations,oauth_authorizations_nonce_length,check,CHECK (char_length(nonce) <= 255),t,f,f
+auth,oauth_authorizations,oauth_authorizations_redirect_uri_length,check,CHECK (char_length(redirect_uri) <= 2048),t,f,f
+auth,oauth_authorizations,oauth_authorizations_resource_length,check,CHECK (char_length(resource) <= 2048),t,f,f
+auth,oauth_authorizations,oauth_authorizations_scope_length,check,CHECK (char_length(scope) <= 4096),t,f,f
+auth,oauth_authorizations,oauth_authorizations_state_length,check,CHECK (char_length(state) <= 4096),t,f,f
+auth,oauth_authorizations,oauth_authorizations_client_id_fkey,foreign_key,FOREIGN KEY (client_id) REFERENCES auth.oauth_clients(id) ON DELETE CASCADE,t,f,f
+auth,oauth_authorizations,oauth_authorizations_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+auth,oauth_authorizations,oauth_authorizations_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,oauth_authorizations,oauth_authorizations_authorization_code_key,unique,UNIQUE (authorization_code),t,f,f
+auth,oauth_authorizations,oauth_authorizations_authorization_id_key,unique,UNIQUE (authorization_id),t,f,f
+auth,oauth_client_states,oauth_client_states_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,oauth_clients,oauth_clients_client_name_length,check,CHECK (char_length(client_name) <= 1024),t,f,f
+auth,oauth_clients,oauth_clients_client_uri_length,check,CHECK (char_length(client_uri) <= 2048),t,f,f
+auth,oauth_clients,oauth_clients_logo_uri_length,check,CHECK (char_length(logo_uri) <= 2048),t,f,f
+auth,oauth_clients,oauth_clients_token_endpoint_auth_method_check,check,"CHECK (token_endpoint_auth_method = ANY (ARRAY['client_secret_basic'::text, 'client_secret_post'::text, 'none'::text]))",t,f,f
+auth,oauth_clients,oauth_clients_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,oauth_consents,oauth_consents_revoked_after_granted,check,CHECK (revoked_at IS NULL OR revoked_at >= granted_at),t,f,f
+auth,oauth_consents,oauth_consents_scopes_length,check,CHECK (char_length(scopes) <= 2048),t,f,f
+auth,oauth_consents,oauth_consents_scopes_not_empty,check,CHECK (char_length(TRIM(BOTH FROM scopes)) > 0),t,f,f
+auth,oauth_consents,oauth_consents_client_id_fkey,foreign_key,FOREIGN KEY (client_id) REFERENCES auth.oauth_clients(id) ON DELETE CASCADE,t,f,f
+auth,oauth_consents,oauth_consents_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+auth,oauth_consents,oauth_consents_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,oauth_consents,oauth_consents_user_client_unique,unique,"UNIQUE (user_id, client_id)",t,f,f
+auth,one_time_tokens,one_time_tokens_token_hash_check,check,CHECK (char_length(token_hash) > 0),t,f,f
+auth,one_time_tokens,one_time_tokens_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+auth,one_time_tokens,one_time_tokens_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,refresh_tokens,refresh_tokens_session_id_fkey,foreign_key,FOREIGN KEY (session_id) REFERENCES auth.sessions(id) ON DELETE CASCADE,t,f,f
+auth,refresh_tokens,refresh_tokens_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,refresh_tokens,refresh_tokens_token_unique,unique,UNIQUE (token),t,f,f
+auth,saml_providers,entity_id not empty,check,CHECK (char_length(entity_id) > 0),t,f,f
+auth,saml_providers,metadata_url not empty,check,CHECK (metadata_url = NULL::text OR char_length(metadata_url) > 0),t,f,f
+auth,saml_providers,metadata_xml not empty,check,CHECK (char_length(metadata_xml) > 0),t,f,f
+auth,saml_providers,saml_providers_sso_provider_id_fkey,foreign_key,FOREIGN KEY (sso_provider_id) REFERENCES auth.sso_providers(id) ON DELETE CASCADE,t,f,f
+auth,saml_providers,saml_providers_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,saml_providers,saml_providers_entity_id_key,unique,UNIQUE (entity_id),t,f,f
+auth,saml_relay_states,request_id not empty,check,CHECK (char_length(request_id) > 0),t,f,f
+auth,saml_relay_states,saml_relay_states_flow_state_id_fkey,foreign_key,FOREIGN KEY (flow_state_id) REFERENCES auth.flow_state(id) ON DELETE CASCADE,t,f,f
+auth,saml_relay_states,saml_relay_states_sso_provider_id_fkey,foreign_key,FOREIGN KEY (sso_provider_id) REFERENCES auth.sso_providers(id) ON DELETE CASCADE,t,f,f
+auth,saml_relay_states,saml_relay_states_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,schema_migrations,schema_migrations_pkey,primary_key,PRIMARY KEY (version),t,f,f
+auth,sessions,sessions_scopes_length,check,CHECK (char_length(scopes) <= 4096),t,f,f
+auth,sessions,sessions_oauth_client_id_fkey,foreign_key,FOREIGN KEY (oauth_client_id) REFERENCES auth.oauth_clients(id) ON DELETE CASCADE,t,f,f
+auth,sessions,sessions_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+auth,sessions,sessions_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,sso_domains,domain not empty,check,CHECK (char_length(domain) > 0),t,f,f
+auth,sso_domains,sso_domains_sso_provider_id_fkey,foreign_key,FOREIGN KEY (sso_provider_id) REFERENCES auth.sso_providers(id) ON DELETE CASCADE,t,f,f
+auth,sso_domains,sso_domains_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,sso_providers,resource_id not empty,check,CHECK (resource_id = NULL::text OR char_length(resource_id) > 0),t,f,f
+auth,sso_providers,sso_providers_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,users,users_email_change_confirm_status_check,check,CHECK (email_change_confirm_status >= 0 AND email_change_confirm_status <= 2),t,f,f
+auth,users,users_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,users,users_phone_key,unique,UNIQUE (phone),t,f,f
+auth,webauthn_challenges,webauthn_challenges_challenge_type_check,check,"CHECK (challenge_type = ANY (ARRAY['signup'::text, 'registration'::text, 'authentication'::text]))",t,f,f
+auth,webauthn_challenges,webauthn_challenges_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+auth,webauthn_challenges,webauthn_challenges_pkey,primary_key,PRIMARY KEY (id),t,f,f
+auth,webauthn_credentials,webauthn_credentials_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+auth,webauthn_credentials,webauthn_credentials_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,account_private,account_private_birthday_visibility_check,check,"CHECK (birthday_visibility = ANY (ARRAY['private'::text, 'friends'::text, 'public'::text]))",t,f,f
+public,account_private,account_private_first_name_length,check,CHECK (first_name IS NULL OR char_length(first_name) >= 1 AND char_length(first_name) <= 80),t,f,f
+public,account_private,account_private_last_name_length,check,CHECK (last_name IS NULL OR char_length(last_name) >= 1 AND char_length(last_name) <= 80),t,f,f
+public,account_private,account_private_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,account_private,account_private_pkey,primary_key,PRIMARY KEY (user_id),t,f,f
+public,active_artist_boosts,active_artist_boosts_multiplier_check,check,CHECK (multiplier >= 1.0),t,f,f
+public,active_artist_boosts,active_artist_boosts_artist_id_fkey,foreign_key,FOREIGN KEY (artist_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,active_artist_boosts,active_artist_boosts_booster_id_fkey,foreign_key,FOREIGN KEY (booster_id) REFERENCES boosters(id) ON DELETE RESTRICT,t,f,f
+public,active_artist_boosts,active_artist_boosts_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL,t,f,f
+public,active_artist_boosts,active_artist_boosts_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,active_track_boosts,active_track_boosts_multiplier_check,check,CHECK (multiplier >= 1.0),t,f,f
+public,active_track_boosts,active_track_boosts_booster_id_fkey,foreign_key,FOREIGN KEY (booster_id) REFERENCES boosters(id) ON DELETE RESTRICT,t,f,f
+public,active_track_boosts,active_track_boosts_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL,t,f,f
+public,active_track_boosts,active_track_boosts_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,admin_broadcasts,admin_broadcasts_admin_id_fkey,foreign_key,FOREIGN KEY (admin_id) REFERENCES profiles(id) ON DELETE SET NULL,t,f,f
+public,admin_broadcasts,admin_broadcasts_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,ai_credit_balances,ai_credit_balances_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,ai_credit_balances,ai_credit_balances_pkey,primary_key,PRIMARY KEY (user_id),t,f,f
+public,ai_generations,ai_generations_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,ai_generations,ai_generations_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,ai_playlist_tracks,ai_playlist_tracks_playlist_id_fkey,foreign_key,FOREIGN KEY (playlist_id) REFERENCES ai_playlists(id) ON DELETE CASCADE,t,f,f
+public,ai_playlist_tracks,ai_playlist_tracks_track_id_fkey,foreign_key,FOREIGN KEY (track_id) REFERENCES ai_tracks(id) ON DELETE CASCADE,t,f,f
+public,ai_playlist_tracks,ai_playlist_tracks_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,ai_playlist_tracks,ai_playlist_tracks_playlist_id_track_id_key,unique,"UNIQUE (playlist_id, track_id)",t,f,f
+public,ai_playlists,ai_playlists_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,ai_playlists,ai_playlists_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,ai_track_likes,ai_track_likes_track_id_fkey,foreign_key,FOREIGN KEY (track_id) REFERENCES ai_tracks(id) ON DELETE CASCADE,t,f,f
+public,ai_track_likes,ai_track_likes_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,ai_track_likes,ai_track_likes_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,ai_track_likes,ai_track_likes_track_id_user_id_key,unique,"UNIQUE (track_id, user_id)",t,f,f
+public,ai_tracks,ai_tracks_remix_visibility_check,check,"CHECK (remix_visibility = ANY (ARRAY['everyone'::text, 'followers'::text, 'disabled'::text]))",t,f,f
+public,ai_tracks,ai_tracks_generation_id_fkey,foreign_key,FOREIGN KEY (generation_id) REFERENCES ai_generations(id) ON DELETE CASCADE,t,f,f
+public,ai_tracks,ai_tracks_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,ai_usage_stats,ai_usage_stats_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,ai_usage_stats,ai_usage_stats_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,ai_usage_stats,ai_usage_stats_user_id_date_key,unique,"UNIQUE (user_id, date)",t,f,f
+public,boosters,boosters_duration_hours_check,check,CHECK (duration_hours > 0),t,f,f
+public,boosters,boosters_multiplier_check,check,CHECK (multiplier >= 1.0),t,f,f
+public,boosters,boosters_rarity_check,check,"CHECK (rarity = ANY (ARRAY['common'::text, 'rare'::text, 'epic'::text, 'legendary'::text]))",t,f,f
+public,boosters,boosters_type_check,check,"CHECK (type = ANY (ARRAY['track'::text, 'artist'::text]))",t,f,f
+public,boosters,boosters_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,boosters,boosters_key_key,unique,UNIQUE (key),t,f,f
+public,challenge_entries,challenge_entries_content_type_check,check,"CHECK (content_type = ANY (ARRAY['clip'::text, 'variation'::text, 'track'::text]))",t,f,f
+public,challenge_entries,challenge_entries_challenge_id_fkey,foreign_key,FOREIGN KEY (challenge_id) REFERENCES music_challenges(id) ON DELETE CASCADE,t,f,f
+public,challenge_entries,challenge_entries_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,challenge_entries,challenge_entries_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,challenge_entries,challenge_entries_challenge_id_user_id_content_type_content_key,unique,"UNIQUE (challenge_id, user_id, content_type, content_id)",t,f,f
+public,city_event_participations,city_event_participations_status_check,check,"CHECK (status = ANY (ARRAY['submitted'::text, 'accepted'::text, 'rejected'::text, 'winner'::text]))",t,f,f
+public,city_event_participations,city_event_participations_event_id_fkey,foreign_key,FOREIGN KEY (event_id) REFERENCES city_events(id) ON DELETE CASCADE,t,f,f
+public,city_event_participations,city_event_participations_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,city_event_participations,city_event_participations_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,city_event_participations,city_event_participations_event_id_user_id_track_id_key,unique,"UNIQUE (event_id, user_id, track_id)",t,f,f
+public,city_event_tracks,city_event_tracks_source_check,check,"CHECK (source = ANY (ARRAY['algorithmic'::text, 'curated'::text, 'submission'::text, 'winner'::text]))",t,f,f
+public,city_event_tracks,city_event_tracks_creator_id_fkey,foreign_key,FOREIGN KEY (creator_id) REFERENCES profiles(id) ON DELETE SET NULL,t,f,f
+public,city_event_tracks,city_event_tracks_event_id_fkey,foreign_key,FOREIGN KEY (event_id) REFERENCES city_events(id) ON DELETE CASCADE,t,f,f
+public,city_event_tracks,city_event_tracks_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,city_event_tracks,city_event_tracks_event_id_track_id_key,unique,"UNIQUE (event_id, track_id)",t,f,f
+public,city_event_votes,city_event_votes_event_id_track_id_fkey,foreign_key,"FOREIGN KEY (event_id, track_id) REFERENCES city_event_tracks(event_id, track_id) ON DELETE CASCADE",t,f,f
+public,city_event_votes,city_event_votes_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,city_event_votes,city_event_votes_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,city_event_votes,city_event_votes_event_id_user_id_key,unique,"UNIQUE (event_id, user_id)",t,f,f
+public,city_event_winners,city_event_winners_rank_check,check,CHECK (rank > 0),t,f,f
+public,city_event_winners,city_event_winners_event_id_fkey,foreign_key,FOREIGN KEY (event_id) REFERENCES city_events(id) ON DELETE CASCADE,t,f,f
+public,city_event_winners,city_event_winners_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE SET NULL,t,f,f
+public,city_event_winners,city_event_winners_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,city_event_winners,city_event_winners_event_id_rank_key,unique,"UNIQUE (event_id, rank)",t,f,f
+public,city_events,city_events_kind_check,check,"CHECK (kind = ANY (ARRAY['friday_drop'::text, 'challenge'::text, 'battle'::text, 'seasonal'::text]))",t,f,f
+public,city_events,city_events_status_check,check,"CHECK (status = ANY (ARRAY['scheduled'::text, 'live'::text, 'ended'::text, 'resolved'::text, 'archived'::text]))",t,f,f
+public,city_events,city_events_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,city_user_rewards,city_user_rewards_status_check,check,"CHECK (status = ANY (ARRAY['available'::text, 'claimed'::text, 'expired'::text]))",t,f,f
+public,city_user_rewards,city_user_rewards_event_id_fkey,foreign_key,FOREIGN KEY (event_id) REFERENCES city_events(id) ON DELETE CASCADE,t,f,f
+public,city_user_rewards,city_user_rewards_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,city_user_rewards,city_user_rewards_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,city_user_rewards,city_user_rewards_event_id_user_id_reward_key_key,unique,"UNIQUE (event_id, user_id, reward_key)",t,f,f
+public,comment_likes,comment_likes_comment_id_fkey,foreign_key,FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,t,f,f
+public,comment_likes,comment_likes_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,comment_likes,comment_likes_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,comment_likes,comment_likes_comment_id_user_id_key,unique,"UNIQUE (comment_id, user_id)",t,f,f
+public,comment_moderation,comment_moderation_pkey,primary_key,"PRIMARY KEY (comment_id, creator_id)",t,f,f
+public,comment_reactions,comment_reactions_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,comment_reactions,comment_reactions_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,comment_reactions,comment_reactions_comment_id_user_id_reaction_type_key,unique,"UNIQUE (comment_id, user_id, reaction_type)",t,f,f
+public,comments,comments_timestamp_seconds_check,check,CHECK (timestamp_seconds IS NULL OR timestamp_seconds >= 0::numeric),t,f,f
+public,comments,comments_track_id_fkey,foreign_key,FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE,t,f,f
+public,comments,comments_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,comments,comments_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,conversation_participants,conversation_participants_role_check,check,"CHECK (role = ANY (ARRAY['owner'::text, 'moderator'::text, 'member'::text]))",t,f,f
+public,conversation_participants,conversation_participants_conversation_id_fkey,foreign_key,FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,t,f,f
+public,conversation_participants,conversation_participants_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,conversation_participants,conversation_participants_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,conversation_participants,conversation_participants_conversation_id_user_id_key,unique,"UNIQUE (conversation_id, user_id)",t,f,f
+public,conversation_realtime_events,conversation_realtime_event_payload_size,check,CHECK (octet_length(payload::text) <= 2048),t,f,f
+public,conversation_realtime_events,conversation_realtime_events_event_type_check,check,"CHECK (event_type = ANY (ARRAY['typing'::text, 'recording'::text, 'presence'::text]))",t,f,f
+public,conversation_realtime_events,conversation_realtime_events_conversation_id_fkey,foreign_key,FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,t,f,f
+public,conversation_realtime_events,conversation_realtime_events_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,conversation_realtime_events,conversation_realtime_events_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,conversation_rooms,conversation_rooms_room_type_check,check,"CHECK (room_type = ANY (ARRAY['text'::text, 'voice_notes'::text]))",t,f,f
+public,conversation_rooms,conversation_rooms_conversation_id_fkey,foreign_key,FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,t,f,f
+public,conversation_rooms,conversation_rooms_created_by_fkey,foreign_key,FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL,t,f,f
+public,conversation_rooms,conversation_rooms_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,conversations,conversations_owner_id_fkey,foreign_key,FOREIGN KEY (owner_id) REFERENCES profiles(id) ON DELETE SET NULL,t,f,f
+public,conversations,conversations_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,creator_comment_filters,creator_comment_filters_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,creator_comment_filters,creator_comment_filters_creator_id_word_key,unique,"UNIQUE (creator_id, word)",t,f,f
+public,creator_posts,creator_posts_post_type_check,check,"CHECK (post_type = ANY (ARRAY['text'::text, 'photo'::text, 'track_share'::text, 'repost'::text]))",t,f,f
+public,creator_posts,creator_posts_creator_id_fkey,foreign_key,FOREIGN KEY (creator_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,creator_posts,creator_posts_original_post_id_fkey,foreign_key,FOREIGN KEY (original_post_id) REFERENCES creator_posts(id) ON DELETE SET NULL,t,f,f
+public,creator_posts,creator_posts_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,credit_ledger,credit_ledger_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,credit_ledger,credit_ledger_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,editorial_collections,editorial_collections_created_by_fkey,foreign_key,FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL,t,f,f
+public,editorial_collections,editorial_collections_playlist_id_fkey,foreign_key,FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,t,f,f
+public,editorial_collections,editorial_collections_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,editorial_collections,editorial_collections_playlist_id_key,unique,UNIQUE (playlist_id),t,f,f
+public,editorial_collections,editorial_collections_slug_key,unique,UNIQUE (slug),t,f,f
+public,faq_items,faq_items_category_check,check,"CHECK (category::text = ANY (ARRAY['general'::character varying::text, 'player'::character varying::text, 'upload'::character varying::text, 'abonnement'::character varying::text, 'ia'::character varying::text, 'technique'::character varying::text]))",t,f,f
+public,faq_items,faq_items_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,faq_votes,faq_votes_faq_id_fkey,foreign_key,FOREIGN KEY (faq_id) REFERENCES faq_items(id) ON DELETE CASCADE,t,f,f
+public,faq_votes,faq_votes_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,faq_votes,faq_votes_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,faq_votes,faq_votes_faq_id_user_id_key,unique,"UNIQUE (faq_id, user_id)",t,f,f
+public,follow_requests,follow_requests_requester_id_fkey,foreign_key,FOREIGN KEY (requester_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,follow_requests,follow_requests_target_id_fkey,foreign_key,FOREIGN KEY (target_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,follow_requests,follow_requests_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,follow_requests,follow_requests_requester_id_target_id_key,unique,"UNIQUE (requester_id, target_id)",t,f,f
+public,forum_post_likes,forum_post_likes_post_id_fkey,foreign_key,FOREIGN KEY (post_id) REFERENCES forum_posts(id) ON DELETE CASCADE,t,f,f
+public,forum_post_likes,forum_post_likes_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,forum_post_likes,forum_post_likes_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,forum_post_likes,forum_post_likes_post_id_user_id_key,unique,"UNIQUE (post_id, user_id)",t,f,f
+public,forum_posts,forum_posts_category_check,check,"CHECK (category::text = ANY (ARRAY['question'::character varying::text, 'suggestion'::character varying::text, 'bug'::character varying::text, 'general'::character varying::text]))",t,f,f
+public,forum_posts,forum_posts_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,forum_posts,forum_posts_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,forum_replies,forum_replies_post_id_fkey,foreign_key,FOREIGN KEY (post_id) REFERENCES forum_posts(id) ON DELETE CASCADE,t,f,f
+public,forum_replies,forum_replies_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,forum_replies,forum_replies_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,forum_reply_likes,forum_reply_likes_reply_id_fkey,foreign_key,FOREIGN KEY (reply_id) REFERENCES forum_replies(id) ON DELETE CASCADE,t,f,f
+public,forum_reply_likes,forum_reply_likes_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,forum_reply_likes,forum_reply_likes_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,forum_reply_likes,forum_reply_likes_reply_id_user_id_key,unique,"UNIQUE (reply_id, user_id)",t,f,f
+public,friendships,friendships_distinct_users,check,CHECK (user_id <> friend_id),t,f,f
+public,friendships,friendships_friend_id_fkey,foreign_key,FOREIGN KEY (friend_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,friendships,friendships_source_request_id_fkey,foreign_key,FOREIGN KEY (source_request_id) REFERENCES message_requests(id) ON DELETE SET NULL,t,f,f
+public,friendships,friendships_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,friendships,friendships_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,friendships,friendships_unique_pair,unique,"UNIQUE (user_id, friend_id)",t,f,f
+public,message_attachments,message_attachments_attachment_type_check,check,"CHECK (attachment_type = ANY (ARRAY['image'::text, 'video'::text, 'audio'::text, 'file'::text]))",t,f,f
+public,message_attachments,message_attachments_duration_positive,check,CHECK (duration_ms IS NULL OR duration_ms >= 0),t,f,f
+public,message_attachments,message_attachments_position_positive,check,"CHECK (""position"" >= 0)",t,f,f
+public,message_attachments,message_attachments_size_positive,check,CHECK (size_bytes IS NULL OR size_bytes >= 0),t,f,f
+public,message_attachments,message_attachments_conversation_id_fkey,foreign_key,FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,t,f,f
+public,message_attachments,message_attachments_message_id_fkey,foreign_key,FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,t,f,f
+public,message_attachments,message_attachments_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,message_attachments,message_attachments_unique_position,unique,"UNIQUE (message_id, ""position"")",t,f,f
+public,message_hidden_users,message_hidden_users_message_id_fkey,foreign_key,FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,t,f,f
+public,message_hidden_users,message_hidden_users_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,message_hidden_users,message_hidden_users_pkey,primary_key,"PRIMARY KEY (message_id, user_id)",t,f,f
+public,message_pins,message_pins_conversation_id_fkey,foreign_key,FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,t,f,f
+public,message_pins,message_pins_message_id_fkey,foreign_key,FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,t,f,f
+public,message_pins,message_pins_pinned_by_fkey,foreign_key,FOREIGN KEY (pinned_by) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,message_pins,message_pins_pkey,primary_key,"PRIMARY KEY (conversation_id, message_id)",t,f,f
+public,message_reactions,message_reactions_reaction_check,check,"CHECK (reaction = ANY (ARRAY['heart'::text, 'fire'::text, 'wow'::text, 'support'::text, 'laugh'::text]))",t,f,f
+public,message_reactions,message_reactions_conversation_id_fkey,foreign_key,FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,t,f,f
+public,message_reactions,message_reactions_message_id_fkey,foreign_key,FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,t,f,f
+public,message_reactions,message_reactions_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,message_reactions,message_reactions_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,message_reactions,message_reactions_one_per_user,unique,"UNIQUE (message_id, user_id)",t,f,f
+public,message_requests,message_requests_status_check,check,"CHECK (status::text = ANY (ARRAY['pending'::character varying::text, 'accepted'::character varying::text, 'rejected'::character varying::text, 'cancelled'::character varying::text]))",t,f,f
+public,message_requests,message_requests_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,message_requests,message_requests_requester_id_target_id_key,unique,"UNIQUE (requester_id, target_id)",t,f,f
+public,messages,messages_conversation_id_fkey,foreign_key,FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,t,f,f
+public,messages,messages_room_id_fkey,foreign_key,FOREIGN KEY (room_id) REFERENCES conversation_rooms(id) ON DELETE SET NULL,t,f,f
+public,messages,messages_sender_id_fkey,foreign_key,FOREIGN KEY (sender_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,messages,messages_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,meteo_alerts,meteo_alerts_severity_check,check,"CHECK (severity = ANY (ARRAY['info'::text, 'warning'::text, 'danger'::text, 'critical'::text]))",t,f,f
+public,meteo_alerts,meteo_alerts_sent_by_fkey,foreign_key,FOREIGN KEY (sent_by) REFERENCES meteo_team_members(id),t,f,f
+public,meteo_alerts,meteo_alerts_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,meteo_bulletins,meteo_bulletins_status_check,check,"CHECK (status = ANY (ARRAY['draft'::text, 'published'::text, 'scheduled'::text]))",t,f,f
+public,meteo_bulletins,meteo_bulletins_author_id_fkey,foreign_key,FOREIGN KEY (author_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,meteo_bulletins,meteo_bulletins_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,meteo_comments,meteo_comments_bulletin_id_fkey,foreign_key,FOREIGN KEY (bulletin_id) REFERENCES meteo_bulletins(id) ON DELETE CASCADE,t,f,f
+public,meteo_comments,meteo_comments_parent_id_fkey,foreign_key,FOREIGN KEY (parent_id) REFERENCES meteo_comments(id) ON DELETE CASCADE,t,f,f
+public,meteo_comments,meteo_comments_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,meteo_comments,meteo_comments_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,meteo_reactions,meteo_reactions_type_check,check,"CHECK (type = ANY (ARRAY['like'::text, 'useful'::text, 'share'::text]))",t,f,f
+public,meteo_reactions,meteo_reactions_bulletin_id_fkey,foreign_key,FOREIGN KEY (bulletin_id) REFERENCES meteo_bulletins(id) ON DELETE CASCADE,t,f,f
+public,meteo_reactions,meteo_reactions_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,meteo_reactions,meteo_reactions_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,meteo_reactions,meteo_reactions_bulletin_id_user_id_type_key,unique,"UNIQUE (bulletin_id, user_id, type)",t,f,f
+public,meteo_settings,meteo_settings_updated_by_fkey,foreign_key,FOREIGN KEY (updated_by) REFERENCES auth.users(id),t,f,f
+public,meteo_settings,meteo_settings_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,meteo_settings,meteo_settings_key_key,unique,UNIQUE (key),t,f,f
+public,meteo_team_members,meteo_team_members_role_check,check,"CHECK (role = ANY (ARRAY['admin'::text, 'moderator'::text, 'contributor'::text]))",t,f,f
+public,meteo_team_members,meteo_team_members_status_check,check,"CHECK (status = ANY (ARRAY['active'::text, 'pending'::text, 'revoked'::text]))",t,f,f
+public,meteo_team_members,meteo_team_members_invited_by_fkey,foreign_key,FOREIGN KEY (invited_by) REFERENCES auth.users(id),t,f,f
+public,meteo_team_members,meteo_team_members_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,meteo_team_members,meteo_team_members_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,meteo_team_members,meteo_team_members_user_id_key,unique,UNIQUE (user_id),t,f,f
+public,meteo_views,meteo_views_bulletin_id_fkey,foreign_key,FOREIGN KEY (bulletin_id) REFERENCES meteo_bulletins(id) ON DELETE CASCADE,t,f,f
+public,meteo_views,meteo_views_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,missions,missions_goal_type_check,check,"CHECK (goal_type = ANY (ARRAY['plays'::text, 'likes'::text, 'shares'::text, 'boosts'::text]))",t,f,f
+public,missions,missions_threshold_check,check,CHECK (threshold > 0),t,f,f
+public,missions,missions_reward_booster_id_fkey,foreign_key,FOREIGN KEY (reward_booster_id) REFERENCES boosters(id) ON DELETE SET NULL,t,f,f
+public,missions,missions_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,missions,missions_key_key,unique,UNIQUE (key),t,f,f
+public,music_challenges,music_challenges_club_slug_check,check,"CHECK (club_slug = ANY (ARRAY['feedback'::text, 'collab'::text, 'remix'::text, 'ai'::text]))",t,f,f
+public,music_challenges,music_challenges_content_type_check,check,"CHECK (content_type = ANY (ARRAY['clip'::text, 'variation'::text, 'track'::text, 'open'::text]))",t,f,f
+public,music_challenges,music_challenges_source_track_type_check,check,"CHECK (source_track_type = ANY (ARRAY['track'::text, 'ai_track'::text]))",t,f,f
+public,music_challenges,music_challenges_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,music_clips,music_clips_comments_check,check,CHECK (comments_count >= 0),t,f,f
+public,music_clips,music_clips_duration_check,check,CHECK (source_track_duration_seconds >= 15 AND source_track_duration_seconds <= 60),t,f,f
+public,music_clips,music_clips_likes_check,check,CHECK (likes_count >= 0),t,f,f
+public,music_clips,music_clips_offset_check,check,CHECK (source_track_offset_seconds >= 0),t,f,f
+public,music_clips,music_clips_source_track_type_check,check,"CHECK (source_track_type = ANY (ARRAY['track'::text, 'ai_track'::text]))",t,f,f
+public,music_clips,music_clips_visibility_check,check,"CHECK (visibility = ANY (ARRAY['draft'::text, 'published'::text, 'hidden'::text]))",t,f,f
+public,music_clips,music_clips_creator_id_fkey,foreign_key,FOREIGN KEY (creator_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,music_clips,music_clips_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,notification_preferences,notification_preferences_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,notification_preferences,notification_preferences_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,notification_preferences,notification_preferences_user_id_key,unique,UNIQUE (user_id),t,f,f
+public,notifications,notifications_sender_id_fkey,foreign_key,FOREIGN KEY (sender_id) REFERENCES profiles(id) ON DELETE SET NULL,t,f,f
+public,notifications,notifications_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,notifications,notifications_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,password_resets,password_resets_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,password_resets,password_resets_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,payments,payments_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,payments,payments_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,payments,payments_stripe_payment_intent_id_key,unique,UNIQUE (stripe_payment_intent_id),t,f,f
+public,play_stats,play_stats_track_id_fkey,foreign_key,FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE,t,f,f
+public,play_stats,play_stats_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE SET NULL,t,f,f
+public,play_stats,play_stats_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,playlist_tracks,playlist_tracks_playlist_id_fkey,foreign_key,FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,t,f,f
+public,playlist_tracks,playlist_tracks_track_id_fkey,foreign_key,FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE,t,f,f
+public,playlist_tracks,playlist_tracks_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,playlist_tracks,playlist_tracks_playlist_id_track_id_key,unique,"UNIQUE (playlist_id, track_id)",t,f,f
+public,playlists,playlists_creator_id_fkey,foreign_key,FOREIGN KEY (creator_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,playlists,playlists_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,post_comments,post_comments_post_id_fkey,foreign_key,FOREIGN KEY (post_id) REFERENCES creator_posts(id) ON DELETE CASCADE,t,f,f
+public,post_comments,post_comments_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,post_comments,post_comments_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,post_likes,post_likes_post_id_fkey,foreign_key,FOREIGN KEY (post_id) REFERENCES creator_posts(id) ON DELETE CASCADE,t,f,f
+public,post_likes,post_likes_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,post_likes,post_likes_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,post_likes,post_likes_post_id_user_id_key,unique,"UNIQUE (post_id, user_id)",t,f,f
+public,profiles,profiles_id_fkey,foreign_key,FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,profiles,profiles_referred_by_fkey,foreign_key,FOREIGN KEY (referred_by) REFERENCES profiles(id),t,f,f
+public,profiles,profiles_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,profiles,profiles_email_key,unique,UNIQUE (email),t,f,f
+public,profiles,profiles_referral_code_key,unique,UNIQUE (referral_code),t,f,f
+public,profiles,profiles_username_key,unique,UNIQUE (username),t,f,f
+public,push_subscriptions,push_subscriptions_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,push_subscriptions,push_subscriptions_user_id_endpoint_key,unique,"UNIQUE (user_id, endpoint)",t,f,f
+public,recommendation_impressions,recommendation_impressions_content_type_check,check,"CHECK (content_type = ANY (ARRAY['track'::text, 'post'::text, 'clip'::text]))",t,f,f
+public,recommendation_impressions,recommendation_impressions_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,referrals,referrals_referred_id_fkey,foreign_key,FOREIGN KEY (referred_id) REFERENCES profiles(id),t,f,f
+public,referrals,referrals_referrer_id_fkey,foreign_key,FOREIGN KEY (referrer_id) REFERENCES profiles(id),t,f,f
+public,referrals,referrals_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,referrals,referrals_referred_id_key,unique,UNIQUE (referred_id),t,f,f
+public,star_academy_applications,star_academy_applications_age_check,check,CHECK (age >= 13 AND age <= 99),t,f,f
+public,star_academy_applications,star_academy_applications_status_check,check,"CHECK (status = ANY (ARRAY['pending'::text, 'reviewing'::text, 'accepted'::text, 'rejected'::text]))",t,f,f
+public,star_academy_applications,star_academy_applications_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL,t,f,f
+public,star_academy_applications,star_academy_applications_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,star_academy_applications,star_academy_applications_email_key,unique,UNIQUE (email),t,f,f
+public,star_academy_applications,star_academy_applications_tracking_token_key,unique,UNIQUE (tracking_token),t,f,f
+public,star_academy_config,star_academy_config_pkey,primary_key,PRIMARY KEY (key),t,f,f
+public,star_academy_staff_applications,star_academy_staff_applications_age_check,check,CHECK (age >= 18 AND age <= 99),t,f,f
+public,star_academy_staff_applications,star_academy_staff_applications_role_check,check,"CHECK (role = ANY (ARRAY['coach_vocal'::text, 'coach_scenique'::text, 'direction_musicale'::text, 'jury'::text, 'production'::text, 'autre'::text]))",t,f,f
+public,star_academy_staff_applications,star_academy_staff_applications_status_check,check,"CHECK (status = ANY (ARRAY['pending'::text, 'reviewing'::text, 'accepted'::text, 'rejected'::text]))",t,f,f
+public,star_academy_staff_applications,star_academy_staff_applications_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL,t,f,f
+public,star_academy_staff_applications,star_academy_staff_applications_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,star_academy_staff_applications,star_academy_staff_applications_email_key,unique,UNIQUE (email),t,f,f
+public,star_academy_staff_applications,star_academy_staff_applications_tracking_token_key,unique,UNIQUE (tracking_token),t,f,f
+public,subscriptions,subscriptions_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,subscriptions,subscriptions_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,subscriptions,subscriptions_stripe_subscription_id_key,unique,UNIQUE (stripe_subscription_id),t,f,f
+public,support_tickets,support_tickets_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id),t,f,f
+public,support_tickets,support_tickets_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,synaura_tv_settings,synaura_tv_settings_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,track_events,track_events_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,track_likes,track_likes_track_id_fkey,foreign_key,FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE,t,f,f
+public,track_likes,track_likes_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,track_likes,track_likes_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,track_likes,track_likes_track_id_user_id_key,unique,"UNIQUE (track_id, user_id)",t,f,f
+public,track_moment_reactions,track_moment_reactions_reaction_type_check,check,"CHECK (reaction_type = ANY (ARRAY['drop'::text, 'emotional'::text, 'mindblown'::text, 'favorite'::text, 'vocals'::text, 'production'::text]))",t,f,f
+public,track_moment_reactions,track_moment_reactions_timestamp_seconds_check,check,CHECK (timestamp_seconds >= 0::numeric),t,f,f
+public,track_moment_reactions,track_moment_reactions_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,track_remixes,track_remixes_child_track_type_check,check,"CHECK (child_track_type = ANY (ARRAY['track'::text, 'ai_track'::text]))",t,f,f
+public,track_remixes,track_remixes_remix_type_check,check,CHECK (remix_type = 'ai_variation'::text),t,f,f
+public,track_remixes,track_remixes_source_track_type_check,check,"CHECK (source_track_type = ANY (ARRAY['track'::text, 'ai_track'::text]))",t,f,f
+public,track_remixes,track_remixes_status_check,check,"CHECK (status = ANY (ARRAY['draft'::text, 'pending_approval'::text, 'published'::text, 'rejected'::text]))",t,f,f
+public,track_remixes,track_remixes_challenge_id_fkey,foreign_key,FOREIGN KEY (challenge_id) REFERENCES music_challenges(id) ON DELETE SET NULL,t,f,f
+public,track_remixes,track_remixes_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,track_stats,track_stats_pkey,primary_key,PRIMARY KEY (track_id),t,f,f
+public,track_views,track_views_track_id_fkey,foreign_key,FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE,t,f,f
+public,track_views,track_views_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,track_views,track_views_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,track_views,track_views_user_id_track_id_viewed_date_key,unique,"UNIQUE (user_id, track_id, viewed_date)",t,f,f
+public,track_waveforms,track_waveforms_duration_check,check,CHECK (duration > 0::numeric),t,f,f
+public,track_waveforms,track_waveforms_track_type_check,check,"CHECK (track_type = ANY (ARRAY['track'::text, 'ai_track'::text]))",t,f,f
+public,track_waveforms,track_waveforms_pkey,primary_key,"PRIMARY KEY (track_id, track_type)",t,f,f
+public,tracks,tracks_remix_visibility_check,check,"CHECK (remix_visibility = ANY (ARRAY['everyone'::text, 'followers'::text, 'disabled'::text]))",t,f,f
+public,tracks,tracks_creator_id_fkey,foreign_key,FOREIGN KEY (creator_id) REFERENCES profiles(id) ON DELETE SET NULL,t,f,f
+public,tracks,tracks_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,tracks,tracks_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,user_blocks,user_blocks_distinct_users,check,CHECK (blocker_id <> blocked_id),t,f,f
+public,user_blocks,user_blocks_blocked_id_fkey,foreign_key,FOREIGN KEY (blocked_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,user_blocks,user_blocks_blocker_id_fkey,foreign_key,FOREIGN KEY (blocker_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,user_blocks,user_blocks_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,user_blocks,user_blocks_unique_pair,unique,"UNIQUE (blocker_id, blocked_id)",t,f,f
+public,user_booster_daily,user_booster_daily_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,user_booster_daily,user_booster_daily_pkey,primary_key,PRIMARY KEY (user_id),t,f,f
+public,user_booster_open_history,user_booster_open_history_booster_id_fkey,foreign_key,FOREIGN KEY (booster_id) REFERENCES boosters(id) ON DELETE SET NULL,t,f,f
+public,user_booster_open_history,user_booster_open_history_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,user_booster_open_history,user_booster_open_history_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,user_booster_pack_claims,user_booster_pack_claims_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,user_booster_pack_claims,user_booster_pack_claims_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,user_booster_pity,user_booster_pity_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,user_booster_pity,user_booster_pity_pkey,primary_key,PRIMARY KEY (user_id),t,f,f
+public,user_boosters,user_boosters_status_check,check,"CHECK (status = ANY (ARRAY['owned'::text, 'used'::text]))",t,f,f
+public,user_boosters,user_boosters_booster_id_fkey,foreign_key,FOREIGN KEY (booster_id) REFERENCES boosters(id) ON DELETE RESTRICT,t,f,f
+public,user_boosters,user_boosters_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,user_boosters,user_boosters_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,user_daily_spin,user_daily_spin_streak_check,check,CHECK (streak >= 0),t,f,f
+public,user_daily_spin,user_daily_spin_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,user_daily_spin,user_daily_spin_pkey,primary_key,PRIMARY KEY (user_id),t,f,f
+public,user_daily_spin_history,user_daily_spin_history_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,user_daily_spin_history,user_daily_spin_history_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,user_follows,user_follows_follower_id_fkey,foreign_key,FOREIGN KEY (follower_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,user_follows,user_follows_following_id_fkey,foreign_key,FOREIGN KEY (following_id) REFERENCES profiles(id) ON DELETE CASCADE,t,f,f
+public,user_follows,user_follows_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,user_follows,user_follows_follower_id_following_id_key,unique,"UNIQUE (follower_id, following_id)",t,f,f
+public,user_missions,user_missions_mission_id_fkey,foreign_key,FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,t,f,f
+public,user_missions,user_missions_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,user_missions,user_missions_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,user_quotas,user_quotas_user_id_fkey,foreign_key,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,user_quotas,user_quotas_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,user_quotas,user_quotas_user_id_key,unique,UNIQUE (user_id),t,f,f
+public,users,users_subscription_plan_check,check,"CHECK (subscription_plan::text = ANY (ARRAY['free'::character varying::text, 'starter'::character varying::text, 'creator'::character varying::text, 'pro'::character varying::text, 'enterprise'::character varying::text]))",t,f,f
+public,users,users_id_fkey,foreign_key,FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE,t,f,f
+public,users,users_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,waiting_list,waiting_list_status_check,check,"CHECK (status = ANY (ARRAY['waiting'::text, 'invited'::text, 'accepted'::text]))",t,f,f
+public,waiting_list,waiting_list_pkey,primary_key,PRIMARY KEY (id),t,f,f
+public,waiting_list,waiting_list_email_key,unique,UNIQUE (email),t,f,f
+realtime,messages,messages_payload_exclusive,check,CHECK (payload IS NULL OR binary_payload IS NULL) NOT VALID,f,f,f
+realtime,messages,messages_pkey,primary_key,"PRIMARY KEY (id, inserted_at)",t,f,f
+realtime,messages_2026_07_31,messages_payload_exclusive,check,CHECK (payload IS NULL OR binary_payload IS NULL),t,f,f
+realtime,messages_2026_07_31,messages_2026_07_31_pkey,primary_key,"PRIMARY KEY (id, inserted_at)",t,f,f
+realtime,messages_2026_08_01,messages_payload_exclusive,check,CHECK (payload IS NULL OR binary_payload IS NULL),t,f,f
+realtime,messages_2026_08_01,messages_2026_08_01_pkey,primary_key,"PRIMARY KEY (id, inserted_at)",t,f,f
+realtime,messages_2026_08_02,messages_payload_exclusive,check,CHECK (payload IS NULL OR binary_payload IS NULL),t,f,f
+realtime,messages_2026_08_02,messages_2026_08_02_pkey,primary_key,"PRIMARY KEY (id, inserted_at)",t,f,f
+realtime,messages_2026_08_03,messages_payload_exclusive,check,CHECK (payload IS NULL OR binary_payload IS NULL),t,f,f
+realtime,messages_2026_08_03,messages_2026_08_03_pkey,primary_key,"PRIMARY KEY (id, inserted_at)",t,f,f
+realtime,messages_2026_08_04,messages_payload_exclusive,check,CHECK (payload IS NULL OR binary_payload IS NULL),t,f,f
+realtime,messages_2026_08_04,messages_2026_08_04_pkey,primary_key,"PRIMARY KEY (id, inserted_at)",t,f,f
+realtime,messages_2026_08_05,messages_payload_exclusive,check,CHECK (payload IS NULL OR binary_payload IS NULL),t,f,f
+realtime,messages_2026_08_05,messages_2026_08_05_pkey,primary_key,"PRIMARY KEY (id, inserted_at)",t,f,f
+realtime,messages_2026_08_06,messages_payload_exclusive,check,CHECK (payload IS NULL OR binary_payload IS NULL),t,f,f
+realtime,messages_2026_08_06,messages_2026_08_06_pkey,primary_key,"PRIMARY KEY (id, inserted_at)",t,f,f
+realtime,schema_migrations,schema_migrations_pkey,primary_key,PRIMARY KEY (version),t,f,f
+realtime,subscription,subscription_action_filter_check,check,"CHECK (action_filter = ANY (ARRAY['*'::text, 'INSERT'::text, 'UPDATE'::text, 'DELETE'::text]))",t,f,f
+realtime,subscription,pk_subscription,primary_key,PRIMARY KEY (id),t,f,f
+storage,buckets,buckets_pkey,primary_key,PRIMARY KEY (id),t,f,f
+storage,buckets_analytics,buckets_analytics_pkey,primary_key,PRIMARY KEY (id),t,f,f
+storage,buckets_vectors,buckets_vectors_pkey,primary_key,PRIMARY KEY (id),t,f,f
+storage,migrations,migrations_pkey,primary_key,PRIMARY KEY (id),t,f,f
+storage,migrations,migrations_name_key,unique,UNIQUE (name),t,f,f
+storage,objects,objects_bucketId_fkey,foreign_key,FOREIGN KEY (bucket_id) REFERENCES storage.buckets(id),t,f,f
+storage,objects,objects_pkey,primary_key,PRIMARY KEY (id),t,f,f
+storage,s3_multipart_uploads,s3_multipart_uploads_bucket_id_fkey,foreign_key,FOREIGN KEY (bucket_id) REFERENCES storage.buckets(id),t,f,f
+storage,s3_multipart_uploads,s3_multipart_uploads_pkey,primary_key,PRIMARY KEY (id),t,f,f
+storage,s3_multipart_uploads_parts,s3_multipart_uploads_parts_bucket_id_fkey,foreign_key,FOREIGN KEY (bucket_id) REFERENCES storage.buckets(id),t,f,f
+storage,s3_multipart_uploads_parts,s3_multipart_uploads_parts_upload_id_fkey,foreign_key,FOREIGN KEY (upload_id) REFERENCES storage.s3_multipart_uploads(id) ON DELETE CASCADE,t,f,f
+storage,s3_multipart_uploads_parts,s3_multipart_uploads_parts_pkey,primary_key,PRIMARY KEY (id),t,f,f
+storage,vector_indexes,vector_indexes_bucket_id_fkey,foreign_key,FOREIGN KEY (bucket_id) REFERENCES storage.buckets_vectors(id),t,f,f
+storage,vector_indexes,vector_indexes_pkey,primary_key,PRIMARY KEY (id),t,f,f
+supabase_migrations,schema_migrations,schema_migrations_pkey,primary_key,PRIMARY KEY (version),t,f,f
+supabase_migrations,schema_migrations,schema_migrations_idempotency_key_key,unique,UNIQUE (idempotency_key),t,f,f

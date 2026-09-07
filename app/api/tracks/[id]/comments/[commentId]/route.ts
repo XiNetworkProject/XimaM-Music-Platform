@@ -85,7 +85,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       is_deleted: true,
       deletion_reason: 'owner',
       deleted_at: new Date().toISOString(),
-    });
+    }, { onConflict: 'comment_id,creator_id' });
     return NextResponse.json({ success: true });
   } catch {
     await dbAdmin.from('comments').delete().eq('id', commentId);

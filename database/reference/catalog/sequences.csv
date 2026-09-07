@@ -1,0 +1,12 @@
+schema_name,sequence_name,owner,data_type,start_value,increment_by,min_value,max_value,cache_size,cycles
+auth,refresh_tokens_id_seq,supabase_auth_admin,bigint,1,1,1,9223372036854775807,1,f
+public,comment_reactions_id_seq,postgres,integer,1,1,1,2147483647,1,f
+public,conversation_participants_id_seq,postgres,integer,1,1,1,2147483647,1,f
+public,creator_comment_filters_id_seq,postgres,bigint,1,1,1,9223372036854775807,1,f
+public,follow_requests_id_seq,postgres,integer,1,1,1,2147483647,1,f
+public,notifications_id_seq,postgres,integer,1,1,1,2147483647,1,f
+public,play_stats_id_seq,postgres,integer,1,1,1,2147483647,1,f
+public,playlist_tracks_id_seq,postgres,integer,1,1,1,2147483647,1,f
+public,track_likes_id_seq,postgres,integer,1,1,1,2147483647,1,f
+public,user_follows_id_seq,postgres,integer,1,1,1,2147483647,1,f
+realtime,subscription_id_seq,supabase_realtime_admin,bigint,1,1,1,9223372036854775807,1,f

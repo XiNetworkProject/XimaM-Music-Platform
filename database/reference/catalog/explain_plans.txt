@@ -1,0 +1,72 @@
+Pager usage is off.
+BEGIN
+SET
+__PLAN__tracks_recent_public
+                                         QUERY PLAN
+--------------------------------------------------------------------------------------------
+ Limit  (cost=0.14..11.43 rows=20 width=38)
+   ->  Index Scan using idx_tracks_created on tracks  (cost=0.14..131.00 rows=232 width=38)
+         Filter: is_public
+(3 rows)
+
+__PLAN__tracks_popular_public
+                                         QUERY PLAN
+--------------------------------------------------------------------------------------------
+ Limit  (cost=0.14..12.13 rows=20 width=38)
+   ->  Index Scan using idx_tracks_popular on tracks  (cost=0.14..139.19 rows=232 width=38)
+         Filter: is_public
+(3 rows)
+
+__PLAN__tracks_search
+                                                   QUERY PLAN
+----------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.00..35.48 rows=1 width=30)
+   ->  Seq Scan on tracks  (cost=0.00..35.48 rows=1 width=30)
+         Filter: (is_public AND ((title ~~* '%audit-probe%'::text) OR (description ~~* '%audit-probe%'::text)))
+(3 rows)
+
+__PLAN__notifications_user_recent
+                                                QUERY PLAN
+-----------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.14..8.16 rows=1 width=12)
+   ->  Index Scan using idx_notifications_user_created on notifications  (cost=0.14..8.16 rows=1 width=12)
+         Index Cond: (user_id = '00000000-0000-0000-0000-000000000000'::uuid)
+(3 rows)
+
+__PLAN__messages_conversation_recent
+                             QUERY PLAN
+---------------------------------------------------------------------
+ Limit  (cost=1.31..1.31 rows=1 width=40)
+   ->  Sort  (cost=1.31..1.31 rows=1 width=40)
+         Sort Key: created_at DESC
+         ->  Seq Scan on messages  (cost=0.00..1.30 rows=1 width=40)
+               Filter: (conversation_id = 'audit-probe'::text)
+(5 rows)
+
+__PLAN__comments_track_recent
+                             QUERY PLAN
+---------------------------------------------------------------------
+ Limit  (cost=1.19..1.19 rows=1 width=24)
+   ->  Sort  (cost=1.19..1.19 rows=1 width=24)
+         Sort Key: created_at DESC
+         ->  Seq Scan on comments  (cost=0.00..1.18 rows=1 width=24)
+               Filter: (track_id = 'audit-probe'::text)
+(5 rows)
+
+__PLAN__playlists_creator
+                                 QUERY PLAN
+-----------------------------------------------------------------------------
+ Sort  (cost=1.10..1.10 rows=1 width=40)
+   Sort Key: created_at DESC
+   ->  Seq Scan on playlists  (cost=0.00..1.09 rows=1 width=40)
+         Filter: (creator_id = '00000000-0000-0000-0000-000000000000'::uuid)
+(4 rows)
+
+__PLAN__recommendations_user_recent
+                                                         QUERY PLAN
+----------------------------------------------------------------------------------------------------------------------------
+ Index Scan using idx_reco_impressions_user_created on recommendation_impressions  (cost=0.28..8.30 rows=1 width=35)
+   Index Cond: ((user_id = '00000000-0000-0000-0000-000000000000'::uuid) AND (created_at >= (now() - '30 days'::interval)))
+(2 rows)
+
+ROLLBACK

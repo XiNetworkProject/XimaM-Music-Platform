@@ -1,0 +1,40 @@
+file,table,conflict_columns,unique_contract,matching_indexes
+app/api/boosters/claim-pack/route.ts,user_booster_pack_claims,user_id | pack_key | period_start,present,uq_pack_claim_user_period
+app/api/boosters/open/route.ts,user_booster_pity,user_id,present,user_booster_pity_pkey
+app/api/boosters/open/route.ts,user_booster_daily,user_id,present,user_booster_daily_pkey
+app/api/city/events/[id]/participate/route.ts,city_event_participations,event_id | user_id | track_id,present,city_event_participations_event_id_user_id_track_id_key
+app/api/city/events/[id]/participate/route.ts,city_event_tracks,event_id | track_id,present,city_event_tracks_event_id_track_id_key
+app/api/city/events/[id]/resolve/route.ts,city_event_winners,event_id | rank,present,city_event_winners_event_id_rank_key
+app/api/city/events/[id]/resolve/route.ts,city_user_rewards,event_id | user_id | reward_key,present,city_user_rewards_event_id_user_id_reward_key_key
+app/api/city/route.ts,city_events,id,present,city_events_pkey
+app/api/city/route.ts,city_event_tracks,event_id | track_id,present,city_event_tracks_event_id_track_id_key
+app/api/city/route.ts,city_event_tracks,event_id | track_id,present,city_event_tracks_event_id_track_id_key
+app/api/city/route.ts,city_event_votes,event_id | user_id,present,city_event_votes_event_id_user_id_key
+app/api/city/route.ts,city_event_participations,event_id | user_id | track_id,present,city_event_participations_event_id_user_id_track_id_key
+app/api/city/route.ts,city_event_winners,event_id | rank,present,city_event_winners_event_id_rank_key
+app/api/city/route.ts,city_user_rewards,event_id | user_id | reward_key,present,city_user_rewards_event_id_user_id_reward_key_key
+app/api/city/vote/route.ts,city_event_votes,event_id | user_id,present,city_event_votes_event_id_user_id_key
+app/api/daily-spin/route.ts,user_daily_spin,user_id,present,user_daily_spin_pkey
+app/api/messages/blocks/route.ts,user_blocks,blocker_id | blocked_id,present,user_blocks_unique_pair
+app/api/messages/[conversationId]/[messageId]/reactions/route.ts,message_reactions,message_id | user_id,present,message_reactions_one_per_user
+app/api/messages/[conversationId]/[messageId]/route.ts,message_pins,conversation_id | message_id,present,message_pins_pkey
+app/api/messages/[conversationId]/[messageId]/route.ts,message_hidden_users,message_id | user_id,present,message_hidden_users_pkey
+app/api/meteo/bulletin/[id]/share/route.ts,meteo_reactions,bulletin_id | user_id | type,present,meteo_reactions_bulletin_id_user_id_type_key
+app/api/meteo/settings/route.ts,meteo_settings,key,present,meteo_settings_key_key
+app/api/notifications/preferences/route.ts,notification_preferences,user_id,present,notification_preferences_user_id_key
+app/api/notifications/push/native/route.ts,push_subscriptions,user_id | endpoint,present,push_subscriptions_user_id_endpoint_key
+app/api/notifications/push/subscribe/route.ts,push_subscriptions,user_id | endpoint,present,push_subscriptions_user_id_endpoint_key
+app/api/tracks/[id]/comments/[commentId]/moderation/route.ts,comment_moderation,id,absent/indetermine,
+app/api/tracks/[id]/comments/[commentId]/route.ts,comment_moderation,id,absent/indetermine,
+app/api/tracks/[id]/plays/route.ts,track_views,user_id | track_id | viewed_date,present,track_views_user_id_track_id_viewed_date_key
+app/api/tracks/[id]/reactions/route.ts,track_moment_reactions,track_id | user_id | reaction_type | timestamp_seconds,present,track_moment_reactions_unique_user_moment
+app/api/tracks/[id]/waveform/route.ts,track_waveforms,track_id | track_type,present,track_waveforms_pkey
+lib/messaging.ts,friendships,user_id | friend_id,present,friendships_unique_pair
+lib/messaging.ts,conversation_participants,conversation_id | user_id,present,conversation_participants_conversation_id_user_id_key | conversation_participants_unique_user
+lib/messaging.ts,messages,id,present,messages_pkey
+lib/musicChallenges.ts,challenge_entries,challenge_id | user_id | content_type | content_id,present,challenge_entries_challenge_id_user_id_content_type_content_key
+lib/onlineStatusService.ts,user_statuses,user_id,absent/indetermine,
+lib/onlineStatusService.ts,user_statuses,user_id,absent/indetermine,
+lib/remixServer.ts,track_remixes,child_track_id | child_track_type | remix_type,present,track_remixes_unique_child
+lib/remixServer.ts,track_remixes,child_track_id | child_track_type | remix_type,present,track_remixes_unique_child
+lib/subscriptionService.ts,user_subscriptions,user_id,absent/indetermine,

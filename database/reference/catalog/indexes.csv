@@ -1,0 +1,459 @@
+schema_name,table_name,index_name,owner,is_primary,is_unique,is_valid,is_ready,definition
+auth,audit_log_entries,audit_log_entries_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX audit_log_entries_pkey ON auth.audit_log_entries USING btree (id)
+auth,audit_log_entries,audit_logs_instance_id_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX audit_logs_instance_id_idx ON auth.audit_log_entries USING btree (instance_id)
+auth,custom_oauth_providers,custom_oauth_providers_created_at_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX custom_oauth_providers_created_at_idx ON auth.custom_oauth_providers USING btree (created_at)
+auth,custom_oauth_providers,custom_oauth_providers_enabled_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX custom_oauth_providers_enabled_idx ON auth.custom_oauth_providers USING btree (enabled)
+auth,custom_oauth_providers,custom_oauth_providers_identifier_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX custom_oauth_providers_identifier_idx ON auth.custom_oauth_providers USING btree (identifier)
+auth,custom_oauth_providers,custom_oauth_providers_identifier_key,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX custom_oauth_providers_identifier_key ON auth.custom_oauth_providers USING btree (identifier)
+auth,custom_oauth_providers,custom_oauth_providers_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX custom_oauth_providers_pkey ON auth.custom_oauth_providers USING btree (id)
+auth,custom_oauth_providers,custom_oauth_providers_provider_type_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX custom_oauth_providers_provider_type_idx ON auth.custom_oauth_providers USING btree (provider_type)
+auth,flow_state,flow_state_created_at_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX flow_state_created_at_idx ON auth.flow_state USING btree (created_at DESC)
+auth,flow_state,flow_state_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX flow_state_pkey ON auth.flow_state USING btree (id)
+auth,flow_state,idx_auth_code,supabase_auth_admin,f,f,t,t,CREATE INDEX idx_auth_code ON auth.flow_state USING btree (auth_code)
+auth,flow_state,idx_user_id_auth_method,supabase_auth_admin,f,f,t,t,"CREATE INDEX idx_user_id_auth_method ON auth.flow_state USING btree (user_id, authentication_method)"
+auth,identities,identities_email_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX identities_email_idx ON auth.identities USING btree (email text_pattern_ops)
+auth,identities,identities_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX identities_pkey ON auth.identities USING btree (id)
+auth,identities,identities_provider_id_provider_unique,supabase_auth_admin,f,t,t,t,"CREATE UNIQUE INDEX identities_provider_id_provider_unique ON auth.identities USING btree (provider_id, provider)"
+auth,identities,identities_user_id_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX identities_user_id_idx ON auth.identities USING btree (user_id)
+auth,instances,instances_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX instances_pkey ON auth.instances USING btree (id)
+auth,mfa_amr_claims,amr_id_pk,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX amr_id_pk ON auth.mfa_amr_claims USING btree (id)
+auth,mfa_amr_claims,mfa_amr_claims_session_id_authentication_method_pkey,supabase_auth_admin,f,t,t,t,"CREATE UNIQUE INDEX mfa_amr_claims_session_id_authentication_method_pkey ON auth.mfa_amr_claims USING btree (session_id, authentication_method)"
+auth,mfa_challenges,mfa_challenge_created_at_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX mfa_challenge_created_at_idx ON auth.mfa_challenges USING btree (created_at DESC)
+auth,mfa_challenges,mfa_challenges_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX mfa_challenges_pkey ON auth.mfa_challenges USING btree (id)
+auth,mfa_factors,factor_id_created_at_idx,supabase_auth_admin,f,f,t,t,"CREATE INDEX factor_id_created_at_idx ON auth.mfa_factors USING btree (user_id, created_at)"
+auth,mfa_factors,mfa_factors_last_challenged_at_key,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX mfa_factors_last_challenged_at_key ON auth.mfa_factors USING btree (last_challenged_at)
+auth,mfa_factors,mfa_factors_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX mfa_factors_pkey ON auth.mfa_factors USING btree (id)
+auth,mfa_factors,mfa_factors_user_friendly_name_unique,supabase_auth_admin,f,t,t,t,"CREATE UNIQUE INDEX mfa_factors_user_friendly_name_unique ON auth.mfa_factors USING btree (friendly_name, user_id) WHERE (TRIM(BOTH FROM friendly_name) <> ''::text)"
+auth,mfa_factors,mfa_factors_user_id_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX mfa_factors_user_id_idx ON auth.mfa_factors USING btree (user_id)
+auth,mfa_factors,unique_phone_factor_per_user,supabase_auth_admin,f,t,t,t,"CREATE UNIQUE INDEX unique_phone_factor_per_user ON auth.mfa_factors USING btree (user_id, phone)"
+auth,oauth_authorizations,oauth_auth_pending_exp_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX oauth_auth_pending_exp_idx ON auth.oauth_authorizations USING btree (expires_at) WHERE (status = 'pending'::auth.oauth_authorization_status)
+auth,oauth_authorizations,oauth_authorizations_authorization_code_key,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX oauth_authorizations_authorization_code_key ON auth.oauth_authorizations USING btree (authorization_code)
+auth,oauth_authorizations,oauth_authorizations_authorization_id_key,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX oauth_authorizations_authorization_id_key ON auth.oauth_authorizations USING btree (authorization_id)
+auth,oauth_authorizations,oauth_authorizations_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX oauth_authorizations_pkey ON auth.oauth_authorizations USING btree (id)
+auth,oauth_client_states,idx_oauth_client_states_created_at,supabase_auth_admin,f,f,t,t,CREATE INDEX idx_oauth_client_states_created_at ON auth.oauth_client_states USING btree (created_at)
+auth,oauth_client_states,oauth_client_states_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX oauth_client_states_pkey ON auth.oauth_client_states USING btree (id)
+auth,oauth_clients,oauth_clients_deleted_at_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX oauth_clients_deleted_at_idx ON auth.oauth_clients USING btree (deleted_at)
+auth,oauth_clients,oauth_clients_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX oauth_clients_pkey ON auth.oauth_clients USING btree (id)
+auth,oauth_consents,oauth_consents_active_client_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX oauth_consents_active_client_idx ON auth.oauth_consents USING btree (client_id) WHERE (revoked_at IS NULL)
+auth,oauth_consents,oauth_consents_active_user_client_idx,supabase_auth_admin,f,f,t,t,"CREATE INDEX oauth_consents_active_user_client_idx ON auth.oauth_consents USING btree (user_id, client_id) WHERE (revoked_at IS NULL)"
+auth,oauth_consents,oauth_consents_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX oauth_consents_pkey ON auth.oauth_consents USING btree (id)
+auth,oauth_consents,oauth_consents_user_client_unique,supabase_auth_admin,f,t,t,t,"CREATE UNIQUE INDEX oauth_consents_user_client_unique ON auth.oauth_consents USING btree (user_id, client_id)"
+auth,oauth_consents,oauth_consents_user_order_idx,supabase_auth_admin,f,f,t,t,"CREATE INDEX oauth_consents_user_order_idx ON auth.oauth_consents USING btree (user_id, granted_at DESC)"
+auth,one_time_tokens,one_time_tokens_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX one_time_tokens_pkey ON auth.one_time_tokens USING btree (id)
+auth,one_time_tokens,one_time_tokens_relates_to_hash_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX one_time_tokens_relates_to_hash_idx ON auth.one_time_tokens USING hash (relates_to)
+auth,one_time_tokens,one_time_tokens_token_hash_hash_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX one_time_tokens_token_hash_hash_idx ON auth.one_time_tokens USING hash (token_hash)
+auth,one_time_tokens,one_time_tokens_user_id_token_type_key,supabase_auth_admin,f,t,t,t,"CREATE UNIQUE INDEX one_time_tokens_user_id_token_type_key ON auth.one_time_tokens USING btree (user_id, token_type)"
+auth,refresh_tokens,refresh_tokens_instance_id_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX refresh_tokens_instance_id_idx ON auth.refresh_tokens USING btree (instance_id)
+auth,refresh_tokens,refresh_tokens_instance_id_user_id_idx,supabase_auth_admin,f,f,t,t,"CREATE INDEX refresh_tokens_instance_id_user_id_idx ON auth.refresh_tokens USING btree (instance_id, user_id)"
+auth,refresh_tokens,refresh_tokens_parent_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX refresh_tokens_parent_idx ON auth.refresh_tokens USING btree (parent)
+auth,refresh_tokens,refresh_tokens_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX refresh_tokens_pkey ON auth.refresh_tokens USING btree (id)
+auth,refresh_tokens,refresh_tokens_session_id_revoked_idx,supabase_auth_admin,f,f,t,t,"CREATE INDEX refresh_tokens_session_id_revoked_idx ON auth.refresh_tokens USING btree (session_id, revoked)"
+auth,refresh_tokens,refresh_tokens_token_unique,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX refresh_tokens_token_unique ON auth.refresh_tokens USING btree (token)
+auth,refresh_tokens,refresh_tokens_updated_at_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX refresh_tokens_updated_at_idx ON auth.refresh_tokens USING btree (updated_at DESC)
+auth,saml_providers,saml_providers_entity_id_key,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX saml_providers_entity_id_key ON auth.saml_providers USING btree (entity_id)
+auth,saml_providers,saml_providers_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX saml_providers_pkey ON auth.saml_providers USING btree (id)
+auth,saml_providers,saml_providers_sso_provider_id_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX saml_providers_sso_provider_id_idx ON auth.saml_providers USING btree (sso_provider_id)
+auth,saml_relay_states,saml_relay_states_created_at_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX saml_relay_states_created_at_idx ON auth.saml_relay_states USING btree (created_at DESC)
+auth,saml_relay_states,saml_relay_states_for_email_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX saml_relay_states_for_email_idx ON auth.saml_relay_states USING btree (for_email)
+auth,saml_relay_states,saml_relay_states_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX saml_relay_states_pkey ON auth.saml_relay_states USING btree (id)
+auth,saml_relay_states,saml_relay_states_sso_provider_id_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX saml_relay_states_sso_provider_id_idx ON auth.saml_relay_states USING btree (sso_provider_id)
+auth,schema_migrations,schema_migrations_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX schema_migrations_pkey ON auth.schema_migrations USING btree (version)
+auth,sessions,sessions_not_after_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX sessions_not_after_idx ON auth.sessions USING btree (not_after DESC)
+auth,sessions,sessions_oauth_client_id_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX sessions_oauth_client_id_idx ON auth.sessions USING btree (oauth_client_id)
+auth,sessions,sessions_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX sessions_pkey ON auth.sessions USING btree (id)
+auth,sessions,sessions_user_id_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX sessions_user_id_idx ON auth.sessions USING btree (user_id)
+auth,sessions,user_id_created_at_idx,supabase_auth_admin,f,f,t,t,"CREATE INDEX user_id_created_at_idx ON auth.sessions USING btree (user_id, created_at)"
+auth,sso_domains,sso_domains_domain_idx,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX sso_domains_domain_idx ON auth.sso_domains USING btree (lower(domain))
+auth,sso_domains,sso_domains_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX sso_domains_pkey ON auth.sso_domains USING btree (id)
+auth,sso_domains,sso_domains_sso_provider_id_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX sso_domains_sso_provider_id_idx ON auth.sso_domains USING btree (sso_provider_id)
+auth,sso_providers,sso_providers_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX sso_providers_pkey ON auth.sso_providers USING btree (id)
+auth,sso_providers,sso_providers_resource_id_idx,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX sso_providers_resource_id_idx ON auth.sso_providers USING btree (lower(resource_id))
+auth,sso_providers,sso_providers_resource_id_pattern_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX sso_providers_resource_id_pattern_idx ON auth.sso_providers USING btree (resource_id text_pattern_ops)
+auth,users,confirmation_token_idx,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX confirmation_token_idx ON auth.users USING btree (confirmation_token) WHERE ((confirmation_token)::text !~ '^[0-9 ]*$'::text)
+auth,users,email_change_token_current_idx,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX email_change_token_current_idx ON auth.users USING btree (email_change_token_current) WHERE ((email_change_token_current)::text !~ '^[0-9 ]*$'::text)
+auth,users,email_change_token_new_idx,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX email_change_token_new_idx ON auth.users USING btree (email_change_token_new) WHERE ((email_change_token_new)::text !~ '^[0-9 ]*$'::text)
+auth,users,reauthentication_token_idx,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX reauthentication_token_idx ON auth.users USING btree (reauthentication_token) WHERE ((reauthentication_token)::text !~ '^[0-9 ]*$'::text)
+auth,users,recovery_token_idx,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX recovery_token_idx ON auth.users USING btree (recovery_token) WHERE ((recovery_token)::text !~ '^[0-9 ]*$'::text)
+auth,users,users_email_partial_key,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX users_email_partial_key ON auth.users USING btree (email) WHERE (is_sso_user = false)
+auth,users,users_instance_id_email_idx,supabase_auth_admin,f,f,t,t,"CREATE INDEX users_instance_id_email_idx ON auth.users USING btree (instance_id, lower((email)::text))"
+auth,users,users_instance_id_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX users_instance_id_idx ON auth.users USING btree (instance_id)
+auth,users,users_is_anonymous_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX users_is_anonymous_idx ON auth.users USING btree (is_anonymous)
+auth,users,users_phone_key,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX users_phone_key ON auth.users USING btree (phone)
+auth,users,users_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX users_pkey ON auth.users USING btree (id)
+auth,webauthn_challenges,webauthn_challenges_expires_at_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX webauthn_challenges_expires_at_idx ON auth.webauthn_challenges USING btree (expires_at)
+auth,webauthn_challenges,webauthn_challenges_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX webauthn_challenges_pkey ON auth.webauthn_challenges USING btree (id)
+auth,webauthn_challenges,webauthn_challenges_user_id_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX webauthn_challenges_user_id_idx ON auth.webauthn_challenges USING btree (user_id)
+auth,webauthn_credentials,webauthn_credentials_credential_id_key,supabase_auth_admin,f,t,t,t,CREATE UNIQUE INDEX webauthn_credentials_credential_id_key ON auth.webauthn_credentials USING btree (credential_id)
+auth,webauthn_credentials,webauthn_credentials_pkey,supabase_auth_admin,t,t,t,t,CREATE UNIQUE INDEX webauthn_credentials_pkey ON auth.webauthn_credentials USING btree (id)
+auth,webauthn_credentials,webauthn_credentials_user_id_idx,supabase_auth_admin,f,f,t,t,CREATE INDEX webauthn_credentials_user_id_idx ON auth.webauthn_credentials USING btree (user_id)
+public,account_private,account_private_email_unique_idx,postgres,f,t,t,t,CREATE UNIQUE INDEX account_private_email_unique_idx ON public.account_private USING btree (lower(email)) WHERE (email IS NOT NULL)
+public,account_private,account_private_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX account_private_pkey ON public.account_private USING btree (user_id)
+public,active_artist_boosts,active_artist_boosts_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX active_artist_boosts_pkey ON public.active_artist_boosts USING btree (id)
+public,active_artist_boosts,idx_active_artist_boosts_artist,postgres,f,f,t,t,CREATE INDEX idx_active_artist_boosts_artist ON public.active_artist_boosts USING btree (artist_id)
+public,active_artist_boosts,idx_active_artist_boosts_expires,postgres,f,f,t,t,CREATE INDEX idx_active_artist_boosts_expires ON public.active_artist_boosts USING btree (expires_at)
+public,active_track_boosts,active_track_boosts_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX active_track_boosts_pkey ON public.active_track_boosts USING btree (id)
+public,active_track_boosts,idx_active_boosts_expires,postgres,f,f,t,t,CREATE INDEX idx_active_boosts_expires ON public.active_track_boosts USING btree (expires_at)
+public,active_track_boosts,idx_active_boosts_track,postgres,f,f,t,t,CREATE INDEX idx_active_boosts_track ON public.active_track_boosts USING btree (track_id)
+public,admin_broadcasts,admin_broadcasts_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX admin_broadcasts_pkey ON public.admin_broadcasts USING btree (id)
+public,ai_credit_balances,ai_credit_balances_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX ai_credit_balances_pkey ON public.ai_credit_balances USING btree (user_id)
+public,ai_generations,ai_generations_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX ai_generations_pkey ON public.ai_generations USING btree (id)
+public,ai_generations,idx_ai_generations_created_at,postgres,f,f,t,t,CREATE INDEX idx_ai_generations_created_at ON public.ai_generations USING btree (created_at DESC)
+public,ai_generations,idx_ai_generations_favorite,postgres,f,f,t,t,CREATE INDEX idx_ai_generations_favorite ON public.ai_generations USING btree (is_favorite)
+public,ai_generations,idx_ai_generations_status,postgres,f,f,t,t,CREATE INDEX idx_ai_generations_status ON public.ai_generations USING btree (status)
+public,ai_generations,idx_ai_generations_task_id,postgres,f,f,t,t,CREATE INDEX idx_ai_generations_task_id ON public.ai_generations USING btree (task_id)
+public,ai_generations,idx_ai_generations_user_id,postgres,f,f,t,t,CREATE INDEX idx_ai_generations_user_id ON public.ai_generations USING btree (user_id)
+public,ai_playlist_tracks,ai_playlist_tracks_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX ai_playlist_tracks_pkey ON public.ai_playlist_tracks USING btree (id)
+public,ai_playlist_tracks,ai_playlist_tracks_playlist_id_track_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX ai_playlist_tracks_playlist_id_track_id_key ON public.ai_playlist_tracks USING btree (playlist_id, track_id)"
+public,ai_playlists,ai_playlists_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX ai_playlists_pkey ON public.ai_playlists USING btree (id)
+public,ai_playlists,idx_ai_playlists_public,postgres,f,f,t,t,CREATE INDEX idx_ai_playlists_public ON public.ai_playlists USING btree (is_public)
+public,ai_playlists,idx_ai_playlists_user_id,postgres,f,f,t,t,CREATE INDEX idx_ai_playlists_user_id ON public.ai_playlists USING btree (user_id)
+public,ai_track_likes,ai_track_likes_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX ai_track_likes_pkey ON public.ai_track_likes USING btree (id)
+public,ai_track_likes,ai_track_likes_track_id_user_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX ai_track_likes_track_id_user_id_key ON public.ai_track_likes USING btree (track_id, user_id)"
+public,ai_track_likes,idx_ai_track_likes_track_id,postgres,f,f,t,t,CREATE INDEX idx_ai_track_likes_track_id ON public.ai_track_likes USING btree (track_id)
+public,ai_track_likes,idx_ai_track_likes_user_id,postgres,f,f,t,t,CREATE INDEX idx_ai_track_likes_user_id ON public.ai_track_likes USING btree (user_id)
+public,ai_tracks,ai_tracks_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX ai_tracks_pkey ON public.ai_tracks USING btree (id)
+public,ai_tracks,idx_ai_tracks_album,postgres,f,f,t,t,CREATE INDEX idx_ai_tracks_album ON public.ai_tracks USING btree (album_id) WHERE (album_id IS NOT NULL)
+public,ai_tracks,idx_ai_tracks_favorite,postgres,f,f,t,t,CREATE INDEX idx_ai_tracks_favorite ON public.ai_tracks USING btree (is_favorite)
+public,ai_tracks,idx_ai_tracks_generation_id,postgres,f,f,t,t,CREATE INDEX idx_ai_tracks_generation_id ON public.ai_tracks USING btree (generation_id)
+public,ai_tracks,idx_ai_tracks_suno_id,postgres,f,f,t,t,CREATE INDEX idx_ai_tracks_suno_id ON public.ai_tracks USING btree (suno_id)
+public,ai_usage_stats,ai_usage_stats_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX ai_usage_stats_pkey ON public.ai_usage_stats USING btree (id)
+public,ai_usage_stats,ai_usage_stats_user_id_date_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX ai_usage_stats_user_id_date_key ON public.ai_usage_stats USING btree (user_id, date)"
+public,boosters,boosters_key_key,postgres,f,t,t,t,CREATE UNIQUE INDEX boosters_key_key ON public.boosters USING btree (key)
+public,boosters,boosters_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX boosters_pkey ON public.boosters USING btree (id)
+public,challenge_entries,challenge_entries_challenge_id_user_id_content_type_content_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX challenge_entries_challenge_id_user_id_content_type_content_key ON public.challenge_entries USING btree (challenge_id, user_id, content_type, content_id)"
+public,challenge_entries,challenge_entries_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX challenge_entries_pkey ON public.challenge_entries USING btree (id)
+public,challenge_entries,idx_challenge_entries_challenge,postgres,f,f,t,t,"CREATE INDEX idx_challenge_entries_challenge ON public.challenge_entries USING btree (challenge_id, created_at DESC)"
+public,challenge_entries,idx_challenge_entries_content,postgres,f,f,t,t,"CREATE INDEX idx_challenge_entries_content ON public.challenge_entries USING btree (content_type, content_id)"
+public,challenge_entries,idx_challenge_entries_user,postgres,f,f,t,t,"CREATE INDEX idx_challenge_entries_user ON public.challenge_entries USING btree (user_id, created_at DESC)"
+public,city_event_participations,city_event_participations_event_id_user_id_track_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX city_event_participations_event_id_user_id_track_id_key ON public.city_event_participations USING btree (event_id, user_id, track_id)"
+public,city_event_participations,city_event_participations_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX city_event_participations_pkey ON public.city_event_participations USING btree (id)
+public,city_event_participations,idx_city_event_participations_event,postgres,f,f,t,t,"CREATE INDEX idx_city_event_participations_event ON public.city_event_participations USING btree (event_id, created_at DESC)"
+public,city_event_participations,idx_city_event_participations_user,postgres,f,f,t,t,"CREATE INDEX idx_city_event_participations_user ON public.city_event_participations USING btree (user_id, created_at DESC)"
+public,city_event_tracks,city_event_tracks_event_id_track_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX city_event_tracks_event_id_track_id_key ON public.city_event_tracks USING btree (event_id, track_id)"
+public,city_event_tracks,city_event_tracks_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX city_event_tracks_pkey ON public.city_event_tracks USING btree (id)
+public,city_event_tracks,idx_city_event_tracks_creator,postgres,f,f,t,t,CREATE INDEX idx_city_event_tracks_creator ON public.city_event_tracks USING btree (creator_id)
+public,city_event_tracks,idx_city_event_tracks_event,postgres,f,f,t,t,"CREATE INDEX idx_city_event_tracks_event ON public.city_event_tracks USING btree (event_id, slot)"
+public,city_event_tracks,idx_city_event_tracks_track,postgres,f,f,t,t,CREATE INDEX idx_city_event_tracks_track ON public.city_event_tracks USING btree (track_id)
+public,city_event_votes,city_event_votes_event_id_user_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX city_event_votes_event_id_user_id_key ON public.city_event_votes USING btree (event_id, user_id)"
+public,city_event_votes,city_event_votes_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX city_event_votes_pkey ON public.city_event_votes USING btree (id)
+public,city_event_votes,idx_city_event_votes_track,postgres,f,f,t,t,"CREATE INDEX idx_city_event_votes_track ON public.city_event_votes USING btree (event_id, track_id)"
+public,city_event_votes,idx_city_event_votes_user,postgres,f,f,t,t,CREATE INDEX idx_city_event_votes_user ON public.city_event_votes USING btree (user_id)
+public,city_event_winners,city_event_winners_event_id_rank_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX city_event_winners_event_id_rank_key ON public.city_event_winners USING btree (event_id, rank)"
+public,city_event_winners,city_event_winners_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX city_event_winners_pkey ON public.city_event_winners USING btree (id)
+public,city_event_winners,idx_city_event_winners_event,postgres,f,f,t,t,CREATE INDEX idx_city_event_winners_event ON public.city_event_winners USING btree (event_id)
+public,city_event_winners,idx_city_event_winners_user,postgres,f,f,t,t,CREATE INDEX idx_city_event_winners_user ON public.city_event_winners USING btree (user_id)
+public,city_events,city_events_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX city_events_pkey ON public.city_events USING btree (id)
+public,city_events,idx_city_events_status,postgres,f,f,t,t,"CREATE INDEX idx_city_events_status ON public.city_events USING btree (status, starts_at, ends_at)"
+public,city_events,idx_city_events_week,postgres,f,f,t,t,"CREATE INDEX idx_city_events_week ON public.city_events USING btree (week_key, kind)"
+public,city_user_rewards,city_user_rewards_event_id_user_id_reward_key_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX city_user_rewards_event_id_user_id_reward_key_key ON public.city_user_rewards USING btree (event_id, user_id, reward_key)"
+public,city_user_rewards,city_user_rewards_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX city_user_rewards_pkey ON public.city_user_rewards USING btree (id)
+public,city_user_rewards,idx_city_user_rewards_user,postgres,f,f,t,t,"CREATE INDEX idx_city_user_rewards_user ON public.city_user_rewards USING btree (user_id, status)"
+public,comment_likes,comment_likes_comment_id_idx,postgres,f,f,t,t,CREATE INDEX comment_likes_comment_id_idx ON public.comment_likes USING btree (comment_id)
+public,comment_likes,comment_likes_comment_id_user_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX comment_likes_comment_id_user_id_key ON public.comment_likes USING btree (comment_id, user_id)"
+public,comment_likes,comment_likes_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX comment_likes_pkey ON public.comment_likes USING btree (id)
+public,comment_likes,comment_likes_user_id_idx,postgres,f,f,t,t,CREATE INDEX comment_likes_user_id_idx ON public.comment_likes USING btree (user_id)
+public,comment_likes,idx_comment_likes_comment_id,postgres,f,f,t,t,CREATE INDEX idx_comment_likes_comment_id ON public.comment_likes USING btree (comment_id)
+public,comment_likes,idx_comment_likes_user_id,postgres,f,f,t,t,CREATE INDEX idx_comment_likes_user_id ON public.comment_likes USING btree (user_id)
+public,comment_moderation,comment_moderation_creator_id_idx,postgres,f,f,t,t,CREATE INDEX comment_moderation_creator_id_idx ON public.comment_moderation USING btree (creator_id)
+public,comment_moderation,comment_moderation_pkey,postgres,t,t,t,t,"CREATE UNIQUE INDEX comment_moderation_pkey ON public.comment_moderation USING btree (comment_id, creator_id)"
+public,comment_moderation,comment_moderation_track_id_idx,postgres,f,f,t,t,CREATE INDEX comment_moderation_track_id_idx ON public.comment_moderation USING btree (track_id)
+public,comment_reactions,comment_reactions_comment_id_user_id_reaction_type_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX comment_reactions_comment_id_user_id_reaction_type_key ON public.comment_reactions USING btree (comment_id, user_id, reaction_type)"
+public,comment_reactions,comment_reactions_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX comment_reactions_pkey ON public.comment_reactions USING btree (id)
+public,comments,comments_parent_id_idx,postgres,f,f,t,t,CREATE INDEX comments_parent_id_idx ON public.comments USING btree (parent_id)
+public,comments,comments_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX comments_pkey ON public.comments USING btree (id)
+public,comments,comments_track_id_created_at_idx,postgres,f,f,t,t,"CREATE INDEX comments_track_id_created_at_idx ON public.comments USING btree (track_id, created_at DESC)"
+public,comments,comments_track_timestamp_idx,postgres,f,f,t,t,"CREATE INDEX comments_track_timestamp_idx ON public.comments USING btree (track_id, timestamp_seconds) WHERE (timestamp_seconds IS NOT NULL)"
+public,comments,comments_user_id_idx,postgres,f,f,t,t,CREATE INDEX comments_user_id_idx ON public.comments USING btree (user_id)
+public,comments,idx_comments_created_at,postgres,f,f,t,t,CREATE INDEX idx_comments_created_at ON public.comments USING btree (created_at DESC)
+public,comments,idx_comments_likes_count,postgres,f,f,t,t,CREATE INDEX idx_comments_likes_count ON public.comments USING btree (likes_count DESC)
+public,comments,idx_comments_track_id,postgres,f,f,t,t,CREATE INDEX idx_comments_track_id ON public.comments USING btree (track_id)
+public,conversation_participants,conversation_participants_conversation_id_user_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX conversation_participants_conversation_id_user_id_key ON public.conversation_participants USING btree (conversation_id, user_id)"
+public,conversation_participants,conversation_participants_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX conversation_participants_pkey ON public.conversation_participants USING btree (id)
+public,conversation_participants,conversation_participants_unique_user,postgres,f,t,t,t,"CREATE UNIQUE INDEX conversation_participants_unique_user ON public.conversation_participants USING btree (conversation_id, user_id)"
+public,conversation_participants,conversation_participants_user_active,postgres,f,f,t,t,"CREATE INDEX conversation_participants_user_active ON public.conversation_participants USING btree (user_id, archived_at, conversation_id)"
+public,conversation_realtime_events,conversation_realtime_events_active,postgres,f,f,t,t,"CREATE INDEX conversation_realtime_events_active ON public.conversation_realtime_events USING btree (conversation_id, expires_at DESC)"
+public,conversation_realtime_events,conversation_realtime_events_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX conversation_realtime_events_pkey ON public.conversation_realtime_events USING btree (id)
+public,conversation_realtime_events,conversation_realtime_events_user_idx,postgres,f,f,t,t,CREATE INDEX conversation_realtime_events_user_idx ON public.conversation_realtime_events USING btree (user_id)
+public,conversation_rooms,conversation_rooms_created_by_idx,postgres,f,f,t,t,CREATE INDEX conversation_rooms_created_by_idx ON public.conversation_rooms USING btree (created_by)
+public,conversation_rooms,conversation_rooms_order,postgres,f,f,t,t,"CREATE INDEX conversation_rooms_order ON public.conversation_rooms USING btree (conversation_id, ""position"", created_at)"
+public,conversation_rooms,conversation_rooms_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX conversation_rooms_pkey ON public.conversation_rooms USING btree (id)
+public,conversation_rooms,conversation_rooms_unique_name,postgres,f,t,t,t,"CREATE UNIQUE INDEX conversation_rooms_unique_name ON public.conversation_rooms USING btree (conversation_id, lower(name))"
+public,conversations,conversations_owner_idx,postgres,f,f,t,t,CREATE INDEX conversations_owner_idx ON public.conversations USING btree (owner_id)
+public,conversations,conversations_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX conversations_pkey ON public.conversations USING btree (id)
+public,conversations,conversations_unique_direct_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX conversations_unique_direct_key ON public.conversations USING btree (direct_key) WHERE ((COALESCE(is_group, false) = false) AND (direct_key IS NOT NULL))"
+public,creator_comment_filters,creator_comment_filters_creator_id_idx,postgres,f,f,t,t,CREATE INDEX creator_comment_filters_creator_id_idx ON public.creator_comment_filters USING btree (creator_id)
+public,creator_comment_filters,creator_comment_filters_creator_id_word_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX creator_comment_filters_creator_id_word_key ON public.creator_comment_filters USING btree (creator_id, word)"
+public,creator_comment_filters,creator_comment_filters_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX creator_comment_filters_pkey ON public.creator_comment_filters USING btree (id)
+public,creator_posts,creator_posts_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX creator_posts_pkey ON public.creator_posts USING btree (id)
+public,creator_posts,idx_creator_posts_creator,postgres,f,f,t,t,"CREATE INDEX idx_creator_posts_creator ON public.creator_posts USING btree (creator_id, created_at DESC)"
+public,creator_posts,idx_creator_posts_original_post,postgres,f,f,t,t,CREATE INDEX idx_creator_posts_original_post ON public.creator_posts USING btree (original_post_id)
+public,creator_posts,idx_creator_posts_public,postgres,f,f,t,t,"CREATE INDEX idx_creator_posts_public ON public.creator_posts USING btree (is_public, created_at DESC)"
+public,credit_ledger,credit_ledger_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX credit_ledger_pkey ON public.credit_ledger USING btree (id)
+public,credit_ledger,idx_ledger_source,postgres,f,f,t,t,CREATE INDEX idx_ledger_source ON public.credit_ledger USING btree (source)
+public,credit_ledger,idx_ledger_user,postgres,f,f,t,t,"CREATE INDEX idx_ledger_user ON public.credit_ledger USING btree (user_id, created_at DESC)"
+public,editorial_collections,editorial_collections_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX editorial_collections_pkey ON public.editorial_collections USING btree (id)
+public,editorial_collections,editorial_collections_playlist_id_key,postgres,f,t,t,t,CREATE UNIQUE INDEX editorial_collections_playlist_id_key ON public.editorial_collections USING btree (playlist_id)
+public,editorial_collections,editorial_collections_published_idx,postgres,f,f,t,t,"CREATE INDEX editorial_collections_published_idx ON public.editorial_collections USING btree (is_published, is_featured, ""position"", created_at DESC)"
+public,editorial_collections,editorial_collections_slug_idx,postgres,f,f,t,t,CREATE INDEX editorial_collections_slug_idx ON public.editorial_collections USING btree (slug)
+public,editorial_collections,editorial_collections_slug_key,postgres,f,t,t,t,CREATE UNIQUE INDEX editorial_collections_slug_key ON public.editorial_collections USING btree (slug)
+public,faq_items,faq_items_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX faq_items_pkey ON public.faq_items USING btree (id)
+public,faq_items,idx_faq_items_category,postgres,f,f,t,t,CREATE INDEX idx_faq_items_category ON public.faq_items USING btree (category)
+public,faq_items,idx_faq_items_published,postgres,f,f,t,t,CREATE INDEX idx_faq_items_published ON public.faq_items USING btree (is_published)
+public,faq_votes,faq_votes_faq_id_user_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX faq_votes_faq_id_user_id_key ON public.faq_votes USING btree (faq_id, user_id)"
+public,faq_votes,faq_votes_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX faq_votes_pkey ON public.faq_votes USING btree (id)
+public,follow_requests,follow_requests_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX follow_requests_pkey ON public.follow_requests USING btree (id)
+public,follow_requests,follow_requests_requester_id_target_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX follow_requests_requester_id_target_id_key ON public.follow_requests USING btree (requester_id, target_id)"
+public,forum_post_likes,forum_post_likes_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX forum_post_likes_pkey ON public.forum_post_likes USING btree (id)
+public,forum_post_likes,forum_post_likes_post_id_user_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX forum_post_likes_post_id_user_id_key ON public.forum_post_likes USING btree (post_id, user_id)"
+public,forum_posts,forum_posts_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX forum_posts_pkey ON public.forum_posts USING btree (id)
+public,forum_posts,idx_forum_posts_category,postgres,f,f,t,t,CREATE INDEX idx_forum_posts_category ON public.forum_posts USING btree (category)
+public,forum_posts,idx_forum_posts_created_at,postgres,f,f,t,t,CREATE INDEX idx_forum_posts_created_at ON public.forum_posts USING btree (created_at DESC)
+public,forum_posts,idx_forum_posts_user_id,postgres,f,f,t,t,CREATE INDEX idx_forum_posts_user_id ON public.forum_posts USING btree (user_id)
+public,forum_replies,forum_replies_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX forum_replies_pkey ON public.forum_replies USING btree (id)
+public,forum_replies,idx_forum_replies_created_at,postgres,f,f,t,t,CREATE INDEX idx_forum_replies_created_at ON public.forum_replies USING btree (created_at DESC)
+public,forum_replies,idx_forum_replies_post_id,postgres,f,f,t,t,CREATE INDEX idx_forum_replies_post_id ON public.forum_replies USING btree (post_id)
+public,forum_reply_likes,forum_reply_likes_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX forum_reply_likes_pkey ON public.forum_reply_likes USING btree (id)
+public,forum_reply_likes,forum_reply_likes_reply_id_user_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX forum_reply_likes_reply_id_user_id_key ON public.forum_reply_likes USING btree (reply_id, user_id)"
+public,friendships,friendships_friend,postgres,f,f,t,t,"CREATE INDEX friendships_friend ON public.friendships USING btree (friend_id, created_at DESC)"
+public,friendships,friendships_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX friendships_pkey ON public.friendships USING btree (id)
+public,friendships,friendships_source_request_idx,postgres,f,f,t,t,CREATE INDEX friendships_source_request_idx ON public.friendships USING btree (source_request_id)
+public,friendships,friendships_unique_pair,postgres,f,t,t,t,"CREATE UNIQUE INDEX friendships_unique_pair ON public.friendships USING btree (user_id, friend_id)"
+public,friendships,friendships_user,postgres,f,f,t,t,"CREATE INDEX friendships_user ON public.friendships USING btree (user_id, created_at DESC)"
+public,message_attachments,message_attachments_conversation_idx,postgres,f,f,t,t,CREATE INDEX message_attachments_conversation_idx ON public.message_attachments USING btree (conversation_id)
+public,message_attachments,message_attachments_message_order,postgres,f,f,t,t,"CREATE INDEX message_attachments_message_order ON public.message_attachments USING btree (message_id, ""position"")"
+public,message_attachments,message_attachments_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX message_attachments_pkey ON public.message_attachments USING btree (id)
+public,message_attachments,message_attachments_unique_position,postgres,f,t,t,t,"CREATE UNIQUE INDEX message_attachments_unique_position ON public.message_attachments USING btree (message_id, ""position"")"
+public,message_hidden_users,message_hidden_users_pkey,postgres,t,t,t,t,"CREATE UNIQUE INDEX message_hidden_users_pkey ON public.message_hidden_users USING btree (message_id, user_id)"
+public,message_hidden_users,message_hidden_users_user,postgres,f,f,t,t,"CREATE INDEX message_hidden_users_user ON public.message_hidden_users USING btree (user_id, hidden_at DESC)"
+public,message_pins,message_pins_conversation_created,postgres,f,f,t,t,"CREATE INDEX message_pins_conversation_created ON public.message_pins USING btree (conversation_id, created_at DESC)"
+public,message_pins,message_pins_message_idx,postgres,f,f,t,t,CREATE INDEX message_pins_message_idx ON public.message_pins USING btree (message_id)
+public,message_pins,message_pins_pinned_by_idx,postgres,f,f,t,t,CREATE INDEX message_pins_pinned_by_idx ON public.message_pins USING btree (pinned_by)
+public,message_pins,message_pins_pkey,postgres,t,t,t,t,"CREATE UNIQUE INDEX message_pins_pkey ON public.message_pins USING btree (conversation_id, message_id)"
+public,message_reactions,message_reactions_conversation_created,postgres,f,f,t,t,"CREATE INDEX message_reactions_conversation_created ON public.message_reactions USING btree (conversation_id, created_at DESC)"
+public,message_reactions,message_reactions_message,postgres,f,f,t,t,"CREATE INDEX message_reactions_message ON public.message_reactions USING btree (message_id, created_at)"
+public,message_reactions,message_reactions_one_per_user,postgres,f,t,t,t,"CREATE UNIQUE INDEX message_reactions_one_per_user ON public.message_reactions USING btree (message_id, user_id)"
+public,message_reactions,message_reactions_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX message_reactions_pkey ON public.message_reactions USING btree (id)
+public,message_reactions,message_reactions_user_idx,postgres,f,f,t,t,CREATE INDEX message_reactions_user_idx ON public.message_reactions USING btree (user_id)
+public,message_requests,idx_message_requests_requester,postgres,f,f,t,t,CREATE INDEX idx_message_requests_requester ON public.message_requests USING btree (requester_id)
+public,message_requests,idx_message_requests_status,postgres,f,f,t,t,CREATE INDEX idx_message_requests_status ON public.message_requests USING btree (status)
+public,message_requests,idx_message_requests_target,postgres,f,f,t,t,CREATE INDEX idx_message_requests_target ON public.message_requests USING btree (target_id)
+public,message_requests,message_requests_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX message_requests_pkey ON public.message_requests USING btree (id)
+public,message_requests,message_requests_received_pending,postgres,f,f,t,t,"CREATE INDEX message_requests_received_pending ON public.message_requests USING btree (target_id, created_at DESC) WHERE ((status)::text = 'pending'::text)"
+public,message_requests,message_requests_requester_id_target_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX message_requests_requester_id_target_id_key ON public.message_requests USING btree (requester_id, target_id)"
+public,message_requests,message_requests_sent_pending,postgres,f,f,t,t,"CREATE INDEX message_requests_sent_pending ON public.message_requests USING btree (requester_id, created_at DESC) WHERE ((status)::text = 'pending'::text)"
+public,message_requests,message_requests_unique_pending_pair,postgres,f,t,t,t,"CREATE UNIQUE INDEX message_requests_unique_pending_pair ON public.message_requests USING btree (LEAST(requester_id, target_id), GREATEST(requester_id, target_id)) WHERE ((status)::text = 'pending'::text)"
+public,messages,idx_messages_conversation,postgres,f,f,t,t,CREATE INDEX idx_messages_conversation ON public.messages USING btree (conversation_id)
+public,messages,idx_messages_sender,postgres,f,f,t,t,CREATE INDEX idx_messages_sender ON public.messages USING btree (sender_id)
+public,messages,messages_conversation_created,postgres,f,f,t,t,"CREATE INDEX messages_conversation_created ON public.messages USING btree (conversation_id, created_at DESC)"
+public,messages,messages_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX messages_pkey ON public.messages USING btree (id)
+public,messages,messages_room_created,postgres,f,f,t,t,"CREATE INDEX messages_room_created ON public.messages USING btree (room_id, created_at DESC) WHERE (room_id IS NOT NULL)"
+public,messages,messages_sender_client_id_unique,postgres,f,t,t,t,"CREATE UNIQUE INDEX messages_sender_client_id_unique ON public.messages USING btree (sender_id, client_id) WHERE (client_id IS NOT NULL)"
+public,messages,messages_unread_lookup,postgres,f,f,t,t,"CREATE INDEX messages_unread_lookup ON public.messages USING btree (conversation_id, is_read, sender_id) WHERE (deleted_at IS NULL)"
+public,meteo_alerts,idx_meteo_alerts_active,postgres,f,f,t,t,CREATE INDEX idx_meteo_alerts_active ON public.meteo_alerts USING btree (is_active) WHERE (is_active = true)
+public,meteo_alerts,idx_meteo_alerts_expires,postgres,f,f,t,t,CREATE INDEX idx_meteo_alerts_expires ON public.meteo_alerts USING btree (expires_at)
+public,meteo_alerts,meteo_alerts_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX meteo_alerts_pkey ON public.meteo_alerts USING btree (id)
+public,meteo_bulletins,idx_meteo_bulletins_author_id,postgres,f,f,t,t,CREATE INDEX idx_meteo_bulletins_author_id ON public.meteo_bulletins USING btree (author_id)
+public,meteo_bulletins,idx_meteo_bulletins_created_at,postgres,f,f,t,t,CREATE INDEX idx_meteo_bulletins_created_at ON public.meteo_bulletins USING btree (created_at DESC)
+public,meteo_bulletins,idx_meteo_bulletins_is_current,postgres,f,f,t,t,CREATE INDEX idx_meteo_bulletins_is_current ON public.meteo_bulletins USING btree (is_current)
+public,meteo_bulletins,idx_meteo_bulletins_scheduled_at,postgres,f,f,t,t,CREATE INDEX idx_meteo_bulletins_scheduled_at ON public.meteo_bulletins USING btree (scheduled_at) WHERE (scheduled_at IS NOT NULL)
+public,meteo_bulletins,idx_meteo_bulletins_status,postgres,f,f,t,t,CREATE INDEX idx_meteo_bulletins_status ON public.meteo_bulletins USING btree (status)
+public,meteo_bulletins,meteo_bulletins_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX meteo_bulletins_pkey ON public.meteo_bulletins USING btree (id)
+public,meteo_comments,idx_meteo_comments_bulletin,postgres,f,f,t,t,CREATE INDEX idx_meteo_comments_bulletin ON public.meteo_comments USING btree (bulletin_id)
+public,meteo_comments,idx_meteo_comments_parent,postgres,f,f,t,t,CREATE INDEX idx_meteo_comments_parent ON public.meteo_comments USING btree (parent_id)
+public,meteo_comments,idx_meteo_comments_user,postgres,f,f,t,t,CREATE INDEX idx_meteo_comments_user ON public.meteo_comments USING btree (user_id)
+public,meteo_comments,meteo_comments_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX meteo_comments_pkey ON public.meteo_comments USING btree (id)
+public,meteo_reactions,idx_meteo_reactions_bulletin,postgres,f,f,t,t,CREATE INDEX idx_meteo_reactions_bulletin ON public.meteo_reactions USING btree (bulletin_id)
+public,meteo_reactions,idx_meteo_reactions_user,postgres,f,f,t,t,CREATE INDEX idx_meteo_reactions_user ON public.meteo_reactions USING btree (user_id)
+public,meteo_reactions,meteo_reactions_bulletin_id_user_id_type_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX meteo_reactions_bulletin_id_user_id_type_key ON public.meteo_reactions USING btree (bulletin_id, user_id, type)"
+public,meteo_reactions,meteo_reactions_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX meteo_reactions_pkey ON public.meteo_reactions USING btree (id)
+public,meteo_settings,meteo_settings_key_key,postgres,f,t,t,t,CREATE UNIQUE INDEX meteo_settings_key_key ON public.meteo_settings USING btree (key)
+public,meteo_settings,meteo_settings_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX meteo_settings_pkey ON public.meteo_settings USING btree (id)
+public,meteo_team_members,idx_meteo_team_status,postgres,f,f,t,t,CREATE INDEX idx_meteo_team_status ON public.meteo_team_members USING btree (status)
+public,meteo_team_members,idx_meteo_team_user,postgres,f,f,t,t,CREATE INDEX idx_meteo_team_user ON public.meteo_team_members USING btree (user_id)
+public,meteo_team_members,meteo_team_members_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX meteo_team_members_pkey ON public.meteo_team_members USING btree (id)
+public,meteo_team_members,meteo_team_members_user_id_key,postgres,f,t,t,t,CREATE UNIQUE INDEX meteo_team_members_user_id_key ON public.meteo_team_members USING btree (user_id)
+public,meteo_views,idx_meteo_views_bulletin_created,postgres,f,f,t,t,"CREATE INDEX idx_meteo_views_bulletin_created ON public.meteo_views USING btree (bulletin_id, created_at)"
+public,meteo_views,idx_meteo_views_bulletin_id,postgres,f,f,t,t,CREATE INDEX idx_meteo_views_bulletin_id ON public.meteo_views USING btree (bulletin_id)
+public,meteo_views,idx_meteo_views_created_at,postgres,f,f,t,t,CREATE INDEX idx_meteo_views_created_at ON public.meteo_views USING btree (created_at)
+public,meteo_views,idx_meteo_views_source,postgres,f,f,t,t,CREATE INDEX idx_meteo_views_source ON public.meteo_views USING btree (source) WHERE (source IS NOT NULL)
+public,meteo_views,meteo_views_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX meteo_views_pkey ON public.meteo_views USING btree (id)
+public,missions,missions_key_key,postgres,f,t,t,t,CREATE UNIQUE INDEX missions_key_key ON public.missions USING btree (key)
+public,missions,missions_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX missions_pkey ON public.missions USING btree (id)
+public,music_challenges,idx_music_challenges_source_track,postgres,f,f,t,t,CREATE INDEX idx_music_challenges_source_track ON public.music_challenges USING btree (source_track_id)
+public,music_challenges,idx_music_challenges_window,postgres,f,f,t,t,"CREATE INDEX idx_music_challenges_window ON public.music_challenges USING btree (starts_at, ends_at)"
+public,music_challenges,music_challenges_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX music_challenges_pkey ON public.music_challenges USING btree (id)
+public,music_clips,music_clips_creator_idx,postgres,f,f,t,t,"CREATE INDEX music_clips_creator_idx ON public.music_clips USING btree (creator_id, created_at DESC)"
+public,music_clips,music_clips_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX music_clips_pkey ON public.music_clips USING btree (id)
+public,music_clips,music_clips_public_feed_idx,postgres,f,f,t,t,"CREATE INDEX music_clips_public_feed_idx ON public.music_clips USING btree (visibility, created_at DESC) WHERE (visibility = 'published'::text)"
+public,music_clips,music_clips_source_idx,postgres,f,f,t,t,"CREATE INDEX music_clips_source_idx ON public.music_clips USING btree (source_track_type, source_track_id, visibility, created_at DESC)"
+public,notification_preferences,notification_preferences_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX notification_preferences_pkey ON public.notification_preferences USING btree (id)
+public,notification_preferences,notification_preferences_user_id_key,postgres,f,t,t,t,CREATE UNIQUE INDEX notification_preferences_user_id_key ON public.notification_preferences USING btree (user_id)
+public,notifications,idx_notifications_category,postgres,f,f,t,t,CREATE INDEX idx_notifications_category ON public.notifications USING btree (category)
+public,notifications,idx_notifications_user_created,postgres,f,f,t,t,"CREATE INDEX idx_notifications_user_created ON public.notifications USING btree (user_id, created_at DESC)"
+public,notifications,idx_notifications_user_read,postgres,f,f,t,t,"CREATE INDEX idx_notifications_user_read ON public.notifications USING btree (user_id, is_read)"
+public,notifications,notifications_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX notifications_pkey ON public.notifications USING btree (id)
+public,password_resets,idx_password_resets_code,postgres,f,f,t,t,CREATE INDEX idx_password_resets_code ON public.password_resets USING btree (code)
+public,password_resets,idx_password_resets_email,postgres,f,f,t,t,CREATE INDEX idx_password_resets_email ON public.password_resets USING btree (email)
+public,password_resets,idx_password_resets_token,postgres,f,f,t,t,CREATE INDEX idx_password_resets_token ON public.password_resets USING btree (token)
+public,password_resets,password_resets_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX password_resets_pkey ON public.password_resets USING btree (id)
+public,payments,payments_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX payments_pkey ON public.payments USING btree (id)
+public,payments,payments_stripe_payment_intent_id_key,postgres,f,t,t,t,CREATE UNIQUE INDEX payments_stripe_payment_intent_id_key ON public.payments USING btree (stripe_payment_intent_id)
+public,play_stats,play_stats_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX play_stats_pkey ON public.play_stats USING btree (id)
+public,playlist_tracks,playlist_tracks_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX playlist_tracks_pkey ON public.playlist_tracks USING btree (id)
+public,playlist_tracks,playlist_tracks_playlist_id_track_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX playlist_tracks_playlist_id_track_id_key ON public.playlist_tracks USING btree (playlist_id, track_id)"
+public,playlists,playlists_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX playlists_pkey ON public.playlists USING btree (id)
+public,post_comments,idx_post_comments_post,postgres,f,f,t,t,"CREATE INDEX idx_post_comments_post ON public.post_comments USING btree (post_id, created_at DESC)"
+public,post_comments,post_comments_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX post_comments_pkey ON public.post_comments USING btree (id)
+public,post_likes,idx_post_likes_post,postgres,f,f,t,t,CREATE INDEX idx_post_likes_post ON public.post_likes USING btree (post_id)
+public,post_likes,idx_post_likes_user,postgres,f,f,t,t,CREATE INDEX idx_post_likes_user ON public.post_likes USING btree (user_id)
+public,post_likes,post_likes_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX post_likes_pkey ON public.post_likes USING btree (id)
+public,post_likes,post_likes_post_id_user_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX post_likes_post_id_user_id_key ON public.post_likes USING btree (post_id, user_id)"
+public,profiles,idx_profiles_artist,postgres,f,f,t,t,"CREATE INDEX idx_profiles_artist ON public.profiles USING btree (is_artist, total_plays DESC)"
+public,profiles,idx_profiles_early_access,postgres,f,f,t,t,CREATE INDEX idx_profiles_early_access ON public.profiles USING btree (early_access)
+public,profiles,idx_profiles_plan,postgres,f,f,t,t,CREATE INDEX idx_profiles_plan ON public.profiles USING btree (plan)
+public,profiles,idx_profiles_role,postgres,f,f,t,t,CREATE INDEX idx_profiles_role ON public.profiles USING btree (role)
+public,profiles,idx_profiles_username,postgres,f,f,t,t,CREATE INDEX idx_profiles_username ON public.profiles USING btree (username)
+public,profiles,profiles_email_key,postgres,f,t,t,t,CREATE UNIQUE INDEX profiles_email_key ON public.profiles USING btree (email)
+public,profiles,profiles_is_early_access_idx,postgres,f,f,t,t,CREATE INDEX profiles_is_early_access_idx ON public.profiles USING btree (is_early_access)
+public,profiles,profiles_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id)
+public,profiles,profiles_referral_code_key,postgres,f,t,t,t,CREATE UNIQUE INDEX profiles_referral_code_key ON public.profiles USING btree (referral_code)
+public,profiles,profiles_username_key,postgres,f,t,t,t,CREATE UNIQUE INDEX profiles_username_key ON public.profiles USING btree (username)
+public,push_subscriptions,idx_push_subs_user,postgres,f,f,t,t,CREATE INDEX idx_push_subs_user ON public.push_subscriptions USING btree (user_id)
+public,push_subscriptions,idx_push_subscriptions_user_kind,postgres,f,f,t,t,"CREATE INDEX idx_push_subscriptions_user_kind ON public.push_subscriptions USING btree (user_id, p256dh)"
+public,push_subscriptions,push_subscriptions_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX push_subscriptions_pkey ON public.push_subscriptions USING btree (id)
+public,push_subscriptions,push_subscriptions_user_id_endpoint_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX push_subscriptions_user_id_endpoint_key ON public.push_subscriptions USING btree (user_id, endpoint)"
+public,recommendation_impressions,idx_reco_impressions_content_created,postgres,f,f,t,t,"CREATE INDEX idx_reco_impressions_content_created ON public.recommendation_impressions USING btree (content_type, content_id, created_at DESC)"
+public,recommendation_impressions,idx_reco_impressions_user_created,postgres,f,f,t,t,"CREATE INDEX idx_reco_impressions_user_created ON public.recommendation_impressions USING btree (user_id, created_at DESC)"
+public,recommendation_impressions,recommendation_impressions_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX recommendation_impressions_pkey ON public.recommendation_impressions USING btree (id)
+public,referrals,idx_referrals_created,postgres,f,f,t,t,CREATE INDEX idx_referrals_created ON public.referrals USING btree (created_at DESC)
+public,referrals,idx_referrals_referrer,postgres,f,f,t,t,CREATE INDEX idx_referrals_referrer ON public.referrals USING btree (referrer_id)
+public,referrals,referrals_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX referrals_pkey ON public.referrals USING btree (id)
+public,referrals,referrals_referred_id_key,postgres,f,t,t,t,CREATE UNIQUE INDEX referrals_referred_id_key ON public.referrals USING btree (referred_id)
+public,star_academy_applications,idx_sa_applications_email,postgres,f,f,t,t,CREATE INDEX idx_sa_applications_email ON public.star_academy_applications USING btree (email)
+public,star_academy_applications,idx_sa_applications_status,postgres,f,f,t,t,CREATE INDEX idx_sa_applications_status ON public.star_academy_applications USING btree (status)
+public,star_academy_applications,idx_sa_applications_token,postgres,f,f,t,t,CREATE INDEX idx_sa_applications_token ON public.star_academy_applications USING btree (tracking_token)
+public,star_academy_applications,star_academy_applications_email_key,postgres,f,t,t,t,CREATE UNIQUE INDEX star_academy_applications_email_key ON public.star_academy_applications USING btree (email)
+public,star_academy_applications,star_academy_applications_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX star_academy_applications_pkey ON public.star_academy_applications USING btree (id)
+public,star_academy_applications,star_academy_applications_tracking_token_key,postgres,f,t,t,t,CREATE UNIQUE INDEX star_academy_applications_tracking_token_key ON public.star_academy_applications USING btree (tracking_token)
+public,star_academy_config,star_academy_config_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX star_academy_config_pkey ON public.star_academy_config USING btree (key)
+public,star_academy_staff_applications,idx_sa_staff_email,postgres,f,f,t,t,CREATE INDEX idx_sa_staff_email ON public.star_academy_staff_applications USING btree (email)
+public,star_academy_staff_applications,idx_sa_staff_role,postgres,f,f,t,t,CREATE INDEX idx_sa_staff_role ON public.star_academy_staff_applications USING btree (role)
+public,star_academy_staff_applications,idx_sa_staff_status,postgres,f,f,t,t,CREATE INDEX idx_sa_staff_status ON public.star_academy_staff_applications USING btree (status)
+public,star_academy_staff_applications,idx_sa_staff_token,postgres,f,f,t,t,CREATE INDEX idx_sa_staff_token ON public.star_academy_staff_applications USING btree (tracking_token)
+public,star_academy_staff_applications,star_academy_staff_applications_email_key,postgres,f,t,t,t,CREATE UNIQUE INDEX star_academy_staff_applications_email_key ON public.star_academy_staff_applications USING btree (email)
+public,star_academy_staff_applications,star_academy_staff_applications_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX star_academy_staff_applications_pkey ON public.star_academy_staff_applications USING btree (id)
+public,star_academy_staff_applications,star_academy_staff_applications_tracking_token_key,postgres,f,t,t,t,CREATE UNIQUE INDEX star_academy_staff_applications_tracking_token_key ON public.star_academy_staff_applications USING btree (tracking_token)
+public,subscriptions,subscriptions_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX subscriptions_pkey ON public.subscriptions USING btree (id)
+public,subscriptions,subscriptions_stripe_subscription_id_key,postgres,f,t,t,t,CREATE UNIQUE INDEX subscriptions_stripe_subscription_id_key ON public.subscriptions USING btree (stripe_subscription_id)
+public,support_tickets,support_tickets_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX support_tickets_pkey ON public.support_tickets USING btree (id)
+public,synaura_tv_settings,synaura_tv_settings_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX synaura_tv_settings_pkey ON public.synaura_tv_settings USING btree (id)
+public,track_events,idx_track_events_created,postgres,f,f,t,t,CREATE INDEX idx_track_events_created ON public.track_events USING btree (created_at DESC)
+public,track_events,idx_track_events_track,postgres,f,f,t,t,CREATE INDEX idx_track_events_track ON public.track_events USING btree (track_id)
+public,track_events,idx_track_events_track_created_signal,postgres,f,f,t,t,"CREATE INDEX idx_track_events_track_created_signal ON public.track_events USING btree (track_id, created_at DESC) INCLUDE (event_type, user_id, session_id, progress_pct)"
+public,track_events,idx_track_events_type,postgres,f,f,t,t,CREATE INDEX idx_track_events_type ON public.track_events USING btree (event_type)
+public,track_events,idx_track_events_user,postgres,f,f,t,t,CREATE INDEX idx_track_events_user ON public.track_events USING btree (user_id)
+public,track_events,idx_track_events_user_created_signal,postgres,f,f,t,t,"CREATE INDEX idx_track_events_user_created_signal ON public.track_events USING btree (user_id, created_at DESC) INCLUDE (track_id, event_type, progress_pct, position_ms, duration_ms) WHERE (user_id IS NOT NULL)"
+public,track_events,track_events_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX track_events_pkey ON public.track_events USING btree (id)
+public,track_likes,idx_track_likes_track_id,postgres,f,f,t,t,CREATE INDEX idx_track_likes_track_id ON public.track_likes USING btree (track_id)
+public,track_likes,idx_track_likes_unique,postgres,f,t,t,t,"CREATE UNIQUE INDEX idx_track_likes_unique ON public.track_likes USING btree (track_id, user_id)"
+public,track_likes,idx_track_likes_user_id,postgres,f,f,t,t,CREATE INDEX idx_track_likes_user_id ON public.track_likes USING btree (user_id)
+public,track_likes,track_likes_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX track_likes_pkey ON public.track_likes USING btree (id)
+public,track_likes,track_likes_track_id_user_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX track_likes_track_id_user_id_key ON public.track_likes USING btree (track_id, user_id)"
+public,track_moment_reactions,track_moment_reactions_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX track_moment_reactions_pkey ON public.track_moment_reactions USING btree (id)
+public,track_moment_reactions,track_moment_reactions_track_idx,postgres,f,f,t,t,"CREATE INDEX track_moment_reactions_track_idx ON public.track_moment_reactions USING btree (track_id, timestamp_seconds)"
+public,track_moment_reactions,track_moment_reactions_unique_user_moment,postgres,f,t,t,t,"CREATE UNIQUE INDEX track_moment_reactions_unique_user_moment ON public.track_moment_reactions USING btree (track_id, user_id, reaction_type, timestamp_seconds)"
+public,track_remixes,track_remixes_challenge_id_idx,postgres,f,f,t,t,CREATE INDEX track_remixes_challenge_id_idx ON public.track_remixes USING btree (challenge_id)
+public,track_remixes,track_remixes_challenge_idx,postgres,f,f,t,t,CREATE INDEX track_remixes_challenge_idx ON public.track_remixes USING btree (challenge_id) WHERE (challenge_id IS NOT NULL)
+public,track_remixes,track_remixes_creator_idx,postgres,f,f,t,t,"CREATE INDEX track_remixes_creator_idx ON public.track_remixes USING btree (creator_id, created_at DESC)"
+public,track_remixes,track_remixes_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX track_remixes_pkey ON public.track_remixes USING btree (id)
+public,track_remixes,track_remixes_source_status_idx,postgres,f,f,t,t,"CREATE INDEX track_remixes_source_status_idx ON public.track_remixes USING btree (source_track_id, source_track_type, status)"
+public,track_remixes,track_remixes_unique_child,postgres,f,t,t,t,"CREATE UNIQUE INDEX track_remixes_unique_child ON public.track_remixes USING btree (child_track_id, child_track_type, remix_type)"
+public,track_stats,track_stats_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX track_stats_pkey ON public.track_stats USING btree (track_id)
+public,track_views,idx_track_views_country,postgres,f,f,t,t,CREATE INDEX idx_track_views_country ON public.track_views USING btree (country)
+public,track_views,idx_track_views_device,postgres,f,f,t,t,CREATE INDEX idx_track_views_device ON public.track_views USING btree (device)
+public,track_views,idx_track_views_track_created,postgres,f,f,t,t,"CREATE INDEX idx_track_views_track_created ON public.track_views USING btree (track_id, created_at DESC)"
+public,track_views,idx_track_views_track_id,postgres,f,f,t,t,CREATE INDEX idx_track_views_track_id ON public.track_views USING btree (track_id)
+public,track_views,idx_track_views_user_id,postgres,f,f,t,t,CREATE INDEX idx_track_views_user_id ON public.track_views USING btree (user_id)
+public,track_views,idx_track_views_user_track,postgres,f,f,t,t,"CREATE INDEX idx_track_views_user_track ON public.track_views USING btree (user_id, track_id, created_at DESC)"
+public,track_views,idx_track_views_viewed_at,postgres,f,f,t,t,CREATE INDEX idx_track_views_viewed_at ON public.track_views USING btree (viewed_at)
+public,track_views,track_views_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX track_views_pkey ON public.track_views USING btree (id)
+public,track_views,track_views_user_id_track_id_viewed_date_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX track_views_user_id_track_id_viewed_date_key ON public.track_views USING btree (user_id, track_id, viewed_date)"
+public,track_waveforms,track_waveforms_pkey,postgres,t,t,t,t,"CREATE UNIQUE INDEX track_waveforms_pkey ON public.track_waveforms USING btree (track_id, track_type)"
+public,tracks,idx_tracks_album,postgres,f,f,t,t,CREATE INDEX idx_tracks_album ON public.tracks USING btree (album_id) WHERE (album_id IS NOT NULL)
+public,tracks,idx_tracks_created,postgres,f,f,t,t,CREATE INDEX idx_tracks_created ON public.tracks USING btree (created_at DESC)
+public,tracks,idx_tracks_creator,postgres,f,f,t,t,CREATE INDEX idx_tracks_creator ON public.tracks USING btree (creator_id)
+public,tracks,idx_tracks_genre,postgres,f,f,t,t,CREATE INDEX idx_tracks_genre ON public.tracks USING gin (genre)
+public,tracks,idx_tracks_popular,postgres,f,f,t,t,"CREATE INDEX idx_tracks_popular ON public.tracks USING btree (plays DESC, likes DESC)"
+public,tracks,tracks_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX tracks_pkey ON public.tracks USING btree (id)
+public,user_blocks,user_blocks_blocked,postgres,f,f,t,t,"CREATE INDEX user_blocks_blocked ON public.user_blocks USING btree (blocked_id, blocker_id)"
+public,user_blocks,user_blocks_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX user_blocks_pkey ON public.user_blocks USING btree (id)
+public,user_blocks,user_blocks_unique_pair,postgres,f,t,t,t,"CREATE UNIQUE INDEX user_blocks_unique_pair ON public.user_blocks USING btree (blocker_id, blocked_id)"
+public,user_booster_daily,user_booster_daily_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX user_booster_daily_pkey ON public.user_booster_daily USING btree (user_id)
+public,user_booster_open_history,idx_user_booster_history_opened,postgres,f,f,t,t,CREATE INDEX idx_user_booster_history_opened ON public.user_booster_open_history USING btree (opened_at)
+public,user_booster_open_history,idx_user_booster_history_user,postgres,f,f,t,t,CREATE INDEX idx_user_booster_history_user ON public.user_booster_open_history USING btree (user_id)
+public,user_booster_open_history,user_booster_open_history_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX user_booster_open_history_pkey ON public.user_booster_open_history USING btree (id)
+public,user_booster_pack_claims,uq_pack_claim_user_period,postgres,f,t,t,t,"CREATE UNIQUE INDEX uq_pack_claim_user_period ON public.user_booster_pack_claims USING btree (user_id, pack_key, period_start)"
+public,user_booster_pack_claims,user_booster_pack_claims_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX user_booster_pack_claims_pkey ON public.user_booster_pack_claims USING btree (id)
+public,user_booster_pity,user_booster_pity_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX user_booster_pity_pkey ON public.user_booster_pity USING btree (user_id)
+public,user_boosters,idx_user_boosters_status,postgres,f,f,t,t,CREATE INDEX idx_user_boosters_status ON public.user_boosters USING btree (status)
+public,user_boosters,idx_user_boosters_user,postgres,f,f,t,t,CREATE INDEX idx_user_boosters_user ON public.user_boosters USING btree (user_id)
+public,user_boosters,user_boosters_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX user_boosters_pkey ON public.user_boosters USING btree (id)
+public,user_daily_spin,user_daily_spin_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX user_daily_spin_pkey ON public.user_daily_spin USING btree (user_id)
+public,user_daily_spin_history,user_daily_spin_history_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX user_daily_spin_history_pkey ON public.user_daily_spin_history USING btree (id)
+public,user_daily_spin_history,user_daily_spin_history_user_spun_idx,postgres,f,f,t,t,"CREATE INDEX user_daily_spin_history_user_spun_idx ON public.user_daily_spin_history USING btree (user_id, spun_at DESC)"
+public,user_follows,idx_user_follows_follower,postgres,f,f,t,t,CREATE INDEX idx_user_follows_follower ON public.user_follows USING btree (follower_id)
+public,user_follows,idx_user_follows_following,postgres,f,f,t,t,CREATE INDEX idx_user_follows_following ON public.user_follows USING btree (following_id)
+public,user_follows,user_follows_follower_id_following_id_key,postgres,f,t,t,t,"CREATE UNIQUE INDEX user_follows_follower_id_following_id_key ON public.user_follows USING btree (follower_id, following_id)"
+public,user_follows,user_follows_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX user_follows_pkey ON public.user_follows USING btree (id)
+public,user_missions,idx_user_missions_user,postgres,f,f,t,t,CREATE INDEX idx_user_missions_user ON public.user_missions USING btree (user_id)
+public,user_missions,uq_user_mission,postgres,f,t,t,t,"CREATE UNIQUE INDEX uq_user_mission ON public.user_missions USING btree (user_id, mission_id)"
+public,user_missions,user_missions_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX user_missions_pkey ON public.user_missions USING btree (id)
+public,user_quotas,idx_user_quotas_reset_date,postgres,f,f,t,t,CREATE INDEX idx_user_quotas_reset_date ON public.user_quotas USING btree (reset_date)
+public,user_quotas,idx_user_quotas_user_id,postgres,f,f,t,t,CREATE INDEX idx_user_quotas_user_id ON public.user_quotas USING btree (user_id)
+public,user_quotas,user_quotas_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX user_quotas_pkey ON public.user_quotas USING btree (id)
+public,user_quotas,user_quotas_user_id_key,postgres,f,t,t,t,CREATE UNIQUE INDEX user_quotas_user_id_key ON public.user_quotas USING btree (user_id)
+public,users,users_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)
+public,waiting_list,idx_waiting_list_created_at,postgres,f,f,t,t,CREATE INDEX idx_waiting_list_created_at ON public.waiting_list USING btree (created_at)
+public,waiting_list,idx_waiting_list_email,postgres,f,f,t,t,CREATE INDEX idx_waiting_list_email ON public.waiting_list USING btree (email)
+public,waiting_list,idx_waiting_list_status,postgres,f,f,t,t,CREATE INDEX idx_waiting_list_status ON public.waiting_list USING btree (status)
+public,waiting_list,waiting_list_email_key,postgres,f,t,t,t,CREATE UNIQUE INDEX waiting_list_email_key ON public.waiting_list USING btree (email)
+public,waiting_list,waiting_list_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX waiting_list_pkey ON public.waiting_list USING btree (id)
+realtime,messages,messages_inserted_at_topic_index,supabase_realtime_admin,f,f,t,t,"CREATE INDEX messages_inserted_at_topic_index ON ONLY realtime.messages USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE))"
+realtime,messages,messages_pkey,supabase_realtime_admin,t,t,t,t,"CREATE UNIQUE INDEX messages_pkey ON ONLY realtime.messages USING btree (id, inserted_at)"
+realtime,messages_2026_07_31,messages_2026_07_31_inserted_at_topic_idx,supabase_realtime_admin,f,f,t,t,"CREATE INDEX messages_2026_07_31_inserted_at_topic_idx ON realtime.messages_2026_07_31 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE))"
+realtime,messages_2026_07_31,messages_2026_07_31_pkey,supabase_realtime_admin,t,t,t,t,"CREATE UNIQUE INDEX messages_2026_07_31_pkey ON realtime.messages_2026_07_31 USING btree (id, inserted_at)"
+realtime,messages_2026_08_01,messages_2026_08_01_inserted_at_topic_idx,supabase_realtime_admin,f,f,t,t,"CREATE INDEX messages_2026_08_01_inserted_at_topic_idx ON realtime.messages_2026_08_01 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE))"
+realtime,messages_2026_08_01,messages_2026_08_01_pkey,supabase_realtime_admin,t,t,t,t,"CREATE UNIQUE INDEX messages_2026_08_01_pkey ON realtime.messages_2026_08_01 USING btree (id, inserted_at)"
+realtime,messages_2026_08_02,messages_2026_08_02_inserted_at_topic_idx,supabase_realtime_admin,f,f,t,t,"CREATE INDEX messages_2026_08_02_inserted_at_topic_idx ON realtime.messages_2026_08_02 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE))"
+realtime,messages_2026_08_02,messages_2026_08_02_pkey,supabase_realtime_admin,t,t,t,t,"CREATE UNIQUE INDEX messages_2026_08_02_pkey ON realtime.messages_2026_08_02 USING btree (id, inserted_at)"
+realtime,messages_2026_08_03,messages_2026_08_03_inserted_at_topic_idx,supabase_realtime_admin,f,f,t,t,"CREATE INDEX messages_2026_08_03_inserted_at_topic_idx ON realtime.messages_2026_08_03 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE))"
+realtime,messages_2026_08_03,messages_2026_08_03_pkey,supabase_realtime_admin,t,t,t,t,"CREATE UNIQUE INDEX messages_2026_08_03_pkey ON realtime.messages_2026_08_03 USING btree (id, inserted_at)"
+realtime,messages_2026_08_04,messages_2026_08_04_inserted_at_topic_idx,supabase_realtime_admin,f,f,t,t,"CREATE INDEX messages_2026_08_04_inserted_at_topic_idx ON realtime.messages_2026_08_04 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE))"
+realtime,messages_2026_08_04,messages_2026_08_04_pkey,supabase_realtime_admin,t,t,t,t,"CREATE UNIQUE INDEX messages_2026_08_04_pkey ON realtime.messages_2026_08_04 USING btree (id, inserted_at)"
+realtime,messages_2026_08_05,messages_2026_08_05_inserted_at_topic_idx,supabase_realtime_admin,f,f,t,t,"CREATE INDEX messages_2026_08_05_inserted_at_topic_idx ON realtime.messages_2026_08_05 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE))"
+realtime,messages_2026_08_05,messages_2026_08_05_pkey,supabase_realtime_admin,t,t,t,t,"CREATE UNIQUE INDEX messages_2026_08_05_pkey ON realtime.messages_2026_08_05 USING btree (id, inserted_at)"
+realtime,messages_2026_08_06,messages_2026_08_06_inserted_at_topic_idx,supabase_realtime_admin,f,f,t,t,"CREATE INDEX messages_2026_08_06_inserted_at_topic_idx ON realtime.messages_2026_08_06 USING btree (inserted_at DESC, topic) WHERE ((extension = 'broadcast'::text) AND (private IS TRUE))"
+realtime,messages_2026_08_06,messages_2026_08_06_pkey,supabase_realtime_admin,t,t,t,t,"CREATE UNIQUE INDEX messages_2026_08_06_pkey ON realtime.messages_2026_08_06 USING btree (id, inserted_at)"
+realtime,schema_migrations,schema_migrations_pkey,supabase_admin,t,t,t,t,CREATE UNIQUE INDEX schema_migrations_pkey ON realtime.schema_migrations USING btree (version)
+realtime,subscription,ix_realtime_subscription_entity,supabase_realtime_admin,f,f,t,t,CREATE INDEX ix_realtime_subscription_entity ON realtime.subscription USING btree (entity)
+realtime,subscription,pk_subscription,supabase_realtime_admin,t,t,t,t,CREATE UNIQUE INDEX pk_subscription ON realtime.subscription USING btree (id)
+realtime,subscription,subscription_subscription_id_entity_filters_action_filter_selec,supabase_realtime_admin,f,t,t,t,"CREATE UNIQUE INDEX subscription_subscription_id_entity_filters_action_filter_selec ON realtime.subscription USING btree (subscription_id, entity, filters, action_filter, COALESCE(selected_columns, '{}'::text[]))"
+storage,buckets,bname,supabase_storage_admin,f,t,t,t,CREATE UNIQUE INDEX bname ON storage.buckets USING btree (name)
+storage,buckets,buckets_pkey,supabase_storage_admin,t,t,t,t,CREATE UNIQUE INDEX buckets_pkey ON storage.buckets USING btree (id)
+storage,buckets_analytics,buckets_analytics_pkey,supabase_storage_admin,t,t,t,t,CREATE UNIQUE INDEX buckets_analytics_pkey ON storage.buckets_analytics USING btree (id)
+storage,buckets_analytics,buckets_analytics_unique_name_idx,supabase_storage_admin,f,t,t,t,CREATE UNIQUE INDEX buckets_analytics_unique_name_idx ON storage.buckets_analytics USING btree (name) WHERE (deleted_at IS NULL)
+storage,buckets_vectors,buckets_vectors_pkey,supabase_storage_admin,t,t,t,t,CREATE UNIQUE INDEX buckets_vectors_pkey ON storage.buckets_vectors USING btree (id)
+storage,migrations,migrations_name_key,supabase_storage_admin,f,t,t,t,CREATE UNIQUE INDEX migrations_name_key ON storage.migrations USING btree (name)
+storage,migrations,migrations_pkey,supabase_storage_admin,t,t,t,t,CREATE UNIQUE INDEX migrations_pkey ON storage.migrations USING btree (id)
+storage,objects,bucketid_objname,supabase_storage_admin,f,t,t,t,"CREATE UNIQUE INDEX bucketid_objname ON storage.objects USING btree (bucket_id, name)"
+storage,objects,idx_objects_bucket_id_name,supabase_storage_admin,f,f,t,t,"CREATE INDEX idx_objects_bucket_id_name ON storage.objects USING btree (bucket_id, name COLLATE ""C"")"
+storage,objects,idx_objects_bucket_id_name_lower,supabase_storage_admin,f,f,t,t,"CREATE INDEX idx_objects_bucket_id_name_lower ON storage.objects USING btree (bucket_id, lower(name) COLLATE ""C"")"
+storage,objects,name_prefix_search,supabase_storage_admin,f,f,t,t,CREATE INDEX name_prefix_search ON storage.objects USING btree (name text_pattern_ops)
+storage,objects,objects_pkey,supabase_storage_admin,t,t,t,t,CREATE UNIQUE INDEX objects_pkey ON storage.objects USING btree (id)
+storage,s3_multipart_uploads,idx_multipart_uploads_list,supabase_storage_admin,f,f,t,t,"CREATE INDEX idx_multipart_uploads_list ON storage.s3_multipart_uploads USING btree (bucket_id, key, created_at)"
+storage,s3_multipart_uploads,s3_multipart_uploads_pkey,supabase_storage_admin,t,t,t,t,CREATE UNIQUE INDEX s3_multipart_uploads_pkey ON storage.s3_multipart_uploads USING btree (id)
+storage,s3_multipart_uploads_parts,s3_multipart_uploads_parts_pkey,supabase_storage_admin,t,t,t,t,CREATE UNIQUE INDEX s3_multipart_uploads_parts_pkey ON storage.s3_multipart_uploads_parts USING btree (id)
+storage,vector_indexes,vector_indexes_name_bucket_id_idx,supabase_storage_admin,f,t,t,t,"CREATE UNIQUE INDEX vector_indexes_name_bucket_id_idx ON storage.vector_indexes USING btree (name, bucket_id)"
+storage,vector_indexes,vector_indexes_pkey,supabase_storage_admin,t,t,t,t,CREATE UNIQUE INDEX vector_indexes_pkey ON storage.vector_indexes USING btree (id)
+supabase_migrations,schema_migrations,schema_migrations_idempotency_key_key,postgres,f,t,t,t,CREATE UNIQUE INDEX schema_migrations_idempotency_key_key ON supabase_migrations.schema_migrations USING btree (idempotency_key)
+supabase_migrations,schema_migrations,schema_migrations_pkey,postgres,t,t,t,t,CREATE UNIQUE INDEX schema_migrations_pkey ON supabase_migrations.schema_migrations USING btree (version)

@@ -1,0 +1,328 @@
+schema,object,kind,domain,classification,operations,runtime_files,support_files,estimated_rows,seq_scans,index_scans
+auth,refresh_tokens_id_seq,sequence,transverse/infrastructure,infrastructure/auth,,,,1,,
+auth,audit_log_entries,table,transverse/infrastructure,infrastructure/auth,,,,1147,4,0
+auth,custom_oauth_providers,table,auth,infrastructure/auth,,,,-1,4,0
+auth,flow_state,table,statistiques,infrastructure/auth,,,,2,4,0
+auth,identities,table,auth,infrastructure/auth,INSERT | SELECT | UPDATE,app/api/auth/mobile/contact/email/verify/route.ts | app/api/auth/mobile/contact/route.ts | lib/localAuth.ts | lib/mobileAuthSecurity.ts,,40,5,0
+auth,instances,table,transverse/infrastructure,infrastructure/auth,,,,-1,4,0
+auth,mfa_amr_claims,table,auth,infrastructure/auth,INSERT | SELECT,lib/mobileAuthSecurity.ts,,142,5,0
+auth,mfa_challenges,table,auth,infrastructure/auth,,,,2,4,0
+auth,mfa_factors,table,auth,infrastructure/auth,DELETE | INSERT | UPDATE,lib/mobileAuthSecurity.ts,,1,138,0
+auth,oauth_authorizations,table,auth,infrastructure/auth,,,,-1,4,0
+auth,oauth_client_states,table,auth,infrastructure/auth,,,,-1,4,0
+auth,oauth_clients,table,auth,infrastructure/auth,,,,-1,4,0
+auth,oauth_consents,table,auth,infrastructure/auth,,,,-1,4,0
+auth,one_time_tokens,table,transverse/infrastructure,infrastructure/auth,,,,-1,4,0
+auth,refresh_tokens,table,auth,infrastructure/auth,INSERT | SELECT | UPDATE,lib/mobileAuth.ts,,280,4,4
+auth,saml_providers,table,transverse/infrastructure,infrastructure/auth,,,,-1,4,0
+auth,saml_relay_states,table,statistiques,infrastructure/auth,,,,-1,4,0
+auth,schema_migrations,table,transverse/infrastructure,infrastructure/auth,,,,77,4,0
+auth,sessions,table,auth,infrastructure/auth,INSERT | REFERENCE | SELECT | UPDATE,lib/mobileAuth.ts,scripts/delete_test_user.js,140,140,2
+auth,sso_domains,table,transverse/infrastructure,infrastructure/auth,,,,-1,4,0
+auth,sso_providers,table,transverse/infrastructure,infrastructure/auth,,,,-1,4,0
+auth,users,table,profils,infrastructure/auth,DELETE | INSERT | REFERENCE | SELECT | UPDATE,app/api/admin/emails/route.ts | app/api/auth/mobile/contact/email/verify/route.ts | app/api/auth/mobile/contact/route.ts | app/api/auth/reset-password/route.ts | lib/adminEmailRecipients.ts | lib/authOptions.ts | lib/localAuth.ts | lib/mobileAuth.ts | lib/mobileAuthSecurity.ts,scripts/check-supabase-users.js | scripts/check-user-sync.js | scripts/check_profiles_table.js | scripts/check_remaining_data.js | scripts/check_user_structure.js | scripts/compare-migration-status.js | scripts/create-ai-generations-simple.js | scripts/create-meteo-tables.js | scripts/create-test-users.js | scripts/create-users-simple.js | scripts/create_community_tables.js | scripts/debug-mapping.js | scripts/delete_test_user.js | scripts/fix-auth-migration.js | scripts/fix-migration-final.js | scripts/fix-track-creator-ids-final.js | scripts/fix-track-creator-ids-v2.js | scripts/fix-track-creator-ids-v3.js | scripts/fix-track-creator-ids-with-mapping.js | scripts/fix-users-profiles.js | scripts/migrate-all-data-fixed.js | scripts/migrate-all-data.js | scripts/migrate-complete-100.js | scripts/migrate-complete-final.js | scripts/migrate-final-users.js | scripts/migrate-to-supabase.js | scripts/repair-admin-migration-gaps.js | scripts/run-ai-complete-migration.js | scripts/run-ai-migration.js | scripts/run-users-migration.js | scripts/test-ai-system.js | scripts/test-follow-system.js | scripts/test-messages-api.js | scripts/test-profiles.js,38,143,0
+auth,webauthn_challenges,table,auth,infrastructure/auth,,,,-1,4,0
+auth,webauthn_credentials,table,auth,infrastructure/auth,,,,-1,4,0
+extensions,pg_stat_statements,view,statistiques,infrastructure/auth,,,,-1,,
+extensions,pg_stat_statements_info,view,statistiques,infrastructure/auth,,,,-1,,
+public,comment_reactions_id_seq,sequence,commentaires/reactions,inconnu,,,,1,,
+public,conversation_participants_id_seq,sequence,messaging,inconnu,,,,1,,
+public,creator_comment_filters_id_seq,sequence,commentaires/reactions,inconnu,,,,1,,
+public,follow_requests_id_seq,sequence,follows,inconnu,,,,1,,
+public,notifications_id_seq,sequence,notifications,inconnu,,,,1,,
+public,play_stats_id_seq,sequence,statistiques,inconnu,,,,1,,
+public,playlist_tracks_id_seq,sequence,playlists,inconnu,,,,1,,
+public,track_likes_id_seq,sequence,tracks,inconnu,,,,1,,
+public,user_follows_id_seq,sequence,follows,inconnu,,,,1,,
+public,account_private,table,auth,utilise par le runtime,INSERT,lib/mobileAuthSecurity.ts,,32,5,0
+public,active_artist_boosts,table,Boosters,utilise par le runtime,INSERT | SELECT | UPDATE,app/api/boosters/my-active/route.ts | app/api/boosters/use/route.ts | app/api/notifications/boost/route.ts | app/api/users/popular/route.ts | app/api/users/route.ts,,8,133,0
+public,active_track_boosts,table,Boosters,utilise par le runtime,DELETE | INSERT | SELECT | UPDATE,app/api/boosters/active/route.ts | app/api/boosters/my-active/route.ts | app/api/boosters/use/route.ts | app/api/city/events/[id]/claim/route.ts | app/api/city/route.ts | app/api/notifications/boost/route.ts | app/api/tracks/most-liked/route.ts | lib/recommendation/candidates.ts,,36,139,0
+public,admin_broadcasts,table,notifications,utilise par le runtime,INSERT | REFERENCE | SELECT,app/api/admin/notifications/route.ts | app/api/notifications/setup/route.ts | lib/notifications.ts,,3,4,0
+public,ai_credit_balances,table,IA,utilise par le runtime,SELECT,app/api/ai/credits/route.ts | app/api/ai/quota/route.ts | app/api/daily-spin/route.ts | app/api/suno/generate-music-video/route.ts | app/api/suno/generate/route.ts | app/api/suno/upload-cover/route.ts,,32,9,0
+public,ai_generations,table,IA,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT | UPDATE,app/api/account/delete/route.ts | app/api/ai/generate/route.ts | app/api/ai/generations/[id]/trash/route.ts | app/api/ai/generations/[id]/visibility/route.ts | app/api/ai/library/route.ts | app/api/ai/library/tracks/route.ts | app/api/ai/quota/route.ts | app/api/ai/status-simple/[taskId]/route.ts | app/api/ai/status/[taskId]/route.ts | app/api/ai/upload-source/route.ts | app/api/ai/webhook/route.ts | app/api/music-clips/sources/route.ts | app/api/remixes/[id]/decision/route.ts | app/api/remixes/pending/route.ts | app/api/suno/generate/route.ts | app/api/suno/repair-tracks/route.ts | app/api/suno/save-tracks/route.ts | app/api/suno/status/route.ts | app/api/suno/timestamped-lyrics/route.ts | app/api/suno/upload-cover/route.ts | lib/aiGenerationService.ts | lib/publicTracks.ts | lib/remixServer.ts,scripts/check_db_structure.js | scripts/check_remaining_data.js | scripts/create-ai-generations-simple.js | scripts/delete_test_user.js | scripts/fix_schema.js | scripts/reset_ai_quota_and_generations.js | scripts/run-ai-complete-migration.js | scripts/run-ai-migration.js | scripts/test-ai-system.js | scripts/test_db_simple.js,121,776,2323
+public,ai_playlist_tracks,table,IA,utilise par le runtime,INSERT,lib/aiGenerationService.ts,,-1,4,0
+public,ai_playlists,table,IA,utilise par le runtime,INSERT | REFERENCE | SELECT,lib/aiGenerationService.ts,scripts/run-ai-complete-migration.js,-1,4,0
+public,ai_track_likes,table,IA,utilise par le runtime,DELETE | INSERT | SELECT,app/api/ai/library/tracks/route.ts | app/api/ai/tracks/[id]/favorite/route.ts,,11,5,0
+public,ai_tracks,table,IA,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT | UPDATE,app/api/account/delete/route.ts | app/api/ai/generations/[id]/visibility/route.ts | app/api/ai/tags/suggestions/route.ts | app/api/ai/tracks/[id]/favorite/route.ts | app/api/ai/tracks/[id]/route.ts | app/api/ai/tracks/[id]/visibility/route.ts | app/api/ai/upload-source/route.ts | app/api/city/events/[id]/participate/route.ts | app/api/city/events/[id]/resolve/route.ts | app/api/city/route.ts | app/api/discover/moods/route.ts | app/api/music-clips/sources/route.ts | app/api/posts/[id]/route.ts | app/api/posts/route.ts | app/api/remixes/[id]/decision/route.ts | app/api/remixes/pending/route.ts | app/api/remixes/sources/route.ts | app/api/share-card/[id]/route.tsx | app/api/stats/all-tracks/route.ts | app/api/stats/audience/route.ts | app/api/stats/debug/route.ts | app/api/stats/heatmap/route.ts | app/api/stats/overview/route.ts | app/api/stats/timeseries/route.ts | app/api/stats/tracks/route.ts | app/api/suno/generate-music-video/route.ts | app/api/suno/music-video-callback/route.ts | app/api/suno/repair-tracks/route.ts | app/api/suno/timestamped-lyrics/route.ts | app/api/tracks/[id]/plays/route.ts | app/api/tracks/[id]/route.ts | app/api/tracks/[id]/waveform/route.ts | app/api/tracks/route.ts | app/api/users/[username]/route.ts | app/api/users/[username]/variations/route.ts | app/discover/page.tsx | app/posts/[id]/opengraph-image.tsx | app/track/[id]/opengraph-image.tsx | app/track/[id]/page.tsx | lib/aiGenerationService.ts | lib/musicChallenges.ts | lib/musicClips.ts | lib/publicTracks.ts | lib/recommendation/candidates.ts | lib/recommendation/signals.ts | lib/remixServer.ts,scripts/check_remaining_data.js | scripts/run-ai-complete-migration.js | scripts/transfer_uploads_and_delete_user.js,215,266,1240
+public,ai_usage_stats,table,IA,probablement utilise,REFERENCE,,scripts/run-ai-complete-migration.js,55,4,0
+public,boosters,table,Boosters,utilise par le runtime,INSERT | REFERENCE | SELECT,app/api/boosters/claim-pack/route.ts | app/api/boosters/open/route.ts | app/api/city/events/[id]/claim/route.ts | app/api/daily-spin/route.ts | app/api/missions/claim-many/route.ts | app/api/missions/claim/route.ts | app/boosters/BoostersClient.tsx,,7,5,0
+public,challenge_entries,table,transverse/infrastructure,utilise par le runtime,SELECT | UPSERT,lib/musicChallenges.ts,,-1,4,9
+public,city_event_participations,table,City,utilise par le runtime,SELECT | UPSERT,app/api/city/events/[id]/participate/route.ts | app/api/city/events/[id]/resolve/route.ts | app/api/city/events/[id]/route.ts | app/api/city/route.ts,,2,8,0
+public,city_event_tracks,table,City,utilise par le runtime,SELECT | UPSERT,app/api/city/events/[id]/participate/route.ts | app/api/city/events/[id]/resolve/route.ts | app/api/city/events/[id]/route.ts | app/api/city/route.ts | app/api/city/vote/route.ts,,490,4,48
+public,city_event_votes,table,City,utilise par le runtime,SELECT | UPSERT,app/api/city/events/[id]/claim/route.ts | app/api/city/events/[id]/resolve/route.ts | app/api/city/events/[id]/route.ts | app/api/city/route.ts | app/api/city/vote/route.ts,,6,8,0
+public,city_event_winners,table,City,utilise par le runtime,SELECT | UPSERT,app/api/city/events/[id]/resolve/route.ts | app/api/city/events/[id]/route.ts | app/api/city/route.ts,,3,8,0
+public,city_events,table,City,utilise par le runtime,SELECT | UPDATE | UPSERT,app/api/city/events/[id]/claim/route.ts | app/api/city/events/[id]/participate/route.ts | app/api/city/events/[id]/resolve/route.ts | app/api/city/events/[id]/route.ts | app/api/city/route.ts | app/api/city/vote/route.ts,,156,4,29
+public,city_user_rewards,table,City,utilise par le runtime,SELECT | UPDATE | UPSERT,app/api/city/events/[id]/claim/route.ts | app/api/city/events/[id]/resolve/route.ts | app/api/city/events/[id]/route.ts | app/api/city/route.ts,,3,8,0
+public,comment_likes,table,commentaires/reactions,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT,app/api/account/delete/route.ts | app/api/tracks/[id]/comments/[commentId]/like/route.ts | app/api/tracks/[id]/comments/moderation/route.ts | app/api/tracks/[id]/comments/route.ts,,-1,4,0
+public,comment_moderation,table,commentaires/reactions,utilise par le runtime,DELETE | SELECT | UPSERT,app/api/account/delete/route.ts | app/api/tracks/[id]/comments/[commentId]/moderation/route.ts | app/api/tracks/[id]/comments/[commentId]/route.ts | app/api/tracks/[id]/comments/moderation/route.ts,,3,4,0
+public,comment_reactions,table,commentaires/reactions,utilise par le runtime,REFERENCE,app/api/account/delete/route.ts,,-1,4,0
+public,comments,table,commentaires/reactions,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT | UPDATE,app/api/account/delete/route.ts | app/api/city/route.ts | app/api/stats/community/route.ts | app/api/tracks/[id]/comments/[commentId]/replies/route.ts | app/api/tracks/[id]/comments/[commentId]/route.ts | app/api/tracks/[id]/comments/moderation/route.ts | app/api/tracks/[id]/comments/route.ts | app/api/tracks/comments-count/route.ts | app/meteo/bulletin/[id]/page.tsx | app/stats/page.tsx | components/InteractiveCounter.tsx | hooks/useSubscription.ts | lib/musicClipInteractionStore.ts | lib/recommendation/candidates.ts | lib/subscriptionService.ts,scripts/check-migration-setup.js | scripts/check_remaining_data.js | scripts/compare-migration-status.js | scripts/debug-mongo-structure.js | scripts/delete_test_user.js | scripts/fix-comments-user-ids.js | scripts/fix-migration-final.js | scripts/migrate-all-data-fixed.js | scripts/migrate-complete-100.js | scripts/migrate-complete-final.js | scripts/migrate-data-only.js | scripts/migrate-to-supabase.js | scripts/test-comments.js | scripts/test-supabase-connection.js,14,41,0
+public,conversation_participants,table,messaging,utilise par le runtime,DELETE | INSERT | SELECT | UPDATE | UPSERT,app/api/account/delete/route.ts | app/api/messages/[conversationId]/participants/route.ts | app/api/messages/[conversationId]/route.ts | app/api/messages/[conversationId]/seen/route.ts | app/api/messages/blocks/route.ts | app/api/messages/contacts/route.ts | app/api/messages/conversations/route.ts | app/api/messages/realtime/route.ts | app/api/messages/unread/route.ts | lib/messaging.ts,scripts/check-supabase-messaging.js | scripts/check-table-structure.js | scripts/clean-and-rebuild-messaging.js | scripts/migrate-messaging-to-supabase.js,7,885,0
+public,conversation_realtime_events,table,messaging,utilise par le runtime,INSERT | SELECT,app/api/messages/realtime/route.ts,,4,4,0
+public,conversation_rooms,table,messaging,utilise par le runtime,DELETE | INSERT | SELECT | UPDATE,app/api/messages/[conversationId]/rooms/[roomId]/route.ts | app/api/messages/[conversationId]/rooms/route.ts | app/api/messages/[conversationId]/route.ts | app/api/messages/conversations/route.ts,,2,5,0
+public,conversations,table,messaging,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT | UPDATE,app/api/messages/[conversationId]/participants/route.ts | app/api/messages/[conversationId]/route.ts | app/api/messages/contacts/route.ts | app/api/messages/conversations/route.ts | app/messages/page.tsx | lib/messaging.ts,scripts/check-supabase-messaging.js | scripts/check-table-structure.js | scripts/clean-and-rebuild-messaging.js | scripts/compare-migration-status.js | scripts/fix-users-profiles.js | scripts/migrate-all-data-fixed.js | scripts/migrate-all-data.js | scripts/migrate-complete-final.js | scripts/migrate-messaging-to-supabase.js | scripts/test-follow-system.js | scripts/test-messages-api.js | scripts/test-supabase-connection.js,3,5,0
+public,creator_comment_filters,table,commentaires/reactions,utilise par le runtime,DELETE | INSERT | SELECT,app/api/account/delete/route.ts | app/api/creator/filters/route.ts | app/api/tracks/[id]/comments/moderation/route.ts,,-1,4,0
+public,creator_posts,table,Community/posts,utilise par le runtime,DELETE | INSERT | SELECT | UPDATE,app/api/account/delete/route.ts | app/api/posts/[id]/comments/route.ts | app/api/posts/[id]/like/route.ts | app/api/posts/[id]/route.ts | app/api/posts/route.ts | app/api/recommendations/feed/route.ts | app/api/recommendations/mixed/route.ts | app/api/search/route.ts | app/api/stats/posts/route.ts | app/posts/[id]/opengraph-image.tsx | lib/recommendation/signals.ts,,12,50,0
+public,credit_ledger,table,IA,probablement utilise,,,,92,4,0
+public,editorial_collections,table,transverse/infrastructure,utilise par le runtime,INSERT | REFERENCE | SELECT | UPDATE,app/api/admin/editorial-collections/[id]/route.ts | app/api/admin/editorial-collections/[id]/tracks/route.ts | app/api/admin/editorial-collections/migrate/route.ts | app/api/admin/editorial-collections/route.ts | app/api/playlists/popular/route.ts | app/api/tracks/similar/route.ts | lib/editorialCollections.ts,scripts/repair-admin-migration-gaps.js | scripts/run-editorial-collections-migration.js,-1,5,8
+public,faq_items,table,Community/posts,utilise par le runtime,INSERT | SELECT | UPDATE,app/api/community/faq/route.ts,scripts/add_lyrics_faqs.js | scripts/check_and_create_faqs.js | scripts/check_community_tables.js | scripts/create_additional_faqs.js | scripts/create_final_faqs.js | scripts/create_hundred_faqs.js | scripts/update_faq_popularity.js,108,4,0
+public,faq_votes,table,Community/posts,probablement utilise,,,,-1,4,0
+public,follow_requests,table,follows,utilise par le runtime,REFERENCE,app/api/account/delete/route.ts,,-1,4,0
+public,forum_post_likes,table,Community/posts,utilise par le runtime,DELETE | INSERT | SELECT,app/api/community/posts/likes/route.ts | app/api/community/posts/route.ts,scripts/check_community_tables.js | scripts/test_post_counters.js,2,4,0
+public,forum_posts,table,Community/posts,utilise par le runtime,DELETE | INSERT | SELECT | UPDATE,app/api/community/clubs/route.ts | app/api/community/posts/[id]/route.ts | app/api/community/posts/likes/route.ts | app/api/community/posts/replies/route.ts | app/api/community/posts/route.ts | app/api/community/stats/route.ts | lib/communityPosts.ts,scripts/check_community_tables.js | scripts/create_active_members_function.js | scripts/test_post_counters.js,10,4,0
+public,forum_replies,table,Community/posts,utilise par le runtime,INSERT | SELECT,app/api/community/posts/[id]/route.ts | app/api/community/posts/replies/route.ts,scripts/check_community_tables.js | scripts/check_profiles_table.js | scripts/create_active_members_function.js | scripts/test_post_counters.js | scripts/test_replies_api.js,8,4,0
+public,forum_reply_likes,table,Community/posts,probablement utilise,,,,-1,4,0
+public,friendships,table,messaging,utilise par le runtime,DELETE | SELECT | UPSERT,app/api/messages/contacts/route.ts | app/api/messages/conversations/route.ts | lib/messaging.ts,,2,5,0
+public,message_attachments,table,messaging,utilise par le runtime,INSERT | SELECT,app/api/account/delete/route.ts | app/api/messages/[conversationId]/[messageId]/route.ts | app/api/messages/[conversationId]/route.ts,,-1,5,0
+public,message_hidden_users,table,messaging,utilise par le runtime,SELECT | UNKNOWN | UPSERT,app/api/messages/[conversationId]/[messageId]/route.ts | app/api/messages/[conversationId]/route.ts,,-1,4,1
+public,message_pins,table,messaging,utilise par le runtime,DELETE | SELECT | UPSERT,app/api/messages/[conversationId]/[messageId]/route.ts | app/api/messages/[conversationId]/route.ts,,-1,4,1
+public,message_reactions,table,messaging,utilise par le runtime,DELETE | SELECT | UPSERT,app/api/messages/[conversationId]/[messageId]/reactions/route.ts | app/api/messages/[conversationId]/route.ts,,2,5,0
+public,message_requests,table,messaging,utilise par le runtime,INSERT | SELECT | UPDATE,app/api/messages/accept/[requestId]/route.ts | app/api/messages/blocks/route.ts | app/api/messages/requests/[id]/route.ts | app/api/messages/requests/route.ts | app/api/messages/requests/status/route.ts | app/api/messages/unread/route.ts | lib/messaging.ts,,2,882,0
+public,messages,table,messaging,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT | UPDATE | UPSERT,app/api/account/delete/route.ts | app/api/messages/[conversationId]/[messageId]/reactions/route.ts | app/api/messages/[conversationId]/[messageId]/route.ts | app/api/messages/[conversationId]/rooms/[roomId]/route.ts | app/api/messages/[conversationId]/route.ts | app/api/messages/[conversationId]/seen/route.ts | app/api/messages/conversations/route.ts | app/api/messages/unread/route.ts | lib/messaging.ts,scripts/check-supabase-messaging.js | scripts/check-table-structure.js | scripts/check_remaining_data.js | scripts/clean-and-rebuild-messaging.js | scripts/compare-migration-status.js | scripts/fix-migration-final.js | scripts/fix-users-profiles.js | scripts/migrate-all-data-fixed.js | scripts/migrate-all-data.js | scripts/migrate-complete-100.js | scripts/migrate-complete-final.js | scripts/migrate-messaging-to-supabase.js | scripts/migrate-to-supabase.js | scripts/test-follow-system.js | scripts/test-messages-api.js | scripts/test-supabase-connection.js,24,883,0
+public,meteo_alerts,table,Meteo,utilise par le runtime,INSERT | SELECT | UPDATE,app/api/meteo/alerts/[id]/route.ts | app/api/meteo/alerts/active/route.ts | app/api/meteo/alerts/route.ts,,-1,4,0
+public,meteo_bulletins,table,Meteo,utilise par le runtime,INSERT | SELECT | UPDATE,app/api/meteo/bulletin/[id]/route.ts | app/api/meteo/bulletin/[id]/share/route.ts | app/api/meteo/bulletin/publish-scheduled/route.ts | app/api/meteo/bulletin/restore/route.ts | app/api/meteo/bulletin/route.ts | app/api/meteo/bulletin/status/route.ts | app/api/meteo/bulletins/route.ts | app/api/meteo/comments/route.ts | app/api/meteo/public/route.ts | app/api/meteo/stats/route.ts,scripts/create-meteo-tables.js,7,4,0
+public,meteo_comments,table,commentaires/reactions,utilise par le runtime,DELETE | INSERT | SELECT | UPDATE,app/api/meteo/comments/[id]/route.ts | app/api/meteo/comments/route.ts,,-1,4,0
+public,meteo_reactions,table,commentaires/reactions,utilise par le runtime,DELETE | INSERT | SELECT | UPSERT,app/api/meteo/bulletin/[id]/share/route.ts | app/api/meteo/reactions/route.ts,,1,4,0
+public,meteo_settings,table,Meteo,utilise par le runtime,SELECT | UPSERT,app/api/meteo/settings/route.ts,,2,4,0
+public,meteo_team_members,table,Meteo,utilise par le runtime,DELETE | INSERT | SELECT | UPDATE,app/api/meteo/alerts/[id]/route.ts | app/api/meteo/alerts/route.ts | app/api/meteo/bulletin/[id]/route.ts | app/api/meteo/bulletin/route.ts | app/api/meteo/comments/[id]/route.ts | app/api/meteo/send-presentation/route.ts | app/api/meteo/settings/route.ts | app/api/meteo/stats/route.ts | app/api/meteo/team/route.ts | app/meteo/dashboard/page.tsx,,2,4,0
+public,meteo_views,table,Meteo,utilise par le runtime,INSERT | SELECT,app/api/meteo/public/route.ts | app/api/meteo/stats/route.ts,,2857,4,0
+public,missions,table,transverse/infrastructure,utilise par le runtime,REFERENCE | SELECT,app/api/missions/claim-many/route.ts | app/api/missions/claim/route.ts | app/api/missions/route.ts | app/boosters/BoostersClient.tsx | lib/missions/progress.ts,,8,4,0
+public,music_challenges,table,tracks,utilise par le runtime,DELETE | INSERT | SELECT | UPDATE,app/api/admin/challenges/[id]/route.ts | app/api/admin/challenges/route.ts | lib/musicChallenges.ts,,3,7,0
+public,music_clips,table,clips,utilise par le runtime,DELETE | INSERT | SELECT | UPDATE,app/api/account/delete/route.ts | app/api/music-clips/[id]/comments/[commentId]/route.ts | app/api/music-clips/[id]/comments/route.ts | app/api/music-clips/[id]/like/route.ts | app/api/music-clips/[id]/route.ts | app/api/music-clips/route.ts | app/clips/[id]/clipData.ts | lib/musicChallenges.ts | lib/musicClips.ts,,5,7,0
+public,notification_preferences,table,notifications,utilise par le runtime,REFERENCE | SELECT | UPSERT,app/api/notifications/preferences/route.ts | app/api/notifications/setup/route.ts | lib/notifications.ts,,4,4,0
+public,notifications,table,notifications,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT | UPDATE,app/api/account/delete/route.ts | app/api/admin/notifications/route.ts | app/api/notifications/route.ts | app/api/notifications/setup/route.ts | lib/notifications.ts,scripts/check_remaining_data.js | scripts/create_hundred_faqs.js | scripts/delete_test_user.js,198,18,0
+public,password_resets,table,auth,utilise par le runtime,INSERT | SELECT | UPDATE,app/api/auth/forgot-password/route.ts | app/api/auth/reset-password/route.ts,,21,4,0
+public,payments,table,abonnements,utilise par le runtime,INSERT | REFERENCE | SELECT | UPDATE,app/api/account/delete/route.ts,scripts/compare-migration-status.js | scripts/migrate-all-data-fixed.js | scripts/migrate-all-data.js,-1,4,0
+public,play_stats,table,statistiques,utilise par le runtime,DELETE,app/api/account/delete/route.ts,,-1,4,0
+public,playlist_tracks,table,playlists,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT | UPDATE,app/api/admin/editorial-collections/[id]/tracks/route.ts | app/api/admin/editorial-collections/route.ts | app/api/admin/migrate-albums/route.ts | app/api/playlists/[id]/reorder/route.ts | app/api/playlists/[id]/route.ts | app/api/playlists/[id]/tracks/route.ts | app/api/tracks/similar/route.ts | app/playlists/[id]/opengraph-image.tsx | lib/publicTracks.ts | lib/recommendation/candidates.ts,scripts/test-supabase-connection.js,132,31,0
+public,playlists,table,playlists,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT | UPDATE,app/api/account/delete/route.ts | app/api/admin/editorial-collections/[id]/route.ts | app/api/admin/editorial-collections/[id]/tracks/route.ts | app/api/admin/editorial-collections/route.ts | app/api/admin/migrate-albums/route.ts | app/api/playlists/[id]/reorder/route.ts | app/api/playlists/[id]/route.ts | app/api/playlists/[id]/tracks/route.ts | app/api/playlists/albums/route.ts | app/api/playlists/popular/route.ts | app/api/playlists/route.ts | app/api/search/route.ts | app/api/stats/community/route.ts | app/api/subscriptions/usage/route.ts | app/api/tracks/similar/route.ts | app/api/users/[username]/route.ts | app/library/LibraryClient.tsx | app/playlists/[id]/head.tsx | app/playlists/[id]/opengraph-image.tsx | app/profile/[username]/page.tsx | app/search/page.tsx | components/SubscriptionLimits.tsx | components/SubscriptionPlans.tsx | components/home/SynauraWarmFeed.tsx | hooks/useSubscription.ts | lib/editorialCollections.ts | lib/subscriptionService.ts,scripts/check-migration-setup.js | scripts/check-playlists-table.js | scripts/check_remaining_data.js | scripts/compare-migration-status.js | scripts/debug-mongo-structure.js | scripts/delete_test_user.js | scripts/migrate-data-only.js | scripts/migrate-to-supabase.js | scripts/repair-admin-migration-gaps.js | scripts/test-supabase-connection.js | scripts/transfer_uploads_and_delete_user.js,7,269,0
+public,post_comments,table,commentaires/reactions,utilise par le runtime,DELETE | INSERT | SELECT,app/api/posts/[id]/comments/route.ts | app/api/stats/posts/route.ts | lib/recommendation/signals.ts,,3,40,0
+public,post_likes,table,Community/posts,utilise par le runtime,DELETE | INSERT | SELECT,app/api/posts/[id]/like/route.ts | app/api/posts/[id]/route.ts | app/api/posts/route.ts | app/api/recommendations/feed/route.ts | app/api/recommendations/mixed/route.ts | app/api/stats/posts/route.ts | lib/recommendation/signals.ts,,16,50,0
+public,profiles,table,profils,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT | UPDATE,app/api/account/delete/route.ts | app/api/activity/recent/route.ts | app/api/admin/star-academy/[id]/route.ts | app/api/admin/users/route.ts | app/api/ai/quota/route.ts | app/api/artists/route.ts | app/api/artists/simple/route.ts | app/api/auth/count-users/route.ts | app/api/auth/mobile/contact/email/verify/route.ts | app/api/billing/cancel-subscription/route.ts | app/api/billing/confirm-subscription/route.ts | app/api/billing/downgrade-to-free/route.ts | app/api/billing/verify-checkout/route.ts | app/api/billing/webhook/route.ts | app/api/boosters/claim-pack/route.ts | app/api/boosters/open/route.ts | app/api/boosters/route.ts | app/api/city/events/[id]/claim/route.ts | app/api/city/events/[id]/participate/route.ts | app/api/city/events/[id]/resolve/route.ts | app/api/city/route.ts | app/api/city/vote/route.ts | app/api/community/posts/[id]/route.ts | app/api/community/posts/likes/route.ts | app/api/community/posts/replies/route.ts | app/api/discover/moods/route.ts | app/api/media/upload/route.ts | app/api/messages/[conversationId]/[messageId]/reactions/route.ts | app/api/messages/blocks/route.ts | app/api/messages/conversations/route.ts | app/api/messages/requests/route.ts | app/api/meteo/comments/route.ts | app/api/meteo/team/route.ts | app/api/music-clips/[id]/comments/route.ts | app/api/music-clips/route.ts | app/api/music-clips/sources/route.ts | app/api/notifications/boost/route.ts | app/api/playlists/route.ts | app/api/posts/[id]/comments/route.ts | app/api/posts/[id]/route.ts | app/api/posts/route.ts | app/api/recommendations/taste/route.ts | app/api/referral/route.ts | app/api/referral/validate/route.ts | app/api/remixes/[id]/decision/route.ts | app/api/remixes/pending/route.ts | app/api/search/route.ts | app/api/share-card/[id]/route.tsx | app/api/star-academy/apply-staff/route.ts | app/api/stats/community/route.ts | app/api/subscriptions/my-subscription/route.ts | app/api/subscriptions/refresh/route.ts | app/api/subscriptions/usage/route.ts | app/api/suno/generate/route.ts | app/api/suno/upload-cover/route.ts | app/api/tracks/[id]/comments/[commentId]/replies/route.ts | app/api/tracks/[id]/comments/[commentId]/route.ts | app/api/tracks/[id]/comments/moderation/route.ts | app/api/tracks/[id]/comments/route.ts | app/api/tracks/[id]/like/route.ts | app/api/tracks/route.ts | app/api/tracks/simple/route.ts | app/api/upload/route.ts | app/api/user/preferences/route.ts | app/api/users/[username]/follow/route.ts | app/api/users/[username]/route.ts | app/api/users/[username]/save-image/route.ts | app/api/users/[username]/upload/route.ts | app/api/users/[username]/variations/route.ts | app/api/users/by-id/[id]/route.ts | app/api/users/following/route.ts | app/api/users/popular/route.ts | app/api/users/route.ts | app/discover/page.tsx | app/playlists/[id]/opengraph-image.tsx | app/posts/[id]/opengraph-image.tsx | app/profile/[username]/layout.tsx | app/profile/[username]/opengraph-image.tsx | app/sitemap.ts | app/track/[id]/opengraph-image.tsx | app/track/[id]/page.tsx | lib/adminEmailRecipients.ts | lib/communityPosts.ts | lib/localAuth.ts | lib/messaging.ts | lib/mobileAuthSecurity.ts | lib/musicChallenges.ts | lib/musicClips.ts | lib/notifications.ts | lib/recommendation/candidates.ts | lib/recommendation/signals.ts | lib/remixServer.ts,app/api/artists/test/route.ts | scripts/change-valentin-password.js | scripts/check-meteo-user.js | scripts/check-migration-setup.js | scripts/check-playlists-table.js | scripts/check-supabase-users.js | scripts/check-tracks-table.js | scripts/check_profiles_table.js | scripts/compare-migration-status.js | scripts/create-meteo-profile.js | scripts/create-meteo-user.js | scripts/debug-artist-data.js | scripts/debug-mapping.js | scripts/fix-auth-migration.js | scripts/fix-comments-user-ids.js | scripts/fix-migration-final.js | scripts/fix-track-creator-ids-final.js | scripts/fix-track-creator-ids-v2.js | scripts/fix-track-creator-ids-v3.js | scripts/fix-track-creator-ids-with-mapping.js | scripts/fix-track-creator-ids.js | scripts/fix-tracks-table.js | scripts/fix-users-profiles.js | scripts/grant-credits-all-users.js | scripts/grant-credits-by-plan.js | scripts/list-all-users.js | scripts/list-users.js | scripts/migrate-all-data-fixed.js | scripts/migrate-all-data.js | scripts/migrate-complete-100.js | scripts/migrate-complete-final.js | scripts/migrate-final-users.js | scripts/migrate-to-supabase.js | scripts/repair-admin-migration-gaps.js | scripts/set-user-pro.js | scripts/sync-tracks-with-profiles.js | scripts/test-auth-issue.js | scripts/test-comments.js | scripts/test-db-structure.js | scripts/test-supabase-auth.js | scripts/test-supabase-connection.js | scripts/test_replies_api.js | scripts/transfer_uploads_and_delete_user.js | scripts/update-user-name.js,32,2683,1
+public,push_subscriptions,table,notifications,utilise par le runtime,DELETE | REFERENCE | SELECT | UPDATE | UPSERT,app/api/admin/notifications/route.ts | app/api/notifications/push/native/route.ts | app/api/notifications/push/send/route.ts | app/api/notifications/push/subscribe/route.ts | app/api/notifications/setup/route.ts | lib/notifications.ts,,15,6,1
+public,recommendation_impressions,table,transverse/infrastructure,utilise par le runtime,INSERT | SELECT,app/api/recommendations/impressions/route.ts | lib/recommendation/signals.ts,,3919,4,36
+public,referrals,table,abonnements,utilise par le runtime,INSERT | SELECT,app/api/referral/route.ts,,-1,4,0
+public,star_academy_applications,table,Star Academy,utilise par le runtime,INSERT | SELECT | UPDATE,app/api/admin/star-academy/[id]/route.ts | app/api/admin/star-academy/route.ts | app/api/star-academy/apply/route.ts | app/api/star-academy/status/route.ts,,12,4,0
+public,star_academy_config,table,Star Academy,utilise par le runtime,SELECT,app/api/media/upload/route.ts | app/api/star-academy/apply-staff/route.ts | app/api/star-academy/apply/route.ts,,3,4,0
+public,star_academy_staff_applications,table,Star Academy,utilise par le runtime,INSERT | SELECT | UPDATE,app/api/admin/star-academy/staff/[id]/route.ts | app/api/admin/star-academy/staff/route.ts | app/api/star-academy/apply-staff/route.ts,,3,4,0
+public,subscriptions,table,abonnements,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT | UPDATE,app/api/account/delete/route.ts,scripts/compare-migration-status.js | scripts/migrate-all-data-fixed.js | scripts/migrate-all-data.js | scripts/migrate-complete-final.js | scripts/setup-stripe.js,5,4,0
+public,support_tickets,table,transverse/infrastructure,utilise par le runtime,INSERT,app/api/support/route.ts,,-1,4,0
+public,synaura_tv_settings,table,transverse/infrastructure,probablement utilise,,,,1,4,0
+public,track_events,table,City,utilise par le runtime,INSERT | SELECT,app/api/city/route.ts | app/api/recommendations/impressions/route.ts | app/api/recommendations/taste/route.ts | app/api/stats/all-tracks/route.ts | app/api/stats/debug/route.ts | app/api/stats/overview/route.ts | app/api/stats/timeseries/route.ts | app/api/stats/tracks/route.ts | app/api/tracks/[id]/events/route.ts | app/api/tracks/[id]/like/route.ts | app/api/tracks/rediscover/route.ts | app/api/tracks/rising/route.ts | app/api/tracks/route.ts | lib/recommendation/candidates.ts | lib/recommendation/signals.ts,,44690,4,128
+public,track_likes,table,tracks,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT,app/api/account/delete/route.ts | app/api/city/route.ts | app/api/stats/all-tracks/route.ts | app/api/stats/debug/route.ts | app/api/stats/overview/route.ts | app/api/stats/timeseries/route.ts | app/api/stats/tracks/route.ts | app/api/tracks/[id]/like/route.ts | app/api/tracks/featured/route.ts | app/api/tracks/rediscover/route.ts | app/api/tracks/rising/route.ts | app/api/tracks/route.ts | app/api/tracks/similar/route.ts | app/api/users/[username]/route.ts | lib/discoverData.ts | lib/recommendation/signals.ts,scripts/check_remaining_data.js | scripts/test-supabase-connection.js,75,400,0
+public,track_moment_reactions,table,commentaires/reactions,utilise par le runtime,SELECT | UPSERT,app/api/tracks/[id]/reactions/route.ts | lib/recommendation/candidates.ts,,10,27,0
+public,track_remixes,table,tracks,utilise par le runtime,SELECT | UPDATE | UPSERT,app/api/remixes/[id]/decision/route.ts | app/api/remixes/pending/route.ts | app/api/users/[username]/variations/route.ts | lib/musicChallenges.ts | lib/remixServer.ts,,-1,4,28
+public,track_stats,table,statistiques,utilise par le runtime,SELECT,app/api/tracks/[id]/like/route.ts,,224,26,1
+public,track_views,table,statistiques,utilise par le runtime,SELECT | UPSERT,app/api/ai/tags/suggestions/route.ts | app/api/stats/all-tracks/route.ts | app/api/stats/audience/route.ts | app/api/stats/debug/route.ts | app/api/stats/heatmap/route.ts | app/api/stats/overview/route.ts | app/api/stats/timeseries/route.ts | app/api/stats/tracks/route.ts | app/api/tracks/[id]/plays/route.ts,,4464,4,1
+public,track_waveforms,table,tracks,utilise par le runtime,SELECT | UPSERT,app/api/share-card/[id]/route.tsx | app/api/tracks/[id]/waveform/route.ts,,160,20,0
+public,tracks,table,tracks,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT | UPDATE,app/api/account/delete/route.ts | app/api/activity/recent/route.ts | app/api/admin/editorial-collections/[id]/tracks/route.ts | app/api/admin/migrate-albums/route.ts | app/api/admin/tracks/fix-covers/route.ts | app/api/ai/tags/suggestions/route.ts | app/api/artists/route.ts | app/api/boosters/use/route.ts | app/api/city/events/[id]/participate/route.ts | app/api/city/events/[id]/resolve/route.ts | app/api/city/route.ts | app/api/community/posts/[id]/route.ts | app/api/genres/route.ts | app/api/mobile/discover/route.ts | app/api/music-clips/sources/route.ts | app/api/playlists/[id]/tracks/route.ts | app/api/posts/[id]/route.ts | app/api/posts/route.ts | app/api/recommendations/feed/route.ts | app/api/recommendations/mixed/route.ts | app/api/remixes/pending/route.ts | app/api/remixes/sources/route.ts | app/api/search/route.ts | app/api/share-card/[id]/route.tsx | app/api/stats/all-tracks/route.ts | app/api/stats/audience/route.ts | app/api/stats/community/route.ts | app/api/stats/debug/route.ts | app/api/stats/heatmap/route.ts | app/api/stats/overview/route.ts | app/api/stats/posts/route.ts | app/api/stats/timeseries/route.ts | app/api/stats/tracks/route.ts | app/api/subscriptions/usage/route.ts | app/api/tracks/[id]/comments/[commentId]/moderation/route.ts | app/api/tracks/[id]/comments/moderation/route.ts | app/api/tracks/[id]/comments/route.ts | app/api/tracks/[id]/creator-check/route.ts | app/api/tracks/[id]/featured/route.ts | app/api/tracks/[id]/like/route.ts | app/api/tracks/[id]/plays/route.ts | app/api/tracks/[id]/reactions/route.ts | app/api/tracks/[id]/route.ts | app/api/tracks/[id]/waveform/route.ts | app/api/tracks/by-ids/route.ts | app/api/tracks/featured/route.ts | app/api/tracks/most-liked/route.ts | app/api/tracks/rediscover/route.ts | app/api/tracks/rising/route.ts | app/api/tracks/route.ts | app/api/tracks/similar/route.ts | app/api/tracks/simple/route.ts | app/api/upload/route.ts | app/api/users/[username]/route.ts | app/api/users/[username]/upload/route.ts | app/api/users/tracks/route.ts | app/discover/page.tsx | app/embed/[trackId]/page.tsx | app/posts/[id]/opengraph-image.tsx | app/profile/[username]/opengraph-image.tsx | app/search/page.tsx | app/sitemap.ts | app/stats/page.tsx | app/track/[id]/opengraph-image.tsx | app/track/[id]/page.tsx | components/SubscriptionLimits.tsx | components/SubscriptionPlans.tsx | lib/communityPosts.ts | lib/discoverData.ts | lib/musicChallenges.ts | lib/musicClips.ts | lib/publicTracks.ts | lib/recommendation/candidates.ts | lib/recommendation/signals.ts | lib/remixServer.ts,app/api/artists/test/route.ts | scripts/add_lyrics_column.js | scripts/check-migration-setup.js | scripts/check-mongodb-tracks.js | scripts/check-rls-policies.js | scripts/check-tracks-table.js | scripts/check-trending-data.js | scripts/check_lyrics_db.js | scripts/check_remaining_data.js | scripts/compare-migration-status.js | scripts/debug-artist-data.js | scripts/debug-mapping.js | scripts/debug-mongo-structure.js | scripts/debug-mongodb-track.js | scripts/delete_test_user.js | scripts/fix-migration-final.js | scripts/fix-track-creator-ids-final.js | scripts/fix-track-creator-ids-v2.js | scripts/fix-track-creator-ids-v3.js | scripts/fix-track-creator-ids-with-mapping.js | scripts/fix-track-creator-ids.js | scripts/fix-tracks-table.js | scripts/fix-user-tracks.js | scripts/migrate-all-data-fixed.js | scripts/migrate-complete-100.js | scripts/migrate-complete-final.js | scripts/migrate-data-only.js | scripts/migrate-to-supabase.js | scripts/sync-tracks-with-profiles.js | scripts/test-db-structure.js | scripts/test-profile-features.js | scripts/test-supabase-connection.js | scripts/test-supabase-upload.js | scripts/transfer_uploads_and_delete_user.js,232,380,120
+public,user_blocks,table,messaging,utilise par le runtime,DELETE | SELECT | UPSERT,app/api/messages/blocks/route.ts | app/api/messages/conversations/route.ts | lib/messaging.ts,,-1,4,1
+public,user_booster_daily,table,Boosters,utilise par le runtime,SELECT | UPSERT,app/api/boosters/open/route.ts | app/api/boosters/route.ts | app/api/notifications/boost/route.ts,,6,126,0
+public,user_booster_open_history,table,Boosters,utilise par le runtime,INSERT | SELECT,app/api/boosters/claim-pack/route.ts | app/api/boosters/history/route.ts | app/api/boosters/open/route.ts | app/api/daily-spin/route.ts | app/api/missions/claim-many/route.ts | app/api/missions/claim/route.ts,,105,4,0
+public,user_booster_pack_claims,table,Boosters,utilise par le runtime,SELECT | UPSERT,app/api/boosters/claim-pack/route.ts | app/api/boosters/route.ts,,9,5,0
+public,user_booster_pity,table,Boosters,utilise par le runtime,SELECT | UPSERT,app/api/boosters/open/route.ts | app/api/boosters/route.ts,,3,5,0
+public,user_boosters,table,Boosters,utilise par le runtime,INSERT | SELECT | UPDATE,app/api/boosters/claim-pack/route.ts | app/api/boosters/open/route.ts | app/api/boosters/route.ts | app/api/boosters/use/route.ts | app/api/daily-spin/route.ts | app/api/missions/claim-many/route.ts | app/api/missions/claim/route.ts,,141,5,0
+public,user_daily_spin,table,profils,utilise par le runtime,SELECT | UPSERT,app/api/daily-spin/route.ts | app/api/notifications/boost/route.ts,,-1,4,121
+public,user_daily_spin_history,table,profils,utilise par le runtime,INSERT,app/api/daily-spin/route.ts,,-1,4,0
+public,user_follows,table,follows,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT,app/api/account/delete/route.ts | app/api/city/route.ts | app/api/messages/requests/route.ts | app/api/posts/route.ts | app/api/ranking/feed/route.ts | app/api/stats/debug/route.ts | app/api/stats/overview/route.ts | app/api/upload/route.ts | app/api/users/[username]/follow/route.ts | app/api/users/[username]/route.ts | app/api/users/following/route.ts | lib/musicClips.ts | lib/recommendation/signals.ts | lib/remixServer.ts,scripts/check_remaining_data.js | scripts/test-supabase-connection.js,32,78,0
+public,user_missions,table,profils,utilise par le runtime,INSERT | SELECT | UPDATE,app/api/missions/claim-many/route.ts | app/api/missions/claim/route.ts | app/api/missions/route.ts | lib/missions/progress.ts,,38,4,0
+public,user_quotas,table,IA,utilise par le runtime,REFERENCE | SELECT | UPDATE,lib/aiGenerationService.ts,scripts/reset_ai_quota.js | scripts/reset_ai_quota_and_generations.js | scripts/run-ai-complete-migration.js,2,4,0
+public,users,table,profils,utilise par le runtime,DELETE | INSERT | REFERENCE | SELECT,app/api/admin/emails/route.ts | lib/mobileAuthSecurity.ts,scripts/check-supabase-users.js | scripts/check-user-sync.js | scripts/check_remaining_data.js | scripts/check_user_structure.js | scripts/compare-migration-status.js | scripts/create-test-users.js | scripts/create-users-simple.js | scripts/debug-mapping.js | scripts/delete_test_user.js | scripts/fix-auth-migration.js | scripts/fix-migration-final.js | scripts/fix-track-creator-ids-final.js | scripts/fix-track-creator-ids-v2.js | scripts/fix-track-creator-ids-v3.js | scripts/fix-track-creator-ids-with-mapping.js | scripts/fix-users-profiles.js | scripts/migrate-all-data-fixed.js | scripts/migrate-all-data.js | scripts/migrate-complete-100.js | scripts/migrate-complete-final.js | scripts/migrate-final-users.js | scripts/migrate-to-supabase.js | scripts/run-ai-migration.js | scripts/run-users-migration.js | scripts/test-ai-system.js | scripts/test-follow-system.js | scripts/test-messages-api.js | scripts/test-profiles.js,4,5,0
+public,waiting_list,table,transverse/infrastructure,probablement utilise,,,,-1,4,0
+public,track_stats_daily,view,statistiques,legacy sans reference retrouvee,,,,-1,,
+public,track_stats_rolling_30d,view,City,utilise par le runtime,SELECT,app/api/city/route.ts | lib/recommendation/candidates.ts,,-1,,
+public,track_traffic_sources_30d,view,tracks,legacy sans reference retrouvee,,,,-1,,
+realtime,user_defined_filter,composite_type,profils,infrastructure/auth,,,,-1,,
+realtime,wal_column,composite_type,transverse/infrastructure,infrastructure/auth,,,,-1,,
+realtime,wal_rls,composite_type,transverse/infrastructure,infrastructure/auth,,,,-1,,
+realtime,messages,partitioned_table,messaging,infrastructure/auth,REFERENCE,app/api/account/delete/route.ts | app/api/messages/[conversationId]/[messageId]/reactions/route.ts | app/api/messages/[conversationId]/[messageId]/route.ts | app/api/messages/[conversationId]/rooms/[roomId]/route.ts | app/api/messages/[conversationId]/route.ts | app/api/messages/[conversationId]/seen/route.ts | app/api/messages/conversations/route.ts | app/api/messages/unread/route.ts | lib/messaging.ts,scripts/check-supabase-messaging.js | scripts/check-table-structure.js | scripts/check_remaining_data.js | scripts/clean-and-rebuild-messaging.js | scripts/compare-migration-status.js | scripts/fix-migration-final.js | scripts/fix-users-profiles.js | scripts/migrate-all-data-fixed.js | scripts/migrate-all-data.js | scripts/migrate-complete-100.js | scripts/migrate-complete-final.js | scripts/migrate-messaging-to-supabase.js | scripts/migrate-to-supabase.js | scripts/test-follow-system.js | scripts/test-messages-api.js | scripts/test-supabase-connection.js,-1,0,0
+realtime,subscription_id_seq,sequence,abonnements,infrastructure/auth,,,,1,,
+realtime,messages_2026_07_31,table,messaging,infrastructure/auth,,,,-1,4,0
+realtime,messages_2026_08_01,table,messaging,infrastructure/auth,,,,-1,4,0
+realtime,messages_2026_08_02,table,messaging,infrastructure/auth,,,,-1,4,0
+realtime,messages_2026_08_03,table,messaging,infrastructure/auth,,,,-1,4,0
+realtime,messages_2026_08_04,table,messaging,infrastructure/auth,,,,-1,4,0
+realtime,messages_2026_08_05,table,messaging,infrastructure/auth,,,,-1,4,0
+realtime,messages_2026_08_06,table,messaging,infrastructure/auth,,,,-1,4,0
+realtime,schema_migrations,table,transverse/infrastructure,infrastructure/auth,,,,81,4,0
+realtime,subscription,table,abonnements,infrastructure/auth,REFERENCE,app/api/billing/create-subscription/route.ts | app/api/billing/verify-checkout/route.ts | components/SubscriptionLimits.tsx | lib/postCategorization.ts,scripts/fix-user-subscription.js,-1,4,0
+storage,buckets,table,transverse/infrastructure,infrastructure/auth,,,,2,4,0
+storage,buckets_analytics,table,transverse/infrastructure,infrastructure/auth,,,,-1,4,0
+storage,buckets_vectors,table,transverse/infrastructure,infrastructure/auth,,,,-1,4,0
+storage,migrations,table,transverse/infrastructure,infrastructure/auth,,,,61,4,0
+storage,objects,table,transverse/infrastructure,infrastructure/auth,,,,79,4,0
+storage,s3_multipart_uploads,table,transverse/infrastructure,infrastructure/auth,,,,-1,4,0
+storage,s3_multipart_uploads_parts,table,transverse/infrastructure,infrastructure/auth,,,,-1,4,0
+storage,vector_indexes,table,transverse/infrastructure,infrastructure/auth,,,,-1,4,0
+supabase_migrations,schema_migrations,table,transverse/infrastructure,infrastructure/auth,,,,16,8,0
+auth,email,function,transverse/infrastructure,infrastructure/auth,,,,,,
+auth,jwt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+auth,role,function,transverse/infrastructure,infrastructure/auth,,,,,,
+auth,uid,function,transverse/infrastructure,infrastructure/auth,REFERENCE,,scripts/create-ai-generations-simple.js | scripts/run-ai-migration.js,,,
+extensions,armor,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,armor,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,crypt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,dearmor,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,decrypt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,decrypt_iv,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,digest,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,digest,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,encrypt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,encrypt_iv,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,gen_random_bytes,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,gen_random_uuid,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,gen_salt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,gen_salt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,grant_pg_cron_access,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,grant_pg_graphql_access,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,grant_pg_net_access,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,hmac,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,hmac,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pg_stat_statements,function,statistiques,infrastructure/auth,,,,,,
+extensions,pg_stat_statements_info,function,statistiques,infrastructure/auth,,,,,,
+extensions,pg_stat_statements_reset,function,statistiques,infrastructure/auth,,,,,,
+extensions,pgp_armor_headers,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_key_id,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_pub_decrypt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_pub_decrypt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_pub_decrypt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_pub_decrypt_bytea,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_pub_decrypt_bytea,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_pub_decrypt_bytea,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_pub_encrypt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_pub_encrypt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_pub_encrypt_bytea,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_pub_encrypt_bytea,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_sym_decrypt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_sym_decrypt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_sym_decrypt_bytea,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_sym_decrypt_bytea,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_sym_encrypt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_sym_encrypt,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_sym_encrypt_bytea,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgp_sym_encrypt_bytea,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgrst_ddl_watch,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,pgrst_drop_watch,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,set_graphql_placeholder,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,uuid_generate_v1,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,uuid_generate_v1mc,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,uuid_generate_v3,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,uuid_generate_v4,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,uuid_generate_v5,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,uuid_nil,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,uuid_ns_dns,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,uuid_ns_oid,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,uuid_ns_url,function,transverse/infrastructure,infrastructure/auth,,,,,,
+extensions,uuid_ns_x500,function,transverse/infrastructure,infrastructure/auth,,,,,,
+graphql_public,graphql,function,transverse/infrastructure,infrastructure/auth,,,,,,
+pgbouncer,get_auth,function,auth,infrastructure/auth,,,,,,
+public,_ensure_track_stats,function,statistiques,inconnu,,,,,,
+public,ai_add_credits,function,IA,utilise par le runtime,RPC,app/api/billing/credits/verify/route.ts | app/api/billing/webhook/route.ts | app/api/daily-spin/route.ts | app/api/referral/route.ts | app/api/suno/generate-music-video/route.ts | app/api/suno/generate/route.ts | app/api/suno/upload-cover/route.ts,scripts/grant-credits-all-users.js | scripts/grant-credits-by-plan.js | scripts/set-user-pro.js,,,
+public,ai_add_credits,function,IA,utilise par le runtime,RPC,app/api/billing/credits/verify/route.ts | app/api/billing/webhook/route.ts | app/api/daily-spin/route.ts | app/api/referral/route.ts | app/api/suno/generate-music-video/route.ts | app/api/suno/generate/route.ts | app/api/suno/upload-cover/route.ts,scripts/grant-credits-all-users.js | scripts/grant-credits-by-plan.js | scripts/set-user-pro.js,,,
+public,ai_debit_credits,function,IA,utilise par le runtime,RPC,app/api/suno/generate-music-video/route.ts | app/api/suno/generate/route.ts | app/api/suno/upload-cover/route.ts,,,,
+public,ai_debit_credits,function,IA,utilise par le runtime,RPC,app/api/suno/generate-music-video/route.ts | app/api/suno/generate/route.ts | app/api/suno/upload-cover/route.ts,,,,
+public,ai_grant_monthly_plan_credits,function,IA,legacy mais encore reference,REFERENCE,,scripts/grant-credits-by-plan.js,,,
+public,ai_grant_welcome_credits,function,IA,inconnu,,,,,,
+public,auto_generate_referral_code,function,abonnements,inconnu,,,,,,
+public,check_user_quota,function,IA,inconnu,,,,,,
+public,get_active_members_count,function,transverse/infrastructure,legacy mais encore reference,RPC,,scripts/create_active_members_function.js,,,
+public,get_monthly_generations_count,function,IA,inconnu,,,,,,
+public,get_user_ai_stats,function,IA,utilise par le runtime,RPC,lib/aiGenerationService.ts,,,,
+public,get_user_quota_remaining,function,IA,utilise par le runtime,RPC,lib/aiGenerationService.ts,,,,
+public,get_user_stats,function,statistiques,legacy mais encore reference,RPC,,scripts/test-supabase-connection.js,,,
+public,gin_extract_query_trgm,function,transverse/infrastructure,inconnu,,,,,,
+public,gin_extract_value_trgm,function,transverse/infrastructure,inconnu,,,,,,
+public,gin_trgm_consistent,function,transverse/infrastructure,inconnu,,,,,,
+public,gin_trgm_triconsistent,function,transverse/infrastructure,inconnu,,,,,,
+public,gtrgm_compress,function,transverse/infrastructure,inconnu,,,,,,
+public,gtrgm_consistent,function,transverse/infrastructure,inconnu,,,,,,
+public,gtrgm_decompress,function,transverse/infrastructure,inconnu,,,,,,
+public,gtrgm_distance,function,transverse/infrastructure,inconnu,,,,,,
+public,gtrgm_in,function,transverse/infrastructure,inconnu,,,,,,
+public,gtrgm_options,function,transverse/infrastructure,inconnu,,,,,,
+public,gtrgm_out,function,transverse/infrastructure,inconnu,,,,,,
+public,gtrgm_penalty,function,transverse/infrastructure,inconnu,,,,,,
+public,gtrgm_picksplit,function,transverse/infrastructure,inconnu,,,,,,
+public,gtrgm_same,function,transverse/infrastructure,inconnu,,,,,,
+public,gtrgm_union,function,transverse/infrastructure,inconnu,,,,,,
+public,increment_ai_usage,function,IA,utilise par le runtime,RPC,lib/aiGenerationService.ts,,,,
+public,move_profile_email_to_private,function,profils,inconnu,,,,,,
+public,record_track_view,function,statistiques,inconnu,,,,,,
+public,require_city_battle_winner_vote,function,City,inconnu,,,,,,
+public,search_tracks,function,tracks,legacy mais encore reference,RPC,,scripts/test-supabase-connection.js,,,
+public,set_city_updated_at,function,City,inconnu,,,,,,
+public,set_limit,function,transverse/infrastructure,inconnu,,,,,,
+public,set_updated_at,function,transverse/infrastructure,inconnu,,,,,,
+public,show_limit,function,transverse/infrastructure,inconnu,,,,,,
+public,show_trgm,function,transverse/infrastructure,inconnu,,,,,,
+public,similarity,function,transverse/infrastructure,inconnu,,,,,,
+public,similarity_dist,function,transverse/infrastructure,inconnu,,,,,,
+public,similarity_op,function,transverse/infrastructure,inconnu,,,,,,
+public,strict_word_similarity,function,transverse/infrastructure,inconnu,,,,,,
+public,strict_word_similarity_commutator_op,function,transverse/infrastructure,inconnu,,,,,,
+public,strict_word_similarity_dist_commutator_op,function,transverse/infrastructure,inconnu,,,,,,
+public,strict_word_similarity_dist_op,function,transverse/infrastructure,inconnu,,,,,,
+public,strict_word_similarity_op,function,transverse/infrastructure,inconnu,,,,,,
+public,synaura_cleanup_realtime_events,function,transverse/infrastructure,inconnu,,,,,,
+public,synaura_sync_message_relation,function,messaging,inconnu,,,,,,
+public,synaura_touch_conversation,function,messaging,inconnu,,,,,,
+public,toggle_track_like,function,tracks,inconnu,,,,,,
+public,touch_account_private_updated_at,function,auth,inconnu,,,,,,
+public,touch_editorial_collections_updated_at,function,transverse/infrastructure,inconnu,,,,,,
+public,touch_music_clips_updated_at,function,clips,inconnu,,,,,,
+public,trg_track_likes_after_delete,function,tracks,inconnu,,,,,,
+public,trg_track_likes_after_insert,function,tracks,inconnu,,,,,,
+public,trg_track_views_after_insert,function,statistiques,inconnu,,,,,,
+public,trigger_update_follow_counts,function,follows,inconnu,,,,,,
+public,update_ai_usage_stats,function,IA,inconnu,,,,,,
+public,update_comment_likes_count,function,commentaires/reactions,inconnu,,,,,,
+public,update_follow_counts,function,follows,utilise par le runtime,RPC,app/api/users/[username]/follow/route.ts,,,,
+public,update_forum_post_likes_count,function,Community/posts,inconnu,,,,,,
+public,update_forum_post_replies_count,function,Community/posts,inconnu,,,,,,
+public,update_forum_reply_likes_count,function,Community/posts,inconnu,,,,,,
+public,update_meteo_bulletins_updated_at,function,Meteo,inconnu,,,,,,
+public,update_music_challenges_updated_at,function,tracks,inconnu,,,,,,
+public,update_sa_staff_updated_at,function,Star Academy,inconnu,,,,,,
+public,update_sa_updated_at,function,Star Academy,inconnu,,,,,,
+public,update_track_likes_count,function,tracks,inconnu,,,,,,
+public,update_track_views_count,function,statistiques,inconnu,,,,,,
+public,update_updated_at_column,function,transverse/infrastructure,inconnu,,,,,,
+public,validate_account_private_birth_date,function,auth,inconnu,,,,,,
+public,word_similarity,function,transverse/infrastructure,inconnu,,,,,,
+public,word_similarity_commutator_op,function,transverse/infrastructure,inconnu,,,,,,
+public,word_similarity_dist_commutator_op,function,transverse/infrastructure,inconnu,,,,,,
+public,word_similarity_dist_op,function,transverse/infrastructure,inconnu,,,,,,
+public,word_similarity_op,function,transverse/infrastructure,inconnu,,,,,,
+realtime,apply_rls,function,transverse/infrastructure,infrastructure/auth,,,,,,
+realtime,broadcast_changes,function,notifications,infrastructure/auth,,,,,,
+realtime,build_prepared_statement_sql,function,statistiques,infrastructure/auth,,,,,,
+realtime,cast,function,transverse/infrastructure,infrastructure/auth,,,,,,
+realtime,check_equality_op,function,transverse/infrastructure,infrastructure/auth,,,,,,
+realtime,check_equality_op,function,transverse/infrastructure,infrastructure/auth,,,,,,
+realtime,is_visible_through_filters,function,transverse/infrastructure,infrastructure/auth,,,,,,
+realtime,list_changes,function,transverse/infrastructure,infrastructure/auth,,,,,,
+realtime,quote_wal2json,function,transverse/infrastructure,infrastructure/auth,,,,,,
+realtime,send,function,transverse/infrastructure,infrastructure/auth,,,,,,
+realtime,send_binary,function,transverse/infrastructure,infrastructure/auth,,,,,,
+realtime,subscription_check_filters,function,abonnements,infrastructure/auth,,,,,,
+realtime,to_regrole,function,transverse/infrastructure,infrastructure/auth,,,,,,
+realtime,topic,function,transverse/infrastructure,infrastructure/auth,,,,,,
+realtime,wal2json_escape_identifier,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,allow_any_operation,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,allow_only_operation,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,can_insert_object,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,enforce_bucket_name_length,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,extension,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,filename,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,foldername,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,get_common_prefix,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,get_size_by_bucket,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,list_multipart_uploads_with_delimiter,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,list_objects_with_delimiter,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,operation,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,protect_delete,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,search,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,search_by_timestamp,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,search_v2,function,transverse/infrastructure,infrastructure/auth,,,,,,
+storage,update_updated_at_column,function,transverse/infrastructure,infrastructure/auth,,,,,,
+synaura_private,is_conversation_member,function,messaging,infrastructure/auth,,,,,,

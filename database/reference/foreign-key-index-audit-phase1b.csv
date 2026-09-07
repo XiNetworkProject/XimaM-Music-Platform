@@ -1,0 +1,35 @@
+table,constraint,columns,row_count,classification,evidence,action
+public.active_artist_boosts,active_artist_boosts_booster_id_fkey,booster_id,8,B,"no runtime filter by booster_id; tiny table and RESTRICT parent action",defer
+public.active_artist_boosts,active_artist_boosts_user_id_fkey,user_id,8,A,"multiple authenticated paths filter by user_id and expires_at",idx_active_artist_boosts_user_expires
+public.active_track_boosts,active_track_boosts_booster_id_fkey,booster_id,36,B,"no runtime filter by booster_id; tiny table and RESTRICT parent action",defer
+public.active_track_boosts,active_track_boosts_user_id_fkey,user_id,36,A,"city/booster/notification paths filter by user_id and expires_at",idx_active_track_boosts_user_expires
+public.admin_broadcasts,admin_broadcasts_admin_id_fkey,admin_id,5,B,"admin-only history; no demonstrated admin_id filter",defer
+public.ai_playlist_tracks,ai_playlist_tracks_track_id_fkey,track_id,0,B,empty table,defer
+public.comment_reactions,comment_reactions_user_id_fkey,user_id,0,B,empty table,defer
+public.editorial_collections,editorial_collections_created_by_fkey,created_by,0,B,empty table,defer
+public.faq_votes,faq_votes_user_id_fkey,user_id,0,B,empty table,defer
+public.follow_requests,follow_requests_target_id_fkey,target_id,0,B,empty table,defer
+public.forum_post_likes,forum_post_likes_user_id_fkey,user_id,2,B,tiny table,defer
+public.forum_replies,forum_replies_user_id_fkey,user_id,8,B,tiny table and no demonstrated user_id filter,defer
+public.forum_reply_likes,forum_reply_likes_user_id_fkey,user_id,0,B,empty table,defer
+public.meteo_alerts,meteo_alerts_sent_by_fkey,sent_by,0,B,empty table,defer
+public.meteo_settings,meteo_settings_updated_by_fkey,updated_by,2,B,tiny singleton-like settings table,defer
+public.meteo_team_members,meteo_team_members_invited_by_fkey,invited_by,2,B,tiny table,defer
+public.missions,missions_reward_booster_id_fkey,reward_booster_id,8,B,tiny catalogue and no demonstrated FK filter,defer
+public.notifications,notifications_sender_id_fkey,sender_id,200,D,"runtime is indexed by recipient user_id; sender deletes are rare",measure before adding
+public.password_resets,password_resets_user_id_fkey,user_id,21,D,"runtime primarily filters token/email; retention and delete behavior need measurement",measure before adding
+public.payments,payments_user_id_fkey,user_id,0,B,empty table,defer
+public.play_stats,play_stats_track_id_fkey,track_id,0,B,empty table,defer
+public.play_stats,play_stats_user_id_fkey,user_id,0,B,empty table,defer
+public.playlist_tracks,playlist_tracks_track_id_fkey,track_id,132,A,"recommendation candidates filter track_id; track deletion CASCADE scans child side",idx_playlist_tracks_track
+public.playlists,playlists_creator_id_fkey,creator_id,7,A,"list/quota/profile paths filter creator_id and often order by created_at",idx_playlists_creator_created
+public.post_comments,post_comments_user_id_fkey,user_id,3,B,tiny table,defer
+public.profiles,profiles_referred_by_fkey,referred_by,32,D,"self-FK; referral access pattern is not yet measured",measure before adding
+public.star_academy_applications,star_academy_applications_user_id_fkey,user_id,12,B,tiny table,defer
+public.star_academy_staff_applications,star_academy_staff_applications_user_id_fkey,user_id,3,B,tiny table,defer
+public.subscriptions,subscriptions_user_id_fkey,user_id,5,B,"tiny table; active entitlement source is profiles in current routes",defer
+public.support_tickets,support_tickets_user_id_fkey,user_id,0,B,empty table,defer
+public.tracks,tracks_user_id_fkey,user_id,232,C,"all 232 rows have user_id NULL; creator_id is the active ownership key and is indexed",covered by active creator_id model; revisit legacy column
+public.user_booster_open_history,user_booster_open_history_booster_id_fkey,booster_id,105,D,"runtime reads history by user/time rather than booster_id",measure parent deletion frequency
+public.user_boosters,user_boosters_booster_id_fkey,booster_id,141,D,"runtime uses user/status/id paths; booster catalogue deletes are exceptional",measure before adding
+public.user_missions,user_missions_mission_id_fkey,mission_id,38,C,"unique (user_id,mission_id) and user_id index cover current runtime predicates",covered for current access; revisit mission deletion growth

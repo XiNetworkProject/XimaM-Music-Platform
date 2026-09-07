@@ -1,0 +1,7 @@
+column_name,data_type,is_nullable
+version,text,NO
+statements,ARRAY,YES
+name,text,YES
+created_by,text,YES
+idempotency_key,text,YES
+rollback,ARRAY,YES

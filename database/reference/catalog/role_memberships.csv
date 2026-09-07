@@ -1,0 +1,4 @@
+member,granted_role,grantor,admin_option,inherit_option,set_option
+pg_monitor,pg_read_all_settings,postgres,f,t,t
+pg_monitor,pg_read_all_stats,postgres,f,t,t
+pg_monitor,pg_stat_scan_tables,postgres,f,t,t

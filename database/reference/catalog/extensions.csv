@@ -1,0 +1,6 @@
+extension_name,version,schema_name,owner,relocatable
+pg_stat_statements,1.11,extensions,postgres,t
+pg_trgm,1.6,public,postgres,t
+pgcrypto,1.3,extensions,postgres,t
+plpgsql,1.0,pg_catalog,postgres,f
+uuid-ossp,1.1,extensions,postgres,t

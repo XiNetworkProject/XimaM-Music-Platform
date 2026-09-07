@@ -1,0 +1,206 @@
+schema_name,table_name,policy_name,permissive,roles,command,using_expression,check_expression
+public,account_private,Account owners can create private data,PERMISSIVE,{authenticated},INSERT,,"((( SELECT auth.uid() AS uid) = user_id) AND (COALESCE(( SELECT (auth.jwt() ->> 'aal'::text)), 'aal1'::text) = 'aal2'::text))"
+public,account_private,Account owners can read private data,PERMISSIVE,{authenticated},SELECT,"((( SELECT auth.uid() AS uid) = user_id) AND (COALESCE(( SELECT (auth.jwt() ->> 'aal'::text)), 'aal1'::text) = 'aal2'::text))",
+public,account_private,Account owners can update private data,PERMISSIVE,{authenticated},UPDATE,"((( SELECT auth.uid() AS uid) = user_id) AND (COALESCE(( SELECT (auth.jwt() ->> 'aal'::text)), 'aal1'::text) = 'aal2'::text))","((( SELECT auth.uid() AS uid) = user_id) AND (COALESCE(( SELECT (auth.jwt() ->> 'aal'::text)), 'aal1'::text) = 'aal2'::text))"
+public,admin_broadcasts,Service role full access broadcasts,PERMISSIVE,{public},ALL,(auth.role() = 'service_role'::text),
+public,ai_credit_balances,read_own_ai_credits,PERMISSIVE,{public},SELECT,(auth.uid() = user_id),
+public,ai_generations,Users can create own ai generations,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,ai_generations,Users can delete own ai generations,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,ai_generations,Users can delete their own generations,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,ai_generations,Users can insert their own generations,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,ai_generations,Users can update own ai generations,PERMISSIVE,{public},UPDATE,(auth.uid() = user_id),
+public,ai_generations,Users can update their own generations,PERMISSIVE,{public},UPDATE,(auth.uid() = user_id),
+public,ai_generations,Users can view own ai generations,PERMISSIVE,{public},SELECT,(auth.uid() = user_id),
+public,ai_generations,Users can view their own generations,PERMISSIVE,{public},SELECT,(auth.uid() = user_id),
+public,ai_playlist_tracks,Users can delete tracks from their playlists,PERMISSIVE,{public},DELETE,"(EXISTS ( SELECT 1
+   FROM ai_playlists
+  WHERE ((ai_playlists.id = ai_playlist_tracks.playlist_id) AND (ai_playlists.user_id = auth.uid()))))",
+public,ai_playlist_tracks,Users can insert tracks in their playlists,PERMISSIVE,{public},INSERT,,"(EXISTS ( SELECT 1
+   FROM ai_playlists
+  WHERE ((ai_playlists.id = ai_playlist_tracks.playlist_id) AND (ai_playlists.user_id = auth.uid()))))"
+public,ai_playlist_tracks,Users can view tracks in their playlists,PERMISSIVE,{public},SELECT,"(EXISTS ( SELECT 1
+   FROM ai_playlists
+  WHERE ((ai_playlists.id = ai_playlist_tracks.playlist_id) AND (ai_playlists.user_id = auth.uid()))))",
+public,ai_playlists,Users can delete their own playlists,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,ai_playlists,Users can insert their own playlists,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,ai_playlists,Users can update their own playlists,PERMISSIVE,{public},UPDATE,(auth.uid() = user_id),
+public,ai_playlists,Users can view their own playlists,PERMISSIVE,{public},SELECT,(auth.uid() = user_id),
+public,ai_track_likes,Users can delete their own likes,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,ai_track_likes,Users can insert their own likes,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,ai_track_likes,Users can view all likes,PERMISSIVE,{public},SELECT,true,
+public,ai_tracks,Users can delete tracks from their generations,PERMISSIVE,{public},DELETE,"(EXISTS ( SELECT 1
+   FROM ai_generations
+  WHERE ((ai_generations.id = ai_tracks.generation_id) AND (ai_generations.user_id = auth.uid()))))",
+public,ai_tracks,Users can insert tracks for their generations,PERMISSIVE,{public},INSERT,,"(EXISTS ( SELECT 1
+   FROM ai_generations
+  WHERE ((ai_generations.id = ai_tracks.generation_id) AND (ai_generations.user_id = auth.uid()))))"
+public,ai_tracks,Users can insert tracks to their generations,PERMISSIVE,{public},INSERT,,"(EXISTS ( SELECT 1
+   FROM ai_generations
+  WHERE ((ai_generations.id = ai_tracks.generation_id) AND (ai_generations.user_id = auth.uid()))))"
+public,ai_tracks,Users can update their own tracks,PERMISSIVE,{public},UPDATE,"(EXISTS ( SELECT 1
+   FROM ai_generations
+  WHERE ((ai_generations.id = ai_tracks.generation_id) AND (ai_generations.user_id = auth.uid()))))",
+public,ai_tracks,Users can update tracks from their generations,PERMISSIVE,{public},UPDATE,"(EXISTS ( SELECT 1
+   FROM ai_generations
+  WHERE ((ai_generations.id = ai_tracks.generation_id) AND (ai_generations.user_id = auth.uid()))))",
+public,ai_tracks,Users can view tracks from their generations,PERMISSIVE,{public},SELECT,"(EXISTS ( SELECT 1
+   FROM ai_generations
+  WHERE ((ai_generations.id = ai_tracks.generation_id) AND (ai_generations.user_id = auth.uid()))))",
+public,ai_usage_stats,Users can insert their own stats,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,ai_usage_stats,Users can update their own stats,PERMISSIVE,{public},UPDATE,(auth.uid() = user_id),
+public,ai_usage_stats,Users can view their own stats,PERMISSIVE,{public},SELECT,(auth.uid() = user_id),
+public,city_event_participations,City participations are server managed,PERMISSIVE,"{anon,authenticated}",ALL,false,false
+public,city_event_tracks,City event tracks are server managed,PERMISSIVE,"{anon,authenticated}",ALL,false,false
+public,city_event_votes,City votes are server managed,PERMISSIVE,"{anon,authenticated}",ALL,false,false
+public,city_event_winners,City winners are server managed,PERMISSIVE,"{anon,authenticated}",ALL,false,false
+public,city_events,City events are server managed,PERMISSIVE,"{anon,authenticated}",ALL,false,false
+public,city_user_rewards,City rewards are server managed,PERMISSIVE,"{anon,authenticated}",ALL,false,false
+public,comment_likes,Comment likes are viewable by everyone,PERMISSIVE,{public},SELECT,true,
+public,comment_likes,Users can like comments,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,comment_likes,Users can unlike their own likes,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,comments,Comments are viewable by everyone,PERMISSIVE,{public},SELECT,true,
+public,comments,Users can create comments,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,comments,Users can delete their own comments,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,comments,Users can update their own comments,PERMISSIVE,{public},UPDATE,(auth.uid() = user_id),
+public,conversation_participants,Conversation members can read participants,PERMISSIVE,{authenticated},SELECT,synaura_private.is_conversation_member(conversation_id),
+public,conversation_realtime_events,Conversation members can publish ephemeral events,PERMISSIVE,{authenticated},INSERT,,((user_id = ( SELECT auth.uid() AS uid)) AND (expires_at > now()) AND (expires_at <= (now() + '00:02:00'::interval)) AND synaura_private.is_conversation_member(conversation_id))
+public,conversation_realtime_events,Conversation members can read ephemeral events,PERMISSIVE,{authenticated},SELECT,((expires_at > now()) AND synaura_private.is_conversation_member(conversation_id)),
+public,conversation_rooms,Conversation managers can create rooms,PERMISSIVE,{authenticated},INSERT,,"(EXISTS ( SELECT 1
+   FROM conversation_participants participant
+  WHERE ((participant.conversation_id = conversation_rooms.conversation_id) AND (participant.user_id = ( SELECT auth.uid() AS uid)) AND (participant.role = ANY (ARRAY['owner'::text, 'moderator'::text])))))"
+public,conversation_rooms,Conversation managers can delete rooms,PERMISSIVE,{authenticated},DELETE,"(EXISTS ( SELECT 1
+   FROM conversation_participants participant
+  WHERE ((participant.conversation_id = conversation_rooms.conversation_id) AND (participant.user_id = ( SELECT auth.uid() AS uid)) AND (participant.role = ANY (ARRAY['owner'::text, 'moderator'::text])))))",
+public,conversation_rooms,Conversation managers can update rooms,PERMISSIVE,{authenticated},UPDATE,"(EXISTS ( SELECT 1
+   FROM conversation_participants participant
+  WHERE ((participant.conversation_id = conversation_rooms.conversation_id) AND (participant.user_id = ( SELECT auth.uid() AS uid)) AND (participant.role = ANY (ARRAY['owner'::text, 'moderator'::text])))))","(EXISTS ( SELECT 1
+   FROM conversation_participants participant
+  WHERE ((participant.conversation_id = conversation_rooms.conversation_id) AND (participant.user_id = ( SELECT auth.uid() AS uid)) AND (participant.role = ANY (ARRAY['owner'::text, 'moderator'::text])))))"
+public,conversation_rooms,Conversation members can read rooms,PERMISSIVE,{authenticated},SELECT,synaura_private.is_conversation_member(conversation_id),
+public,conversations,Conversation members can read conversations,PERMISSIVE,{authenticated},SELECT,synaura_private.is_conversation_member(id),
+public,credit_ledger,read_own_ledger,PERMISSIVE,{public},SELECT,(auth.uid() = user_id),
+public,editorial_collections,Published editorial collections are public,PERMISSIVE,"{anon,authenticated}",SELECT,(is_published = true),
+public,faq_items,FAQ items are manageable by authenticated users,PERMISSIVE,{public},ALL,(auth.uid() IS NOT NULL),
+public,faq_items,FAQ items are viewable by everyone,PERMISSIVE,{public},SELECT,(is_published = true),
+public,faq_votes,FAQ votes are viewable by everyone,PERMISSIVE,{public},SELECT,true,
+public,faq_votes,Users can manage their own FAQ votes,PERMISSIVE,{public},ALL,(auth.uid() = user_id),
+public,forum_post_likes,Forum post likes are viewable by everyone,PERMISSIVE,{public},SELECT,true,
+public,forum_post_likes,Users can manage their own post likes,PERMISSIVE,{public},ALL,(auth.uid() = user_id),
+public,forum_posts,Forum posts are viewable by everyone,PERMISSIVE,{public},SELECT,true,
+public,forum_posts,Users can create forum posts,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,forum_posts,Users can delete their own forum posts,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,forum_posts,Users can update their own forum posts,PERMISSIVE,{public},UPDATE,(auth.uid() = user_id),
+public,forum_replies,Forum replies are viewable by everyone,PERMISSIVE,{public},SELECT,true,
+public,forum_replies,Users can create forum replies,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,forum_replies,Users can delete their own forum replies,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,forum_replies,Users can update their own forum replies,PERMISSIVE,{public},UPDATE,(auth.uid() = user_id),
+public,forum_reply_likes,Forum reply likes are viewable by everyone,PERMISSIVE,{public},SELECT,true,
+public,forum_reply_likes,Users can manage their own reply likes,PERMISSIVE,{public},ALL,(auth.uid() = user_id),
+public,friendships,Users can read their friendships,PERMISSIVE,{authenticated},SELECT,((user_id = ( SELECT auth.uid() AS uid)) OR (friend_id = ( SELECT auth.uid() AS uid))),
+public,friendships,Users can remove their friendships,PERMISSIVE,{authenticated},DELETE,((user_id = ( SELECT auth.uid() AS uid)) OR (friend_id = ( SELECT auth.uid() AS uid))),
+public,message_attachments,Conversation members can read attachments,PERMISSIVE,{authenticated},SELECT,"(EXISTS ( SELECT 1
+   FROM (messages message
+     JOIN conversation_participants participant ON ((participant.conversation_id = message.conversation_id)))
+  WHERE ((message.id = message_attachments.message_id) AND (participant.user_id = ( SELECT auth.uid() AS uid)))))",
+public,message_attachments,Message senders can attach media,PERMISSIVE,{authenticated},INSERT,,"(EXISTS ( SELECT 1
+   FROM messages message
+  WHERE ((message.id = message_attachments.message_id) AND (message.sender_id = ( SELECT auth.uid() AS uid)))))"
+public,message_hidden_users,Users can hide messages for themselves,PERMISSIVE,{authenticated},INSERT,,"((user_id = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1
+   FROM (messages message
+     JOIN conversation_participants participant ON ((participant.conversation_id = message.conversation_id)))
+  WHERE ((message.id = message_hidden_users.message_id) AND (participant.user_id = ( SELECT auth.uid() AS uid))))))"
+public,message_hidden_users,Users can read their hidden messages,PERMISSIVE,{authenticated},SELECT,(user_id = ( SELECT auth.uid() AS uid)),
+public,message_hidden_users,Users can restore their hidden messages,PERMISSIVE,{authenticated},DELETE,(user_id = ( SELECT auth.uid() AS uid)),
+public,message_pins,Conversation members can pin messages,PERMISSIVE,{authenticated},INSERT,,"((pinned_by = ( SELECT auth.uid() AS uid)) AND (EXISTS ( SELECT 1
+   FROM conversation_participants participant
+  WHERE ((participant.conversation_id = message_pins.conversation_id) AND (participant.user_id = ( SELECT auth.uid() AS uid))))) AND (EXISTS ( SELECT 1
+   FROM messages message
+  WHERE ((message.id = message_pins.message_id) AND (message.conversation_id = message_pins.conversation_id)))))"
+public,message_pins,Conversation members can read pins,PERMISSIVE,{authenticated},SELECT,"(EXISTS ( SELECT 1
+   FROM conversation_participants participant
+  WHERE ((participant.conversation_id = message_pins.conversation_id) AND (participant.user_id = ( SELECT auth.uid() AS uid)))))",
+public,message_pins,Conversation members can unpin messages,PERMISSIVE,{authenticated},DELETE,"(EXISTS ( SELECT 1
+   FROM conversation_participants participant
+  WHERE ((participant.conversation_id = message_pins.conversation_id) AND (participant.user_id = ( SELECT auth.uid() AS uid)))))",
+public,message_reactions,Conversation members can react,PERMISSIVE,{authenticated},INSERT,,((user_id = ( SELECT auth.uid() AS uid)) AND synaura_private.is_conversation_member(conversation_id))
+public,message_reactions,Conversation members can read reactions,PERMISSIVE,{authenticated},SELECT,synaura_private.is_conversation_member(conversation_id),
+public,message_reactions,Users can remove their reactions,PERMISSIVE,{authenticated},DELETE,(user_id = ( SELECT auth.uid() AS uid)),
+public,message_requests,Creer des demandes,PERMISSIVE,{authenticated},INSERT,,(requester_id = ( SELECT auth.uid() AS uid))
+public,message_requests,Modifier ses demandes recues,PERMISSIVE,{authenticated},UPDATE,(target_id = ( SELECT auth.uid() AS uid)),(target_id = ( SELECT auth.uid() AS uid))
+public,message_requests,Voir ses demandes,PERMISSIVE,{authenticated},SELECT,((requester_id = ( SELECT auth.uid() AS uid)) OR (target_id = ( SELECT auth.uid() AS uid))),
+public,messages,Conversation members can send messages,PERMISSIVE,{authenticated},INSERT,,"((( SELECT auth.uid() AS uid) = sender_id) AND (EXISTS ( SELECT 1
+   FROM conversation_participants participant
+  WHERE ((participant.conversation_id = messages.conversation_id) AND (participant.user_id = ( SELECT auth.uid() AS uid))))) AND ((room_id IS NULL) OR (EXISTS ( SELECT 1
+   FROM conversation_rooms room
+  WHERE ((room.id = messages.room_id) AND (room.conversation_id = messages.conversation_id))))))"
+public,messages,Utilisateur peut voir les messages de ses conversations,PERMISSIVE,{authenticated},SELECT,synaura_private.is_conversation_member(conversation_id),
+public,meteo_bulletins,meteo_bulletins_policy,PERMISSIVE,{public},ALL,"(EXISTS ( SELECT 1
+   FROM auth.users
+  WHERE ((users.id = meteo_bulletins.author_id) AND ((users.email)::text = 'alertempsfrance@gmail.com'::text))))",
+public,music_challenges,Music challenges are public,PERMISSIVE,{public},SELECT,(starts_at <= now()),
+public,notification_preferences,Service role full access prefs,PERMISSIVE,{public},ALL,(auth.role() = 'service_role'::text),
+public,notification_preferences,Users can insert own preferences,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,notification_preferences,Users can read own preferences,PERMISSIVE,{public},SELECT,(auth.uid() = user_id),
+public,notification_preferences,Users can update own preferences,PERMISSIVE,{public},UPDATE,(auth.uid() = user_id),
+public,notifications,Service role full access notifications,PERMISSIVE,{public},ALL,(auth.role() = 'service_role'::text),
+public,notifications,Users can delete own notifications,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,notifications,Users can read own notifications,PERMISSIVE,{public},SELECT,(auth.uid() = user_id),
+public,notifications,Users can update own notifications,PERMISSIVE,{public},UPDATE,(auth.uid() = user_id),
+public,playlists,Créateur peut modifier sa playlist,PERMISSIVE,{public},UPDATE,(auth.uid() = creator_id),
+public,playlists,Créateur peut supprimer sa playlist,PERMISSIVE,{public},DELETE,(auth.uid() = creator_id),
+public,playlists,Playlists publiques visibles par tous,PERMISSIVE,{public},SELECT,(is_public = true),
+public,post_comments,post_comments_delete,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,post_comments,post_comments_insert,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,post_comments,post_comments_select,PERMISSIVE,{public},SELECT,true,
+public,post_likes,post_likes_delete,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,post_likes,post_likes_insert,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,post_likes,post_likes_select,PERMISSIVE,{public},SELECT,true,
+public,profiles,Profils visibles par tous,PERMISSIVE,{public},SELECT,true,
+public,profiles,Utilisateur peut modifier son profil,PERMISSIVE,{public},UPDATE,(auth.uid() = id),
+public,profiles,Utilisateur peut supprimer son profil,PERMISSIVE,{public},DELETE,(auth.uid() = id),
+public,push_subscriptions,Service role full access push,PERMISSIVE,{service_role},ALL,true,true
+public,push_subscriptions,push_subs_own_read,PERMISSIVE,{authenticated},SELECT,(( SELECT auth.uid() AS uid) = user_id),
+public,referrals,read_own_referrals,PERMISSIVE,{public},SELECT,((auth.uid() = referrer_id) OR (auth.uid() = referred_id)),
+public,star_academy_applications,sa_own_read,PERMISSIVE,{public},SELECT,(user_id = auth.uid()),
+public,star_academy_applications,sa_public_insert,PERMISSIVE,{public},INSERT,,true
+public,star_academy_applications,sa_service_all,PERMISSIVE,{public},ALL,(auth.role() = 'service_role'::text),
+public,star_academy_config,sa_config_public_read,PERMISSIVE,{public},SELECT,true,
+public,star_academy_config,sa_config_service_write,PERMISSIVE,{public},ALL,(auth.role() = 'service_role'::text),
+public,star_academy_staff_applications,sa_staff_own_read,PERMISSIVE,{public},SELECT,(user_id = auth.uid()),
+public,star_academy_staff_applications,sa_staff_public_insert,PERMISSIVE,{public},INSERT,,true
+public,star_academy_staff_applications,sa_staff_service_all,PERMISSIVE,{public},ALL,(auth.role() = 'service_role'::text),
+public,subscriptions,Utilisateur peut modifier son abonnement,PERMISSIVE,{public},UPDATE,(auth.uid() = user_id),
+public,subscriptions,Utilisateur peut voir son abonnement,PERMISSIVE,{public},SELECT,(auth.uid() = user_id),
+public,support_tickets,anyone_insert,PERMISSIVE,{public},INSERT,,true
+public,support_tickets,service_role_all,PERMISSIVE,{public},ALL,(auth.role() = 'service_role'::text),
+public,track_likes,Users can delete their own likes,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,track_likes,Users can insert their own likes,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,track_likes,Users can view all likes,PERMISSIVE,{public},SELECT,true,
+public,track_likes,likes_delete_own,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,track_likes,likes_insert_own,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,track_likes,likes_select_all,PERMISSIVE,{public},SELECT,(auth.role() = 'authenticated'::text),
+public,track_remixes,track_remixes_creator_select,PERMISSIVE,{public},SELECT,(auth.uid() = creator_id),
+public,track_remixes,track_remixes_public_published_select,PERMISSIVE,{public},SELECT,(status = 'published'::text),
+public,track_stats,stats_select_all,PERMISSIVE,{public},SELECT,(auth.role() = 'authenticated'::text),
+public,track_views,Users can insert their own views,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,track_views,Users can view all views,PERMISSIVE,{public},SELECT,true,
+public,track_views,views_insert_own,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,track_views,views_select_all,PERMISSIVE,{public},SELECT,(auth.role() = 'authenticated'::text),
+public,tracks,Créateur peut modifier sa piste,PERMISSIVE,{public},UPDATE,(auth.uid() = creator_id),
+public,tracks,Créateur peut supprimer sa piste,PERMISSIVE,{public},DELETE,(auth.uid() = creator_id),
+public,tracks,Pistes publiques visibles par tous,PERMISSIVE,{public},SELECT,(is_public = true),
+public,tracks,Tracks are viewable by everyone,PERMISSIVE,{public},SELECT,true,
+public,tracks,Users can delete their own tracks,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,tracks,Users can insert their own tracks,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,tracks,Users can update their own tracks,PERMISSIVE,{public},UPDATE,(auth.uid() = user_id),
+public,tracks,Utilisateur peut créer des pistes,PERMISSIVE,{public},INSERT,,(auth.uid() = creator_id)
+public,user_blocks,Users can create their blocks,PERMISSIVE,{authenticated},INSERT,,(blocker_id = ( SELECT auth.uid() AS uid))
+public,user_blocks,Users can read their blocks,PERMISSIVE,{authenticated},SELECT,(blocker_id = ( SELECT auth.uid() AS uid)),
+public,user_blocks,Users can remove their blocks,PERMISSIVE,{authenticated},DELETE,(blocker_id = ( SELECT auth.uid() AS uid)),
+public,user_daily_spin,Users can read their daily spin,PERMISSIVE,{authenticated},SELECT,(( SELECT auth.uid() AS uid) = user_id),
+public,user_daily_spin_history,Users can read their daily spin history,PERMISSIVE,{authenticated},SELECT,(( SELECT auth.uid() AS uid) = user_id),
+public,user_quotas,Users can insert their own quota,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,user_quotas,Users can update their own quota,PERMISSIVE,{public},UPDATE,(auth.uid() = user_id),
+public,user_quotas,Users can view their own quota,PERMISSIVE,{public},SELECT,(auth.uid() = user_id),
+public,waiting_list,Allow public insert,PERMISSIVE,{public},INSERT,,true
+public,waiting_list,Allow public read access,PERMISSIVE,{public},SELECT,true,

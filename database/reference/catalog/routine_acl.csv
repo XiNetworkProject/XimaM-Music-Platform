@@ -1,0 +1,754 @@
+schema_name,routine_name,identity_arguments,grantor,grantee,privilege_type,is_grantable
+auth,email,,supabase_auth_admin,PUBLIC,EXECUTE,f
+auth,email,,supabase_auth_admin,dashboard_user,EXECUTE,f
+auth,email,,supabase_auth_admin,supabase_auth_admin,EXECUTE,f
+auth,email,,supabase_auth_admin,synaura_app,EXECUTE,f
+auth,jwt,,supabase_auth_admin,PUBLIC,EXECUTE,f
+auth,jwt,,supabase_auth_admin,dashboard_user,EXECUTE,f
+auth,jwt,,supabase_auth_admin,postgres,EXECUTE,f
+auth,jwt,,supabase_auth_admin,supabase_auth_admin,EXECUTE,f
+auth,jwt,,supabase_auth_admin,synaura_app,EXECUTE,f
+auth,role,,supabase_auth_admin,PUBLIC,EXECUTE,f
+auth,role,,supabase_auth_admin,dashboard_user,EXECUTE,f
+auth,role,,supabase_auth_admin,supabase_auth_admin,EXECUTE,f
+auth,role,,supabase_auth_admin,synaura_app,EXECUTE,f
+auth,uid,,supabase_auth_admin,PUBLIC,EXECUTE,f
+auth,uid,,supabase_auth_admin,dashboard_user,EXECUTE,f
+auth,uid,,supabase_auth_admin,supabase_auth_admin,EXECUTE,f
+auth,uid,,supabase_auth_admin,synaura_app,EXECUTE,f
+extensions,armor,bytea,postgres,PUBLIC,EXECUTE,f
+extensions,armor,bytea,postgres,dashboard_user,EXECUTE,f
+extensions,armor,bytea,postgres,postgres,EXECUTE,t
+extensions,armor,"bytea, text[], text[]",postgres,PUBLIC,EXECUTE,f
+extensions,armor,"bytea, text[], text[]",postgres,dashboard_user,EXECUTE,f
+extensions,armor,"bytea, text[], text[]",postgres,postgres,EXECUTE,t
+extensions,crypt,"text, text",postgres,PUBLIC,EXECUTE,f
+extensions,crypt,"text, text",postgres,dashboard_user,EXECUTE,f
+extensions,crypt,"text, text",postgres,postgres,EXECUTE,t
+extensions,dearmor,text,postgres,PUBLIC,EXECUTE,f
+extensions,dearmor,text,postgres,dashboard_user,EXECUTE,f
+extensions,dearmor,text,postgres,postgres,EXECUTE,t
+extensions,decrypt,"bytea, bytea, text",postgres,PUBLIC,EXECUTE,f
+extensions,decrypt,"bytea, bytea, text",postgres,dashboard_user,EXECUTE,f
+extensions,decrypt,"bytea, bytea, text",postgres,postgres,EXECUTE,t
+extensions,decrypt_iv,"bytea, bytea, bytea, text",postgres,PUBLIC,EXECUTE,f
+extensions,decrypt_iv,"bytea, bytea, bytea, text",postgres,dashboard_user,EXECUTE,f
+extensions,decrypt_iv,"bytea, bytea, bytea, text",postgres,postgres,EXECUTE,t
+extensions,digest,"bytea, text",postgres,PUBLIC,EXECUTE,f
+extensions,digest,"bytea, text",postgres,dashboard_user,EXECUTE,f
+extensions,digest,"bytea, text",postgres,postgres,EXECUTE,t
+extensions,digest,"text, text",postgres,PUBLIC,EXECUTE,f
+extensions,digest,"text, text",postgres,dashboard_user,EXECUTE,f
+extensions,digest,"text, text",postgres,postgres,EXECUTE,t
+extensions,encrypt,"bytea, bytea, text",postgres,PUBLIC,EXECUTE,f
+extensions,encrypt,"bytea, bytea, text",postgres,dashboard_user,EXECUTE,f
+extensions,encrypt,"bytea, bytea, text",postgres,postgres,EXECUTE,t
+extensions,encrypt_iv,"bytea, bytea, bytea, text",postgres,PUBLIC,EXECUTE,f
+extensions,encrypt_iv,"bytea, bytea, bytea, text",postgres,dashboard_user,EXECUTE,f
+extensions,encrypt_iv,"bytea, bytea, bytea, text",postgres,postgres,EXECUTE,t
+extensions,gen_random_bytes,integer,postgres,PUBLIC,EXECUTE,f
+extensions,gen_random_bytes,integer,postgres,dashboard_user,EXECUTE,f
+extensions,gen_random_bytes,integer,postgres,postgres,EXECUTE,t
+extensions,gen_random_uuid,,postgres,PUBLIC,EXECUTE,f
+extensions,gen_random_uuid,,postgres,dashboard_user,EXECUTE,f
+extensions,gen_random_uuid,,postgres,postgres,EXECUTE,t
+extensions,gen_salt,text,postgres,PUBLIC,EXECUTE,f
+extensions,gen_salt,text,postgres,dashboard_user,EXECUTE,f
+extensions,gen_salt,text,postgres,postgres,EXECUTE,t
+extensions,gen_salt,"text, integer",postgres,PUBLIC,EXECUTE,f
+extensions,gen_salt,"text, integer",postgres,dashboard_user,EXECUTE,f
+extensions,gen_salt,"text, integer",postgres,postgres,EXECUTE,t
+extensions,grant_pg_cron_access,,supabase_admin,PUBLIC,EXECUTE,f
+extensions,grant_pg_cron_access,,supabase_admin,dashboard_user,EXECUTE,f
+extensions,grant_pg_cron_access,,supabase_admin,supabase_admin,EXECUTE,t
+extensions,grant_pg_graphql_access,,supabase_admin,PUBLIC,EXECUTE,f
+extensions,grant_pg_graphql_access,,supabase_admin,postgres,EXECUTE,t
+extensions,grant_pg_graphql_access,,supabase_admin,supabase_admin,EXECUTE,f
+extensions,grant_pg_net_access,,supabase_admin,PUBLIC,EXECUTE,f
+extensions,grant_pg_net_access,,supabase_admin,dashboard_user,EXECUTE,f
+extensions,grant_pg_net_access,,supabase_admin,supabase_admin,EXECUTE,t
+extensions,hmac,"bytea, bytea, text",postgres,PUBLIC,EXECUTE,f
+extensions,hmac,"bytea, bytea, text",postgres,dashboard_user,EXECUTE,f
+extensions,hmac,"bytea, bytea, text",postgres,postgres,EXECUTE,t
+extensions,hmac,"text, text, text",postgres,PUBLIC,EXECUTE,f
+extensions,hmac,"text, text, text",postgres,dashboard_user,EXECUTE,f
+extensions,hmac,"text, text, text",postgres,postgres,EXECUTE,t
+extensions,pg_stat_statements,"showtext boolean, OUT userid oid, OUT dbid oid, OUT toplevel boolean, OUT queryid bigint, OUT query text, OUT plans bigint, OUT total_plan_time double precision, OUT min_plan_time double precision, OUT max_plan_time double precision, OUT mean_plan_time double precision, OUT stddev_plan_time double precision, OUT calls bigint, OUT total_exec_time double precision, OUT min_exec_time double precision, OUT max_exec_time double precision, OUT mean_exec_time double precision, OUT stddev_exec_time double precision, OUT rows bigint, OUT shared_blks_hit bigint, OUT shared_blks_read bigint, OUT shared_blks_dirtied bigint, OUT shared_blks_written bigint, OUT local_blks_hit bigint, OUT local_blks_read bigint, OUT local_blks_dirtied bigint, OUT local_blks_written bigint, OUT temp_blks_read bigint, OUT temp_blks_written bigint, OUT shared_blk_read_time double precision, OUT shared_blk_write_time double precision, OUT local_blk_read_time double precision, OUT local_blk_write_time double precision, OUT temp_blk_read_time double precision, OUT temp_blk_write_time double precision, OUT wal_records bigint, OUT wal_fpi bigint, OUT wal_bytes numeric, OUT jit_functions bigint, OUT jit_generation_time double precision, OUT jit_inlining_count bigint, OUT jit_inlining_time double precision, OUT jit_optimization_count bigint, OUT jit_optimization_time double precision, OUT jit_emission_count bigint, OUT jit_emission_time double precision, OUT jit_deform_count bigint, OUT jit_deform_time double precision, OUT stats_since timestamp with time zone, OUT minmax_stats_since timestamp with time zone",postgres,PUBLIC,EXECUTE,f
+extensions,pg_stat_statements,"showtext boolean, OUT userid oid, OUT dbid oid, OUT toplevel boolean, OUT queryid bigint, OUT query text, OUT plans bigint, OUT total_plan_time double precision, OUT min_plan_time double precision, OUT max_plan_time double precision, OUT mean_plan_time double precision, OUT stddev_plan_time double precision, OUT calls bigint, OUT total_exec_time double precision, OUT min_exec_time double precision, OUT max_exec_time double precision, OUT mean_exec_time double precision, OUT stddev_exec_time double precision, OUT rows bigint, OUT shared_blks_hit bigint, OUT shared_blks_read bigint, OUT shared_blks_dirtied bigint, OUT shared_blks_written bigint, OUT local_blks_hit bigint, OUT local_blks_read bigint, OUT local_blks_dirtied bigint, OUT local_blks_written bigint, OUT temp_blks_read bigint, OUT temp_blks_written bigint, OUT shared_blk_read_time double precision, OUT shared_blk_write_time double precision, OUT local_blk_read_time double precision, OUT local_blk_write_time double precision, OUT temp_blk_read_time double precision, OUT temp_blk_write_time double precision, OUT wal_records bigint, OUT wal_fpi bigint, OUT wal_bytes numeric, OUT jit_functions bigint, OUT jit_generation_time double precision, OUT jit_inlining_count bigint, OUT jit_inlining_time double precision, OUT jit_optimization_count bigint, OUT jit_optimization_time double precision, OUT jit_emission_count bigint, OUT jit_emission_time double precision, OUT jit_deform_count bigint, OUT jit_deform_time double precision, OUT stats_since timestamp with time zone, OUT minmax_stats_since timestamp with time zone",postgres,dashboard_user,EXECUTE,f
+extensions,pg_stat_statements,"showtext boolean, OUT userid oid, OUT dbid oid, OUT toplevel boolean, OUT queryid bigint, OUT query text, OUT plans bigint, OUT total_plan_time double precision, OUT min_plan_time double precision, OUT max_plan_time double precision, OUT mean_plan_time double precision, OUT stddev_plan_time double precision, OUT calls bigint, OUT total_exec_time double precision, OUT min_exec_time double precision, OUT max_exec_time double precision, OUT mean_exec_time double precision, OUT stddev_exec_time double precision, OUT rows bigint, OUT shared_blks_hit bigint, OUT shared_blks_read bigint, OUT shared_blks_dirtied bigint, OUT shared_blks_written bigint, OUT local_blks_hit bigint, OUT local_blks_read bigint, OUT local_blks_dirtied bigint, OUT local_blks_written bigint, OUT temp_blks_read bigint, OUT temp_blks_written bigint, OUT shared_blk_read_time double precision, OUT shared_blk_write_time double precision, OUT local_blk_read_time double precision, OUT local_blk_write_time double precision, OUT temp_blk_read_time double precision, OUT temp_blk_write_time double precision, OUT wal_records bigint, OUT wal_fpi bigint, OUT wal_bytes numeric, OUT jit_functions bigint, OUT jit_generation_time double precision, OUT jit_inlining_count bigint, OUT jit_inlining_time double precision, OUT jit_optimization_count bigint, OUT jit_optimization_time double precision, OUT jit_emission_count bigint, OUT jit_emission_time double precision, OUT jit_deform_count bigint, OUT jit_deform_time double precision, OUT stats_since timestamp with time zone, OUT minmax_stats_since timestamp with time zone",postgres,postgres,EXECUTE,t
+extensions,pg_stat_statements_info,"OUT dealloc bigint, OUT stats_reset timestamp with time zone",postgres,PUBLIC,EXECUTE,f
+extensions,pg_stat_statements_info,"OUT dealloc bigint, OUT stats_reset timestamp with time zone",postgres,dashboard_user,EXECUTE,f
+extensions,pg_stat_statements_info,"OUT dealloc bigint, OUT stats_reset timestamp with time zone",postgres,postgres,EXECUTE,t
+extensions,pg_stat_statements_reset,"userid oid, dbid oid, queryid bigint, minmax_only boolean",postgres,dashboard_user,EXECUTE,f
+extensions,pg_stat_statements_reset,"userid oid, dbid oid, queryid bigint, minmax_only boolean",postgres,postgres,EXECUTE,t
+extensions,pgp_armor_headers,"text, OUT key text, OUT value text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_armor_headers,"text, OUT key text, OUT value text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_armor_headers,"text, OUT key text, OUT value text",postgres,postgres,EXECUTE,t
+extensions,pgp_key_id,bytea,postgres,PUBLIC,EXECUTE,f
+extensions,pgp_key_id,bytea,postgres,dashboard_user,EXECUTE,f
+extensions,pgp_key_id,bytea,postgres,postgres,EXECUTE,t
+extensions,pgp_pub_decrypt,"bytea, bytea",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_pub_decrypt,"bytea, bytea",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_pub_decrypt,"bytea, bytea",postgres,postgres,EXECUTE,t
+extensions,pgp_pub_decrypt,"bytea, bytea, text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_pub_decrypt,"bytea, bytea, text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_pub_decrypt,"bytea, bytea, text",postgres,postgres,EXECUTE,t
+extensions,pgp_pub_decrypt,"bytea, bytea, text, text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_pub_decrypt,"bytea, bytea, text, text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_pub_decrypt,"bytea, bytea, text, text",postgres,postgres,EXECUTE,t
+extensions,pgp_pub_decrypt_bytea,"bytea, bytea",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_pub_decrypt_bytea,"bytea, bytea",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_pub_decrypt_bytea,"bytea, bytea",postgres,postgres,EXECUTE,t
+extensions,pgp_pub_decrypt_bytea,"bytea, bytea, text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_pub_decrypt_bytea,"bytea, bytea, text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_pub_decrypt_bytea,"bytea, bytea, text",postgres,postgres,EXECUTE,t
+extensions,pgp_pub_decrypt_bytea,"bytea, bytea, text, text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_pub_decrypt_bytea,"bytea, bytea, text, text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_pub_decrypt_bytea,"bytea, bytea, text, text",postgres,postgres,EXECUTE,t
+extensions,pgp_pub_encrypt,"text, bytea",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_pub_encrypt,"text, bytea",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_pub_encrypt,"text, bytea",postgres,postgres,EXECUTE,t
+extensions,pgp_pub_encrypt,"text, bytea, text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_pub_encrypt,"text, bytea, text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_pub_encrypt,"text, bytea, text",postgres,postgres,EXECUTE,t
+extensions,pgp_pub_encrypt_bytea,"bytea, bytea",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_pub_encrypt_bytea,"bytea, bytea",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_pub_encrypt_bytea,"bytea, bytea",postgres,postgres,EXECUTE,t
+extensions,pgp_pub_encrypt_bytea,"bytea, bytea, text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_pub_encrypt_bytea,"bytea, bytea, text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_pub_encrypt_bytea,"bytea, bytea, text",postgres,postgres,EXECUTE,t
+extensions,pgp_sym_decrypt,"bytea, text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_sym_decrypt,"bytea, text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_sym_decrypt,"bytea, text",postgres,postgres,EXECUTE,t
+extensions,pgp_sym_decrypt,"bytea, text, text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_sym_decrypt,"bytea, text, text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_sym_decrypt,"bytea, text, text",postgres,postgres,EXECUTE,t
+extensions,pgp_sym_decrypt_bytea,"bytea, text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_sym_decrypt_bytea,"bytea, text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_sym_decrypt_bytea,"bytea, text",postgres,postgres,EXECUTE,t
+extensions,pgp_sym_decrypt_bytea,"bytea, text, text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_sym_decrypt_bytea,"bytea, text, text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_sym_decrypt_bytea,"bytea, text, text",postgres,postgres,EXECUTE,t
+extensions,pgp_sym_encrypt,"text, text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_sym_encrypt,"text, text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_sym_encrypt,"text, text",postgres,postgres,EXECUTE,t
+extensions,pgp_sym_encrypt,"text, text, text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_sym_encrypt,"text, text, text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_sym_encrypt,"text, text, text",postgres,postgres,EXECUTE,t
+extensions,pgp_sym_encrypt_bytea,"bytea, text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_sym_encrypt_bytea,"bytea, text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_sym_encrypt_bytea,"bytea, text",postgres,postgres,EXECUTE,t
+extensions,pgp_sym_encrypt_bytea,"bytea, text, text",postgres,PUBLIC,EXECUTE,f
+extensions,pgp_sym_encrypt_bytea,"bytea, text, text",postgres,dashboard_user,EXECUTE,f
+extensions,pgp_sym_encrypt_bytea,"bytea, text, text",postgres,postgres,EXECUTE,t
+extensions,pgrst_ddl_watch,,supabase_admin,PUBLIC,EXECUTE,f
+extensions,pgrst_ddl_watch,,supabase_admin,postgres,EXECUTE,t
+extensions,pgrst_ddl_watch,,supabase_admin,supabase_admin,EXECUTE,f
+extensions,pgrst_drop_watch,,supabase_admin,PUBLIC,EXECUTE,f
+extensions,pgrst_drop_watch,,supabase_admin,postgres,EXECUTE,t
+extensions,pgrst_drop_watch,,supabase_admin,supabase_admin,EXECUTE,f
+extensions,set_graphql_placeholder,,supabase_admin,PUBLIC,EXECUTE,f
+extensions,set_graphql_placeholder,,supabase_admin,postgres,EXECUTE,t
+extensions,set_graphql_placeholder,,supabase_admin,supabase_admin,EXECUTE,f
+extensions,uuid_generate_v1,,postgres,PUBLIC,EXECUTE,f
+extensions,uuid_generate_v1,,postgres,dashboard_user,EXECUTE,f
+extensions,uuid_generate_v1,,postgres,postgres,EXECUTE,t
+extensions,uuid_generate_v1mc,,postgres,PUBLIC,EXECUTE,f
+extensions,uuid_generate_v1mc,,postgres,dashboard_user,EXECUTE,f
+extensions,uuid_generate_v1mc,,postgres,postgres,EXECUTE,t
+extensions,uuid_generate_v3,"namespace uuid, name text",postgres,PUBLIC,EXECUTE,f
+extensions,uuid_generate_v3,"namespace uuid, name text",postgres,dashboard_user,EXECUTE,f
+extensions,uuid_generate_v3,"namespace uuid, name text",postgres,postgres,EXECUTE,t
+extensions,uuid_generate_v4,,postgres,PUBLIC,EXECUTE,f
+extensions,uuid_generate_v4,,postgres,dashboard_user,EXECUTE,f
+extensions,uuid_generate_v4,,postgres,postgres,EXECUTE,t
+extensions,uuid_generate_v5,"namespace uuid, name text",postgres,PUBLIC,EXECUTE,f
+extensions,uuid_generate_v5,"namespace uuid, name text",postgres,dashboard_user,EXECUTE,f
+extensions,uuid_generate_v5,"namespace uuid, name text",postgres,postgres,EXECUTE,t
+extensions,uuid_nil,,postgres,PUBLIC,EXECUTE,f
+extensions,uuid_nil,,postgres,dashboard_user,EXECUTE,f
+extensions,uuid_nil,,postgres,postgres,EXECUTE,t
+extensions,uuid_ns_dns,,postgres,PUBLIC,EXECUTE,f
+extensions,uuid_ns_dns,,postgres,dashboard_user,EXECUTE,f
+extensions,uuid_ns_dns,,postgres,postgres,EXECUTE,t
+extensions,uuid_ns_oid,,postgres,PUBLIC,EXECUTE,f
+extensions,uuid_ns_oid,,postgres,dashboard_user,EXECUTE,f
+extensions,uuid_ns_oid,,postgres,postgres,EXECUTE,t
+extensions,uuid_ns_url,,postgres,PUBLIC,EXECUTE,f
+extensions,uuid_ns_url,,postgres,dashboard_user,EXECUTE,f
+extensions,uuid_ns_url,,postgres,postgres,EXECUTE,t
+extensions,uuid_ns_x500,,postgres,PUBLIC,EXECUTE,f
+extensions,uuid_ns_x500,,postgres,dashboard_user,EXECUTE,f
+extensions,uuid_ns_x500,,postgres,postgres,EXECUTE,t
+graphql_public,graphql,"""operationName"" text, query text, variables jsonb, extensions jsonb",supabase_admin,PUBLIC,EXECUTE,f
+graphql_public,graphql,"""operationName"" text, query text, variables jsonb, extensions jsonb",supabase_admin,anon,EXECUTE,f
+graphql_public,graphql,"""operationName"" text, query text, variables jsonb, extensions jsonb",supabase_admin,authenticated,EXECUTE,f
+graphql_public,graphql,"""operationName"" text, query text, variables jsonb, extensions jsonb",supabase_admin,postgres,EXECUTE,f
+graphql_public,graphql,"""operationName"" text, query text, variables jsonb, extensions jsonb",supabase_admin,service_role,EXECUTE,f
+graphql_public,graphql,"""operationName"" text, query text, variables jsonb, extensions jsonb",supabase_admin,supabase_admin,EXECUTE,f
+pgbouncer,get_auth,p_usename text,supabase_admin,pgbouncer,EXECUTE,f
+pgbouncer,get_auth,p_usename text,supabase_admin,supabase_admin,EXECUTE,f
+public,_ensure_track_stats,p_track_id text,postgres,PUBLIC,EXECUTE,f
+public,_ensure_track_stats,p_track_id text,postgres,anon,EXECUTE,f
+public,_ensure_track_stats,p_track_id text,postgres,authenticated,EXECUTE,f
+public,_ensure_track_stats,p_track_id text,postgres,postgres,EXECUTE,f
+public,_ensure_track_stats,p_track_id text,postgres,service_role,EXECUTE,f
+public,_ensure_track_stats,p_track_id text,postgres,synaura_app,EXECUTE,f
+public,ai_add_credits,"p_user_id uuid, p_amount integer",postgres,PUBLIC,EXECUTE,f
+public,ai_add_credits,"p_user_id uuid, p_amount integer",postgres,anon,EXECUTE,f
+public,ai_add_credits,"p_user_id uuid, p_amount integer",postgres,authenticated,EXECUTE,f
+public,ai_add_credits,"p_user_id uuid, p_amount integer",postgres,postgres,EXECUTE,f
+public,ai_add_credits,"p_user_id uuid, p_amount integer",postgres,service_role,EXECUTE,f
+public,ai_add_credits,"p_user_id uuid, p_amount integer",postgres,synaura_app,EXECUTE,f
+public,ai_add_credits,"p_user_id uuid, p_amount integer, p_source text, p_description text",postgres,PUBLIC,EXECUTE,f
+public,ai_add_credits,"p_user_id uuid, p_amount integer, p_source text, p_description text",postgres,anon,EXECUTE,f
+public,ai_add_credits,"p_user_id uuid, p_amount integer, p_source text, p_description text",postgres,authenticated,EXECUTE,f
+public,ai_add_credits,"p_user_id uuid, p_amount integer, p_source text, p_description text",postgres,postgres,EXECUTE,f
+public,ai_add_credits,"p_user_id uuid, p_amount integer, p_source text, p_description text",postgres,service_role,EXECUTE,f
+public,ai_add_credits,"p_user_id uuid, p_amount integer, p_source text, p_description text",postgres,synaura_app,EXECUTE,f
+public,ai_debit_credits,"p_user_id uuid, p_amount integer",postgres,PUBLIC,EXECUTE,f
+public,ai_debit_credits,"p_user_id uuid, p_amount integer",postgres,anon,EXECUTE,f
+public,ai_debit_credits,"p_user_id uuid, p_amount integer",postgres,authenticated,EXECUTE,f
+public,ai_debit_credits,"p_user_id uuid, p_amount integer",postgres,postgres,EXECUTE,f
+public,ai_debit_credits,"p_user_id uuid, p_amount integer",postgres,service_role,EXECUTE,f
+public,ai_debit_credits,"p_user_id uuid, p_amount integer",postgres,synaura_app,EXECUTE,f
+public,ai_debit_credits,"p_user_id uuid, p_amount integer, p_source text, p_description text",postgres,PUBLIC,EXECUTE,f
+public,ai_debit_credits,"p_user_id uuid, p_amount integer, p_source text, p_description text",postgres,anon,EXECUTE,f
+public,ai_debit_credits,"p_user_id uuid, p_amount integer, p_source text, p_description text",postgres,authenticated,EXECUTE,f
+public,ai_debit_credits,"p_user_id uuid, p_amount integer, p_source text, p_description text",postgres,postgres,EXECUTE,f
+public,ai_debit_credits,"p_user_id uuid, p_amount integer, p_source text, p_description text",postgres,service_role,EXECUTE,f
+public,ai_debit_credits,"p_user_id uuid, p_amount integer, p_source text, p_description text",postgres,synaura_app,EXECUTE,f
+public,ai_grant_monthly_plan_credits,,postgres,PUBLIC,EXECUTE,f
+public,ai_grant_monthly_plan_credits,,postgres,anon,EXECUTE,f
+public,ai_grant_monthly_plan_credits,,postgres,authenticated,EXECUTE,f
+public,ai_grant_monthly_plan_credits,,postgres,postgres,EXECUTE,f
+public,ai_grant_monthly_plan_credits,,postgres,service_role,EXECUTE,f
+public,ai_grant_monthly_plan_credits,,postgres,synaura_app,EXECUTE,f
+public,ai_grant_welcome_credits,,postgres,PUBLIC,EXECUTE,f
+public,ai_grant_welcome_credits,,postgres,anon,EXECUTE,f
+public,ai_grant_welcome_credits,,postgres,authenticated,EXECUTE,f
+public,ai_grant_welcome_credits,,postgres,postgres,EXECUTE,f
+public,ai_grant_welcome_credits,,postgres,service_role,EXECUTE,f
+public,ai_grant_welcome_credits,,postgres,synaura_app,EXECUTE,f
+public,auto_generate_referral_code,,postgres,PUBLIC,EXECUTE,f
+public,auto_generate_referral_code,,postgres,anon,EXECUTE,f
+public,auto_generate_referral_code,,postgres,authenticated,EXECUTE,f
+public,auto_generate_referral_code,,postgres,postgres,EXECUTE,f
+public,auto_generate_referral_code,,postgres,service_role,EXECUTE,f
+public,auto_generate_referral_code,,postgres,synaura_app,EXECUTE,f
+public,check_user_quota,user_uuid uuid,postgres,PUBLIC,EXECUTE,f
+public,check_user_quota,user_uuid uuid,postgres,anon,EXECUTE,f
+public,check_user_quota,user_uuid uuid,postgres,authenticated,EXECUTE,f
+public,check_user_quota,user_uuid uuid,postgres,postgres,EXECUTE,f
+public,check_user_quota,user_uuid uuid,postgres,service_role,EXECUTE,f
+public,check_user_quota,user_uuid uuid,postgres,synaura_app,EXECUTE,f
+public,get_active_members_count,,postgres,PUBLIC,EXECUTE,f
+public,get_active_members_count,,postgres,anon,EXECUTE,f
+public,get_active_members_count,,postgres,authenticated,EXECUTE,f
+public,get_active_members_count,,postgres,postgres,EXECUTE,f
+public,get_active_members_count,,postgres,service_role,EXECUTE,f
+public,get_active_members_count,,postgres,synaura_app,EXECUTE,f
+public,get_monthly_generations_count,user_uuid uuid,postgres,PUBLIC,EXECUTE,f
+public,get_monthly_generations_count,user_uuid uuid,postgres,anon,EXECUTE,f
+public,get_monthly_generations_count,user_uuid uuid,postgres,authenticated,EXECUTE,f
+public,get_monthly_generations_count,user_uuid uuid,postgres,postgres,EXECUTE,f
+public,get_monthly_generations_count,user_uuid uuid,postgres,service_role,EXECUTE,f
+public,get_monthly_generations_count,user_uuid uuid,postgres,synaura_app,EXECUTE,f
+public,get_user_ai_stats,user_uuid uuid,postgres,PUBLIC,EXECUTE,f
+public,get_user_ai_stats,user_uuid uuid,postgres,anon,EXECUTE,f
+public,get_user_ai_stats,user_uuid uuid,postgres,authenticated,EXECUTE,f
+public,get_user_ai_stats,user_uuid uuid,postgres,postgres,EXECUTE,f
+public,get_user_ai_stats,user_uuid uuid,postgres,service_role,EXECUTE,f
+public,get_user_ai_stats,user_uuid uuid,postgres,synaura_app,EXECUTE,f
+public,get_user_quota_remaining,user_uuid uuid,postgres,PUBLIC,EXECUTE,f
+public,get_user_quota_remaining,user_uuid uuid,postgres,anon,EXECUTE,f
+public,get_user_quota_remaining,user_uuid uuid,postgres,authenticated,EXECUTE,f
+public,get_user_quota_remaining,user_uuid uuid,postgres,postgres,EXECUTE,f
+public,get_user_quota_remaining,user_uuid uuid,postgres,service_role,EXECUTE,f
+public,get_user_quota_remaining,user_uuid uuid,postgres,synaura_app,EXECUTE,f
+public,get_user_stats,user_uuid uuid,postgres,PUBLIC,EXECUTE,f
+public,get_user_stats,user_uuid uuid,postgres,anon,EXECUTE,f
+public,get_user_stats,user_uuid uuid,postgres,authenticated,EXECUTE,f
+public,get_user_stats,user_uuid uuid,postgres,postgres,EXECUTE,f
+public,get_user_stats,user_uuid uuid,postgres,service_role,EXECUTE,f
+public,get_user_stats,user_uuid uuid,postgres,synaura_app,EXECUTE,f
+public,gin_extract_query_trgm,"text, internal, smallint, internal, internal, internal, internal",postgres,PUBLIC,EXECUTE,f
+public,gin_extract_query_trgm,"text, internal, smallint, internal, internal, internal, internal",postgres,anon,EXECUTE,f
+public,gin_extract_query_trgm,"text, internal, smallint, internal, internal, internal, internal",postgres,authenticated,EXECUTE,f
+public,gin_extract_query_trgm,"text, internal, smallint, internal, internal, internal, internal",postgres,postgres,EXECUTE,f
+public,gin_extract_query_trgm,"text, internal, smallint, internal, internal, internal, internal",postgres,service_role,EXECUTE,f
+public,gin_extract_query_trgm,"text, internal, smallint, internal, internal, internal, internal",postgres,synaura_app,EXECUTE,f
+public,gin_extract_value_trgm,"text, internal",postgres,PUBLIC,EXECUTE,f
+public,gin_extract_value_trgm,"text, internal",postgres,anon,EXECUTE,f
+public,gin_extract_value_trgm,"text, internal",postgres,authenticated,EXECUTE,f
+public,gin_extract_value_trgm,"text, internal",postgres,postgres,EXECUTE,f
+public,gin_extract_value_trgm,"text, internal",postgres,service_role,EXECUTE,f
+public,gin_extract_value_trgm,"text, internal",postgres,synaura_app,EXECUTE,f
+public,gin_trgm_consistent,"internal, smallint, text, integer, internal, internal, internal, internal",postgres,PUBLIC,EXECUTE,f
+public,gin_trgm_consistent,"internal, smallint, text, integer, internal, internal, internal, internal",postgres,anon,EXECUTE,f
+public,gin_trgm_consistent,"internal, smallint, text, integer, internal, internal, internal, internal",postgres,authenticated,EXECUTE,f
+public,gin_trgm_consistent,"internal, smallint, text, integer, internal, internal, internal, internal",postgres,postgres,EXECUTE,f
+public,gin_trgm_consistent,"internal, smallint, text, integer, internal, internal, internal, internal",postgres,service_role,EXECUTE,f
+public,gin_trgm_consistent,"internal, smallint, text, integer, internal, internal, internal, internal",postgres,synaura_app,EXECUTE,f
+public,gin_trgm_triconsistent,"internal, smallint, text, integer, internal, internal, internal",postgres,PUBLIC,EXECUTE,f
+public,gin_trgm_triconsistent,"internal, smallint, text, integer, internal, internal, internal",postgres,anon,EXECUTE,f
+public,gin_trgm_triconsistent,"internal, smallint, text, integer, internal, internal, internal",postgres,authenticated,EXECUTE,f
+public,gin_trgm_triconsistent,"internal, smallint, text, integer, internal, internal, internal",postgres,postgres,EXECUTE,f
+public,gin_trgm_triconsistent,"internal, smallint, text, integer, internal, internal, internal",postgres,service_role,EXECUTE,f
+public,gin_trgm_triconsistent,"internal, smallint, text, integer, internal, internal, internal",postgres,synaura_app,EXECUTE,f
+public,gtrgm_compress,internal,postgres,PUBLIC,EXECUTE,f
+public,gtrgm_compress,internal,postgres,anon,EXECUTE,f
+public,gtrgm_compress,internal,postgres,authenticated,EXECUTE,f
+public,gtrgm_compress,internal,postgres,postgres,EXECUTE,f
+public,gtrgm_compress,internal,postgres,service_role,EXECUTE,f
+public,gtrgm_compress,internal,postgres,synaura_app,EXECUTE,f
+public,gtrgm_consistent,"internal, text, smallint, oid, internal",postgres,PUBLIC,EXECUTE,f
+public,gtrgm_consistent,"internal, text, smallint, oid, internal",postgres,anon,EXECUTE,f
+public,gtrgm_consistent,"internal, text, smallint, oid, internal",postgres,authenticated,EXECUTE,f
+public,gtrgm_consistent,"internal, text, smallint, oid, internal",postgres,postgres,EXECUTE,f
+public,gtrgm_consistent,"internal, text, smallint, oid, internal",postgres,service_role,EXECUTE,f
+public,gtrgm_consistent,"internal, text, smallint, oid, internal",postgres,synaura_app,EXECUTE,f
+public,gtrgm_decompress,internal,postgres,PUBLIC,EXECUTE,f
+public,gtrgm_decompress,internal,postgres,anon,EXECUTE,f
+public,gtrgm_decompress,internal,postgres,authenticated,EXECUTE,f
+public,gtrgm_decompress,internal,postgres,postgres,EXECUTE,f
+public,gtrgm_decompress,internal,postgres,service_role,EXECUTE,f
+public,gtrgm_decompress,internal,postgres,synaura_app,EXECUTE,f
+public,gtrgm_distance,"internal, text, smallint, oid, internal",postgres,PUBLIC,EXECUTE,f
+public,gtrgm_distance,"internal, text, smallint, oid, internal",postgres,anon,EXECUTE,f
+public,gtrgm_distance,"internal, text, smallint, oid, internal",postgres,authenticated,EXECUTE,f
+public,gtrgm_distance,"internal, text, smallint, oid, internal",postgres,postgres,EXECUTE,f
+public,gtrgm_distance,"internal, text, smallint, oid, internal",postgres,service_role,EXECUTE,f
+public,gtrgm_distance,"internal, text, smallint, oid, internal",postgres,synaura_app,EXECUTE,f
+public,gtrgm_in,cstring,postgres,PUBLIC,EXECUTE,f
+public,gtrgm_in,cstring,postgres,anon,EXECUTE,f
+public,gtrgm_in,cstring,postgres,authenticated,EXECUTE,f
+public,gtrgm_in,cstring,postgres,postgres,EXECUTE,f
+public,gtrgm_in,cstring,postgres,service_role,EXECUTE,f
+public,gtrgm_in,cstring,postgres,synaura_app,EXECUTE,f
+public,gtrgm_options,internal,postgres,PUBLIC,EXECUTE,f
+public,gtrgm_options,internal,postgres,anon,EXECUTE,f
+public,gtrgm_options,internal,postgres,authenticated,EXECUTE,f
+public,gtrgm_options,internal,postgres,postgres,EXECUTE,f
+public,gtrgm_options,internal,postgres,service_role,EXECUTE,f
+public,gtrgm_options,internal,postgres,synaura_app,EXECUTE,f
+public,gtrgm_out,gtrgm,postgres,PUBLIC,EXECUTE,f
+public,gtrgm_out,gtrgm,postgres,anon,EXECUTE,f
+public,gtrgm_out,gtrgm,postgres,authenticated,EXECUTE,f
+public,gtrgm_out,gtrgm,postgres,postgres,EXECUTE,f
+public,gtrgm_out,gtrgm,postgres,service_role,EXECUTE,f
+public,gtrgm_out,gtrgm,postgres,synaura_app,EXECUTE,f
+public,gtrgm_penalty,"internal, internal, internal",postgres,PUBLIC,EXECUTE,f
+public,gtrgm_penalty,"internal, internal, internal",postgres,anon,EXECUTE,f
+public,gtrgm_penalty,"internal, internal, internal",postgres,authenticated,EXECUTE,f
+public,gtrgm_penalty,"internal, internal, internal",postgres,postgres,EXECUTE,f
+public,gtrgm_penalty,"internal, internal, internal",postgres,service_role,EXECUTE,f
+public,gtrgm_penalty,"internal, internal, internal",postgres,synaura_app,EXECUTE,f
+public,gtrgm_picksplit,"internal, internal",postgres,PUBLIC,EXECUTE,f
+public,gtrgm_picksplit,"internal, internal",postgres,anon,EXECUTE,f
+public,gtrgm_picksplit,"internal, internal",postgres,authenticated,EXECUTE,f
+public,gtrgm_picksplit,"internal, internal",postgres,postgres,EXECUTE,f
+public,gtrgm_picksplit,"internal, internal",postgres,service_role,EXECUTE,f
+public,gtrgm_picksplit,"internal, internal",postgres,synaura_app,EXECUTE,f
+public,gtrgm_same,"gtrgm, gtrgm, internal",postgres,PUBLIC,EXECUTE,f
+public,gtrgm_same,"gtrgm, gtrgm, internal",postgres,anon,EXECUTE,f
+public,gtrgm_same,"gtrgm, gtrgm, internal",postgres,authenticated,EXECUTE,f
+public,gtrgm_same,"gtrgm, gtrgm, internal",postgres,postgres,EXECUTE,f
+public,gtrgm_same,"gtrgm, gtrgm, internal",postgres,service_role,EXECUTE,f
+public,gtrgm_same,"gtrgm, gtrgm, internal",postgres,synaura_app,EXECUTE,f
+public,gtrgm_union,"internal, internal",postgres,PUBLIC,EXECUTE,f
+public,gtrgm_union,"internal, internal",postgres,anon,EXECUTE,f
+public,gtrgm_union,"internal, internal",postgres,authenticated,EXECUTE,f
+public,gtrgm_union,"internal, internal",postgres,postgres,EXECUTE,f
+public,gtrgm_union,"internal, internal",postgres,service_role,EXECUTE,f
+public,gtrgm_union,"internal, internal",postgres,synaura_app,EXECUTE,f
+public,increment_ai_usage,user_uuid uuid,postgres,PUBLIC,EXECUTE,f
+public,increment_ai_usage,user_uuid uuid,postgres,anon,EXECUTE,f
+public,increment_ai_usage,user_uuid uuid,postgres,authenticated,EXECUTE,f
+public,increment_ai_usage,user_uuid uuid,postgres,postgres,EXECUTE,f
+public,increment_ai_usage,user_uuid uuid,postgres,service_role,EXECUTE,f
+public,increment_ai_usage,user_uuid uuid,postgres,synaura_app,EXECUTE,f
+public,move_profile_email_to_private,,postgres,postgres,EXECUTE,f
+public,move_profile_email_to_private,,postgres,service_role,EXECUTE,f
+public,move_profile_email_to_private,,postgres,synaura_app,EXECUTE,f
+public,record_track_view,"p_track_id text, p_user_id uuid, p_ip_address inet, p_user_agent text",postgres,PUBLIC,EXECUTE,f
+public,record_track_view,"p_track_id text, p_user_id uuid, p_ip_address inet, p_user_agent text",postgres,anon,EXECUTE,f
+public,record_track_view,"p_track_id text, p_user_id uuid, p_ip_address inet, p_user_agent text",postgres,authenticated,EXECUTE,f
+public,record_track_view,"p_track_id text, p_user_id uuid, p_ip_address inet, p_user_agent text",postgres,postgres,EXECUTE,f
+public,record_track_view,"p_track_id text, p_user_id uuid, p_ip_address inet, p_user_agent text",postgres,service_role,EXECUTE,f
+public,record_track_view,"p_track_id text, p_user_id uuid, p_ip_address inet, p_user_agent text",postgres,synaura_app,EXECUTE,f
+public,require_city_battle_winner_vote,,postgres,PUBLIC,EXECUTE,f
+public,require_city_battle_winner_vote,,postgres,anon,EXECUTE,f
+public,require_city_battle_winner_vote,,postgres,authenticated,EXECUTE,f
+public,require_city_battle_winner_vote,,postgres,postgres,EXECUTE,f
+public,require_city_battle_winner_vote,,postgres,service_role,EXECUTE,f
+public,require_city_battle_winner_vote,,postgres,synaura_app,EXECUTE,f
+public,search_tracks,search_query text,postgres,PUBLIC,EXECUTE,f
+public,search_tracks,search_query text,postgres,anon,EXECUTE,f
+public,search_tracks,search_query text,postgres,authenticated,EXECUTE,f
+public,search_tracks,search_query text,postgres,postgres,EXECUTE,f
+public,search_tracks,search_query text,postgres,service_role,EXECUTE,f
+public,search_tracks,search_query text,postgres,synaura_app,EXECUTE,f
+public,set_city_updated_at,,postgres,postgres,EXECUTE,f
+public,set_city_updated_at,,postgres,service_role,EXECUTE,f
+public,set_city_updated_at,,postgres,synaura_app,EXECUTE,f
+public,set_limit,real,postgres,PUBLIC,EXECUTE,f
+public,set_limit,real,postgres,anon,EXECUTE,f
+public,set_limit,real,postgres,authenticated,EXECUTE,f
+public,set_limit,real,postgres,postgres,EXECUTE,f
+public,set_limit,real,postgres,service_role,EXECUTE,f
+public,set_limit,real,postgres,synaura_app,EXECUTE,f
+public,set_updated_at,,postgres,PUBLIC,EXECUTE,f
+public,set_updated_at,,postgres,anon,EXECUTE,f
+public,set_updated_at,,postgres,authenticated,EXECUTE,f
+public,set_updated_at,,postgres,postgres,EXECUTE,f
+public,set_updated_at,,postgres,service_role,EXECUTE,f
+public,set_updated_at,,postgres,synaura_app,EXECUTE,f
+public,show_limit,,postgres,PUBLIC,EXECUTE,f
+public,show_limit,,postgres,anon,EXECUTE,f
+public,show_limit,,postgres,authenticated,EXECUTE,f
+public,show_limit,,postgres,postgres,EXECUTE,f
+public,show_limit,,postgres,service_role,EXECUTE,f
+public,show_limit,,postgres,synaura_app,EXECUTE,f
+public,show_trgm,text,postgres,PUBLIC,EXECUTE,f
+public,show_trgm,text,postgres,anon,EXECUTE,f
+public,show_trgm,text,postgres,authenticated,EXECUTE,f
+public,show_trgm,text,postgres,postgres,EXECUTE,f
+public,show_trgm,text,postgres,service_role,EXECUTE,f
+public,show_trgm,text,postgres,synaura_app,EXECUTE,f
+public,similarity,"text, text",postgres,PUBLIC,EXECUTE,f
+public,similarity,"text, text",postgres,anon,EXECUTE,f
+public,similarity,"text, text",postgres,authenticated,EXECUTE,f
+public,similarity,"text, text",postgres,postgres,EXECUTE,f
+public,similarity,"text, text",postgres,service_role,EXECUTE,f
+public,similarity,"text, text",postgres,synaura_app,EXECUTE,f
+public,similarity_dist,"text, text",postgres,PUBLIC,EXECUTE,f
+public,similarity_dist,"text, text",postgres,anon,EXECUTE,f
+public,similarity_dist,"text, text",postgres,authenticated,EXECUTE,f
+public,similarity_dist,"text, text",postgres,postgres,EXECUTE,f
+public,similarity_dist,"text, text",postgres,service_role,EXECUTE,f
+public,similarity_dist,"text, text",postgres,synaura_app,EXECUTE,f
+public,similarity_op,"text, text",postgres,PUBLIC,EXECUTE,f
+public,similarity_op,"text, text",postgres,anon,EXECUTE,f
+public,similarity_op,"text, text",postgres,authenticated,EXECUTE,f
+public,similarity_op,"text, text",postgres,postgres,EXECUTE,f
+public,similarity_op,"text, text",postgres,service_role,EXECUTE,f
+public,similarity_op,"text, text",postgres,synaura_app,EXECUTE,f
+public,strict_word_similarity,"text, text",postgres,PUBLIC,EXECUTE,f
+public,strict_word_similarity,"text, text",postgres,anon,EXECUTE,f
+public,strict_word_similarity,"text, text",postgres,authenticated,EXECUTE,f
+public,strict_word_similarity,"text, text",postgres,postgres,EXECUTE,f
+public,strict_word_similarity,"text, text",postgres,service_role,EXECUTE,f
+public,strict_word_similarity,"text, text",postgres,synaura_app,EXECUTE,f
+public,strict_word_similarity_commutator_op,"text, text",postgres,PUBLIC,EXECUTE,f
+public,strict_word_similarity_commutator_op,"text, text",postgres,anon,EXECUTE,f
+public,strict_word_similarity_commutator_op,"text, text",postgres,authenticated,EXECUTE,f
+public,strict_word_similarity_commutator_op,"text, text",postgres,postgres,EXECUTE,f
+public,strict_word_similarity_commutator_op,"text, text",postgres,service_role,EXECUTE,f
+public,strict_word_similarity_commutator_op,"text, text",postgres,synaura_app,EXECUTE,f
+public,strict_word_similarity_dist_commutator_op,"text, text",postgres,PUBLIC,EXECUTE,f
+public,strict_word_similarity_dist_commutator_op,"text, text",postgres,anon,EXECUTE,f
+public,strict_word_similarity_dist_commutator_op,"text, text",postgres,authenticated,EXECUTE,f
+public,strict_word_similarity_dist_commutator_op,"text, text",postgres,postgres,EXECUTE,f
+public,strict_word_similarity_dist_commutator_op,"text, text",postgres,service_role,EXECUTE,f
+public,strict_word_similarity_dist_commutator_op,"text, text",postgres,synaura_app,EXECUTE,f
+public,strict_word_similarity_dist_op,"text, text",postgres,PUBLIC,EXECUTE,f
+public,strict_word_similarity_dist_op,"text, text",postgres,anon,EXECUTE,f
+public,strict_word_similarity_dist_op,"text, text",postgres,authenticated,EXECUTE,f
+public,strict_word_similarity_dist_op,"text, text",postgres,postgres,EXECUTE,f
+public,strict_word_similarity_dist_op,"text, text",postgres,service_role,EXECUTE,f
+public,strict_word_similarity_dist_op,"text, text",postgres,synaura_app,EXECUTE,f
+public,strict_word_similarity_op,"text, text",postgres,PUBLIC,EXECUTE,f
+public,strict_word_similarity_op,"text, text",postgres,anon,EXECUTE,f
+public,strict_word_similarity_op,"text, text",postgres,authenticated,EXECUTE,f
+public,strict_word_similarity_op,"text, text",postgres,postgres,EXECUTE,f
+public,strict_word_similarity_op,"text, text",postgres,service_role,EXECUTE,f
+public,strict_word_similarity_op,"text, text",postgres,synaura_app,EXECUTE,f
+public,synaura_cleanup_realtime_events,,postgres,postgres,EXECUTE,f
+public,synaura_cleanup_realtime_events,,postgres,service_role,EXECUTE,f
+public,synaura_cleanup_realtime_events,,postgres,synaura_app,EXECUTE,f
+public,synaura_sync_message_relation,,postgres,postgres,EXECUTE,f
+public,synaura_sync_message_relation,,postgres,service_role,EXECUTE,f
+public,synaura_sync_message_relation,,postgres,synaura_app,EXECUTE,f
+public,synaura_touch_conversation,,postgres,postgres,EXECUTE,f
+public,synaura_touch_conversation,,postgres,service_role,EXECUTE,f
+public,synaura_touch_conversation,,postgres,synaura_app,EXECUTE,f
+public,toggle_track_like,"p_track_id text, p_user_id uuid",postgres,PUBLIC,EXECUTE,f
+public,toggle_track_like,"p_track_id text, p_user_id uuid",postgres,anon,EXECUTE,f
+public,toggle_track_like,"p_track_id text, p_user_id uuid",postgres,authenticated,EXECUTE,f
+public,toggle_track_like,"p_track_id text, p_user_id uuid",postgres,postgres,EXECUTE,f
+public,toggle_track_like,"p_track_id text, p_user_id uuid",postgres,service_role,EXECUTE,f
+public,toggle_track_like,"p_track_id text, p_user_id uuid",postgres,synaura_app,EXECUTE,f
+public,touch_account_private_updated_at,,postgres,postgres,EXECUTE,f
+public,touch_account_private_updated_at,,postgres,service_role,EXECUTE,f
+public,touch_account_private_updated_at,,postgres,synaura_app,EXECUTE,f
+public,touch_editorial_collections_updated_at,,postgres,PUBLIC,EXECUTE,f
+public,touch_editorial_collections_updated_at,,postgres,anon,EXECUTE,f
+public,touch_editorial_collections_updated_at,,postgres,authenticated,EXECUTE,f
+public,touch_editorial_collections_updated_at,,postgres,postgres,EXECUTE,f
+public,touch_editorial_collections_updated_at,,postgres,service_role,EXECUTE,f
+public,touch_editorial_collections_updated_at,,postgres,synaura_app,EXECUTE,f
+public,touch_music_clips_updated_at,,postgres,PUBLIC,EXECUTE,f
+public,touch_music_clips_updated_at,,postgres,anon,EXECUTE,f
+public,touch_music_clips_updated_at,,postgres,authenticated,EXECUTE,f
+public,touch_music_clips_updated_at,,postgres,postgres,EXECUTE,f
+public,touch_music_clips_updated_at,,postgres,service_role,EXECUTE,f
+public,touch_music_clips_updated_at,,postgres,synaura_app,EXECUTE,f
+public,trg_track_likes_after_delete,,postgres,PUBLIC,EXECUTE,f
+public,trg_track_likes_after_delete,,postgres,anon,EXECUTE,f
+public,trg_track_likes_after_delete,,postgres,authenticated,EXECUTE,f
+public,trg_track_likes_after_delete,,postgres,postgres,EXECUTE,f
+public,trg_track_likes_after_delete,,postgres,service_role,EXECUTE,f
+public,trg_track_likes_after_delete,,postgres,synaura_app,EXECUTE,f
+public,trg_track_likes_after_insert,,postgres,PUBLIC,EXECUTE,f
+public,trg_track_likes_after_insert,,postgres,anon,EXECUTE,f
+public,trg_track_likes_after_insert,,postgres,authenticated,EXECUTE,f
+public,trg_track_likes_after_insert,,postgres,postgres,EXECUTE,f
+public,trg_track_likes_after_insert,,postgres,service_role,EXECUTE,f
+public,trg_track_likes_after_insert,,postgres,synaura_app,EXECUTE,f
+public,trg_track_views_after_insert,,postgres,PUBLIC,EXECUTE,f
+public,trg_track_views_after_insert,,postgres,anon,EXECUTE,f
+public,trg_track_views_after_insert,,postgres,authenticated,EXECUTE,f
+public,trg_track_views_after_insert,,postgres,postgres,EXECUTE,f
+public,trg_track_views_after_insert,,postgres,service_role,EXECUTE,f
+public,trg_track_views_after_insert,,postgres,synaura_app,EXECUTE,f
+public,trigger_update_follow_counts,,postgres,PUBLIC,EXECUTE,f
+public,trigger_update_follow_counts,,postgres,anon,EXECUTE,f
+public,trigger_update_follow_counts,,postgres,authenticated,EXECUTE,f
+public,trigger_update_follow_counts,,postgres,postgres,EXECUTE,f
+public,trigger_update_follow_counts,,postgres,service_role,EXECUTE,f
+public,trigger_update_follow_counts,,postgres,synaura_app,EXECUTE,f
+public,update_ai_usage_stats,,postgres,PUBLIC,EXECUTE,f
+public,update_ai_usage_stats,,postgres,anon,EXECUTE,f
+public,update_ai_usage_stats,,postgres,authenticated,EXECUTE,f
+public,update_ai_usage_stats,,postgres,postgres,EXECUTE,f
+public,update_ai_usage_stats,,postgres,service_role,EXECUTE,f
+public,update_ai_usage_stats,,postgres,synaura_app,EXECUTE,f
+public,update_comment_likes_count,,postgres,PUBLIC,EXECUTE,f
+public,update_comment_likes_count,,postgres,anon,EXECUTE,f
+public,update_comment_likes_count,,postgres,authenticated,EXECUTE,f
+public,update_comment_likes_count,,postgres,postgres,EXECUTE,f
+public,update_comment_likes_count,,postgres,service_role,EXECUTE,f
+public,update_comment_likes_count,,postgres,synaura_app,EXECUTE,f
+public,update_follow_counts,user_id uuid,postgres,PUBLIC,EXECUTE,f
+public,update_follow_counts,user_id uuid,postgres,anon,EXECUTE,f
+public,update_follow_counts,user_id uuid,postgres,authenticated,EXECUTE,f
+public,update_follow_counts,user_id uuid,postgres,postgres,EXECUTE,f
+public,update_follow_counts,user_id uuid,postgres,service_role,EXECUTE,f
+public,update_follow_counts,user_id uuid,postgres,synaura_app,EXECUTE,f
+public,update_forum_post_likes_count,,postgres,PUBLIC,EXECUTE,f
+public,update_forum_post_likes_count,,postgres,anon,EXECUTE,f
+public,update_forum_post_likes_count,,postgres,authenticated,EXECUTE,f
+public,update_forum_post_likes_count,,postgres,postgres,EXECUTE,f
+public,update_forum_post_likes_count,,postgres,service_role,EXECUTE,f
+public,update_forum_post_likes_count,,postgres,synaura_app,EXECUTE,f
+public,update_forum_post_replies_count,,postgres,PUBLIC,EXECUTE,f
+public,update_forum_post_replies_count,,postgres,anon,EXECUTE,f
+public,update_forum_post_replies_count,,postgres,authenticated,EXECUTE,f
+public,update_forum_post_replies_count,,postgres,postgres,EXECUTE,f
+public,update_forum_post_replies_count,,postgres,service_role,EXECUTE,f
+public,update_forum_post_replies_count,,postgres,synaura_app,EXECUTE,f
+public,update_forum_reply_likes_count,,postgres,PUBLIC,EXECUTE,f
+public,update_forum_reply_likes_count,,postgres,anon,EXECUTE,f
+public,update_forum_reply_likes_count,,postgres,authenticated,EXECUTE,f
+public,update_forum_reply_likes_count,,postgres,postgres,EXECUTE,f
+public,update_forum_reply_likes_count,,postgres,service_role,EXECUTE,f
+public,update_forum_reply_likes_count,,postgres,synaura_app,EXECUTE,f
+public,update_meteo_bulletins_updated_at,,postgres,PUBLIC,EXECUTE,f
+public,update_meteo_bulletins_updated_at,,postgres,anon,EXECUTE,f
+public,update_meteo_bulletins_updated_at,,postgres,authenticated,EXECUTE,f
+public,update_meteo_bulletins_updated_at,,postgres,postgres,EXECUTE,f
+public,update_meteo_bulletins_updated_at,,postgres,service_role,EXECUTE,f
+public,update_meteo_bulletins_updated_at,,postgres,synaura_app,EXECUTE,f
+public,update_music_challenges_updated_at,,postgres,PUBLIC,EXECUTE,f
+public,update_music_challenges_updated_at,,postgres,anon,EXECUTE,f
+public,update_music_challenges_updated_at,,postgres,authenticated,EXECUTE,f
+public,update_music_challenges_updated_at,,postgres,postgres,EXECUTE,f
+public,update_music_challenges_updated_at,,postgres,service_role,EXECUTE,f
+public,update_music_challenges_updated_at,,postgres,synaura_app,EXECUTE,f
+public,update_sa_staff_updated_at,,postgres,PUBLIC,EXECUTE,f
+public,update_sa_staff_updated_at,,postgres,anon,EXECUTE,f
+public,update_sa_staff_updated_at,,postgres,authenticated,EXECUTE,f
+public,update_sa_staff_updated_at,,postgres,postgres,EXECUTE,f
+public,update_sa_staff_updated_at,,postgres,service_role,EXECUTE,f
+public,update_sa_staff_updated_at,,postgres,synaura_app,EXECUTE,f
+public,update_sa_updated_at,,postgres,PUBLIC,EXECUTE,f
+public,update_sa_updated_at,,postgres,anon,EXECUTE,f
+public,update_sa_updated_at,,postgres,authenticated,EXECUTE,f
+public,update_sa_updated_at,,postgres,postgres,EXECUTE,f
+public,update_sa_updated_at,,postgres,service_role,EXECUTE,f
+public,update_sa_updated_at,,postgres,synaura_app,EXECUTE,f
+public,update_track_likes_count,,postgres,PUBLIC,EXECUTE,f
+public,update_track_likes_count,,postgres,anon,EXECUTE,f
+public,update_track_likes_count,,postgres,authenticated,EXECUTE,f
+public,update_track_likes_count,,postgres,postgres,EXECUTE,f
+public,update_track_likes_count,,postgres,service_role,EXECUTE,f
+public,update_track_likes_count,,postgres,synaura_app,EXECUTE,f
+public,update_track_views_count,,postgres,PUBLIC,EXECUTE,f
+public,update_track_views_count,,postgres,anon,EXECUTE,f
+public,update_track_views_count,,postgres,authenticated,EXECUTE,f
+public,update_track_views_count,,postgres,postgres,EXECUTE,f
+public,update_track_views_count,,postgres,service_role,EXECUTE,f
+public,update_track_views_count,,postgres,synaura_app,EXECUTE,f
+public,update_updated_at_column,,postgres,PUBLIC,EXECUTE,f
+public,update_updated_at_column,,postgres,anon,EXECUTE,f
+public,update_updated_at_column,,postgres,authenticated,EXECUTE,f
+public,update_updated_at_column,,postgres,postgres,EXECUTE,f
+public,update_updated_at_column,,postgres,service_role,EXECUTE,f
+public,update_updated_at_column,,postgres,synaura_app,EXECUTE,f
+public,validate_account_private_birth_date,,postgres,postgres,EXECUTE,f
+public,validate_account_private_birth_date,,postgres,service_role,EXECUTE,f
+public,validate_account_private_birth_date,,postgres,synaura_app,EXECUTE,f
+public,word_similarity,"text, text",postgres,PUBLIC,EXECUTE,f
+public,word_similarity,"text, text",postgres,anon,EXECUTE,f
+public,word_similarity,"text, text",postgres,authenticated,EXECUTE,f
+public,word_similarity,"text, text",postgres,postgres,EXECUTE,f
+public,word_similarity,"text, text",postgres,service_role,EXECUTE,f
+public,word_similarity,"text, text",postgres,synaura_app,EXECUTE,f
+public,word_similarity_commutator_op,"text, text",postgres,PUBLIC,EXECUTE,f
+public,word_similarity_commutator_op,"text, text",postgres,anon,EXECUTE,f
+public,word_similarity_commutator_op,"text, text",postgres,authenticated,EXECUTE,f
+public,word_similarity_commutator_op,"text, text",postgres,postgres,EXECUTE,f
+public,word_similarity_commutator_op,"text, text",postgres,service_role,EXECUTE,f
+public,word_similarity_commutator_op,"text, text",postgres,synaura_app,EXECUTE,f
+public,word_similarity_dist_commutator_op,"text, text",postgres,PUBLIC,EXECUTE,f
+public,word_similarity_dist_commutator_op,"text, text",postgres,anon,EXECUTE,f
+public,word_similarity_dist_commutator_op,"text, text",postgres,authenticated,EXECUTE,f
+public,word_similarity_dist_commutator_op,"text, text",postgres,postgres,EXECUTE,f
+public,word_similarity_dist_commutator_op,"text, text",postgres,service_role,EXECUTE,f
+public,word_similarity_dist_commutator_op,"text, text",postgres,synaura_app,EXECUTE,f
+public,word_similarity_dist_op,"text, text",postgres,PUBLIC,EXECUTE,f
+public,word_similarity_dist_op,"text, text",postgres,anon,EXECUTE,f
+public,word_similarity_dist_op,"text, text",postgres,authenticated,EXECUTE,f
+public,word_similarity_dist_op,"text, text",postgres,postgres,EXECUTE,f
+public,word_similarity_dist_op,"text, text",postgres,service_role,EXECUTE,f
+public,word_similarity_dist_op,"text, text",postgres,synaura_app,EXECUTE,f
+public,word_similarity_op,"text, text",postgres,PUBLIC,EXECUTE,f
+public,word_similarity_op,"text, text",postgres,anon,EXECUTE,f
+public,word_similarity_op,"text, text",postgres,authenticated,EXECUTE,f
+public,word_similarity_op,"text, text",postgres,postgres,EXECUTE,f
+public,word_similarity_op,"text, text",postgres,service_role,EXECUTE,f
+public,word_similarity_op,"text, text",postgres,synaura_app,EXECUTE,f
+realtime,apply_rls,"wal jsonb, max_record_bytes integer",supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,apply_rls,"wal jsonb, max_record_bytes integer",supabase_realtime_admin,anon,EXECUTE,f
+realtime,apply_rls,"wal jsonb, max_record_bytes integer",supabase_realtime_admin,authenticated,EXECUTE,f
+realtime,apply_rls,"wal jsonb, max_record_bytes integer",supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,apply_rls,"wal jsonb, max_record_bytes integer",supabase_realtime_admin,postgres,EXECUTE,f
+realtime,apply_rls,"wal jsonb, max_record_bytes integer",supabase_realtime_admin,service_role,EXECUTE,f
+realtime,apply_rls,"wal jsonb, max_record_bytes integer",supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+realtime,broadcast_changes,"topic_name text, event_name text, operation text, table_name text, table_schema text, new record, old record, level text",supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,broadcast_changes,"topic_name text, event_name text, operation text, table_name text, table_schema text, new record, old record, level text",supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,broadcast_changes,"topic_name text, event_name text, operation text, table_name text, table_schema text, new record, old record, level text",supabase_realtime_admin,postgres,EXECUTE,f
+realtime,broadcast_changes,"topic_name text, event_name text, operation text, table_name text, table_schema text, new record, old record, level text",supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+realtime,build_prepared_statement_sql,"prepared_statement_name text, entity regclass, columns realtime.wal_column[]",supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,build_prepared_statement_sql,"prepared_statement_name text, entity regclass, columns realtime.wal_column[]",supabase_realtime_admin,anon,EXECUTE,f
+realtime,build_prepared_statement_sql,"prepared_statement_name text, entity regclass, columns realtime.wal_column[]",supabase_realtime_admin,authenticated,EXECUTE,f
+realtime,build_prepared_statement_sql,"prepared_statement_name text, entity regclass, columns realtime.wal_column[]",supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,build_prepared_statement_sql,"prepared_statement_name text, entity regclass, columns realtime.wal_column[]",supabase_realtime_admin,postgres,EXECUTE,f
+realtime,build_prepared_statement_sql,"prepared_statement_name text, entity regclass, columns realtime.wal_column[]",supabase_realtime_admin,service_role,EXECUTE,f
+realtime,build_prepared_statement_sql,"prepared_statement_name text, entity regclass, columns realtime.wal_column[]",supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+realtime,cast,"val text, type_ regtype",supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,cast,"val text, type_ regtype",supabase_realtime_admin,anon,EXECUTE,f
+realtime,cast,"val text, type_ regtype",supabase_realtime_admin,authenticated,EXECUTE,f
+realtime,cast,"val text, type_ regtype",supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,cast,"val text, type_ regtype",supabase_realtime_admin,postgres,EXECUTE,f
+realtime,cast,"val text, type_ regtype",supabase_realtime_admin,service_role,EXECUTE,f
+realtime,cast,"val text, type_ regtype",supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+realtime,check_equality_op,"op realtime.equality_op, type_ regtype, val_1 text, val_2 text",supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,check_equality_op,"op realtime.equality_op, type_ regtype, val_1 text, val_2 text",supabase_realtime_admin,anon,EXECUTE,f
+realtime,check_equality_op,"op realtime.equality_op, type_ regtype, val_1 text, val_2 text",supabase_realtime_admin,authenticated,EXECUTE,f
+realtime,check_equality_op,"op realtime.equality_op, type_ regtype, val_1 text, val_2 text",supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,check_equality_op,"op realtime.equality_op, type_ regtype, val_1 text, val_2 text",supabase_realtime_admin,postgres,EXECUTE,f
+realtime,check_equality_op,"op realtime.equality_op, type_ regtype, val_1 text, val_2 text",supabase_realtime_admin,service_role,EXECUTE,f
+realtime,check_equality_op,"op realtime.equality_op, type_ regtype, val_1 text, val_2 text",supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+realtime,check_equality_op,"op realtime.equality_op, type_ regtype, val_1 text, val_2 text, negate boolean",supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,check_equality_op,"op realtime.equality_op, type_ regtype, val_1 text, val_2 text, negate boolean",supabase_realtime_admin,anon,EXECUTE,f
+realtime,check_equality_op,"op realtime.equality_op, type_ regtype, val_1 text, val_2 text, negate boolean",supabase_realtime_admin,authenticated,EXECUTE,f
+realtime,check_equality_op,"op realtime.equality_op, type_ regtype, val_1 text, val_2 text, negate boolean",supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,check_equality_op,"op realtime.equality_op, type_ regtype, val_1 text, val_2 text, negate boolean",supabase_realtime_admin,postgres,EXECUTE,f
+realtime,check_equality_op,"op realtime.equality_op, type_ regtype, val_1 text, val_2 text, negate boolean",supabase_realtime_admin,service_role,EXECUTE,f
+realtime,check_equality_op,"op realtime.equality_op, type_ regtype, val_1 text, val_2 text, negate boolean",supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+realtime,is_visible_through_filters,"columns realtime.wal_column[], filters realtime.user_defined_filter[]",supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,is_visible_through_filters,"columns realtime.wal_column[], filters realtime.user_defined_filter[]",supabase_realtime_admin,anon,EXECUTE,f
+realtime,is_visible_through_filters,"columns realtime.wal_column[], filters realtime.user_defined_filter[]",supabase_realtime_admin,authenticated,EXECUTE,f
+realtime,is_visible_through_filters,"columns realtime.wal_column[], filters realtime.user_defined_filter[]",supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,is_visible_through_filters,"columns realtime.wal_column[], filters realtime.user_defined_filter[]",supabase_realtime_admin,postgres,EXECUTE,f
+realtime,is_visible_through_filters,"columns realtime.wal_column[], filters realtime.user_defined_filter[]",supabase_realtime_admin,service_role,EXECUTE,f
+realtime,is_visible_through_filters,"columns realtime.wal_column[], filters realtime.user_defined_filter[]",supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+realtime,list_changes,"publication name, slot_name name, max_changes integer, max_record_bytes integer",supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,list_changes,"publication name, slot_name name, max_changes integer, max_record_bytes integer",supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,list_changes,"publication name, slot_name name, max_changes integer, max_record_bytes integer",supabase_realtime_admin,postgres,EXECUTE,f
+realtime,list_changes,"publication name, slot_name name, max_changes integer, max_record_bytes integer",supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+realtime,quote_wal2json,entity regclass,supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,quote_wal2json,entity regclass,supabase_realtime_admin,anon,EXECUTE,f
+realtime,quote_wal2json,entity regclass,supabase_realtime_admin,authenticated,EXECUTE,f
+realtime,quote_wal2json,entity regclass,supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,quote_wal2json,entity regclass,supabase_realtime_admin,postgres,EXECUTE,f
+realtime,quote_wal2json,entity regclass,supabase_realtime_admin,service_role,EXECUTE,f
+realtime,quote_wal2json,entity regclass,supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+realtime,send,"payload jsonb, event text, topic text, private boolean",supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,send,"payload jsonb, event text, topic text, private boolean",supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,send,"payload jsonb, event text, topic text, private boolean",supabase_realtime_admin,postgres,EXECUTE,f
+realtime,send,"payload jsonb, event text, topic text, private boolean",supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+realtime,send_binary,"payload bytea, event text, topic text, private boolean",supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,send_binary,"payload bytea, event text, topic text, private boolean",supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,send_binary,"payload bytea, event text, topic text, private boolean",supabase_realtime_admin,postgres,EXECUTE,f
+realtime,send_binary,"payload bytea, event text, topic text, private boolean",supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+realtime,subscription_check_filters,,supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,subscription_check_filters,,supabase_realtime_admin,anon,EXECUTE,f
+realtime,subscription_check_filters,,supabase_realtime_admin,authenticated,EXECUTE,f
+realtime,subscription_check_filters,,supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,subscription_check_filters,,supabase_realtime_admin,postgres,EXECUTE,f
+realtime,subscription_check_filters,,supabase_realtime_admin,service_role,EXECUTE,f
+realtime,subscription_check_filters,,supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+realtime,to_regrole,role_name text,supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,to_regrole,role_name text,supabase_realtime_admin,anon,EXECUTE,f
+realtime,to_regrole,role_name text,supabase_realtime_admin,authenticated,EXECUTE,f
+realtime,to_regrole,role_name text,supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,to_regrole,role_name text,supabase_realtime_admin,postgres,EXECUTE,f
+realtime,to_regrole,role_name text,supabase_realtime_admin,service_role,EXECUTE,f
+realtime,to_regrole,role_name text,supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+realtime,topic,,supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,topic,,supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,topic,,supabase_realtime_admin,postgres,EXECUTE,f
+realtime,topic,,supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+realtime,wal2json_escape_identifier,name text,supabase_realtime_admin,PUBLIC,EXECUTE,f
+realtime,wal2json_escape_identifier,name text,supabase_realtime_admin,dashboard_user,EXECUTE,f
+realtime,wal2json_escape_identifier,name text,supabase_realtime_admin,postgres,EXECUTE,f
+realtime,wal2json_escape_identifier,name text,supabase_realtime_admin,supabase_realtime_admin,EXECUTE,f
+storage,allow_any_operation,expected_operations text[],supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,allow_any_operation,expected_operations text[],supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,allow_only_operation,expected_operation text,supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,allow_only_operation,expected_operation text,supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,can_insert_object,"bucketid text, name text, owner uuid, metadata jsonb",supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,can_insert_object,"bucketid text, name text, owner uuid, metadata jsonb",supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,enforce_bucket_name_length,,supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,enforce_bucket_name_length,,supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,extension,name text,supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,extension,name text,supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,filename,name text,supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,filename,name text,supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,foldername,name text,supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,foldername,name text,supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,get_common_prefix,"p_key text, p_prefix text, p_delimiter text",supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,get_common_prefix,"p_key text, p_prefix text, p_delimiter text",supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,get_size_by_bucket,,supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,get_size_by_bucket,,supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,list_multipart_uploads_with_delimiter,"bucket_id text, prefix_param text, delimiter_param text, max_keys integer, next_key_token text, next_upload_token text",supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,list_multipart_uploads_with_delimiter,"bucket_id text, prefix_param text, delimiter_param text, max_keys integer, next_key_token text, next_upload_token text",supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,list_objects_with_delimiter,"_bucket_id text, prefix_param text, delimiter_param text, max_keys integer, start_after text, next_token text, sort_order text",supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,list_objects_with_delimiter,"_bucket_id text, prefix_param text, delimiter_param text, max_keys integer, start_after text, next_token text, sort_order text",supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,operation,,supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,operation,,supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,protect_delete,,supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,protect_delete,,supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,search,"prefix text, bucketname text, limits integer, levels integer, offsets integer, search text, sortcolumn text, sortorder text",supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,search,"prefix text, bucketname text, limits integer, levels integer, offsets integer, search text, sortcolumn text, sortorder text",supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,search_by_timestamp,"p_prefix text, p_bucket_id text, p_limit integer, p_level integer, p_start_after text, p_sort_order text, p_sort_column text, p_sort_column_after text",supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,search_by_timestamp,"p_prefix text, p_bucket_id text, p_limit integer, p_level integer, p_start_after text, p_sort_order text, p_sort_column text, p_sort_column_after text",supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,search_v2,"prefix text, bucket_name text, limits integer, levels integer, start_after text, sort_order text, sort_column text, sort_column_after text",supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,search_v2,"prefix text, bucket_name text, limits integer, levels integer, start_after text, sort_order text, sort_column text, sort_column_after text",supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+storage,update_updated_at_column,,supabase_storage_admin,PUBLIC,EXECUTE,f
+storage,update_updated_at_column,,supabase_storage_admin,supabase_storage_admin,EXECUTE,f
+synaura_private,is_conversation_member,target_conversation_id text,postgres,authenticated,EXECUTE,f
+synaura_private,is_conversation_member,target_conversation_id text,postgres,postgres,EXECUTE,f

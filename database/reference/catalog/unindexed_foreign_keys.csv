@@ -1,0 +1,42 @@
+schema_name,table_name,constraint_name,foreign_key_columns,target_schema,target_table,definition
+auth,mfa_challenges,mfa_challenges_auth_factor_id_fkey,{factor_id},auth,mfa_factors,FOREIGN KEY (factor_id) REFERENCES auth.mfa_factors(id) ON DELETE CASCADE
+auth,oauth_authorizations,oauth_authorizations_client_id_fkey,{client_id},auth,oauth_clients,FOREIGN KEY (client_id) REFERENCES auth.oauth_clients(id) ON DELETE CASCADE
+auth,oauth_authorizations,oauth_authorizations_user_id_fkey,{user_id},auth,users,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+auth,saml_relay_states,saml_relay_states_flow_state_id_fkey,{flow_state_id},auth,flow_state,FOREIGN KEY (flow_state_id) REFERENCES auth.flow_state(id) ON DELETE CASCADE
+public,active_artist_boosts,active_artist_boosts_booster_id_fkey,{booster_id},public,boosters,FOREIGN KEY (booster_id) REFERENCES boosters(id) ON DELETE RESTRICT
+public,active_artist_boosts,active_artist_boosts_user_id_fkey,{user_id},auth,users,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL
+public,active_track_boosts,active_track_boosts_booster_id_fkey,{booster_id},public,boosters,FOREIGN KEY (booster_id) REFERENCES boosters(id) ON DELETE RESTRICT
+public,active_track_boosts,active_track_boosts_user_id_fkey,{user_id},auth,users,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL
+public,admin_broadcasts,admin_broadcasts_admin_id_fkey,{admin_id},public,profiles,FOREIGN KEY (admin_id) REFERENCES profiles(id) ON DELETE SET NULL
+public,ai_playlist_tracks,ai_playlist_tracks_track_id_fkey,{track_id},public,ai_tracks,FOREIGN KEY (track_id) REFERENCES ai_tracks(id) ON DELETE CASCADE
+public,comment_reactions,comment_reactions_user_id_fkey,{user_id},public,profiles,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,editorial_collections,editorial_collections_created_by_fkey,{created_by},public,profiles,FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL
+public,faq_votes,faq_votes_user_id_fkey,{user_id},auth,users,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+public,follow_requests,follow_requests_target_id_fkey,{target_id},public,profiles,FOREIGN KEY (target_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,forum_post_likes,forum_post_likes_user_id_fkey,{user_id},auth,users,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+public,forum_replies,forum_replies_user_id_fkey,{user_id},auth,users,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+public,forum_reply_likes,forum_reply_likes_user_id_fkey,{user_id},auth,users,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+public,meteo_alerts,meteo_alerts_sent_by_fkey,{sent_by},public,meteo_team_members,FOREIGN KEY (sent_by) REFERENCES meteo_team_members(id)
+public,meteo_settings,meteo_settings_updated_by_fkey,{updated_by},auth,users,FOREIGN KEY (updated_by) REFERENCES auth.users(id)
+public,meteo_team_members,meteo_team_members_invited_by_fkey,{invited_by},auth,users,FOREIGN KEY (invited_by) REFERENCES auth.users(id)
+public,missions,missions_reward_booster_id_fkey,{reward_booster_id},public,boosters,FOREIGN KEY (reward_booster_id) REFERENCES boosters(id) ON DELETE SET NULL
+public,notifications,notifications_sender_id_fkey,{sender_id},public,profiles,FOREIGN KEY (sender_id) REFERENCES profiles(id) ON DELETE SET NULL
+public,password_resets,password_resets_user_id_fkey,{user_id},auth,users,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+public,payments,payments_user_id_fkey,{user_id},public,profiles,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,play_stats,play_stats_track_id_fkey,{track_id},public,tracks,FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
+public,play_stats,play_stats_user_id_fkey,{user_id},public,profiles,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE SET NULL
+public,playlist_tracks,playlist_tracks_track_id_fkey,{track_id},public,tracks,FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
+public,playlists,playlists_creator_id_fkey,{creator_id},public,profiles,FOREIGN KEY (creator_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,post_comments,post_comments_user_id_fkey,{user_id},public,profiles,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,profiles,profiles_referred_by_fkey,{referred_by},public,profiles,FOREIGN KEY (referred_by) REFERENCES profiles(id)
+public,star_academy_applications,star_academy_applications_user_id_fkey,{user_id},auth,users,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL
+public,star_academy_staff_applications,star_academy_staff_applications_user_id_fkey,{user_id},auth,users,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL
+public,subscriptions,subscriptions_user_id_fkey,{user_id},public,profiles,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,support_tickets,support_tickets_user_id_fkey,{user_id},auth,users,FOREIGN KEY (user_id) REFERENCES auth.users(id)
+public,tracks,tracks_user_id_fkey,{user_id},auth,users,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+public,user_booster_open_history,user_booster_open_history_booster_id_fkey,{booster_id},public,boosters,FOREIGN KEY (booster_id) REFERENCES boosters(id) ON DELETE SET NULL
+public,user_boosters,user_boosters_booster_id_fkey,{booster_id},public,boosters,FOREIGN KEY (booster_id) REFERENCES boosters(id) ON DELETE RESTRICT
+public,user_missions,user_missions_mission_id_fkey,{mission_id},public,missions,FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE
+storage,s3_multipart_uploads_parts,s3_multipart_uploads_parts_bucket_id_fkey,{bucket_id},storage,buckets,FOREIGN KEY (bucket_id) REFERENCES storage.buckets(id)
+storage,s3_multipart_uploads_parts,s3_multipart_uploads_parts_upload_id_fkey,{upload_id},storage,s3_multipart_uploads,FOREIGN KEY (upload_id) REFERENCES storage.s3_multipart_uploads(id) ON DELETE CASCADE
+storage,vector_indexes,vector_indexes_bucket_id_fkey,{bucket_id},storage,buckets_vectors,FOREIGN KEY (bucket_id) REFERENCES storage.buckets_vectors(id)
