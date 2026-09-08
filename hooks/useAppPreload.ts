@@ -312,17 +312,26 @@ export function useAppPreload(autoStart = true) {
       // Précharger les premières pistes audio CDN pour le player TikTok (en arrière-plan)
       preloaded.preloadedAudios = audioUrls;
       
-      // Précharger les métadonnées audio pour réchauffer le cache CDN
+      // Réchauffer le cache sans créer une flotte de moteurs Audio secondaires.
       Promise.allSettled(
         audioUrls.map(url => {
           return new Promise<void>((resolve) => {
-            const audio = new Audio();
-            audio.crossOrigin = 'anonymous';
-            audio.preload = 'metadata'; // Précharger seulement les métadonnées
-            audio.onloadedmetadata = () => resolve();
-            audio.onerror = () => resolve();
-            audio.src = url;
-            setTimeout(() => resolve(), 3000); // Timeout réduit
+            const link = document.createElement('link');
+            let settled = false;
+            const finish = () => {
+              if (settled) return;
+              settled = true;
+              link.remove();
+              resolve();
+            };
+            link.rel = 'preload';
+            link.as = 'audio';
+            link.crossOrigin = 'anonymous';
+            link.href = url;
+            link.onload = finish;
+            link.onerror = finish;
+            document.head.appendChild(link);
+            setTimeout(finish, 3000);
           });
         })
       ).catch(() => {}); // Ignorer les erreurs, c'est optionnel

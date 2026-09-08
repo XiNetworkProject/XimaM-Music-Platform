@@ -23,7 +23,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import type { GeneratedTrack } from '@/lib/aiStudioTypes';
-import { useAudioPlayer } from '@/app/providers';
+import { useAudioPlayer, useAudioTime } from '@/app/providers';
 
 interface TimestampedWord {
   word: string;
@@ -221,7 +221,8 @@ export default function RightPanelImproved({
   timestampedError?: string | null;
   onSyncLyrics?: () => void;
 }) {
-  const { audioState, play, pause, nextTrack, previousTrack } = useAudioPlayer();
+  const { audioState: baseAudioState, play, pause, nextTrack, previousTrack } = useAudioPlayer();
+  const audioState = { ...baseAudioState, ...useAudioTime() };
   const isPlaying = audioState.isPlaying;
   const progress = Math.min(1, (audioState.duration || 0) > 0 ? (audioState.currentTime || 0) / (audioState.duration || 1) : 0);
   const currentTime = Number(audioState.currentTime || 0);

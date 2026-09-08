@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowUp, ArrowDown, Play, Pause, Trash2, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
+import { coordinateSecondaryAudioElement } from '@/lib/audio/AudioCore';
 
 export type TrackMeta = {
   file: File;
@@ -22,9 +23,12 @@ export default function TrackListEditor({ tracks, onChange }: Props) {
   const [playingIdx, setPlayingIdx] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
+  const audioPolicyCleanupRef = useRef<(() => void) | null>(null);
 
   const cleanup = useCallback(() => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    audioPolicyCleanupRef.current?.();
+    audioPolicyCleanupRef.current = null;
     if (urlRef.current) { URL.revokeObjectURL(urlRef.current); urlRef.current = null; }
     setPlayingIdx(null);
   }, []);
@@ -38,6 +42,7 @@ export default function TrackListEditor({ tracks, onChange }: Props) {
     urlRef.current = url;
     const a = new Audio(url);
     audioRef.current = a;
+    audioPolicyCleanupRef.current = coordinateSecondaryAudioElement(a, 'preview');
     a.addEventListener('ended', cleanup);
     a.play().catch(cleanup);
     setPlayingIdx(idx);

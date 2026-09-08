@@ -11,7 +11,7 @@ import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { fetchCreditsBalance } from '@/lib/credits';
 import { ACTION_COSTS, CREDITS_PER_GENERATION } from '@/lib/billing/pricing';
 import { useAIQuota } from '@/hooks/useAIQuota';
-import { useAudioPlayer } from '@/app/providers';
+import { useAudioPlayer, useAudioTime } from '@/app/providers';
 import { AIGeneration, AITrack } from '@/lib/aiGenerationService';
 import { useSession } from 'next-auth/react';
 import { useBackgroundGeneration } from '@/hooks/useBackgroundGeneration';
@@ -413,7 +413,9 @@ function AIGeneratorContent() {
   const searchParams = useSearchParams();
   const sourceParamKey = searchParams?.toString() || '';
   const { quota, loading: quotaLoading } = useAIQuota();
-  const { audioState, playTrack, play, pause, seek, nextTrack, previousTrack, setQueueAndPlay } = useAudioPlayer();
+  const { audioState: baseAudioState, playTrack, play, pause, seek, nextTrack, previousTrack, setQueueAndPlay } = useAudioPlayer();
+  const audioTime = useAudioTime();
+  const audioState = useMemo(() => ({ ...baseAudioState, ...audioTime }), [audioTime, baseAudioState]);
   // Ã‰tats pour la bibliothÃ¨que des gÃ©nÃ©rations (mÃªme logique que ai-library)
   const [generations, setGenerations] = useState<AIGeneration[]>([]);
   const [allTracks, setAllTracks] = useState<AITrack[]>([]);

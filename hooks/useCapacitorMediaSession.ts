@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { MediaSession } from '@jofr/capacitor-media-session';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { getBrowserAudioCore } from '@/lib/audio/AudioCore';
 
 export type MediaArtwork = { src: string; sizes?: string; type?: string };
 export type MediaTrack = {
@@ -133,7 +134,7 @@ export function useCapacitorMediaSession(
     };
   }, [isNative]);
 
-  // 4) Position / durée (optionnel mais bien pour la barre de progression)
+  // 4) Position / durée depuis le flux temporel central.
   useEffect(() => {
     if (!isNative) return;
     if (!audioEl || !track) return;
@@ -145,17 +146,8 @@ export function useCapacitorMediaSession(
       MediaSession.setPositionState({ duration, position, playbackRate }).catch(() => {});
     };
 
-    const events: (keyof HTMLMediaElementEventMap)[] = [
-      'timeupdate',
-      'loadedmetadata',
-      'durationchange',
-      'seeked',
-      'ratechange',
-      'playing',
-      'pause',
-    ];
-    events.forEach((ev) => audioEl.addEventListener(ev, update));
+    const unsubscribe = getBrowserAudioCore()?.subscribeTime(update);
     update();
-    return () => events.forEach((ev) => audioEl.removeEventListener(ev, update));
+    return () => { unsubscribe?.(); };
   }, [isNative, audioEl, track?.id]);
 }

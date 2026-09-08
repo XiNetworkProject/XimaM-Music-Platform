@@ -36,6 +36,7 @@ import SynauraEventsRail from '@/components/synaura/SynauraEventsRail';
 import SynauraEventEntryPanel from '@/components/synaura/SynauraEventEntryPanel';
 import CreateArrivalBanner from '@/components/create/CreateArrivalBanner';
 import { uploadLocalMedia } from '@/lib/clientMediaUpload';
+import { coordinateSecondaryAudioElement } from '@/lib/audio/AudioCore';
 
 // ─── Compression image ────────────────────────────────────
 const MAX_COVER_VIDEO_SECONDS = 7;
@@ -258,11 +259,12 @@ export default function UploadPage() {
     if (!audioFile) { setDuration(0); setCurrentTime(0); setIsPlaying(false); if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } return; }
     const url = URL.createObjectURL(audioFile);
     const a = new Audio(url);
+    const releaseAudioPolicy = coordinateSecondaryAudioElement(a, 'preview');
     a.addEventListener('loadedmetadata', () => setDuration(a.duration));
     a.addEventListener('timeupdate', () => setCurrentTime(a.currentTime));
     a.addEventListener('ended', () => setIsPlaying(false));
     audioRef.current = a;
-    return () => { a.pause(); URL.revokeObjectURL(url); };
+    return () => { a.pause(); releaseAudioPolicy(); URL.revokeObjectURL(url); };
   }, [audioFile]);
 
   useEffect(() => {

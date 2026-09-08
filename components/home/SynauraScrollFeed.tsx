@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { signOut, useSession } from 'next-auth/react';
-import { useAudioPlayer } from '@/app/providers';
+import { useAudioPlayer, useAudioTime } from '@/app/providers';
 import { applyCdnToTracks } from '@/lib/cdnHelpers';
 import FollowButton from '@/components/FollowButton';
 import NotificationCenter, { notify } from '@/components/NotificationCenter';
@@ -133,7 +133,9 @@ function ClipVideoLayer({ src, poster, active }: { src: string; poster?: string 
 export default function SynauraScrollFeed() {
   const router = useRouter();
   const { data: session } = useSession();
-  const { audioState, setQueueAndPlay, playTrack, play, pause, seek, handleLike } = useAudioPlayer();
+  const { audioState: baseAudioState, setQueueAndPlay, playTrack, play, pause, seek, handleLike } = useAudioPlayer();
+  const audioTime = useAudioTime();
+  const audioState = useMemo(() => ({ ...baseAudioState, ...audioTime }), [audioTime, baseAudioState]);
   const { isFavorite, toggleFavorite } = useLibraryFavorites();
 
   const [filter, setFilter] = useState<FeedFilter>(() => {

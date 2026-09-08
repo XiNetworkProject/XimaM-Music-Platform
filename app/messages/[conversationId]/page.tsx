@@ -46,6 +46,7 @@ import Avatar from "@/components/Avatar";
 import { cleanupLocalMediaUploads, uploadLocalMedia } from "@/lib/clientMediaUpload";
 import { toPublicMediaUrl } from "@/lib/mediaUrls";
 import { notify } from "@/components/NotificationCenter";
+import { coordinateSecondaryAudioElement } from "@/lib/audio/AudioCore";
 
 type MessagingProfile = {
   id: string;
@@ -292,6 +293,7 @@ export default function ConversationPage() {
   const discardRecordingRef = useRef(false);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const currentAudioCleanupRef = useRef<(() => void) | null>(null);
   const initialScrollDone = useRef(false);
   const nearBottomRef = useRef(true);
   const loadedRoomRef = useRef<string | null>(null);
@@ -453,6 +455,7 @@ export default function ConversationPage() {
   useEffect(
     () => () => {
       currentAudioRef.current?.pause();
+      currentAudioCleanupRef.current?.();
       if (recordingTimerRef.current)
         window.clearInterval(recordingTimerRef.current);
       if (mediaRecorderRef.current?.state === "recording")
@@ -691,16 +694,27 @@ export default function ConversationPage() {
     if (!source) return;
     if (playingMessageId === message.id) {
       currentAudioRef.current?.pause();
+      currentAudioCleanupRef.current?.();
+      currentAudioCleanupRef.current = null;
       setPlayingMessageId(null);
       return;
     }
     currentAudioRef.current?.pause();
+    currentAudioCleanupRef.current?.();
     const audio = new Audio(source);
     currentAudioRef.current = audio;
+    currentAudioCleanupRef.current = coordinateSecondaryAudioElement(audio, "voice-message");
     setPlayingMessageId(message.id);
-    audio.onended = () => setPlayingMessageId(null);
-    audio.onerror = () => setPlayingMessageId(null);
+    const finish = () => {
+      currentAudioCleanupRef.current?.();
+      currentAudioCleanupRef.current = null;
+      setPlayingMessageId(null);
+    };
+    audio.onended = finish;
+    audio.onerror = finish;
     void audio.play().catch(() => {
+      currentAudioCleanupRef.current?.();
+      currentAudioCleanupRef.current = null;
       setPlayingMessageId(null);
       notify.error(
         "Lecture impossible",

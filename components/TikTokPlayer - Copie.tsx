@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
-import { useAudioPlayer } from '@/app/providers';
+import { useAudioPlayer, useAudioTime } from '@/app/providers';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { Heart, X, Volume2, VolumeX, MessageCircle, Share2, Download, Lock, Disc3, ListMusic, Loader2, Play, Pause } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
@@ -476,7 +476,7 @@ function SlidePage({
 export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const { data: session } = useSession();
   const {
-    audioState,
+    audioState: baseAudioState,
     play,
     pause,
     seek,
@@ -485,6 +485,8 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     setTracks,
     setQueueAndPlay,
   } = useAudioPlayer();
+  const audioTime = useAudioTime();
+  const audioState = useMemo(() => ({ ...baseAudioState, ...audioTime }), [audioTime, baseAudioState]);
   
   // États locaux
   const [showComments, setShowComments] = useState(false);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { getBrowserAudioCore } from '@/lib/audio/AudioCore';
 
 export type MediaArtwork = { src: string; sizes?: string; type?: string };
 export type MediaTrack = {
@@ -97,7 +98,7 @@ export function useMediaSession({ audioEl, track, controls, isPlaying }: UseMedi
     };
   }, [controls]);
 
-  // Position state depuis l'élément audio
+  // Position state depuis le flux temporel central (aucun listener audio dupliqué).
   useEffect(() => {
     if (!hasMediaSession() || !audioEl) return;
 
@@ -115,12 +116,9 @@ export function useMediaSession({ audioEl, track, controls, isPlaying }: UseMedi
       } catch {}
     };
 
-    const events: (keyof HTMLMediaElementEventMap)[] = [
-      'timeupdate', 'loadedmetadata', 'durationchange', 'seeked', 'ratechange', 'playing', 'pause'
-    ];
-    events.forEach((ev) => audioEl.addEventListener(ev, update));
+    const unsubscribe = getBrowserAudioCore()?.subscribeTime(update);
     update();
-    return () => { events.forEach((ev) => audioEl.removeEventListener(ev, update)); };
+    return () => { unsubscribe?.(); };
   }, [audioEl]);
 }
 

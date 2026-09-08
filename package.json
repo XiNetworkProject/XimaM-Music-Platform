@@ -27,6 +27,7 @@
     "test:database-phase1b": "node --experimental-strip-types --test tests/database-phase-1b.test.mjs",
     "test:critical-routes": "node --experimental-strip-types --test tests/critical-api-routes.test.mjs",
     "test:security-phase0b": "node --experimental-strip-types --test tests/security-phase-0b.test.mjs",
+    "test:audio-core": "node --experimental-strip-types --test tests/audio-core.test.mjs tests/audio-core-routing.test.mjs",
     "db:migrate": "node database/scripts/migrate.mjs",
     "deploy": "node scripts/deploy-vercel.js",
     "publish:android": "node scripts/publish-android-release.js"

@@ -8,6 +8,7 @@ import { ArrowLeft, Check, ChevronRight, Film, Loader2, Music2, Pause, Play, Sea
 import { SynauraAppShell } from '@/components/synaura/SynauraShell';
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
 import { enqueueClientClipUpload } from '@/lib/clientClipUploadQueue';
+import { coordinateSecondaryAudioElement } from '@/lib/audio/AudioCore';
 
 type ClipSource = {
   _id: string;
@@ -88,6 +89,7 @@ function NewMusicClipPageContent() {
   const presetRecordedRef = useRef(false);
   const publishingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioPolicyCleanupRef = useRef<(() => void) | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const visibleSources = useMemo(() => {
@@ -179,6 +181,7 @@ function NewMusicClipPageContent() {
 
   useEffect(() => () => {
     audioRef.current?.pause();
+    audioPolicyCleanupRef.current?.();
     audioRef.current = null;
   }, []);
 
@@ -213,10 +216,17 @@ function NewMusicClipPageContent() {
       return;
     }
     audioRef.current?.pause();
+    audioPolicyCleanupRef.current?.();
     const audio = new Audio(source.audioUrl);
     audioRef.current = audio;
-    audio.onended = () => setPreviewingSourceId('');
-    audio.onerror = () => setPreviewingSourceId('');
+    audioPolicyCleanupRef.current = coordinateSecondaryAudioElement(audio, 'preview');
+    const finish = () => {
+      audioPolicyCleanupRef.current?.();
+      audioPolicyCleanupRef.current = null;
+      setPreviewingSourceId('');
+    };
+    audio.onended = finish;
+    audio.onerror = finish;
     setPreviewingSourceId(source._id);
     void audio.play().catch(() => setPreviewingSourceId(''));
   }
@@ -246,6 +256,8 @@ function NewMusicClipPageContent() {
       challengeId: challengeId || undefined,
     });
     audioRef.current?.pause();
+    audioPolicyCleanupRef.current?.();
+    audioPolicyCleanupRef.current = null;
     router.push('/?filter=clips');
   }
 
