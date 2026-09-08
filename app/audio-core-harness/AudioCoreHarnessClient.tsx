@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAudioPlayer, useAudioTime } from '@/app/providers';
-import { coordinateSecondaryAudioElement } from '@/lib/audio/AudioCore';
+import { coordinateSecondaryAudioElement, getBrowserAudioCore } from '@/lib/audio/AudioCore';
 
 function createToneUrl(frequency: number, seconds = 60) {
   const sampleRate = 8000;
@@ -71,6 +71,7 @@ export default function AudioCoreHarnessClient() {
   };
 
   const current = player.audioState.tracks[player.audioState.currentTrackIndex];
+  const diagnostics = getBrowserAudioCore()?.getDiagnostics();
   return (
     <main className="min-h-screen bg-black p-8 text-white" data-testid="audio-core-harness">
       <h1 className="text-2xl font-bold">Audio Core development harness</h1>
@@ -80,6 +81,11 @@ export default function AudioCoreHarnessClient() {
         <span data-testid="position">{time.currentTime.toFixed(2)}</span>
         <span data-testid="duration">{time.duration.toFixed(2)}</span>
         <span data-testid="queue-size">{player.audioState.tracks.length}</span>
+        <span data-testid="instance-id">{diagnostics?.instanceId || 'none'}</span>
+        <span data-testid="musical-instances">{diagnostics?.musicalAudioElements ?? 0}</span>
+        <span data-testid="secondary-count">{diagnostics?.activeSecondaryPlayers ?? 0}</span>
+        <span data-testid="provider-renders">{diagnostics?.providerRenders ?? 0}</span>
+        <span data-testid="time-subscribers">{diagnostics?.timeSubscribers ?? 0}</span>
       </div>
       <div className="mt-6 flex flex-wrap gap-3">
         <button data-testid="play-a" disabled={!tracks.length} onClick={() => player.setQueueAndPlay(tracks, 0)}>Play A</button>

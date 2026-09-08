@@ -19,6 +19,7 @@ export type AudioErrorKind =
   | 'unknown';
 
 export type AudioRepeatMode = 'none' | 'one' | 'all';
+export type AudioSecondaryContext = 'voice-message' | 'preview' | 'ui' | 'studio' | 'other';
 
 export interface AudioCoreTrack {
   _id: string;
@@ -75,6 +76,7 @@ export interface AudioTimeSnapshot {
 }
 
 export interface AudioCoreDiagnostics {
+  instanceId: string;
   trackId: string | null;
   playbackState: AudioPlaybackState;
   position: number;
@@ -85,6 +87,19 @@ export interface AudioCoreDiagnostics {
   listeners: number;
   pendingRetries: number;
   activeSecondaryPlayers: number;
+  secondaryContexts: AudioSecondaryContext[];
+  stateSubscribers: number;
+  timeSubscribers: number;
+  musicalAudioElements: number;
+  watchdogActive: boolean;
+  persistenceActive: boolean;
+  providerRenders: number;
+}
+
+export interface AudioErrorObservation {
+  error: AudioCoreError;
+  context: 'global' | AudioSecondaryContext;
+  event: 'invalid-track' | 'load-timeout' | 'play-rejection' | 'retry-timeout' | 'media-error' | 'secondary-media-error';
 }
 
 type CoreListener = () => void;
@@ -110,6 +125,7 @@ interface AudioCoreCallbacks {
   onProgress?: (track: AudioCoreTrack, position: number, duration: number) => void;
   onQueueEnd?: (track: AudioCoreTrack | null) => AudioCoreTrack | null | undefined;
   onBeforeAutomaticAdvance?: (current: AudioCoreTrack | null, next: AudioCoreTrack | null) => AudioCoreTrack | null;
+  onError?: (observation: AudioErrorObservation) => void;
 }
 
 interface PersistedAudioSessionV1 {
@@ -144,6 +160,7 @@ interface AudioCoreOptions {
   retryDeadlineMs?: number;
   watchdogIntervalMs?: number;
   sessionMaxAgeMs?: number;
+  refreshPersistedTrack?: (track: AudioCoreTrack) => Promise<AudioCoreTrack | null>;
 }
 
 const SESSION_KEY = 'synaura.audioSession:v1';
@@ -172,6 +189,8 @@ const defaultScheduler: AudioCoreScheduler = {
   setInterval: (callback, delay) => setInterval(callback, delay),
   clearInterval: (handle) => clearInterval(handle),
 };
+
+let nextAudioCoreInstanceId = 1;
 
 export const EMPTY_AUDIO_CORE_SNAPSHOT: AudioCoreSnapshot = {
   currentTrack: null,
@@ -264,11 +283,13 @@ function classifyMediaError(error: MediaError | null, fallback?: unknown): Audio
 }
 
 export class AudioCore {
+  private readonly instanceId = `audio-core-${nextAudioCoreInstanceId++}`;
   private readonly audioFactory: () => HTMLAudioElement;
   private readonly storage: AudioCoreStorage | null;
   private readonly scheduler: AudioCoreScheduler;
   private resolveSource: (url: string) => string;
   private isTrackRestorable: (track: AudioCoreTrack) => boolean;
+  private refreshPersistedTrack: ((track: AudioCoreTrack) => Promise<AudioCoreTrack | null>) | null;
   private readonly random: () => number;
   private readonly retryDelays: number[];
   private readonly retryDeadlineMs: number;
@@ -278,7 +299,7 @@ export class AudioCore {
   private readonly timeListeners = new Set<CoreListener>();
   private readonly retryTimers = new Set<TimerHandle>();
   private readonly eventHandlers = new Map<keyof HTMLMediaElementEventMap, EventListener>();
-  private readonly secondaryLeases = new Set<number>();
+  private readonly secondaryLeases = new Map<number, AudioSecondaryContext>();
   private readonly secondaryElements = new WeakMap<HTMLMediaElement, () => void>();
   private callbacks: AudioCoreCallbacks = {};
   private snapshot: AudioCoreSnapshot = EMPTY_AUDIO_CORE_SNAPSHOT;
@@ -306,6 +327,7 @@ export class AudioCore {
   private documentPlayHandler: EventListener | null = null;
   private pageHideHandler: EventListener | null = null;
   private visibilityHandler: EventListener | null = null;
+  private providerRenders = 0;
 
   constructor(options: AudioCoreOptions) {
     this.audioFactory = options.audioFactory;
@@ -313,6 +335,7 @@ export class AudioCore {
     this.scheduler = options.scheduler ?? defaultScheduler;
     this.resolveSource = options.resolveSource ?? ((url) => url);
     this.isTrackRestorable = options.isTrackRestorable ?? (() => true);
+    this.refreshPersistedTrack = options.refreshPersistedTrack ?? null;
     this.random = options.random ?? Math.random;
     this.retryDelays = options.retryDelays ?? [250, 1200, 3000];
     this.retryDeadlineMs = options.retryDeadlineMs ?? 6000;
@@ -369,6 +392,14 @@ export class AudioCore {
     this.isTrackRestorable = predicate;
   }
 
+  setPersistedTrackResolver(resolver: ((track: AudioCoreTrack) => Promise<AudioCoreTrack | null>) | null) {
+    this.refreshPersistedTrack = resolver;
+  }
+
+  setProviderRenderCount(count: number) {
+    this.providerRenders = Math.max(0, Math.floor(count));
+  }
+
   subscribe = (listener: CoreListener) => {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -385,6 +416,7 @@ export class AudioCore {
 
   getDiagnostics(): AudioCoreDiagnostics {
     return {
+      instanceId: this.instanceId,
       trackId: trackId(this.snapshot.currentTrack) || null,
       playbackState: this.snapshot.playbackState,
       position: this.timeSnapshot.currentTime,
@@ -395,6 +427,13 @@ export class AudioCore {
       listeners: this.eventHandlers.size,
       pendingRetries: this.retryTimers.size,
       activeSecondaryPlayers: this.secondaryLeases.size,
+      secondaryContexts: Array.from(this.secondaryLeases.values()),
+      stateSubscribers: this.listeners.size,
+      timeSubscribers: this.timeListeners.size,
+      musicalAudioElements: this.audio ? 1 : 0,
+      watchdogActive: Boolean(this.watchdogTimer),
+      persistenceActive: Boolean(this.persistenceTimer),
+      providerRenders: this.providerRenders,
     };
   }
 
@@ -428,6 +467,19 @@ export class AudioCore {
     if (!queue.length || index < 0) {
       this.discardPersistedSession();
       return false;
+    }
+    if (this.refreshPersistedTrack) {
+      try {
+        const refreshed = await this.refreshPersistedTrack(queue[index]);
+        if (!refreshed || !this.isValidTrack(refreshed) || !this.isTrackRestorable(refreshed)) {
+          this.discardPersistedSession();
+          return false;
+        }
+        queue[index] = minimalTrack(refreshed);
+      } catch {
+        // Une panne réseau de validation ne rend pas la session locale inutilisable.
+        // Le chargement média reste l'arbitre final et échouera proprement si nécessaire.
+      }
     }
     this.setVolume(clamp(safeNumber(parsed.volume, 1), 0, 1));
     this.setMuted(Boolean(parsed.muted));
@@ -470,7 +522,7 @@ export class AudioCore {
     this.ensureInitialized();
     if (!this.isValidTrack(track)) {
       const error = this.makeError('missing-file', 'Source audio manquante ou invalide', trackId(track) || null, false);
-      this.patch({ playbackState: 'error', isLoading: false, isPlaying: false, error });
+      this.publishError(error, 'invalid-track');
       throw new Error(error.message);
     }
     const generation = this.beginOperation(track, false);
@@ -481,7 +533,7 @@ export class AudioCore {
         if (!this.isCurrent(generation)) return;
         this.pendingLoad = null;
         const error = this.makeError('timeout', 'Timeout de chargement audio', track._id, true);
-        this.patch({ playbackState: 'error', isLoading: false, error });
+        this.publishError(error, 'load-timeout');
         reject(new Error(error.message));
       }, 8000);
       this.pendingLoad = { generation, source, resolve, reject, timeout };
@@ -492,7 +544,7 @@ export class AudioCore {
     this.ensureInitialized();
     if (!this.isValidTrack(track)) {
       const error = this.makeError('missing-file', 'Source audio manquante ou invalide', trackId(track) || null, false);
-      this.patch({ playbackState: 'error', isLoading: false, isPlaying: false, error });
+      this.publishError(error, 'invalid-track');
       return;
     }
     const generation = this.beginOperation(track, true);
@@ -673,7 +725,7 @@ export class AudioCore {
     if (previous) void this.playTrack(previous);
   }
 
-  beginSecondaryPlayback(_kind: 'voice-message' | 'preview' | 'ui' | 'studio' | 'other' = 'other') {
+  beginSecondaryPlayback(kind: AudioSecondaryContext = 'other') {
     const leaseId = this.nextSecondaryLeaseId++;
     if (this.secondaryLeases.size === 0) {
       this.secondaryGeneration = this.generation;
@@ -685,7 +737,13 @@ export class AudioCore {
         this.patch({ playbackState: 'paused', isPlaying: false, isLoading: false });
       }
     }
-    this.secondaryLeases.add(leaseId);
+    if (process.env.NODE_ENV === 'development' && this.secondaryLeases.size > 0) {
+      console.warn('[AudioCore] lecteurs secondaires simultanés détectés', {
+        active: Array.from(this.secondaryLeases.values()),
+        incoming: kind,
+      });
+    }
+    this.secondaryLeases.set(leaseId, kind);
     let released = false;
     return () => {
       if (released) return;
@@ -702,7 +760,7 @@ export class AudioCore {
     };
   }
 
-  coordinateSecondaryElement(element: HTMLMediaElement, kind: 'voice-message' | 'preview' | 'ui' | 'studio' | 'other' = 'other') {
+  coordinateSecondaryElement(element: HTMLMediaElement, kind: AudioSecondaryContext = 'other') {
     let release: (() => void) | null = null;
     const onPlay = () => {
       release?.();
@@ -712,10 +770,20 @@ export class AudioCore {
       release?.();
       release = null;
     };
+    const onError = () => {
+      const error = this.makeError(
+        classifyMediaError(element.error),
+        'Erreur de lecture d’un média secondaire',
+        trackId(this.snapshot.currentTrack) || null,
+        false,
+      );
+      this.callbacks.onError?.({ error, context: kind, event: 'secondary-media-error' });
+      onStop();
+    };
     element.addEventListener('play', onPlay);
     element.addEventListener('pause', onStop);
     element.addEventListener('ended', onStop);
-    element.addEventListener('error', onStop);
+    element.addEventListener('error', onError);
     // A document-level capture listener observes `play` after the media element
     // has already transitioned. Acquire the lease immediately in that case.
     if (!element.paused && !element.ended) onPlay();
@@ -724,7 +792,7 @@ export class AudioCore {
       element.removeEventListener('play', onPlay);
       element.removeEventListener('pause', onStop);
       element.removeEventListener('ended', onStop);
-      element.removeEventListener('error', onStop);
+      element.removeEventListener('error', onError);
     };
   }
 
@@ -813,21 +881,19 @@ export class AudioCore {
       if (kind === 'autoplay-blocked') {
         this.intentToPlay = false;
         this.clearRetryTimers();
-        this.patch({
-          playbackState: 'paused',
-          isPlaying: false,
-          isLoading: false,
-          error: this.makeError(kind, 'Lecture automatique bloquée; une action utilisateur est requise', trackId(this.snapshot.currentTrack), true),
-        });
+        this.publishError(
+          this.makeError(kind, 'Lecture automatique bloquée; une action utilisateur est requise', trackId(this.snapshot.currentTrack), true),
+          'play-rejection',
+          'global',
+          'paused',
+        );
       } else if (kind === 'media-unsupported' && this.tryNextCandidate()) {
         await this.attemptPlay(generation);
       } else {
-        this.patch({
-          playbackState: 'error',
-          isPlaying: false,
-          isLoading: false,
-          error: this.makeError(kind, this.errorMessage(kind), trackId(this.snapshot.currentTrack), kind === 'network' || kind === 'timeout'),
-        });
+        this.publishError(
+          this.makeError(kind, this.errorMessage(kind), trackId(this.snapshot.currentTrack), kind === 'network' || kind === 'timeout'),
+          'play-rejection',
+        );
       }
     }
   }
@@ -848,12 +914,10 @@ export class AudioCore {
       const audio = this.audio;
       if (!audio || !this.isCurrent(generation) || !this.intentToPlay || !audio.paused || audio.currentTime > 0.1) return;
       this.intentToPlay = false;
-      this.patch({
-        playbackState: 'error',
-        isPlaying: false,
-        isLoading: false,
-        error: this.makeError('timeout', 'La lecture audio n’a pas démarré à temps', trackId(this.snapshot.currentTrack), true),
-      });
+      this.publishError(
+        this.makeError('timeout', 'La lecture audio n’a pas démarré à temps', trackId(this.snapshot.currentTrack), true),
+        'retry-timeout',
+      );
     }, this.retryDeadlineMs);
     this.retryTimers.add(deadline);
   }
@@ -970,7 +1034,7 @@ export class AudioCore {
     }
     const kind = classifyMediaError(this.audio?.error || null, event);
     const error = this.makeError(kind, this.errorMessage(kind), trackId(this.snapshot.currentTrack), kind === 'network' || kind === 'timeout');
-    this.patch({ playbackState: 'error', isPlaying: false, isLoading: false, error });
+    this.publishError(error, 'media-error');
     this.rejectPendingLoad(new Error(error.message));
   }
 
@@ -1098,6 +1162,16 @@ export class AudioCore {
     return { kind, message, trackId: id, generation: this.generation, recoverable };
   }
 
+  private publishError(
+    error: AudioCoreError,
+    event: AudioErrorObservation['event'],
+    context: AudioErrorObservation['context'] = 'global',
+    playbackState: AudioPlaybackState = 'error',
+  ) {
+    this.patch({ playbackState, isPlaying: false, isLoading: false, error });
+    this.callbacks.onError?.({ error, context, event });
+  }
+
   private errorMessage(kind: AudioErrorKind) {
     if (kind === 'network') return 'Erreur réseau pendant la lecture audio';
     if (kind === 'media-unsupported') return 'Format ou source audio non supporté';
@@ -1110,12 +1184,10 @@ export class AudioCore {
 
   private handleFailure(cause: unknown) {
     const kind = classifyMediaError(this.audio?.error || null, cause);
-    this.patch({
-      playbackState: 'error',
-      isPlaying: false,
-      isLoading: false,
-      error: this.makeError(kind, this.errorMessage(kind), trackId(this.snapshot.currentTrack), false),
-    });
+    this.publishError(
+      this.makeError(kind, this.errorMessage(kind), trackId(this.snapshot.currentTrack), false),
+      'play-rejection',
+    );
   }
 
   private startWatchdog() {

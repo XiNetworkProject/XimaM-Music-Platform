@@ -368,6 +368,7 @@ export function SynauraRouteNav({ className = '', compact = false }: { className
             <Link
               key={item.id}
               href={href}
+              prefetch={item.id === 'library' && !session?.user ? false : undefined}
               className={cx(
                 'inline-flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-black transition',
                 compact && 'h-7 gap-1.5 px-2.5 text-[10px]',

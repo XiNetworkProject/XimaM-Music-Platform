@@ -5,6 +5,7 @@ import { sendTrackEvents } from '@/lib/analyticsClient';
 import { getCdnUrl } from '@/lib/cdn';
 import { isLikelyExpiredAIProviderUrl } from '@/lib/media-url-health';
 import { getEntitlements } from '@/lib/entitlements';
+import { reportAudioError } from '@/lib/audio/audioErrorTelemetry';
 import {
   AUDIO_SESSION_STORAGE_KEY,
   EMPTY_AUDIO_CORE_SNAPSHOT,
@@ -100,6 +101,39 @@ function migrateLegacySession() {
   } catch {}
 }
 
+async function refreshPersistedTrack(track: Track): Promise<Track | null> {
+  const response = await fetch(`/api/tracks/${encodeURIComponent(track._id)}`, {
+    cache: 'no-store',
+    credentials: 'same-origin',
+    headers: { 'Cache-Control': 'no-store' },
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Track refresh ${response.status}`);
+  const payload = await response.json();
+  const audioUrl = String(payload?.audioUrl || '');
+  if (!audioUrl) return null;
+  return {
+    ...track,
+    _id: String(payload?._id || payload?.id || track._id),
+    title: String(payload?.title || track.title),
+    audioUrl,
+    coverUrl: payload?.coverUrl || track.coverUrl,
+    duration: Math.max(0, Number(payload?.duration || track.duration || 0)),
+    artist: {
+      _id: String(payload?.artist?._id || payload?.artist?.id || track.artist?._id || ''),
+      name: String(payload?.artist?.name || track.artist?.name || ''),
+      username: String(payload?.artist?.username || track.artist?.username || ''),
+      ...(payload?.artist?.avatar || track.artist?.avatar ? { avatar: payload?.artist?.avatar || track.artist?.avatar } : {}),
+    },
+    likes: Array.isArray(payload?.likes) ? payload.likes : [],
+    comments: Array.isArray(payload?.comments) ? payload.comments : [],
+    plays: Math.max(0, Number(payload?.plays || track.plays || 0)),
+    genre: Array.isArray(payload?.genre) ? payload.genre : track.genre,
+    createdAt: payload?.createdAt || track.createdAt,
+    album: payload?.album ?? track.album,
+  };
+}
+
 export function useAudioCoreTime() {
   const core = getBrowserAudioCore();
   return useSyncExternalStore(
@@ -134,10 +168,17 @@ export const useAudioService = (options: { authority?: boolean } = {}) => {
   const tracksSinceLastAdRef = useRef(0);
   const lastAudioAdAtRef = useRef(0);
   const audioAdUrlRef = useRef(String(process.env.NEXT_PUBLIC_AUDIO_AD_URL || '').trim());
+  const legacyWarningShownRef = useRef(false);
 
   allTracksRef.current = allTracks;
   sessionUserIdRef.current = session?.user?.id || null;
   autoPlayEnabledRef.current = autoPlayEnabled;
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development' || isAuthority || legacyWarningShownRef.current) return;
+    legacyWarningShownRef.current = true;
+    console.warn('[AudioCore] useAudioService() direct est deprecated; utiliser useAudioPlayer() ou useAudioTime().');
+  }, [isAuthority]);
 
   const persistAudioAdState = useCallback(() => {
     try {
@@ -214,6 +255,7 @@ export const useAudioService = (options: { authority?: boolean } = {}) => {
     if (!core || !isAuthority) return;
     core.setSourceResolver((url) => getCdnUrl(url) || url);
     core.setTrackRestorable((track) => !isLikelyExpiredAIProviderUrl(track.audioUrl, track.createdAt));
+    core.setPersistedTrackResolver(refreshPersistedTrack);
     core.initialize();
     migrateLegacySession();
     void core.restoreSession();
@@ -302,6 +344,7 @@ export const useAudioService = (options: { authority?: boolean } = {}) => {
           genre: ['ad'],
         };
       },
+      onError: reportAudioError,
     });
     return () => core.setCallbacks({});
   }, [core, isAuthority, persistAudioAdState, pickContinuation, updatePlayCount]);

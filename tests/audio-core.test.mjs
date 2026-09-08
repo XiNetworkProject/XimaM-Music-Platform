@@ -123,6 +123,9 @@ const flush = () => new Promise((resolve) => setImmediate(resolve));
 test('initialisation unique, commandes et nettoyage des listeners', async () => {
   const { core, audio } = setup();
   core.initialize();
+  assert.match(core.getDiagnostics().instanceId, /^audio-core-\d+$/);
+  assert.equal(core.getDiagnostics().musicalAudioElements, 1);
+  assert.equal(core.getDiagnostics().watchdogActive, true);
   assert.equal(core.getDiagnostics().listeners, 14);
   assert.equal([...audio.listeners.values()].reduce((sum, value) => sum + value, 0), 14);
   await core.playTrack(track('a'));
@@ -321,6 +324,64 @@ test('une piste expirée ou introuvable est écartée à la restauration', async
   assert.equal(storage.getItem(AUDIO_SESSION_STORAGE_KEY), null);
 });
 
+test('la queue et une URL fraîche sont restaurées par identifiant', async () => {
+  const storage = new MemoryStorage();
+  storage.setItem(AUDIO_SESSION_STORAGE_KEY, JSON.stringify({
+    version: 1,
+    savedAt: 10_000,
+    currentTrackId: 'b',
+    position: 19,
+    wasPlaying: true,
+    queue: [track('a'), track('b', { audioUrl: 'https://old.invalid/b.mp3' })],
+    volume: 0.7,
+    muted: false,
+    repeat: 'all',
+    shuffle: false,
+  }));
+  const refreshed = track('b', { audioUrl: 'https://media.synaura.test/b-fresh.mp3', title: 'Fresh B' });
+  const { core, audio } = setup({ storage, refreshPersistedTrack: async () => refreshed });
+  const restoring = core.restoreSession();
+  await flush();
+  audio.ready(120);
+  assert.equal(await restoring, true);
+  assert.deepEqual(core.getSnapshot().queue.map((item) => item._id), ['a', 'b']);
+  assert.equal(core.getSnapshot().currentTrack?.audioUrl, refreshed.audioUrl);
+  assert.equal(core.getTimeSnapshot().currentTime, 19);
+  assert.equal(core.getSnapshot().isPlaying, false);
+});
+
+test('une piste supprimée, une session ancienne et un schéma inconnu sont ignorés', async () => {
+  const makeSession = (overrides = {}) => ({
+    version: 1,
+    savedAt: 10_000,
+    currentTrackId: 'a',
+    position: 4,
+    wasPlaying: false,
+    queue: [track('a')],
+    volume: 1,
+    muted: false,
+    repeat: 'none',
+    shuffle: false,
+    ...overrides,
+  });
+
+  const deletedStorage = new MemoryStorage();
+  deletedStorage.setItem(AUDIO_SESSION_STORAGE_KEY, JSON.stringify(makeSession()));
+  const deleted = setup({ storage: deletedStorage, refreshPersistedTrack: async () => null });
+  assert.equal(await deleted.core.restoreSession(), false);
+  assert.equal(deletedStorage.getItem(AUDIO_SESSION_STORAGE_KEY), null);
+
+  const expiredStorage = new MemoryStorage();
+  expiredStorage.setItem(AUDIO_SESSION_STORAGE_KEY, JSON.stringify(makeSession({ savedAt: 1 })));
+  const expired = setup({ storage: expiredStorage, sessionMaxAgeMs: 100 });
+  assert.equal(await expired.core.restoreSession(), false);
+
+  const schemaStorage = new MemoryStorage();
+  schemaStorage.setItem(AUDIO_SESSION_STORAGE_KEY, JSON.stringify(makeSession({ version: 2 })));
+  const schema = setup({ storage: schemaStorage });
+  assert.equal(await schema.core.restoreSession(), false);
+});
+
 test('un lecteur secondaire pause puis reprend, sans reprise obsolète', async () => {
   const { core, audio } = setup();
   await core.playTrack(track('a'));
@@ -350,6 +411,102 @@ test('une pause explicite pendant un lecteur secondaire annule la reprise', asyn
   release();
   await flush();
   assert.equal(core.getSnapshot().isPlaying, false);
+});
+
+test('preview et message ne jouent jamais avec le global et les leases se nettoient', async () => {
+  const { core, audio } = setup();
+  await core.playTrack(track('a'));
+  const preview = new MockAudio();
+  const message = new MockAudio();
+  const cleanupPreview = core.coordinateSecondaryElement(preview, 'preview');
+  const cleanupMessage = core.coordinateSecondaryElement(message, 'voice-message');
+
+  await preview.play();
+  assert.equal(audio.paused, true);
+  assert.equal(core.getDiagnostics().activeSecondaryPlayers, 1);
+  preview.pause();
+  await flush();
+  assert.equal(core.getSnapshot().isPlaying, true);
+
+  await message.play();
+  assert.equal(audio.paused, true);
+  message.pause();
+  await flush();
+  assert.equal(core.getSnapshot().isPlaying, true);
+
+  cleanupPreview();
+  cleanupMessage();
+  assert.equal(core.getDiagnostics().activeSecondaryPlayers, 0);
+});
+
+test('preview A vers B et message A vers B libèrent la lease précédente', async () => {
+  const { core } = setup();
+  for (const kind of ['preview', 'voice-message']) {
+    const first = new MockAudio();
+    const second = new MockAudio();
+    const cleanupFirst = core.coordinateSecondaryElement(first, kind);
+    const cleanupSecond = core.coordinateSecondaryElement(second, kind);
+    await first.play();
+    assert.equal(core.getDiagnostics().activeSecondaryPlayers, 1);
+    first.pause();
+    await second.play();
+    assert.equal(core.getDiagnostics().activeSecondaryPlayers, 1);
+    second.pause();
+    cleanupFirst();
+    cleanupSecond();
+    assert.equal(core.getDiagnostics().activeSecondaryPlayers, 0);
+  }
+});
+
+test('un chevauchement de leases secondaires est signalé en développement', async () => {
+  const { core } = setup();
+  const previousEnvironment = process.env.NODE_ENV;
+  const previousWarn = console.warn;
+  const warnings = [];
+  process.env.NODE_ENV = 'development';
+  console.warn = (...args) => warnings.push(args);
+  try {
+    const releaseA = core.beginSecondaryPlayback('preview');
+    const releaseB = core.beginSecondaryPlayback('preview');
+    assert.equal(core.getDiagnostics().activeSecondaryPlayers, 2);
+    assert.deepEqual(core.getDiagnostics().secondaryContexts, ['preview', 'preview']);
+    assert.equal(warnings.length, 1);
+    releaseA();
+    assert.equal(core.getDiagnostics().activeSecondaryPlayers, 1);
+    releaseB();
+    assert.equal(core.getDiagnostics().activeSecondaryPlayers, 0);
+  } finally {
+    console.warn = previousWarn;
+    if (previousEnvironment === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousEnvironment;
+  }
+});
+
+test('un lecteur secondaire ne reprend pas un global déjà en pause', async () => {
+  const { core } = setup();
+  await core.playTrack(track('a'));
+  core.pause();
+  const release = core.beginSecondaryPlayback('preview');
+  release();
+  await flush();
+  assert.equal(core.getSnapshot().isPlaying, false);
+});
+
+test('les erreurs globales et secondaires publient un événement nettoyable', async () => {
+  const { core } = setup();
+  const observations = [];
+  core.setCallbacks({ onError: (observation) => observations.push(observation) });
+  await core.playTrack(track('missing', { audioUrl: '' }));
+  assert.equal(observations[0].event, 'invalid-track');
+  assert.equal(observations[0].context, 'global');
+
+  const secondary = new MockAudio();
+  const cleanup = core.coordinateSecondaryElement(secondary, 'voice-message');
+  secondary.fail(3);
+  assert.equal(observations[1].event, 'secondary-media-error');
+  assert.equal(observations[1].context, 'voice-message');
+  assert.equal(observations[1].error.kind, 'decode');
+  cleanup();
 });
 
 test('le temps notifie uniquement le store spécialisé et les erreurs sont typées', async () => {

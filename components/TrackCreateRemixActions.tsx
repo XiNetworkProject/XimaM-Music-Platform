@@ -80,6 +80,7 @@ export default function TrackCreateRemixActions({ track, compact, dark, classNam
     <div className={`flex flex-wrap items-center gap-1.5 ${className}`}>
       <Link
         href={`/ai-generator?mode=style&sourceTrack=${source}&title=${title}&style=${style}`}
+        prefetch={false}
         onClick={() => logAction('create_style')}
         className={`inline-flex items-center gap-1.5 rounded-full font-black transition ${size} ${primary}`}
       >
@@ -89,6 +90,7 @@ export default function TrackCreateRemixActions({ track, compact, dark, classNam
       {canRemix ? (
         <Link
           href={`/ai-generator?mode=remix&sourceTrackId=${source}&sourceTrackType=${sourceTrackType}&title=${title}&style=${style}`}
+          prefetch={false}
           onClick={() => logAction('remix')}
           className={`inline-flex items-center gap-1.5 rounded-full font-black transition ${size} ${base}`}
         >

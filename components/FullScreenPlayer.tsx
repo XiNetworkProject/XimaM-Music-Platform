@@ -360,6 +360,18 @@ export default function SynauraMiniPlayer() {
     seekTo((event.clientX - rect.left) / rect.width);
   };
 
+  const onProgressKeyDown = (event: React.KeyboardEvent) => {
+    if (!duration) return;
+    let next: number | null = null;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') next = Math.max(0, currentTime - 5);
+    if (event.key === 'ArrowRight' || event.key === 'ArrowUp') next = Math.min(duration, currentTime + 5);
+    if (event.key === 'Home') next = 0;
+    if (event.key === 'End') next = duration;
+    if (next === null) return;
+    event.preventDefault();
+    seek(next);
+  };
+
   const handleShare = async () => {
     if (!currentTrack) return;
     const url = albumContext
@@ -479,11 +491,16 @@ export default function SynauraMiniPlayer() {
                 <div
                   ref={progressRef}
                   onClick={onProgressClick}
-                  className="relative h-1.5 cursor-pointer bg-black/[0.06]"
-                  role="progressbar"
+                  onKeyDown={onProgressKeyDown}
+                  className="relative h-1.5 cursor-pointer bg-black/[0.06] outline-none focus-visible:ring-2 focus-visible:ring-[#7357C6] focus-visible:ring-offset-2"
+                  role="slider"
+                  tabIndex={duration ? 0 : -1}
+                  aria-label="Position dans le morceau"
                   aria-valuemin={0}
                   aria-valuemax={duration || 0}
                   aria-valuenow={currentTime || 0}
+                  aria-valuetext={`${toTime(currentTime || 0)} sur ${toTime(duration || 0)}`}
+                  aria-disabled={!duration}
                 >
                   <div
                     className="absolute left-0 top-0 h-full bg-[#7357C6] transition-[width] duration-150"

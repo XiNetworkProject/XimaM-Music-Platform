@@ -11,12 +11,14 @@ import { useMediaSession } from '@/hooks/useMediaSession';
 import { toArtworkList } from '@/lib/mediaArtwork';
 import { useSession } from 'next-auth/react';
 import { useAudioCoreTime, useAudioService } from '@/hooks/useAudioService';
+import { getBrowserAudioCore } from '@/lib/audio/AudioCore';
 import { LikeProvider, useLikeContext } from '@/contexts/LikeContext';
 import { PlaysProvider } from '@/contexts/PlaysContext';
 import { usePlaysSync } from '@/hooks/usePlaysSync';
 import { PreloadProvider } from '@/contexts/PreloadContext';
 import { isPastShutdownEnd, isShutdownAnnounced } from '@/lib/synauraShutdown';
 import OnboardingGate from '@/components/onboarding/OnboardingGate';
+import { useRouter } from 'next/navigation';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -136,6 +138,11 @@ function getQueueSignature(tracks: any[] | null | undefined, index: number = 0):
 }
 
 export function AudioPlayerProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const routerRef = useRef(router);
+  routerRef.current = router;
+  const providerRenderCountRef = useRef(0);
+  providerRenderCountRef.current += 1;
   const { data: session } = useSession();
   const audioService = useAudioService({ authority: true });
   const { syncLikeState: syncLikeCtx } = useLikeContext();
@@ -146,6 +153,23 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   audioActionsRef.current = audioService.actions;
   audioServiceRef.current = audioService;
   audioServiceStateRef.current = audioService.state;
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    getBrowserAudioCore()?.setProviderRenderCount(providerRenderCountRef.current);
+  });
+
+  useEffect(() => {
+    const target = window as typeof window & { __synauraAudioNavigate?: (pathname: string) => void };
+    if (process.env.NODE_ENV !== 'development') {
+      delete target.__synauraAudioNavigate;
+      return;
+    }
+    target.__synauraAudioNavigate = (pathname) => {
+      if (/^\/[A-Za-z0-9_~!$&'()*+,;=:@%./?-]*$/.test(pathname)) routerRef.current.push(pathname);
+    };
+    return () => { delete target.__synauraAudioNavigate; };
+  }, []);
   
   const [audioState, setAudioState] = useState<AudioPlayerState>({
     tracks: [],
