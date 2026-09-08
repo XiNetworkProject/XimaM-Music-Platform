@@ -25,7 +25,9 @@ module.exports = {
           accentGold: 'var(--syn-accent-gold)',
           selected: 'var(--syn-selected)',
           success: 'var(--syn-success)',
+          warning: 'var(--syn-warning)',
           destructive: 'var(--syn-destructive)',
+          focus: 'var(--syn-focus)',
         },
 
         // Suno-like design tokens (used by the `example` snippet classes)
@@ -145,4 +147,4 @@ module.exports = {
     },
   },
   plugins: [],
-}; 
+};

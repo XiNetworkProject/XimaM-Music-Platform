@@ -82,9 +82,6 @@
   box-sizing: border-box;
   padding: 0;
   margin: 0;
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-backdrop-filter, backdrop-filter;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
 }
 
 html,
@@ -176,7 +173,9 @@ html[data-synaura-theme='light'] {
   --syn-accent-gold: #C99B48;
   --syn-selected: #7357C6;
   --syn-success: #2E9D68;
+  --syn-warning: #B7791F;
   --syn-destructive: #C94F4F;
+  --syn-focus: #5B8DEF;
   --syn-surface-translucent: rgba(255, 255, 255, 0.9);
   --syn-text-translucent: rgba(17, 17, 17, 0.62);
   --syn-soft: rgba(17, 17, 17, 0.055);
@@ -184,6 +183,30 @@ html[data-synaura-theme='light'] {
   --syn-contrast-bg: #111111;
   --syn-contrast-text: #FFFFFF;
   --syn-shadow: rgba(30, 25, 20, 0.12);
+  --syn-shadow-low: 0 8px 24px rgba(30, 25, 20, 0.10);
+  --syn-shadow-medium: 0 18px 60px rgba(30, 25, 20, 0.14);
+  --syn-shadow-high: 0 30px 100px rgba(30, 25, 20, 0.22);
+  --syn-glow-accent: 0 0 32px rgba(115, 87, 198, 0.22);
+  --syn-radius-sm: 0.625rem;
+  --syn-radius-md: 0.875rem;
+  --syn-radius-lg: 1.25rem;
+  --syn-radius-xl: 1.625rem;
+  --syn-space-1: 0.25rem;
+  --syn-space-2: 0.5rem;
+  --syn-space-3: 0.75rem;
+  --syn-space-4: 1rem;
+  --syn-space-5: 1.5rem;
+  --syn-space-6: 2rem;
+  --syn-motion-fast: 150ms;
+  --syn-motion-standard: 220ms;
+  --syn-motion-expressive: 360ms;
+  --syn-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --syn-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --syn-z-header: 40;
+  --syn-z-dock: 60;
+  --syn-z-popover: 80;
+  --syn-z-overlay: 200;
+  --syn-z-toast: 300;
   --synaura-primary-dock-space: calc(env(safe-area-inset-bottom, 0px) + 68px);
   --bg: #F7F6F3;
   --bg-muted: #EEECE7;
@@ -209,6 +232,12 @@ html[data-synaura-theme='dark'] {
   --syn-contrast-bg: #F7F6F3;
   --syn-contrast-text: #111111;
   --syn-shadow: rgba(0, 0, 0, 0.34);
+  --syn-warning: #F2B94B;
+  --syn-focus: #8EB2FF;
+  --syn-shadow-low: 0 8px 24px rgba(0, 0, 0, 0.24);
+  --syn-shadow-medium: 0 18px 60px rgba(0, 0, 0, 0.34);
+  --syn-shadow-high: 0 30px 100px rgba(0, 0, 0, 0.52);
+  --syn-glow-accent: 0 0 38px rgba(115, 87, 198, 0.28);
   --bg: #0D0D0D;
   --bg-muted: #151515;
   --surface: #151515;
@@ -217,6 +246,33 @@ html[data-synaura-theme='dark'] {
   --text: #F7F6F3;
   --text-muted: rgba(247, 246, 243, 0.68);
 }
+
+:where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--syn-focus);
+  outline-offset: 3px;
+}
+
+.syn-interactive {
+  transition: color var(--syn-motion-fast) var(--syn-ease-standard),
+    background-color var(--syn-motion-fast) var(--syn-ease-standard),
+    border-color var(--syn-motion-fast) var(--syn-ease-standard),
+    opacity var(--syn-motion-fast) var(--syn-ease-standard),
+    transform var(--syn-motion-fast) var(--syn-ease-standard),
+    box-shadow var(--syn-motion-fast) var(--syn-ease-standard);
+}
+
+.syn-page-enter {
+  animation: syn-page-enter var(--syn-motion-standard) var(--syn-ease-standard) both;
+}
+
+@keyframes syn-page-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.syn-safe-top { padding-top: env(safe-area-inset-top, 0px); }
+.syn-safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.syn-touch-target { min-width: 44px; min-height: 44px; }
 
 html[data-synaura-theme='light'] {
   color-scheme: light;
@@ -449,6 +505,13 @@ html[data-synaura-theme='dark'] .synaura-player-surface :is(
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  [data-motion-essential='true'] {
+    animation-duration: 900ms !important;
+    animation-iteration-count: infinite !important;
   }
 }
 

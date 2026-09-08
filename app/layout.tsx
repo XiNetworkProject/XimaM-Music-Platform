@@ -12,6 +12,8 @@ import { Analytics } from '@vercel/analytics/next';
 import AdSenseScript from '@/components/AdSenseScript';
 import AndroidAppPrompt from '@/components/mobile/AndroidAppPrompt';
 import { SynauraThemeProvider } from '@/components/theme/SynauraThemeProvider';
+import PageTransition from '@/components/PageTransition';
+import { SynauraToastViewport } from '@/components/ui/SynauraToastViewport';
 
 const SYNAURA_THEME_STORAGE_KEY = 'synaura.theme.mode.v1';
 
@@ -49,8 +51,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: 'cover',
 };
 
@@ -139,7 +139,7 @@ export default function RootLayout({
                 <LayoutContent>
                   <ConditionalNavbar />
                   <main className="flex-1 overflow-x-hidden max-w-full">
-                    {children}
+                    <PageTransition>{children}</PageTransition>
                   </main>
                   <ConditionalBottomNav />
                   <GlobalQueueBubble />
@@ -150,6 +150,8 @@ export default function RootLayout({
           </div>
           {process.env.VERCEL ? <Analytics /> : null}
           <AndroidAppPrompt />
+          <div id="synaura-overlay-root" />
+          <SynauraToastViewport />
         </Providers>
         </SynauraThemeProvider>
       </body>

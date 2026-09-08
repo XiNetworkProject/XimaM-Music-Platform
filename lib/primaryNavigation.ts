@@ -12,6 +12,25 @@ export const PRIMARY_WEB_NAV_ITEMS = [
   href: string | null;
 }>;
 
+/** Shared route inventory for secondary creation/social surfaces. */
+export const SECONDARY_WEB_NAV_ITEMS = [
+  { id: 'messages', label: 'Messages', href: '/messages' },
+  { id: 'notifications', label: 'Notifications', href: '/notifications' },
+  { id: 'clips', label: 'Clips', href: '/clips' },
+  { id: 'community', label: 'Communauté', href: '/community' },
+] as const;
+
+/** Account destinations consumed by menus; profile is resolved per session. */
+export const ACCOUNT_WEB_NAV_ITEMS = [
+  { id: 'profile', label: 'Mon profil', href: null },
+  { id: 'clip', label: 'Publier un clip', href: '/clips/new' },
+  { id: 'studio', label: 'Studio', href: '/ai-generator' },
+  { id: 'library', label: 'Bibliothèque', href: '/library' },
+  { id: 'settings', label: 'Paramètres', href: '/settings' },
+  { id: 'subscription', label: 'Abonnement', href: '/subscriptions' },
+  { id: 'help', label: 'Aide et centre légal', href: '/legal' },
+] as const;
+
 const PRIMARY_ROUTE_PREFIXES: Record<PrimaryWebNavId, readonly string[]> = {
   home: ['/', '/swipe'],
   discover: ['/discover', '/radar', '/search'],

@@ -25,20 +25,12 @@ import {
   Loader2,
 } from 'lucide-react';
 import { getBrowserNotificationStatus, registerPushSubscription } from '@/lib/pushClient';
+import { notificationStore, notify, type SynauraNotificationType, type SynauraTransientNotification } from '@/lib/ui/notifications';
 
-export type NotificationType = 'success' | 'error' | 'info' | 'warning' | 'music' | 'like' | 'message' | 'follow'
-  | 'new_follower' | 'new_like' | 'like_milestone' | 'new_comment' | 'new_message'
-  | 'new_track_followed' | 'view_milestone' | 'boost_reminder' | 'admin_broadcast' | 'general'
-  | 'post_like' | 'post_comment' | 'message_request' | 'message_request_accepted';
+export { notificationStore, notify } from '@/lib/ui/notifications';
 
-export interface Notification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  message?: string;
-  duration?: number;
-  action?: { label: string; onClick: () => void };
-}
+export type NotificationType = SynauraNotificationType;
+export type Notification = SynauraTransientNotification;
 
 interface DBNotification {
   id: number;
@@ -57,64 +49,6 @@ interface DBNotification {
 interface NotificationCenterProps {
   className?: string;
 }
-
-class NotificationStore {
-  private listeners: Set<(notifications: Notification[]) => void> = new Set();
-  private notifications: Notification[] = [];
-
-  subscribe(listener: (notifications: Notification[]) => void) {
-    this.listeners.add(listener);
-    return () => { this.listeners.delete(listener); };
-  }
-
-  add(notification: Omit<Notification, 'id'>) {
-    const n: Notification = {
-      ...notification,
-      id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      duration: notification.duration ?? 5000,
-    };
-    this.notifications = [n, ...this.notifications];
-    this.notify();
-    if (n.duration && n.duration > 0) {
-      setTimeout(() => this.remove(n.id), n.duration);
-    }
-  }
-
-  remove(id: string) {
-    this.notifications = this.notifications.filter(n => n.id !== id);
-    this.notify();
-  }
-
-  clear() {
-    this.notifications = [];
-    this.notify();
-  }
-
-  private notify() {
-    this.listeners.forEach(l => l([...this.notifications]));
-  }
-}
-
-export const notificationStore = new NotificationStore();
-
-export const notify = {
-  success: (title: string, message?: string, duration?: number) =>
-    notificationStore.add({ type: 'success', title, message, duration }),
-  error: (title: string, message?: string, duration?: number) =>
-    notificationStore.add({ type: 'error', title, message, duration }),
-  info: (title: string, message?: string, duration?: number) =>
-    notificationStore.add({ type: 'info', title, message, duration }),
-  warning: (title: string, message?: string, duration?: number) =>
-    notificationStore.add({ type: 'warning', title, message, duration }),
-  music: (title: string, message?: string, duration?: number) =>
-    notificationStore.add({ type: 'music', title, message, duration }),
-  like: (title: string, message?: string, duration?: number) =>
-    notificationStore.add({ type: 'like', title, message, duration }),
-  message: (title: string, message?: string, duration?: number) =>
-    notificationStore.add({ type: 'message', title, message, duration }),
-  follow: (title: string, message?: string, duration?: number) =>
-    notificationStore.add({ type: 'follow', title, message, duration }),
-};
 
 const NOTIF_ICONS: Record<string, any> = {
   success: Check, error: AlertCircle, info: Info, warning: AlertCircle,
@@ -188,7 +122,7 @@ function ToastItem({ notification, onRemove }: { notification: Notification; onR
   if (notification.type === 'error') {
     return (
       <motion.div
-        role="status"
+        role="alert"
         aria-atomic="true"
         initial={{ opacity: 0, y: -12, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -219,11 +153,13 @@ function ToastItem({ notification, onRemove }: { notification: Notification; onR
 
   return (
     <motion.div
+      role="status"
+      aria-atomic="true"
       initial={{ opacity: 0, y: -20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, x: 100, scale: 0.95 }}
       transition={{ duration: 0.2 }}
-      className="panel-suno border border-[var(--border)] rounded-2xl p-3.5 shadow-lg backdrop-blur-md max-w-[420px] w-full"
+      className="rounded-[var(--syn-radius-lg)] border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] p-3.5 text-[var(--syn-text-primary)] shadow-[var(--syn-shadow-medium)] backdrop-blur-xl max-w-[420px] w-full"
     >
       <div className="flex items-start gap-3">
         <NotificationIcon type={notification.type} />
@@ -312,7 +248,6 @@ export default function NotificationCenter({ className = '' }: NotificationCente
   const { data: session, status: sessionStatus } = useSession();
   const isAuthenticated = sessionStatus === 'authenticated';
 
-  const [toasts, setToasts] = useState<Notification[]>([]);
   const [showPanel, setShowPanel] = useState(false);
   const [dbNotifs, setDbNotifs] = useState<DBNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -321,10 +256,6 @@ export default function NotificationCenter({ className = '' }: NotificationCente
   const [pushStatus, setPushStatus] = useState<'unknown' | 'granted' | 'denied' | 'unsupported' | 'unavailable'>('unknown');
   const [pushLoading, setPushLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    return notificationStore.subscribe(setToasts);
-  }, []);
 
   // Detecter le statut de permission push
   useEffect(() => {
@@ -461,8 +392,6 @@ export default function NotificationCenter({ className = '' }: NotificationCente
     } catch {}
   }, []);
 
-  const totalBadge = unreadCount + toasts.length;
-
   return (
     <>
       {/* Bell button */}
@@ -473,13 +402,13 @@ export default function NotificationCenter({ className = '' }: NotificationCente
           className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full hover:bg-[var(--surface-2)] transition-all duration-200 relative ${className} ${showPanel ? 'bg-[var(--surface-2)]' : ''}`}
         >
           <Bell className="w-5 h-5" />
-          {totalBadge > 0 && (
+          {unreadCount > 0 && (
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               className="absolute -top-0.5 -right-0.5 min-w-[20px] h-[20px] px-1.5 bg-violet-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-lg shadow-violet-500/30"
             >
-              {totalBadge > 99 ? '99+' : totalBadge}
+              {unreadCount > 99 ? '99+' : unreadCount}
             </motion.div>
           )}
         </button>
@@ -619,20 +548,6 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
-      </div>
-
-      {/* Toast Container */}
-      <div className="fixed top-4 right-4 z-[9999] space-y-2 pointer-events-none">
-        <AnimatePresence mode="popLayout">
-          {toasts.slice(0, 3).map(toast => (
-            <div key={toast.id} className="pointer-events-auto">
-              <ToastItem
-                notification={toast}
-                onRemove={() => notificationStore.remove(toast.id)}
-              />
-            </div>
-          ))}
         </AnimatePresence>
       </div>
     </>

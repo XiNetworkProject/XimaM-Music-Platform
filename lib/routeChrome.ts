@@ -1,4 +1,7 @@
+export type RouteChromeKind = 'immersive' | 'standard' | 'wide' | 'studio' | 'auth-public' | 'subproduct' | 'admin';
+
 export type RouteChrome = {
+  kind: RouteChromeKind;
   showSidebar: boolean;
   showTopSearch: boolean;
   showBottomNav: boolean;
@@ -14,6 +17,7 @@ function startsWithAny(pathname: string, prefixes: string[]) {
 export function getRouteChrome(pathname: string | null): RouteChrome {
   if (!pathname) {
     return {
+      kind: 'standard',
       showSidebar: true,
       showTopSearch: true,
       showBottomNav: true,
@@ -51,9 +55,23 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     '/city',
     '/community',
     '/download',
+    '/dev/ui',
   ]);
   const isImmersivePlayer = pathname.startsWith('/swipe');
   const isConversation = /^\/messages\/[^/]+/.test(pathname);
+  const kind: RouteChromeKind = isAuth || isOnboarding
+    ? 'auth-public'
+    : pathname.startsWith('/admin')
+      ? 'admin'
+      : pathname.startsWith('/meteo') || pathname.startsWith('/star-academy-tiktok')
+        ? 'subproduct'
+        : pathname.startsWith('/studio') || pathname.startsWith('/ai-generator')
+          ? 'studio'
+          : isHome || isImmersivePlayer || isConversation
+            ? 'immersive'
+            : startsWithAny(pathname, ['/discover', '/library', '/profile', '/track', '/playlists', '/community', '/messages', '/dev/ui'])
+              ? 'wide'
+              : 'standard';
   const useFullScreenLayout = isHome || isAuth || isOnboarding || isMeteoFullscreen || isSynauraSurface;
   const hideTopSearch = startsWithAny(pathname, [
     '/discover',
@@ -67,6 +85,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
   ]);
 
   return {
+    kind,
     showSidebar: !useFullScreenLayout,
     showTopSearch: !useFullScreenLayout && !hideTopSearch,
     showBottomNav: !useFullScreenLayout,

@@ -29,6 +29,7 @@
     "test:security-phase0b": "node --experimental-strip-types --test tests/security-phase-0b.test.mjs",
     "test:audio-core": "node --experimental-strip-types --test tests/audio-core.test.mjs tests/audio-core-routing.test.mjs tests/audio-integration-phase2b.test.mjs",
     "test:audio-authenticated": "node scripts/audio-authenticated-matrix.mjs",
+    "test:frontend-foundation": "node --experimental-strip-types --test tests/frontend-foundation-phase3.test.mjs",
     "db:migrate": "node database/scripts/migrate.mjs",
     "deploy": "node scripts/deploy-vercel.js",
     "publish:android": "node scripts/publish-android-release.js"

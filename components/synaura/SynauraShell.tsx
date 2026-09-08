@@ -27,11 +27,12 @@ import SynauraPrimaryDock from '@/components/synaura/SynauraPrimaryDock';
 import {
   getWebProfileHref,
   isPrimaryWebRouteActive,
+  ACCOUNT_WEB_NAV_ITEMS,
   PRIMARY_WEB_NAV_ITEMS,
   shouldShowPrimaryWebDock,
   type PrimaryWebNavId,
 } from '@/lib/primaryNavigation';
-import { shouldRenderGlobalMiniPlayer } from '@/lib/routeChrome';
+import { getRouteChrome, shouldRenderGlobalMiniPlayer } from '@/lib/routeChrome';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -59,15 +60,12 @@ function SynauraAccountMenu({ compact = false }: { compact?: boolean }) {
   const username = user.username || '';
   const avatar = (user as any).avatar || user.image || '';
   const profileHref = username ? `/profile/${username}` : '/profile';
-  const links = [
-    { href: profileHref, label: 'Mon profil', icon: User },
-    { href: '/clips/new', label: 'Publier un clip', icon: Film },
-    { href: '/ai-generator', label: 'Studio', icon: Sparkles },
-    { href: '/library', label: 'Bibliothèque', icon: Library },
-    { href: '/settings', label: 'Paramètres', icon: Settings },
-    { href: '/subscriptions', label: 'Abonnement', icon: CreditCard },
-    { href: '/legal', label: 'Aide et centre légal', icon: HelpCircle },
-  ];
+  const accountIcons = { profile: User, clip: Film, studio: Sparkles, library: Library, settings: Settings, subscription: CreditCard, help: HelpCircle } as const;
+  const links = ACCOUNT_WEB_NAV_ITEMS.map((item) => ({
+    href: item.href || profileHref,
+    label: item.label,
+    icon: accountIcons[item.id],
+  }));
 
   return (
     <details className="group relative">
@@ -130,6 +128,7 @@ export function SynauraAppShell({
   showDock?: boolean;
 }) {
   const pathname = usePathname();
+  const routeKind = getRouteChrome(pathname).kind;
   const { data: shellSession } = useSession();
   const shellUsername = (shellSession?.user as any)?.username as string | undefined;
   const renderDock = showDock ?? shouldShowPrimaryWebDock(pathname, shellUsername);
@@ -143,7 +142,7 @@ export function SynauraAppShell({
       : 'pb-6';
 
   return (
-    <div className={cx('synaura-shell-root relative z-20 min-h-screen overflow-x-hidden bg-[var(--syn-background)] text-[var(--syn-text-primary)]', className)}>
+    <div data-synaura-route={routeKind} className={cx('synaura-shell-root relative z-20 min-h-screen overflow-x-hidden bg-[var(--syn-background)] text-[var(--syn-text-primary)]', className)}>
       <style>{`
         .synaura-no-scrollbar::-webkit-scrollbar { display: none; }
         .synaura-no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

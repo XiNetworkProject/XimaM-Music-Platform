@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronDown } from 'lucide-react';
+import React, { useCallback, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
+import { SynauraOverlay } from '@/components/ui/SynauraOverlay';
 
 /* ═══════════════════════════════════════════════════════
    Synaura Unified Design System
@@ -25,58 +25,9 @@ interface UModalProps {
   className?: string;
 }
 
-const MODAL_SIZES: Record<string, string> = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-xl',
-  full: 'max-w-3xl',
-};
-
 export function UModal({ open, onClose, children, size = 'md', showClose = true, zClass = 'z-[200]', className = '' }: UModalProps) {
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', h);
-    return () => document.removeEventListener('keydown', h);
-  }, [open, onClose]);
-
-  if (typeof document === 'undefined') return null;
-
-  return createPortal(
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-          className={`fixed inset-0 ${zClass} bg-black/70 backdrop-blur-md flex items-center justify-center p-4`}
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ scale: 0.96, opacity: 0, y: 8 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.96, opacity: 0, y: 8 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className={`w-full ${MODAL_SIZES[size]} rounded-2xl border border-white/[0.08] bg-[#0c0c14]/98 backdrop-blur-2xl shadow-[0_30px_100px_rgba(0,0,0,.8)] max-h-[90vh] overflow-y-auto ${className}`}
-            onClick={(e: React.MouseEvent) => e.stopPropagation()}
-          >
-            {showClose && (
-              <button
-                onClick={onClose}
-                className="absolute top-3 right-3 z-10 p-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white/40 hover:text-white/70 transition"
-              >
-                <X size={16} />
-              </button>
-            )}
-            {children}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>,
-    document.body,
-  );
+  void zClass;
+  return <SynauraOverlay open={open} onClose={onClose} size={size} showClose={showClose} ariaLabel="Fenêtre" className={className}>{children}</SynauraOverlay>;
 }
 
 /** Shortcut for modal body padding */
@@ -86,7 +37,7 @@ export function UModalBody({ children, className = '' }: { children: React.React
 
 /** Modal title */
 export function UModalTitle({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <h3 className={`text-lg font-bold text-white mb-4 ${className}`}>{children}</h3>;
+  return <h3 className={`mb-4 text-lg font-bold text-[var(--syn-text-primary)] ${className}`}>{children}</h3>;
 }
 
 /** Modal footer with action buttons */
@@ -106,25 +57,8 @@ interface UDrawerProps {
 }
 
 export function UDrawer({ open, onClose, children, side = 'right', width = 'w-full sm:w-[420px]', zClass = 'z-[100]' }: UDrawerProps) {
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', h);
-    return () => document.removeEventListener('keydown', h);
-  }, [open, onClose]);
-
-  const translate = side === 'right' ? 'translate-x-full' : '-translate-x-full';
-  const position = side === 'right' ? 'right-0' : 'left-0';
-  const border = side === 'right' ? 'sm:border-l' : 'sm:border-r';
-
-  return (
-    <div className={`fixed inset-0 ${zClass} transition ${open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
-      <div onClick={onClose} className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition ${open ? 'opacity-100' : 'opacity-0'}`} />
-      <div className={`absolute ${position} top-0 h-full ${width} bg-[#0c0c14] ${border} border-white/[0.06] shadow-2xl transform transition-transform duration-300 ${open ? 'translate-x-0' : translate}`}>
-        {children}
-      </div>
-    </div>
-  );
+  void zClass;
+  return <SynauraOverlay open={open} onClose={onClose} presentation={side === 'right' ? 'drawer-right' : 'drawer-left'} ariaLabel="Panneau latéral" className={width}>{children}</SynauraOverlay>;
 }
 
 // ─── UButton ─────────────────────────────────────────────
