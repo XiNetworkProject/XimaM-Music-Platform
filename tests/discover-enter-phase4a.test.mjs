@@ -126,6 +126,7 @@ test('SEO public a canonical, OpenGraph, social image et une legacy landing cons
   assert.match(legacy, /canonical: '\/'/);
   assert.match(legacy, /<DiscoverSynaura legacy/);
   assert.match(social, /ImageResponse/);
+  assert.doesNotMatch(social, /#[0-9a-f]+ 0 3%/i);
 });
 
 test('les événements d’entrée restent sans plateforme ni donnée personnelle', async () => {
