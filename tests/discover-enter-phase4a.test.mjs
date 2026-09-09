@@ -31,6 +31,14 @@ test('les destinations internes refusent les open redirects et backslashes', () 
   assert.equal(buildMemberContinueUrl(null), '/enter/continue?callbackUrl=%2Flive');
 });
 
+test('le middleware reconstruit les redirects avec l’origine publique du proxy', async () => {
+  const source = await read('middleware.ts');
+  assert.match(source, /x-forwarded-host/);
+  assert.match(source, /x-forwarded-proto/);
+  assert.match(source, /new URL\('\/auth\/signin', publicRequestOrigin\(request\)\)/);
+  assert.doesNotMatch(source, /new URL\('\/auth\/signin', request\.url\)/);
+});
+
 test('le retour membre centralise onboarding puis destination', async () => {
   const source = await read('app/enter/continue/page.tsx');
   assert.match(source, /memberHasCompletedOnboarding/);

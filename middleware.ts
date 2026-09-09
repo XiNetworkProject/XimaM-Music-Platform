@@ -19,6 +19,25 @@ function securePageResponse(response: NextResponse, pathname: string) {
   return response;
 }
 
+function publicRequestOrigin(request: NextRequest) {
+  const forwardedHost = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+  if (forwardedHost && /^[a-z0-9.-]+(?::\d{1,5})?$/i.test(forwardedHost)) {
+    const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+    const protocol = forwardedProto === 'http' ? 'http' : 'https';
+    return `${protocol}://${forwardedHost}`;
+  }
+
+  const configured = process.env.NEXT_PUBLIC_SITE_URL;
+  if (configured) {
+    try {
+      const url = new URL(configured);
+      if (url.protocol === 'https:' || url.protocol === 'http:') return url.origin;
+    } catch {}
+  }
+
+  return request.nextUrl.origin;
+}
+
 // Pages publiques (accessibles sans authentification)
 const publicPages = [
   '/',
@@ -60,12 +79,12 @@ export async function middleware(request: NextRequest) {
     !SYNAURA_SHUTDOWN_NOTICES_ENABLED &&
     (pathname === '/fermeture' || pathname === '/arret')
   ) {
-    return securePageResponse(NextResponse.redirect(new URL('/', request.url)), pathname);
+    return securePageResponse(NextResponse.redirect(new URL('/', publicRequestOrigin(request))), pathname);
   }
 
   // Après la date de fin : seules les pages d'information restent accessibles
   if (isPastShutdownEnd() && !isShutdownAllowedPath(pathname)) {
-    const arretUrl = new URL('/arret', request.url);
+    const arretUrl = new URL('/arret', publicRequestOrigin(request));
     if (pathname !== arretUrl.pathname) {
       return securePageResponse(NextResponse.redirect(arretUrl), pathname);
     }
@@ -103,10 +122,10 @@ export async function middleware(request: NextRequest) {
         return securePageResponse(NextResponse.next(), pathname);
       }
       // Rediriger vers la page de connexion
-      const signInUrl = new URL('/auth/signin', request.url);
-      // Toujours conserver une destination relative. Derriere nginx, request.url
-      // peut contenir l'origine interne (localhost:3000), ce qui renvoyait
-      // l'utilisateur vers l'accueil apres la connexion en production.
+      // L'origine vient du site public explicite ou des en-têtes du reverse proxy.
+      // request.url contient l'origine interne localhost:3000 en production.
+      const signInUrl = new URL('/auth/signin', publicRequestOrigin(request));
+      // La destination reste toujours relative et ne peut donc pas devenir un open redirect.
       const callbackUrl = `${request.nextUrl.pathname}${request.nextUrl.search}`;
       signInUrl.searchParams.set('callbackUrl', callbackUrl);
       return securePageResponse(NextResponse.redirect(signInUrl), pathname);
