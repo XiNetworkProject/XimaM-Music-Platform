@@ -28,6 +28,7 @@ declare global {
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://synaura.fr'),
   title: 'Synaura',
   description: 'Découvrez et partagez de la musique avec la communauté Synaura',
   manifest: '/manifest.json',

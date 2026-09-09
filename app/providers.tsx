@@ -1275,9 +1275,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                 <SidebarProvider>
                 <SubscriptionProvider>
                     <NativeFeaturesWrapper>
-                  {children}
+                      <OnboardingGate>{children}</OnboardingGate>
                     </NativeFeaturesWrapper>
-                    <OnboardingGate />
                     <ShutdownModal
                       isOpen={showShutdown}
                       onClose={() => setShowShutdown(false)}

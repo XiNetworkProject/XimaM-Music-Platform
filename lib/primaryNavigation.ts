@@ -1,7 +1,7 @@
 export type PrimaryWebNavId = 'home' | 'discover' | 'create' | 'library' | 'profile';
 
 export const PRIMARY_WEB_NAV_ITEMS = [
-  { id: 'home', label: 'Accueil', href: '/' },
+  { id: 'home', label: 'Accueil', href: '/live' },
   { id: 'discover', label: 'Découvrir', href: '/discover' },
   { id: 'create', label: 'Créer', href: null },
   { id: 'library', label: 'Bibliothèque', href: '/library' },
@@ -32,7 +32,7 @@ export const ACCOUNT_WEB_NAV_ITEMS = [
 ] as const;
 
 const PRIMARY_ROUTE_PREFIXES: Record<PrimaryWebNavId, readonly string[]> = {
-  home: ['/', '/swipe'],
+  home: ['/live', '/swipe'],
   discover: ['/discover', '/radar', '/search'],
   create: ['/create', '/upload', '/publish', '/ai-generator', '/studio', '/clips/new', '/posts'],
   library: ['/library', '/playlists', '/album'],
@@ -41,7 +41,7 @@ const PRIMARY_ROUTE_PREFIXES: Record<PrimaryWebNavId, readonly string[]> = {
 
 export function isPrimaryWebRouteActive(id: PrimaryWebNavId, pathname: string | null) {
   if (!pathname) return id === 'home';
-  if (id === 'home') return pathname === '/' || pathname.startsWith('/swipe');
+  if (id === 'home') return pathname === '/live' || pathname.startsWith('/swipe');
 
   return PRIMARY_ROUTE_PREFIXES[id].some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),

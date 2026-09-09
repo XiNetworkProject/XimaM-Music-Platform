@@ -1,22 +1,23 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow';
+import SynauraEntryLoading from '@/components/enter/SynauraEntryLoading';
+import { authOptions } from '@/lib/authOptions';
+import { safeEntryTarget } from '@/lib/entryRouting';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Personnalise ton expérience — Synaura',
+  title: 'Façonne ton univers — Synaura',
   robots: { index: false, follow: false },
 };
 
-export default function OnboardingPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="grid min-h-screen place-items-center bg-[#F7F6F3]">
-          <div className="h-9 w-9 animate-spin rounded-full border-2 border-black/15 border-t-[#7357C6]" />
-        </div>
-      }
-    >
-      <OnboardingFlow />
-    </Suspense>
-  );
+export default async function OnboardingPage({ searchParams }: { searchParams: { callbackUrl?: string; edit?: string } }) {
+  const session = await getServerSession(authOptions).catch(() => null);
+  const target = safeEntryTarget(searchParams.callbackUrl, '/live');
+  if (!session?.user?.id) redirect(`/auth/signin?callbackUrl=${encodeURIComponent(target)}`);
+
+  return <Suspense fallback={<SynauraEntryLoading label="Préparation de ton univers…" />}><OnboardingFlow /></Suspense>;
 }

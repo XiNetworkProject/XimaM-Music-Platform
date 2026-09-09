@@ -1,101 +1,60 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
-import { useEffect, useState, Suspense } from 'react';
-import Image from 'next/image';
-import { motion } from 'framer-motion';
-import { AlertTriangle, ArrowLeft, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
+import { AlertTriangle, ArrowLeft, RefreshCw } from 'lucide-react';
+import EntryFrame from '@/components/enter/EntryFrame';
+import SynauraEntryLoading from '@/components/enter/SynauraEntryLoading';
+import { SynauraButton } from '@/components/ui/SynauraPrimitives';
 
 const ERROR_MESSAGES: Record<string, string> = {
-  'AccessDenied': "Accès refusé. Vérifiez que vous avez autorisé l'application à accéder à votre compte.",
-  'Configuration': "Erreur de configuration du service d'authentification.",
-  'Verification': 'Le token de vérification est invalide ou expiré.',
-  'OAuthSignin': "Erreur lors de l'initialisation de la connexion OAuth.",
-  'OAuthCallback': "Erreur lors du retour de la connexion OAuth.",
-  'Default': "Une erreur inattendue s'est produite.",
+  AccessDenied: "Tu as refusé l’accès. Rien n’a été créé ni modifié ; tu peux réessayer quand tu veux.",
+  Configuration: "Le service de connexion n’est pas disponible pour le moment.",
+  Verification: 'Ce lien de vérification est invalide ou a expiré.',
+  OAuthSignin: "La connexion avec Google n’a pas pu démarrer.",
+  OAuthCallback: "Le retour de Google n’a pas pu être finalisé.",
+  Default: "Une erreur inattendue a interrompu la connexion.",
 };
 
 function AuthErrorContent() {
   const searchParams = useSearchParams();
-  const error = searchParams.get('error');
-  const [errorMessage, setErrorMessage] = useState('');
-
-  useEffect(() => {
-    setErrorMessage(ERROR_MESSAGES[error || ''] || ERROR_MESSAGES['Default']);
-  }, [error]);
+  const error = searchParams.get('error') || 'Default';
+  const errorMessage = ERROR_MESSAGES[error] || ERROR_MESSAGES.Default;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="w-full max-w-[420px]"
+    <EntryFrame
+      eyebrow="Connexion interrompue"
+      title="Reprends le fil."
+      description="Ton univers reste intact. Choisis simplement comment revenir dans Synaura."
+      compact
     >
-      <div className="text-center mb-8">
-        <Link href="/" className="inline-block rounded-[1.75rem] bg-white p-2 shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
-          <Image
-            src="/brand/2026/synaura-brand-lockup.png"
-            alt="Synaura - Share sound, connect creations"
-            width={360}
-            height={180}
-            className="h-28 w-[min(340px,82vw)] rounded-[1.35rem] object-cover"
-            unoptimized
-            priority
-          />
+      <div role="alert" className="my-auto rounded-[1.75rem] border border-[color-mix(in_srgb,var(--syn-danger)_28%,transparent)] bg-[color-mix(in_srgb,var(--syn-danger)_8%,var(--syn-surface))] p-5 sm:p-7">
+        <span className="grid h-12 w-12 place-items-center rounded-2xl border border-[color-mix(in_srgb,var(--syn-danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--syn-danger)_12%,transparent)] text-[var(--syn-danger)]">
+          <AlertTriangle className="h-5 w-5" aria-hidden />
+        </span>
+        <p className="mt-5 text-xs font-black uppercase tracking-[0.16em] text-[var(--syn-danger)]">{error}</p>
+        <h3 className="mt-2 text-2xl font-black tracking-[-0.035em]">La porte ne s’est pas ouverte.</h3>
+        <p className="mt-3 text-sm font-semibold leading-relaxed text-[var(--syn-text-secondary)]">{errorMessage}</p>
+      </div>
+
+      <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
+        <SynauraButton onClick={() => window.location.assign('/auth/signin')}>
+          <RefreshCw className="h-4 w-4" aria-hidden />
+          Réessayer
+        </SynauraButton>
+        <Link href="/" className="syn-interactive inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-[var(--syn-border)] bg-[var(--syn-surface)] px-5 text-sm font-black hover:bg-[var(--syn-soft)]">
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          Revenir à Discover
         </Link>
       </div>
-
-      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 sm:p-8 text-center">
-        <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-5">
-          <AlertTriangle className="w-7 h-7 text-red-400" />
-        </div>
-
-        <h2 className="text-lg font-bold text-white mb-2">Erreur d'authentification</h2>
-
-        {error && (
-          <div className="inline-block px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/[0.06] text-[11px] font-mono text-white/40 mb-3">
-            {error}
-          </div>
-        )}
-
-        <p className="text-sm text-white/50 mb-6 leading-relaxed">{errorMessage}</p>
-
-        <div className="space-y-2.5">
-          <button
-            onClick={() => window.location.reload()}
-            className="w-full h-11 rounded-full bg-white text-black text-sm font-semibold transition-all hover:bg-white/90 inline-flex items-center justify-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Réessayer
-          </button>
-
-          <Link
-            href="/auth/signin"
-            className="block w-full h-11 rounded-full bg-white/[0.06] text-sm text-white/70 font-medium hover:bg-white/[0.1] transition text-center leading-[44px]"
-          >
-            Retour à la connexion
-          </Link>
-        </div>
-      </div>
-
-      <div className="mt-6 text-center">
-        <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-white/25 hover:text-white/50 transition">
-          <ArrowLeft className="w-3 h-3" />
-          Retour à l'accueil
-        </Link>
-      </div>
-    </motion.div>
+    </EntryFrame>
   );
 }
 
 export default function AuthErrorPage() {
   return (
-    <Suspense fallback={
-      <div className="text-center">
-        <div className="w-8 h-8 border-2 border-white/40 border-t-transparent rounded-full animate-spin mx-auto" />
-      </div>
-    }>
+    <Suspense fallback={<SynauraEntryLoading label="La connexion revient…" />}>
       <AuthErrorContent />
     </Suspense>
   );

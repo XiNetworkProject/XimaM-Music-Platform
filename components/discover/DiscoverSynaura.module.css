@@ -1,0 +1,382 @@
+.root {
+  position: relative;
+  min-height: 100svh;
+  overflow: clip;
+  color: var(--syn-text-primary);
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--syn-accent) 24%, transparent), transparent 30rem),
+    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--syn-accent-blue) 20%, transparent), transparent 34rem),
+    var(--syn-background);
+}
+
+.grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image: radial-gradient(color-mix(in srgb, var(--syn-text-primary) 22%, transparent) 0.55px, transparent 0.55px);
+  background-size: 5px 5px;
+  mask-image: linear-gradient(to bottom, black, transparent 82%);
+}
+
+.aura {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: min(76vw, 52rem);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.82), transparent 7%),
+    radial-gradient(circle at 43% 38%, color-mix(in srgb, var(--syn-accent-coral) 86%, transparent), transparent 31%),
+    radial-gradient(circle at 65% 42%, color-mix(in srgb, var(--syn-accent) 90%, transparent), transparent 42%),
+    radial-gradient(circle at 50% 72%, color-mix(in srgb, var(--syn-accent-blue) 84%, transparent), transparent 45%);
+  filter: blur(1px) saturate(1.12);
+  box-shadow: 0 0 8rem color-mix(in srgb, var(--syn-accent) 28%, transparent);
+  opacity: 0.76;
+  animation: aura-breathe 8s ease-in-out infinite;
+}
+
+.aura::before,
+.aura::after {
+  content: '';
+  position: absolute;
+  border-radius: inherit;
+  inset: 8%;
+  border: 1px solid color-mix(in srgb, var(--syn-text-primary) 18%, transparent);
+}
+
+.aura::after {
+  inset: -5%;
+  border-color: color-mix(in srgb, var(--syn-accent-blue) 22%, transparent);
+  transform: rotate(-8deg) scaleY(0.88);
+}
+
+.orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(88vw, 62rem);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%) rotate(12deg) scaleY(0.48);
+  border: 1px solid color-mix(in srgb, var(--syn-text-primary) 15%, transparent);
+  border-radius: 999px;
+  box-shadow: 0 0 4rem color-mix(in srgb, var(--syn-accent-blue) 12%, transparent);
+}
+
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 7rem 1rem 3rem;
+  isolation: isolate;
+}
+
+.heroCopy {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 74rem);
+  text-align: center;
+}
+
+.logoStage {
+  width: clamp(6rem, 13vw, 10rem);
+  aspect-ratio: 1;
+  margin-inline: auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--syn-text-primary) 18%, transparent);
+  border-radius: 2.3rem;
+  background: color-mix(in srgb, var(--syn-surface) 72%, transparent);
+  box-shadow: var(--syn-shadow-high), var(--syn-glow-accent);
+  backdrop-filter: blur(24px);
+}
+
+.wordmark {
+  font-size: clamp(3.8rem, 11vw, 9rem);
+  line-height: 0.82;
+  letter-spacing: -0.075em;
+  font-weight: 950;
+  text-wrap: balance;
+}
+
+.heroLead {
+  max-width: 38rem;
+  margin: 1.5rem auto 0;
+  color: var(--syn-text-secondary);
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  line-height: 1.55;
+  text-wrap: balance;
+}
+
+.ctaRow {
+  margin-top: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.scrollCue {
+  position: absolute;
+  left: 50%;
+  bottom: 1.25rem;
+  z-index: 3;
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  color: var(--syn-text-secondary);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transform: translateX(-50%);
+}
+
+.story {
+  position: relative;
+  z-index: 2;
+  width: min(calc(100% - 2rem), 76rem);
+  margin-inline: auto;
+  padding-bottom: 5rem;
+}
+
+.scene {
+  min-height: min(86svh, 52rem);
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(20rem, 1.2fr);
+  align-items: center;
+  gap: clamp(2rem, 7vw, 7rem);
+  padding-block: 5rem;
+  border-top: 1px solid var(--syn-border);
+}
+
+.scene:nth-child(even) .sceneVisual { order: -1; }
+
+.eyebrow {
+  color: var(--syn-accent-coral);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.sceneTitle {
+  margin-top: 0.75rem;
+  font-size: clamp(2.25rem, 5vw, 4.8rem);
+  line-height: 0.96;
+  letter-spacing: -0.055em;
+  font-weight: 950;
+  text-wrap: balance;
+}
+
+.sceneText {
+  max-width: 32rem;
+  margin-top: 1rem;
+  color: var(--syn-text-secondary);
+  font-size: clamp(0.95rem, 1.6vw, 1.12rem);
+  line-height: 1.65;
+}
+
+.sceneVisual {
+  position: relative;
+  min-height: 25rem;
+  display: grid;
+  place-items: center;
+}
+
+.playerCard,
+.creationCard,
+.worldCard {
+  width: min(100%, 36rem);
+  border: 1px solid var(--syn-border);
+  border-radius: clamp(1.5rem, 4vw, 2.4rem);
+  background: color-mix(in srgb, var(--syn-surface) 82%, transparent);
+  box-shadow: var(--syn-shadow-high);
+  backdrop-filter: blur(20px);
+}
+
+.playerCard { padding: clamp(1.1rem, 3vw, 2rem); }
+
+.cover {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(circle at 22% 22%, rgba(255,255,255,.72), transparent 7%),
+    radial-gradient(circle at 28% 32%, color-mix(in srgb, var(--syn-accent-coral) 82%, transparent), transparent 35%),
+    radial-gradient(circle at 72% 35%, color-mix(in srgb, var(--syn-accent) 88%, transparent), transparent 46%),
+    linear-gradient(145deg, color-mix(in srgb, var(--syn-accent-blue) 80%, #071016), #09090c 74%);
+}
+
+.cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,.62), transparent 60%);
+}
+
+.waveform {
+  height: 4.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.24rem;
+}
+
+.waveform span {
+  flex: 1;
+  min-width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(to top, var(--syn-accent-blue), var(--syn-accent), var(--syn-accent-coral));
+  transform-origin: center;
+  animation: wave-pulse 1.8s ease-in-out infinite;
+}
+
+.reaction {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--syn-border);
+  border-radius: 999px;
+  background: var(--syn-surface-translucent);
+  box-shadow: var(--syn-shadow-medium);
+  color: var(--syn-text-primary);
+  font-size: 0.72rem;
+  font-weight: 900;
+  backdrop-filter: blur(16px);
+}
+
+.creatorStack {
+  width: min(100%, 35rem);
+  display: grid;
+  gap: 0.8rem;
+  transform: rotate(-2deg);
+}
+
+.creatorCard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--syn-border);
+  border-radius: var(--syn-radius-xl);
+  background: color-mix(in srgb, var(--syn-surface) 88%, transparent);
+  box-shadow: var(--syn-shadow-medium);
+  backdrop-filter: blur(18px);
+}
+
+.creatorCard:nth-child(2) { transform: translateX(8%); }
+.creatorCard:nth-child(3) { transform: translateX(2%); }
+
+.avatar {
+  width: 3.3rem;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 1.2rem;
+  background: linear-gradient(135deg, var(--syn-accent-coral), var(--syn-accent), var(--syn-accent-blue));
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 950;
+}
+
+.creationCard { padding: 1rem; }
+
+.studioPanel {
+  min-height: 20rem;
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  overflow: hidden;
+  border-radius: 1.7rem;
+  background: #0a0b10;
+  color: #f7f6f3;
+}
+
+.studioRail {
+  padding: 1rem 0.75rem;
+  border-right: 1px solid rgba(255,255,255,.1);
+  display: grid;
+  align-content: start;
+  gap: 0.6rem;
+}
+
+.studioRail span { height: 2.6rem; border-radius: 0.9rem; background: rgba(255,255,255,.08); }
+.studioBody { padding: 1.4rem; }
+.promptLine { height: 0.65rem; border-radius: 999px; background: rgba(255,255,255,.12); margin-bottom: 0.7rem; }
+
+.worldCard { padding: clamp(1.2rem, 3vw, 2rem); }
+.worldRows { display: grid; gap: 0.8rem; }
+.worldRow {
+  min-height: 5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem;
+  border-radius: 1.3rem;
+  background: var(--syn-soft);
+}
+
+.worldCover {
+  width: 3.5rem;
+  aspect-ratio: 1;
+  flex: none;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, var(--syn-accent-blue), var(--syn-accent), var(--syn-accent-coral));
+}
+
+.finale {
+  position: relative;
+  min-height: 80svh;
+  display: grid;
+  place-items: center;
+  padding: 6rem 1rem;
+  text-align: center;
+  border-top: 1px solid var(--syn-border);
+}
+
+@keyframes aura-breathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.96); filter: blur(1px) saturate(1.05); }
+  50% { transform: translate(-50%, -50%) scale(1.035); filter: blur(2px) saturate(1.2); }
+}
+
+@keyframes wave-pulse {
+  0%, 100% { transform: scaleY(0.72); opacity: 0.66; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+
+@media (max-width: 720px) {
+  .hero { padding-top: 6.5rem; }
+  .wordmark { font-size: clamp(3.5rem, 20vw, 5.3rem); }
+  .aura { width: 120vw; opacity: 0.58; }
+  .orbit { width: 135vw; }
+  .scrollCue { display: none; }
+  .story { width: min(calc(100% - 1.25rem), 76rem); }
+  .scene {
+    min-height: auto;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding-block: 4.5rem;
+  }
+  .scene:nth-child(even) .sceneVisual { order: initial; }
+  .sceneVisual { min-height: 20rem; }
+  .creatorStack { transform: none; }
+  .creatorCard:nth-child(n) { transform: none; }
+  .reaction { font-size: 0.65rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aura { animation: aura-breathe 14s ease-in-out infinite; }
+  .waveform span { animation: none; opacity: 0.82; }
+}
+
+@media (prefers-reduced-data: reduce) {
+  .grain { display: none; }
+  .playerCard, .creationCard, .worldCard, .creatorCard { backdrop-filter: none; }
+}
