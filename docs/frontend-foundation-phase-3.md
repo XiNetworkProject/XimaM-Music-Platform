@@ -68,6 +68,8 @@ La navigation primaire est Home, Discover, Create, Library, Profile. Desktop et 
 
 Le dock mobile conserve des cibles tactiles compactes et réserve l'espace du mini-player et de `env(safe-area-inset-bottom)`. Les vues studio/immersives peuvent masquer certains éléments, mais pas reconstruire la hiérarchie produit.
 
+Le Studio déclare une réserve mobile dédiée au-dessus de ses onglets contextuels afin que le mini-player global et la barre Generate/Library/Timeline/Inspect ne se recouvrent pas. Messages utilise les overlays communs pour la création de groupe et la confirmation de retrait, sans changement du polling/realtime.
+
 ## Primitives
 
 - `SynauraPrimitives.tsx` : Button, IconButton, Input, Textarea, Select, Checkbox, Switch, Slider, Tabs, Badge, Surface ;
@@ -105,7 +107,7 @@ Le zoom navigateur est autorisé. Le focus visible global utilise `--syn-focus`.
 
 `PageTransition` applique une entrée subtile de 6 px/220 ms et reste sous le provider audio. Il ne remonte donc ni lecteur ni providers. Éviter Framer Motion pour un simple hover CSS ; il est réservé aux overlays et séquences structurantes. La Phase 3 ajoute un seul host de toast et aucun provider global.
 
-Mesure de contrôle : le nombre de fichiers important Framer Motion reste stable à 92 avant/après, les providers globaux restent inchangés, et le CSS global passe de 112 555 à 112 998 caractères (net +443). Le build Phase 3 produit un chunk partagé de 301 kB ; Home 376 kB, Messages 350 kB, AI Generator 398 kB et Studio 362 kB au premier chargement. Le viewport de toast est séparé du centre de notifications lourd afin de ne pas l'ajouter au shell global.
+Mesure de contrôle : le nombre de fichiers important Framer Motion reste stable à 92 avant/après, les providers globaux restent inchangés, et le CSS global reste contenu à environ 113 k caractères. Le build Phase 3 produit un chunk partagé de 301 kB ; Home 376 kB, Messages 354 kB, AI Generator 398 kB et Studio 362 kB au premier chargement. Le viewport de toast est séparé du centre de notifications lourd afin de ne pas l'ajouter au shell global.
 
 ## Créer une nouvelle page
 

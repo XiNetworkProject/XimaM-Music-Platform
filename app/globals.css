@@ -274,6 +274,12 @@ html[data-synaura-theme='dark'] {
 .syn-safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
 .syn-touch-target { min-width: 44px; min-height: 44px; }
 
+@media (max-width: 1023px) {
+  [data-studio-route='true'] {
+    --synaura-primary-dock-space: calc(env(safe-area-inset-bottom, 0px) + 5.25rem);
+  }
+}
+
 html[data-synaura-theme='light'] {
   color-scheme: light;
 }

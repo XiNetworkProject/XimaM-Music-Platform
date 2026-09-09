@@ -21,6 +21,8 @@ import {
 import Avatar from "@/components/Avatar";
 import { notify } from "@/components/NotificationCenter";
 import { SynauraAppShell, SynauraRouteNav, SynauraTopBar } from "@/components/synaura/SynauraShell";
+import { SynauraConfirmDialog, SynauraOverlay, SynauraOverlayDescription, SynauraOverlayTitle } from "@/components/ui/SynauraOverlay";
+import { SynauraButton, SynauraInput } from "@/components/ui/SynauraPrimitives";
 
 type MessagingProfile = {
   id: string;
@@ -731,51 +733,29 @@ function MessagesContent() {
         </section>
       </div>
 
-      <AnimatePresence>
-        {groupOpen ? (
-          <motion.div
-            className="fixed inset-0 z-[110] flex items-end justify-center bg-black/55 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onMouseDown={(event: React.MouseEvent<HTMLDivElement>) => {
-              if (event.currentTarget === event.target) setGroupOpen(false);
-            }}
-          >
-            <motion.div
-              initial={{ y: 24, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 24, opacity: 0 }}
-              className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-syn-border bg-syn-elevatedSurface p-5 sm:rounded-2xl"
-            >
+      <SynauraOverlay open={groupOpen} onClose={() => setGroupOpen(false)} presentation="responsive" size="md">
+            <div className="p-5">
               <div className="flex items-start gap-3">
                 <span className="flex h-11 w-11 items-center justify-center rounded-full bg-syn-accent2/10 text-syn-accent2">
                   <Users className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-black">Nouveau groupe</h2>
-                  <p className="mt-1 text-xs leading-5 text-syn-textSecondary">
+                  <SynauraOverlayTitle className="text-lg">Nouveau groupe</SynauraOverlayTitle>
+                  <SynauraOverlayDescription className="mt-1 text-xs leading-5">
                     Choisis au moins deux amis. Les salons #general et #vocaux
                     seront prêts.
-                  </p>
+                  </SynauraOverlayDescription>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setGroupOpen(false)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-syn-surfaceMuted"
-                  aria-label="Fermer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
               </div>
-              <input
+              <SynauraInput
                 autoFocus
+                label="Nom du groupe"
                 value={groupName}
                 onChange={(event) =>
                   setGroupName(event.target.value.slice(0, 64))
                 }
                 placeholder="Nom du groupe"
-                className="mt-5 h-11 w-full rounded-lg border border-syn-border bg-syn-surface px-3 text-sm font-bold outline-none focus:border-syn-accent"
+                className="mt-5 font-bold"
               />
               <p className="mt-5 text-[10px] font-black uppercase text-syn-textSecondary">
                 {groupMembers.length} ami{groupMembers.length > 1 ? "s" : ""}{" "}
@@ -826,77 +806,32 @@ function MessagesContent() {
                   );
                 })}
               </div>
-              <button
-                type="button"
+              <SynauraButton
+                variant="accent"
+                fullWidth
                 disabled={
                   !groupName.trim() || groupMembers.length < 2 || groupBusy
                 }
                 onClick={() => void createGroup()}
-                className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-syn-accent text-sm font-black text-white disabled:opacity-40"
+                loading={groupBusy}
+                className="mt-5"
               >
-                {groupBusy ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4" />
-                    Créer le groupe
-                  </>
-                )}
-              </button>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+                <Plus className="h-4 w-4" />
+                Créer le groupe
+              </SynauraButton>
+            </div>
+      </SynauraOverlay>
 
-      <AnimatePresence>
-        {contactToRemove ? (
-          <motion.div
-            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onMouseDown={(event: React.MouseEvent<HTMLDivElement>) => {
-              if (event.currentTarget === event.target)
-                setContactToRemove(null);
-            }}
-          >
-            <motion.div
-              initial={{ y: 24, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 24, opacity: 0 }}
-              className="w-full max-w-sm rounded-xl border border-syn-border bg-syn-elevatedSurface p-5 text-syn-textPrimary shadow-2xl"
-            >
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-syn-destructive/10 text-syn-destructive">
-                <UserMinus className="h-5 w-5" />
-              </div>
-              <h2 className="mt-4 text-lg font-black">
-                Retirer {contactToRemove.user.name} ?
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-syn-textSecondary">
-                La discussion restera dans tes archives, mais vous devrez
-                accepter une nouvelle demande pour vous écrire à nouveau.
-              </p>
-              <div className="mt-5 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setContactToRemove(null)}
-                  className="flex-1 rounded-lg border border-syn-border px-4 py-3 text-sm font-bold"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void removeContact()}
-                  disabled={processingId === contactToRemove.friendshipId}
-                  className="flex-1 rounded-lg bg-syn-destructive px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
-                >
-                  Retirer
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+      <SynauraConfirmDialog
+        open={Boolean(contactToRemove)}
+        onClose={() => setContactToRemove(null)}
+        onConfirm={() => void removeContact()}
+        pending={Boolean(contactToRemove && processingId === contactToRemove.friendshipId)}
+        destructive
+        title={`Retirer ${contactToRemove?.user.name || "ce contact"} ?`}
+        description="La discussion restera dans tes archives, mais vous devrez accepter une nouvelle demande pour vous écrire à nouveau."
+        confirmLabel="Retirer"
+      />
     </main>
     </SynauraAppShell>
   );

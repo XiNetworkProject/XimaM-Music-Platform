@@ -70,5 +70,14 @@ test('messages adopte le shell et les deux niveaux de navigation sans toucher au
   assert.match(messages, /<SynauraAppShell/);
   assert.match(messages, /<SynauraTopBar/);
   assert.match(messages, /<SynauraRouteNav/);
+  assert.match(messages, /<SynauraOverlay/);
+  assert.match(messages, /<SynauraConfirmDialog/);
   assert.match(messages, /loadInbox/);
+});
+
+test('le player global réserve la barre contextuelle mobile du Studio', async () => {
+  const [layout, css, tabs] = await Promise.all([read('components/LayoutContent.tsx'), read('app/globals.css'), read('components/studio/ui/MobileTabs.tsx')]);
+  assert.match(layout, /data-studio-route/);
+  assert.match(css, /\[data-studio-route='true'\][\s\S]{0,160}--synaura-primary-dock-space/);
+  assert.match(tabs, /safe-area-inset-bottom/);
 });

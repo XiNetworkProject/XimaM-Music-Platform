@@ -26,7 +26,7 @@ export default function MobileTabs() {
   };
 
   return (
-    <div className="lg:hidden fixed bottom-3 left-3 right-3 z-[210]">
+    <div className="fixed bottom-[max(env(safe-area-inset-bottom,0px),0.75rem)] left-3 right-3 z-[var(--syn-z-overlay)] lg:hidden">
       <div className="panel-suno p-2 flex items-center gap-2">
         {btn('generate', 'Generate', Wand2)}
         {btn('library', 'Library', ListMusic)}

@@ -19,6 +19,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   return (
     <div
       data-route-chrome={chrome.kind}
+      data-studio-route={pathname?.startsWith('/studio') || undefined}
       className={`flex-1 flex flex-col ${
         chrome.useFullScreenLayout ? '' : isSidebarOpen ? 'lg:pl-[220px]' : 'lg:pl-[72px]'
       } overflow-x-hidden max-w-full w-full transition-[padding] duration-200`}
