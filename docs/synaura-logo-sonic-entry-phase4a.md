@@ -36,15 +36,18 @@ Le PNG est conservé comme master car aucun SVG vectoriel fidèle du logo 2026 n
 3. Le shell forçait un export de logotype carré très rembourré dans un rectangle de 200 × 48.
 4. Plusieurs conteneurs mélangeaient dimensions fixes, `overflow-hidden` et images déjà dotées de marges internes, sans safe zone partagée.
 
-## Chorégraphie sonore
+## Chorégraphie sonore et signature visuelle
 
 Le fichier fourni est copié sans transformation dans `public/audio/synaura-sonic-logo.wav` : RIFF PCM stéréo, 48 kHz, 16 bits, 3,2 secondes. Le pic RMS principal se situe autour de 0,60 seconde.
 
-- 0–0,25 s : point d’énergie et Aura profonde.
-- 0,25–0,60 s : construction du symbole.
-- ~0,60 s : révélation nette, halo et anneau de signature.
-- 0,70–3,20 s : wordmark, respiration puis stabilisation.
-- 3,20–3,60 s : résolution silencieuse avant retour à Discover.
+- 0–0,35 s : écran noir, tension et profondeur à peine perceptible.
+- 0,35–0,65 s : une vague volumétrique apparaît à droite ; son front blanc-violet rejoint le logo au pic RMS du sonic logo, autour de 0,60 s.
+- 0,65–1,80 s : la vague traverse l’écran de droite à gauche. Le calque matériel du symbole canonique est révélé par un `clip-path` dont le bord gauche recule de 100 % à 0 %. Un second masque étroit suit ce bord pour produire le reflet lumineux, sans fondu d’opacité global.
+- 1,70–2,40 s : le reveal se ferme, une onde courte ouvre l’Aura derrière le symbole et le reflet frontal disparaît.
+- 2,40–3,20 s : la traînée quitte l’écran ; seul le symbole net, sa safe zone et une respiration très faible restent visibles.
+- 3,20–3,60 s : stabilisation silencieuse puis retour à Discover.
+
+La scène superpose un fond noir, une Aura arrière, une brume de profondeur, quatre couches de vague, trois rendus masqués du même asset canonique, une onde d’impact et un reflet de sol. Le geste principal reste calculé en CSS et ne dépend ni d’une vidéo ni de WebGL.
 
 Le premier visiteur voit un dialogue cinématique. Le son ne peut démarrer qu’après le bouton **Découvrir avec le son**. **Continuer sans le son** joue la chorégraphie complète sans audio ; **Passer** ferme immédiatement. Une visite suivante saute l’intro, tandis que le contrôle du header permet de la rejouer volontairement. Un membre authentifié continue d’être redirigé côté serveur vers `/live`, sans intro longue.
 
@@ -54,5 +57,5 @@ Le premier visiteur voit un dialogue cinématique. Le son ne peut démarrer qu�
 - Un seul élément `<audio preload="metadata">`, local au composant et toujours arrêté au démontage.
 - Aucun branchement au store ou au moteur Audio Core.
 - Focus initial, boucle de focus, Échap, `aria-modal`, contenu sous-jacent masqué aux technologies d’assistance.
-- `prefers-reduced-motion` neutralise les mouvements ; la version silencieuse réduite se résout rapidement.
-- Mobile : effets réduits à des gradients/CSS, logo borné à 50 vw, safe areas respectées.
+- `prefers-reduced-motion` remplace le balayage rapide par une illumination horizontale de 2 secondes et un reveal spatial lent.
+- Mobile : même vague et même masque, avec moins de blur et un symbole borné à 61 vw ; safe areas respectées.

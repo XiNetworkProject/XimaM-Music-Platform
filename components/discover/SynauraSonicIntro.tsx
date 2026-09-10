@@ -12,6 +12,7 @@ import styles from './SynauraSonicIntro.module.css';
 
 // 3,2 s de son, puis 0,4 s de stabilisation visuelle avant la sortie.
 const FULL_DURATION_MS = 3600;
+const REDUCED_DURATION_MS = 2000;
 const EXIT_DURATION_MS = 360;
 
 export default function SynauraSonicIntro({
@@ -23,7 +24,6 @@ export default function SynauraSonicIntro({
 }) {
   const reduced = Boolean(useReducedMotion());
   const [phase, setPhase] = useState<'prompt' | 'playing'>('prompt');
-  const [muted, setMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const rootRef = useRef<HTMLElement>(null);
   const primaryRef = useRef<HTMLButtonElement>(null);
@@ -46,11 +46,10 @@ export default function SynauraSonicIntro({
 
   const play = (withSound: boolean) => {
     if (phase === 'playing') return;
-    const shouldPlaySound = withSound && !muted;
     setPhase('playing');
-    const played = shouldPlaySound ? startSynauraSonicLogo(audioRef.current) : false;
+    const played = withSound ? startSynauraSonicLogo(audioRef.current) : false;
     recordEntryEvent('sonic_intro_start', { sound: played, reducedMotion: reduced });
-    const duration = reduced && !played ? 520 : FULL_DURATION_MS;
+    const duration = reduced && !played ? REDUCED_DURATION_MS : FULL_DURATION_MS;
     finishTimer.current = window.setTimeout(() => finish(played ? 'sound' : 'silent'), duration);
   };
 
@@ -129,12 +128,37 @@ export default function SynauraSonicIntro({
               <p className={styles.hint}>Le volume reste sous ton contrôle. Échap permet de passer.</p>
             </motion.div>
           ) : (
-            <div className={styles.cinema} aria-live="polite" aria-label="Signature visuelle Synaura en cours">
-              <span className={styles.energyPoint} aria-hidden />
-              <span className={styles.signatureRing} aria-hidden />
-              <div className={styles.logoReveal}><SynauraLogo size={272} priority /></div>
-              <p id="sonic-intro-title" className={styles.wordmark}>Synaura</p>
-              <p className={styles.tagline}>Écoute · crée · partage</p>
+            <div className={styles.cinema} aria-live="polite" aria-label="Signature visuelle Synaura en cours" data-sonic-cinema>
+              <span className={styles.blackField} aria-hidden />
+              <span className={styles.backAura} aria-hidden />
+              <span className={styles.depthHaze} aria-hidden />
+
+              <div className={styles.lightWave} aria-hidden data-sonic-wave>
+                <span className={styles.waveAfterglow} />
+                <span className={styles.waveVolume} />
+                <span className={styles.waveFront} />
+                <span className={styles.waveFilament} />
+              </div>
+
+              <div className={styles.logoStage} aria-hidden data-sonic-logo-stage>
+                <div className={`${styles.logoLayer} ${styles.logoGhost}`}>
+                  <SynauraLogo size={420} className={styles.signatureLogo} markClassName={styles.signatureMark} priority decorative />
+                </div>
+                <div className={`${styles.logoLayer} ${styles.logoMaterial}`}>
+                  <SynauraLogo size={420} className={styles.signatureLogo} markClassName={styles.signatureMark} priority decorative />
+                </div>
+                <div className={`${styles.logoLayer} ${styles.logoEdge}`}>
+                  <SynauraLogo size={420} className={styles.signatureLogo} markClassName={styles.signatureMark} priority decorative />
+                </div>
+                <div className={`${styles.logoLayer} ${styles.logoReflection}`}>
+                  <SynauraLogo size={420} className={styles.signatureLogo} markClassName={styles.signatureMark} priority decorative />
+                </div>
+              </div>
+
+              <span className={styles.impactAura} aria-hidden />
+              <span className={styles.impactRing} aria-hidden />
+              <span className={styles.floorGlow} aria-hidden />
+              <h1 id="sonic-intro-title" className="sr-only">Synaura</h1>
             </div>
           )}
 

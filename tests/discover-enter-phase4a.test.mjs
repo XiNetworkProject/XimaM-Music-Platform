@@ -75,6 +75,23 @@ test('le WAV officiel est intact et dure 3,2 secondes', async () => {
   assert.equal(dataBytes / wav.readUInt32LE(28), 3.2);
 });
 
+test('la signature visuelle révèle spatialement le logo canonique de droite à gauche', async () => {
+  const intro = await read('components/discover/SynauraSonicIntro.tsx');
+  const css = await read('components/discover/SynauraSonicIntro.module.css');
+  assert.match(intro, /styles\.lightWave/);
+  assert.match(intro, /styles\.logoMaterial/);
+  assert.match(intro, /styles\.logoEdge/);
+  assert.match(intro, /<SynauraLogo[^>]+decorative/);
+  assert.doesNotMatch(intro, /className=\{styles\.wordmark\}/);
+  assert.match(css, /@keyframes wave-travel/);
+  assert.match(css, /@keyframes logo-spatial-reveal/);
+  assert.match(css, /clip-path: inset\(0 0 0 100%\)/);
+  assert.match(css, /translate3d\(80vw/);
+  assert.match(css, /translate3d\(-70vw/);
+  assert.match(css, /@keyframes reduced-wave/);
+  assert.match(css, /@keyframes reduced-logo-reveal/);
+});
+
 test('le logo 2026 a une source de vérité, une safe zone et aucun crop', async () => {
   const brand = await read('lib/brand.ts');
   const component = await read('components/brand/SynauraLogo.tsx');

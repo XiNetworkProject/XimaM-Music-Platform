@@ -5,6 +5,7 @@
   display: grid;
   place-items: center;
   overflow: hidden;
+  overflow: clip;
   padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   color: #fffaf5;
   background: #07070a;
@@ -136,64 +137,217 @@
   font-weight: 700;
 }
 
-.energyPoint {
+.cinema {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 0.9rem #fff, 0 0 2.4rem #7357c6, 0 0 5rem #4a9eaa;
-  transform: translate(-50%, -50%) scale(0.2);
-  animation: energy-build 3.2s cubic-bezier(.22,1,.36,1) both;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  overflow: hidden;
 }
 
-.signatureRing {
-  left: 50%;
-  top: 50%;
-  width: min(64vw, 25rem);
-  aspect-ratio: 1;
-  border: 1px solid rgba(255, 250, 245, 0.48);
-  border-radius: 50%;
+.blackField,
+.backAura,
+.depthHaze,
+.lightWave,
+.logoStage,
+.logoLayer,
+.impactAura,
+.impactRing,
+.floorGlow {
+  position: absolute;
+  pointer-events: none;
+}
+
+.blackField {
+  inset: 0;
+  z-index: 0;
+  background: #010103;
+}
+
+.backAura {
+  inset: 8% -12%;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse at 49% 50%, rgba(99, 68, 182, 0.18), transparent 28%),
+    radial-gradient(ellipse at 57% 52%, rgba(32, 159, 193, 0.09), transparent 38%);
+  filter: blur(42px);
   opacity: 0;
-  transform: translate(-50%, -50%) scale(0.38);
-  animation: signature-ring 3.2s cubic-bezier(.22,1,.36,1) both;
+  animation: back-aura 3.2s ease-out both;
 }
 
-.logoReveal {
-  position: relative;
+.depthHaze {
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: min(110vw, 82rem);
+  height: min(72vh, 38rem);
+  border-radius: 48% 52% 44% 56%;
+  background: radial-gradient(ellipse, rgba(76, 52, 145, 0.12), rgba(12, 85, 116, 0.035) 46%, transparent 72%);
+  filter: blur(24px);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.88);
+  animation: depth-awaken 3.2s ease-out both;
+}
+
+.lightWave {
+  left: 0;
+  top: 50%;
+  z-index: 4;
+  width: clamp(42rem, 78vw, 86rem);
+  height: 178vh;
+  opacity: 0;
+  will-change: transform, opacity;
+  transform: translate3d(92vw, -50%, 0) rotate(-7deg) scaleY(0.84);
+  animation: wave-travel 3.2s cubic-bezier(0.42, 0, 0.2, 1) both;
+}
+
+.waveAfterglow,
+.waveVolume,
+.waveFront,
+.waveFilament {
+  position: absolute;
+  inset-block: 0;
+  display: block;
+}
+
+.waveAfterglow {
+  left: 4%;
+  width: 96%;
+  border-radius: 46% 58% 42% 54%;
+  background:
+    radial-gradient(ellipse at 35% 49%, rgba(125, 78, 235, 0.34), transparent 38%),
+    linear-gradient(90deg, rgba(95, 59, 189, 0.06), rgba(105, 69, 208, 0.24) 42%, rgba(24, 148, 190, 0.12) 69%, transparent 96%);
+  filter: blur(48px);
+  transform: skewX(-8deg) scaleY(0.72);
+}
+
+.waveVolume {
+  left: 9%;
+  width: 70%;
+  border-radius: 42% 58% 46% 54%;
+  background:
+    radial-gradient(ellipse at 22% 50%, rgba(255, 255, 255, 0.66), transparent 10%),
+    radial-gradient(ellipse at 35% 48%, rgba(128, 83, 238, 0.58), transparent 34%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08), rgba(137, 83, 238, 0.36) 30%, rgba(37, 174, 210, 0.14) 66%, transparent 96%);
+  filter: blur(20px);
+  transform: skewX(-5deg) scaleY(0.66);
+}
+
+.waveFront {
+  left: 9%;
+  width: 13%;
+  border-radius: 48% 38% 52% 44%;
+  background:
+    radial-gradient(ellipse at 55% 48%, #fff 0 4%, rgba(246, 241, 255, 0.98) 9%, rgba(166, 119, 255, 0.68) 24%, rgba(70, 201, 228, 0.2) 48%, transparent 72%);
+  filter: blur(8px);
+  box-shadow: 0 0 5rem rgba(152, 102, 255, 0.3);
+  transform: skewX(-7deg) scaleY(0.7);
+}
+
+.waveFilament {
+  left: 12.5%;
+  top: 10%;
+  width: 1.1%;
+  height: 80%;
+  border-radius: 50%;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.82) 22%, #fff 50%, rgba(138, 230, 248, 0.72) 76%, transparent);
+  filter: blur(2px);
+  box-shadow: 0 0 1.4rem rgba(255, 255, 255, 0.75), 0 0 3.6rem rgba(124, 83, 238, 0.48);
+  transform: skewX(-10deg) scaleY(0.72);
+}
+
+.logoStage {
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  width: clamp(18rem, 34vw, 26.25rem);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+}
+
+.logoLayer {
+  inset: 0;
   display: grid;
   place-items: center;
-  margin-inline: auto;
-  width: clamp(10rem, 29vw, 17rem);
+}
+
+.signatureLogo,
+.signatureMark {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.logoGhost {
+  opacity: 0;
+  filter: saturate(0.75) brightness(0.24) blur(1.4px);
+  animation: logo-ghost 3.2s linear both;
+}
+
+.logoMaterial {
+  clip-path: inset(0 0 0 100%);
+  filter: drop-shadow(0 0 0 rgba(116, 80, 220, 0));
+  will-change: clip-path, filter;
+  animation: logo-spatial-reveal 3.2s linear both;
+}
+
+.logoEdge {
+  clip-path: inset(0 0 0 100%);
+  filter: brightness(1.8) saturate(0.7) drop-shadow(0 0 0.65rem rgba(255, 255, 255, 0.98)) drop-shadow(0 0 2.4rem rgba(124, 83, 238, 0.92));
+  mix-blend-mode: screen;
+  opacity: 0;
+  will-change: clip-path, opacity;
+  animation: logo-leading-edge 3.2s linear both;
+}
+
+.logoReflection {
+  clip-path: inset(0 0 0 100%);
+  filter: brightness(2.1) saturate(0.35) blur(5px) drop-shadow(0 0 2.8rem rgba(46, 193, 224, 0.65));
+  mix-blend-mode: screen;
+  opacity: 0;
+  will-change: clip-path, opacity;
+  animation: logo-reflection 3.2s linear both;
+}
+
+.impactAura {
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: min(78vw, 46rem);
+  aspect-ratio: 1.6;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(147, 93, 250, 0.28), rgba(43, 168, 202, 0.1) 38%, transparent 70%);
+  filter: blur(24px);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.55);
+  animation: impact-aura 3.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.impactRing {
+  left: 50%;
+  top: 50%;
+  z-index: 5;
+  width: min(52vw, 28rem);
   aspect-ratio: 1;
+  border: 1px solid rgba(244, 239, 255, 0.64);
+  border-radius: 50%;
+  box-shadow: 0 0 2rem rgba(116, 80, 220, 0.32), inset 0 0 2rem rgba(42, 180, 210, 0.1);
   opacity: 0;
-  filter: blur(14px) drop-shadow(0 0 0 rgba(115, 87, 198, 0));
-  transform: scale(0.72);
-  animation: logo-reveal 3.2s cubic-bezier(.22,1,.36,1) both;
+  transform: translate(-50%, -50%) scale(0.68);
+  animation: impact-ring 3.2s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.wordmark {
-  margin-top: -0.7rem;
-  font-size: clamp(3.1rem, 9vw, 6.8rem);
-  font-weight: 950;
-  line-height: 0.86;
-  letter-spacing: -0.07em;
+.floorGlow {
+  left: 50%;
+  top: 69%;
+  z-index: 2;
+  width: min(72vw, 48rem);
+  height: 8rem;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(53, 155, 189, 0.13), rgba(105, 67, 199, 0.07) 45%, transparent 72%);
+  filter: blur(26px);
   opacity: 0;
-  transform: translateY(0.8rem);
-  animation: wordmark-resolve 3.2s cubic-bezier(.22,1,.36,1) both;
-}
-
-.tagline {
-  margin-top: 1rem;
-  color: rgba(255, 250, 245, 0.56);
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  opacity: 0;
-  animation: tagline-resolve 3.2s ease both;
+  transform: translateX(-50%) scaleX(0.7);
+  animation: floor-resolve 3.2s ease-out both;
 }
 
 .skip {
@@ -207,37 +361,81 @@
   background: rgba(255, 255, 255, 0.045);
 }
 
-@keyframes energy-build {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
-  8% { opacity: 0.8; }
-  18.75% { opacity: 1; transform: translate(-50%, -50%) scale(7); }
-  25%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(13); }
+@keyframes wave-travel {
+  0% { opacity: 0; transform: translate3d(80vw, -50%, 0) rotate(-7deg) scaleY(0.84); }
+  10.9% { opacity: 0; transform: translate3d(70vw, -50%, 0) rotate(-7deg) scaleY(0.86); }
+  14% { opacity: 0.72; transform: translate3d(64vw, -50%, 0) rotate(-7deg) scaleY(0.88); }
+  20.3% { opacity: 1; transform: translate3d(55vw, -50%, 0) rotate(-7deg) scaleY(0.9); }
+  37.5% { opacity: 1; transform: translate3d(41vw, -50%, 0) rotate(-6deg) scaleY(0.96); }
+  45.3% { opacity: 0.92; transform: translate3d(32vw, -50%, 0) rotate(-5deg) scaleY(1); }
+  56.25% { opacity: 0.34; transform: translate3d(18vw, -50%, 0) rotate(-4deg) scaleY(0.92); }
+  68.75%, 100% { opacity: 0; transform: translate3d(-70vw, -50%, 0) rotate(-3deg) scaleY(0.84); }
 }
 
-@keyframes signature-ring {
-  0%, 15% { opacity: 0; transform: translate(-50%, -50%) scale(0.38); }
-  18.75% { opacity: 0.72; }
-  32% { opacity: 0; transform: translate(-50%, -50%) scale(1.32); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); }
+@keyframes wave-travel-mobile {
+  0% { opacity: 0; transform: translate3d(104vw, -50%, 0) rotate(-7deg) scaleY(0.82); }
+  10.9% { opacity: 0; transform: translate3d(88vw, -50%, 0) rotate(-7deg) scaleY(0.84); }
+  14% { opacity: 0.72; transform: translate3d(80vw, -50%, 0) rotate(-7deg) scaleY(0.86); }
+  20.3% { opacity: 1; transform: translate3d(72vw, -50%, 0) rotate(-7deg) scaleY(0.9); }
+  37.5% { opacity: 1; transform: translate3d(48vw, -50%, 0) rotate(-6deg) scaleY(0.96); }
+  45.3% { opacity: 0.92; transform: translate3d(35vw, -50%, 0) rotate(-5deg) scaleY(1); }
+  56.25% { opacity: 0.34; transform: translate3d(18vw, -50%, 0) rotate(-4deg) scaleY(0.92); }
+  68.75%, 100% { opacity: 0; transform: translate3d(-120vw, -50%, 0) rotate(-3deg) scaleY(0.84); }
 }
 
-@keyframes logo-reveal {
-  0%, 6% { opacity: 0; filter: blur(14px) drop-shadow(0 0 0 rgba(115, 87, 198, 0)); transform: scale(0.72); }
-  15% { opacity: 0.34; }
-  18.75% { opacity: 1; filter: blur(0) drop-shadow(0 0 2.8rem rgba(115, 87, 198, 0.64)); transform: scale(1.055); }
-  34% { filter: blur(0) drop-shadow(0 0 1.8rem rgba(74, 158, 170, 0.34)); transform: scale(1); }
-  70% { transform: scale(1.018); }
-  100% { opacity: 1; filter: blur(0) drop-shadow(0 0 1.2rem rgba(115, 87, 198, 0.2)); transform: scale(1); }
+@keyframes logo-ghost {
+  0%, 10.9% { opacity: 0; }
+  16% { opacity: 0.018; }
+  52% { opacity: 0.045; }
+  58%, 100% { opacity: 0; }
 }
 
-@keyframes wordmark-resolve {
-  0%, 22% { opacity: 0; transform: translateY(0.8rem); }
-  42%, 100% { opacity: 1; transform: translateY(0); }
+@keyframes logo-spatial-reveal {
+  0%, 20.3% { clip-path: inset(0 0 0 100%); filter: drop-shadow(0 0 0 rgba(116, 80, 220, 0)); }
+  25% { clip-path: inset(0 0 0 88%); }
+  37.5% { clip-path: inset(0 0 0 54%); }
+  45.3% { clip-path: inset(0 0 0 24%); }
+  53.1% { clip-path: inset(0 0 0 5%); filter: drop-shadow(0 0 2.8rem rgba(122, 81, 232, 0.68)); }
+  56.25% { clip-path: inset(0); filter: drop-shadow(0 0 3.8rem rgba(128, 84, 235, 0.76)); }
+  68.75% { clip-path: inset(0); filter: drop-shadow(0 0 1.9rem rgba(47, 176, 205, 0.32)); }
+  100% { clip-path: inset(0); filter: drop-shadow(0 0 1.1rem rgba(110, 75, 205, 0.2)); }
 }
 
-@keyframes tagline-resolve {
-  0%, 34% { opacity: 0; }
-  58%, 100% { opacity: 1; }
+@keyframes logo-leading-edge {
+  0%, 20.2% { opacity: 0; clip-path: inset(0 0 0 100%); }
+  22% { opacity: 0.9; clip-path: inset(0 0 0 88%); }
+  37.5% { opacity: 1; clip-path: inset(0 36% 0 52%); }
+  45.3% { opacity: 0.94; clip-path: inset(0 65% 0 22%); }
+  53.1% { opacity: 0.72; clip-path: inset(0 87% 0 2%); }
+  56.25%, 100% { opacity: 0; clip-path: inset(0 96% 0 0); }
+}
+
+@keyframes logo-reflection {
+  0%, 20.3% { opacity: 0; clip-path: inset(0 0 0 100%); }
+  28% { opacity: 0.35; clip-path: inset(0 0 0 76%); }
+  42% { opacity: 0.42; clip-path: inset(0 43% 0 34%); }
+  55% { opacity: 0.22; clip-path: inset(0 84% 0 0); }
+  60%, 100% { opacity: 0; clip-path: inset(0); }
+}
+
+@keyframes impact-aura {
+  0%, 48% { opacity: 0; transform: translate(-50%, -50%) scale(0.55); }
+  56.25% { opacity: 0.82; transform: translate(-50%, -50%) scale(0.86); }
+  72% { opacity: 0.34; transform: translate(-50%, -50%) scale(1.08); }
+  100% { opacity: 0.2; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes impact-ring {
+  0%, 52% { opacity: 0; transform: translate(-50%, -50%) scale(0.68); }
+  56.25% { opacity: 0.66; }
+  70% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.56); }
+}
+
+@keyframes floor-resolve {
+  0%, 52% { opacity: 0; transform: translateX(-50%) scaleX(0.7); }
+  70% { opacity: 0.72; transform: translateX(-50%) scaleX(1); }
+  100% { opacity: 0.32; transform: translateX(-50%) scaleX(0.92); }
 }
 
 @keyframes mist-breathe {
@@ -248,24 +446,69 @@
 @media (max-width: 640px) {
   .root { padding-inline: 1.1rem; }
   .orbit { width: 105vw; }
-  .logoReveal { width: clamp(9rem, 50vw, 13rem); }
-  .wordmark { font-size: clamp(3rem, 18vw, 5rem); }
+  .logoStage { width: clamp(12rem, 61vw, 16.5rem); }
+  .lightWave {
+    width: 112vw;
+    height: 142vh;
+    animation-name: wave-travel-mobile;
+  }
+  .waveAfterglow { filter: blur(34px); }
+  .waveVolume { filter: blur(16px); }
+  .waveFront { width: 16%; filter: blur(7px); }
+  .impactAura { width: 110vw; }
+  .impactRing { width: min(82vw, 21rem); }
   .description { max-width: 23rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mist,
-  .energyPoint,
-  .signatureRing,
-  .logoReveal,
-  .wordmark,
-  .tagline {
-    animation: none !important;
+  .lightWave {
+    width: 116vw;
+    height: 74vh;
+    animation: reduced-wave 2s ease-in-out both;
   }
+  .waveFront,
+  .waveFilament,
+  .logoEdge,
+  .logoReflection,
+  .impactRing { display: none; }
+  .waveAfterglow { filter: blur(54px); transform: scaleY(0.44); }
+  .waveVolume { filter: blur(36px); transform: scaleY(0.36); }
+  .logoGhost { animation: none; }
+  .logoMaterial { animation: reduced-logo-reveal 2s ease-in-out both; }
+  .backAura { animation: reduced-aura 2s ease-out both; }
+  .depthHaze { animation: reduced-depth 2s ease-out both; }
+  .impactAura { animation: reduced-impact 2s ease-out both; }
+  .floorGlow { animation: reduced-floor 2s ease-out both; }
+}
 
-  .energyPoint,
-  .signatureRing { display: none; }
-  .logoReveal,
-  .wordmark,
-  .tagline { opacity: 1; filter: none; transform: none; }
+@keyframes reduced-wave {
+  0%, 12% { opacity: 0; transform: translate3d(42vw, -50%, 0) scaleY(0.58); }
+  48% { opacity: 0.3; transform: translate3d(4vw, -50%, 0) scaleY(0.62); }
+  100% { opacity: 0; transform: translate3d(-34vw, -50%, 0) scaleY(0.58); }
+}
+
+@keyframes reduced-logo-reveal {
+  0%, 18% { clip-path: inset(0 0 0 100%); filter: none; }
+  78% { clip-path: inset(0); filter: drop-shadow(0 0 1.7rem rgba(118, 80, 218, 0.38)); }
+  100% { clip-path: inset(0); filter: drop-shadow(0 0 1rem rgba(94, 70, 180, 0.2)); }
+}
+
+@keyframes reduced-aura {
+  0%, 20% { opacity: 0; }
+  100% { opacity: 0.48; }
+}
+
+@keyframes reduced-depth {
+  0%, 20% { opacity: 0; transform: translate(-50%, -50%) scale(0.94); }
+  100% { opacity: 0.45; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes reduced-impact {
+  0%, 58% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+  100% { opacity: 0.28; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes reduced-floor {
+  0%, 55% { opacity: 0; }
+  100% { opacity: 0.28; }
 }
