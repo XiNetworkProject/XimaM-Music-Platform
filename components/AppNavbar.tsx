@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useState, useCallback, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import {
@@ -24,6 +23,7 @@ import { useAudioPlayer } from '../app/providers';
 import { useSidebar } from '@/app/providers';
 import NotificationCenter from './NotificationCenter';
 import Avatar from './Avatar';
+import SynauraLogo from '@/components/brand/SynauraLogo';
 import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
 interface Track {
@@ -267,16 +267,8 @@ export default function AppNavbar() {
             >
               <div className="relative">
                 <div className="absolute inset-0 rounded-2xl bg-accent-brand/60 blur-xl opacity-60" />
-                <div className="relative w-11 h-11 rounded-2xl bg-white border border-white/40 flex items-center justify-center overflow-hidden shadow-lg">
-                  <Image
-                    src="/brand/2026/synaura-symbol-2026.png"
-                    alt="Synaura"
-                    width={44}
-                    height={44}
-                    className="h-10 w-10 object-contain"
-                    unoptimized
-                    priority
-                  />
+                <div className="relative flex h-11 w-11 items-center justify-center overflow-visible rounded-2xl border border-white/40 bg-white shadow-lg">
+                  <SynauraLogo size={48} priority decorative />
                 </div>
               </div>
               <span className="hidden sm:inline text-sm font-semibold tracking-tight text-white">

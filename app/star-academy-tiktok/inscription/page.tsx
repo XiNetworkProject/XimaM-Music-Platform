@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import SynauraLogo from "@/components/brand/SynauraLogo";
 import { uploadLocalMedia } from "@/lib/clientMediaUpload";
 
 // ─── Dates cles ─────────────────────────────────────────
@@ -456,13 +457,7 @@ function CinematicIntro({ onEnter }: { onEnter: () => void }) {
             animation: "sa-fade-up 1s ease-out 0.1s both",
             marginBottom: "16px",
           }}>
-            <Image
-              src="/synaura_logotype.svg"
-              alt="Synaura"
-              width={180}
-              height={56}
-              style={{ filter: "brightness(0) invert(1) drop-shadow(0 0 20px rgba(147,51,234,0.8))" }}
-            />
+            <SynauraLogo variant="wordmark" size={56} className="text-white drop-shadow-[0_0_20px_rgba(147,51,234,.8)]" wordmarkClassName="text-4xl" decorative />
           </div>
 
           {/* Divider × */}
@@ -681,10 +676,7 @@ function CinematicIntro({ onEnter }: { onEnter: () => void }) {
         <span style={{ fontSize: "10px", letterSpacing: "4px", color: "rgba(255,255,255,0.25)", textTransform: "uppercase" }}>
           Une production
         </span>
-        <Image src="/brand/2026/synaura-symbol-2026.png" alt="Synaura" width={26} height={26}
-          style={{ opacity: 0.55 }} unoptimized />
-        <Image src="/synaura_logotype.svg" alt="Synaura" width={60} height={18}
-          style={{ filter: "brightness(0) invert(1) opacity(0.3)" }} />
+        <SynauraLogo variant="wordmark" size={24} className="text-white opacity-40" wordmarkClassName="text-xs" decorative />
       </div>
     </div>
   );
@@ -889,13 +881,7 @@ function SuccessScreen({ email, token }: { email: string; token: string }) {
 
               {/* Logo */}
               <div style={{ marginBottom: "12px" }}>
-                  <Image
-                  src="/synaura_logotype.svg"
-                  alt="Synaura"
-                  width={110}
-                  height={28}
-                  style={{ filter: "brightness(0) invert(1)", opacity: 0.9, display: "inline-block" }}
-                  />
+                  <SynauraLogo variant="wordmark" size={30} className="text-white opacity-90" wordmarkClassName="text-xl" decorative />
                 </div>
 
               <h3 style={{

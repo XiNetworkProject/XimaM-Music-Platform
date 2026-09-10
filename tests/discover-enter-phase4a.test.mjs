@@ -5,6 +5,7 @@ import { buildMemberContinueUrl, safeEntryTarget } from '../lib/entryRouting.ts'
 import { getRouteChrome, shouldRenderGlobalMiniPlayer } from '../lib/routeChrome.ts';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+const readBuffer = (path) => readFile(new URL(`../${path}`, import.meta.url));
 
 test('la racine décide Discover ou Live côté serveur sans flash de session client', async () => {
   const source = await read('app/page.tsx');
@@ -46,14 +47,64 @@ test('le retour membre centralise onboarding puis destination', async () => {
   assert.match(source, /redirect\(target\)/);
 });
 
-test('la signature sonore exige un geste et ne crée pas de lecteur Audio Core concurrent', async () => {
-  const discover = await read('components/discover/DiscoverSynaura.tsx');
+test('la signature sonore exige un geste, n’autoplay jamais et reste isolée d’Audio Core', async () => {
+  const intro = await read('components/discover/SynauraSonicIntro.tsx');
   const sound = await read('lib/ui/entrySound.ts');
-  assert.match(discover, /onClick=\{\(\) => void enter\(\)\}/);
-  assert.match(sound, /new Context\(\)/);
-  assert.match(sound, /context\.close/);
-  assert.doesNotMatch(sound, /new Audio\(/);
-  assert.doesNotMatch(discover, /autoPlay|autoplay/);
+  assert.match(intro, /onClick=\{\(\) => play\(true\)\}/);
+  assert.match(intro, /preload="metadata"/);
+  assert.match(sound, /media\.play\(\)/);
+  assert.match(sound, /media\.pause\(\)/);
+  assert.doesNotMatch(intro, /autoPlay|autoplay/);
+  assert.doesNotMatch(sound, /AudioContext|useAudioPlayer/);
+});
+
+test('le WAV officiel est intact et dure 3,2 secondes', async () => {
+  const wav = await readBuffer('public/audio/synaura-sonic-logo.wav');
+  assert.equal(wav.subarray(0, 4).toString('ascii'), 'RIFF');
+  assert.equal(wav.readUInt16LE(22), 2);
+  assert.equal(wav.readUInt32LE(24), 48_000);
+  assert.equal(wav.readUInt16LE(34), 16);
+  let offset = 12;
+  let dataBytes = 0;
+  while (offset + 8 <= wav.length) {
+    const id = wav.subarray(offset, offset + 4).toString('ascii');
+    const size = wav.readUInt32LE(offset + 4);
+    if (id === 'data') { dataBytes = size; break; }
+    offset += 8 + size + (size % 2);
+  }
+  assert.equal(dataBytes / wav.readUInt32LE(28), 3.2);
+});
+
+test('le logo 2026 a une source de vérité, une safe zone et aucun crop', async () => {
+  const brand = await read('lib/brand.ts');
+  const component = await read('components/brand/SynauraLogo.tsx');
+  assert.match(brand, /symbol: '\/brand\/2026\/synaura-symbol-2026\.png'/);
+  assert.match(component, /SYNAURA_BRAND\.symbol/);
+  assert.match(component, /data-synaura-logo-safe-zone/);
+  assert.match(component, /object-contain/);
+  assert.match(component, /overflow-visible/);
+  assert.doesNotMatch(component, /object-cover|overflow-hidden/);
+});
+
+test('les surfaces web actives ne référencent plus les anciens logos', async () => {
+  const active = await Promise.all([
+    'components/discover/DiscoverSynaura.tsx',
+    'components/discover/SynauraSonicIntro.tsx',
+    'components/enter/EntryFrame.tsx',
+    'components/enter/SynauraEntryLoading.tsx',
+    'components/onboarding/OnboardingFlow.tsx',
+    'components/synaura/SynauraShell.tsx',
+    'components/AppNavbar.tsx',
+    'components/AppSidebar.tsx',
+    'app/auth/forgot-password/page.tsx',
+    'app/auth/reset-password/page.tsx',
+    'app/reset-password/page.tsx',
+    'app/star-academy-tiktok/page.tsx',
+    'app/star-academy-tiktok/inscription/page.tsx',
+    'app/star-academy-tiktok/inscription-staff/page.tsx',
+  ].map(read));
+  const source = active.join('\n');
+  assert.doesNotMatch(source, /favicon\.svg|synaura_logotype\.svg|synaura-brand-lockup\.png/);
 });
 
 test('Discover a une narration réelle et des données de démonstration isolées', async () => {
@@ -68,10 +119,12 @@ test('Discover a une narration réelle et des données de démonstration isolée
 test('première visite, retour et reduced motion ont des contrats explicites', async () => {
   const source = await read('components/discover/DiscoverSynaura.tsx');
   const css = await read('components/discover/DiscoverSynaura.module.css');
-  assert.match(source, /synaura\.discover\.seen\.v1/);
+  assert.match(source, /synaura\.sonic-intro\.seen\.v1/);
   assert.match(source, /useReducedMotion/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /prefers-reduced-data/);
+  const introCss = await read('components/discover/SynauraSonicIntro.module.css');
+  assert.match(introCss, /prefers-reduced-motion/);
 });
 
 test('Enter, auth et onboarding sont des surfaces plein écran sans mini-player', () => {

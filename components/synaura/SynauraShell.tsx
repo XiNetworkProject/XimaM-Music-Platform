@@ -1,7 +1,6 @@
 'use client';
 
 import type { CSSProperties, ReactNode } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
@@ -21,6 +20,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import NotificationCenter from '@/components/NotificationCenter';
+import SynauraLogo from '@/components/brand/SynauraLogo';
 import MessageInboxButton from '@/components/messaging/MessageInboxButton';
 import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
 import SynauraPrimaryDock from '@/components/synaura/SynauraPrimaryDock';
@@ -38,11 +38,6 @@ import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
 }
-
-const SYNAURA_SHELL_BRAND = {
-  appLogo: '/brand/2026/synaura-symbol-2026.png',
-  logotype: '/brand/2026/synaura-logotype.png',
-} as const;
 
 const SYNAURA_ROUTE_ICONS: Record<PrimaryWebNavId, typeof Home> = {
   home: Home,
@@ -237,34 +232,18 @@ export function SynauraTopBar({
       compact ? 'top-1 mb-1.5 rounded-[12px] px-2 py-1.5 sm:top-2 sm:rounded-[14px] sm:px-3 sm:py-1.5' : 'mb-4',
     )}>
       <div className="flex items-center justify-between gap-2 sm:gap-3">
-        <Link href="/" className="flex min-w-0 shrink items-center gap-2.5 sm:gap-3">
-          <div className={cx(
-            'grid h-10 w-10 shrink-0 place-items-center rounded-[10px] border border-[var(--syn-border)] bg-[var(--syn-surface)] shadow-[0_10px_26px_var(--syn-shadow)] sm:h-12 sm:w-12 sm:rounded-[12px]',
-            compact && 'h-8 w-8 rounded-[8px] sm:h-9 sm:w-9 sm:rounded-[9px]',
-          )}>
-            <Image
-              src={SYNAURA_SHELL_BRAND.appLogo}
-              alt="Synaura"
-              width={52}
-              height={52}
-              className={cx('h-9 w-9 object-contain sm:h-11 sm:w-11', compact && 'h-7 w-7 sm:h-8 sm:w-8')}
-              unoptimized
-              priority
-            />
-          </div>
-          <div className="hidden min-w-0 md:block">
-            <Image
-              src={SYNAURA_SHELL_BRAND.logotype}
-              alt="Synaura"
-              width={200}
-              height={48}
-              className={cx('h-9 w-auto max-w-[200px] object-contain object-left', compact && 'h-6 max-w-[150px]')}
-              unoptimized
-              priority
-            />
-          </div>
+        <Link href="/" className="flex min-w-0 shrink items-center gap-2.5 overflow-visible sm:gap-3" aria-label="Synaura, accueil">
+          <SynauraLogo
+            variant="wordmark"
+            size={compact ? 38 : 48}
+            className="hidden overflow-visible md:inline-flex"
+            markClassName={cx('rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-surface)] shadow-[0_10px_26px_var(--syn-shadow)]', compact && 'rounded-[9px]')}
+            wordmarkClassName={cx('text-[1.8rem] text-[var(--syn-text-primary)]', compact && 'text-[1.35rem]')}
+            priority
+            decorative
+          />
           <div className={cx('min-w-0 md:hidden', compact && 'hidden')}>
-            <p className="truncate text-base font-black text-[var(--syn-text-primary)] sm:text-lg">Synaura</p>
+            <div className="flex items-center gap-2"><SynauraLogo size={compact ? 34 : 42} decorative /><p className="truncate text-base font-black text-[var(--syn-text-primary)] sm:text-lg">Synaura</p></div>
             <p className="hidden truncate text-[9px] font-black uppercase text-[var(--syn-text-secondary)] min-[370px]:block">
               Ecoute · crée · remix
             </p>

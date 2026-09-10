@@ -1,6 +1,9 @@
 export type SynauraEntryEvent =
   | 'discover_view'
   | 'enter_click'
+  | 'sonic_intro_start'
+  | 'sonic_intro_complete'
+  | 'sonic_intro_dismiss'
   | 'signup_start'
   | 'signup_complete'
   | 'login_complete'

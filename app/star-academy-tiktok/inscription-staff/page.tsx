@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import SynauraLogo from "@/components/brand/SynauraLogo";
 
 type Phase = "form" | "done";
 type Step = 1 | 2 | 3 | 4;
@@ -253,8 +254,7 @@ export default function InscriptionStaffPage() {
             </p>
 
             <div className="mt-8 flex items-center gap-5">
-              <Image src="/synaura_logotype.svg" alt="Synaura" width={80} height={22}
-                style={{ filter: "brightness(0) invert(1) opacity(0.4)" }} />
+              <SynauraLogo variant="wordmark" size={22} className="text-white opacity-40" wordmarkClassName="text-sm" decorative />
               <span className="text-white/15 text-lg font-thin">x</span>
               <Image src="/StarAcRes/mixxpartywhitelog.png" alt="Mixx Party" width={70} height={26}
                 style={{ filter: "brightness(0) invert(1) opacity(0.4)" }} />

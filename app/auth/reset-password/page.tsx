@@ -2,10 +2,10 @@
 
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Lock, Mail, Hash, ArrowLeft, Check, AlertCircle } from 'lucide-react';
+import SynauraLogo from '@/components/brand/SynauraLogo';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,16 +47,8 @@ function ResetPasswordInner() {
       className="w-full max-w-[420px]"
     >
       <div className="text-center mb-8">
-        <Link href="/" className="inline-block rounded-[1.75rem] bg-white p-2 shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
-          <Image
-            src="/brand/2026/synaura-brand-lockup.png"
-            alt="Synaura - Share sound, connect creations"
-            width={360}
-            height={180}
-            className="h-28 w-[min(340px,82vw)] rounded-[1.35rem] object-cover"
-            unoptimized
-            priority
-          />
+        <Link href="/" className="inline-flex rounded-[1.75rem] border border-white/10 bg-white/[0.04] px-5 py-3 shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
+          <SynauraLogo variant="lockup" size={76} className="text-white" wordmarkClassName="text-[clamp(2rem,9vw,3.3rem)]" priority decorative />
         </Link>
         <p className="text-sm text-white/40 mt-2">
           {success ? 'Mot de passe réinitialisé' : 'Nouveau mot de passe'}

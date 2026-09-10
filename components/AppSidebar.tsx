@@ -3,7 +3,6 @@
 import type { CSSProperties } from 'react';
 import { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Home,
@@ -35,6 +34,7 @@ import { fetchCreditsBalance } from '@/lib/credits';
 import { SYNAURA_SHUTDOWN_NOTICES_ENABLED } from '@/lib/synauraShutdown';
 import { AnimatePresence, motion } from 'framer-motion';
 import StarAcademyBanner from '@/components/StarAcademyBanner';
+import SynauraLogo from '@/components/brand/SynauraLogo';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Pour toi', icon: Home },
@@ -155,14 +155,7 @@ export default function AppSidebar() {
       <div className="flex h-[68px] items-center px-4 pt-4">
         <Link href="/" className="flex items-center gap-2.5 group-data-[collapsed=true]/sidebar:justify-center group/logo">
           <div className="relative shrink-0">
-            <Image
-              src="/brand/2026/synaura-symbol-2026.png"
-              alt="Synaura"
-              width={42}
-              height={42}
-              className="h-[42px] w-[42px] object-contain transition-transform duration-200 group-hover/logo:scale-110"
-              unoptimized
-            />
+            <SynauraLogo size={48} className="transition-transform duration-200 group-hover/logo:scale-105" decorative />
           </div>
           <span className="text-[20px] font-black tracking-tight text-syn-textPrimary group-data-[collapsed=true]/sidebar:hidden">
             Synaura

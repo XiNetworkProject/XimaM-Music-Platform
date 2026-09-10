@@ -1,34 +1,34 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
-import { ArrowDown, ArrowRight, Compass, Headphones, Music2, Pause, Sparkles, UploadCloud, Users, Volume2, VolumeX, Wand2 } from 'lucide-react';
+import { ArrowDown, ArrowRight, Compass, Headphones, Music2, Pause, Sparkles, UploadCloud, Users, Volume2, Wand2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import SynauraLogo from '@/components/brand/SynauraLogo';
+import SynauraSonicIntro from '@/components/discover/SynauraSonicIntro';
 import { SynauraButton, SynauraIconButton } from '@/components/ui/SynauraPrimitives';
 import { DISCOVER_DEMO } from '@/lib/discoverDemo';
 import { recordEntryEvent } from '@/lib/entryAnalytics';
-import { playSynauraEntrySignature } from '@/lib/ui/entrySound';
 import styles from './DiscoverSynaura.module.css';
 
-const SEEN_KEY = 'synaura.discover.seen.v1';
+const SONIC_INTRO_SEEN_KEY = 'synaura.sonic-intro.seen.v1';
 const WAVE_HEIGHTS = [22, 42, 30, 58, 38, 70, 48, 82, 54, 68, 36, 76, 46, 64, 28, 52, 40, 72, 34, 60, 26, 48, 32, 66];
 
-function DiscoverHeader({ muted, onMute }: { muted: boolean; onMute: () => void }) {
+function DiscoverHeader({ onReplay }: { onReplay: () => void }) {
   return (
     <header className="fixed inset-x-0 top-0 z-[var(--syn-z-header)] px-3 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-6">
       <div className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] px-3 py-2 shadow-[var(--syn-shadow-low)] backdrop-blur-2xl">
         <Link href="/" className="flex items-center gap-2 rounded-full pr-2 font-black tracking-tight" aria-label="Synaura, accueil">
           <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--syn-soft)]">
-            <Image src="/favicon.svg" alt="" width={25} height={25} priority />
+            <SynauraLogo size={34} priority decorative />
           </span>
           <span>Synaura</span>
         </Link>
         <nav aria-label="Navigation de découverte" className="flex items-center gap-1">
           <a href="#experience" className="syn-interactive hidden min-h-9 items-center rounded-full px-3 text-xs font-black text-[var(--syn-text-secondary)] hover:bg-[var(--syn-soft)] hover:text-[var(--syn-text-primary)] sm:inline-flex">Découvrir</a>
-          <SynauraIconButton label={muted ? 'Activer la signature sonore' : 'Couper la signature sonore'} variant="ghost" onClick={onMute}>
-            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          <SynauraIconButton label="Rejouer la signature Synaura" variant="ghost" onClick={onReplay}>
+            <Volume2 className="h-4 w-4" />
           </SynauraIconButton>
           <Link href="/enter" className="syn-interactive inline-flex min-h-9 items-center rounded-full bg-[var(--syn-contrast-bg)] px-4 text-xs font-black text-[var(--syn-contrast-text)]">Entrer</Link>
         </nav>
@@ -129,14 +129,14 @@ export default function DiscoverSynaura({ legacy = false }: { legacy?: boolean }
   const reduced = Boolean(useReducedMotion());
   const [firstVisit, setFirstVisit] = useState(false);
   const [ready, setReady] = useState(false);
-  const [muted, setMuted] = useState(false);
+  const [showSonicIntro, setShowSonicIntro] = useState(false);
   const [entering, setEntering] = useState(false);
 
   useEffect(() => {
     try {
-      const seen = localStorage.getItem(SEEN_KEY) === '1';
+      const seen = localStorage.getItem(SONIC_INTRO_SEEN_KEY) === '1';
       setFirstVisit(!seen);
-      localStorage.setItem(SEEN_KEY, '1');
+      setShowSonicIntro(!seen);
     } catch {}
     setReady(true);
     recordEntryEvent('discover_view', { legacy });
@@ -148,19 +148,27 @@ export default function DiscoverSynaura({ legacy = false }: { legacy?: boolean }
     if (entering) return;
     setEntering(true);
     recordEntryEvent('enter_click', { source: legacy ? 'legacy_landing' : 'discover' });
-    await playSynauraEntrySignature({ muted, reducedMotion: reduced });
+    await new Promise((resolve) => window.setTimeout(resolve, reduced ? 80 : 260));
     router.push('/enter');
+  };
+
+  const completeSonicIntro = (reason: 'sound' | 'silent' | 'skip') => {
+    try { localStorage.setItem(SONIC_INTRO_SEEN_KEY, '1'); } catch {}
+    setShowSonicIntro(false);
+    recordEntryEvent('sonic_intro_dismiss', { reason });
   };
 
   return (
     <main className={styles.root} data-first-visit={ready && firstVisit || undefined}>
-      <DiscoverHeader muted={muted} onMute={() => setMuted((value) => !value)} />
-      <div className={styles.grain} aria-hidden />
-      <section className={styles.hero} aria-labelledby="discover-title">
+      <SynauraSonicIntro open={ready && showSonicIntro} onComplete={completeSonicIntro} />
+      <div aria-hidden={ready && showSonicIntro || undefined}>
+        <DiscoverHeader onReplay={() => setShowSonicIntro(true)} />
+        <div className={styles.grain} aria-hidden />
+        <section className={styles.hero} aria-labelledby="discover-title">
         <AuraStage reduced={reduced} />
         <motion.div className={styles.heroCopy} initial={{ opacity: 0, y: reduced ? 0 : 24 }} animate={{ opacity: ready ? 1 : 0, y: 0 }} transition={intro}>
           <motion.div className={styles.logoStage} initial={{ scale: firstVisit && !reduced ? 1.5 : 1, opacity: 0 }} animate={{ scale: 1, opacity: ready ? 1 : 0 }} transition={{ duration: firstVisit && !reduced ? 1 : 0.3, ease: [0.22, 1, 0.36, 1] }}>
-            <Image src="/favicon.svg" alt="" width={112} height={112} className="h-[68%] w-[68%]" priority />
+            <SynauraLogo size={116} priority decorative />
           </motion.div>
           <p className="mt-7 text-xs font-black uppercase tracking-[0.28em] text-[var(--syn-text-secondary)]">Écoute · crée · partage</p>
           <h1 id="discover-title" className={`${styles.wordmark} mt-5`}>Synaura</h1>
@@ -169,12 +177,12 @@ export default function DiscoverSynaura({ legacy = false }: { legacy?: boolean }
             <SynauraButton size="lg" variant="primary" onClick={() => void enter()} loading={entering}>Entrer dans Synaura <ArrowRight className="h-4 w-4" /></SynauraButton>
             <Link href="/auth/signin" className="syn-interactive inline-flex min-h-12 items-center rounded-full px-5 text-sm font-black text-[var(--syn-text-secondary)] hover:bg-[var(--syn-soft)] hover:text-[var(--syn-text-primary)]">J’ai déjà un compte</Link>
           </div>
-          <p className="mt-3 text-xs text-[var(--syn-text-secondary)]">La signature sonore ne joue qu’après ton clic. {muted ? 'Elle est coupée.' : 'Tu peux la couper en haut.'}</p>
+          <p className="mt-3 text-xs text-[var(--syn-text-secondary)]">La signature sonore ne joue qu’après un geste explicite. Tu peux la rejouer en haut.</p>
         </motion.div>
         <a href="#experience" className={styles.scrollCue}><ArrowDown className="h-4 w-4" /> Explorer</a>
-      </section>
+        </section>
 
-      <div id="experience" className={styles.story}>
+        <div id="experience" className={styles.story}>
         <section className={styles.scene} aria-labelledby="scene-listen">
           <div><p className={styles.eyebrow}>Un son, maintenant</p><h2 id="scene-listen" className={styles.sceneTitle}>Écouter devient un lieu.</h2><p className={styles.sceneText}>Une waveform, des réactions au bon instant, une Aura qui respire avec le morceau. La musique reste au centre ; les gens apparaissent autour.</p></div>
           <div className={styles.sceneVisual}><DemoPlayer /></div>
@@ -194,16 +202,17 @@ export default function DiscoverSynaura({ legacy = false }: { legacy?: boolean }
           <div><p className={styles.eyebrow}>À force d’écouter</p><h2 id="scene-world" className={styles.sceneTitle}>Ton monde prend une couleur.</h2><p className={styles.sceneText}>Bibliothèque, playlists, découvertes et recommandations se rassemblent autour de ce qui te fait vibrer.</p></div>
           <div className={styles.sceneVisual}><WorldScene /></div>
         </section>
-      </div>
+        </div>
 
-      <section className={styles.finale} aria-labelledby="discover-finale">
+        <section className={styles.finale} aria-labelledby="discover-finale">
         <div className="relative z-10 max-w-3xl">
           <Headphones className="mx-auto h-7 w-7 text-[var(--syn-accent-coral)]" />
           <h2 id="discover-finale" className={`${styles.sceneTitle} mt-5`}>Le reste commence quand tu entres.</h2>
           <p className={`${styles.sceneText} mx-auto`}>Quelques choix, puis Synaura s’ouvre sur ton univers musical.</p>
           <div className={styles.ctaRow}><SynauraButton size="lg" variant="accent" onClick={() => void enter()} loading={entering}>Entrer dans Synaura <ArrowRight className="h-4 w-4" /></SynauraButton></div>
         </div>
-      </section>
+        </section>
+      </div>
     </main>
   );
 }

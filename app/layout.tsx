@@ -41,10 +41,7 @@ export const metadata: Metadata = {
     title: 'Synaura',
   },
   icons: {
-    icon: [
-      { url: '/brand/2026/synaura-symbol-2026-white.png', type: 'image/png' },
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-    ],
+    icon: [{ url: '/brand/2026/synaura-symbol-2026-white.png', type: 'image/png' }],
     apple: '/brand/2026/synaura-symbol-2026-white.png',
   },
 };
@@ -120,7 +117,7 @@ export default function RootLayout({
         {process.env.NEXT_PUBLIC_ADSENSE_CLIENT ? (
           <meta name="google-adsense-account" content={process.env.NEXT_PUBLIC_ADSENSE_CLIENT} />
         ) : null}
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" href="/brand/2026/synaura-symbol-2026-white.png" />
         <link rel="manifest" href="/manifest.json" />
         {/* Précharger le DNS et la connexion au CDN Bunny */}
         <link rel="dns-prefetch" href={`https://${process.env.NEXT_PUBLIC_CDN_DOMAIN || 'synaura-cdn.b-cdn.net'}`} />

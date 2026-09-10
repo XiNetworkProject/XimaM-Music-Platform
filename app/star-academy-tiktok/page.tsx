@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import SynauraLogo from "@/components/brand/SynauraLogo";
 
 // ── Dates cles ────────────────────────────────────────────
 const INSCRIPTION_OPEN  = new Date("2026-03-17T00:00:00");
@@ -111,9 +112,7 @@ export default function StarAcademyLandingPage() {
                 className="object-contain"
                 style={{ filter: "brightness(0) invert(1) opacity(0.7)" }} />
               <span className="text-white/20 text-lg font-thin">×</span>
-              <Image src="/synaura_logotype.svg" alt="Synaura" width={70} height={22}
-                className="object-contain"
-                style={{ filter: "brightness(0) invert(1) opacity(0.7)" }} />
+              <SynauraLogo variant="wordmark" size={22} className="text-white opacity-70" wordmarkClassName="text-sm" decorative />
             </div>
 
             <div className="flex items-center gap-2">
@@ -242,9 +241,7 @@ export default function StarAcademyLandingPage() {
           <div className="max-w-4xl mx-auto px-6 flex flex-wrap items-center justify-center gap-8 md:gap-14">
             <div className="flex flex-col items-center gap-2">
               <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Organise par</p>
-              <Image src="/synaura_logotype.svg" alt="Synaura" width={100} height={28}
-                className="object-contain"
-                style={{ filter: "brightness(0) invert(1) opacity(0.55)" }} />
+              <SynauraLogo variant="wordmark" size={28} className="text-white opacity-55" wordmarkClassName="text-lg" decorative />
             </div>
             <span className="text-white/10 text-2xl font-thin hidden md:block">×</span>
             <div className="flex flex-col items-center gap-2">
@@ -581,9 +578,7 @@ export default function StarAcademyLandingPage() {
                 className="object-contain"
                 style={{ filter: "brightness(0) invert(1) opacity(0.6)" }} />
               <span className="text-white/20 text-xl font-thin">×</span>
-              <Image src="/synaura_logotype.svg" alt="Synaura" width={80} height={24}
-                className="object-contain"
-                style={{ filter: "brightness(0) invert(1) opacity(0.6)" }} />
+              <SynauraLogo variant="wordmark" size={24} className="text-white opacity-60" wordmarkClassName="text-base" decorative />
             </div>
 
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-4 leading-tight">
@@ -656,9 +651,7 @@ export default function StarAcademyLandingPage() {
               <Image src="/StarAcRes/mixxpartywhitelog.png" alt="Mixx Party" width={60} height={22}
                 className="object-contain"
                 style={{ filter: "brightness(0) invert(1) opacity(0.25)" }} />
-              <Image src="/synaura_logotype.svg" alt="Synaura" width={70} height={20}
-                className="object-contain"
-                style={{ filter: "brightness(0) invert(1) opacity(0.25)" }} />
+              <SynauraLogo variant="wordmark" size={20} className="text-white opacity-25" wordmarkClassName="text-xs" decorative />
             </div>
 
             {/* Links */}

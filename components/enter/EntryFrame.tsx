@@ -1,10 +1,10 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, MessageCircle, Music2, Sparkles, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
+import SynauraLogo from '@/components/brand/SynauraLogo';
 
 export default function EntryFrame({ eyebrow, title, description, children, compact = false }: { eyebrow: string; title: string; description: string; children: ReactNode; compact?: boolean }) {
   const reduced = Boolean(useReducedMotion());
@@ -19,8 +19,8 @@ export default function EntryFrame({ eyebrow, title, description, children, comp
         <div className="pointer-events-none absolute -left-28 -top-20 h-96 w-96 rounded-full bg-[radial-gradient(circle,rgba(217,109,99,.45),rgba(115,87,198,.24)_42%,transparent_70%)]" />
         <div className="pointer-events-none absolute -bottom-36 -right-28 h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle,rgba(74,158,170,.38),rgba(115,87,198,.16)_44%,transparent_70%)]" />
         <Link href="/" className="relative z-10 inline-flex items-center gap-3 self-start rounded-full pr-3 font-black">
-          <span className="grid h-11 w-11 place-items-center rounded-2xl border border-[var(--syn-border)] bg-[var(--syn-surface)]"><Image src="/favicon.svg" alt="" width={28} height={28} /></span>
-          Synaura
+          <span className="grid h-12 w-12 place-items-center overflow-visible rounded-2xl border border-[var(--syn-border)] bg-[var(--syn-surface)]"><SynauraLogo size={46} decorative /></span>
+          <span>Synaura</span>
         </Link>
         <div className="relative z-10 my-auto py-12">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--syn-accent-coral)]">Entrer dans Synaura</p>
@@ -48,7 +48,7 @@ export default function EntryFrame({ eyebrow, title, description, children, comp
         <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(115,87,198,.22),transparent_68%)]" />
         <div className="relative z-10 flex h-full flex-col">
           <div className="mb-7 flex items-center justify-between gap-3 lg:hidden">
-            <Link href="/" className="inline-flex items-center gap-2 font-black"><Image src="/favicon.svg" alt="" width={32} height={32} /> Synaura</Link>
+            <Link href="/" className="inline-flex items-center gap-2 font-black"><SynauraLogo size={38} decorative /> Synaura</Link>
             <Link href="/" className="syn-interactive inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-black text-[var(--syn-text-secondary)] hover:bg-[var(--syn-soft)]"><ArrowLeft className="h-3.5 w-3.5" /> Découvrir</Link>
           </div>
           <div className="mb-7">
