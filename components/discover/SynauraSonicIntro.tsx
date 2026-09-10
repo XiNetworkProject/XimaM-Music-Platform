@@ -130,33 +130,38 @@ export default function SynauraSonicIntro({
           ) : (
             <div className={styles.cinema} aria-live="polite" aria-label="Signature visuelle Synaura en cours" data-sonic-cinema>
               <span className={styles.blackField} aria-hidden />
-              <span className={styles.backAura} aria-hidden />
-              <span className={styles.depthHaze} aria-hidden />
+              <span className={styles.roomHaze} aria-hidden />
+              <span className={styles.farFog} aria-hidden />
 
-              <div className={styles.lightWave} aria-hidden data-sonic-wave>
-                <span className={styles.waveAfterglow} />
-                <span className={styles.waveVolume} />
-                <span className={styles.waveFront} />
-                <span className={styles.waveFilament} />
+              <div className={styles.beaconPath} aria-hidden data-sonic-beacon>
+                <div className={styles.beaconPivot}>
+                  <span className={styles.beamOuter} />
+                  <span className={styles.beamVeil} />
+                  <span className={styles.beamCore} />
+                  <span className={styles.beamSpine} />
+                  <span className={styles.beamDust} />
+                  <span className={styles.sourceBloom} />
+                </div>
               </div>
 
               <div className={styles.logoStage} aria-hidden data-sonic-logo-stage>
-                <div className={`${styles.logoLayer} ${styles.logoGhost}`}>
-                  <SynauraLogo size={420} className={styles.signatureLogo} markClassName={styles.signatureMark} priority decorative />
+                <div className={styles.logoRevealWindow}>
+                  <div className={styles.logoRevealCounter}>
+                    <SynauraLogo size={420} className={styles.signatureLogo} markClassName={styles.signatureMark} priority decorative />
+                  </div>
                 </div>
-                <div className={`${styles.logoLayer} ${styles.logoMaterial}`}>
-                  <SynauraLogo size={420} className={styles.signatureLogo} markClassName={styles.signatureMark} priority decorative />
+                <div className={styles.logoSpecularWindow}>
+                  <div className={styles.logoSpecularCounter}>
+                    <SynauraLogo size={420} className={styles.signatureLogo} markClassName={styles.signatureMark} priority decorative />
+                  </div>
                 </div>
-                <div className={`${styles.logoLayer} ${styles.logoEdge}`}>
-                  <SynauraLogo size={420} className={styles.signatureLogo} markClassName={styles.signatureMark} priority decorative />
-                </div>
-                <div className={`${styles.logoLayer} ${styles.logoReflection}`}>
+                <div className={styles.logoBloom}>
                   <SynauraLogo size={420} className={styles.signatureLogo} markClassName={styles.signatureMark} priority decorative />
                 </div>
               </div>
 
-              <span className={styles.impactAura} aria-hidden />
-              <span className={styles.impactRing} aria-hidden />
+              <span className={styles.logoAura} aria-hidden />
+              <span className={styles.backgroundPulse} aria-hidden />
               <span className={styles.floorGlow} aria-hidden />
               <h1 id="sonic-intro-title" className="sr-only">Synaura</h1>
             </div>

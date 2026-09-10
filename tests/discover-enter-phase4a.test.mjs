@@ -75,21 +75,25 @@ test('le WAV officiel est intact et dure 3,2 secondes', async () => {
   assert.equal(dataBytes / wav.readUInt32LE(28), 3.2);
 });
 
-test('la signature visuelle révèle spatialement le logo canonique de droite à gauche', async () => {
+test('le phare composité révèle organiquement le logo canonique avec un masque dégradé', async () => {
   const intro = await read('components/discover/SynauraSonicIntro.tsx');
   const css = await read('components/discover/SynauraSonicIntro.module.css');
-  assert.match(intro, /styles\.lightWave/);
-  assert.match(intro, /styles\.logoMaterial/);
-  assert.match(intro, /styles\.logoEdge/);
+  assert.match(intro, /styles\.beaconPath/);
+  assert.match(intro, /styles\.beamOuter/);
+  assert.match(intro, /styles\.beamCore/);
+  assert.match(intro, /styles\.logoRevealWindow/);
+  assert.match(intro, /styles\.logoSpecularWindow/);
   assert.match(intro, /<SynauraLogo[^>]+decorative/);
   assert.doesNotMatch(intro, /className=\{styles\.wordmark\}/);
-  assert.match(css, /@keyframes wave-travel/);
-  assert.match(css, /@keyframes logo-spatial-reveal/);
-  assert.match(css, /clip-path: inset\(0 0 0 100%\)/);
-  assert.match(css, /translate3d\(80vw/);
-  assert.match(css, /translate3d\(-70vw/);
-  assert.match(css, /@keyframes reduced-wave/);
-  assert.match(css, /@keyframes reduced-logo-reveal/);
+  assert.match(css, /@keyframes beacon-cross/);
+  assert.match(css, /@keyframes beacon-turn/);
+  assert.match(css, /@keyframes reveal-mask/);
+  assert.match(css, /mask-image: linear-gradient/);
+  assert.match(css, /will-change: mask-position/);
+  assert.doesNotMatch(css, /@keyframes logo-spatial-reveal/);
+  assert.doesNotMatch(css, /clip-path: inset\(/);
+  assert.match(css, /@keyframes reduced-beacon/);
+  assert.match(css, /@keyframes reduced-reveal-mask/);
 });
 
 test('le logo 2026 a une source de vérité, une safe zone et aucun crop', async () => {
