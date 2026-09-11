@@ -29,6 +29,7 @@
     "test:security-phase0b": "node --experimental-strip-types --test tests/security-phase-0b.test.mjs",
     "test:audio-core": "node --experimental-strip-types --test tests/audio-core.test.mjs tests/audio-core-routing.test.mjs tests/audio-integration-phase2b.test.mjs",
     "test:audio-authenticated": "node scripts/audio-authenticated-matrix.mjs",
+    "test:live-continuity": "node --experimental-strip-types --test tests/live-continuity-phase4b1.test.mjs",
     "test:frontend-foundation": "node --experimental-strip-types --test tests/frontend-foundation-phase3.test.mjs",
     "test:discover-enter": "node --experimental-strip-types --test tests/discover-enter-phase4a.test.mjs",
     "db:migrate": "node database/scripts/migrate.mjs",

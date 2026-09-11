@@ -48,7 +48,7 @@ export default function ScrollPostSlide({ post, active, playing, onOpenPost, onO
   const [likesCount, setLikesCount] = useState(Math.max(0, post.likes_count || 0));
   const [liking, setLiking] = useState(false);
   const track = useMemo(() => trackFromScrollPost(post), [post]);
-  const waveform = useTrackWaveform(track?._id, track?.audioUrl, track?.duration);
+  const waveform = useTrackWaveform(active ? track?._id : undefined, active ? track?.audioUrl : undefined, active ? track?.duration : undefined);
   const trackDuration = track ? formatDuration(track.duration) : '';
   const visual = post.image_url || post.track?.cover_url || null;
   const author = post.creator.name || post.creator.username || 'Membre Synaura';

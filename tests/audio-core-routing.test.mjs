@@ -34,12 +34,13 @@ test('le noyau est l’unique propriétaire du moteur principal', async () => {
 });
 
 test('les routes masquent seulement le mini-player, pas le moteur persistant', () => {
-  const routes = ['/', '/discover', '/library', '/studio', '/ai-generator', '/profile/ari', '/messages/room-1'];
+  const routes = ['/', '/discover', '/library', '/notifications', '/studio', '/ai-generator', '/profile/ari', '/messages/room-1'];
   const visibility = routes.map((pathname) => [pathname, shouldRenderGlobalMiniPlayer(pathname)]);
   assert.deepEqual(visibility, [
     ['/', false],
     ['/discover', true],
     ['/library', true],
+    ['/notifications', true],
     ['/studio', true],
     ['/ai-generator', true],
     ['/profile/ari', true],

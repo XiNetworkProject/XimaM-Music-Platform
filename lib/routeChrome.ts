@@ -99,7 +99,6 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
 export function shouldRenderGlobalMiniPlayer(pathname: string | null) {
   if (!pathname) return true;
   if (pathname === '/' || pathname === '/live' || pathname.startsWith('/swipe')) return false;
-  if (pathname.startsWith('/notifications')) return false;
   if (/^\/messages\/[^/]+/.test(pathname)) return false;
   if (pathname.startsWith('/upload')) return false;
   if (pathname.startsWith('/clips/new')) return false;
