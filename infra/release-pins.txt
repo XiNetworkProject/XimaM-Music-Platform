@@ -1,0 +1,3 @@
+# One full 40-character Git SHA per line. Blank lines and comments are ignored.
+# Pinned releases are retained in addition to the active and two previous releases.
+c744b4fbdc1b83544a55d1975bfcd1e03761ca3c

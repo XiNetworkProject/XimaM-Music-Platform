@@ -79,6 +79,13 @@ for _ in $(seq 1 20); do
   if systemctl is-active --quiet "$service_name" &&
      curl -fsS --max-time 8 -H 'Host: synaura.fr' "$health_url" -o /dev/null; then
     echo "$remote_sha" >"$state/last-successful-sha"
+    echo "APPLICATION SAINE : $remote_sha"
+    retention_script="$current/infra/scripts/prune-releases.sh"
+    [[ -x "$retention_script" ]] || die "politique de retention absente ou non executable: $retention_script"
+    if ! "$retention_script" --apply; then
+      echo "ALERTE: application saine, mais la retention des releases a echoue" >&2
+      exit 1
+    fi
     echo "DEPLOIEMENT REUSSI : $remote_sha"
     exit 0
   fi

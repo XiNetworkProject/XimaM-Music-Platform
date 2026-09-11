@@ -274,6 +274,36 @@ Procedure :
 Le build seul n'est jamais considere comme une preuve de sante. Les migrations
 destructives ne font pas partie de ce workflow.
 
+### Retention automatique des releases
+
+La retention est lancee uniquement apres le redemarrage reussi, le controle HTTP
+et l'ecriture de `last-successful-sha`. Elle conserve toujours la release active,
+les deux releases precedentes les plus recentes et chaque SHA complet inscrit
+dans `infra/release-pins.txt`. Un worktree utilise par un processus ou comportant
+des changements suivis est egalement protege.
+
+`infra/scripts/prune-releases.sh --dry-run` inventorie l'actif, les precedentes,
+les pins, les worktrees utilises, les candidats et leurs octets recuperables sans
+supprimer. `--apply` est reserve au workflow de deploiement sain. Le script refuse
+un chemin racine inattendu, un lien `current` incoherent, un etat de succes non
+aligne, un repertoire qui n'est pas un SHA complet, des metadonnees Git absentes
+ou ambigues, un worktree imbrique et tout ensemble qui supprimerait toutes les
+releases. Les seuils disque (80 % avertissement, 90 % critique) ne neutralisent
+jamais ces protections ; une occupation encore critique fait echouer la retention
+et exige une intervention operateur.
+
+Le nettoyage initial du 11 septembre 2026 a conserve la baseline active
+`edfe3be7b73894483928aab025be69c55d83462a`, le rollback precedent
+`74e9d9b1ee07f4096e524c06e0a96d25faf3ac96` et le pin strategique
+`c744b4fbdc1b83544a55d1975bfcd1e03761ca3c`. Quinze anciens worktrees ont ete
+retires via Git, puis les metadonnees ont ete elaguees. Le disque racine est passe
+de 86 % a 40 %, soit 27 941 515 264 octets recuperes.
+
+Les caches du checkout de deploiement (`.next`, `node_modules`), npm et Puppeteer
+restent volontairement en place. Leur purge eventuelle est manuelle et
+conditionnelle ; elle ne fait pas partie de la retention des releases. Les logs,
+backups, bases PostgreSQL, swap, medias SSD et Weyra ne sont jamais cibles.
+
 Rollback infrastructure :
 
 - service/deploy precedents archives sous
