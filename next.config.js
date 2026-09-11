@@ -97,10 +97,19 @@ const nextConfig = {
       config.optimization.splitChunks = {
         chunks: 'all',
         cacheGroups: {
+          sonic3d: {
+            test: /[\\/]node_modules[\\/](?:@react-three|gsap|its-fine|maath|n8ao|postprocessing|react-use-measure|suspend-react|three|three-stdlib)[\\/]/,
+            name: 'sonic-3d',
+            chunks: 'async',
+            priority: 40,
+            enforce: true,
+          },
           vendor: {
             test: /[\\/]node_modules[\\/]/,
             name: 'vendors',
             chunks: 'all',
+            priority: -10,
+            reuseExistingChunk: true,
           },
         },
       };

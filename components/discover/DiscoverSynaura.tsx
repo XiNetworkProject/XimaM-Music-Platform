@@ -134,7 +134,9 @@ export default function DiscoverSynaura({ legacy = false }: { legacy?: boolean }
 
   useEffect(() => {
     try {
-      const seen = localStorage.getItem(SONIC_INTRO_SEEN_KEY) === '1';
+      const forceSonicPreview = process.env.NODE_ENV !== 'production'
+        && new URLSearchParams(window.location.search).get('sonicPreview') === '1';
+      const seen = localStorage.getItem(SONIC_INTRO_SEEN_KEY) === '1' && !forceSonicPreview;
       setFirstVisit(!seen);
       setShowSonicIntro(!seen);
     } catch {}
