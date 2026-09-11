@@ -2014,6 +2014,7 @@ export default function SynauraScroll() {
           tabIndex={-1}
           aria-label="Live Synaura"
           data-testid="synaura-scroll-feed"
+          data-context-surface-origin="live"
           onTouchStart={scrollSnap.onTouchStart}
           onTouchEnd={scrollSnap.onTouchEnd}
           onScroll={scrollSnap.onScroll}

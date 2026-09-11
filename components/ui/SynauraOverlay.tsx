@@ -17,7 +17,7 @@ import {
 import { createPortal } from 'react-dom';
 import { SYNAURA_MOTION } from '@/lib/ui/motion';
 
-type OverlayPresentation = 'modal' | 'drawer-left' | 'drawer-right' | 'sheet' | 'responsive';
+type OverlayPresentation = 'modal' | 'drawer-left' | 'drawer-right' | 'sheet' | 'responsive' | 'context-responsive';
 type OverlaySize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
 type OverlayContextValue = {
@@ -30,6 +30,7 @@ const OverlayContext = createContext<OverlayContextValue | null>(null);
 const overlayStack: string[] = [];
 let scrollLocks = 0;
 let previousOverflow = '';
+const backgroundScrollLocks = new Map<HTMLElement, { overflow: string; touchAction: string }>();
 
 const focusableSelector = [
   'a[href]',
@@ -99,6 +100,14 @@ export function SynauraOverlay({
     if (scrollLocks === 0) {
       previousOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
+      document.querySelectorAll<HTMLElement>('.app-scroll-container, [data-testid="synaura-scroll-feed"]').forEach((element) => {
+        backgroundScrollLocks.set(element, {
+          overflow: element.style.overflow,
+          touchAction: element.style.touchAction,
+        });
+        element.style.overflow = 'hidden';
+        element.style.touchAction = 'none';
+      });
     }
     scrollLocks += 1;
 
@@ -150,7 +159,14 @@ export function SynauraOverlay({
       const stackIndex = overlayStack.lastIndexOf(overlayId);
       if (stackIndex >= 0) overlayStack.splice(stackIndex, 1);
       scrollLocks = Math.max(0, scrollLocks - 1);
-      if (scrollLocks === 0) document.body.style.overflow = previousOverflow;
+      if (scrollLocks === 0) {
+        document.body.style.overflow = previousOverflow;
+        backgroundScrollLocks.forEach((styles, element) => {
+          element.style.overflow = styles.overflow;
+          element.style.touchAction = styles.touchAction;
+        });
+        backgroundScrollLocks.clear();
+      }
       if (pushedHistory && window.history.state?.synauraOverlay === overlayId) window.history.back();
       restoreFocusRef.current?.focus();
     };
@@ -163,6 +179,8 @@ export function SynauraOverlay({
       ? 'items-stretch justify-end'
       : resolvedPresentation === 'sheet'
         ? 'items-end justify-center'
+        : resolvedPresentation === 'context-responsive'
+          ? 'items-end justify-center md:items-stretch md:justify-end'
         : resolvedPresentation === 'responsive'
           ? 'items-end justify-center sm:items-center sm:p-5'
         : 'items-center justify-center p-3 sm:p-5';
@@ -170,11 +188,14 @@ export function SynauraOverlay({
     ? 'h-full w-[min(92vw,30rem)] rounded-none'
     : resolvedPresentation === 'sheet'
       ? 'max-h-[88dvh] w-full max-w-3xl rounded-t-[var(--syn-radius-xl)] sm:mb-3 sm:rounded-[var(--syn-radius-xl)]'
+      : resolvedPresentation === 'context-responsive'
+        ? 'max-h-[88dvh] w-full rounded-t-[var(--syn-radius-xl)] pb-[env(safe-area-inset-bottom)] md:h-full md:max-h-none md:w-[clamp(23.75rem,30vw,30rem)] md:max-w-none md:rounded-none md:pb-0'
       : resolvedPresentation === 'responsive'
         ? `max-h-[88dvh] w-full rounded-t-[var(--syn-radius-xl)] sm:max-h-[min(90dvh,56rem)] sm:rounded-[var(--syn-radius-xl)] ${sizeClasses[size]}`
       : `max-h-[min(90dvh,56rem)] w-full rounded-[var(--syn-radius-xl)] ${sizeClasses[size]}`;
-  const x = resolvedPresentation === 'drawer-left' ? -24 : resolvedPresentation === 'drawer-right' ? 24 : 0;
-  const y = resolvedPresentation === 'sheet' || resolvedPresentation === 'responsive' ? 24 : resolvedPresentation === 'modal' ? 8 : 0;
+  const contextDesktop = resolvedPresentation === 'context-responsive' && typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches;
+  const x = resolvedPresentation === 'drawer-left' ? -24 : resolvedPresentation === 'drawer-right' || contextDesktop ? 24 : 0;
+  const y = resolvedPresentation === 'sheet' || resolvedPresentation === 'responsive' || (resolvedPresentation === 'context-responsive' && !contextDesktop) ? 24 : resolvedPresentation === 'modal' ? 8 : 0;
   const context = useMemo(() => ({ titleId, descriptionId, onClose }), [descriptionId, onClose, titleId]);
 
   if (typeof document === 'undefined') return null;

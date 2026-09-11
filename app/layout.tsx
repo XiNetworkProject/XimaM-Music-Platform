@@ -14,6 +14,7 @@ import AndroidAppPrompt from '@/components/mobile/AndroidAppPrompt';
 import { SynauraThemeProvider } from '@/components/theme/SynauraThemeProvider';
 import PageTransition from '@/components/PageTransition';
 import { SynauraToastViewport } from '@/components/ui/SynauraToastViewport';
+import { ContextSurfaceProvider } from '@/components/context-surfaces/ContextSurfaceController';
 
 const SYNAURA_THEME_STORAGE_KEY = 'synaura.theme.mode.v1';
 
@@ -127,6 +128,7 @@ export default function RootLayout({
           <body className={`theme-suno ${inter.className} overflow-hidden max-w-full h-full`}>
         <SynauraThemeProvider>
         <Providers>
+          <ContextSurfaceProvider>
           {/* Studio Background (fond global de l'app) */}
           <StudioBackground variant="synaura" />
           
@@ -150,6 +152,7 @@ export default function RootLayout({
           <AndroidAppPrompt />
           <div id="synaura-overlay-root" />
           <SynauraToastViewport />
+          </ContextSurfaceProvider>
         </Providers>
         </SynauraThemeProvider>
       </body>
