@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Clock3, FileText, Library, Loader2, Music2, Search, TrendingUp, User, X } from 'lucide-react';
 import { SynauraAppShell, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import { useProfilePeek } from '@/components/profile/useProfilePeek';
 
 type ResultKind = 'all' | 'tracks' | 'posts' | 'artists' | 'playlists';
 
@@ -44,6 +45,7 @@ function SearchPageContent() {
   const [recent, setRecent] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<any>({ tracks: [], artists: [] });
   const [suggestionsLoading, setSuggestionsLoading] = useState(true);
+  const openProfilePeek = useProfilePeek('search');
 
   const total = useMemo(() => (
     (results.tracks?.length || 0) +
@@ -263,9 +265,12 @@ function SearchPageContent() {
                 </h2>
                 <div className="synaura-no-scrollbar -mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
                   {suggestions.artists.map((artist: any) => (
-                    <Link
+                    <button
+                      type="button"
                       key={artist._id || artist.id}
-                      href={`/profile/${encodeURIComponent(artist.username)}`}
+                      data-context-surface-trigger-key={`search-suggestion-profile-${artist._id || artist.id}`}
+                      onClick={(event) => openProfilePeek(artist.username, event.currentTarget)}
+                      aria-label={`Aperçu du profil de ${artist.artistName || artist.name || artist.username}`}
                       className="flex w-[190px] shrink-0 items-center gap-3 rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-2.5 transition hover:bg-[var(--syn-soft)]"
                     >
                       <img src={artist.avatar || '/default-avatar.png'} alt="" className="h-11 w-11 rounded-full object-cover" />
@@ -273,7 +278,7 @@ function SearchPageContent() {
                         <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{artist.artistName || artist.name || artist.username}</span>
                         <span className="block truncate text-xs text-[var(--syn-text-secondary)]">@{artist.username}</span>
                       </span>
-                    </Link>
+                    </button>
                   ))}
                 </div>
               </section>
@@ -328,13 +333,20 @@ function SearchPageContent() {
                 <h2 className="flex items-center gap-2 text-lg font-black text-[var(--syn-text-primary)]"><User className="h-5 w-5" /> Profils</h2>
                 <div className="mt-3 divide-y divide-[var(--syn-border)] sm:grid sm:grid-cols-2 sm:gap-x-4 sm:divide-y-0">
                   {results.artists.map((artist: any) => (
-                    <Link key={artist._id || artist.id} href={`/profile/${encodeURIComponent(artist.username)}`} className="flex min-h-[66px] items-center gap-3 px-1 py-2.5 transition hover:bg-[var(--syn-soft)]">
+                    <button
+                      type="button"
+                      key={artist._id || artist.id}
+                      data-context-surface-trigger-key={`search-result-profile-${artist._id || artist.id}`}
+                      onClick={(event) => openProfilePeek(artist.username, event.currentTarget)}
+                      aria-label={`Aperçu du profil de ${artist.artistName || artist.name || artist.username}`}
+                      className="flex min-h-[66px] w-full items-center gap-3 px-1 py-2.5 text-left transition hover:bg-[var(--syn-soft)]"
+                    >
                       <img src={artist.avatar || '/default-avatar.png'} alt="" className="h-12 w-12 rounded-full object-cover" />
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{artist.artistName || artist.name || artist.username}</span>
                         <span className="block truncate text-xs font-semibold text-[var(--syn-text-secondary)]">@{artist.username}</span>
                       </span>
-                    </Link>
+                    </button>
                   ))}
                 </div>
               </section>

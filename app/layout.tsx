@@ -15,6 +15,7 @@ import { SynauraThemeProvider } from '@/components/theme/SynauraThemeProvider';
 import PageTransition from '@/components/PageTransition';
 import { SynauraToastViewport } from '@/components/ui/SynauraToastViewport';
 import { ContextSurfaceProvider } from '@/components/context-surfaces/ContextSurfaceController';
+import ProfilePeekRegistration from '@/components/profile/ProfilePeekRegistration';
 
 const SYNAURA_THEME_STORAGE_KEY = 'synaura.theme.mode.v1';
 
@@ -152,6 +153,7 @@ export default function RootLayout({
           <AndroidAppPrompt />
           <div id="synaura-overlay-root" />
           <SynauraToastViewport />
+          <ProfilePeekRegistration />
           </ContextSurfaceProvider>
         </Providers>
         </SynauraThemeProvider>

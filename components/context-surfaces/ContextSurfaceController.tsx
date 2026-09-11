@@ -120,7 +120,7 @@ function ContextSurfaceHost({
     if (!current) return;
     const frame = window.requestAnimationFrame(() => {
       const focusable = contentRef.current?.querySelector<HTMLElement>(
-        '[autofocus], button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        '[data-context-surface-initial-focus], [autofocus], button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
       );
       (focusable || contentRef.current)?.focus();
     });
@@ -136,7 +136,7 @@ function ContextSurfaceHost({
       onClose={controller.closeSurface}
       presentation={presentation || 'context-responsive'}
       history={false}
-      className="context-surface-panel overscroll-contain"
+      className="context-surface-panel overflow-hidden overscroll-contain"
     >
       {current ? (
         <div

@@ -26,6 +26,7 @@ import ClipUploadIndicator from '@/components/clips/ClipUploadIndicator';
 import HomeFlowPrelude from '@/components/home/HomeFlowPrelude';
 import ScrollPostSlide from '@/components/home/ScrollPostSlide';
 import { SynauraMobileDock } from '@/components/synaura/SynauraShell';
+import { useProfilePeek } from '@/components/profile/useProfilePeek';
 import {
   buildAnnouncementItem,
   buildArtistSpotlightItems,
@@ -425,6 +426,7 @@ export default function SynauraScroll() {
   const username = (session?.user as any)?.username;
   const currentUserId = (session?.user as any)?.id;
   const needsTrackFetch = filter === 'foryou' || filter === 'new';
+  const openProfilePeek = useProfilePeek('live');
   const navigateFromLive = useCallback((href: string) => {
     persistBeforeNavigationRef.current();
     router.push(href, { scroll: false });
@@ -1283,10 +1285,16 @@ export default function SynauraScroll() {
                   <Film className="h-3 w-3" />
                   Clip Synaura
                 </div>
-                <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  data-context-surface-trigger-key={`live-clip-profile-${clip.id}`}
+                  onClick={(event) => openProfilePeek(clip.creator.username, event.currentTarget)}
+                  className="flex min-h-11 items-center gap-2 rounded-full pr-3 text-left"
+                  aria-label={`Aperçu du profil de ${clip.creator.name || clip.creator.username}`}
+                >
                   {clip.creator.avatar ? <img src={clip.creator.avatar} alt="" className="h-9 w-9 rounded-full object-cover" /> : <span className="grid h-9 w-9 place-items-center rounded-full bg-white/18 text-xs font-black">{(clip.creator.name || 'S').slice(0, 1).toUpperCase()}</span>}
                   <span className="text-sm font-black">@{clip.creator.username || clip.creator.name || 'synaura'}</span>
-                </div>
+                </button>
                 {clip.caption ? <p className="mt-3 text-base font-bold leading-6">{clip.caption}</p> : null}
                 {clip.tags?.length ? (
                   <div className="mt-2 flex flex-wrap gap-1.5">
@@ -1343,8 +1351,8 @@ export default function SynauraScroll() {
           active={index === activeIndex}
           playing={isPlayingThis}
           onOpenPost={() => navigateFromLive(`/posts/${encodeURIComponent(item.post.id)}`)}
-          onOpenProfile={() => {
-            if (item.post.creator.username) navigateFromLive(`/profile/${encodeURIComponent(item.post.creator.username)}`);
+          onOpenProfile={(trigger) => {
+            if (item.post.creator.username) openProfilePeek(item.post.creator.username, trigger);
             else navigateFromLive(`/posts/${encodeURIComponent(item.post.id)}`);
           }}
           onPlayTrack={() => {
@@ -1487,7 +1495,16 @@ export default function SynauraScroll() {
                   </div>
                   <h2 className="mt-1.5 truncate text-2xl font-black tracking-tight">{track.title}</h2>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-bold text-black/56">{track.artist?.name || track.artist?.username || 'Artiste'}</p>
+                    {track.artist?.username ? (
+                      <button
+                        type="button"
+                        data-context-surface-trigger-key={`live-track-profile-${track._id}`}
+                        onClick={(event) => openProfilePeek(track.artist.username, event.currentTarget)}
+                        className="min-h-11 rounded-full text-left text-sm font-bold text-black/56 underline-offset-4 hover:underline"
+                      >
+                        {track.artist?.name || track.artist.username}
+                      </button>
+                    ) : <p className="text-sm font-bold text-black/56">Artiste</p>}
                     {index === activeIndex && track.artist?._id ? (
                       <FollowButton artistId={track.artist._id} artistUsername={track.artist.username} size="sm" className="rounded-full px-3 py-1 text-xs" />
                     ) : null}
@@ -1623,11 +1640,9 @@ export default function SynauraScroll() {
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 px-6 text-center">
             <button
               type="button"
-              onClick={() => {
-                if (currentId !== track._id) playIndex(index);
-                else if (audioState.isPlaying) pause();
-                else void play();
-              }}
+              data-context-surface-trigger-key={`live-spotlight-profile-${artist.id}`}
+              onClick={(event) => openProfilePeek(artist.username, event.currentTarget)}
+              aria-label={`Aperçu du profil de ${artist.name}`}
               className="group relative h-48 w-48 overflow-hidden rounded-full border border-white/14 bg-white/8 shadow-[0_28px_90px_rgba(0,0,0,0.4)]"
             >
               {artist.avatar ? (
@@ -1637,9 +1652,7 @@ export default function SynauraScroll() {
                   {artist.name.slice(0, 1).toUpperCase()}
                 </div>
               )}
-              <div className="absolute inset-0 grid place-items-center bg-black/25 opacity-0 transition group-hover:opacity-100">
-                {isPlayingThis ? <Pause className="h-9 w-9 text-white" /> : <Play className="ml-1 h-9 w-9 fill-current text-white" />}
-              </div>
+              <div className="absolute inset-0 grid place-items-center bg-black/25 opacity-0 transition group-hover:opacity-100"><User className="h-9 w-9 text-white" /></div>
             </button>
 
             <div>
@@ -1663,20 +1676,34 @@ export default function SynauraScroll() {
           <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] lg:pb-[max(env(safe-area-inset-bottom),1rem)]">
             <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 rounded-[1.8rem] border border-white/12 bg-[#fffaf2]/95 p-4 text-[#171313] shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
               <div className="min-w-0">
-                <p className="truncate text-sm font-black">{artist.name}</p>
+                <button type="button" data-context-surface-trigger-key={`live-spotlight-name-${artist.id}`} onClick={(event) => openProfilePeek(artist.username, event.currentTarget)} className="block min-h-11 truncate text-left text-sm font-black">{artist.name}</button>
                 <p className="truncate text-xs font-bold text-black/48">@{artist.username || 'synaura'}</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {index === activeIndex && artist.username ? (
                   <FollowButton artistId={artist.id} artistUsername={artist.username} size="sm" className="rounded-full px-3 py-1.5 text-xs" />
                 ) : null}
-                <Link
-                  href={artist.username ? `/profile/${artist.username}` : '#'}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (currentId !== track._id) playIndex(index);
+                    else if (audioState.isPlaying) pause();
+                    else void play();
+                  }}
+                  aria-label={`Écouter ${track.title}`}
+                  className="grid h-11 w-11 place-items-center rounded-full bg-black/[0.06]"
+                >
+                  {isPlayingThis ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
+                </button>
+                <button
+                  type="button"
+                  data-context-surface-trigger-key={`live-spotlight-cta-${artist.id}`}
+                  onClick={(event) => openProfilePeek(artist.username, event.currentTarget)}
                   className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#171313] px-4 text-xs font-black text-white transition hover:scale-[1.02]"
                 >
                   Découvrir son univers
                   <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
+                </button>
               </div>
             </div>
           </div>

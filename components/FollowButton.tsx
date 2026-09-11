@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { UserPlus, Check } from 'lucide-react';
+import { useSharedFollowState } from '@/lib/profilePeekClient';
 
 interface FollowButtonProps {
   artistId?: string;
@@ -20,58 +20,22 @@ export default function FollowButton({
   onFollowChange
 }: FollowButtonProps) {
   const { data: session } = useSession();
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
-
-  // Vérifier l'état initial du suivi
-  useEffect(() => {
-    if (!session?.user?.id || !artistUsername) {
-      setIsChecking(false);
-      return;
-    }
-
-    const checkFollowStatus = async () => {
-      try {
-        const response = await fetch(`/api/users/${artistUsername}/follow`);
-        if (response.ok) {
-          const data = await response.json();
-          setIsFollowing(data.isFollowing);
-        }
-      } catch (error) {
-        console.error('Erreur vérification follow:', error);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-
-    checkFollowStatus();
-  }, [session?.user?.id, artistUsername]);
+  const follow = useSharedFollowState(artistUsername, Boolean(session?.user?.id));
+  const isFollowing = Boolean(follow.isFollowing);
+  void artistId;
 
   const handleFollow = async () => {
-    if (!session?.user?.id || !artistUsername || isLoading) return;
-
-    setIsLoading(true);
+    if (!session?.user?.id || !artistUsername || follow.mutating) return;
     try {
-      const response = await fetch(`/api/users/${artistUsername}/follow`, {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        const { action } = await response.json();
-        const newIsFollowing = action === 'followed';
-        setIsFollowing(newIsFollowing);
-        onFollowChange?.(newIsFollowing);
-      }
+      const result = await follow.toggle();
+      onFollowChange?.(Boolean(result.isFollowing));
     } catch (error) {
       console.error('Erreur follow:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   // Ne pas afficher si pas d'utilisateur ou si c'est le profil de l'utilisateur connecté
-  if (!session?.user?.id || !artistUsername || isChecking) {
+  if (!session?.user?.id || !artistUsername || follow.loading) {
     return null;
   }
 
@@ -90,7 +54,8 @@ export default function FollowButton({
   return (
     <button
       onClick={handleFollow}
-      disabled={isLoading}
+      disabled={follow.mutating}
+      aria-pressed={isFollowing}
       className={`
         ${sizeClasses[size]}
         font-medium rounded-full transition-all duration-200 hover:scale-105 active:scale-95
@@ -98,11 +63,11 @@ export default function FollowButton({
           ? 'bg-gradient-to-r from-pink-600 to-red-600 text-white hover:from-pink-700 hover:to-red-700' 
           : 'bg-white/10 backdrop-blur-lg text-white hover:bg-white/20'
         }
-        ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
+        ${follow.mutating ? 'opacity-50 cursor-not-allowed' : ''}
         ${className}
       `}
     >
-      {isLoading ? (
+      {follow.mutating ? (
         <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
       ) : isFollowing ? (
         <div className="flex items-center gap-1">

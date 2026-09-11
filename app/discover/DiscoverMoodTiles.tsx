@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { ArrowRight, Pause, Play } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
+import { useProfilePeek } from '@/components/profile/useProfilePeek';
 import type { MoodConfig } from '@/lib/discoverMoods';
 import type { DiscoverTrackLite } from './DiscoverPlayButton';
 
@@ -67,10 +67,17 @@ export function ArtistDiscoverCard({ artist }: { artist: DiscoverArtistCardLite 
   const currentId = audioState.tracks[audioState.currentTrackIndex]?._id;
   const isCurrentTrack = Boolean(artist.track) && currentId === artist.track?._id;
   const isPlayingThis = isCurrentTrack && audioState.isPlaying;
+  const openProfilePeek = useProfilePeek('discover');
 
   return (
     <div className="min-w-[220px] max-w-[220px] shrink-0 overflow-hidden rounded-[14px] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-4 shadow-[0_16px_45px_var(--syn-shadow)] sm:min-w-[240px] sm:max-w-[240px] sm:rounded-[16px]">
-      <div className="flex items-center gap-3">
+      <button
+        type="button"
+        data-context-surface-trigger-key={`discover-profile-${artist._id}`}
+        onClick={(event) => openProfilePeek(artist.username, event.currentTarget)}
+        className="flex min-h-14 w-full items-center gap-3 text-left"
+        aria-label={`Aperçu du profil de ${artist.name}`}
+      >
         {artist.avatar ? (
           <img src={artist.avatar} alt="" className="h-14 w-14 rounded-full object-cover" />
         ) : (
@@ -82,7 +89,7 @@ export function ArtistDiscoverCard({ artist }: { artist: DiscoverArtistCardLite 
           <p className="truncate text-sm font-black text-[var(--syn-text-primary)]">{artist.name}</p>
           {artist.style ? <p className="truncate text-xs font-bold text-[var(--syn-text-secondary)]">{artist.style}</p> : null}
         </div>
-      </div>
+      </button>
 
       {artist.track ? (
         <button
@@ -109,13 +116,15 @@ export function ArtistDiscoverCard({ artist }: { artist: DiscoverArtistCardLite 
         </button>
       ) : null}
 
-      <Link
-        href={`/profile/${encodeURIComponent(artist.username)}`}
+      <button
+        type="button"
+        data-context-surface-trigger-key={`discover-profile-cta-${artist._id}`}
+        onClick={(event) => openProfilePeek(artist.username, event.currentTarget)}
         className="mt-3 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] bg-[var(--syn-soft)] text-xs font-black text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-contrast-bg)] hover:text-[var(--syn-contrast-text)]"
       >
         Découvrir son univers
         <ArrowRight className="h-3.5 w-3.5" />
-      </Link>
+      </button>
     </div>
   );
 }

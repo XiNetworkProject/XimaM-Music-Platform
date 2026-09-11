@@ -252,6 +252,16 @@ html[data-synaura-theme='dark'] {
   outline-offset: 3px;
 }
 
+body:has([data-context-surface='profile-peek']) [data-synaura-overlay-backdrop] {
+  background: rgba(0, 0, 0, 0.48) !important;
+  -webkit-backdrop-filter: blur(1px) !important;
+  backdrop-filter: blur(1px) !important;
+}
+
+[data-context-surface='profile-peek'] [data-context-surface-initial-focus]:focus-visible {
+  outline: none;
+}
+
 .syn-interactive {
   transition: color var(--syn-motion-fast) var(--syn-ease-standard),
     background-color var(--syn-motion-fast) var(--syn-ease-standard),

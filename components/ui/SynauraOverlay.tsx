@@ -112,7 +112,10 @@ export function SynauraOverlay({
     scrollLocks += 1;
 
     const focusPanel = window.setTimeout(() => {
-      const target = initialFocusRef?.current || panelRef.current?.querySelector<HTMLElement>(focusableSelector) || panelRef.current;
+      const target = initialFocusRef?.current
+        || panelRef.current?.querySelector<HTMLElement>('[data-context-surface-initial-focus]')
+        || panelRef.current?.querySelector<HTMLElement>(focusableSelector)
+        || panelRef.current;
       target?.focus();
     }, 0);
 
@@ -213,6 +216,7 @@ export function SynauraOverlay({
         >
           <div
             aria-hidden="true"
+            data-synaura-overlay-backdrop
             className="absolute inset-0 cursor-default bg-black/60 backdrop-blur-sm"
             onClick={closeOnBackdrop ? onClose : undefined}
           />

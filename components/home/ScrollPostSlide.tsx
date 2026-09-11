@@ -11,7 +11,7 @@ type Props = {
   active: boolean;
   playing: boolean;
   onOpenPost: () => void;
-  onOpenProfile: () => void;
+  onOpenProfile: (trigger: HTMLButtonElement) => void;
   onPlayTrack: (track: ScrollTrack) => void;
   onOpenTrack?: (track: ScrollTrack) => void;
   getAudioElement?: () => HTMLAudioElement | null;
@@ -94,13 +94,13 @@ export default function ScrollPostSlide({ post, active, playing, onOpenPost, onO
       <div className="absolute inset-0 z-10 flex items-center justify-center px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-28 sm:px-8">
         <article className={`w-full max-w-3xl transition duration-500 ${active ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-70'}`}>
           <div className="mb-5 flex items-center gap-3">
-            <button type="button" onClick={onOpenProfile} className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border border-white/20 bg-white/10 text-sm font-black">
+            <button type="button" onClick={(event) => onOpenProfile(event.currentTarget)} className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border border-white/20 bg-white/10 text-sm font-black">
               {post.creator.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={post.creator.avatar} alt="" className="h-full w-full object-cover" />
               ) : initial}
             </button>
-            <button type="button" onClick={onOpenProfile} className="min-w-0 text-left">
+            <button type="button" onClick={(event) => onOpenProfile(event.currentTarget)} className="min-w-0 text-left">
               <span className="flex items-center gap-1.5 text-sm font-black">
                 <span className="truncate">{author}</span>
                 {post.creator.is_verified ? <BadgeCheck className="h-4 w-4 shrink-0 text-[#4A9EAA]" /> : null}

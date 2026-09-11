@@ -28,6 +28,7 @@ import SynauraPulseBar from '@/components/synaura/SynauraPulseBar';
 import { getArtistLevel } from '@/lib/synauraCity';
 import { uploadLocalMedia } from '@/lib/clientMediaUpload';
 import { toPublicMediaUrl } from '@/lib/mediaUrls';
+import { seedFollowState, useSharedFollowState } from '@/lib/profilePeekClient';
 
 const BoosterOpenModal = dynamic(() => import('@/components/BoosterOpenModal'), { ssr: false });
 
@@ -86,6 +87,7 @@ export default function SynauraProfile() {
     usernameStr &&
     sessionUsername.toLocaleLowerCase('fr-FR') === usernameStr.toLocaleLowerCase('fr-FR'),
   );
+  const sharedFollow = useSharedFollowState(usernameStr, Boolean(session?.user?.id && !isOwnProfile));
 
   useEffect(() => { if (lastOpened) setShowBoosterModal(true); }, [lastOpened]);
   const formatRemaining = (ms: number) => { if (!ms || ms <= 0) return 'Dispo'; const h = Math.floor(ms / 3_600_000); const m = Math.floor((ms % 3_600_000) / 60_000); if (h > 0) return `${h}h${m.toString().padStart(2, '0')}`; const s = Math.floor((ms % 60_000) / 1000); return `${m}:${s.toString().padStart(2, '0')}`; };
@@ -99,11 +101,8 @@ export default function SynauraProfile() {
         const res = await fetch(`/api/users/${encodeURIComponent(usernameStr)}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erreur');
-        let isFollowing = false;
-        if (session?.user?.id && data.id !== session.user.id) {
-          try { const fr = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/follow`); if (fr.ok) isFollowing = (await fr.json()).isFollowing; } catch {}
-        }
-        setProfile({ ...data, isFollowing }); setUserTracks(data.tracks || []);
+        seedFollowState(usernameStr, Boolean(data.isFollowing), Number(data.followerCount || 0));
+        setProfile(data); setUserTracks(data.tracks || []);
       } catch (e: any) { setError(e.message); } finally { setLoading(false); }
     };
     if (usernameStr) fetchProfile();
@@ -224,7 +223,7 @@ export default function SynauraProfile() {
   const handlePlayTrack = async (track: any) => { try { await playTrack({ _id: track.id, title: track.title, artist: track.artist || track.artist_name || profile?.name || 'Artiste', audioUrl: track.audioUrl || track.audio_url, coverUrl: track.coverUrl || track.cover_url, duration: track.duration, album: track.album || null, likes: track.likes || 0, comments: [], plays: track.plays || 0, genre: track.genre || [], isLiked: track.isLiked || false }); } catch { notify.error('Erreur', 'Lecture impossible'); } };
   const handleLikeUpdate = (tid: string, liked: boolean, count: number) => { setUserTracks(p => p.map(t => t.id === tid ? { ...t, isLiked: liked, likes: count } : t)); setProfile((p: any) => ({ ...p, tracks: p.tracks?.map((t: any) => t.id === tid ? { ...t, isLiked: liked, likes: count } : t) })); };
   const handleDeleteTrack = async (tid: string) => { if (!confirm('Supprimer ?')) return; try { const ai = String(tid).startsWith('ai-'); const eid = ai ? tid.slice(3) : tid; const r = await fetch(ai ? `/api/ai/tracks/${eid}` : `/api/tracks/${eid}`, { method: 'DELETE' }); if (!r.ok) throw new Error((await r.json()).error); setUserTracks(p => p.filter(t => t.id !== tid)); setDrawerId(null); notify.success('OK', 'Supprimee'); } catch (e: any) { notify.error('Erreur', e.message); } };
-  const handleFollow = async () => { if (!session?.user) { router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`); return; } try { if (!usernameStr) return; const r = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/follow`, { method: 'POST' }); if (!r.ok) throw new Error(); const d = await r.json(); setProfile((p: any) => ({ ...p, isFollowing: d.action === 'followed', followerCount: p.followerCount + (d.action === 'followed' ? 1 : -1) })); } catch { notify.error('Erreur', 'Impossible'); } };
+  const handleFollow = async () => { if (!session?.user) { router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`); return; } try { await sharedFollow.toggle(); } catch { notify.error('Erreur', 'Impossible'); } };
   useEffect(() => { if (!session?.user?.id || !profile?.id || isOwnProfile) return; (async () => { try { const r = await fetch(`/api/messages/requests/status?targetId=${profile.id}`); if (r.ok) { const d = await r.json(); setMessageRequestStatus(d.relationship || 'none'); setExistingConvId(d.relationship === 'friends' ? d.conversationId || null : null); } } catch {} })(); }, [session?.user?.id, profile?.id, isOwnProfile]);
   const handleSendMessageRequest = async () => { if (!session?.user) { router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`); return; } if (!profile?.id) return; setSendingRequest(true); try { const r = await fetch('/api/messages/requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetId: profile.id, message: messageText.trim() || null }) }); const d = await r.json(); if (!r.ok) { notify.error('Demande', d.error || 'Envoi impossible'); return; } if (d.alreadyConnected || d.autoAccepted) { setMessageRequestStatus('friends'); setExistingConvId(d.conversationId || null); setShowMessageModal(false); router.push(d.conversationId ? `/messages/${d.conversationId}` : '/messages'); return; } setMessageRequestStatus('outgoing'); setShowMessageModal(false); setMessageText(''); notify.success('Demande envoyée', `${profile.name} pourra l’accepter depuis sa messagerie.`); } catch { notify.error('Demande', 'Connexion impossible'); } finally { setSendingRequest(false); } };
   const handleImageUpload = async (type: 'avatar' | 'banner', file: File) => { setUploading(true); try { if (!usernameStr) throw new Error(); const uploaded = await uploadLocalMedia(file, type); const sv = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/save-image`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: uploaded.secure_url, type, publicId: uploaded.public_id }) }); if (!sv.ok) throw new Error(); const sd = await sv.json(); setProfile((p: any) => ({ ...p, [type]: sd.imageUrl })); notify.success('OK', 'Image mise a jour'); } catch { notify.error('Erreur', 'Upload echoue'); } finally { setUploading(false); } };
@@ -394,7 +393,8 @@ export default function SynauraProfile() {
   );
 
   const totalPlays = profile.totalPlays || 0;
-  const followerCount = profile.followerCount || 0;
+  const isFollowing = sharedFollow.isFollowing ?? Boolean(profile.isFollowing);
+  const followerCount = sharedFollow.followerCount ?? profile.followerCount ?? 0;
   const followingCount = profile.followingCount || 0;
   const artistProgress = getArtistLevel(
     userTracks.length * 90 +
@@ -599,7 +599,7 @@ export default function SynauraProfile() {
                     </>
                   ) : (
                     <>
-                      {profile.isFollowing ? (
+                      {isFollowing ? (
                         <HeroActionSecondary onClick={handleFollow}>
                           <Check size={15} /> Abonne
                         </HeroActionSecondary>
@@ -1350,8 +1350,8 @@ export default function SynauraProfile() {
           <button onClick={handleShareProfile} className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#171313] shadow-[0_20px_45px_rgba(30,25,20,0.20)]">
             <Share2 size={15} />
           </button>
-          <button onClick={handleFollow} className={`flex h-12 w-12 items-center justify-center rounded-full shadow-[0_20px_45px_rgba(30,25,20,0.20)] ${profile.isFollowing ? 'bg-black/[0.08] text-black/55' : 'bg-[#171313] text-white'}`}>
-            {profile.isFollowing ? <Check size={18} /> : <UserPlus size={18} />}
+          <button onClick={handleFollow} className={`flex h-12 w-12 items-center justify-center rounded-full shadow-[0_20px_45px_rgba(30,25,20,0.20)] ${isFollowing ? 'bg-black/[0.08] text-black/55' : 'bg-[#171313] text-white'}`}>
+            {isFollowing ? <Check size={18} /> : <UserPlus size={18} />}
           </button>
         </div>
       )}
