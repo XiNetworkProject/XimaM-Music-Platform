@@ -110,7 +110,7 @@ function CommunityForumContent() {
         const hydrated = await Promise.all(
           (Array.isArray(data.posts) ? data.posts : []).map(async (post: Post) => {
             try {
-              if (!post.user_id) return post;
+              if (!post.user_id || post.author) return post;
               const userRes = await fetch(`/api/users/by-id/${post.user_id}`, { signal: controller.signal });
               if (!userRes.ok) return post;
               const user = await userRes.json();

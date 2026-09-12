@@ -34,24 +34,16 @@ export async function GET(request: NextRequest) {
           next = next.order('created_at', { ascending: false });
           break;
       }
-      next = next.range(offset, offset + limit - 1);
+      next = next.order('id', { ascending: false }).range(offset, offset + limit - 1);
       if (category && category !== 'all') next = next.eq('category', category);
       if (search) next = next.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
       return next;
     };
 
+    // user_id references auth.users, not profiles. Resolve public profiles in
+    // one batch below via their shared auth ID, without a legacy relation select.
     let query = applyFiltersAndSort(
-      db
-        .from('forum_posts')
-        .select(`
-          *,
-          profiles:user_id (
-            id,
-            name,
-            username,
-            avatar
-          )
-        `),
+      db.from('forum_posts').select('*'),
       sort,
     );
 

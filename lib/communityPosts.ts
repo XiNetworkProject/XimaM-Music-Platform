@@ -133,10 +133,12 @@ export async function attachAuthors(posts: any[]) {
   const userIds = Array.from(new Set((posts || []).map((post) => post.user_id).filter(Boolean)));
   if (!userIds.length) return posts || [];
 
-  const { data: profiles } = await db
+  const { data: profiles, error } = await db
     .from('profiles')
     .select('id, name, username, avatar')
     .in('id', userIds);
+  // A missing profile is allowed; a failed database read is not an absent author.
+  if (error) throw error;
   const profilesById = new Map((profiles || []).map((profile: any) => [profile.id, profile]));
 
   return (posts || []).map((post) => ({
