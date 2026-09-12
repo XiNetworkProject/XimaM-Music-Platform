@@ -1,0 +1,364 @@
+(node:18908) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/accountIdentity.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18908) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/synaura-app/src/auth/authCallback.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\synaura-app\package.json.
+✔ normalise les identifiants saisis par un membre (8.702ms)
+✔ convertit les numeros francais en E.164 sans accepter une valeur ambigue (0.4662ms)
+✔ valide une vraie date et calcule un age sans decalage de fuseau (4.1033ms)
+✔ applique la limite de quinze ans au jour pres (1.3398ms)
+✔ n autorise que le lien profond mobile prevu pour OAuth (0.2562ms)
+✔ lit les jetons OAuth dans le fragment sans les conserver dans la signature (2.8225ms)
+✔ refuse un callback externe incomplet ou en erreur (2.5577ms)
+(node:83156) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/adminEmailRecipients.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ compte uniquement les profils ayant une adresse profil ou auth recuperable (2.9215ms)
+✔ restreint une campagne aux identifiants choisis sans interpolation SQL (0.8735ms)
+✔ les versions Android restent synchronisees dans les metadonnees suivies (3.1229ms)
+✔ la publication cible uniquement le stockage media Synaura local (0.4874ms)
+(node:74160) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/routeChrome.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ le provider audio unique reste au-dessus des transitions de route (26.8368ms)
+✔ le noyau est l’unique propriétaire du moteur principal (2.8194ms)
+✔ les routes masquent seulement le mini-player, pas le moteur persistant (1.6643ms)
+✔ les lecteurs secondaires détachés appliquent explicitement la politique audio (6.1923ms)
+✔ le diagnostic navigateur est absent des builds production (1.4444ms)
+(node:65192) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/audio/AudioCore.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ initialisation unique, commandes et nettoyage des listeners (11.9019ms)
+✔ une résolution tardive de A ne remplace jamais B (1.7787ms)
+✔ pause et stop neutralisent une promesse play encore en vol (1.956ms)
+✔ un événement média portant encore la source A est ignoré après A vers B (5.9745ms)
+✔ les retries de A sont annulés quand B devient courant (17.3714ms)
+✔ fallback source et chargement asynchrone restent attachés à la génération (1.2519ms)
+✔ queue, next, previous et repeat one/all ont une seule autorité (5.0987ms)
+✔ ajout, suppression, reorder, fin de queue et continuation recommandée (3.2995ms)
+✔ shuffle ne détruit jamais l’ordre canonique (1.7962ms)
+✔ persistance versionnée restaurée sans autoplay et entrée invalide purgée (1.5946ms)
+✔ une piste expirée ou introuvable est écartée à la restauration (1.0767ms)
+✔ la queue et une URL fraîche sont restaurées par identifiant (3.4187ms)
+✔ une piste supprimée, une session ancienne et un schéma inconnu sont ignorés (2.5983ms)
+✔ un lecteur secondaire pause puis reprend, sans reprise obsolète (2.706ms)
+✔ une pause explicite pendant un lecteur secondaire annule la reprise (1.6333ms)
+✔ preview et message ne jouent jamais avec le global et les leases se nettoient (2.1155ms)
+✔ preview A vers B et message A vers B libèrent la lease précédente (1.3431ms)
+✔ un chevauchement de leases secondaires est signalé en développement (0.6605ms)
+✔ un lecteur secondaire ne reprend pas un global déjà en pause (2.5805ms)
+✔ les erreurs globales et secondaires publient un événement nettoyable (0.6595ms)
+✔ le temps notifie uniquement le store spécialisé et les erreurs sont typées (0.7846ms)
+(node:79632) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/audio/audioErrorTelemetrySchema.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ l’identité interne du core est stable et exposée uniquement par le harness dev (20.7202ms)
+✔ la matrice authentifiée reproductible couvre toutes les routes demandées (3.0084ms)
+✔ chaque new Audio web est moteur, lecteur coordonné, sonde ou diagnostic connu (1717.1124ms)
+✔ la façade directe reste limitée au provider et à une page diagnostic (489.9008ms)
+✔ Studio reste sur la façade globale et sa seule sonde locale ne joue pas (2.0441ms)
+✔ télémétrie audio accepte uniquement des champs bornés et sans query string (0.626ms)
+✔ les contrôles principaux gardent labels, disabled et seek clavier (1.1856ms)
+✔ Media Session remplace les métadonnées et expose toutes les commandes (1.1546ms)
+✔ les préchargements RSC invités vers les routes protégées sont désactivés (1.3054ms)
+(node:62872) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/cityVoting.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ city vote counts contain only persisted vote rows (3.1911ms)
+✔ a city battle cannot produce a winner without a real vote (0.4949ms)
+✔ real vote totals decide the city winner before Pulse is used as a tie breaker (0.3672ms)
+✔ suppression auteur : PK réelle, appartenance au morceau, aucun hard delete (535.4294ms)
+✔ suppression refusée ou DB en erreur : jamais de faux succès (85.4457ms)
+✔ modération créateur : actions existantes et même PK corrigée (50.2405ms)
+✔ modération refuse cible croisée, non-créateur, action inconnue et erreur DB (42.9287ms)
+✔ replies et likes ne mutent jamais une cible inexistante ou un autre morceau (18.1086ms)
+✔ waveform : peaks JSONB sérialisés pour pg, contrat HTTP tableau conservé (20.7966ms)
+(node:47744) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/commentsModel.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ les identités track, post et clip restent distinctes (2.4583ms)
+✔ un timestamp null reste général, zéro reste un instant musical (0.458ms)
+✔ normalisation partagée et fusion des mutations sans doublons (1.0172ms)
+✔ clusters bornés conservent tous les commentaires et réactions, sans contenu modéré (2.1747ms)
+✔ le cache choisi déduplique les consommateurs et annule la dernière souscription (5.0628ms)
+✔ les deux lectures track convergent et les upserts Phase1B restent intacts (11.2445ms)
+✔ la fermeture libère les références DOM et la route Track partage AudioCore (3.128ms)
+✔ les fenêtres courtes gardent conversation et composer accessibles au scroll (1.6585ms)
+✔ le compteur est un abonné au cache sans queryFn manquante ni requête réseau (2.2358ms)
+(node:65112) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/contextSurfaces.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ open, replace et close conservent une pile minimale (2.6787ms)
+✔ une ouverture identique remplace au lieu de créer une boucle Back (0.2965ms)
+✔ la profondeur est bornée et une surface justifiée revient niveau par niveau (1.7642ms)
+✔ history.state Next est préservé et le marqueur reste borné (0.3293ms)
+✔ Back ferme la surface avant de quitter le background (0.8243ms)
+✔ un history.state stale ou mal formé est ignoré sans crash (0.3129ms)
+✔ les présentations responsive respectent sheet mobile et drawer desktop (0.2574ms)
+✔ les routes canoniques partageables restent indépendantes de la surface (0.3258ms)
+✔ le host utilise exclusivement SynauraOverlay et ne pousse aucune route Next (16.2319ms)
+✔ Escape, focus trap, restore focus, scroll lock et reduced motion restent canoniques (1.8752ms)
+✔ la largeur desktop et la safe area mobile sont encodées dans la primitive canonique (1.2753ms)
+✔ Live reste monté et son activeItemId n’est pas muté par le contrôleur (3.604ms)
+✔ ouvrir, fermer ou remplacer ne connaît aucune commande AudioCore (6.9186ms)
+✔ la démo reste confinée à la route dev non disponible en production (7.9097ms)
+(node:73316) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/trackActions.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ copy is canonical and denied clipboard never produces fake success (2.4669ms)
+✔ queue without a loaded track retains its first item as upcoming, not current (0.3772ms)
+✔ next/end preserve current identity, deduplicate, never mutate the input (1.295ms)
+✔ full queue rejects insertion explicitly rather than silently dropping a track (0.7119ms)
+✔ track normalization and actual playlist support exclude radio and AI foreign IDs (0.5498ms)
+✔ share and creation use canonical routes and preserve a Live return token (0.5568ms)
+✔ native share, unsupported fallback, rejected fallback and user cancellation are distinct (0.6062ms)
+✔ all heavy actions are lazy, queries are not imported by the entry button (14.3283ms)
+✔ playlist picker uses owned real API, private creation, actual membership and explicit feedback (3.5376ms)
+✔ favorite mutation reads server state and publishes only successful mutations (3.0344ms)
+✔ only AudioCore owns queue; old queue surfaces are adapters (4.7021ms)
+✔ 404 Clips nav is removed and Track actions wrap accessibly (6.7689ms)
+(node:56848) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/security/criticalRouteHandlers.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ la presentation Meteo refuse un utilisateur non authentifie sans appeler SMTP (38.4932ms)
+✔ la presentation Meteo refuse un membre authentifie non admin (0.8846ms)
+✔ un admin Meteo peut envoyer la presentation uniquement a une destination autorisee (4.342ms)
+✔ la presentation Meteo rejette les destinations arbitraires et les corps inattendus (5.1967ms)
+✔ la presentation Meteo renvoie 429 avec Retry-After sans appeler SMTP (0.9707ms)
+✔ le statut Suno refuse une requete non authentifiee sans interroger Suno (0.528ms)
+✔ le statut Suno refuse une tache qui ne correspond pas a son proprietaire (1.2398ms)
+✔ le statut Suno valide le taskId avant la BDD ou le fournisseur (1.2197ms)
+✔ le proprietaire obtient uniquement le sous-ensemble nettoye de la reponse Suno (3.5978ms)
+✔ le rate limit Suno bloque avant l acces au fournisseur (0.6772ms)
+✔ les erreurs SMTP et Suno restent generiques et ne transmettent pas le secret du fournisseur (1.632ms)
+✔ le rate limiter en memoire ouvre une nouvelle fenetre apres expiration (0.3811ms)
+✔ les routes ne journalisent ni fragment de cle ni reponse distante brute (3.2394ms)
+✔ la baseline est structure-only et ne contient pas de secret manifeste (7.4492ms)
+✔ la baseline contient les objets explicites et les policies constates (3.2532ms)
+✔ les objets et contraintes critiques sont presents (1.7657ms)
+✔ les catalogues versionnes couvrent index, contraintes et policies (30.4555ms)
+✔ les 84 anciens SQL ont tous une classification explicite (3.0973ms)
+✔ les migrations futures ont un nom ordonnable et posterieur a la baseline (1.4935ms)
+✔ la cartographie couvre les tables critiques et expose les contrats casses (8.3226ms)
+✔ les deux upserts comment_moderation utilisent la cle primaire reelle (11.0494ms)
+✔ la migration runtime cree uniquement la table A avec RLS et grants limites (2.9175ms)
+✔ les 11 SECURITY DEFINER ont un search_path fixe et perdent leur execution publique (4.0857ms)
+✔ seuls les quatre index FK demontres sont ajoutes (2.6691ms)
+✔ les 34 FK et les 7 objets absents ont une decision explicite (7.2261ms)
+✔ la classification dbAdmin couvre exactement les 934 appels Phase 1A (9.6612ms)
+✔ les grants du role test sont specifiques et sans BYPASSRLS (8.7031ms)
+✔ le diagnostic production est force en transaction read-only (6.3745ms)
+(node:78232) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/entryRouting.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ la racine décide Discover ou Live côté serveur sans flash de session client (12.4043ms)
+✔ Discover public ne détourne jamais la route musicale /discover (3.6917ms)
+✔ les destinations internes refusent les open redirects et backslashes (0.5997ms)
+✔ le middleware reconstruit les redirects avec l’origine publique du proxy (2.5077ms)
+✔ le retour membre centralise onboarding puis destination (2.4429ms)
+✔ la signature sonore exige un geste, n’autoplay jamais et reste isolée d’Audio Core (2.9547ms)
+✔ le WAV officiel est intact et dure 3,2 secondes (6.618ms)
+✔ la signature visuelle est une scène Three.js GPU et non une simulation CSS (5.1814ms)
+✔ la timeline visuelle attend le démarrage audio réel et conserve reduced motion (5.832ms)
+✔ le logo 2026 a une source de vérité, une safe zone et aucun crop (2.7607ms)
+✔ les surfaces web actives ne référencent plus les anciens logos (27.3036ms)
+✔ Discover a une narration réelle et des données de démonstration isolées (12.9316ms)
+✔ première visite, retour et reduced motion ont des contrats explicites (35.7278ms)
+✔ Enter, auth et onboarding sont des surfaces plein écran sans mini-player (1.2293ms)
+✔ login Credentials et Google préservent le deep link via le retour membre (6.3722ms)
+✔ un refus OAuth reste dans la continuité visuelle Enter (4.584ms)
+✔ signup conserve validations, limite, referral et providers (2.504ms)
+✔ onboarding est protégé et persiste seulement des signaux réellement utilisés (3.2386ms)
+✔ la frontière session masque les deep links pendant la décision (1.1025ms)
+✔ SEO public a canonical, OpenGraph, social image et une legacy landing conservée (4.8508ms)
+✔ les événements d’entrée restent sans plateforme ni donnée personnelle (1.875ms)
+(node:56396) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/routeChrome.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ les routes partagent un contrat de chrome explicite (2.1ms)
+✔ le layout autorise le zoom et garde audio au-dessus des transitions (12.0374ms)
+✔ les tokens couvrent thème, focus, motion, élévation et couches (3.2475ms)
+✔ les overlays communs implémentent les garanties clavier et navigateur (3.1718ms)
+✔ les toasts transitoires ont un unique viewport global (2.4498ms)
+✔ les primitives couvrent actions, formulaires et états fondamentaux (2.8086ms)
+✔ le laboratoire est explicitement absent de production (4.5845ms)
+✔ messages adopte le shell et les deux niveaux de navigation sans toucher au polling (2.6115ms)
+✔ le player global réserve la barre contextuelle mobile du Studio (4.7577ms)
+(node:52400) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/liveContinuity.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ snapshot save/restore conserve ancre, filtre, curseur et ordre hybride (7.6438ms)
+✔ tous les filtres Live exposés se restaurent sur la même entrée (0.9969ms)
+✔ la reconstruction gèle la partie vue et ajoute seulement le tail frais (0.6154ms)
+✔ snapshot expiré ou historique sans association produit un miss sans crash (0.5575ms)
+✔ snapshot incomplet produit un miss propre (0.3602ms)
+✔ cache incomplet produit un restore-partial et permet le fallback réseau (0.4705ms)
+✔ un sessionStorage indisponible ne bloque ni navigation ni fallback mémoire (0.7007ms)
+✔ history.state conserve l’état Next et reçoit une seule association Live (0.3836ms)
+✔ route puis Back retrouve le snapshot de l’entrée Live, pas celui de la route (0.4974ms)
+✔ les snapshots de session sont bornés (0.9434ms)
+✔ draft minimal est cloisonné par utilisateur et contexte (0.5123ms)
+✔ le composant restaure avant autoplay sans toucher à AudioCore (15.1987ms)
+✔ la fenêtre reste virtualisée à ±5 et expose une ancre E2E stable (3.1796ms)
+✔ la matrice mini-player garde le contrôle hors conflit média réel (0.5984ms)
+(node:20916) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/localAuth.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ retrouve un profil migre par username normalise quand id et email sont obsoletes (2.6655ms)
+✔ authentifie un hash bcrypt $2a$ restaure sans le reencoder ni l exposer (323.6017ms)
+✔ cree auth.users, identite email et profil avec le meme UUID et un nouveau hash bcrypt (772.6887ms)
+✔ associe Google au compte existant et conserve son UUID (1.0549ms)
+✔ cree un compte telephone local avec le meme UUID sans inventer d email (1.242ms)
+(node:38216) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/localMediaStorage.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:38216) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/synaura-app/src/media/mediaUrls.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\synaura-app\package.json.
+✔ rewrites historical Cloudinary paths identically on web and mobile (4.0801ms)
+✔ accepts safe local identifiers and rejects traversal attempts (0.9375ms)
+✔ streams an image to disk, validates its signature, and deletes it safely (68.6765ms)
+✔ rejects MIME and extension mismatches before writing (1.1372ms)
+(node:74412) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/mobileAuthSecurity.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ verifie les codes TOTP compatibles avec les applications Authenticator (2.1427ms)
+✔ accepte une fenetre TOTP adjacente sans elargir au-dela (0.9637ms)
+✔ le challenge SMS signe ne contient pas le code et refuse les substitutions (3.6571ms)
+(node:67336) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/synaura-app/src/feed/flowPaging.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\synaura-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a fast fling advances by at most one Flow item (2.4821ms)
+✔ a fast reverse fling goes back by at most one Flow item (0.2684ms)
+✔ a settled adjacent page is preserved without correction (0.1777ms)
+✔ invalid measurements and boundaries remain safe (0.2219ms)
+(node:81724) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/synaura-app/src/waveform/momentClustering.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\synaura-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ regroupe les commentaires et réactions proches sans perdre leurs compteurs (1.837ms)
+✔ borne le nombre de marqueurs pour une waveform très dense (7.1019ms)
+✔ ignore les timestamps invalides au lieu de polluer le rendu (0.3203ms)
+(node:81360) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/primaryNavigation.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:81360) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/synaura-app/src/navigation/navigatePrimaryTab.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\synaura-app\package.json.
+✔ reste dans le navigateur d onglets quand la destination y existe (2.1078ms)
+✔ repasse par Tabs depuis un ecran secondaire du stack racine (0.202ms)
+✔ conserve les parametres lors du retour vers un onglet (0.2992ms)
+✔ le dock web reprend les cinq destinations principales du natif (0.2443ms)
+✔ les ecrans secondaires conservent leur onglet web actif (0.275ms)
+✔ le dock web disparait sur les ecrans secondaires comme dans le natif (0.5004ms)
+✔ le profil web cible le compte courant ou la connexion (1.8407ms)
+✔ la biometrie reste un verrou local fort et ne devient jamais une identite serveur (2.3647ms)
+✔ la finalisation de compte exige la session MFA, les champs prives et les consentements (0.5895ms)
+✔ le telephone utilise un challenge signe et reste desactive sans passerelle configuree (0.3128ms)
+✔ le provider natif avance reste independant de Supabase, Vercel et Cloudinary (0.5275ms)
+(node:73864) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/synaura-app/src/components/swipe/homePreludeModel.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\synaura-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ the native home picks one stable, non-repeating phrase per reopen (1.8692ms)
+✔ the pulse area stays near 42 percent while preserving the Flow preview (1.7928ms)
+✔ phone landscape remains usable without hiding the Flow preview (0.2177ms)
+✔ tablet cards use the broader web rail proportions (0.3056ms)
+✔ the approved native home keeps the activity rail and Flow transition (0.5555ms)
+(node:54892) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/database.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ compile les lectures API en SQL parametre avec tri et limite (4.9507ms)
+✔ compile les upserts API avec cible de conflit explicite (1.0283ms)
+✔ normalise les colonnes FK avant les parcours sourceColumns.forEach (2.0196ms)
+(node:84316) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/profilePeekClient.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ normalise uniquement trois morceaux publics récents et les stats réelles (2.8713ms)
+✔ première ouverture fetch une fois et réouverture utilise le cache chaud (46.7655ms)
+✔ profil absent et inaccessible restent des erreurs bornées qui ne cassent pas Live (1.851ms)
+✔ la mutation follow met à jour la source partagée et le compteur (1.9736ms)
+✔ Profile Peek est enregistré lazy sans importer la page Profile complète (64.3972ms)
+✔ le harness Live complet est strictement borné au développement (18.0136ms)
+✔ Live, Discover et Search ouvrent le même contrôleur avec focus logique (8.2916ms)
+✔ ouvrir ou fermer ne commande pas AudioCore et écouter reste une action explicite (2.0411ms)
+✔ le CTA ferme l’history contextuel avant la route canonique (1.2245ms)
+✔ follow est partagé par Peek, Live et la route Profile (3.4521ms)
+✔ le rendu respecte drawer/sheet canonique, touch targets et focus initial (3.0614ms)
+✔ Live reste monté et le peek ne crée pas de snapshot 4B.1 à son ouverture (2.0831ms)
+(node:67072) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/ranking.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ small samples receive confidence correction (3.0228ms)
+✔ skips strongly reduce an otherwise identical candidate (3.6483ms)
+✔ session ranking is stable and protects artist diversity (10.8775ms)
+✔ a track already shown in the active session falls behind an unseen equivalent (0.4664ms)
+✔ session-level artist and genre exposure opens room for discovery (7.2144ms)
+✔ live session taste reacts more strongly than long-term taste (0.5275ms)
+✔ a skip in the current session almost removes the same track (0.4095ms)
+✔ an explicitly hidden artist is removed before reranking (0.4404ms)
+✔ posts already viewed in the active session are not immediately recycled (0.7463ms)
+✔ post ranking prevents one creator and one attached track from filling the feed (10.2746ms)
+✔ newest sorting is strictly chronological and does not use recommendation scores (1.072ms)
+(node:63252) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/relatedTracks.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ real playlist and collection context wins over raw popularity (4.8652ms)
+✔ album, genre and creator relations are explicit and deterministic (0.957ms)
+✔ selection reduces consecutive exposure to one artist (0.5465ms)
+(node:79064) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/scrollFeed.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:79064) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/synaura-app/src/components/swipe/feedTypes.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\synaura-app\package.json.
+✔ web and native feeds prioritize sound-attached posts and preserve the music ratio (2.6966ms)
+✔ post normalization keeps only real, renderable records (0.6896ms)
+✔ live reranking never moves the consumed prefix or the active card (2.1923ms)
+(node:80828) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/lib/security/auddCopyrightHandler.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\mvadn\Desktop\XimaM Site 2\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ les identifiants de rate limit sont haches et les origines cross-site sont refusees (26.6066ms)
+✔ la lecture JSON refuse les payloads invalides et trop gros (4.2215ms)
+✔ le support valide strictement, borne et nettoie les entrees (1.3002ms)
+✔ AudD refuse les appels non authentifies et limites avant le fournisseur (1.1832ms)
+✔ AudD filtre la reponse fournisseur et masque ses erreurs (2.881ms)
+✔ AudD interrompt un fournisseur qui depasse le timeout (7.7008ms)
+✔ les pages debug et test sont bloquees uniquement en production (0.5704ms)
+✔ les headers globaux et exception embed sont configures (3.0441ms)
+✔ les routes auth couteuses possedent leurs limites complementaires (6.6871ms)
+✔ la route support applique taille et rate limit avant insertion (1.3094ms)
+✔ les routes Suno sensibles verifient ownership, signature et ne renvoient plus de brut (5.3625ms)
+ℹ tests 240
+ℹ suites 0
+ℹ pass 240
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2935.9658

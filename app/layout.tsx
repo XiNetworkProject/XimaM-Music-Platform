@@ -17,6 +17,7 @@ import { SynauraToastViewport } from '@/components/ui/SynauraToastViewport';
 import { ContextSurfaceProvider } from '@/components/context-surfaces/ContextSurfaceController';
 import ProfilePeekRegistration from '@/components/profile/ProfilePeekRegistration';
 import CommentsRegistration from '@/components/comments/CommentsRegistration';
+import ActionsRegistration from '@/components/actions/ActionsRegistration';
 
 const SYNAURA_THEME_STORAGE_KEY = 'synaura.theme.mode.v1';
 
@@ -156,6 +157,7 @@ export default function RootLayout({
           <SynauraToastViewport />
           <ProfilePeekRegistration />
           <CommentsRegistration />
+          <ActionsRegistration />
           </ContextSurfaceProvider>
         </Providers>
         </SynauraThemeProvider>

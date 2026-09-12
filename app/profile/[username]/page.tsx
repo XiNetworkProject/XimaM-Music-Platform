@@ -16,6 +16,8 @@ import { useAudioPlayer } from '@/app/providers';
 import { useBoosters } from '@/hooks/useBoosters';
 import Avatar from '@/components/Avatar';
 import LikeButton from '@/components/LikeButton';
+import TrackActionButton from '@/components/actions/TrackActionButton';
+import { useTrackActions } from '@/components/actions/useTrackActions';
 import { notify } from '@/components/NotificationCenter';
 import dynamic from 'next/dynamic';
 import { AnimatePresence } from 'framer-motion';
@@ -878,8 +880,9 @@ export default function SynauraProfile() {
                             <LikeButton trackId={track.id} initialIsLiked={track.isLiked || false} initialLikesCount={track.likes || 0} onUpdate={(s) => handleLikeUpdate(track.id, s.isLiked, s.likesCount)} showCount={false} size="sm" />
                           </div>
                         )}
-                        <div className="hidden shrink-0 lg:block" onClick={(e) => e.stopPropagation()}>
-                          <TrackCreateRemixActions track={{ ...track, _id: track.id, audioUrl: track.audioUrl || track.audio_url }} compact />
+                        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <TrackActionButton track={{ ...track, _id: track.id, artist: { _id: profile.id, name: profile.artistName || profile.name, username: profile.username } }} />
+                          <span className="hidden lg:inline-flex"><TrackCreateRemixActions track={{ ...track, _id: track.id, audioUrl: track.audioUrl || track.audio_url }} compact /></span>
                         </div>
                         <button
                           onClick={(e) => {
@@ -1520,7 +1523,7 @@ function TrackCtxMenu({ track, anchorEl, isOwn, onClose, onEdit, onDelete, onSta
   addToUpNext: (t: any, pos: 'next' | 'end') => void; artistName: string;
 }) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
-  const [copied, setCopied] = useState(false);
+  const trackActions = useTrackActions();
   const isAi = Boolean(track?.is_ai || String(track?.id || '').startsWith('ai-'));
   const router = useRouter();
 
@@ -1546,12 +1549,7 @@ function TrackCtxMenu({ track, anchorEl, isOwn, onClose, onEdit, onDelete, onSta
   const fmt = (t: any) => ({ _id: t.id, title: t.title, artist: t.artist || t.artist_name || artistName, audioUrl: t.audioUrl || t.audio_url, coverUrl: t.coverUrl || t.cover_url, duration: t.duration, album: t.album || null, likes: t.likes || 0, comments: [], plays: t.plays || 0, genre: t.genre || [], isLiked: t.isLiked || false });
   const handlePlayNext = () => { addToUpNext(fmt(track), 'next'); notify.success('OK', `${track.title} — lu ensuite`); onClose(); };
   const handleQueue = () => { addToUpNext(fmt(track), 'end'); notify.success('OK', `${track.title} — ajouté à la file`); onClose(); };
-  const handleShare = async () => {
-    const url = `${window.location.origin}/track/${track?.id || ''}`;
-    if (navigator.share) { try { await navigator.share({ title: track?.title, url }); } catch {} }
-    else { try { await navigator.clipboard.writeText(url); } catch {} setCopied(true); setTimeout(() => setCopied(false), 2000); }
-    onClose();
-  };
+  const handleShare = () => { onClose(); void trackActions.share(track, anchorEl); };
 
   if (typeof document === 'undefined') return null;
   return createPortal(
@@ -1560,7 +1558,7 @@ function TrackCtxMenu({ track, anchorEl, isOwn, onClose, onEdit, onDelete, onSta
       <CtxItem icon={ListPlus} label="Lire ensuite" onClick={handlePlayNext} />
       <CtxItem icon={ListEnd} label="Ajouter à la file" onClick={handleQueue} />
       <div className="my-1 border-t border-black/[0.06]" />
-      <CtxItem icon={copied ? Check : Share2} label={copied ? 'Lien copié !' : 'Partager'} onClick={handleShare} />
+      <CtxItem icon={Share2} label="Partager" onClick={handleShare} />
       {isOwn && !isAi && (
         <>
           <div className="my-1 border-t border-black/[0.06]" />
@@ -1624,6 +1622,7 @@ function DrawerContent({ track, playing, onPlay, onEdit, onDelete, isOwn, onLike
       </div>
       {/* Controls */}
       <div className="flex items-center gap-2 px-4 py-4">
+        <TrackActionButton track={track} />
         <button onClick={onPlay} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#171313] py-3 text-sm font-black text-white transition hover:scale-[1.01]">
           {playing ? <Pause size={15} /> : <Play size={15} fill="white" />} {playing ? 'Pause' : 'Écouter'}
                 </button>

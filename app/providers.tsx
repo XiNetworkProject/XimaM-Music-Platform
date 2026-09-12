@@ -13,6 +13,9 @@ import { useSession } from 'next-auth/react';
 import { useAudioCoreTime, useAudioService } from '@/hooks/useAudioService';
 import { getBrowserAudioCore } from '@/lib/audio/AudioCore';
 import { LikeProvider, useLikeContext } from '@/contexts/LikeContext';
+import { insertQueueTrack, remainingQueueStart } from '@/lib/trackActions';
+import { useFavoriteActions } from '@/lib/organizationClient';
+import { notify } from '@/components/NotificationCenter';
 import { PlaysProvider } from '@/contexts/PlaysContext';
 import { usePlaysSync } from '@/hooks/usePlaysSync';
 import { PreloadProvider } from '@/contexts/PreloadContext';
@@ -87,10 +90,7 @@ interface AudioPlayerContextType {
   albumContext: AlbumContext | null;
   setAlbumContext: (ctx: AlbumContext | null) => void;
   // Up Next ("À suivre") – independent list, optionally injected into queue
-  upNextEnabled: boolean;
   upNextTracks: Track[];
-  setUpNextEnabled: (enabled: boolean) => void;
-  toggleUpNextEnabled: () => void;
   addToUpNext: (track: Track, mode?: 'next' | 'end') => void;
   removeFromUpNext: (trackId: string) => void;
   clearUpNext: () => void;
@@ -274,74 +274,19 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setAlbumContext(null);
   }, [audioState.currentTrackIndex, audioState.tracks, albumContext]);
 
-  // Up Next ("À suivre") – persisted, independent from the active queue
-  const [upNextEnabled, setUpNextEnabled] = useState<boolean>(false);
-  const [upNextTracks, setUpNextTracks] = useState<Track[]>([]);
-  const baseQueueRef = useRef<{ tracks: Track[]; currentTrackIndex: number } | null>(null);
-  const applyingUpNextRef = useRef(false);
-
-  const readUpNextStorage = useCallback(() => {
-    try {
-      const raw = localStorage.getItem('queue.upnext');
-      const enabledRaw = localStorage.getItem('queue.upnext.enabled');
-      const list = raw ? JSON.parse(raw) : [];
-      const enabled = enabledRaw === '1';
-      return { list: Array.isArray(list) ? (list as Track[]) : [], enabled };
-    } catch {
-      return { list: [], enabled: false };
-    }
-  }, []);
-
-  // Load persisted upNext on mount
-  useEffect(() => {
-    try {
-      const { list, enabled } = readUpNextStorage();
-      setUpNextTracks(list);
-      setUpNextEnabled(enabled);
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Persist upNext
-  useEffect(() => {
-    try {
-      localStorage.setItem('queue.upnext', JSON.stringify(upNextTracks || []));
-      localStorage.setItem('queue.upnext.enabled', upNextEnabled ? '1' : '0');
-    } catch {}
-  }, [upNextEnabled, upNextTracks]);
-
-  // Sync Up Next state into the audio service so auto-next always plays the correct list tracks (in order).
-  useEffect(() => {
-    try {
-      serviceSetUpNextEnabled(!!upNextEnabled);
-      serviceSetUpNextQueue(Array.isArray(upNextTracks) ? upNextTracks : []);
-    } catch {}
-  }, [serviceSetUpNextEnabled, serviceSetUpNextQueue, upNextEnabled, upNextTracks]);
+  // Compatibility name only: the next tracks are a read-only AudioCore projection.
+  // Legacy queue.upnext storage is intentionally left untouched, not reactivated.
+  const upNextTracks = useMemo(() => (audioService.queue as Track[] || []).slice(remainingQueueStart(audioService.queue, audioService.state.currentTrack?._id || null)), [audioService.queue, audioService.state.currentTrack]);
 
   const getAudioElement = useCallback(() => {
     return ((audioServiceRef.current?.audioElement ?? null) as HTMLAudioElement | null);
   }, []);
 
-  const mergeQueueWithUpNext = useCallback(
-    (baseTracks: Track[], baseCurrentId: string | null, overrideUpNext?: Track[]) => {
-      const base = Array.isArray(baseTracks) ? baseTracks : [];
-      const up = Array.isArray(overrideUpNext) ? overrideUpNext : Array.isArray(upNextTracks) ? upNextTracks : [];
-      const enabled = Array.isArray(overrideUpNext) ? true : upNextEnabled;
-      if (!enabled || up.length === 0) {
-        const idx = baseCurrentId ? base.findIndex((t) => t?._id === baseCurrentId) : -1;
-        return { tracks: base, currentIndex: idx >= 0 ? idx : 0 };
-      }
-
-      const upIds = new Set(up.map((t) => t?._id).filter(Boolean));
-      const cleaned = base.filter((t) => !upIds.has(t?._id));
-
-      const insertAt = baseCurrentId ? Math.max(0, cleaned.findIndex((t) => t?._id === baseCurrentId) + 1) : 0;
-      const merged = [...cleaned.slice(0, insertAt), ...up, ...cleaned.slice(insertAt)];
-      const currentIndex = baseCurrentId ? merged.findIndex((t) => t?._id === baseCurrentId) : 0;
-      return { tracks: merged, currentIndex: currentIndex >= 0 ? currentIndex : 0 };
-    },
-    [upNextEnabled, upNextTracks],
-  );
+  const mergeQueueWithUpNext = useCallback((baseTracks: Track[], currentId: string | null) => {
+    const index = currentId ? baseTracks.findIndex(t => t._id === currentId) : 0;
+    return { tracks: baseTracks, currentIndex: Math.max(0, index) };
+  }, []);
+  const applyingUpNextRef = useRef(false);
 
   // IMPORTANT: keep AudioPlayerContext state (audioState.tracks/currentTrackIndex) in sync with audioService queue actions.
   // Otherwise UI features (Library queue, "À suivre" bubble, etc.) won't reflect changes.
@@ -407,22 +352,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     [servicePlay, serviceSetQueueAndPlay],
   );
 
-  const applyQueueWithUpNextList = useCallback(
-    (nextUpNext: Track[]) => {
-      applyingUpNextRef.current = true;
-      try {
-        const currentId =
-          ((audioService.state.currentTrack as any)?._id as string | undefined) ||
-          audioState.tracks[audioState.currentTrackIndex]?._id ||
-          null;
-        const merged = mergeQueueWithUpNext(audioState.tracks, currentId, nextUpNext);
-        rawSetQueueOnly(merged.tracks, merged.currentIndex);
-      } finally {
-        applyingUpNextRef.current = false;
-      }
-    },
-    [audioService.state.currentTrack, audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly],
-  );
 
   // Public queue setters: inject upNext (if enabled) without being overwritten by feed changes
   const setQueueOnly = useCallback(
@@ -455,122 +384,39 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     [mergeQueueWithUpNext, rawSetQueueAndPlay],
   );
 
-  const addToUpNext = useCallback(
-    (track: Track, mode: 'next' | 'end' = 'end') => {
-      if (!track?._id) return;
-      const list = Array.isArray(upNextTracks) ? upNextTracks : [];
-      const without = list.filter((t) => t?._id !== track._id);
-      const nextList = mode === 'next' ? [track, ...without] : [...without, track];
-      setUpNextTracks(nextList);
-
-      // Auto-enable when adding a track
-      if (!upNextEnabled) {
-        setUpNextEnabled(true);
-      }
-
-      // Re-apply merge with the fresh list so audio and UI update immediately.
-      applyQueueWithUpNextList(nextList);
-      fetch('/api/recommendations/impressions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contentType: 'track', contentId: track._id, source: 'queue', eventType: 'add_to_queue', reasons: [mode === 'next' ? 'next' : 'end'] }),
-        keepalive: true,
-      }).catch(() => {});
-    },
-    [applyQueueWithUpNextList, upNextEnabled, upNextTracks],
-  );
-
-  const reorderUpNext = useCallback((tracks: Track[]) => {
-    const nextList = Array.isArray(tracks) ? tracks : [];
-    setUpNextTracks(nextList);
-    if (upNextEnabled) applyQueueWithUpNextList(nextList);
-  }, [applyQueueWithUpNextList, upNextEnabled]);
-
-  const moveUpNext = useCallback((trackId: string, direction: 'up' | 'down') => {
-    if (!trackId) return;
-      const list = Array.isArray(upNextTracks) ? [...upNextTracks] : [];
-      const i = list.findIndex((t) => t?._id === trackId);
-      if (i === -1) return;
-      const j = direction === 'up' ? i - 1 : i + 1;
-      if (j < 0 || j >= list.length) return;
-      const tmp = list[i];
-      list[i] = list[j];
-      list[j] = tmp;
-      setUpNextTracks(list);
-      if (upNextEnabled) applyQueueWithUpNextList(list);
-  }, [applyQueueWithUpNextList, upNextEnabled, upNextTracks]);
-
-  const removeFromUpNext = useCallback(
-    (trackId: string) => {
-      if (!trackId) return;
-      const nextList = (Array.isArray(upNextTracks) ? upNextTracks : []).filter((t) => t?._id !== trackId);
-      setUpNextTracks(nextList);
-      if (upNextEnabled) {
-        applyQueueWithUpNextList(nextList);
-      }
-    },
-    [applyQueueWithUpNextList, upNextEnabled, upNextTracks],
-  );
-
+  const addToUpNext = useCallback((track: Track, mode: 'next' | 'end' = 'end') => {
+    const core = getBrowserAudioCore();
+    if (!core || !track?._id || !track.audioUrl) return;
+    const snapshot = core.getSnapshot();
+    if (snapshot.currentTrack?._id === track._id) return;
+    core.reorderQueue(insertQueueTrack(snapshot.queue, snapshot.currentTrack?._id || null, track, mode));
+  }, []);
+  const removeFromUpNext = useCallback((id: string) => {
+    const core = getBrowserAudioCore();
+    if (core?.getSnapshot().currentTrack?._id !== id) core?.removeFromQueue(id);
+  }, []);
   const clearUpNext = useCallback(() => {
-    setUpNextTracks([]);
-    if (upNextEnabled) {
-      applyQueueWithUpNextList([]);
-    }
-  }, [applyQueueWithUpNextList, upNextEnabled]);
-
-  const toggleUpNextEnabled = useCallback(() => {
-    setUpNextEnabled((prev) => {
-      const next = !prev;
-      // Save/restore the base queue so you can pause À suivre and continue your feed normally
-      if (next) {
-        if (!baseQueueRef.current) {
-          baseQueueRef.current = { tracks: audioState.tracks, currentTrackIndex: audioState.currentTrackIndex };
-        }
-        applyingUpNextRef.current = true;
-        try {
-          const currentId =
-            ((audioService.state.currentTrack as any)?._id as string | undefined) ||
-            audioState.tracks[audioState.currentTrackIndex]?._id ||
-            null;
-          const merged = mergeQueueWithUpNext(audioState.tracks, currentId);
-          rawSetQueueOnly(merged.tracks, merged.currentIndex);
-        } finally {
-          applyingUpNextRef.current = false;
-        }
-      } else {
-        const base = baseQueueRef.current;
-        baseQueueRef.current = null;
-        if (base?.tracks?.length) {
-          applyingUpNextRef.current = true;
-          try {
-            // Restore queue without forcing restart if current track exists in base
-            const currentId =
-              ((audioService.state.currentTrack as any)?._id as string | undefined) ||
-              audioState.tracks[audioState.currentTrackIndex]?._id ||
-              null;
-            const idx = currentId ? base.tracks.findIndex((t) => t?._id === currentId) : -1;
-            rawSetQueueOnly(base.tracks, idx >= 0 ? idx : base.currentTrackIndex || 0);
-          } finally {
-            applyingUpNextRef.current = false;
-          }
-        }
-      }
-      return next;
-    });
-  }, [audioService.state.currentTrack, audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly]);
-
-  // When an UpNext track starts playing, consider it "consumed" from the list (but keep it in queue).
-  useEffect(() => {
-    if (!upNextEnabled) return;
-    const currentId =
-      ((audioService.state.currentTrack as any)?._id as string | undefined) ||
-      audioState.tracks[audioState.currentTrackIndex]?._id;
-    if (!currentId) return;
-    if (upNextTracks.some((t) => t?._id === currentId)) {
-      setUpNextTracks((prev) => prev.filter((t) => t?._id !== currentId));
-    }
-  }, [audioService.state.currentTrack, audioState.currentTrackIndex, audioState.tracks, upNextEnabled, upNextTracks]);
+    const core = getBrowserAudioCore(); if (!core) return;
+    const snapshot = core.getSnapshot();
+    core.reorderQueue(snapshot.queue.slice(0, remainingQueueStart(snapshot.queue, snapshot.currentTrack?._id || null)));
+  }, []);
+  const reorderUpNext = useCallback((tracks: Track[]) => {
+    const core = getBrowserAudioCore(); if (!core) return;
+    const snapshot = core.getSnapshot();
+    const start = remainingQueueStart(snapshot.queue, snapshot.currentTrack?._id || null);
+    const remaining = snapshot.queue.slice(start);
+    const ids = new Set(remaining.map(t => t._id));
+    if (tracks.length !== ids.size || new Set(tracks.map(t => t._id)).size !== ids.size || tracks.some(t => !ids.has(t._id))) return;
+    core.reorderQueue([...snapshot.queue.slice(0, start), ...tracks]);
+  }, []);
+  const moveUpNext = useCallback((id: string, direction: 'up' | 'down') => {
+    const core = getBrowserAudioCore(); if (!core) return;
+    const snapshot = core.getSnapshot();
+    const tracks = snapshot.queue.slice(remainingQueueStart(snapshot.queue, snapshot.currentTrack?._id || null)) as Track[];
+    const index = tracks.findIndex(t => t._id === id); const next = index + (direction === 'up' ? -1 : 1);
+    if (index < 0 || next < 0 || next >= tracks.length) return;
+    [tracks[index], tracks[next]] = [tracks[next], tracks[index]]; reorderUpNext(tracks);
+  }, [reorderUpNext]);
   // Media Session: mapping piste courante -> métadonnées Media Session
   const mediaSessionTrack: MSMediaTrack | null = useMemo(() => {
     const t = audioService.state.currentTrack as any;
@@ -853,73 +699,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, [audioState.tracks, audioState.currentTrackIndex, serviceForceUpdateNotification, servicePause, servicePlay, servicePlayImmediate, serviceSetQueueOnly, setShowPlayer, setIsMinimized, updatePlayCount]);
 
-  const handleLike = useCallback(async (trackId: string) => {
-    const isAI = trackId.startsWith('ai-');
-    const realAIId = isAI ? trackId.slice(3) : '';
-
-    setAudioState(prev => {
-      const newTracks = prev.tracks.map((track) => {
-        if (track._id !== trackId) return track;
-        const liked = !track.isLiked;
-        const likes = liked
-          ? [...track.likes, session?.user?.id || '']
-          : track.likes.filter(id => id !== session?.user?.id);
-        return { ...track, isLiked: liked, likes };
-      });
-      return { ...prev, tracks: newTracks };
-    });
-
-    try {
-      if (isAI) {
-        const currentTrack = audioState.tracks.find(t => t._id === trackId);
-        const wantFav = !(currentTrack?.isLiked);
-        const response = await fetch(`/api/ai/tracks/${realAIId}/favorite`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ is_favorite: wantFav }),
-        });
-        if (!response.ok) throw new Error('Erreur favori IA');
-        const data = await response.json();
-        setAudioState(prev => ({
-          ...prev,
-          tracks: prev.tracks.map(t =>
-            t._id !== trackId ? t : { ...t, isLiked: data.is_favorite }
-          ),
-        }));
-        syncLikeCtx(trackId, data.is_favorite, data.is_favorite ? 1 : 0);
-      } else {
-        const currentTrack = audioState.tracks.find(t => t._id === trackId);
-        const response = await fetch(`/api/tracks/${trackId}/like`, {
-          method: currentTrack?.isLiked ? 'DELETE' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (!response.ok) throw new Error('Erreur lors du like');
-        const data = await response.json();
-        setAudioState(prev => ({
-          ...prev,
-          tracks: prev.tracks.map(t =>
-            t._id !== trackId ? t : { ...t, isLiked: data.isLiked, likes: data.likes || t.likes }
-          ),
-        }));
-        syncLikeCtx(trackId, data.isLiked, data.likesCount ?? 0);
-      }
-    } catch (error) {
-      console.error('Erreur like:', error);
-      setAudioState(prev => ({
-        ...prev,
-        tracks: prev.tracks.map(t => {
-          if (t._id !== trackId) return t;
-          return {
-            ...t,
-            isLiked: !t.isLiked,
-            likes: t.isLiked
-              ? t.likes.filter(id => id !== session?.user?.id)
-              : [...t.likes, session?.user?.id || '']
-          };
-        }),
-      }));
-    }
-  }, [session?.user?.id, audioState.tracks, syncLikeCtx]);
+  const favoriteActions = useFavoriteActions();
+  const handleLike = useCallback((trackId: string) => {
+    void favoriteActions.toggle(trackId).catch(error => notify.error('Favoris', error.message));
+  }, [favoriteActions.toggle]);
 
   const closePlayer = useCallback(() => {
     setShowPlayer(false);
@@ -980,10 +763,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     audioState: contextAudioState,
     albumContext,
     setAlbumContext,
-    upNextEnabled,
     upNextTracks,
-    setUpNextEnabled,
-    toggleUpNextEnabled,
     addToUpNext,
     removeFromUpNext,
     clearUpNext,
@@ -1020,10 +800,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }), [
     contextAudioState,
     albumContext,
-    upNextEnabled,
     upNextTracks,
-    setUpNextEnabled,
-    toggleUpNextEnabled,
     addToUpNext,
     removeFromUpNext,
     clearUpNext,

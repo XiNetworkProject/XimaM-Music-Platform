@@ -17,7 +17,7 @@ import {
 import { createPortal } from 'react-dom';
 import { SYNAURA_MOTION } from '@/lib/ui/motion';
 
-type OverlayPresentation = 'modal' | 'drawer-left' | 'drawer-right' | 'sheet' | 'responsive' | 'context-responsive';
+type OverlayPresentation = 'modal' | 'drawer-left' | 'drawer-right' | 'sheet' | 'responsive' | 'context-responsive' | 'context-menu';
 type OverlaySize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
 type OverlayContextValue = {
@@ -182,6 +182,8 @@ export function SynauraOverlay({
       ? 'items-stretch justify-end'
       : resolvedPresentation === 'sheet'
         ? 'items-end justify-center'
+        : resolvedPresentation === 'context-menu'
+          ? 'items-end justify-center md:items-start md:justify-end md:p-5'
         : resolvedPresentation === 'context-responsive'
           ? 'items-end justify-center md:items-stretch md:justify-end'
         : resolvedPresentation === 'responsive'
@@ -191,6 +193,8 @@ export function SynauraOverlay({
     ? 'h-full w-[min(92vw,30rem)] rounded-none'
     : resolvedPresentation === 'sheet'
       ? 'max-h-[88dvh] w-full max-w-3xl rounded-t-[var(--syn-radius-xl)] sm:mb-3 sm:rounded-[var(--syn-radius-xl)]'
+      : resolvedPresentation === 'context-menu'
+        ? 'max-h-[88dvh] w-full rounded-t-[var(--syn-radius-xl)] md:mt-12 md:max-h-[min(80dvh,46rem)] md:w-80 md:rounded-[var(--syn-radius-xl)]'
       : resolvedPresentation === 'context-responsive'
         ? 'max-h-[88dvh] w-full rounded-t-[var(--syn-radius-xl)] pb-[env(safe-area-inset-bottom)] md:h-full md:max-h-none md:w-[clamp(23.75rem,30vw,30rem)] md:max-w-none md:rounded-none md:pb-0'
       : resolvedPresentation === 'responsive'

@@ -1,0 +1,1023 @@
+{
+  "checks": [
+    {
+      "name": "no inactive playlist or track-details query",
+      "ok": true
+    },
+    {
+      "name": "options opens with zero audio mutation",
+      "ok": true
+    },
+    {
+      "name": "menu End reaches last action",
+      "ok": true
+    },
+    {
+      "name": "menu Home reaches first action",
+      "ok": true
+    },
+    {
+      "name": "favorite syncs mounted Live and options (intercepted API)",
+      "ok": true
+    },
+    {
+      "name": "quick creation uses actual private playlist",
+      "ok": true
+    },
+    {
+      "name": "add confirmed by real playlist API",
+      "ok": true
+    },
+    {
+      "name": "playlist success keeps Live and audio",
+      "ok": true
+    },
+    {
+      "name": "focus restored to original options trigger",
+      "ok": true
+    },
+    {
+      "name": "remove confirmed by real playlist API",
+      "ok": true
+    },
+    {
+      "name": "queue open has zero audio mutation",
+      "ok": true
+    },
+    {
+      "name": "queue close has zero audio mutation",
+      "ok": true
+    },
+    {
+      "name": "lyrics open has zero audio mutation",
+      "ok": true
+    },
+    {
+      "name": "lyrics are actual persisted text",
+      "ok": true
+    },
+    {
+      "name": "lyrics close has zero audio mutation",
+      "ok": true
+    },
+    {
+      "name": "share open has zero audio mutation",
+      "ok": true
+    },
+    {
+      "name": "share fallback has canonical URL",
+      "ok": true
+    },
+    {
+      "name": "copy writes canonical URL to real clipboard",
+      "ok": true
+    },
+    {
+      "name": "share close has zero audio mutation",
+      "ok": true
+    },
+    {
+      "name": "track-details open has zero audio mutation",
+      "ok": true
+    },
+    {
+      "name": "track-details close has zero audio mutation",
+      "ok": true
+    },
+    {
+      "name": "Comments parent and draft survive sibling replace and Back",
+      "ok": true
+    },
+    {
+      "name": "queue next from nested Profile Peek preserves playing track",
+      "ok": true,
+      "detail": {
+        "id": "track_1789051048810_0585sfze0",
+        "queue": [
+          "track_1773789112971_0egfpy0i2",
+          "track_1789051048810_0585sfze0",
+          "track_1758481606741_trwopq702",
+          "track_1782517870229_4_vjgv7x3"
+        ]
+      }
+    },
+    {
+      "name": "queue end is actual last position with no duplicate",
+      "ok": true
+    },
+    {
+      "name": "explicit remove updates canonical queue",
+      "ok": true
+    },
+    {
+      "name": "clear remaining preserves current track and playback",
+      "ok": true
+    },
+    {
+      "name": "nested queue Back restores Profile Peek action focus",
+      "ok": true
+    },
+    {
+      "name": "Track details handoff has no second musical element",
+      "ok": true
+    },
+    {
+      "name": "Track handoff Back restores Live item",
+      "ok": true
+    },
+    {
+      "name": "mobile track-options fits viewport",
+      "ok": true,
+      "detail": {
+        "w": 389,
+        "scroll": 389,
+        "top": 323.20001220703125,
+        "bottom": 843.2000122070312,
+        "height": 844
+      }
+    },
+    {
+      "name": "mobile playlist-picker fits viewport",
+      "ok": true,
+      "detail": {
+        "w": 389,
+        "scroll": 389,
+        "top": 151.125,
+        "bottom": 843.2000122070312,
+        "height": 844
+      }
+    },
+    {
+      "name": "playlist input visible on emulated mobile",
+      "ok": true
+    },
+    {
+      "name": "mobile queue fits viewport",
+      "ok": true,
+      "detail": {
+        "w": 389,
+        "scroll": 389,
+        "top": 151.125,
+        "bottom": 843.2000122070312,
+        "height": 844
+      }
+    },
+    {
+      "name": "mobile lyrics fits viewport",
+      "ok": true,
+      "detail": {
+        "w": 389,
+        "scroll": 389,
+        "top": 151.125,
+        "bottom": 843.2000122070312,
+        "height": 844
+      }
+    },
+    {
+      "name": "Track mobile actions no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "20 warm cycles without organization refetch",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "Live mounted slides bounded at +/-5",
+      "ok": true
+    },
+    {
+      "name": "AudioCore instance stable after 20 cycles",
+      "ok": true
+    },
+    {
+      "name": "AudioCore listeners and subscriptions do not accumulate",
+      "ok": true,
+      "detail": {
+        "before": {
+          "instanceId": "audio-core-1",
+          "trackId": "track_1773789112971_0egfpy0i2",
+          "playbackState": "playing",
+          "position": 41.994865,
+          "duration": 154.719979,
+          "queueIds": [
+            "track_1773789112971_0egfpy0i2"
+          ],
+          "currentIndex": 0,
+          "generation": 1,
+          "listeners": 14,
+          "pendingRetries": 0,
+          "activeSecondaryPlayers": 0,
+          "secondaryContexts": [],
+          "stateSubscribers": 1,
+          "timeSubscribers": 2,
+          "musicalAudioElements": 1,
+          "watchdogActive": true,
+          "persistenceActive": true,
+          "providerRenders": 52
+        },
+        "after": {
+          "instanceId": "audio-core-1",
+          "trackId": "track_1773789112971_0egfpy0i2",
+          "playbackState": "playing",
+          "position": 64.588198,
+          "duration": 154.719979,
+          "queueIds": [
+            "track_1773789112971_0egfpy0i2"
+          ],
+          "currentIndex": 0,
+          "generation": 1,
+          "listeners": 14,
+          "pendingRetries": 0,
+          "activeSecondaryPlayers": 0,
+          "secondaryContexts": [],
+          "stateSubscribers": 1,
+          "timeSubscribers": 2,
+          "musicalAudioElements": 1,
+          "watchdogActive": true,
+          "persistenceActive": true,
+          "providerRenders": 52
+        }
+      }
+    },
+    {
+      "name": "desktop native browser zoom is 200 percent",
+      "ok": true
+    },
+    {
+      "name": "zoomed Live Options is not covered by another control",
+      "ok": true,
+      "detail": {
+        "viewport": {
+          "w": 713,
+          "h": 394,
+          "dpr": 2.5
+        },
+        "button": {
+          "x": 636.4000244140625,
+          "y": 210,
+          "w": 56,
+          "h": 56
+        },
+        "aside": {
+          "x": 636.4000244140625,
+          "y": 96,
+          "w": 61.20000076293945,
+          "h": 170,
+          "scroll": 150,
+          "scrollHeight": 320,
+          "css": "",
+          "top": "96px",
+          "bottom": "128px",
+          "transform": "none"
+        },
+        "hit": "<circle cx=\"12\" cy=\"12\" r=\"1\"></circle>",
+        "uncovered": true
+      }
+    },
+    {
+      "name": "zoom 200 track-options no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "zoom 200 playlist-picker no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "zoom 200 queue no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "zoom 200 lyrics no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "zoom 200 track-details no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "Tab and Shift+Tab remain within dialog",
+      "ok": true
+    },
+    {
+      "name": "no uncaught UI errors",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "no local API HTTP failures before fixture cleanup",
+      "ok": true,
+      "detail": [
+        {
+          "host": "res.cloudinary.com",
+          "path": "/dtgglgtfx/image/upload/v1781610007/ximam/profiles/keurlilamelo/keurlilamelo_avatar_1781610003.jpg",
+          "status": 401
+        },
+        {
+          "host": "res.cloudinary.com",
+          "path": "/dtgglgtfx/image/upload/v1758745904/ximam/profiles/ximamoff/ximamoff_avatar_1758745905.png",
+          "status": 401
+        },
+        {
+          "host": "res.cloudinary.com",
+          "path": "/dtgglgtfx/image/upload/v1773789110/ximam/images/cover_1773789109011_riioc4hp9.png",
+          "status": 401
+        },
+        {
+          "host": "localhost",
+          "path": "/api/playlists/587cc67c-eb51-46ad-8520-9ff48f5d6b6b",
+          "status": 404
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [
+    "Failed to fetch RSC payload for [URL] Falling back to browser navigation. JSHandle@error",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "httpErrors": [
+    {
+      "host": "res.cloudinary.com",
+      "path": "/dtgglgtfx/image/upload/v1781610007/ximam/profiles/keurlilamelo/keurlilamelo_avatar_1781610003.jpg",
+      "status": 401
+    },
+    {
+      "host": "res.cloudinary.com",
+      "path": "/dtgglgtfx/image/upload/v1758745904/ximam/profiles/ximamoff/ximamoff_avatar_1758745905.png",
+      "status": 401
+    },
+    {
+      "host": "res.cloudinary.com",
+      "path": "/dtgglgtfx/image/upload/v1773789110/ximam/images/cover_1773789109011_riioc4hp9.png",
+      "status": 401
+    },
+    {
+      "host": "localhost",
+      "path": "/api/playlists/587cc67c-eb51-46ad-8520-9ff48f5d6b6b",
+      "status": 404
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/auth/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/providers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/csrf"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/callback/credentials"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscriptions/my-subscription?userId=54b3f066-6255-474b-b62c-654d1640a79c"
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscriptions/my-subscription"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/popular?limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/editorial-collections/featured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/city"
+    },
+    {
+      "method": "GET",
+      "path": "/api/challenges?status=active"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/popular?limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/editorial-collections/featured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/city"
+    },
+    {
+      "method": "GET",
+      "path": "/api/challenges?status=active"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ranking/feed?limit=12&ai=1&strategy=reco&session=1789215387109-p04mpa7ki0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/music-clips?limit=12&session=1789215387109-p04mpa7ki0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/recommendations/mixed?limit=8&session=1789215387109-p04mpa7ki0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/waveform"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/comments/moderation?timestampedOnly=1&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/reactions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages/unread"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/test2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages/unread"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications?countOnly=true"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/like"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/mixxparty/follow"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/test2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ranking/feed?limit=12&ai=1&strategy=reco&session=1789215387109-p04mpa7ki0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/waveform"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/comments/moderation?timestampedOnly=1&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/reactions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscriptions/my-subscription?userId=54b3f066-6255-474b-b62c-654d1640a79c"
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscriptions/my-subscription"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/like"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/like"
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscriptions/my-subscription?userId=54b3f066-6255-474b-b62c-654d1640a79c"
+    },
+    {
+      "method": "POST",
+      "path": "/api/recommendations/impressions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/plays"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/plays"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/similar?trackId=track_1773789112971_0egfpy0i2&limit=10"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/subscriptions/my-subscription"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/like"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/like"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/like"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/like"
+    },
+    {
+      "method": "GET",
+      "path": "/api/playlists"
+    },
+    {
+      "method": "GET",
+      "path": "/api/playlists"
+    },
+    {
+      "method": "POST",
+      "path": "/api/playlists"
+    },
+    {
+      "method": "GET",
+      "path": "/api/playlists"
+    },
+    {
+      "method": "POST",
+      "path": "/api/playlists/587cc67c-eb51-46ad-8520-9ff48f5d6b6b/tracks"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications/boost"
+    },
+    {
+      "method": "GET",
+      "path": "/api/playlists"
+    },
+    {
+      "method": "GET",
+      "path": "/api/playlists/587cc67c-eb51-46ad-8520-9ff48f5d6b6b"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/playlists/587cc67c-eb51-46ad-8520-9ff48f5d6b6b/tracks?trackId=track_1773789112971_0egfpy0i2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/playlists"
+    },
+    {
+      "method": "GET",
+      "path": "/api/playlists/587cc67c-eb51-46ad-8520-9ff48f5d6b6b"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications?countOnly=true"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/comments/moderation?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/comments/moderation?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/mixxparty"
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages/unread"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1789051048810_0585sfze0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1789051048810_0585sfze0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1789051048810_0585sfze0/like"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1789051048810_0585sfze0/like"
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/preferences"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/test2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/popular?limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/editorial-collections/featured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/city"
+    },
+    {
+      "method": "GET",
+      "path": "/api/challenges?status=active"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/similar?trackId=track_1773789112971_0egfpy0i2&limit=10"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/test2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/popular?limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/editorial-collections/featured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/city"
+    },
+    {
+      "method": "GET",
+      "path": "/api/challenges?status=active"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/similar?trackId=track_1773789112971_0egfpy0i2&limit=10"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/test2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages/unread"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications?countOnly=true"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ranking/feed?limit=12&ai=1&strategy=reco&session=1789215387109-p04mpa7ki0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/music-clips?limit=12&session=1789215387109-p04mpa7ki0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/recommendations/mixed?limit=8&session=1789215387109-p04mpa7ki0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/test2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages/unread"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications?countOnly=true"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/preferences"
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages/unread"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications?countOnly=true"
+    },
+    {
+      "method": "GET",
+      "path": "/api/posts?track_id=track_1773789112971_0egfpy0i2&limit=12"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/similar?trackId=track_1773789112971_0egfpy0i2&limit=10"
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages/unread"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications?countOnly=true"
+    },
+    {
+      "method": "GET",
+      "path": "/api/posts?track_id=track_1773789112971_0egfpy0i2&limit=12"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/similar?trackId=track_1773789112971_0egfpy0i2&limit=10"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/test2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/popular?limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/editorial-collections/featured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/city"
+    },
+    {
+      "method": "GET",
+      "path": "/api/challenges?status=active"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/test2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/popular?limit=20"
+    },
+    {
+      "method": "GET",
+      "path": "/api/editorial-collections/featured"
+    },
+    {
+      "method": "GET",
+      "path": "/api/city"
+    },
+    {
+      "method": "GET",
+      "path": "/api/challenges?status=active"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/test2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages/unread"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications?countOnly=true"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ranking/feed?limit=12&ai=1&strategy=reco&session=1789215387109-p04mpa7ki0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/music-clips?limit=12&session=1789215387109-p04mpa7ki0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/recommendations/mixed?limit=8&session=1789215387109-p04mpa7ki0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/test2"
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages/unread"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications?countOnly=true"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications/boost"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications?countOnly=true"
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages/unread"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/playlists/587cc67c-eb51-46ad-8520-9ff48f5d6b6b"
+    },
+    {
+      "method": "GET",
+      "path": "/api/playlists/587cc67c-eb51-46ad-8520-9ff48f5d6b6b"
+    }
+  ],
+  "captures": [
+    "desktop-options-1440.png",
+    "desktop-playlist-1440.png",
+    "desktop-queue-1440.png",
+    "desktop-live-queue-1920.png",
+    "desktop-lyrics-1440.png",
+    "desktop-share-1440.png",
+    "desktop-track-details-1440.png",
+    "mobile-track-options-390.png",
+    "mobile-playlist-picker-390.png",
+    "mobile-queue-390.png",
+    "mobile-lyrics-390.png",
+    "mobile-track-actions-390.png",
+    "zoom200-track-options.png",
+    "zoom200-playlist-picker.png",
+    "zoom200-queue.png",
+    "zoom200-lyrics.png",
+    "zoom200-track-details.png"
+  ],
+  "cleanup": [
+    {
+      "id": "587cc67c-eb51-46ad-8520-9ff48f5d6b6b",
+      "status": 200,
+      "readStatus": 404
+    }
+  ],
+  "limitations": [
+    "Android/Gboard réel non testé",
+    "NVDA réel non testé",
+    "Favorite mutations intercepted to avoid persistent missions/notifications on existing content"
+  ],
+  "coldOpenMs": 1053.956900000001,
+  "before20": {
+    "Timestamp": 422388.948004,
+    "Documents": 2,
+    "Frames": 1,
+    "JSEventListeners": 806,
+    "Nodes": 925,
+    "LayoutCount": 5801,
+    "RecalcStyleCount": 7220,
+    "LayoutDuration": 2.283079,
+    "RecalcStyleDuration": 3.149853,
+    "ScriptDuration": 4.613863,
+    "TaskDuration": 24.366636,
+    "JSHeapUsedSize": 22452472,
+    "JSHeapTotalSize": 24244224,
+    "documents": 2,
+    "nodes": 926,
+    "jsEventListeners": 806,
+    "core": {
+      "instanceId": "audio-core-1",
+      "trackId": "track_1773789112971_0egfpy0i2",
+      "playbackState": "playing",
+      "position": 41.994865,
+      "duration": 154.719979,
+      "queueIds": [
+        "track_1773789112971_0egfpy0i2"
+      ],
+      "currentIndex": 0,
+      "generation": 1,
+      "listeners": 14,
+      "pendingRetries": 0,
+      "activeSecondaryPlayers": 0,
+      "secondaryContexts": [],
+      "stateSubscribers": 1,
+      "timeSubscribers": 2,
+      "musicalAudioElements": 1,
+      "watchdogActive": true,
+      "persistenceActive": true,
+      "providerRenders": 52
+    }
+  },
+  "after20": {
+    "Timestamp": 422411.766064,
+    "Documents": 2,
+    "Frames": 1,
+    "JSEventListeners": 805,
+    "Nodes": 931,
+    "LayoutCount": 8833,
+    "RecalcStyleCount": 10412,
+    "LayoutDuration": 3.339319,
+    "RecalcStyleDuration": 4.920504,
+    "ScriptDuration": 6.129056,
+    "TaskDuration": 36.295978,
+    "JSHeapUsedSize": 22826776,
+    "JSHeapTotalSize": 24506368,
+    "documents": 2,
+    "nodes": 932,
+    "jsEventListeners": 805,
+    "core": {
+      "instanceId": "audio-core-1",
+      "trackId": "track_1773789112971_0egfpy0i2",
+      "playbackState": "playing",
+      "position": 64.588198,
+      "duration": 154.719979,
+      "queueIds": [
+        "track_1773789112971_0egfpy0i2"
+      ],
+      "currentIndex": 0,
+      "generation": 1,
+      "listeners": 14,
+      "pendingRetries": 0,
+      "activeSecondaryPlayers": 0,
+      "secondaryContexts": [],
+      "stateSubscribers": 1,
+      "timeSubscribers": 2,
+      "musicalAudioElements": 1,
+      "watchdogActive": true,
+      "persistenceActive": true,
+      "providerRenders": 52
+    }
+  },
+  "warmOpenMs": {
+    "p50": 346.0991999999969,
+    "p95": 1591.2900999999983
+  },
+  "warmOrganizationRequests": [],
+  "zoomGeometry": {
+    "viewport": {
+      "w": 713,
+      "h": 394,
+      "dpr": 2.5
+    },
+    "button": {
+      "x": 636.4000244140625,
+      "y": 210,
+      "w": 56,
+      "h": 56
+    },
+    "aside": {
+      "x": 636.4000244140625,
+      "y": 96,
+      "w": 61.20000076293945,
+      "h": 170,
+      "scroll": 150,
+      "scrollHeight": 320,
+      "css": "",
+      "top": "96px",
+      "bottom": "128px",
+      "transform": "none"
+    },
+    "hit": "<circle cx=\"12\" cy=\"12\" r=\"1\"></circle>",
+    "uncovered": true
+  },
+  "status": "PASS"
+}

@@ -45,6 +45,10 @@ import {
 } from '@/components/synaura/SynauraShell';
 import { applyCdnToTracks } from '@/lib/cdnHelpers';
 import { useBatchLikeSystem } from '@/hooks/useLikeSystem';
+import { useTrackActions } from '@/components/actions/useTrackActions';
+import { useFavoriteActions, notifyOrganizationChange, playlistKey } from '@/lib/organizationClient';
+import { useLikeContext } from '@/contexts/LikeContext';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
 import {
   forgetOfflineTrack,
@@ -221,13 +225,15 @@ export default function LibraryClient() {
     setQueueAndPlay,
     playTrack,
     addToUpNext,
-    upNextEnabled,
     upNextTracks,
-    toggleUpNextEnabled,
     removeFromUpNext,
     clearUpNext,
   } = useAudioPlayer();
   const { toggleLikeBatch, isBatchLoading } = useBatchLikeSystem();
+  const trackActions = useTrackActions();
+  const favoriteActions = useFavoriteActions();
+  const { likeState } = useLikeContext();
+  const organizationCache = useQueryClient();
   const { incrementPlaysBatch } = useBatchPlaysSystem();
 
   const [tab, setTab] = useState<TabKey | 'queue'>('playlists');
@@ -275,7 +281,6 @@ export default function LibraryClient() {
     index?: number;
     listIds?: string[];
   } | null>(null);
-  const [showAddToPlaylistFor, setShowAddToPlaylistFor] = useState<Track | null>(null);
   const [addingToPlaylistId, setAddingToPlaylistId] = useState<string | null>(null);
 
   const [showEditPlaylist, setShowEditPlaylist] = useState(false);
@@ -327,6 +332,32 @@ export default function LibraryClient() {
   }, [loadCore]);
 
   // Load selected playlist details
+  useEffect(() => {
+    const refresh = (event: Event) => {
+      const kind = (event as CustomEvent).detail?.kind;
+      if (!userId) return;
+      if (kind === 'playlists') {
+        void organizationCache.invalidateQueries({ queryKey: playlistKey(userId) });
+        void fetch('/api/playlists').then(safeJson).then(body => {
+          if (!Array.isArray(body.playlists)) return;
+          setPlaylists(body.playlists);
+          setSelectedPlaylist(old => old ? body.playlists.find((p: Playlist) => p._id === old._id) || old : old);
+        }).catch(() => notify.error('Bibliothèque', 'Actualisation des playlists impossible.'));
+      } else if (kind === 'favorites') {
+        void fetch(`/api/tracks?liked=true&limit=${favoritesLimit}`).then(safeJson).then(body => {
+          if (Array.isArray(body.tracks)) setFavoriteTracks(applyCdnToTracks(body.tracks));
+        }).catch(() => notify.error('Bibliothèque', 'Actualisation des favoris impossible.'));
+      }
+    };
+    window.addEventListener('synaura:organization-change', refresh);
+    return () => window.removeEventListener('synaura:organization-change', refresh);
+  }, [userId, favoritesLimit, organizationCache]);
+  useEffect(() => {
+    const patch = (t: Track) => likeState[t._id] ? { ...t, isLiked: likeState[t._id].isLiked } : t;
+    setRecentTracks(old => old.map(patch));
+    setSelectedPlaylist(old => old ? { ...old, tracks: old.tracks.map(patch) } : old);
+  }, [likeState]);
+
   useEffect(() => {
     if (!selectedPlaylistId) {
       setSelectedPlaylist(null);
@@ -525,21 +556,7 @@ export default function LibraryClient() {
     });
   }, [selectedPlaylist]);
 
-  const shareTrack = useCallback(async (t: Track) => {
-    try {
-      const url = `${window.location.origin}/track/${encodeURIComponent(t._id)}?autoplay=1`;
-      const text = `Écoute "${t.title}" sur Synaura`;
-      if ((navigator as any).share) {
-        await (navigator as any).share({ title: t.title, text, url });
-      } else {
-        await navigator.clipboard.writeText(`${text} — ${url}`);
-        notify.success('Lien copié');
-      }
-    } catch {
-      // silent
-    }
-  }, []);
-
+  const shareTrack = useCallback((track: Track) => trackActions.share(track), [trackActions.share]);
   const removeFromPlaylist = useCallback(
     async (playlistId: string, trackId: string) => {
       try {
@@ -558,6 +575,7 @@ export default function LibraryClient() {
         });
         setPlaylists((prev) => prev.map((p) => (p._id === playlistId ? { ...p, trackCount: Math.max(0, (p.trackCount || 0) - 1) } : p)));
         notify.success('Retiré du dossier');
+        notifyOrganizationChange('playlists');
       } catch (e: any) {
         notify.error('Bibliothèque', e?.message || 'Erreur');
       }
@@ -583,28 +601,6 @@ export default function LibraryClient() {
     [addToUpNext],
   );
 
-  const addTrackToPlaylist = useCallback(
-    async (playlistId: string, trackId: string) => {
-      setAddingToPlaylistId(playlistId);
-      try {
-        const res = await fetch(`/api/playlists/${encodeURIComponent(playlistId)}/tracks`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ trackId }),
-        });
-        const json = await safeJson(res);
-        if (!res.ok) throw new Error(json?.error || 'Erreur');
-        notify.success('Ajouté au dossier');
-        setPlaylists((prev) => prev.map((p) => (p._id === playlistId ? { ...p, trackCount: (p.trackCount || 0) + 1 } : p)));
-        setShowAddToPlaylistFor(null);
-      } catch (e: any) {
-        notify.error('Bibliothèque', e?.message || 'Erreur');
-      } finally {
-        setAddingToPlaylistId(null);
-      }
-    },
-    [],
-  );
 
   const openEditPlaylist = useCallback((p: Playlist) => {
     setEditPl({ name: p.name || '', description: p.description || '', isPublic: Boolean(p.isPublic) });
@@ -628,6 +624,7 @@ export default function LibraryClient() {
       setSelectedPlaylist((prev) => (prev ? { ...prev, name: editPl.name, description: editPl.description, isPublic: editPl.isPublic } : prev));
       setShowEditPlaylist(false);
       notify.success('Dossier mis à jour');
+      notifyOrganizationChange('playlists');
     } catch (e: any) {
       notify.error('Bibliothèque', e?.message || 'Erreur');
     } finally {
@@ -647,6 +644,7 @@ export default function LibraryClient() {
       setPlaylists((prev) => prev.map((p) => (p._id === playlistId ? { ...p, isPublic: nextPublic } : p)));
       setSelectedPlaylist((prev) => (prev ? { ...prev, isPublic: nextPublic } : prev));
       notify.success(nextPublic ? 'Dossier rendu public' : 'Dossier rendu privé');
+      notifyOrganizationChange('playlists');
     } catch (e: any) {
       notify.error('Bibliothèque', e?.message || 'Erreur');
     }
@@ -665,6 +663,7 @@ export default function LibraryClient() {
       setPlaylists((prev) => prev.map((p) => (p._id === playlistId ? { ...p, coverUrl } : p)));
       setSelectedPlaylist((prev) => (prev ? { ...prev, coverUrl } : prev));
       notify.success('Cover mise à jour');
+      notifyOrganizationChange('playlists');
     } catch (e: any) {
       notify.error('Bibliothèque', e?.message || 'Erreur');
     }
@@ -684,7 +683,7 @@ export default function LibraryClient() {
       if (!t?._id) return;
       const isLiked = trackIsLiked(t, userId);
       const likesCount = Array.isArray(t.likes) ? t.likes.length : 0;
-      const res = await toggleLikeBatch(t._id, { isLiked, likesCount }).catch(() => null);
+      const res = await favoriteActions.toggle(t._id).catch(error => { notify.error('Favoris', error.message); return null; });
       if (!res) return;
       const nextLiked = Boolean((res as any).isLiked);
       const nextCount = Number((res as any).likesCount ?? (res as any).likes ?? likesCount);
@@ -707,7 +706,7 @@ export default function LibraryClient() {
       setSelectedPlaylist((prev) => (prev ? { ...prev, tracks: (prev.tracks || []).map(patch) } : prev));
       notify.success(nextLiked ? 'Ajouté aux favoris' : 'Retiré des favoris');
     },
-    [toggleLikeBatch, userId],
+    [favoriteActions.toggle, userId],
   );
 
   const createPlaylist = useCallback(async () => {
@@ -722,6 +721,7 @@ export default function LibraryClient() {
       const json = await safeJson(res);
       if (!res.ok) throw new Error(json?.error || 'Erreur création dossier');
       setPlaylists((prev) => [json as Playlist, ...(prev || [])]);
+      notifyOrganizationChange('playlists');
       setShowCreate(false);
       setNewPl({ name: '', description: '', isPublic: true });
       notify.success('Dossier créé');
@@ -738,6 +738,7 @@ export default function LibraryClient() {
       const res = await fetch(`/api/playlists/${encodeURIComponent(playlistId)}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Erreur suppression');
       setPlaylists((prev) => prev.filter((p) => p._id !== playlistId));
+      notifyOrganizationChange('playlists');
       if (selectedPlaylistId === playlistId) setSelectedPlaylistId(null);
       notify.success('Dossier supprimé');
     } catch (e: any) {
@@ -1574,7 +1575,7 @@ export default function LibraryClient() {
                           onToggleLike={() => toggleLike(t)}
                           likeLoading={isBatchLoading(t._id)}
                           liked={trackIsLiked(t, userId)}
-                          onMore={() => setActiveTrackMenu({ track: t, context: 'favorites' })}
+                          onMore={() => trackActions.open(t)}
                         />
                       ))}
                       <div ref={favSentinelRef} className="h-10" />
@@ -1694,25 +1695,7 @@ export default function LibraryClient() {
                 />
 
                 <div className="mt-4 rounded-3xl border border-border-secondary bg-background-fog-thin overflow-hidden">
-                  <div className="p-4 border-b border-border-secondary/60 flex items-center justify-between">
-                    <div className="text-sm text-foreground-secondary">Activer “À suivre”</div>
-                    <button
-                      type="button"
-                      onClick={toggleUpNextEnabled}
-                      className={cx(
-                        'h-7 w-12 rounded-full border border-border-secondary transition relative',
-                        upNextEnabled ? 'bg-overlay-on-primary' : 'bg-background-tertiary',
-                      )}
-                      aria-label="Toggle à suivre"
-                    >
-                      <span
-                        className={cx(
-                          'absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-background-primary transition',
-                          upNextEnabled ? 'left-6' : 'left-1',
-                        )}
-                      />
-                    </button>
-                  </div>
+                  <p className="p-4 text-sm text-foreground-secondary">File active du lecteur. Les actions restent explicites.</p>
 
                   <div className="px-4 py-3 text-sm text-foreground-secondary border-b border-border-secondary/60">
                     Prochains titres
@@ -1790,7 +1773,7 @@ export default function LibraryClient() {
                           onToggleLike={() => toggleLike(t)}
                           likeLoading={isBatchLoading(t._id)}
                           liked={trackIsLiked(t, userId)}
-                          onMore={() => setActiveTrackMenu({ track: t, context: 'recent' })}
+                          onMore={() => trackActions.open(t)}
                         />
                       ))}
                       <div ref={recentSentinelRef} className="h-10" />
@@ -1995,7 +1978,7 @@ export default function LibraryClient() {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowAddToPlaylistFor(activeTrackMenu.track);
+                    trackActions.open(activeTrackMenu.track, 'playlist-picker');
                     setActiveTrackMenu(null);
                   }}
                   className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition flex items-center justify-center gap-2"
@@ -2099,91 +2082,6 @@ export default function LibraryClient() {
                   className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
                 >
                   Fermer
-                </button>
-              </div>
-                  </motion.div>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>,
-            document.body,
-          )
-        : null}
-
-      {/* Add to playlist modal (portaled) */}
-      {isMounted
-        ? createPortal(
-            <AnimatePresence>
-              {showAddToPlaylistFor ? (
-                <motion.div
-                  className="fixed inset-0 z-[240] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => setShowAddToPlaylistFor(null)}
-                >
-                  <motion.div
-                    initial={{ opacity: 0, y: 22 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 22 }}
-                    transition={{ duration: 0.18 }}
-                    className={cx(LIBRARY_MODAL_CLASS, 'w-[92vw] max-w-[520px] rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden')}
-                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                    style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-                  >
-              <div className="p-4 border-b border-border-secondary/60 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-foreground-primary">Ajouter à un dossier</div>
-                  <div className="text-xs text-foreground-tertiary truncate">{showAddToPlaylistFor.title}</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowAddToPlaylistFor(null)}
-                  className="h-9 w-9 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="p-3 space-y-2 max-h-[60vh] overflow-y-auto">
-                {visiblePlaylists.length ? (
-                  visiblePlaylists.map((p) => (
-                    <button
-                      key={p._id}
-                      type="button"
-                      disabled={addingToPlaylistId === p._id}
-                      onClick={() => addTrackToPlaylist(p._id, showAddToPlaylistFor._id)}
-                      className="w-full text-left rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition px-3 py-3 disabled:opacity-50"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold truncate">{p.name}</div>
-                          <div className="text-xs text-foreground-tertiary truncate">
-                            {p.trackCount || 0} piste{(p.trackCount || 0) > 1 ? 's' : ''} • {p.isPublic ? 'Public' : 'Privé'}
-                          </div>
-                        </div>
-                        <div className="text-xs text-foreground-tertiary">{addingToPlaylistId === p._id ? 'Ajout…' : 'Ajouter'}</div>
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="p-6 text-center text-sm text-foreground-secondary">Aucun dossier disponible.</div>
-                )}
-              </div>
-
-              <div className="p-3 border-t border-border-secondary/60 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowAddToPlaylistFor(null); setShowCreate(true); }}
-                  className="flex-1 h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
-                >
-                  Nouveau dossier
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddToPlaylistFor(null)}
-                  className="flex-1 h-11 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition"
-                >
-                  OK
                 </button>
               </div>
                   </motion.div>

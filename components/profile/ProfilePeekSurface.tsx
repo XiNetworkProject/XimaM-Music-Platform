@@ -9,6 +9,7 @@ import { notify } from '@/components/NotificationCenter';
 import { SynauraOverlayDescription, SynauraOverlayTitle } from '@/components/ui/SynauraOverlay';
 import type { ContextSurfaceRendererProps } from '@/components/context-surfaces/ContextSurfaceController';
 import { useProfilePeekData, useSharedFollowState } from '@/lib/profilePeekClient';
+import TrackActionButton from '@/components/actions/TrackActionButton';
 
 const compact = new Intl.NumberFormat('fr-FR', { notation: 'compact', maximumFractionDigits: 1 });
 
@@ -152,6 +153,7 @@ export default function ProfilePeekSurface({ entry, closeSurface }: ContextSurfa
                   >
                     <Play className="ml-0.5 h-4 w-4 fill-current" />
                   </button>
+                  <TrackActionButton track={{ ...track, artist: { _id: profile.id, name: profile.displayName, username: profile.username } }} origin={entry.origin} />
                 </div>
               ))}
             </div>

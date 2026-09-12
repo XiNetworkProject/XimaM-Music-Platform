@@ -16,7 +16,6 @@ export const PRIMARY_WEB_NAV_ITEMS = [
 export const SECONDARY_WEB_NAV_ITEMS = [
   { id: 'messages', label: 'Messages', href: '/messages' },
   { id: 'notifications', label: 'Notifications', href: '/notifications' },
-  { id: 'clips', label: 'Clips', href: '/clips' },
   { id: 'community', label: 'Communauté', href: '/community' },
 ] as const;
 

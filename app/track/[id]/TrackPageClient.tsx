@@ -6,17 +6,17 @@ import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import Link from 'next/link';
 import { Play, Pause, Heart, Clock, Music, Headphones, Share2, Code, UserPlus, Sparkles, ArrowLeft, MessageSquare, Repeat2, Film, Trophy } from 'lucide-react';
-import ShareButtons from '@/components/ShareButtons';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import TrackCover from '@/components/TrackCover';
 import { getCdnUrl } from '@/lib/cdn';
 import { canUseSoundClientSide } from '@/lib/clipPermissions';
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
 import TrackPostsSection from '@/components/posts/TrackPostsSection';
-import TrackShareCardModal from '@/components/share/TrackShareCardModal';
 import DownloadButton from '@/components/DownloadButton';
 import { useCommentsSurface } from '@/components/comments/useCommentsSurface';
 import CommentCount from '@/components/comments/CommentCount';
+import TrackActionButton from '@/components/actions/TrackActionButton';
+import FavoriteAction from '@/components/actions/FavoriteAction';
 
 interface TrackData {
   id: string;
@@ -74,9 +74,6 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
   const router = useRouter();
   const openComments = useCommentsSurface('other');
   const { playTrack, audioState, play, pause, setShowPlayer, setIsMinimized } = useAudioPlayer();
-  const [showShare, setShowShare] = useState(false);
-  const [embedCopied, setEmbedCopied] = useState(false);
-  const [remixOpen, setRemixOpen] = useState(false);
 
   const currentTrack = audioState.tracks?.[audioState.currentTrackIndex];
   const isCurrentTrack = currentTrack?._id === track?.id;
@@ -127,32 +124,7 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
     }
   };
 
-  const handleCopyEmbed = () => {
-    const code = `<iframe src="${typeof window !== 'undefined' ? window.location.origin : 'https://www.synaura.fr'}/embed/${track.id}" width="100%" height="152" frameBorder="0" allow="autoplay; encrypted-media" style="border-radius:12px" title="${track.title}"></iframe>`;
-    navigator.clipboard.writeText(code).catch(() => {});
-    setEmbedCopied(true);
-    setTimeout(() => setEmbedCopied(false), 2500);
-  };
-
-  const trackUrl = typeof window !== 'undefined' ? `${window.location.origin}/track/${track.id}` : `https://www.synaura.fr/track/${track.id}`;
   const coverSrc = track.coverUrl || null;
-  const canRemixAiVariation = Boolean(track.canRemixAiVariation && track.allowAiVariation && track.remixVisibility !== 'disabled');
-  const currentUserId = (session?.user as any)?.id;
-  const isOwnTrack = Boolean(currentUserId) && Boolean(track.creatorId) && String(track.creatorId) === String(currentUserId);
-  const canUseSound = canUseSoundClientSide({
-    isOwner: isOwnTrack,
-    allowClips: Boolean(track.allowClips),
-    remixVisibility: track.remixVisibility || 'disabled',
-  });
-  const useThisSoundHref = `/clips/new?trackId=${encodeURIComponent(track.id)}&trackType=${track.id.startsWith('ai-') ? 'ai_track' : 'track'}`;
-  const openStudioWithRemix = () => {
-    const params = new URLSearchParams({
-      mode: 'remix',
-      sourceTrackId: track.id,
-      sourceTrackType: track.id.startsWith('ai-') ? 'ai_track' : 'track',
-    });
-    router.push(`/ai-generator?${params.toString()}`);
-  };
 
   return (
     <SynauraAppShell contentClassName="max-w-[1180px]">
@@ -229,87 +201,18 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_360px]">
           <SynauraPanel className="p-5 sm:p-6">
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={handlePlay}
-                className="inline-flex h-12 items-center gap-2 rounded-full bg-[#171313] px-6 text-sm font-black text-white transition hover:scale-[1.02] active:scale-95"
-              >
-                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                {isPlaying ? 'Pause' : 'Ecouter'}
+            <div data-track-actions-row className="flex flex-wrap items-center gap-2">
+              <button onClick={handlePlay} className="syn-interactive inline-flex min-h-12 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white">
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}{isPlaying ? 'Pause' : 'Ecouter'}
               </button>
-
-              <button
-                onClick={() => setShowShare(true)}
-                className="inline-flex h-12 items-center gap-2 rounded-full bg-black/[0.055] px-5 text-sm font-black text-black/60 transition hover:bg-black/[0.1] hover:text-black"
-              >
-                <Share2 className="h-4 w-4" />
-                Partager
-              </button>
-              {!track.isAI && <button type="button" data-context-surface-trigger-key={`track-comments-${track.id}`} onClick={event => openComments({ type: 'track', id: track.id, title: track.title, artist: track.artist, creatorId: track.creatorId || undefined, audioUrl: track.audioUrl, coverUrl: track.coverUrl, duration: track.duration }, event.currentTarget)} className="syn-interactive inline-flex min-h-12 items-center gap-2 rounded-full bg-black/[0.055] px-5 text-sm font-black text-black/60"><MessageSquare className="h-4 w-4" />Commentaires <CommentCount type="track" id={track.id} /></button>}
-
-              <DownloadButton
-                audioUrl={track.audioUrl}
-                trackId={track.id}
-                trackTitle={track.title}
-                artistName={track.artist}
-                artistUsername={track.artistUsername}
-                coverUrl={track.coverUrl}
-                duration={track.duration}
-                size="lg"
-                className="h-12 px-5 font-black"
-              />
-
-              <button
-                onClick={handleCopyEmbed}
-                className="inline-flex h-12 items-center gap-2 rounded-full bg-black/[0.055] px-5 text-sm font-black text-black/60 transition hover:bg-black/[0.1] hover:text-black"
-              >
-                <Code className="h-4 w-4" />
-                {embedCopied ? 'Code copie' : 'Embed'}
-              </button>
-
-              {canRemixAiVariation ? (
-                <button
-                  onClick={openStudioWithRemix}
-                  className="inline-flex h-12 items-center gap-2 rounded-full bg-[#7357C6] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
-                >
-                  <Repeat2 className="h-4 w-4" />
-                  Remixer
-                </button>
-              ) : null}
-
-              {canUseSound ? (
-                <Link
-                  href={useThisSoundHref}
-                  onClick={() => void recordClipFunnelEvent(track.id, 'clip_use_sound_started')}
-                  className="inline-flex h-12 items-center gap-2 rounded-full bg-[#4A9EAA] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
-                >
-                  <Film className="h-4 w-4" />
-                  {isOwnTrack ? 'Créer un clip officiel' : 'Utiliser ce son'}
-                </Link>
-              ) : null}
-
-              <Link
-                href={`/community/forum/new?category=feedback&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=track`}
-                className="inline-flex h-12 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
-              >
-                <MessageSquare className="h-4 w-4" />
-                Demander un avis
-              </Link>
-
-              <Link
-                href={`/community/forum/new?category=remix&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=track`}
-                className="inline-flex h-12 items-center gap-2 rounded-full bg-black/[0.055] px-5 text-sm font-black text-black/60 transition hover:bg-black/[0.1] hover:text-black"
-              >
-                <Repeat2 className="h-4 w-4" />
-                Défi remix
-              </Link>
+              <FavoriteAction track={track} label className="bg-black/[0.055] px-4 text-sm font-black text-black/60" />
+              {!track.isAI && <button type="button" data-context-surface-trigger-key={`track-comments-${track.id}`} onClick={event => openComments({ type: 'track', id: track.id, title: track.title, artist: track.artist, creatorId: track.creatorId || undefined, audioUrl: track.audioUrl, coverUrl: track.coverUrl, duration: track.duration }, event.currentTarget)} className="syn-interactive inline-flex min-h-12 items-center gap-2 rounded-full bg-black/[0.055] px-4 text-sm font-black text-black/60"><MessageSquare className="h-4 w-4" />Commentaires <CommentCount type="track" id={track.id} /></button>}
+              <TrackActionButton track={track} className="bg-black/[0.055]" />
             </div>
-
-            {showShare ? (
-              <div className="mt-4 rounded-[1.35rem] border border-black/[0.08] bg-black/[0.03] p-4">
-                <ShareButtons url={trackUrl} title={`${track.title} — ${track.artist}`} />
-              </div>
-            ) : null}
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Link href={`/community/forum/new?category=feedback&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=track`} className="syn-interactive inline-flex min-h-11 items-center rounded-full px-3 text-xs text-black/60">Demander un avis</Link>
+              <Link href={`/community/forum/new?category=remix&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=track`} className="syn-interactive inline-flex min-h-11 items-center rounded-full px-3 text-xs text-black/60">Défi remix</Link>
+            </div>
 
             {track.remixAttribution ? (
               <div className="mt-4 rounded-[1.35rem] border border-[#7357C6]/18 bg-[#7357C6]/[0.06] p-4">
@@ -413,42 +316,6 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
           </div>
         </div>
       </div>
-      {remixOpen ? (
-        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/45 px-4 pb-4 backdrop-blur-sm" onClick={() => setRemixOpen(false)}>
-          <div className="w-full max-w-lg rounded-[1.6rem] border border-black/[0.08] bg-[#F7F6F3] p-4 text-[#111111] shadow-[0_30px_100px_rgba(17,17,17,0.28)]" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-center gap-3">
-              {coverSrc ? <img src={coverSrc} alt="" className="h-16 w-16 rounded-2xl object-cover" /> : <div className="grid h-16 w-16 place-items-center rounded-2xl bg-black/[0.06]"><Music className="h-6 w-6 text-black/35" /></div>}
-              <div className="min-w-0">
-                <h3 className="truncate text-lg font-black">{track.title}</h3>
-                <p className="truncate text-sm font-bold text-black/50">{track.artist}</p>
-              </div>
-            </div>
-            <p className="mt-4 text-sm font-black text-black/72">Créer une variation IA inspirée de ce morceau</p>
-            <p className="mt-2 text-xs font-semibold text-black/48">Le créateur original sera toujours crédité</p>
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-              <button type="button" onClick={openStudioWithRemix} className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-[#111111] px-5 text-sm font-black text-white">
-                <Repeat2 className="h-4 w-4" />
-                Ouvrir dans Studio
-              </button>
-              <button type="button" onClick={() => setRemixOpen(false)} className="h-12 rounded-full border border-black/[0.08] bg-white px-5 text-sm font-black text-black/56">
-                Annuler
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-      <TrackShareCardModal
-        visible={showShare}
-        track={{
-          id: track.id,
-          title: track.title,
-          artist: track.artist,
-          coverUrl: coverSrc,
-          duration: track.duration,
-        }}
-        trackUrl={trackUrl}
-        onClose={() => setShowShare(false)}
-      />
     </SynauraAppShell>
   );
 }

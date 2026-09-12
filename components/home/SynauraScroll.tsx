@@ -16,7 +16,9 @@ import { canUseSoundClientSide } from '@/lib/clipPermissions';
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
 import { getRecommendationSessionId } from '@/lib/recommendation/clientSession';
 import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
-import { useLibraryFavorites } from '@/hooks/useLibraryFavorites';
+import { useTrackActions } from '@/components/actions/useTrackActions';
+import TrackActionButton from '@/components/actions/TrackActionButton';
+import FavoriteAction from '@/components/actions/FavoriteAction';
 import { useTrackWaveform } from '@/hooks/useTrackWaveform';
 import { useMomentComments } from '@/hooks/useMomentComments';
 import { useMomentReactions } from '@/hooks/useMomentReactions';
@@ -359,7 +361,7 @@ export default function SynauraScroll() {
   const router = useRouter();
   const { data: session } = useSession();
   const { audioState, setQueueAndPlay, playTrack, play, pause, seek, getAudioElement, handleLike } = useAudioPlayer();
-  const { isFavorite, toggleFavorite } = useLibraryFavorites();
+  const trackActions = useTrackActions('live');
 
   const [filter, setFilter] = useState<FeedFilter>(() => {
     if (typeof window === 'undefined') return 'foryou';
@@ -394,12 +396,10 @@ export default function SynauraScroll() {
   const [cityEventsRaw, setCityEventsRaw] = useState<any[]>([]);
   const [musicChallengesRaw, setMusicChallengesRaw] = useState<any[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [lyricsOpen, setLyricsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [cityPulse, setCityPulse] = useState<{ title: string; event: string; pulse: number; votes: number } | null>(null);
   const [launchingCollectionId, setLaunchingCollectionId] = useState<string | null>(null);
-  const [remixSheetTrack, setRemixSheetTrack] = useState<ScrollTrack | null>(null);
   const commentsClient = useQueryClient();
 
   const [continuityReady, setContinuityReady] = useState(false);
@@ -442,15 +442,6 @@ export default function SynauraScroll() {
     const trackType = track._id.startsWith('ai-') ? 'ai_track' : 'track';
     navigateFromLive(`/clips/new?trackId=${encodeURIComponent(track._id)}&trackType=${trackType}`);
   }, [navigateFromLive]);
-  const openStudioWithRemix = useCallback((track: ScrollTrack) => {
-    const params = new URLSearchParams({
-      mode: 'remix',
-      sourceTrackId: track._id,
-      sourceTrackType: track._id.startsWith('ai-') ? 'ai_track' : 'track',
-    });
-    navigateFromLive(`/ai-generator?${params.toString()}`);
-  }, [navigateFromLive]);
-
   useLayoutEffect(() => {
     if (continuityInitRef.current) return;
     continuityInitRef.current = true;
@@ -902,7 +893,7 @@ export default function SynauraScroll() {
   const scrollSnap = useFeedScrollSnap({
     itemCount: feedItems.length,
     activeIndex,
-    locked: lyricsOpen || contextDepth > 0,
+    locked: contextDepth > 0,
     ready: !loading,
     onNavigate: navigateTo,
     onTogglePlay: useCallback(() => { audioState.isPlaying ? pause() : play(); }, [audioState.isPlaying, pause, play]),
@@ -1084,7 +1075,7 @@ export default function SynauraScroll() {
   }, [activeIndex]);
   useEffect(() => {
     const track = queueByPosition[activeIndex];
-    if (!continuitySettled || suppressRestoredAutoplayRef.current || !track || lyricsOpen || homePreludeOpen) return;
+    if (!continuitySettled || suppressRestoredAutoplayRef.current || !track || homePreludeOpen) return;
     const timer = window.setTimeout(() => {
       if (currentId === track._id) return;
       if (lastAutoplayRequestRef.current === track._id) return;
@@ -1092,7 +1083,7 @@ export default function SynauraScroll() {
       playIndex(activeIndex);
     }, AUTOPLAY_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [activeIndex, continuitySettled, currentId, homePreludeOpen, lyricsOpen, playIndex, queueByPosition]);
+  }, [activeIndex, continuitySettled, currentId, homePreludeOpen, playIndex, queueByPosition]);
 
   // Un Clip a un point de départ choisi par son créateur à la publication
   // (sourceTrackOffsetSeconds) : une fois le son du morceau original chargé, on
@@ -1110,19 +1101,6 @@ export default function SynauraScroll() {
     clipOffsetSeekedRef.current = item.clip.id;
     seek(Math.min(offset, Math.max(0, audioState.duration - 0.5)));
   }, [activeIndex, continuitySettled, feedItems, currentId, audioState.duration, seek]);
-
-  const shareTrack = useCallback(async (track: ScrollTrack) => {
-    const url = `${window.location.origin}/track/${track._id}`;
-    try {
-      if ((navigator as any).share) {
-        await (navigator as any).share({ title: track.title, text: 'Écoute sur Synaura', url });
-      } else {
-        await navigator.clipboard.writeText(url);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
 
   const shareClip = useCallback(async (clip: ScrollClip) => {
     const sourceUrl = `${window.location.origin}${(clip.sourceTrack as any).trackUrl || `/track/${clip.sourceTrack._id}`}`;
@@ -1354,7 +1332,6 @@ export default function SynauraScroll() {
       const duration = currentId === track._id ? audioState.duration || track.duration || 0 : track.duration || 0;
       const likesCount = countOf(track.likes);
       const commentsCount = countOf(track.comments);
-      const saved = isFavorite(track._id);
       const canRemixAiVariation = Boolean((track as any).canRemixAiVariation) && isAiVariationAvailable({
         allowAiVariation: Boolean((track as any).allowAiVariation),
         remixVisibility: (track as any).remixVisibility || 'disabled',
@@ -1408,29 +1385,27 @@ export default function SynauraScroll() {
             </button>
           </div>
 
-          <aside className="absolute right-4 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-2.5">
-            <button onClick={() => handleLike(track._id)} className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
-              <Heart className={`h-5 w-5 ${track.isLiked ? 'fill-[#D96D63] text-[#D96D63]' : ''}`} />
-              <span className="text-[10px] font-black">{fmtCount(likesCount)}</span>
-            </button>
+          <aside className="live-track-actions absolute right-4 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2.5">
+            <FavoriteAction track={track} resolveStatus={index === activeIndex} className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16" />
             <button data-context-surface-trigger-key={`live-track-comments-${track._id}`} onClick={event => openComments(commentsTrack(track), event.currentTarget)} aria-label={`Commentaires de ${track.title}`} className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
               <MessageCircle className="h-5 w-5" />
               <span className="text-[10px] font-black">{<CommentCount type="track" id={track._id} fallback={commentsCount} />}</span>
             </button>
-            <button onClick={() => shareTrack(track)} className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
+            <button aria-label="Partager le morceau" onClick={event => void trackActions.share(track, event.currentTarget)} className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
               <Share2 className="h-5 w-5" />
             </button>
             <button
-              onClick={() => toggleFavorite({ _id: track._id, title: track.title, artist: track.artist, coverUrl: track.coverUrl, audioUrl: track.audioUrl })}
-              aria-label="Ajouter à la bibliothèque"
+              onClick={event => trackActions.open(track, 'playlist-picker', event.currentTarget)}
+              aria-label="Ajouter à une playlist"
+              disabled={track._id.startsWith('ai-')}
               className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16"
             >
-              <Bookmark className={`h-5 w-5 ${saved ? 'fill-white' : ''}`} />
+              <Bookmark className="h-5 w-5" />
             </button>
             {canRemixAiVariation ? (
               <button
                 type="button"
-                onClick={() => setRemixSheetTrack(track)}
+                onClick={event => trackActions.open(track, 'track-remix', event.currentTarget)}
                 aria-label="Remixer"
                 title="Remixer"
                 className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16"
@@ -1440,7 +1415,7 @@ export default function SynauraScroll() {
             {canUseSound ? (
               <button
                 type="button"
-                onClick={() => useThisSound(track)}
+                onClick={event => trackActions.open(track, 'track-clip', event.currentTarget)}
                 aria-label={isOwnTrack ? 'Créer un clip officiel' : 'Utiliser ce son'}
                 title={isOwnTrack ? 'Créer un clip officiel' : 'Utiliser ce son'}
                 className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16"
@@ -1448,9 +1423,7 @@ export default function SynauraScroll() {
                 <Film className="h-5 w-5" />
               </button>
             ) : null}
-            <a href={track.audioUrl} download className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
-              <Download className="h-5 w-5" />
-            </a>
+            <TrackActionButton track={track} origin="live" className="h-14 w-14 border border-white/12 bg-white/10 !text-white backdrop-blur-xl" />
           </aside>
 
           <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] lg:pb-[max(env(safe-area-inset-bottom),1rem)]">
@@ -1571,21 +1544,6 @@ export default function SynauraScroll() {
             </button>
           </div>
 
-          {lyricsOpen && index === activeIndex ? (
-            <div className="absolute inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm">
-              <div className="mx-auto w-full max-w-4xl rounded-t-[2rem] border border-white/12 bg-[#fffaf2] p-5 text-[#171313]">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-black">Paroles</h3>
-                  <button onClick={() => setLyricsOpen(false)} className="grid h-10 w-10 place-items-center rounded-full bg-black/[0.06]">
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-                <pre className="mt-4 max-h-[55vh] overflow-y-auto whitespace-pre-wrap text-sm font-semibold leading-7 text-black/64">
-                  {track.lyrics?.trim() || 'Aucune parole disponible pour ce titre.'}
-                </pre>
-              </div>
-            </div>
-          ) : null}
         </>
       );
     }
@@ -2051,31 +2009,6 @@ export default function SynauraScroll() {
           })}
         </div>
       )}
-      {remixSheetTrack ? (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 px-4 pb-4 backdrop-blur-sm" onClick={() => setRemixSheetTrack(null)}>
-          <div className="w-full max-w-lg rounded-[1.6rem] border border-black/[0.08] bg-[#F7F6F3] p-4 text-[#111111] shadow-[0_30px_100px_rgba(17,17,17,0.28)]" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-center gap-3">
-              <img src={remixSheetTrack.coverUrl || FALLBACK_COVER} alt="" className="h-16 w-16 rounded-2xl object-cover" />
-              <div className="min-w-0">
-                <h3 className="truncate text-lg font-black">{remixSheetTrack.title}</h3>
-                <p className="truncate text-sm font-bold text-black/50">{remixSheetTrack.artist?.name || remixSheetTrack.artist?.username || 'Artiste Synaura'}</p>
-              </div>
-            </div>
-            <p className="mt-4 text-sm font-black text-black/72">Créer une variation IA inspirée de ce morceau</p>
-            <p className="mt-2 text-xs font-semibold text-black/48">Le créateur original sera toujours crédité</p>
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-              <button type="button" onClick={() => openStudioWithRemix(remixSheetTrack)} className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-[#111111] px-5 text-sm font-black text-white">
-                <Wand2 className="h-4 w-4" />
-                Ouvrir dans Studio
-              </button>
-              <button type="button" onClick={() => setRemixSheetTrack(null)} className="h-12 rounded-full border border-black/[0.08] bg-white px-5 text-sm font-black text-black/56">
-                Annuler
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
     </div>
   );
 }

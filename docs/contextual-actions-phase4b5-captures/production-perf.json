@@ -1,0 +1,7332 @@
+{
+  "base": "http://localhost:3000",
+  "count": 20,
+  "methodology": "Trusted click capture to loaded content and to two painted frames with opacity=1 and no panel transform. No fixed sleep included. Secondary surfaces measured from their Options row, not from the preparatory Options opening. One warm-up per surface; nearest-rank percentiles. CDP GC trace + resource timings + long tasks; no CPU/network throttling. Audio initially paused to retain one entity throughout all 120 openings.",
+  "warmups": [
+    {
+      "id": "actions-perf-1",
+      "name": "track-options",
+      "start": 2850.800000011921,
+      "eventDelayMs": 3.199999988079071,
+      "trusted": true,
+      "loadedMs": 499.60000002384186,
+      "settledMs": 506.5,
+      "end": 3357.300000011921,
+      "resources": [
+        {
+          "path": "/_next/static/chunks/7592.14199314deb7f909.js",
+          "start": 2855.800000011921,
+          "duration": 23.600000023841858,
+          "type": "script"
+        },
+        {
+          "path": "/api/tracks/track_1773789112971_0egfpy0i2",
+          "start": 3157.699999988079,
+          "duration": 190.10000002384186,
+          "type": "fetch"
+        },
+        {
+          "path": "/api/subscriptions/my-subscription",
+          "start": 3158.699999988079,
+          "duration": 21.5,
+          "type": "fetch"
+        }
+      ],
+      "phase": "warmup:track-options",
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-23",
+      "name": "playlist-picker",
+      "start": 18178.5,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 64.69999998807907,
+      "settledMs": 71.40000003576279,
+      "end": 18249.900000035763,
+      "resources": [
+        {
+          "path": "/api/playlists",
+          "start": 18183.5,
+          "duration": 53.5,
+          "type": "fetch"
+        }
+      ],
+      "phase": "warmup:playlist-picker",
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-65",
+      "name": "queue",
+      "start": 33683.30000001192,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 9.399999976158142,
+      "settledMs": 24.80000001192093,
+      "end": 33708.10000002384,
+      "resources": [],
+      "phase": "warmup:queue",
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-107",
+      "name": "lyrics",
+      "start": 49041.90000003576,
+      "eventDelayMs": 1.7000000476837158,
+      "trusted": true,
+      "loadedMs": 5.099999964237213,
+      "settledMs": 9.599999964237213,
+      "end": 49051.5,
+      "resources": [],
+      "phase": "warmup:lyrics",
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-149",
+      "name": "track-details",
+      "start": 64435.90000003576,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 9.599999964237213,
+      "settledMs": 22.399999976158142,
+      "end": 64458.30000001192,
+      "resources": [],
+      "phase": "warmup:track-details",
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-191",
+      "name": "track-share",
+      "start": 79801.19999998808,
+      "eventDelayMs": 1.5999999642372131,
+      "trusted": true,
+      "loadedMs": 5.700000047683716,
+      "settledMs": 11.200000047683716,
+      "end": 79812.40000003576,
+      "resources": [],
+      "phase": "warmup:track-share",
+      "gc": [
+        {
+          "name": "V8.GC_MC_COMPLETE_SWEEPING",
+          "offsetMs": 6.88,
+          "durationMs": 0.012,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 6.887,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_COMPLETE_SWEEPING",
+          "offsetMs": 6.893,
+          "durationMs": 0.017,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_TIME_TO_SAFEPOINT",
+          "offsetMs": 6.933,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarkingStart",
+          "offsetMs": 6.936,
+          "durationMs": 0.138,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_START",
+          "offsetMs": 6.938,
+          "durationMs": 0.136,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EXTERNAL_PROLOGUE",
+          "offsetMs": 6.939,
+          "durationMs": 0.012,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_PROLOGUE",
+          "offsetMs": 6.963,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_ROOTS",
+          "offsetMs": 7.005,
+          "durationMs": 0.025,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_PROLOGUE",
+          "offsetMs": 7.043,
+          "durationMs": 0.028,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EXTERNAL_EPILOGUE",
+          "offsetMs": 7.071,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 7.074,
+          "durationMs": 4.173,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 7.076,
+          "durationMs": 0.131,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 7.077,
+          "durationMs": 0.129,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 7.078,
+          "durationMs": 0.06,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 7.093,
+          "durationMs": 4.14,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 7.095,
+          "durationMs": 4.128,
+          "thread": 62132
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 7.095,
+          "durationMs": 4.163,
+          "thread": 55120
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 7.215,
+          "durationMs": 0.109,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 7.216,
+          "durationMs": 0.108,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 7.217,
+          "durationMs": 0.103,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 7.328,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 7.329,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 7.33,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 7.336,
+          "durationMs": 0.357,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 7.336,
+          "durationMs": 0.356,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 7.337,
+          "durationMs": 0.124,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 7.731,
+          "durationMs": 0.01,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 7.733,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 7.735,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 7.744,
+          "durationMs": 0.245,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 7.745,
+          "durationMs": 0.243,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 7.746,
+          "durationMs": 0.093,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 8.002,
+          "durationMs": 0.009,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 8.003,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 8.005,
+          "durationMs": 0.003,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 8.014,
+          "durationMs": 0.187,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 8.015,
+          "durationMs": 0.186,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 8.015,
+          "durationMs": 0.103,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 8.209,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 8.21,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 8.211,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 8.219,
+          "durationMs": 0.264,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 8.22,
+          "durationMs": 0.263,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 8.221,
+          "durationMs": 0.135,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 8.496,
+          "durationMs": 0.031,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 8.497,
+          "durationMs": 0.03,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 8.499,
+          "durationMs": 0.024,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 8.531,
+          "durationMs": 0.27,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 8.535,
+          "durationMs": 0.265,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 8.536,
+          "durationMs": 0.132,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 8.814,
+          "durationMs": 0.043,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 8.815,
+          "durationMs": 0.042,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 8.816,
+          "durationMs": 0.038,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 8.861,
+          "durationMs": 0.174,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 8.862,
+          "durationMs": 0.173,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 8.863,
+          "durationMs": 0.041,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 9.046,
+          "durationMs": 0.015,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 9.047,
+          "durationMs": 0.014,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 9.048,
+          "durationMs": 0.01,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 9.065,
+          "durationMs": 0.23,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 9.065,
+          "durationMs": 0.229,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 9.066,
+          "durationMs": 0.081,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 9.175,
+          "durationMs": 2.06,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 9.304,
+          "durationMs": 0.043,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 9.305,
+          "durationMs": 0.042,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 9.306,
+          "durationMs": 0.037,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 9.319,
+          "durationMs": 1.915,
+          "thread": 66152
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 9.351,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 9.352,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 9.36,
+          "durationMs": 0.11,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 9.361,
+          "durationMs": 0.108,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 9.362,
+          "durationMs": 0.014,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 9.366,
+          "durationMs": 1.881,
+          "thread": 70228
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 9.474,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 9.475,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 9.476,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 9.485,
+          "durationMs": 0.084,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 9.486,
+          "durationMs": 0.083,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 9.486,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 9.575,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 9.576,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 9.577,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 9.584,
+          "durationMs": 0.129,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 9.584,
+          "durationMs": 0.128,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 9.585,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 9.719,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 9.72,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 9.721,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 9.728,
+          "durationMs": 0.128,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 9.729,
+          "durationMs": 0.126,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 9.861,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 9.862,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 9.863,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 9.869,
+          "durationMs": 0.152,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 9.87,
+          "durationMs": 0.151,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 9.871,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 10.027,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 10.028,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 10.029,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 10.037,
+          "durationMs": 0.121,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 10.037,
+          "durationMs": 0.12,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 10.172,
+          "durationMs": 0.065,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 10.228,
+          "durationMs": 0.009,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 10.231,
+          "durationMs": 0.003,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 10.243,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 10.244,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 10.245,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 10.251,
+          "durationMs": 0.237,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 10.252,
+          "durationMs": 0.236,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 10.252,
+          "durationMs": 0.085,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 10.5,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 10.502,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 10.504,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 10.511,
+          "durationMs": 0.118,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 10.512,
+          "durationMs": 0.116,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 10.636,
+          "durationMs": 0.018,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 10.637,
+          "durationMs": 0.016,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 10.638,
+          "durationMs": 0.012,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 10.657,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 10.658,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 10.665,
+          "durationMs": 0.131,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 10.666,
+          "durationMs": 0.13,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 10.801,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 10.802,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 10.804,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 10.811,
+          "durationMs": 0.118,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 10.812,
+          "durationMs": 0.117,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 10.813,
+          "durationMs": 0.001,
+          "thread": 65192
+        }
+      ],
+      "longTasks": []
+    }
+  ],
+  "samples": [
+    {
+      "id": "actions-perf-2",
+      "name": "track-options",
+      "start": 3875.199999988079,
+      "eventDelayMs": 1.399999976158142,
+      "trusted": true,
+      "loadedMs": 13.200000047683716,
+      "settledMs": 196.5,
+      "end": 4071.699999988079,
+      "resources": [],
+      "phase": "warm:track-options:1",
+      "iteration": 1,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-3",
+      "name": "track-options",
+      "start": 4575.800000011921,
+      "eventDelayMs": 1,
+      "trusted": true,
+      "loadedMs": 12.5,
+      "settledMs": 197.19999998807907,
+      "end": 4773,
+      "resources": [],
+      "phase": "warm:track-options:2",
+      "iteration": 2,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-4",
+      "name": "track-options",
+      "start": 5283.600000023842,
+      "eventDelayMs": 1,
+      "trusted": true,
+      "loadedMs": 12.099999964237213,
+      "settledMs": 197.69999998807907,
+      "end": 5481.300000011921,
+      "resources": [],
+      "phase": "warm:track-options:3",
+      "iteration": 3,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-5",
+      "name": "track-options",
+      "start": 5985.300000011921,
+      "eventDelayMs": 1,
+      "trusted": true,
+      "loadedMs": 11,
+      "settledMs": 196.89999997615814,
+      "end": 6182.199999988079,
+      "resources": [],
+      "phase": "warm:track-options:4",
+      "iteration": 4,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-6",
+      "name": "track-options",
+      "start": 6686.400000035763,
+      "eventDelayMs": 1,
+      "trusted": true,
+      "loadedMs": 11.899999976158142,
+      "settledMs": 197.29999995231628,
+      "end": 6883.699999988079,
+      "resources": [],
+      "phase": "warm:track-options:5",
+      "iteration": 5,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-7",
+      "name": "track-options",
+      "start": 7402.199999988079,
+      "eventDelayMs": 1.2999999523162842,
+      "trusted": true,
+      "loadedMs": 12,
+      "settledMs": 196.80000001192093,
+      "end": 7599,
+      "resources": [],
+      "phase": "warm:track-options:6",
+      "iteration": 6,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-8",
+      "name": "track-options",
+      "start": 8109.100000023842,
+      "eventDelayMs": 1,
+      "trusted": true,
+      "loadedMs": 10.899999976158142,
+      "settledMs": 198,
+      "end": 8307.100000023842,
+      "resources": [],
+      "phase": "warm:track-options:7",
+      "iteration": 7,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-9",
+      "name": "track-options",
+      "start": 8810.800000011921,
+      "eventDelayMs": 1,
+      "trusted": true,
+      "loadedMs": 11.300000011920929,
+      "settledMs": 197.5,
+      "end": 9008.300000011921,
+      "resources": [],
+      "phase": "warm:track-options:8",
+      "iteration": 8,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-10",
+      "name": "track-options",
+      "start": 9512.300000011921,
+      "eventDelayMs": 0.800000011920929,
+      "trusted": true,
+      "loadedMs": 11.5,
+      "settledMs": 197.30000001192093,
+      "end": 9709.600000023842,
+      "resources": [],
+      "phase": "warm:track-options:9",
+      "iteration": 9,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-11",
+      "name": "track-options",
+      "start": 10206.800000011921,
+      "eventDelayMs": 0.8999999761581421,
+      "trusted": true,
+      "loadedMs": 11.899999976158142,
+      "settledMs": 197.19999998807907,
+      "end": 10404,
+      "resources": [],
+      "phase": "warm:track-options:10",
+      "iteration": 10,
+      "gc": [
+        {
+          "name": "V8.GC_MC_COMPLETE_SWEEPING",
+          "offsetMs": 15.322,
+          "durationMs": 0.012,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 15.327,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_COMPLETE_SWEEPING",
+          "offsetMs": 15.335,
+          "durationMs": 0.024,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_TIME_TO_SAFEPOINT",
+          "offsetMs": 15.399,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarkingStart",
+          "offsetMs": 15.403,
+          "durationMs": 0.208,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_START",
+          "offsetMs": 15.405,
+          "durationMs": 0.205,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EXTERNAL_PROLOGUE",
+          "offsetMs": 15.407,
+          "durationMs": 0.02,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_PROLOGUE",
+          "offsetMs": 15.439,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_ROOTS",
+          "offsetMs": 15.479,
+          "durationMs": 0.029,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_PROLOGUE",
+          "offsetMs": 15.551,
+          "durationMs": 0.054,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 15.589,
+          "durationMs": 6.132,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EXTERNAL_EPILOGUE",
+          "offsetMs": 15.607,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 15.613,
+          "durationMs": 0.126,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 15.615,
+          "durationMs": 0.123,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 15.616,
+          "durationMs": 0.062,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 15.642,
+          "durationMs": 6.074,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 15.761,
+          "durationMs": 0.095,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 15.762,
+          "durationMs": 0.094,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 15.763,
+          "durationMs": 0.089,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 15.888,
+          "durationMs": 0.089,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 15.889,
+          "durationMs": 0.087,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 15.89,
+          "durationMs": 0.075,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 15.992,
+          "durationMs": 0.159,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 15.994,
+          "durationMs": 0.157,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 15.996,
+          "durationMs": 0.145,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 16.029,
+          "durationMs": 5.719,
+          "thread": 62132
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.376,
+          "durationMs": 0.072,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.379,
+          "durationMs": 0.068,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.381,
+          "durationMs": 0.061,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.457,
+          "durationMs": 0.009,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.458,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.46,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.471,
+          "durationMs": 0.272,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.472,
+          "durationMs": 0.27,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.473,
+          "durationMs": 0.083,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 16.476,
+          "durationMs": 5.236,
+          "thread": 31844
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.755,
+          "durationMs": 0.071,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.757,
+          "durationMs": 0.069,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.758,
+          "durationMs": 0.062,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.834,
+          "durationMs": 0.296,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.836,
+          "durationMs": 0.293,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.837,
+          "durationMs": 0.151,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 17.148,
+          "durationMs": 0.03,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 17.151,
+          "durationMs": 0.027,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 17.153,
+          "durationMs": 0.021,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 17.185,
+          "durationMs": 0.01,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 17.186,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 17.188,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 17.199,
+          "durationMs": 0.293,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 17.2,
+          "durationMs": 0.291,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 17.201,
+          "durationMs": 0.083,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 17.53,
+          "durationMs": 0.104,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 17.533,
+          "durationMs": 0.1,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 17.534,
+          "durationMs": 0.093,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 17.891,
+          "durationMs": 3.861,
+          "thread": 70228
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 17.897,
+          "durationMs": 3.772,
+          "thread": 66152
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 18.004,
+          "durationMs": 3.71,
+          "thread": 55120
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 19.636,
+          "durationMs": 0.094,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 19.64,
+          "durationMs": 0.089,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 19.644,
+          "durationMs": 0.077,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 19.779,
+          "durationMs": 0.179,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 19.782,
+          "durationMs": 0.176,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 19.784,
+          "durationMs": 0.166,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 19.971,
+          "durationMs": 0.014,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 19.973,
+          "durationMs": 0.011,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 19.975,
+          "durationMs": 0.003,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 19.991,
+          "durationMs": 0.395,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 19.992,
+          "durationMs": 0.393,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 19.994,
+          "durationMs": 0.176,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 20.565,
+          "durationMs": 0.02,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 20.57,
+          "durationMs": 0.014,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 20.573,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 20.593,
+          "durationMs": 0.072,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 20.595,
+          "durationMs": 0.069,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 20.597,
+          "durationMs": 0.061,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 20.672,
+          "durationMs": 0.013,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 20.674,
+          "durationMs": 0.01,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 20.676,
+          "durationMs": 0.003,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 20.691,
+          "durationMs": 0.36,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 20.693,
+          "durationMs": 0.357,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 20.695,
+          "durationMs": 0.073,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 21.07,
+          "durationMs": 0.018,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 21.073,
+          "durationMs": 0.014,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 21.076,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 21.096,
+          "durationMs": 0.388,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 21.098,
+          "durationMs": 0.385,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 21.1,
+          "durationMs": 0.118,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 21.504,
+          "durationMs": 0.016,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 21.507,
+          "durationMs": 0.013,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 21.511,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 21.526,
+          "durationMs": 0.014,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 21.528,
+          "durationMs": 0.011,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 21.53,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 21.556,
+          "durationMs": 0.124,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 21.557,
+          "durationMs": 0.121,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 21.559,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EXTERNAL_PROLOGUE",
+          "offsetMs": 21.682,
+          "durationMs": 0.036,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 21.707,
+          "durationMs": 0.038,
+          "thread": 62696
+        },
+        {
+          "name": "MajorGC",
+          "offsetMs": 21.722,
+          "durationMs": 3.526,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_PROLOGUE",
+          "offsetMs": 21.732,
+          "durationMs": 0.003,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCFinalizeMC",
+          "offsetMs": 21.736,
+          "durationMs": 3.404,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_TIME_TO_SAFEPOINT",
+          "offsetMs": 21.747,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MARK_COMPACTOR",
+          "offsetMs": 21.752,
+          "durationMs": 3.382,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_PROLOGUE_SAFEPOINT",
+          "offsetMs": 21.77,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_PROLOGUE",
+          "offsetMs": 21.774,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK",
+          "offsetMs": 21.783,
+          "durationMs": 0.432,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_FINISH_INCREMENTAL",
+          "offsetMs": 21.785,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_ROOTS",
+          "offsetMs": 21.843,
+          "durationMs": 0.025,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_CLIENT_HEAPS",
+          "offsetMs": 21.869,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_RETAIN_MAPS",
+          "offsetMs": 21.871,
+          "durationMs": 0.016,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_FULL_CLOSURE_PARALLEL",
+          "offsetMs": 21.887,
+          "durationMs": 0.271,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 21.894,
+          "durationMs": 0.106,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 21.926,
+          "durationMs": 0.102,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 21.945,
+          "durationMs": 0.031,
+          "thread": 55120
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 21.949,
+          "durationMs": 0.011,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.003,
+          "durationMs": 0.018,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.022,
+          "durationMs": 0.06,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 22.037,
+          "durationMs": 0.007,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 22.049,
+          "durationMs": 0.007,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.083,
+          "durationMs": 0.031,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.115,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.121,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.123,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.126,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.127,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.129,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.131,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.133,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.134,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.136,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.138,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.141,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.143,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.144,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.146,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_FULL_CLOSURE_PARALLEL_JOIN",
+          "offsetMs": 22.148,
+          "durationMs": 0.009,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_ROOTS",
+          "offsetMs": 22.159,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_CONSERVATIVE_STACK_SCANNING",
+          "offsetMs": 22.159,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_FULL_CLOSURE_SERIAL",
+          "offsetMs": 22.162,
+          "durationMs": 0.044,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.165,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.167,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.169,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.172,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.174,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.175,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.177,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.179,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.18,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.182,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.185,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.187,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.188,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.19,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.191,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.193,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.195,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR",
+          "offsetMs": 22.199,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 22.202,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 22.204,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR",
+          "offsetMs": 22.219,
+          "durationMs": 0.707,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_STRING_FORWARDING_TABLE",
+          "offsetMs": 22.221,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_EXTERNAL_STRING_TABLE",
+          "offsetMs": 22.234,
+          "durationMs": 0.064,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_STRING_TABLE",
+          "offsetMs": 22.257,
+          "durationMs": 0.467,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_GLOBAL_HANDLES",
+          "offsetMs": 22.3,
+          "durationMs": 0.062,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_FLUSHABLE_BYTECODE",
+          "offsetMs": 22.364,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_JS_DISPATCH_TABLE",
+          "offsetMs": 22.366,
+          "durationMs": 0.097,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_FLUSHED_JS_FUNCTIONS",
+          "offsetMs": 22.464,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_LISTS",
+          "offsetMs": 22.467,
+          "durationMs": 0.069,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_MAPS",
+          "offsetMs": 22.537,
+          "durationMs": 0.082,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_EXTERNAL_POINTER_TABLE",
+          "offsetMs": 22.644,
+          "durationMs": 0.155,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_REFERENCES_TRIVIAL",
+          "offsetMs": 22.657,
+          "durationMs": 0.244,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL",
+          "offsetMs": 22.661,
+          "durationMs": 0.053,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_TRUSTED_POINTER_TABLE",
+          "offsetMs": 22.801,
+          "durationMs": 0.057,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_CODE_POINTER_TABLE",
+          "offsetMs": 22.859,
+          "durationMs": 0.011,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_WASM_CODE_POINTER_TABLE",
+          "offsetMs": 22.87,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_REFERENCES_JOIN_FILTER_JOB",
+          "offsetMs": 22.872,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_WEAKNESS_HANDLING",
+          "offsetMs": 22.877,
+          "durationMs": 0.037,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL",
+          "offsetMs": 22.879,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_COLLECTIONS",
+          "offsetMs": 22.887,
+          "durationMs": 0.024,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_JS_WEAK_REFERENCES",
+          "offsetMs": 22.912,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_JOIN_JOB",
+          "offsetMs": 22.922,
+          "durationMs": 0.003,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 23.326,
+          "durationMs": 0.025,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE",
+          "offsetMs": 23.352,
+          "durationMs": 1.588,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_PROLOGUE",
+          "offsetMs": 23.356,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_COPY",
+          "offsetMs": 23.365,
+          "durationMs": 0.674,
+          "thread": 65192
+        },
+        {
+          "name": "MarkCompactCollector::EvacuatePagesInParallel",
+          "offsetMs": 23.369,
+          "durationMs": 0.668,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_COPY_PARALLEL",
+          "offsetMs": 23.425,
+          "durationMs": 0.522,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 23.441,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_COPY",
+          "offsetMs": 23.443,
+          "durationMs": 0.312,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_COPY",
+          "offsetMs": 23.445,
+          "durationMs": 0.435,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_COPY",
+          "offsetMs": 23.454,
+          "durationMs": 0.405,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 23.466,
+          "durationMs": 0.165,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 23.474,
+          "durationMs": 0.08,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 23.475,
+          "durationMs": 0.144,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 24.04,
+          "durationMs": 0.894,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS",
+          "offsetMs": 24.044,
+          "durationMs": 0.341,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_CLIENT_HEAPS",
+          "offsetMs": 24.389,
+          "durationMs": 0.003,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN",
+          "offsetMs": 24.393,
+          "durationMs": 0.242,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_PARALLEL",
+          "offsetMs": 24.439,
+          "durationMs": 0.188,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 24.468,
+          "durationMs": 0.155,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 24.495,
+          "durationMs": 0.079,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 24.535,
+          "durationMs": 0.065,
+          "thread": 62132
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 24.538,
+          "durationMs": 0.036,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 24.547,
+          "durationMs": 0.02,
+          "thread": 55120
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_WEAK",
+          "offsetMs": 24.636,
+          "durationMs": 0.01,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_POINTER_TABLES",
+          "offsetMs": 24.646,
+          "durationMs": 0.282,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_CLEAN_UP",
+          "offsetMs": 24.935,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_EPILOGUE",
+          "offsetMs": 24.938,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 24.941,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_NEW_LO",
+          "offsetMs": 24.943,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE",
+          "offsetMs": 24.946,
+          "durationMs": 0.003,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_REBALANCE",
+          "offsetMs": 24.947,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_FINISH",
+          "offsetMs": 24.949,
+          "durationMs": 0.028,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_START_JOBS",
+          "offsetMs": 24.959,
+          "durationMs": 0.017,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EPILOGUE",
+          "offsetMs": 24.978,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES",
+          "offsetMs": 24.984,
+          "durationMs": 0.032,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EMBEDDER_TRACING_EPILOGUE",
+          "offsetMs": 25.017,
+          "durationMs": 0.094,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 25.024,
+          "durationMs": 1.052,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 25.042,
+          "durationMs": 0.979,
+          "thread": 62132
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 25.046,
+          "durationMs": 1.039,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 25.051,
+          "durationMs": 1.063,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 25.066,
+          "durationMs": 1.031,
+          "thread": 55120
+        },
+        {
+          "name": "V8.GC_HEAP_EPILOGUE_SAFEPOINT",
+          "offsetMs": 25.125,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EPILOGUE",
+          "offsetMs": 25.142,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_DUMP_STATISTICS",
+          "offsetMs": 25.186,
+          "durationMs": 0.003,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EXTERNAL_EPILOGUE",
+          "offsetMs": 25.271,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCPhantomHandleProcessingCallback",
+          "offsetMs": 27.096,
+          "durationMs": 0.039,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EXTERNAL_SECOND_PASS_CALLBACKS",
+          "offsetMs": 27.101,
+          "durationMs": 0.032,
+          "thread": 65192
+        }
+      ],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-12",
+      "name": "track-options",
+      "start": 10921.699999988079,
+      "eventDelayMs": 0.8999999761581421,
+      "trusted": true,
+      "loadedMs": 11.600000023841858,
+      "settledMs": 197.4000000357628,
+      "end": 11119.100000023842,
+      "resources": [],
+      "phase": "warm:track-options:11",
+      "iteration": 11,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-13",
+      "name": "track-options",
+      "start": 11623.100000023842,
+      "eventDelayMs": 1,
+      "trusted": true,
+      "loadedMs": 11.199999988079071,
+      "settledMs": 197.30000001192093,
+      "end": 11820.400000035763,
+      "resources": [],
+      "phase": "warm:track-options:12",
+      "iteration": 12,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-14",
+      "name": "track-options",
+      "start": 12324.900000035763,
+      "eventDelayMs": 0.9000000357627869,
+      "trusted": true,
+      "loadedMs": 17.399999976158142,
+      "settledMs": 196.79999995231628,
+      "end": 12521.699999988079,
+      "resources": [],
+      "phase": "warm:track-options:13",
+      "iteration": 13,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-15",
+      "name": "track-options",
+      "start": 13018.699999988079,
+      "eventDelayMs": 0.8999999761581421,
+      "trusted": true,
+      "loadedMs": 12.300000011920929,
+      "settledMs": 197.30000001192093,
+      "end": 13216,
+      "resources": [],
+      "phase": "warm:track-options:14",
+      "iteration": 14,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-16",
+      "name": "track-options",
+      "start": 13727,
+      "eventDelayMs": 1,
+      "trusted": true,
+      "loadedMs": 10.199999988079071,
+      "settledMs": 197.10000002384186,
+      "end": 13924.100000023842,
+      "resources": [],
+      "phase": "warm:track-options:15",
+      "iteration": 15,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-17",
+      "name": "track-options",
+      "start": 14428.600000023842,
+      "eventDelayMs": 0.800000011920929,
+      "trusted": true,
+      "loadedMs": 11.699999988079071,
+      "settledMs": 196.89999997615814,
+      "end": 14625.5,
+      "resources": [],
+      "phase": "warm:track-options:16",
+      "iteration": 16,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-18",
+      "name": "track-options",
+      "start": 15143.900000035763,
+      "eventDelayMs": 0.9000000357627869,
+      "trusted": true,
+      "loadedMs": 11,
+      "settledMs": 196.89999997615814,
+      "end": 15340.800000011921,
+      "resources": [],
+      "phase": "warm:track-options:17",
+      "iteration": 17,
+      "gc": [
+        {
+          "name": "V8.GC_MC_COMPLETE_SWEEPING",
+          "offsetMs": 86.795,
+          "durationMs": 0.012,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 86.8,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_COMPLETE_SWEEPING",
+          "offsetMs": 86.808,
+          "durationMs": 0.022,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_TIME_TO_SAFEPOINT",
+          "offsetMs": 86.866,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarkingStart",
+          "offsetMs": 86.87,
+          "durationMs": 0.29,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_START",
+          "offsetMs": 86.872,
+          "durationMs": 0.287,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EXTERNAL_PROLOGUE",
+          "offsetMs": 86.873,
+          "durationMs": 0.018,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_PROLOGUE",
+          "offsetMs": 86.906,
+          "durationMs": 0.003,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_ROOTS",
+          "offsetMs": 87.059,
+          "durationMs": 0.038,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_PROLOGUE",
+          "offsetMs": 87.113,
+          "durationMs": 0.04,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 87.137,
+          "durationMs": 3.058,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 87.152,
+          "durationMs": 3.029,
+          "thread": 55120
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EXTERNAL_EPILOGUE",
+          "offsetMs": 87.154,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 87.159,
+          "durationMs": 3.032,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 87.162,
+          "durationMs": 0.128,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 87.164,
+          "durationMs": 0.125,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 87.166,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 87.171,
+          "durationMs": 2.963,
+          "thread": 46168
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 87.184,
+          "durationMs": 3.001,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 87.277,
+          "durationMs": 2.906,
+          "thread": 75732
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 87.437,
+          "durationMs": 0.125,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 87.438,
+          "durationMs": 0.124,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 87.44,
+          "durationMs": 0.115,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 87.575,
+          "durationMs": 0.019,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 87.577,
+          "durationMs": 0.017,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 87.578,
+          "durationMs": 0.012,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 87.598,
+          "durationMs": 0.137,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 87.599,
+          "durationMs": 0.135,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 87.6,
+          "durationMs": 0.129,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 87.741,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 87.742,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 87.743,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 87.751,
+          "durationMs": 0.26,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 87.752,
+          "durationMs": 0.259,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 87.752,
+          "durationMs": 0.117,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 88.023,
+          "durationMs": 0.039,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 88.024,
+          "durationMs": 0.038,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 88.026,
+          "durationMs": 0.033,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 88.066,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 88.067,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 88.068,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 88.075,
+          "durationMs": 0.251,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 88.075,
+          "durationMs": 0.251,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 88.076,
+          "durationMs": 0.077,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 88.333,
+          "durationMs": 0.031,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 88.333,
+          "durationMs": 0.031,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 88.335,
+          "durationMs": 0.025,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 88.369,
+          "durationMs": 0.271,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 88.369,
+          "durationMs": 0.27,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 88.37,
+          "durationMs": 0.1,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 88.649,
+          "durationMs": 0.184,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 88.65,
+          "durationMs": 0.183,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 88.652,
+          "durationMs": 0.177,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 88.678,
+          "durationMs": 1.502,
+          "thread": 31844
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 88.842,
+          "durationMs": 0.011,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 88.843,
+          "durationMs": 0.01,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 88.844,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 88.856,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 88.857,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 88.858,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 88.868,
+          "durationMs": 0.151,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 88.869,
+          "durationMs": 0.15,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 88.87,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.026,
+          "durationMs": 0.011,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.026,
+          "durationMs": 0.011,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.027,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.04,
+          "durationMs": 0.136,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.041,
+          "durationMs": 0.135,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.042,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.182,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.183,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.184,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.192,
+          "durationMs": 0.133,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.193,
+          "durationMs": 0.132,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.194,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.33,
+          "durationMs": 0.009,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.331,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.332,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.343,
+          "durationMs": 0.085,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.343,
+          "durationMs": 0.084,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.344,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.433,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.433,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.434,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.443,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.444,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.445,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.451,
+          "durationMs": 0.128,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.452,
+          "durationMs": 0.127,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.453,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.585,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.586,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.587,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.593,
+          "durationMs": 0.141,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.597,
+          "durationMs": 0.137,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.598,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.74,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.741,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.743,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.75,
+          "durationMs": 0.092,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.751,
+          "durationMs": 0.091,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.752,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.846,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.847,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.848,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.854,
+          "durationMs": 0.107,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.855,
+          "durationMs": 0.106,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.856,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.966,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.967,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.968,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 89.975,
+          "durationMs": 0.145,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 89.975,
+          "durationMs": 0.144,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 89.976,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 90.126,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 90.127,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 90.128,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 90.136,
+          "durationMs": 0.055,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 90.136,
+          "durationMs": 0.055,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 90.137,
+          "durationMs": 0.038,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EXTERNAL_PROLOGUE",
+          "offsetMs": 90.193,
+          "durationMs": 0.033,
+          "thread": 65192
+        },
+        {
+          "name": "MajorGC",
+          "offsetMs": 90.23,
+          "durationMs": 3.266,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_PROLOGUE",
+          "offsetMs": 90.236,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCFinalizeMC",
+          "offsetMs": 90.239,
+          "durationMs": 3.177,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_TIME_TO_SAFEPOINT",
+          "offsetMs": 90.248,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MARK_COMPACTOR",
+          "offsetMs": 90.252,
+          "durationMs": 3.161,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_PROLOGUE_SAFEPOINT",
+          "offsetMs": 90.266,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_PROLOGUE",
+          "offsetMs": 90.269,
+          "durationMs": 0.009,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK",
+          "offsetMs": 90.279,
+          "durationMs": 0.681,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_FINISH_INCREMENTAL",
+          "offsetMs": 90.281,
+          "durationMs": 0.003,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_ROOTS",
+          "offsetMs": 90.332,
+          "durationMs": 0.023,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_CLIENT_HEAPS",
+          "offsetMs": 90.356,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_RETAIN_MAPS",
+          "offsetMs": 90.357,
+          "durationMs": 0.014,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_FULL_CLOSURE_PARALLEL",
+          "offsetMs": 90.371,
+          "durationMs": 0.462,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.383,
+          "durationMs": 0.049,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 90.396,
+          "durationMs": 0.036,
+          "thread": 55120
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 90.433,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 90.437,
+          "durationMs": 0.018,
+          "thread": 55120
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.441,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 90.444,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.445,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 90.447,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.448,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 90.45,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.456,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 90.461,
+          "durationMs": 0.019,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 90.464,
+          "durationMs": 0.003,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.48,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 90.482,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.483,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.486,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.489,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 90.49,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.491,
+          "durationMs": 0.281,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 90.774,
+          "durationMs": 0.05,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 90.8,
+          "durationMs": 0.019,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_MARK_FULL_CLOSURE_PARALLEL_JOIN",
+          "offsetMs": 90.826,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_ROOTS",
+          "offsetMs": 90.833,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_CONSERVATIVE_STACK_SCANNING",
+          "offsetMs": 90.833,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_FULL_CLOSURE_SERIAL",
+          "offsetMs": 90.835,
+          "durationMs": 0.12,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.838,
+          "durationMs": 0.079,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 90.918,
+          "durationMs": 0.009,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.928,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.931,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.934,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 90.935,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.936,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 90.937,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.938,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.943,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.947,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 90.948,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR",
+          "offsetMs": 90.95,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 90.952,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 90.953,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR",
+          "offsetMs": 90.964,
+          "durationMs": 0.502,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_STRING_FORWARDING_TABLE",
+          "offsetMs": 90.965,
+          "durationMs": 0.015,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_EXTERNAL_STRING_TABLE",
+          "offsetMs": 90.988,
+          "durationMs": 0.054,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_GLOBAL_HANDLES",
+          "offsetMs": 91.043,
+          "durationMs": 0.034,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_STRING_TABLE",
+          "offsetMs": 91.051,
+          "durationMs": 0.14,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_FLUSHABLE_BYTECODE",
+          "offsetMs": 91.078,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_JS_DISPATCH_TABLE",
+          "offsetMs": 91.079,
+          "durationMs": 0.053,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_LISTS",
+          "offsetMs": 91.134,
+          "durationMs": 0.038,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_MAPS",
+          "offsetMs": 91.173,
+          "durationMs": 0.038,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_EXTERNAL_POINTER_TABLE",
+          "offsetMs": 91.222,
+          "durationMs": 0.073,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_REFERENCES_TRIVIAL",
+          "offsetMs": 91.273,
+          "durationMs": 0.173,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL",
+          "offsetMs": 91.276,
+          "durationMs": 0.027,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_TRUSTED_POINTER_TABLE",
+          "offsetMs": 91.296,
+          "durationMs": 0.029,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_CODE_POINTER_TABLE",
+          "offsetMs": 91.326,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_REFERENCES_JOIN_FILTER_JOB",
+          "offsetMs": 91.334,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_WEAKNESS_HANDLING",
+          "offsetMs": 91.336,
+          "durationMs": 0.023,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL",
+          "offsetMs": 91.337,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_COLLECTIONS",
+          "offsetMs": 91.343,
+          "durationMs": 0.015,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_JS_WEAK_REFERENCES",
+          "offsetMs": 91.358,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_JOIN_JOB",
+          "offsetMs": 91.364,
+          "durationMs": 0.101,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 91.771,
+          "durationMs": 0.01,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE",
+          "offsetMs": 91.781,
+          "durationMs": 1.349,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_PROLOGUE",
+          "offsetMs": 91.783,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_COPY",
+          "offsetMs": 91.788,
+          "durationMs": 0.683,
+          "thread": 65192
+        },
+        {
+          "name": "MarkCompactCollector::EvacuatePagesInParallel",
+          "offsetMs": 91.789,
+          "durationMs": 0.681,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_COPY_PARALLEL",
+          "offsetMs": 91.814,
+          "durationMs": 0.362,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 91.82,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_COPY",
+          "offsetMs": 91.887,
+          "durationMs": 0.525,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 91.898,
+          "durationMs": 0.024,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 92.026,
+          "durationMs": 0.018,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 92.058,
+          "durationMs": 0.023,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 92.471,
+          "durationMs": 0.6,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS",
+          "offsetMs": 92.473,
+          "durationMs": 0.177,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_CLIENT_HEAPS",
+          "offsetMs": 92.651,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN",
+          "offsetMs": 92.652,
+          "durationMs": 0.163,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_PARALLEL",
+          "offsetMs": 92.671,
+          "durationMs": 0.115,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 92.708,
+          "durationMs": 0.086,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 92.709,
+          "durationMs": 0.102,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 92.722,
+          "durationMs": 0.091,
+          "thread": 75732
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 92.772,
+          "durationMs": 0.013,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_WEAK",
+          "offsetMs": 92.815,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_POINTER_TABLES",
+          "offsetMs": 92.823,
+          "durationMs": 0.243,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_CLEAN_UP",
+          "offsetMs": 93.072,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_EPILOGUE",
+          "offsetMs": 93.074,
+          "durationMs": 0.054,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 93.131,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_NEW_LO",
+          "offsetMs": 93.133,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE",
+          "offsetMs": 93.136,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_REBALANCE",
+          "offsetMs": 93.136,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_FINISH",
+          "offsetMs": 93.138,
+          "durationMs": 0.019,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_START_JOBS",
+          "offsetMs": 93.148,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EPILOGUE",
+          "offsetMs": 93.157,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES",
+          "offsetMs": 93.161,
+          "durationMs": 0.158,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 93.177,
+          "durationMs": 0.946,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 93.197,
+          "durationMs": 0.98,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 93.255,
+          "durationMs": 0.934,
+          "thread": 55120
+        },
+        {
+          "name": "V8.GC_HEAP_EMBEDDER_TRACING_EPILOGUE",
+          "offsetMs": 93.321,
+          "durationMs": 0.073,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 93.349,
+          "durationMs": 0.791,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GC_HEAP_EPILOGUE_SAFEPOINT",
+          "offsetMs": 93.406,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EPILOGUE",
+          "offsetMs": 93.418,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_DUMP_STATISTICS",
+          "offsetMs": 93.45,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EXTERNAL_EPILOGUE",
+          "offsetMs": 93.499,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 93.689,
+          "durationMs": 0.398,
+          "thread": 62132
+        },
+        {
+          "name": "V8.GCPhantomHandleProcessingCallback",
+          "offsetMs": 95.128,
+          "durationMs": 0.03,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EXTERNAL_SECOND_PASS_CALLBACKS",
+          "offsetMs": 95.132,
+          "durationMs": 0.025,
+          "thread": 65192
+        }
+      ],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-19",
+      "name": "track-options",
+      "start": 15851,
+      "eventDelayMs": 1,
+      "trusted": true,
+      "loadedMs": 13.400000035762787,
+      "settledMs": 197.9000000357628,
+      "end": 16048.900000035763,
+      "resources": [],
+      "phase": "warm:track-options:18",
+      "iteration": 18,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-20",
+      "name": "track-options",
+      "start": 16553.100000023842,
+      "eventDelayMs": 1,
+      "trusted": true,
+      "loadedMs": 11.199999988079071,
+      "settledMs": 197.0999999642372,
+      "end": 16750.19999998808,
+      "resources": [],
+      "phase": "warm:track-options:19",
+      "iteration": 19,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-21",
+      "name": "track-options",
+      "start": 17254.69999998808,
+      "eventDelayMs": 0.8999999761581421,
+      "trusted": true,
+      "loadedMs": 11.600000023841858,
+      "settledMs": 196.80000001192093,
+      "end": 17451.5,
+      "resources": [],
+      "phase": "warm:track-options:20",
+      "iteration": 20,
+      "gc": [
+        {
+          "name": "V8.GC_MC_COMPLETE_SWEEPING",
+          "offsetMs": 14.69,
+          "durationMs": 0.012,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 14.696,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_COMPLETE_SWEEPING",
+          "offsetMs": 14.703,
+          "durationMs": 0.024,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_TIME_TO_SAFEPOINT",
+          "offsetMs": 14.751,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarkingStart",
+          "offsetMs": 14.755,
+          "durationMs": 0.145,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_START",
+          "offsetMs": 14.757,
+          "durationMs": 0.143,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EXTERNAL_PROLOGUE",
+          "offsetMs": 14.758,
+          "durationMs": 0.017,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_PROLOGUE",
+          "offsetMs": 14.786,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_ROOTS",
+          "offsetMs": 14.822,
+          "durationMs": 0.027,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_PROLOGUE",
+          "offsetMs": 14.862,
+          "durationMs": 0.035,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 14.89,
+          "durationMs": 4.232,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EXTERNAL_EPILOGUE",
+          "offsetMs": 14.898,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 14.902,
+          "durationMs": 0.133,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 14.903,
+          "durationMs": 0.132,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 14.904,
+          "durationMs": 0.066,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 14.908,
+          "durationMs": 0.331,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 14.919,
+          "durationMs": 4.193,
+          "thread": 55120
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 14.948,
+          "durationMs": 4.177,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 15.042,
+          "durationMs": 0.196,
+          "thread": 68336
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 15.047,
+          "durationMs": 0.087,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 15.048,
+          "durationMs": 0.086,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 15.049,
+          "durationMs": 0.081,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 15.057,
+          "durationMs": 4.18,
+          "thread": 46168
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 15.072,
+          "durationMs": 4.356,
+          "thread": 70228
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 15.139,
+          "durationMs": 0.038,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 15.14,
+          "durationMs": 0.037,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 15.141,
+          "durationMs": 0.033,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 15.272,
+          "durationMs": 0.009,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 15.274,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 15.275,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 15.345,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 15.347,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 15.348,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 15.358,
+          "durationMs": 0.282,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 15.358,
+          "durationMs": 0.282,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 15.359,
+          "durationMs": 0.081,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 15.648,
+          "durationMs": 0.099,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 15.65,
+          "durationMs": 0.097,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 15.651,
+          "durationMs": 0.092,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 15.753,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 15.753,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 15.754,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 15.761,
+          "durationMs": 0.243,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 15.762,
+          "durationMs": 0.241,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 15.763,
+          "durationMs": 0.078,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.015,
+          "durationMs": 0.066,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.016,
+          "durationMs": 0.065,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.018,
+          "durationMs": 0.059,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.086,
+          "durationMs": 0.181,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.087,
+          "durationMs": 0.18,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.088,
+          "durationMs": 0.041,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.273,
+          "durationMs": 0.026,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.274,
+          "durationMs": 0.024,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.276,
+          "durationMs": 0.019,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.302,
+          "durationMs": 0.032,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.302,
+          "durationMs": 0.032,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.303,
+          "durationMs": 0.028,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 16.313,
+          "durationMs": 2.821,
+          "thread": 62132
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.339,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.34,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.34,
+          "durationMs": 0.003,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.348,
+          "durationMs": 0.128,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.349,
+          "durationMs": 0.127,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.35,
+          "durationMs": 0.02,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 16.446,
+          "durationMs": 2.693,
+          "thread": 31844
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.481,
+          "durationMs": 0.075,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.481,
+          "durationMs": 0.075,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.483,
+          "durationMs": 0.068,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.561,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.561,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.563,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.571,
+          "durationMs": 0.305,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.572,
+          "durationMs": 0.303,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.573,
+          "durationMs": 0.141,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.884,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.886,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.887,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 16.895,
+          "durationMs": 0.195,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 16.896,
+          "durationMs": 0.194,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 16.897,
+          "durationMs": 0.062,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 17.098,
+          "durationMs": 0.009,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 17.099,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 17.1,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 17.172,
+          "durationMs": 0.083,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 17.176,
+          "durationMs": 0.078,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 17.178,
+          "durationMs": 0.071,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 17.548,
+          "durationMs": 0.015,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 17.551,
+          "durationMs": 0.011,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 17.553,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 18.93,
+          "durationMs": 0.107,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 18.933,
+          "durationMs": 0.103,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 18.935,
+          "durationMs": 0.095,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 19.183,
+          "durationMs": 0.099,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 19.186,
+          "durationMs": 0.096,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 19.187,
+          "durationMs": 0.085,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 19.29,
+          "durationMs": 0.135,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 19.291,
+          "durationMs": 0.134,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 19.292,
+          "durationMs": 0.129,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 19.334,
+          "durationMs": 0.093,
+          "thread": 68336
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 19.433,
+          "durationMs": 0.024,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 19.434,
+          "durationMs": 0.023,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 19.434,
+          "durationMs": 0.022,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCIncrementalMarking",
+          "offsetMs": 19.461,
+          "durationMs": 0.089,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL",
+          "offsetMs": 19.461,
+          "durationMs": 0.089,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+          "offsetMs": 19.462,
+          "durationMs": 0.082,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EXTERNAL_PROLOGUE",
+          "offsetMs": 19.552,
+          "durationMs": 0.019,
+          "thread": 65192
+        },
+        {
+          "name": "MajorGC",
+          "offsetMs": 19.574,
+          "durationMs": 2.285,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_PROLOGUE",
+          "offsetMs": 19.578,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCFinalizeMC",
+          "offsetMs": 19.581,
+          "durationMs": 2.223,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_TIME_TO_SAFEPOINT",
+          "offsetMs": 19.587,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MARK_COMPACTOR",
+          "offsetMs": 19.589,
+          "durationMs": 2.212,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_PROLOGUE_SAFEPOINT",
+          "offsetMs": 19.599,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_PROLOGUE",
+          "offsetMs": 19.602,
+          "durationMs": 0.008,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK",
+          "offsetMs": 19.611,
+          "durationMs": 0.181,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_FINISH_INCREMENTAL",
+          "offsetMs": 19.613,
+          "durationMs": 0.003,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_ROOTS",
+          "offsetMs": 19.651,
+          "durationMs": 0.017,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_RETAIN_MAPS",
+          "offsetMs": 19.67,
+          "durationMs": 0.015,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_FULL_CLOSURE_PARALLEL",
+          "offsetMs": 19.686,
+          "durationMs": 0.077,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.693,
+          "durationMs": 0.015,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 19.701,
+          "durationMs": 0.05,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 19.709,
+          "durationMs": 0.029,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 19.71,
+          "durationMs": 0.025,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 19.715,
+          "durationMs": 0.006,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 19.721,
+          "durationMs": 0.005,
+          "thread": 62132
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.739,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 19.742,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.743,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 19.744,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.748,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.75,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 19.751,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.752,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 19.753,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.754,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_MARKING",
+          "offsetMs": 19.755,
+          "durationMs": 0.001,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_MARK_FULL_CLOSURE_PARALLEL_JOIN",
+          "offsetMs": 19.758,
+          "durationMs": 0.005,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_ROOTS",
+          "offsetMs": 19.763,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_FULL_CLOSURE_SERIAL",
+          "offsetMs": 19.765,
+          "durationMs": 0.023,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.766,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.768,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 19.769,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.77,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 19.771,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.772,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.775,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 19.776,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.777,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 19.778,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.779,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_EMBEDDER_TRACING",
+          "offsetMs": 19.782,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING",
+          "offsetMs": 19.783,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR",
+          "offsetMs": 19.784,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR",
+          "offsetMs": 19.796,
+          "durationMs": 0.557,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_STRING_FORWARDING_TABLE",
+          "offsetMs": 19.796,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_EXTERNAL_STRING_TABLE",
+          "offsetMs": 19.803,
+          "durationMs": 0.053,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_STRING_TABLE",
+          "offsetMs": 19.814,
+          "durationMs": 0.198,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_GLOBAL_HANDLES",
+          "offsetMs": 19.857,
+          "durationMs": 0.043,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_FLUSHABLE_BYTECODE",
+          "offsetMs": 19.901,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_JS_DISPATCH_TABLE",
+          "offsetMs": 19.902,
+          "durationMs": 0.062,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_FLUSHED_JS_FUNCTIONS",
+          "offsetMs": 19.965,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_LISTS",
+          "offsetMs": 19.967,
+          "durationMs": 0.05,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_MAPS",
+          "offsetMs": 20.018,
+          "durationMs": 0.048,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_EXTERNAL_POINTER_TABLE",
+          "offsetMs": 20.076,
+          "durationMs": 0.05,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_REFERENCES_TRIVIAL",
+          "offsetMs": 20.084,
+          "durationMs": 0.204,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL",
+          "offsetMs": 20.087,
+          "durationMs": 0.034,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_TRUSTED_POINTER_TABLE",
+          "offsetMs": 20.127,
+          "durationMs": 0.032,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_CODE_POINTER_TABLE",
+          "offsetMs": 20.16,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_REFERENCES_JOIN_FILTER_JOB",
+          "offsetMs": 20.168,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_WEAKNESS_HANDLING",
+          "offsetMs": 20.17,
+          "durationMs": 0.025,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL",
+          "offsetMs": 20.171,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_WEAK_COLLECTIONS",
+          "offsetMs": 20.176,
+          "durationMs": 0.014,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_CLEAR_JOIN_JOB",
+          "offsetMs": 20.2,
+          "durationMs": 0.151,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 20.591,
+          "durationMs": 0.013,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE",
+          "offsetMs": 20.605,
+          "durationMs": 1.08,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_PROLOGUE",
+          "offsetMs": 20.606,
+          "durationMs": 0.006,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_COPY",
+          "offsetMs": 20.612,
+          "durationMs": 0.401,
+          "thread": 65192
+        },
+        {
+          "name": "MarkCompactCollector::EvacuatePagesInParallel",
+          "offsetMs": 20.613,
+          "durationMs": 0.398,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_COPY_PARALLEL",
+          "offsetMs": 20.641,
+          "durationMs": 0.294,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 20.649,
+          "durationMs": 0.022,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_COPY",
+          "offsetMs": 20.688,
+          "durationMs": 0.255,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_COPY",
+          "offsetMs": 20.692,
+          "durationMs": 0.269,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 20.702,
+          "durationMs": 0.043,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 20.705,
+          "durationMs": 0.082,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 20.812,
+          "durationMs": 0.052,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 21.013,
+          "durationMs": 0.657,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS",
+          "offsetMs": 21.015,
+          "durationMs": 0.249,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_CLIENT_HEAPS",
+          "offsetMs": 21.266,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN",
+          "offsetMs": 21.268,
+          "durationMs": 0.174,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_PARALLEL",
+          "offsetMs": 21.287,
+          "durationMs": 0.076,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 21.308,
+          "durationMs": 0.069,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 21.316,
+          "durationMs": 0.049,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 21.323,
+          "durationMs": 0.044,
+          "thread": 55120
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 21.33,
+          "durationMs": 0.109,
+          "thread": 62132
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS",
+          "offsetMs": 21.339,
+          "durationMs": 0.088,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_WEAK",
+          "offsetMs": 21.443,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_UPDATE_POINTERS_POINTER_TABLES",
+          "offsetMs": 21.45,
+          "durationMs": 0.216,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_CLEAN_UP",
+          "offsetMs": 21.671,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_EPILOGUE",
+          "offsetMs": 21.673,
+          "durationMs": 0.012,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP",
+          "offsetMs": 21.686,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_NEW_LO",
+          "offsetMs": 21.687,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE",
+          "offsetMs": 21.69,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EVACUATE_REBALANCE",
+          "offsetMs": 21.69,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_FINISH",
+          "offsetMs": 21.692,
+          "durationMs": 0.016,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_SWEEP_START_JOBS",
+          "offsetMs": 21.7,
+          "durationMs": 0.007,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_EPILOGUE",
+          "offsetMs": 21.709,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES",
+          "offsetMs": 21.712,
+          "durationMs": 0.02,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EMBEDDER_TRACING_EPILOGUE",
+          "offsetMs": 21.733,
+          "durationMs": 0.053,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 21.77,
+          "durationMs": 0.916,
+          "thread": 78356
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 21.778,
+          "durationMs": 0.887,
+          "thread": 62132
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 21.779,
+          "durationMs": 0.822,
+          "thread": 74620
+        },
+        {
+          "name": "V8.GC_MC_BACKGROUND_SWEEPING",
+          "offsetMs": 21.781,
+          "durationMs": 0.86,
+          "thread": 62696
+        },
+        {
+          "name": "V8.GC_HEAP_EPILOGUE_SAFEPOINT",
+          "offsetMs": 21.796,
+          "durationMs": 0.004,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EPILOGUE",
+          "offsetMs": 21.806,
+          "durationMs": 0.003,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_DUMP_STATISTICS",
+          "offsetMs": 21.829,
+          "durationMs": 0.001,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EXTERNAL_EPILOGUE",
+          "offsetMs": 21.862,
+          "durationMs": 0.002,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GCPhantomHandleProcessingCallback",
+          "offsetMs": 21.88,
+          "durationMs": 0.016,
+          "thread": 65192
+        },
+        {
+          "name": "V8.GC_HEAP_EXTERNAL_SECOND_PASS_CALLBACKS",
+          "offsetMs": 21.881,
+          "durationMs": 0.015,
+          "thread": 65192
+        }
+      ],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-25",
+      "name": "playlist-picker",
+      "start": 18970.30000001192,
+      "eventDelayMs": 1.800000011920929,
+      "trusted": true,
+      "loadedMs": 6,
+      "settledMs": 8.699999988079071,
+      "end": 18979,
+      "resources": [],
+      "phase": "warm:playlist-picker:1",
+      "iteration": 1,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-27",
+      "name": "playlist-picker",
+      "start": 19706.400000035763,
+      "eventDelayMs": 1.7000000476837158,
+      "trusted": true,
+      "loadedMs": 5.899999976158142,
+      "settledMs": 22.69999998807907,
+      "end": 19729.100000023842,
+      "resources": [],
+      "phase": "warm:playlist-picker:2",
+      "iteration": 2,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-29",
+      "name": "playlist-picker",
+      "start": 20449.100000023842,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 6.300000011920929,
+      "settledMs": 22.80000001192093,
+      "end": 20471.900000035763,
+      "resources": [],
+      "phase": "warm:playlist-picker:3",
+      "iteration": 3,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-31",
+      "name": "playlist-picker",
+      "start": 21198.900000035763,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 5.5,
+      "settledMs": 22.899999976158142,
+      "end": 21221.80000001192,
+      "resources": [],
+      "phase": "warm:playlist-picker:4",
+      "iteration": 4,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-33",
+      "name": "playlist-picker",
+      "start": 21949,
+      "eventDelayMs": 2,
+      "trusted": true,
+      "loadedMs": 6,
+      "settledMs": 9.699999988079071,
+      "end": 21958.69999998808,
+      "resources": [],
+      "phase": "warm:playlist-picker:5",
+      "iteration": 5,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-35",
+      "name": "playlist-picker",
+      "start": 22691.80000001192,
+      "eventDelayMs": 1.800000011920929,
+      "trusted": true,
+      "loadedMs": 5.300000011920929,
+      "settledMs": 9.5,
+      "end": 22701.30000001192,
+      "resources": [],
+      "phase": "warm:playlist-picker:6",
+      "iteration": 6,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-37",
+      "name": "playlist-picker",
+      "start": 23427.19999998808,
+      "eventDelayMs": 1.5999999642372131,
+      "trusted": true,
+      "loadedMs": 5,
+      "settledMs": 9.5,
+      "end": 23436.69999998808,
+      "resources": [],
+      "phase": "warm:playlist-picker:7",
+      "iteration": 7,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-39",
+      "name": "playlist-picker",
+      "start": 24156.80000001192,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 5.300000011920929,
+      "settledMs": 9.100000023841858,
+      "end": 24165.900000035763,
+      "resources": [],
+      "phase": "warm:playlist-picker:8",
+      "iteration": 8,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-41",
+      "name": "playlist-picker",
+      "start": 24885.80000001192,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 5.100000023841858,
+      "settledMs": 9.600000023841858,
+      "end": 24895.400000035763,
+      "resources": [],
+      "phase": "warm:playlist-picker:9",
+      "iteration": 9,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-43",
+      "name": "playlist-picker",
+      "start": 25607.30000001192,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 5.300000011920929,
+      "settledMs": 9.5,
+      "end": 25616.80000001192,
+      "resources": [],
+      "phase": "warm:playlist-picker:10",
+      "iteration": 10,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-45",
+      "name": "playlist-picker",
+      "start": 26337.30000001192,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 5.399999976158142,
+      "settledMs": 8.800000011920929,
+      "end": 26346.100000023842,
+      "resources": [],
+      "phase": "warm:playlist-picker:11",
+      "iteration": 11,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-47",
+      "name": "playlist-picker",
+      "start": 27059.19999998808,
+      "eventDelayMs": 2,
+      "trusted": true,
+      "loadedMs": 5.400000035762787,
+      "settledMs": 9.700000047683716,
+      "end": 27068.900000035763,
+      "resources": [],
+      "phase": "warm:playlist-picker:12",
+      "iteration": 12,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-49",
+      "name": "playlist-picker",
+      "start": 27787.900000035763,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 7.799999952316284,
+      "settledMs": 11.199999988079071,
+      "end": 27799.100000023842,
+      "resources": [],
+      "phase": "warm:playlist-picker:13",
+      "iteration": 13,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-51",
+      "name": "playlist-picker",
+      "start": 28511,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 5.600000023841858,
+      "settledMs": 8.699999988079071,
+      "end": 28519.69999998808,
+      "resources": [],
+      "phase": "warm:playlist-picker:14",
+      "iteration": 14,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-53",
+      "name": "playlist-picker",
+      "start": 29246.600000023842,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 5.5,
+      "settledMs": 22.80000001192093,
+      "end": 29269.400000035763,
+      "resources": [],
+      "phase": "warm:playlist-picker:15",
+      "iteration": 15,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-55",
+      "name": "playlist-picker",
+      "start": 29996.100000023842,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 5.399999976158142,
+      "settledMs": 10.399999976158142,
+      "end": 30006.5,
+      "resources": [],
+      "phase": "warm:playlist-picker:16",
+      "iteration": 16,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-57",
+      "name": "playlist-picker",
+      "start": 30726.19999998808,
+      "eventDelayMs": 2,
+      "trusted": true,
+      "loadedMs": 6.400000035762787,
+      "settledMs": 10.5,
+      "end": 30736.69999998808,
+      "resources": [],
+      "phase": "warm:playlist-picker:17",
+      "iteration": 17,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-59",
+      "name": "playlist-picker",
+      "start": 31460.900000035763,
+      "eventDelayMs": 1.7000000476837158,
+      "trusted": true,
+      "loadedMs": 5.399999976158142,
+      "settledMs": 9.899999976158142,
+      "end": 31470.80000001192,
+      "resources": [],
+      "phase": "warm:playlist-picker:18",
+      "iteration": 18,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-61",
+      "name": "playlist-picker",
+      "start": 32204.30000001192,
+      "eventDelayMs": 1.899999976158142,
+      "trusted": true,
+      "loadedMs": 5.5,
+      "settledMs": 9.800000011920929,
+      "end": 32214.100000023842,
+      "resources": [],
+      "phase": "warm:playlist-picker:19",
+      "iteration": 19,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-63",
+      "name": "playlist-picker",
+      "start": 32947.5,
+      "eventDelayMs": 1.800000011920929,
+      "trusted": true,
+      "loadedMs": 5.600000023841858,
+      "settledMs": 8.600000023841858,
+      "end": 32956.10000002384,
+      "resources": [],
+      "phase": "warm:playlist-picker:20",
+      "iteration": 20,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-67",
+      "name": "queue",
+      "start": 34432.60000002384,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 5.5,
+      "settledMs": 9.5,
+      "end": 34442.10000002384,
+      "resources": [],
+      "phase": "warm:queue:1",
+      "iteration": 1,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-69",
+      "name": "queue",
+      "start": 35155.5,
+      "eventDelayMs": 1.800000011920929,
+      "trusted": true,
+      "loadedMs": 5.800000011920929,
+      "settledMs": 8.699999988079071,
+      "end": 35164.19999998808,
+      "resources": [],
+      "phase": "warm:queue:2",
+      "iteration": 2,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-71",
+      "name": "queue",
+      "start": 35884.19999998808,
+      "eventDelayMs": 2,
+      "trusted": true,
+      "loadedMs": 5.700000047683716,
+      "settledMs": 10,
+      "end": 35894.19999998808,
+      "resources": [],
+      "phase": "warm:queue:3",
+      "iteration": 3,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-73",
+      "name": "queue",
+      "start": 36613.60000002384,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 5.800000011920929,
+      "settledMs": 9.800000011920929,
+      "end": 36623.40000003576,
+      "resources": [],
+      "phase": "warm:queue:4",
+      "iteration": 4,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-75",
+      "name": "queue",
+      "start": 37356.40000003576,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 5.699999988079071,
+      "settledMs": 9,
+      "end": 37365.40000003576,
+      "resources": [],
+      "phase": "warm:queue:5",
+      "iteration": 5,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-77",
+      "name": "queue",
+      "start": 38092,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 9.600000023841858,
+      "settledMs": 23.30000001192093,
+      "end": 38115.30000001192,
+      "resources": [],
+      "phase": "warm:queue:6",
+      "iteration": 6,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-79",
+      "name": "queue",
+      "start": 38835,
+      "eventDelayMs": 1.800000011920929,
+      "trusted": true,
+      "loadedMs": 5,
+      "settledMs": 9.100000023841858,
+      "end": 38844.10000002384,
+      "resources": [],
+      "phase": "warm:queue:7",
+      "iteration": 7,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-81",
+      "name": "queue",
+      "start": 39564.19999998808,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 5.600000023841858,
+      "settledMs": 8.900000035762787,
+      "end": 39573.10000002384,
+      "resources": [],
+      "phase": "warm:queue:8",
+      "iteration": 8,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-83",
+      "name": "queue",
+      "start": 40300.5,
+      "eventDelayMs": 2.099999964237213,
+      "trusted": true,
+      "loadedMs": 5,
+      "settledMs": 22.600000023841858,
+      "end": 40323.10000002384,
+      "resources": [],
+      "phase": "warm:queue:9",
+      "iteration": 9,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-85",
+      "name": "queue",
+      "start": 41035.69999998808,
+      "eventDelayMs": 1.399999976158142,
+      "trusted": true,
+      "loadedMs": 5.700000047683716,
+      "settledMs": 9.600000023841858,
+      "end": 41045.30000001192,
+      "resources": [],
+      "phase": "warm:queue:10",
+      "iteration": 10,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-87",
+      "name": "queue",
+      "start": 41765.30000001192,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 5.800000011920929,
+      "settledMs": 9.100000023841858,
+      "end": 41774.40000003576,
+      "resources": [],
+      "phase": "warm:queue:11",
+      "iteration": 11,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-89",
+      "name": "queue",
+      "start": 42487,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 7.600000023841858,
+      "settledMs": 11.400000035762787,
+      "end": 42498.40000003576,
+      "resources": [],
+      "phase": "warm:queue:12",
+      "iteration": 12,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-91",
+      "name": "queue",
+      "start": 43223.30000001192,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 6,
+      "settledMs": 9.100000023841858,
+      "end": 43232.40000003576,
+      "resources": [],
+      "phase": "warm:queue:13",
+      "iteration": 13,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-93",
+      "name": "queue",
+      "start": 43959.60000002384,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 5.399999976158142,
+      "settledMs": 8.800000011920929,
+      "end": 43968.40000003576,
+      "resources": [],
+      "phase": "warm:queue:14",
+      "iteration": 14,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-95",
+      "name": "queue",
+      "start": 44682,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 5.5,
+      "settledMs": 8.600000023841858,
+      "end": 44690.60000002384,
+      "resources": [],
+      "phase": "warm:queue:15",
+      "iteration": 15,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-97",
+      "name": "queue",
+      "start": 45396.69999998808,
+      "eventDelayMs": 1.899999976158142,
+      "trusted": true,
+      "loadedMs": 5.5,
+      "settledMs": 9.5,
+      "end": 45406.19999998808,
+      "resources": [],
+      "phase": "warm:queue:16",
+      "iteration": 16,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-99",
+      "name": "queue",
+      "start": 46132.60000002384,
+      "eventDelayMs": 1.9000000357627869,
+      "trusted": true,
+      "loadedMs": 5.099999964237213,
+      "settledMs": 9.199999988079071,
+      "end": 46141.80000001192,
+      "resources": [],
+      "phase": "warm:queue:17",
+      "iteration": 17,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-101",
+      "name": "queue",
+      "start": 46861.30000001192,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 7.800000011920929,
+      "settledMs": 12,
+      "end": 46873.30000001192,
+      "resources": [],
+      "phase": "warm:queue:18",
+      "iteration": 18,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-103",
+      "name": "queue",
+      "start": 47590.69999998808,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 5.5,
+      "settledMs": 10.300000011920929,
+      "end": 47601,
+      "resources": [],
+      "phase": "warm:queue:19",
+      "iteration": 19,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-105",
+      "name": "queue",
+      "start": 48312.80000001192,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 5.199999988079071,
+      "settledMs": 9.100000023841858,
+      "end": 48321.90000003576,
+      "resources": [],
+      "phase": "warm:queue:20",
+      "iteration": 20,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-109",
+      "name": "lyrics",
+      "start": 49778,
+      "eventDelayMs": 1.5999999642372131,
+      "trusted": true,
+      "loadedMs": 5.199999988079071,
+      "settledMs": 9,
+      "end": 49787,
+      "resources": [],
+      "phase": "warm:lyrics:1",
+      "iteration": 1,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-111",
+      "name": "lyrics",
+      "start": 50507.19999998808,
+      "eventDelayMs": 2,
+      "trusted": true,
+      "loadedMs": 4.900000035762787,
+      "settledMs": 22.80000001192093,
+      "end": 50530,
+      "resources": [],
+      "phase": "warm:lyrics:2",
+      "iteration": 2,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-113",
+      "name": "lyrics",
+      "start": 51243.30000001192,
+      "eventDelayMs": 1.800000011920929,
+      "trusted": true,
+      "loadedMs": 5.300000011920929,
+      "settledMs": 10,
+      "end": 51253.30000001192,
+      "resources": [],
+      "phase": "warm:lyrics:3",
+      "iteration": 3,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-115",
+      "name": "lyrics",
+      "start": 51979,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 5.400000035762787,
+      "settledMs": 9.199999988079071,
+      "end": 51988.19999998808,
+      "resources": [],
+      "phase": "warm:lyrics:4",
+      "iteration": 4,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-117",
+      "name": "lyrics",
+      "start": 52708.30000001192,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 5.199999988079071,
+      "settledMs": 8.800000011920929,
+      "end": 52717.10000002384,
+      "resources": [],
+      "phase": "warm:lyrics:5",
+      "iteration": 5,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-119",
+      "name": "lyrics",
+      "start": 53430.30000001192,
+      "eventDelayMs": 1.800000011920929,
+      "trusted": true,
+      "loadedMs": 4.899999976158142,
+      "settledMs": 8.899999976158142,
+      "end": 53439.19999998808,
+      "resources": [],
+      "phase": "warm:lyrics:6",
+      "iteration": 6,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-121",
+      "name": "lyrics",
+      "start": 54159.40000003576,
+      "eventDelayMs": 2,
+      "trusted": true,
+      "loadedMs": 4.699999988079071,
+      "settledMs": 9.799999952316284,
+      "end": 54169.19999998808,
+      "resources": [],
+      "phase": "warm:lyrics:7",
+      "iteration": 7,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-123",
+      "name": "lyrics",
+      "start": 54895.40000003576,
+      "eventDelayMs": 1.9000000357627869,
+      "trusted": true,
+      "loadedMs": 4.799999952316284,
+      "settledMs": 22.69999998807907,
+      "end": 54918.10000002384,
+      "resources": [],
+      "phase": "warm:lyrics:8",
+      "iteration": 8,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-125",
+      "name": "lyrics",
+      "start": 55638.19999998808,
+      "eventDelayMs": 1.899999976158142,
+      "trusted": true,
+      "loadedMs": 5.100000023841858,
+      "settledMs": 9.700000047683716,
+      "end": 55647.90000003576,
+      "resources": [],
+      "phase": "warm:lyrics:9",
+      "iteration": 9,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-127",
+      "name": "lyrics",
+      "start": 56367.40000003576,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 5.899999976158142,
+      "settledMs": 9.299999952316284,
+      "end": 56376.69999998808,
+      "resources": [],
+      "phase": "warm:lyrics:10",
+      "iteration": 10,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-129",
+      "name": "lyrics",
+      "start": 57097.10000002384,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 5.300000011920929,
+      "settledMs": 9.399999976158142,
+      "end": 57106.5,
+      "resources": [],
+      "phase": "warm:lyrics:11",
+      "iteration": 11,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-131",
+      "name": "lyrics",
+      "start": 57839,
+      "eventDelayMs": 1.899999976158142,
+      "trusted": true,
+      "loadedMs": 5,
+      "settledMs": 23.100000023841858,
+      "end": 57862.10000002384,
+      "resources": [],
+      "phase": "warm:lyrics:12",
+      "iteration": 12,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-133",
+      "name": "lyrics",
+      "start": 58589.19999998808,
+      "eventDelayMs": 1.5999999642372131,
+      "trusted": true,
+      "loadedMs": 4.5,
+      "settledMs": 22.900000035762787,
+      "end": 58612.10000002384,
+      "resources": [],
+      "phase": "warm:lyrics:13",
+      "iteration": 13,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-135",
+      "name": "lyrics",
+      "start": 59332.19999998808,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 4.600000023841858,
+      "settledMs": 9,
+      "end": 59341.19999998808,
+      "resources": [],
+      "phase": "warm:lyrics:14",
+      "iteration": 14,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-137",
+      "name": "lyrics",
+      "start": 60054.19999998808,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 4.600000023841858,
+      "settledMs": 9,
+      "end": 60063.19999998808,
+      "resources": [],
+      "phase": "warm:lyrics:15",
+      "iteration": 15,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-139",
+      "name": "lyrics",
+      "start": 60775.90000003576,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 7.399999976158142,
+      "settledMs": 11.799999952316284,
+      "end": 60787.69999998808,
+      "resources": [],
+      "phase": "warm:lyrics:16",
+      "iteration": 16,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-141",
+      "name": "lyrics",
+      "start": 61505.10000002384,
+      "eventDelayMs": 1.800000011920929,
+      "trusted": true,
+      "loadedMs": 7.399999976158142,
+      "settledMs": 10.5,
+      "end": 61515.60000002384,
+      "resources": [],
+      "phase": "warm:lyrics:17",
+      "iteration": 17,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-143",
+      "name": "lyrics",
+      "start": 62242,
+      "eventDelayMs": 1.5999999642372131,
+      "trusted": true,
+      "loadedMs": 5.199999988079071,
+      "settledMs": 8.5,
+      "end": 62250.5,
+      "resources": [],
+      "phase": "warm:lyrics:18",
+      "iteration": 18,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-145",
+      "name": "lyrics",
+      "start": 62970.40000003576,
+      "eventDelayMs": 1.7000000476837158,
+      "trusted": true,
+      "loadedMs": 4.799999952316284,
+      "settledMs": 9.199999988079071,
+      "end": 62979.60000002384,
+      "resources": [],
+      "phase": "warm:lyrics:19",
+      "iteration": 19,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-147",
+      "name": "lyrics",
+      "start": 63699.69999998808,
+      "eventDelayMs": 1.7999999523162842,
+      "trusted": true,
+      "loadedMs": 5,
+      "settledMs": 8.900000035762787,
+      "end": 63708.60000002384,
+      "resources": [],
+      "phase": "warm:lyrics:20",
+      "iteration": 20,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-151",
+      "name": "track-details",
+      "start": 65193.40000003576,
+      "eventDelayMs": 1.9000000357627869,
+      "trusted": true,
+      "loadedMs": 5.099999964237213,
+      "settledMs": 14.799999952316284,
+      "end": 65208.19999998808,
+      "resources": [],
+      "phase": "warm:track-details:1",
+      "iteration": 1,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-153",
+      "name": "track-details",
+      "start": 65928.19999998808,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 7.600000023841858,
+      "settledMs": 11.700000047683716,
+      "end": 65939.90000003576,
+      "resources": [],
+      "phase": "warm:track-details:2",
+      "iteration": 2,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-155",
+      "name": "track-details",
+      "start": 66664,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 4.300000011920929,
+      "settledMs": 9.400000035762787,
+      "end": 66673.40000003576,
+      "resources": [],
+      "phase": "warm:track-details:3",
+      "iteration": 3,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-157",
+      "name": "track-details",
+      "start": 67393.69999998808,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 5.100000023841858,
+      "settledMs": 8.700000047683716,
+      "end": 67402.40000003576,
+      "resources": [],
+      "phase": "warm:track-details:4",
+      "iteration": 4,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-159",
+      "name": "track-details",
+      "start": 68122.40000003576,
+      "eventDelayMs": 1.800000011920929,
+      "trusted": true,
+      "loadedMs": 4.699999988079071,
+      "settledMs": 9.099999964237213,
+      "end": 68131.5,
+      "resources": [],
+      "phase": "warm:track-details:5",
+      "iteration": 5,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-161",
+      "name": "track-details",
+      "start": 68844.90000003576,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 5.199999988079071,
+      "settledMs": 8.699999988079071,
+      "end": 68853.60000002384,
+      "resources": [],
+      "phase": "warm:track-details:6",
+      "iteration": 6,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-163",
+      "name": "track-details",
+      "start": 69588.19999998808,
+      "eventDelayMs": 2.399999976158142,
+      "trusted": true,
+      "loadedMs": 5,
+      "settledMs": 8.400000035762787,
+      "end": 69596.60000002384,
+      "resources": [],
+      "phase": "warm:track-details:7",
+      "iteration": 7,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-165",
+      "name": "track-details",
+      "start": 70316.69999998808,
+      "eventDelayMs": 1.7999999523162842,
+      "trusted": true,
+      "loadedMs": 4.900000035762787,
+      "settledMs": 9.300000011920929,
+      "end": 70326,
+      "resources": [],
+      "phase": "warm:track-details:8",
+      "iteration": 8,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-167",
+      "name": "track-details",
+      "start": 71052.5,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 9.400000035762787,
+      "settledMs": 16,
+      "end": 71068.5,
+      "resources": [],
+      "phase": "warm:track-details:9",
+      "iteration": 9,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-169",
+      "name": "track-details",
+      "start": 71781.30000001192,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 8.100000023841858,
+      "settledMs": 12,
+      "end": 71793.30000001192,
+      "resources": [],
+      "phase": "warm:track-details:10",
+      "iteration": 10,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-171",
+      "name": "track-details",
+      "start": 72503.40000003576,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 5,
+      "settledMs": 9.299999952316284,
+      "end": 72512.69999998808,
+      "resources": [],
+      "phase": "warm:track-details:11",
+      "iteration": 11,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-173",
+      "name": "track-details",
+      "start": 73218.69999998808,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 5.100000023841858,
+      "settledMs": 9.400000035762787,
+      "end": 73228.10000002384,
+      "resources": [],
+      "phase": "warm:track-details:12",
+      "iteration": 12,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-175",
+      "name": "track-details",
+      "start": 73955.10000002384,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 5.300000011920929,
+      "settledMs": 22.899999976158142,
+      "end": 73978,
+      "resources": [],
+      "phase": "warm:track-details:13",
+      "iteration": 13,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-177",
+      "name": "track-details",
+      "start": 74698.19999998808,
+      "eventDelayMs": 1.5999999642372131,
+      "trusted": true,
+      "loadedMs": 5.200000047683716,
+      "settledMs": 8.800000011920929,
+      "end": 74707,
+      "resources": [],
+      "phase": "warm:track-details:14",
+      "iteration": 14,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-179",
+      "name": "track-details",
+      "start": 75426.60000002384,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 7.300000011920929,
+      "settledMs": 10.5,
+      "end": 75437.10000002384,
+      "resources": [],
+      "phase": "warm:track-details:15",
+      "iteration": 15,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-181",
+      "name": "track-details",
+      "start": 76162.5,
+      "eventDelayMs": 1.399999976158142,
+      "trusted": true,
+      "loadedMs": 7.400000035762787,
+      "settledMs": 10.199999988079071,
+      "end": 76172.69999998808,
+      "resources": [],
+      "phase": "warm:track-details:16",
+      "iteration": 16,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-183",
+      "name": "track-details",
+      "start": 76892,
+      "eventDelayMs": 1.5999999642372131,
+      "trusted": true,
+      "loadedMs": 5,
+      "settledMs": 9.100000023841858,
+      "end": 76901.10000002384,
+      "resources": [],
+      "phase": "warm:track-details:17",
+      "iteration": 17,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-185",
+      "name": "track-details",
+      "start": 77620.90000003576,
+      "eventDelayMs": 1.7000000476837158,
+      "trusted": true,
+      "loadedMs": 4.599999964237213,
+      "settledMs": 9.799999952316284,
+      "end": 77630.69999998808,
+      "resources": [],
+      "phase": "warm:track-details:18",
+      "iteration": 18,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-187",
+      "name": "track-details",
+      "start": 78350.69999998808,
+      "eventDelayMs": 1.5999999642372131,
+      "trusted": true,
+      "loadedMs": 5,
+      "settledMs": 8.400000035762787,
+      "end": 78359.10000002384,
+      "resources": [],
+      "phase": "warm:track-details:19",
+      "iteration": 19,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-189",
+      "name": "track-details",
+      "start": 79073,
+      "eventDelayMs": 1.5999999642372131,
+      "trusted": true,
+      "loadedMs": 5.199999988079071,
+      "settledMs": 8.100000023841858,
+      "end": 79081.10000002384,
+      "resources": [],
+      "phase": "warm:track-details:20",
+      "iteration": 20,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-193",
+      "name": "track-share",
+      "start": 80560.30000001192,
+      "eventDelayMs": 2.5,
+      "trusted": true,
+      "loadedMs": 6.199999988079071,
+      "settledMs": 11.100000023841858,
+      "end": 80571.40000003576,
+      "resources": [],
+      "phase": "warm:track-share:1",
+      "iteration": 1,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-195",
+      "name": "track-share",
+      "start": 81287,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 4,
+      "settledMs": 10.199999988079071,
+      "end": 81297.19999998808,
+      "resources": [],
+      "phase": "warm:track-share:2",
+      "iteration": 2,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-197",
+      "name": "track-share",
+      "start": 82009,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 4.800000011920929,
+      "settledMs": 9.400000035762787,
+      "end": 82018.40000003576,
+      "resources": [],
+      "phase": "warm:track-share:3",
+      "iteration": 3,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-199",
+      "name": "track-share",
+      "start": 82745.19999998808,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 4.200000047683716,
+      "settledMs": 9.200000047683716,
+      "end": 82754.40000003576,
+      "resources": [],
+      "phase": "warm:track-share:4",
+      "iteration": 4,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-201",
+      "name": "track-share",
+      "start": 83474.40000003576,
+      "eventDelayMs": 1.7000000476837158,
+      "trusted": true,
+      "loadedMs": 5.099999964237213,
+      "settledMs": 11.699999988079071,
+      "end": 83486.10000002384,
+      "resources": [],
+      "phase": "warm:track-share:5",
+      "iteration": 5,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-203",
+      "name": "track-share",
+      "start": 84217.40000003576,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 4.799999952316284,
+      "settledMs": 9.099999964237213,
+      "end": 84226.5,
+      "resources": [],
+      "phase": "warm:track-share:6",
+      "iteration": 6,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-205",
+      "name": "track-share",
+      "start": 84960.10000002384,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 4.399999976158142,
+      "settledMs": 23.099999964237213,
+      "end": 84983.19999998808,
+      "resources": [],
+      "phase": "warm:track-share:7",
+      "iteration": 7,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-207",
+      "name": "track-share",
+      "start": 85696.69999998808,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 4.400000035762787,
+      "settledMs": 9,
+      "end": 85705.69999998808,
+      "resources": [],
+      "phase": "warm:track-share:8",
+      "iteration": 8,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-209",
+      "name": "track-share",
+      "start": 86417.80000001192,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 7.699999988079071,
+      "settledMs": 11.100000023841858,
+      "end": 86428.90000003576,
+      "resources": [],
+      "phase": "warm:track-share:9",
+      "iteration": 9,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-211",
+      "name": "track-share",
+      "start": 87147.5,
+      "eventDelayMs": 1.5999999642372131,
+      "trusted": true,
+      "loadedMs": 4.5,
+      "settledMs": 8.900000035762787,
+      "end": 87156.40000003576,
+      "resources": [],
+      "phase": "warm:track-share:10",
+      "iteration": 10,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-213",
+      "name": "track-share",
+      "start": 87883.69999998808,
+      "eventDelayMs": 1.399999976158142,
+      "trusted": true,
+      "loadedMs": 4.200000047683716,
+      "settledMs": 22.80000001192093,
+      "end": 87906.5,
+      "resources": [],
+      "phase": "warm:track-share:11",
+      "iteration": 11,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-215",
+      "name": "track-share",
+      "start": 88626,
+      "eventDelayMs": 1.5999999642372131,
+      "trusted": true,
+      "loadedMs": 4.5,
+      "settledMs": 9.699999988079071,
+      "end": 88635.69999998808,
+      "resources": [],
+      "phase": "warm:track-share:12",
+      "iteration": 12,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-217",
+      "name": "track-share",
+      "start": 89348,
+      "eventDelayMs": 1.5,
+      "trusted": true,
+      "loadedMs": 4.400000035762787,
+      "settledMs": 23.600000023841858,
+      "end": 89371.60000002384,
+      "resources": [],
+      "phase": "warm:track-share:13",
+      "iteration": 13,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-219",
+      "name": "track-share",
+      "start": 90084.30000001192,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 4.699999988079071,
+      "settledMs": 9.600000023841858,
+      "end": 90093.90000003576,
+      "resources": [],
+      "phase": "warm:track-share:14",
+      "iteration": 14,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-221",
+      "name": "track-share",
+      "start": 90820.60000002384,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 4.5,
+      "settledMs": 9.5,
+      "end": 90830.10000002384,
+      "resources": [],
+      "phase": "warm:track-share:15",
+      "iteration": 15,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-223",
+      "name": "track-share",
+      "start": 91543.19999998808,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 5.100000023841858,
+      "settledMs": 22.400000035762787,
+      "end": 91565.60000002384,
+      "resources": [],
+      "phase": "warm:track-share:16",
+      "iteration": 16,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-225",
+      "name": "track-share",
+      "start": 92285.60000002384,
+      "eventDelayMs": 1.800000011920929,
+      "trusted": true,
+      "loadedMs": 4.899999976158142,
+      "settledMs": 9,
+      "end": 92294.60000002384,
+      "resources": [],
+      "phase": "warm:track-share:17",
+      "iteration": 17,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-227",
+      "name": "track-share",
+      "start": 93028.60000002384,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 4.599999964237213,
+      "settledMs": 10.399999976158142,
+      "end": 93039,
+      "resources": [],
+      "phase": "warm:track-share:18",
+      "iteration": 18,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-229",
+      "name": "track-share",
+      "start": 93750.40000003576,
+      "eventDelayMs": 1.600000023841858,
+      "trusted": true,
+      "loadedMs": 4,
+      "settledMs": 9.299999952316284,
+      "end": 93759.69999998808,
+      "resources": [],
+      "phase": "warm:track-share:19",
+      "iteration": 19,
+      "gc": [],
+      "longTasks": []
+    },
+    {
+      "id": "actions-perf-231",
+      "name": "track-share",
+      "start": 94465.69999998808,
+      "eventDelayMs": 1.699999988079071,
+      "trusted": true,
+      "loadedMs": 4.5,
+      "settledMs": 10.400000035762787,
+      "end": 94476.10000002384,
+      "resources": [],
+      "phase": "warm:track-share:20",
+      "iteration": 20,
+      "gc": [],
+      "longTasks": []
+    }
+  ],
+  "summaries": {
+    "track-options": {
+      "loadedMs": {
+        "p50": 11.600000023841858,
+        "p95": 13.400000035762787,
+        "max": 17.399999976158142
+      },
+      "settledMs": {
+        "p50": 197.19999998807907,
+        "p95": 197.9000000357628,
+        "max": 198
+      },
+      "over750": []
+    },
+    "playlist-picker": {
+      "loadedMs": {
+        "p50": 5.5,
+        "p95": 6.400000035762787,
+        "max": 7.799999952316284
+      },
+      "settledMs": {
+        "p50": 9.699999988079071,
+        "p95": 22.80000001192093,
+        "max": 22.899999976158142
+      },
+      "over750": []
+    },
+    "queue": {
+      "loadedMs": {
+        "p50": 5.600000023841858,
+        "p95": 7.800000011920929,
+        "max": 9.600000023841858
+      },
+      "settledMs": {
+        "p50": 9.199999988079071,
+        "p95": 22.600000023841858,
+        "max": 23.30000001192093
+      },
+      "over750": []
+    },
+    "lyrics": {
+      "loadedMs": {
+        "p50": 5,
+        "p95": 7.399999976158142,
+        "max": 7.399999976158142
+      },
+      "settledMs": {
+        "p50": 9.299999952316284,
+        "p95": 22.900000035762787,
+        "max": 23.100000023841858
+      },
+      "over750": []
+    },
+    "track-details": {
+      "loadedMs": {
+        "p50": 5.100000023841858,
+        "p95": 8.100000023841858,
+        "max": 9.400000035762787
+      },
+      "settledMs": {
+        "p50": 9.300000011920929,
+        "p95": 16,
+        "max": 22.899999976158142
+      },
+      "over750": []
+    },
+    "track-share": {
+      "loadedMs": {
+        "p50": 4.5,
+        "p95": 6.199999988079071,
+        "max": 7.699999988079071
+      },
+      "settledMs": {
+        "p50": 9.699999988079071,
+        "p95": 23.099999964237213,
+        "max": 23.600000023841858
+      },
+      "over750": []
+    }
+  },
+  "requests": [
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/auth/session",
+      "at": 1789227669811
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/auth/providers",
+      "at": 1789227671015
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/auth/csrf",
+      "at": 1789227671082
+    },
+    {
+      "phase": "setup",
+      "method": "POST",
+      "path": "/api/auth/callback/credentials",
+      "at": 1789227671090
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/auth/session",
+      "at": 1789227671210
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/subscriptions/my-subscription",
+      "at": 1789227671227
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/subscriptions/my-subscription",
+      "at": 1789227671228
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/users/popular",
+      "at": 1789227671558
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/editorial-collections/featured",
+      "at": 1789227671558
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/city",
+      "at": 1789227671559
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/challenges",
+      "at": 1789227671559
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/auth/session",
+      "at": 1789227671559
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/ranking/feed",
+      "at": 1789227671561
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/music-clips",
+      "at": 1789227671563
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/recommendations/mixed",
+      "at": 1789227671563
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/waveform",
+      "at": 1789227671608
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/comments/moderation",
+      "at": 1789227671608
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/reactions",
+      "at": 1789227671609
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/messages/unread",
+      "at": 1789227671866
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/users/test2",
+      "at": 1789227671866
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/messages/unread",
+      "at": 1789227671866
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/notifications",
+      "at": 1789227671866
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/like",
+      "at": 1789227671866
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/users/mixxparty/follow",
+      "at": 1789227671867
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/users/test2",
+      "at": 1789227671867
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/ranking/feed",
+      "at": 1789227671868
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/waveform",
+      "at": 1789227671869
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/comments/moderation",
+      "at": 1789227671869
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/reactions",
+      "at": 1789227671869
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/subscriptions/my-subscription",
+      "at": 1789227671870
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/subscriptions/my-subscription",
+      "at": 1789227671870
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/like",
+      "at": 1789227671930
+    },
+    {
+      "phase": "setup",
+      "method": "POST",
+      "path": "/api/recommendations/impressions",
+      "at": 1789227672585
+    },
+    {
+      "phase": "setup",
+      "method": "POST",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/plays",
+      "at": 1789227673008
+    },
+    {
+      "phase": "setup",
+      "method": "POST",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/plays",
+      "at": 1789227673013
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "path": "/api/tracks/similar",
+      "at": 1789227673014
+    },
+    {
+      "phase": "setup",
+      "method": "POST",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/events",
+      "at": 1789227673026
+    },
+    {
+      "phase": "warmup:track-options",
+      "method": "GET",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2",
+      "at": 1789227674459
+    },
+    {
+      "phase": "warmup:track-options",
+      "method": "GET",
+      "path": "/api/subscriptions/my-subscription",
+      "at": 1789227674460
+    },
+    {
+      "phase": "warm:track-options:10",
+      "method": "GET",
+      "path": "/api/notifications/boost",
+      "at": 1789227681861
+    },
+    {
+      "phase": "warmup:playlist-picker",
+      "method": "GET",
+      "path": "/api/playlists",
+      "at": 1789227689482
+    },
+    {
+      "phase": "warm:playlist-picker:3",
+      "method": "GET",
+      "path": "/api/notifications",
+      "at": 1789227691859
+    },
+    {
+      "phase": "prepare:playlist-picker",
+      "method": "GET",
+      "path": "/api/messages/unread",
+      "at": 1789227701858
+    },
+    {
+      "phase": "warm:queue:9",
+      "method": "GET",
+      "path": "/api/notifications",
+      "at": 1789227711854
+    },
+    {
+      "phase": "warm:queue:10",
+      "method": "POST",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/events",
+      "at": 1789227712399
+    },
+    {
+      "phase": "prepare:lyrics",
+      "method": "GET",
+      "path": "/api/messages/unread",
+      "at": 1789227731853
+    },
+    {
+      "phase": "prepare:lyrics",
+      "method": "GET",
+      "path": "/api/notifications",
+      "at": 1789227731853
+    },
+    {
+      "phase": "prepare:track-share",
+      "method": "POST",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/events",
+      "at": 1789227750910
+    },
+    {
+      "phase": "warm:track-share:1",
+      "method": "GET",
+      "path": "/api/notifications",
+      "at": 1789227751866
+    },
+    {
+      "phase": "warm:track-share:14",
+      "method": "GET",
+      "path": "/api/messages/unread",
+      "at": 1789227761856
+    },
+    {
+      "phase": "warm:track-share:20",
+      "method": "GET",
+      "path": "/api/notifications",
+      "at": 1789227771860
+    }
+  ],
+  "pageErrors": [],
+  "consoleErrors": [
+    {
+      "phase": "setup",
+      "message": "Failed to load resource: the server responded with a status of 401 ()"
+    },
+    {
+      "phase": "setup",
+      "message": "Failed to load resource: the server responded with a status of 401 ()"
+    }
+  ],
+  "httpErrors": [
+    {
+      "phase": "setup",
+      "path": "res.cloudinary.com/dtgglgtfx/image/upload/v1758745904/ximam/profiles/ximamoff/ximamoff_avatar_1758745905.png",
+      "status": 401
+    },
+    {
+      "phase": "setup",
+      "path": "res.cloudinary.com/dtgglgtfx/image/upload/v1781610007/ximam/profiles/keurlilamelo/keurlilamelo_avatar_1781610003.jpg",
+      "status": 401
+    }
+  ],
+  "initialUI": {
+    "item": "track-track_1773789112971_0egfpy0i2",
+    "prelude": false,
+    "audioCalls": {
+      "play": 1,
+      "pause": 1,
+      "seek": 1,
+      "load": 1
+    },
+    "buttons": [
+      {
+        "label": null,
+        "text": ""
+      },
+      {
+        "label": "Ajouter It’s Tinker Time aux favoris",
+        "text": ""
+      },
+      {
+        "label": "Commentaires de It’s Tinker Time",
+        "text": "0"
+      },
+      {
+        "label": "Partager le morceau",
+        "text": ""
+      },
+      {
+        "label": "Ajouter à une playlist",
+        "text": ""
+      },
+      {
+        "label": "Options de It’s Tinker Time",
+        "text": ""
+      },
+      {
+        "label": null,
+        "text": "Mixx Party"
+      },
+      {
+        "label": null,
+        "text": "Suivre"
+      },
+      {
+        "label": null,
+        "text": ""
+      },
+      {
+        "label": null,
+        "text": "Commenter ce moment"
+      },
+      {
+        "label": null,
+        "text": "Réagir"
+      },
+      {
+        "label": "Item précédent",
+        "text": ""
+      },
+      {
+        "label": "Item suivant",
+        "text": ""
+      }
+    ]
+  },
+  "buildId": "da9Lg1tM95RjUp0qsvVvF",
+  "browser": "Chrome/139.0.7258.154",
+  "inactiveBeforeOpen": [],
+  "longTasks": [
+    {
+      "start": 353.10000002384186,
+      "duration": 129
+    }
+  ],
+  "warmRequests": [
+    {
+      "phase": "warm:track-options:10",
+      "method": "GET",
+      "path": "/api/notifications/boost",
+      "at": 1789227681861
+    },
+    {
+      "phase": "warm:playlist-picker:3",
+      "method": "GET",
+      "path": "/api/notifications",
+      "at": 1789227691859
+    },
+    {
+      "phase": "warm:queue:9",
+      "method": "GET",
+      "path": "/api/notifications",
+      "at": 1789227711854
+    },
+    {
+      "phase": "warm:queue:10",
+      "method": "POST",
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/events",
+      "at": 1789227712399
+    },
+    {
+      "phase": "warm:track-share:1",
+      "method": "GET",
+      "path": "/api/notifications",
+      "at": 1789227751866
+    },
+    {
+      "phase": "warm:track-share:14",
+      "method": "GET",
+      "path": "/api/messages/unread",
+      "at": 1789227761856
+    },
+    {
+      "phase": "warm:track-share:20",
+      "method": "GET",
+      "path": "/api/notifications",
+      "at": 1789227771860
+    }
+  ],
+  "inactiveQueries": [],
+  "over750": [],
+  "pass": true
+}

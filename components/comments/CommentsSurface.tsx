@@ -13,6 +13,7 @@ import { clusterMusicalMoments, mergeComments, momentTime, supportsMoments, type
 import { MOMENT_REACTION_META, MOMENT_REACTION_TYPES } from '@/lib/momentReactions';
 import { getCdnUrl } from '@/lib/cdn';
 import MusicalWaveform from './MusicalWaveform';
+import TrackActionButton from '@/components/actions/TrackActionButton';
 import { Heart, MessageCircle, Send, Clock3, X, ArrowRight, Loader2 } from 'lucide-react';
 
 type Draft = { text: string; timestamp: number | null; mode: 'conversation' | 'moments'; replyId: string | null; editId: string | null; selectedCommentId: string | null; clusterId: string | null; scrollTop: number };
@@ -134,6 +135,7 @@ function CommentsContent({ entity, entry, closeSurface }: { entity: CommentEntit
       <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--syn-text-secondary)]">{entity.type === 'track' ? 'Autour du son' : entity.type === 'clip' ? 'Autour du clip' : 'Autour du post'}</p>
       <SynauraOverlayTitle>{entity.title || 'Commentaires'}</SynauraOverlayTitle>
       <SynauraOverlayDescription className="mt-1 truncate">{entity.artist ? `${entity.artist} · ` : ''}{count} commentaire{count !== 1 ? 's' : ''}</SynauraOverlayDescription>
+      {entity.type === 'track' && <div className="flex justify-end"><TrackActionButton track={{ ...entity, _id: entity.id }} origin={entry.origin} /></div>}
       {musical && <MusicalWaveform trackId={entity.id} peaks={waveform.peaks} duration={duration} loading={waveform.loading} clusters={clusters} selected={draft.clusterId} onSelect={selectCluster} onSeek={explicitSeek} />}
       <div role="tablist" aria-label="Vue des commentaires" className="mt-1 flex border-b border-[var(--syn-border)]">{(['conversation', ...(musical ? ['moments'] : [])] as Draft['mode'][]).map(mode => <button key={mode} type="button" role="tab" id={`comments-tab-${mode}`} aria-controls="comments-panel" aria-selected={draft.mode === mode} tabIndex={draft.mode === mode ? 0 : -1} onClick={() => setDraft(d => ({ ...d, mode }))} onKeyDown={e => { if (musical && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) { e.preventDefault(); const next = e.key === 'Home' ? 'conversation' : e.key === 'End' ? 'moments' : draft.mode === 'conversation' ? 'moments' : 'conversation'; setDraft(d => ({ ...d, mode: next })); document.getElementById(`comments-tab-${next}`)?.focus(); } }} className={`syn-interactive min-h-11 flex-1 border-b-2 text-sm font-bold ${draft.mode === mode ? 'border-[var(--syn-accent)] text-[var(--syn-text-primary)]' : 'border-transparent text-[var(--syn-text-secondary)]'}`}>{mode === 'conversation' ? 'Conversation' : 'Moments'}</button>)}</div>
     </header>

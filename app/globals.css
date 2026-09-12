@@ -258,7 +258,8 @@ body:has([data-context-surface='profile-peek']) [data-synaura-overlay-backdrop] 
   backdrop-filter: blur(1px) !important;
 }
 
-[data-context-surface='profile-peek'] [data-context-surface-initial-focus]:focus-visible {
+[data-context-surface='profile-peek'] [data-context-surface-initial-focus]:focus-visible,
+[data-organization-surface] [data-context-surface-initial-focus]:focus-visible {
   outline: none;
 }
 
@@ -1644,6 +1645,17 @@ html[data-synaura-theme='dark'] .synaura-player-surface :is(
 }
 
 .comments-surface { height: min(82dvh, calc(100dvh - var(--comments-keyboard, 0px))); margin-bottom: var(--comments-keyboard, 0px); }
+/* Keep actions reachable above the player in short/zoomed windows. Normal Live is unchanged. */
+@media (max-height: 600px) {
+  .live-track-actions { top: 6rem; bottom: 8rem; transform: none; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  .live-track-actions > button { flex-shrink: 0; }
+}
+.organization-surface { height: min(82dvh, calc(100dvh - var(--organization-keyboard, 0px))); margin-bottom: var(--organization-keyboard, 0px); padding-bottom: env(safe-area-inset-bottom); }
+.organization-compact { height: auto; max-height: min(82dvh, calc(100dvh - var(--organization-keyboard, 0px))); }
+@media (min-width: 768px) {
+  .organization-surface { height: 100dvh; margin-bottom: 0; }
+  .organization-compact { height: auto; max-height: min(80dvh, 46rem); }
+}
 @media (min-width: 768px) { .comments-surface { height: 100dvh; margin-bottom: 0; } }
 /* Short viewports (including native browser zoom) must not crush the conversation
    or clip the composer below the sheet. Keep both regions reachable by scroll. */

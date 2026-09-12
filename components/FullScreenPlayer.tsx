@@ -8,7 +8,8 @@ import { useAudioPlayer, useAudioTime } from '@/app/providers';
 import TikTokPlayer from './TikTokPlayer';
 import TrackCover from './TrackCover';
 import TrackCreateRemixActions from './TrackCreateRemixActions';
-import TrackShareCardModal from './share/TrackShareCardModal';
+import { useTrackActions } from './actions/useTrackActions';
+import QueueDialog from './QueueDialog';
 import { recommendationReasonLabel } from '@/lib/recommendation/reasonLabels';
 import { shouldRenderGlobalMiniPlayer } from '@/lib/routeChrome';
 
@@ -23,184 +24,6 @@ function trackArtist(track: any) {
   if (!track) return 'Artiste inconnu';
   if (typeof track.artist === 'string') return track.artist;
   return track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste inconnu';
-}
-
-function QueueMiniRow({
-  track,
-  index,
-  editable,
-  onPlay,
-  onRemove,
-  onMoveUp,
-  onMoveDown,
-}: {
-  track: any;
-  index?: number;
-  editable?: boolean;
-  onPlay?: () => void;
-  onRemove?: () => void;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
-}) {
-  return (
-    <div
-      role={onPlay ? 'button' : undefined}
-      tabIndex={onPlay ? 0 : undefined}
-      onClick={onPlay}
-      onKeyDown={onPlay ? (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onPlay();
-        }
-      } : undefined}
-      className={`flex items-center gap-2 rounded-[1rem] bg-black/[0.04] p-2 ${onPlay ? 'cursor-pointer transition hover:bg-black/[0.08] focus:outline-none focus:ring-2 focus:ring-[#4A9EAA]/45' : ''}`}
-    >
-      {typeof index === 'number' ? <span className="w-5 text-center text-[10px] font-black text-black/32">{index + 1}</span> : null}
-      <TrackCover
-        trackId={track?._id || track?.id || null}
-        src={track?.coverUrl || track?.cover_url || null}
-        videoSrc={track?.coverVideoUrl || track?.cover_video_url || null}
-        posterSrc={track?.coverVideoPosterUrl || track?.cover_video_poster_url || track?.coverUrl || track?.cover_url || null}
-        title={track?.title || 'Titre'}
-        className="h-9 w-9 shrink-0"
-        rounded="rounded-[0.75rem]"
-        objectFit="cover"
-      />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-black text-[#171313]">{track?.title || 'Titre inconnu'}</p>
-        <p className="truncate text-[10px] font-semibold text-black/38">{trackArtist(track)}</p>
-      </div>
-      {editable ? (
-        <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={onMoveUp} className="grid h-7 w-7 place-items-center rounded-full bg-white text-black/45 disabled:opacity-25" disabled={!onMoveUp}>
-            <ChevronUp className="h-3.5 w-3.5" />
-          </button>
-          <button type="button" onClick={onMoveDown} className="grid h-7 w-7 place-items-center rounded-full bg-white text-black/45 disabled:opacity-25" disabled={!onMoveDown}>
-            <ChevronDown className="h-3.5 w-3.5" />
-          </button>
-          <button type="button" onClick={onRemove} className="grid h-7 w-7 place-items-center rounded-full bg-red-500/10 text-red-600">
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function QueuePanel({
-  currentTrack,
-  queueTracks,
-  upNextTracks,
-  relatedTracks,
-  relatedLabel,
-  upNextEnabled,
-  onToggleEnabled,
-  onRemove,
-  onClear,
-  onMove,
-  onPlayRelated,
-  onClose,
-}: {
-  currentTrack: any;
-  queueTracks: any[];
-  upNextTracks: any[];
-  relatedTracks: any[];
-  relatedLabel: string;
-  upNextEnabled: boolean;
-  onToggleEnabled: () => void;
-  onRemove: (trackId: string) => void;
-  onClear: () => void;
-  onMove: (trackId: string, direction: 'up' | 'down') => void;
-  onPlayRelated: (track: any) => void;
-  onClose: () => void;
-}) {
-  return (
-    <div className="mx-auto mb-2 max-h-[calc(100dvh-var(--synaura-mobile-player-space)-1rem)] max-w-[980px] overflow-hidden rounded-[1.25rem] border border-black/[0.08] bg-[#fffaf2]/98 p-2.5 text-[#171313] shadow-[0_22px_60px_rgba(30,25,20,0.22)] backdrop-blur-2xl sm:max-h-[72vh] sm:rounded-[1.45rem] sm:p-3">
-      <div className="mb-2.5 flex items-start justify-between gap-3 sm:mb-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/34">File d'attente</p>
-          <h2 className="text-base font-black tracking-[-0.04em] sm:text-lg">À suivre</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={onToggleEnabled} className={`h-8 rounded-full px-3 text-[11px] font-black ${upNextEnabled ? 'bg-[#171313] text-white' : 'bg-black/[0.06] text-black/48'}`}>
-            {upNextEnabled ? 'Activée' : 'Désactivée'}
-          </button>
-          <button type="button" onClick={onClose} className="grid h-8 w-8 place-items-center rounded-full bg-black/[0.06] text-black/45">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      <div className="grid max-h-[calc(100dvh-var(--synaura-mobile-player-space)-6rem)] gap-3 overflow-y-auto pr-1 md:max-h-none md:grid-cols-[1fr_1.1fr] md:overflow-visible md:pr-0">
-        <div>
-          <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-black/34">En cours</p>
-          <QueueMiniRow track={currentTrack} />
-          {queueTracks.length ? (
-            <div className="mt-3">
-              <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-black/34">Suite naturelle</p>
-              <div className="max-h-[116px] space-y-1.5 overflow-y-auto pr-1 sm:max-h-[150px]">
-                {queueTracks.map((track, index) => <QueueMiniRow key={`${track?._id || track?.id}-${index}`} track={track} index={index} />)}
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <div>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-black/34">Priorité utilisateur</p>
-            {upNextTracks.length ? <button type="button" onClick={onClear} className="text-[11px] font-black text-red-600">Vider</button> : null}
-          </div>
-          {upNextTracks.length ? (
-            <div className="max-h-[180px] space-y-1.5 overflow-y-auto pr-1 sm:max-h-[230px]">
-              {upNextTracks.map((track, index) => {
-                const id = track?._id || track?.id || '';
-                return (
-                  <QueueMiniRow
-                    key={`${id}-${index}`}
-                    track={track}
-                    index={index}
-                    editable
-                    onRemove={() => id && onRemove(id)}
-                    onMoveUp={index > 0 && id ? () => onMove(id, 'up') : undefined}
-                    onMoveDown={index < upNextTracks.length - 1 && id ? () => onMove(id, 'down') : undefined}
-                  />
-                );
-              })}
-            </div>
-          ) : (
-            <div className="rounded-[1.15rem] border border-dashed border-black/[0.12] p-5 text-center">
-              <p className="text-sm font-black text-black/48">Aucune piste dans À suivre.</p>
-              <p className="mt-1 text-xs font-semibold text-black/34">Ajoute des sons depuis Discover, la Home ou un profil.</p>
-              <Link href="/discover" onClick={onClose} className="mt-3 inline-flex h-9 items-center rounded-full bg-[#171313] px-4 text-xs font-black text-white">
-                Découvrir des sons
-              </Link>
-            </div>
-          )}
-          {relatedTracks.length ? (
-            <div className="mt-3 border-t border-black/[0.08] pt-3">
-              <div className="mb-2 flex items-end justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#4A9EAA]">Dans la même aura</p>
-                  <p className="truncate text-[10px] font-semibold text-black/38">{relatedLabel || 'Sélection liée à ce morceau'}</p>
-                </div>
-                <Sparkles className="h-4 w-4 shrink-0 text-[#4A9EAA]" />
-              </div>
-              <div className="max-h-[180px] space-y-1.5 overflow-y-auto pr-1">
-                {relatedTracks.map((track, index) => (
-                  <QueueMiniRow
-                    key={`${track?._id || track?.id}-${index}`}
-                    track={track}
-                    index={index}
-                    onPlay={() => onPlayRelated(track)}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function TastePanel({
@@ -269,9 +92,7 @@ export default function SynauraMiniPlayer() {
     nextTrack,
     previousTrack,
     seek,
-    upNextEnabled,
     upNextTracks,
-    setUpNextEnabled,
     removeFromUpNext,
     clearUpNext,
     moveUpNext,
@@ -282,7 +103,7 @@ export default function SynauraMiniPlayer() {
   const progressRef = useRef<HTMLDivElement>(null);
   const [showTikTok, setShowTikTok] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
-  const [showShareCard, setShowShareCard] = useState(false);
+  const trackActions = useTrackActions();
   const [showTaste, setShowTaste] = useState(false);
   const [tasteBusy, setTasteBusy] = useState<'more' | 'less' | 'hide_artist' | null>(null);
   const [tasteFeedback, setTasteFeedback] = useState('');
@@ -462,20 +283,7 @@ export default function SynauraMiniPlayer() {
           <div className="synaura-player-surface pointer-events-none fixed inset-x-0 bottom-[var(--synaura-primary-dock-space)] z-[60] sm:bottom-0">
             <div className="pointer-events-auto px-0 pb-0 sm:px-4 sm:pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
               {showQueue ? (
-                <QueuePanel
-                  currentTrack={currentTrack as any}
-                  queueTracks={nextQueueTracks as any[]}
-                  upNextTracks={upNextTracks as any[]}
-                  relatedTracks={relatedTracks}
-                  relatedLabel={relatedLabel}
-                  upNextEnabled={upNextEnabled}
-                  onToggleEnabled={() => setUpNextEnabled(!upNextEnabled)}
-                  onRemove={removeFromUpNext}
-                  onClear={clearUpNext}
-                  onMove={moveUpNext}
-                  onPlayRelated={(nextRelatedTrack) => void playTrack(nextRelatedTrack)}
-                  onClose={() => setShowQueue(false)}
-                />
+                <QueueDialog isOpen={showQueue} onClose={() => setShowQueue(false)} />
               ) : null}
               {showTaste ? (
                 <TastePanel
@@ -584,7 +392,7 @@ export default function SynauraMiniPlayer() {
                     <button
                       onClick={() => {
                         if (albumContext || isLive || String(currentTrack?._id || '').startsWith('radio-')) void handleShare();
-                        else setShowShareCard(true);
+                        else void trackActions.share(currentTrack);
                       }}
                       className="inline-flex h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313]"
                       aria-label="Partager"
@@ -691,18 +499,7 @@ export default function SynauraMiniPlayer() {
               </div>
             </div>
           </div>
-          <TrackShareCardModal
-            visible={showShareCard}
-            track={{
-              id: String(currentTrack._id),
-              title: track.title,
-              artist: track.artist,
-              coverUrl: track.cover,
-              duration,
-            }}
-            trackUrl={typeof window !== 'undefined' ? `${window.location.origin}/track/${currentTrack._id}` : `/track/${currentTrack._id}`}
-            onClose={() => setShowShareCard(false)}
-          />
+
         </>
       ) : null}
     </>

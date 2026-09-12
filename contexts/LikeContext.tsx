@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
 
 interface LikeState {
@@ -42,17 +42,8 @@ export function LikeProvider({ children }: { children: ReactNode }) {
     const state = likeState[trackId];
     if (!state) return null;
 
-    // Vérifier si l'état n'est pas trop ancien (5 minutes)
-    const isExpired = Date.now() - state.lastUpdated > 5 * 60 * 1000;
-    if (isExpired) {
-      // Nettoyer l'état expiré
-      setLikeState(prev => {
-        const newState = { ...prev };
-        delete newState[trackId];
-        return newState;
-      });
-      return null;
-    }
+    // A successful mutation must not revert to stale card props after five minutes.
+    // Session changes clear this shared projection; reads never set state in render.
 
     return {
       isLiked: state.isLiked,
@@ -78,34 +69,9 @@ export function LikeProvider({ children }: { children: ReactNode }) {
     updateLike(trackId, isLiked, likesCount);
   }, [updateLike]);
 
-  // Nettoyer les états expirés périodiquement
-  const cleanupExpiredStates = useCallback(() => {
-    const now = Date.now();
-    const expiredThreshold = 5 * 60 * 1000; // 5 minutes
-
-    setLikeState(prev => {
-      const newState = { ...prev };
-      Object.keys(newState).forEach(trackId => {
-        if (now - newState[trackId].lastUpdated > expiredThreshold) {
-          delete newState[trackId];
-        }
-      });
-      return newState;
-    });
-  }, []);
-
-  // Nettoyer périodiquement
-  useState(() => {
-    const interval = setInterval(cleanupExpiredStates, 60000); // Toutes les minutes
-    return () => clearInterval(interval);
-  });
 
   // Nettoyer quand la session change
-  useState(() => {
-    if (!session?.user?.id) {
-      clearLikeState();
-    }
-  });
+  useEffect(() => { clearLikeState(); }, [session?.user?.id, clearLikeState]);
 
   const value: LikeContextType = {
     likeState,
@@ -141,4 +107,4 @@ export function useTrackLike(trackId: string, fallbackLikesCount = 0, fallbackIs
     likesCount: state?.likesCount ?? fallbackLikesCount,
     hasCachedState: state !== null
   };
-} 
+}

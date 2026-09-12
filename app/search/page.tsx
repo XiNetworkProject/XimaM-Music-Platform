@@ -1,4 +1,5 @@
 'use client';
+import TrackActionButton from '@/components/actions/TrackActionButton';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -302,13 +303,16 @@ function SearchPageContent() {
                 <h2 className="flex items-center gap-2 text-lg font-black text-[var(--syn-text-primary)]"><Music2 className="h-5 w-5" /> Sons</h2>
                 <div className="mt-3 divide-y divide-[var(--syn-border)] sm:grid sm:grid-cols-2 sm:gap-x-4 sm:divide-y-0">
                   {results.tracks.map((track: any) => (
-                    <Link key={track._id || track.id} href={`/track/${encodeURIComponent(track._id || track.id)}`} className="flex min-h-[66px] items-center gap-3 px-1 py-2.5 transition hover:bg-[var(--syn-soft)]">
+                    <div key={track._id || track.id} className="flex min-h-[66px] items-center gap-3 px-1 py-2.5 transition hover:bg-[var(--syn-soft)]">
+                    <Link href={`/track/${encodeURIComponent(track._id || track.id)}`} className="flex min-w-0 flex-1 items-center gap-3">
                       <img src={track.coverUrl || track.cover_url || '/default-cover.svg'} alt="" className="h-12 w-12 rounded-[8px] object-cover" />
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{track.title}</span>
                         <span className="block truncate text-xs font-semibold text-[var(--syn-text-secondary)]">{getCreatorName(track)}</span>
                       </span>
                     </Link>
+                    <TrackActionButton track={track} origin="search" />
+                    </div>
                   ))}
                 </div>
               </section>

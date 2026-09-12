@@ -113,5 +113,9 @@ test('Media Session remplace les métadonnées et expose toutes les commandes', 
 test('les préchargements RSC invités vers les routes protégées sont désactivés', async () => {
   const [shell, actions] = await Promise.all([read('components/synaura/SynauraShell.tsx'), read('components/TrackCreateRemixActions.tsx')]);
   assert.match(shell, /item\.id === 'library' && !session\?\.user \? false/);
-  assert.equal((actions.match(/prefetch=\{false\}/g) || []).length, 2);
+  const links = actions.match(/<Link\b[\s\S]*?>/g) || [];
+  assert(links.length > 0);
+  assert(links.every(link => /prefetch=\{false\}/.test(link)));
+  // 4B.5: Remix is an explicit confirmation button, not a prefetched route.
+  assert.match(actions, /actions.open\(track, 'track-remix'/);
 });

@@ -8,6 +8,8 @@ import { useAudioPlayer } from '@/app/providers';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import TrackCover from '@/components/TrackCover';
 import TrackCreateRemixActions from '@/components/TrackCreateRemixActions';
+import TrackActionButton from '@/components/actions/TrackActionButton';
+import FavoriteAction from '@/components/actions/FavoriteAction';
 import { notify } from '@/components/NotificationCenter';
 
 export type DiscoverPlaylistLite = {
@@ -287,6 +289,8 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <TrackCreateRemixActions track={track as any} compact />
+        <FavoriteAction track={track} />
+        <TrackActionButton track={track} origin="discover" />
         <button
           type="button"
           onClick={() => {
@@ -358,6 +362,7 @@ export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: n
         <p className="mt-0.5 truncate text-[11px] text-[var(--syn-text-secondary)]">{artistLabel}</p>
       </div>
 
+      <TrackActionButton track={track} origin="discover" />
       <div className="hidden shrink-0 items-center gap-2 sm:flex" onClick={(event) => event.stopPropagation()}>
         <TrackCreateRemixActions track={track as any} compact />
         <button

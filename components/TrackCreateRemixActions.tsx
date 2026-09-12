@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Repeat2, Sparkles } from 'lucide-react';
 import { isAiVariationAvailable } from '@/lib/remixPermissions';
+import { useTrackActions } from '@/components/actions/useTrackActions';
 
 type TrackLike = {
   _id?: string;
@@ -42,6 +43,7 @@ function styleHint(track: TrackLike | null | undefined) {
 }
 
 export default function TrackCreateRemixActions({ track, compact, dark, className = '' }: Props) {
+  const actions = useTrackActions();
   const id = trackId(track);
   if (!id) return null;
 
@@ -88,15 +90,14 @@ export default function TrackCreateRemixActions({ track, compact, dark, classNam
         {compact ? 'Créer' : 'Créer dans ce style'}
       </Link>
       {canRemix ? (
-        <Link
-          href={`/ai-generator?mode=remix&sourceTrackId=${source}&sourceTrackType=${sourceTrackType}&title=${title}&style=${style}`}
-          prefetch={false}
-          onClick={() => logAction('remix')}
+        <button
+          type="button"
+          onClick={event => { event.stopPropagation(); actions.open(track, 'track-remix', event.currentTarget); }}
           className={`inline-flex items-center gap-1.5 rounded-full font-black transition ${size} ${base}`}
         >
           <Repeat2 className={compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
           Remixer
-        </Link>
+        </button>
       ) : null}
     </div>
   );

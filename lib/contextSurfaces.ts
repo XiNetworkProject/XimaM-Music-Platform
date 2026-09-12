@@ -3,7 +3,7 @@ export const CONTEXT_SURFACE_HISTORY_VERSION = 1;
 export const MAX_CONTEXT_SURFACE_DEPTH = 3;
 
 export type ContextSurfaceOrigin = 'live' | 'discover' | 'search' | 'other';
-export type ContextSurfacePresentation = 'auto' | 'drawer-right' | 'sheet' | 'modal';
+export type ContextSurfacePresentation = 'auto' | 'drawer-right' | 'sheet' | 'modal' | 'context-menu';
 export type ContextSurfaceUrlPolicy = 'transient' | 'canonical-route';
 
 export interface ContextSurfaceInput {
@@ -45,7 +45,7 @@ export function isContextSurfaceEntry(value: unknown): value is ContextSurfaceEn
     isBoundedToken(entry.entityType, 80) &&
     isNullableBoundedToken(entry.entityId) &&
     ['live', 'discover', 'search', 'other'].includes(String(entry.origin)) &&
-    ['auto', 'drawer-right', 'sheet', 'modal'].includes(String(entry.presentation)) &&
+    ['auto', 'drawer-right', 'sheet', 'modal', 'context-menu'].includes(String(entry.presentation)) &&
     isNullableBoundedToken(entry.returnSnapshotId) &&
     isBoundedToken(entry.historyKey, 180)
   );
