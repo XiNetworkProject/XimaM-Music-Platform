@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { dbAdmin } from '@/lib/database';
+import { canViewTrack } from '@/lib/publicTracks';
 import contentModerator from '@/lib/contentModeration';
 
 // POST /api/tracks/[id]/comments/[commentId]/replies - ajouter une réponse
@@ -15,7 +16,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const body = await request.json().catch(() => ({}));
   const content = String(body?.content || '').trim();
-  if (!content) return NextResponse.json({ error: 'Réponse vide' }, { status: 400 });
+  if (!content || content.length > 1000) return NextResponse.json({ error: 'Réponse invalide' }, { status: 400 });
+  const { data: track } = await dbAdmin.from('tracks').select('id, creator_id, is_public, audio_url').eq('id', params.id).maybeSingle();
+  if (!track || !canViewTrack(track, userId)) return NextResponse.json({ error: 'Morceau introuvable' }, { status: 404 });
+  const { data: parent } = await dbAdmin.from('comments').select('id').eq('id', parentId).eq('track_id', trackId).is('parent_id', null).maybeSingle();
+  if (!parent) return NextResponse.json({ error: 'Commentaire introuvable' }, { status: 404 });
 
   const mod = contentModerator.analyzeContent(content);
   if (!mod.isClean) {

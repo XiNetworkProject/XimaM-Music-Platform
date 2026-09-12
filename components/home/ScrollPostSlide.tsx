@@ -5,6 +5,8 @@ import { BadgeCheck, Heart, Maximize2, MessageCircle, Music2, Pause, Play, Share
 import Waveform from '@/components/player/Waveform';
 import { useTrackWaveform } from '@/hooks/useTrackWaveform';
 import { type ScrollPost, type ScrollTrack, trackFromScrollPost } from '@/lib/scrollFeed';
+import { useCommentsSurface } from '@/components/comments/useCommentsSurface';
+import CommentCount from '@/components/comments/CommentCount';
 
 type Props = {
   post: ScrollPost;
@@ -45,6 +47,7 @@ function relativeTime(value: string) {
 
 export default function ScrollPostSlide({ post, active, playing, onOpenPost, onOpenProfile, onPlayTrack, onOpenTrack, getAudioElement, onSeek, onShare }: Props) {
   const [liked, setLiked] = useState(Boolean(post.isLiked));
+  const openComments = useCommentsSurface('live');
   const [likesCount, setLikesCount] = useState(Math.max(0, post.likes_count || 0));
   const [liking, setLiking] = useState(false);
   const track = useMemo(() => trackFromScrollPost(post), [post]);
@@ -181,9 +184,9 @@ export default function ScrollPostSlide({ post, active, playing, onOpenPost, onO
               <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} />
               {likesCount ? formatCount(likesCount) : "J'aime"}
             </button>
-            <button type="button" onClick={onOpenPost} className="inline-flex h-11 items-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-4 text-xs font-black text-white/72 transition hover:bg-white/12">
+            <button type="button" data-context-surface-trigger-key={`live-post-comments-${post.id}`} aria-label="Commentaires du post" onClick={event => openComments({ type: 'post', id: post.id, title: 'Publication', artist: author, creatorId: post.creator.id, count: post.comments_count }, event.currentTarget)} className="inline-flex h-11 items-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-4 text-xs font-black text-white/72 transition hover:bg-white/12">
               <MessageCircle className="h-4 w-4" />
-              {post.comments_count ? formatCount(post.comments_count) : 'Commenter'}
+              <CommentCount type="post" id={post.id} fallback={post.comments_count} />
             </button>
             <button type="button" onClick={onShare} aria-label="Partager le post" className="grid h-11 w-11 place-items-center rounded-full border border-white/12 bg-white/[0.08] text-white/72 transition hover:bg-white/12">
               <Share2 className="h-4 w-4" />

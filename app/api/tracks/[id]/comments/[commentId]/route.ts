@@ -14,7 +14,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
   const body = await request.json().catch(() => ({}));
   const content = String(body?.content || '').trim();
-  if (!content) return NextResponse.json({ error: 'Contenu vide' }, { status: 400 });
+  if (!content || content.length > 1000) return NextResponse.json({ error: 'Contenu invalide' }, { status: 400 });
 
   const mod = contentModerator.analyzeContent(content);
   if (!mod.isClean) return NextResponse.json({ error: 'Contenu refusé', details: mod }, { status: 400 });
@@ -24,6 +24,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     .from('comments')
     .select('id, user_id')
     .eq('id', commentId)
+    .eq('track_id', params.id)
     .maybeSingle();
   if (exErr || !existing) return NextResponse.json({ error: 'Commentaire introuvable' }, { status: 404 });
   if ((existing as any).user_id !== userId) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
@@ -72,13 +73,14 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     .from('comments')
     .select('id, user_id, track_id')
     .eq('id', commentId)
+    .eq('track_id', trackId)
     .maybeSingle();
   if (exErr || !existing) return NextResponse.json({ error: 'Commentaire introuvable' }, { status: 404 });
   if ((existing as any).user_id !== userId) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
 
-  // Soft-delete via table de modération si possible, sinon delete hard
+  // A failed soft delete must never be reported as successful or become a hard delete.
   try {
-    await dbAdmin.from('comment_moderation').upsert({
+    const { error } = await dbAdmin.from('comment_moderation').upsert({
       comment_id: commentId,
       track_id: trackId,
       creator_id: userId,
@@ -86,10 +88,10 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       deletion_reason: 'owner',
       deleted_at: new Date().toISOString(),
     }, { onConflict: 'comment_id,creator_id' });
+    if (error) return NextResponse.json({ error: 'Impossible de supprimer' }, { status: 500 });
     return NextResponse.json({ success: true });
   } catch {
-    await dbAdmin.from('comments').delete().eq('id', commentId);
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ error: 'Impossible de supprimer' }, { status: 500 });
   }
 }
 

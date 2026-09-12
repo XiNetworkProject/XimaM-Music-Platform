@@ -23,6 +23,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const { data: track } = await dbAdmin.from('tracks').select('id, creator_id').eq('id', trackId).maybeSingle();
   if (!track) return NextResponse.json({ error: 'Piste introuvable' }, { status: 404 });
   if ((track as any).creator_id !== userId) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+  const { data: comment } = await dbAdmin.from('comments').select('id').eq('id', commentId).eq('track_id', trackId).maybeSingle();
+  if (!comment) return NextResponse.json({ error: 'Commentaire introuvable' }, { status: 404 });
 
   // Charger l'état actuel
   let current: any = null;
@@ -32,6 +34,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       .select('*')
       .eq('comment_id', commentId)
       .eq('track_id', trackId)
+      .eq('creator_id', userId)
       .maybeSingle();
     current = data;
   } catch {

@@ -11,10 +11,12 @@ export type WaveformPeaks = { peaks: number[]; duration: number };
 export async function computeWaveformPeaks(
   audioUrl: string,
   targetPeaks: number = WAVEFORM_TARGET_PEAKS,
+  signal?: AbortSignal,
 ): Promise<WaveformPeaks> {
-  const response = await fetch(audioUrl);
+  const response = await fetch(audioUrl, { signal });
   if (!response.ok) throw new Error(`Audio inaccessible (${response.status})`);
   const arrayBuffer = await response.arrayBuffer();
+  signal?.throwIfAborted();
 
   const AudioContextCtor: typeof AudioContext =
     (window as any).AudioContext || (window as any).webkitAudioContext;
@@ -23,6 +25,7 @@ export async function computeWaveformPeaks(
 
   try {
     const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+    signal?.throwIfAborted();
     const channelData = audioBuffer.getChannelData(0);
     const total = channelData.length;
     const samplesPerPeak = Math.max(1, Math.floor(total / targetPeaks));

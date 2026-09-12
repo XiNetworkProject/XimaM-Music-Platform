@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { dbAdmin } from '@/lib/database';
+import { canViewTrack } from '@/lib/publicTracks';
 
 // GET /api/tracks/[id]/comments/moderation
 // - Public: commentaires non supprimés et non filtrés
@@ -17,29 +18,32 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const userId = (session?.user as any)?.id || null;
 
   const { searchParams } = new URL(request.url);
-  const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10) || 50, 100);
+  const limit = Math.max(1, Math.min(parseInt(searchParams.get('limit') || '50', 10) || 50, 100));
   const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10) || 0, 0);
   const includeDeleted = searchParams.get('includeDeleted') === 'true';
   const includeFiltered = searchParams.get('includeFiltered') === 'true';
   const includeStats = searchParams.get('includeStats') === 'true';
   const view = (searchParams.get('view') || 'public') as 'public' | 'creator' | 'all';
+  const timestampedOnly = searchParams.get('timestampedOnly') === '1';
 
   // Track + creator id
-  const { data: track } = await dbAdmin.from('tracks').select('id, creator_id').eq('id', trackId).maybeSingle();
-  if (!track) return NextResponse.json({ comments: [], total: 0, limit, offset });
+  const { data: track } = await dbAdmin.from('tracks').select('id, creator_id, is_public, audio_url').eq('id', trackId).maybeSingle();
+  if (!track || !canViewTrack(track, userId)) return NextResponse.json({ error: 'Morceau introuvable' }, { status: 404 });
   const creatorId = (track as any).creator_id;
   const isCreator = Boolean(userId && creatorId && userId === creatorId);
 
   // Top-level comments (pagination) + replies for these parents
-  const { data: topRows, error: topErr } = await dbAdmin
+  let topQuery = dbAdmin
     .from('comments')
-    .select('id, content, created_at, updated_at, user_id, parent_id')
+    .select('id, content, created_at, updated_at, user_id, parent_id, timestamp_seconds')
     .eq('track_id', trackId)
-    .is('parent_id', null)
-    .order('created_at', { ascending: false })
+    .is('parent_id', null);
+  if (timestampedOnly) topQuery = topQuery.not('timestamp_seconds', 'is', null);
+  const { data: topRows, error: topErr } = await topQuery
+    .order(timestampedOnly ? 'timestamp_seconds' : 'created_at', { ascending: timestampedOnly })
     .range(offset, offset + limit - 1);
 
-  if (topErr) return NextResponse.json({ comments: [], total: 0, limit, offset, message: 'Système de commentaires non disponible' });
+  if (topErr) return NextResponse.json({ error: 'Système de commentaires indisponible' }, { status: 500 });
   const parents = topRows || [];
   const parentIds = parents.map((r: any) => r.id);
 
@@ -78,21 +82,28 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   // Modération (creator)
   const moderationMap = new Map<string, any>();
   try {
-    const { data: mods } = await dbAdmin
+    const { data: mods, error: modError } = await dbAdmin
       .from('comment_moderation')
-      .select('comment_id, is_deleted, is_filtered, filter_reason, is_creator_favorite')
+      .select('comment_id, creator_id, is_deleted, is_filtered, filter_reason, is_creator_favorite')
       .eq('track_id', trackId)
-      .eq('creator_id', creatorId)
       .in('comment_id', ids);
-    for (const m of mods || []) moderationMap.set(String((m as any).comment_id), m);
-  } catch {}
+    if (modError) throw modError;
+    // Both creator moderation and the author's own deletion must be respected.
+    for (const m of mods || []) {
+      if (m.creator_id !== creatorId && !rows.some(r => r.id === m.comment_id && r.user_id === m.creator_id)) continue;
+      const key = String((m as any).comment_id);
+      const previous = moderationMap.get(key);
+      moderationMap.set(key, { ...m, is_deleted: Boolean(previous?.is_deleted || m.is_deleted), is_filtered: Boolean(previous?.is_filtered || m.is_filtered), is_creator_favorite: Boolean(previous?.is_creator_favorite || m.is_creator_favorite) });
+    }
+  } catch { return NextResponse.json({ error: 'Modération indisponible' }, { status: 503 }); }
 
   // Filtres (creator words)
   let filterWords: string[] = [];
   try {
-    const { data: filterRows } = await dbAdmin.from('creator_comment_filters').select('word').eq('creator_id', creatorId);
+    const { data: filterRows, error: filterError } = await dbAdmin.from('creator_comment_filters').select('word').eq('creator_id', creatorId);
+    if (filterError) throw filterError;
     filterWords = (filterRows || []).map((r: any) => String(r.word || '').trim()).filter(Boolean);
-  } catch {}
+  } catch { return NextResponse.json({ error: 'Filtres indisponibles' }, { status: 503 }); }
 
   const containsWord = (text: string) => {
     if (!filterWords.length) return null;
@@ -114,6 +125,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       createdAt: r.created_at,
       updatedAt: r.updated_at,
       parentId: r.parent_id,
+      timestampSeconds: r.timestamp_seconds != null ? Number(r.timestamp_seconds) : null,
       likes: [],
       likesCount: likesCountMap.get(r.id) || 0,
       isLiked: likedSet.has(r.id),

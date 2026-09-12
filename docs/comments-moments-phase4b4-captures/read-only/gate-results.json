@@ -1,0 +1,479 @@
+{
+  "status": "PASS",
+  "mutationsEnabled": false,
+  "checks": [
+    {
+      "name": "no inactive comments fetch",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "open preserves Live and audio",
+      "ok": true,
+      "detail": {
+        "before": {
+          "core": {
+            "instanceId": "audio-core-1",
+            "trackId": "685f4d14c8696b6dd0a039cb",
+            "playbackState": "playing",
+            "position": 0,
+            "duration": 183.279979,
+            "queueIds": [
+              "685f4d14c8696b6dd0a039cb",
+              "track_1773789112971_0egfpy0i2",
+              "track_1758925084778_d4m63iecf",
+              "track_1789051048810_0585sfze0",
+              "track_1760312049520_3pkssmhw1",
+              "track_1779885372203_e3en8yvor",
+              "track_1760092592437_5hpdo95l5",
+              "track_1760355496011_4jq1jmlop",
+              "685b219cc3893296436a0efa",
+              "track_1760543698416_edjr4dnc2",
+              "track_1781782777546_prp25zoim",
+              "685f4d14c8696b6dd0a039cb",
+              "685d3a2000e9d6e6b8e10325",
+              "track_1773147386010_nled3kda6"
+            ],
+            "currentIndex": 0,
+            "generation": 1,
+            "listeners": 14,
+            "pendingRetries": 0,
+            "activeSecondaryPlayers": 0,
+            "secondaryContexts": [],
+            "stateSubscribers": 1,
+            "timeSubscribers": 2,
+            "musicalAudioElements": 1,
+            "watchdogActive": true,
+            "persistenceActive": true,
+            "providerRenders": 16
+          },
+          "item": "track-685f4d14c8696b6dd0a039cb",
+          "scroll": 0,
+          "slides": 6,
+          "focus": null
+        },
+        "after": {
+          "core": {
+            "instanceId": "audio-core-1",
+            "trackId": "685f4d14c8696b6dd0a039cb",
+            "playbackState": "playing",
+            "position": 0.278898,
+            "duration": 183.279979,
+            "queueIds": [
+              "685f4d14c8696b6dd0a039cb",
+              "track_1773789112971_0egfpy0i2",
+              "track_1758925084778_d4m63iecf",
+              "track_1789051048810_0585sfze0",
+              "track_1760312049520_3pkssmhw1",
+              "track_1779885372203_e3en8yvor",
+              "track_1760092592437_5hpdo95l5",
+              "track_1760355496011_4jq1jmlop",
+              "685b219cc3893296436a0efa",
+              "track_1760543698416_edjr4dnc2",
+              "track_1781782777546_prp25zoim",
+              "685f4d14c8696b6dd0a039cb",
+              "685d3a2000e9d6e6b8e10325",
+              "track_1773147386010_nled3kda6"
+            ],
+            "currentIndex": 0,
+            "generation": 1,
+            "listeners": 14,
+            "pendingRetries": 0,
+            "activeSecondaryPlayers": 0,
+            "secondaryContexts": [],
+            "stateSubscribers": 2,
+            "timeSubscribers": 4,
+            "musicalAudioElements": 1,
+            "watchdogActive": true,
+            "persistenceActive": true,
+            "providerRenders": 16
+          },
+          "item": "track-685f4d14c8696b6dd0a039cb",
+          "scroll": 0,
+          "slides": 6,
+          "focus": null
+        }
+      }
+    },
+    {
+      "name": "explicit waveform seek",
+      "ok": true
+    },
+    {
+      "name": "timestamp frozen while typing",
+      "ok": true,
+      "detail": "Commentaire à 1:31"
+    },
+    {
+      "name": "mobile sheet bounded and composer visible",
+      "ok": true,
+      "detail": {
+        "height": 692,
+        "viewport": 844,
+        "scrollHeight": 237,
+        "footerBottom": 843,
+        "horizontalOverflow": false
+      }
+    },
+    {
+      "name": "warm cache reopen has no fetch",
+      "ok": true,
+      "detail": {
+        "samples": 20,
+        "p50": 72.5036,
+        "p95": 102.70439999999871,
+        "requests": []
+      }
+    },
+    {
+      "name": "bounded Live slides",
+      "ok": true,
+      "detail": {
+        "core": {
+          "instanceId": "audio-core-1",
+          "trackId": "685f4d14c8696b6dd0a039cb",
+          "playbackState": "playing",
+          "position": 105.076906,
+          "duration": 183.279979,
+          "queueIds": [
+            "685f4d14c8696b6dd0a039cb",
+            "track_1773789112971_0egfpy0i2",
+            "track_1758925084778_d4m63iecf",
+            "track_1789051048810_0585sfze0",
+            "track_1760312049520_3pkssmhw1",
+            "track_1779885372203_e3en8yvor",
+            "track_1760092592437_5hpdo95l5",
+            "track_1760355496011_4jq1jmlop",
+            "685b219cc3893296436a0efa",
+            "track_1760543698416_edjr4dnc2",
+            "track_1781782777546_prp25zoim",
+            "685f4d14c8696b6dd0a039cb",
+            "685d3a2000e9d6e6b8e10325",
+            "track_1773147386010_nled3kda6"
+          ],
+          "currentIndex": 0,
+          "generation": 1,
+          "listeners": 14,
+          "pendingRetries": 0,
+          "activeSecondaryPlayers": 0,
+          "secondaryContexts": [],
+          "stateSubscribers": 1,
+          "timeSubscribers": 2,
+          "musicalAudioElements": 1,
+          "watchdogActive": true,
+          "persistenceActive": true,
+          "providerRenders": 24
+        },
+        "item": "track-685f4d14c8696b6dd0a039cb",
+        "scroll": 0,
+        "slides": 6,
+        "focus": "live-track-comments-685f4d14c8696b6dd0a039cb"
+      }
+    },
+    {
+      "name": "same audio instance after 20 cycles",
+      "ok": true
+    },
+    {
+      "name": "keyboard focus within dialog",
+      "ok": true
+    },
+    {
+      "name": "missing entity 404",
+      "ok": true
+    },
+    {
+      "name": "canonical Track has no secondary audio",
+      "ok": true
+    },
+    {
+      "name": "canonical Track shares comments entry",
+      "ok": true
+    },
+    {
+      "name": "canonical Back restores same Live item",
+      "ok": true,
+      "detail": {
+        "core": {
+          "instanceId": "audio-core-1",
+          "trackId": "685f4d14c8696b6dd0a039cb",
+          "playbackState": "playing",
+          "position": 111.255665,
+          "duration": 183.279979,
+          "queueIds": [
+            "685f4d14c8696b6dd0a039cb",
+            "track_1773789112971_0egfpy0i2",
+            "track_1758925084778_d4m63iecf",
+            "track_1789051048810_0585sfze0",
+            "track_1760312049520_3pkssmhw1",
+            "track_1779885372203_e3en8yvor",
+            "track_1760092592437_5hpdo95l5",
+            "track_1760355496011_4jq1jmlop",
+            "685b219cc3893296436a0efa",
+            "track_1760543698416_edjr4dnc2",
+            "track_1781782777546_prp25zoim",
+            "685f4d14c8696b6dd0a039cb",
+            "685d3a2000e9d6e6b8e10325",
+            "track_1773147386010_nled3kda6"
+          ],
+          "currentIndex": 0,
+          "generation": 1,
+          "listeners": 14,
+          "pendingRetries": 0,
+          "activeSecondaryPlayers": 0,
+          "secondaryContexts": [],
+          "stateSubscribers": 1,
+          "timeSubscribers": 2,
+          "musicalAudioElements": 1,
+          "watchdogActive": true,
+          "persistenceActive": true,
+          "providerRenders": 32
+        },
+        "item": "track-685f4d14c8696b6dd0a039cb",
+        "scroll": 0,
+        "slides": 6,
+        "focus": null
+      }
+    },
+    {
+      "name": "Post UI",
+      "ok": null,
+      "detail": "No post in current rendered window"
+    },
+    {
+      "name": "Clip uses own social identity",
+      "ok": true
+    }
+  ],
+  "captures": [
+    "desktop-conversation-1440.png",
+    "desktop-moments-1440.png",
+    "desktop-comments-1920.png",
+    "mobile-conversation-390.png",
+    "mobile-moments-390.png",
+    "mobile-composer-focused-390.png"
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/tracks/685f4d14c8696b6dd0a039cb/waveform"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/685f4d14c8696b6dd0a039cb/comments/moderation?timestampedOnly=1&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/685f4d14c8696b6dd0a039cb/reactions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tracks/685f4d14c8696b6dd0a039cb/waveform"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/685f4d14c8696b6dd0a039cb/comments/moderation?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/685f4d14c8696b6dd0a039cb/comments/moderation?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/phase4b4-nonexistent/comments"
+    },
+    {
+      "method": "GET",
+      "path": "/api/music-clips/6731451a-d2b8-4ef6-81ed-29da3836f0c5/comments?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/music-clips/6731451a-d2b8-4ef6-81ed-29da3836f0c5/comments?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/685f4d14c8696b6dd0a039cb/waveform"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/685f4d14c8696b6dd0a039cb/comments/moderation?timestampedOnly=1&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/685f4d14c8696b6dd0a039cb/reactions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/waveform"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?timestampedOnly=1&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/reactions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/waveform"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?timestampedOnly=1&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/reactions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/waveform"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?timestampedOnly=1&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/reactions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/waveform"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?timestampedOnly=1&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/reactions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/waveform"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?timestampedOnly=1&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/reactions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?limit=30"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tracks/track_1775062489150_ifp6zf5ma/comments/moderation?limit=30"
+    }
+  ],
+  "errors": [],
+  "cleanup": [],
+  "firstOpenMs": 819.7170999999998,
+  "virtualKeyboard": "NOT TESTED: desktop Chromium does not display an OS mobile keyboard",
+  "mobileGeometry": {
+    "height": 692,
+    "viewport": 844,
+    "scrollHeight": 237,
+    "footerBottom": 843,
+    "horizontalOverflow": false
+  },
+  "metricsBefore": {
+    "Timestamp": 381420.662611,
+    "Documents": 2,
+    "Frames": 1,
+    "JSEventListeners": 766,
+    "Nodes": 1622,
+    "LayoutCount": 1413,
+    "RecalcStyleCount": 1624,
+    "LayoutDuration": 0.583449,
+    "RecalcStyleDuration": 0.598543,
+    "ScriptDuration": 1.732525,
+    "TaskDuration": 6.780849,
+    "JSHeapUsedSize": 21953632,
+    "JSHeapTotalSize": 25296896,
+    "documents": 2,
+    "nodes": 1623,
+    "jsEventListeners": 770
+  },
+  "metricsAfter": {
+    "Timestamp": 381430.8394,
+    "Documents": 2,
+    "Frames": 1,
+    "JSEventListeners": 779,
+    "Nodes": 1781,
+    "LayoutCount": 3318,
+    "RecalcStyleCount": 3618,
+    "LayoutDuration": 1.058157,
+    "RecalcStyleDuration": 1.710726,
+    "ScriptDuration": 2.913252,
+    "TaskDuration": 13.033431,
+    "JSHeapUsedSize": 22659212,
+    "JSHeapTotalSize": 23724032,
+    "documents": 2,
+    "nodes": 1782,
+    "jsEventListeners": 783
+  },
+  "warm": {
+    "samples": 20,
+    "p50": 72.5036,
+    "p95": 102.70439999999871,
+    "requests": []
+  },
+  "cold": {
+    "n": 5,
+    "p50": 563.1693000000014,
+    "p95": 834.497199999998,
+    "samples": [
+      514.1589000000022,
+      525.5132000000012,
+      563.1693000000014,
+      600.8214999999982,
+      834.497199999998
+    ],
+    "environment": "Next development; fresh document/cache, warmed server compiler"
+  },
+  "frames": {
+    "frames": 432,
+    "baselineMs": 6.900000000000546,
+    "gapsOver1_5Frames": 0,
+    "maxGapMs": 7.200000000000728,
+    "method": "rAF gaps; proxy, not compositor dropped-frame telemetry"
+  }
+}

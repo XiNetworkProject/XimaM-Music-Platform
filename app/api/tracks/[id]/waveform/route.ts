@@ -108,7 +108,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const { error } = await dbAdmin
       .from('track_waveforms')
       .upsert(
-        { track_id: ref.id, track_type: ref.type, duration, peaks },
+        // pg encodes JS arrays as PostgreSQL arrays; this existing column is jsonb.
+        { track_id: ref.id, track_type: ref.type, duration, peaks: JSON.stringify(peaks) },
         { onConflict: 'track_id,track_type' },
       );
     if (error) throw error;

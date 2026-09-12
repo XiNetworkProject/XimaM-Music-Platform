@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -26,6 +27,9 @@ import ClipUploadIndicator from '@/components/clips/ClipUploadIndicator';
 import HomeFlowPrelude from '@/components/home/HomeFlowPrelude';
 import ScrollPostSlide from '@/components/home/ScrollPostSlide';
 import { SynauraMobileDock } from '@/components/synaura/SynauraShell';
+import { useCommentsSurface } from '@/components/comments/useCommentsSurface';
+import CommentCount from '@/components/comments/CommentCount';
+import { useContextSurfaceController } from '@/components/context-surfaces/ContextSurfaceController';
 import { useProfilePeek } from '@/components/profile/useProfilePeek';
 import {
   buildAnnouncementItem,
@@ -396,9 +400,8 @@ export default function SynauraScroll() {
   const [cityPulse, setCityPulse] = useState<{ title: string; event: string; pulse: number; votes: number } | null>(null);
   const [launchingCollectionId, setLaunchingCollectionId] = useState<string | null>(null);
   const [remixSheetTrack, setRemixSheetTrack] = useState<ScrollTrack | null>(null);
-  const [momentComposer, setMomentComposer] = useState<{ track: ScrollTrack; timestampSeconds: number } | null>(null);
-  const [momentComposerText, setMomentComposerText] = useState('');
-  const [momentComposerSubmitting, setMomentComposerSubmitting] = useState(false);
+  const commentsClient = useQueryClient();
+
   const [continuityReady, setContinuityReady] = useState(false);
   const [continuitySettled, setContinuitySettled] = useState(false);
   const [restoredSnapshot, setRestoredSnapshot] = useState<LiveNavigationSnapshot | null>(null);
@@ -427,6 +430,9 @@ export default function SynauraScroll() {
   const currentUserId = (session?.user as any)?.id;
   const needsTrackFetch = filter === 'foryou' || filter === 'new';
   const openProfilePeek = useProfilePeek('live');
+  const openComments = useCommentsSurface('live');
+  const { depth: contextDepth } = useContextSurfaceController();
+  const commentsTrack = (track: ScrollTrack) => ({ type: 'track' as const, id: track._id, title: track.title, artist: track.artist.name, creatorId: track.artist._id, audioUrl: track.audioUrl, coverUrl: track.coverUrl, duration: track.duration, count: countOf(track.comments) });
   const navigateFromLive = useCallback((href: string) => {
     persistBeforeNavigationRef.current();
     router.push(href, { scroll: false });
@@ -896,7 +902,7 @@ export default function SynauraScroll() {
   const scrollSnap = useFeedScrollSnap({
     itemCount: feedItems.length,
     activeIndex,
-    locked: lyricsOpen,
+    locked: lyricsOpen || contextDepth > 0,
     ready: !loading,
     onNavigate: navigateTo,
     onTogglePlay: useCallback(() => { audioState.isPlaying ? pause() : play(); }, [audioState.isPlaying, pause, play]),
@@ -946,9 +952,9 @@ export default function SynauraScroll() {
     if (!draft || draft.entityType !== 'track') return;
     const track = queueByPosition.find((candidate) => candidate?._id === draft.entityId);
     if (!track) return;
-    setMomentComposer({ track, timestampSeconds: draft.timestampSeconds || 0 });
-    setMomentComposerText(draft.text);
-  }, [currentUserId, feedItems.length, queueByPosition, restoredSnapshot]);
+    const key = ['comment-draft', 'track', track._id, currentUserId];
+    if (!commentsClient.getQueryData(key)) commentsClient.setQueryData(key, { text: draft.text, timestamp: draft.timestampSeconds ?? null });
+  }, [commentsClient, currentUserId, feedItems.length, queueByPosition, restoredSnapshot]);
 
   const persistLiveSnapshot = useCallback(() => {
     if (!continuityReady || !snapshotIdRef.current || !feedItems.length) return;
@@ -957,18 +963,16 @@ export default function SynauraScroll() {
     const container = scrollSnap.containerRef.current;
     const anchor = scrollSnap.itemRefs.current[activeIndex];
     const draftRefs: string[] = [];
-    if (currentUserId && momentComposer && momentComposerText.trim()) {
-      const key = liveDraftStorageKey(currentUserId, 'track', momentComposer.track._id);
-      saveLiveDraft(window.sessionStorage, {
-        version: 1,
-        savedAt: Date.now(),
-        userId: currentUserId,
-        entityType: 'track',
-        entityId: momentComposer.track._id,
-        text: momentComposerText,
-        timestampSeconds: momentComposer.timestampSeconds,
-      });
-      draftRefs.push(key);
+    if (currentUserId) {
+      for (const query of commentsClient.getQueryCache().findAll({ queryKey: ['comment-draft'] })) {
+        const [, entityType, entityId, viewer] = query.queryKey;
+        const draft = query.state.data as { text?: string; timestamp?: number | null } | undefined;
+        if (viewer !== currentUserId || !draft?.text?.trim() || !['track', 'post', 'clip'].includes(String(entityType))) continue;
+        const type = entityType as 'track' | 'post' | 'clip';
+        const key = liveDraftStorageKey(currentUserId, type, String(entityId));
+        saveLiveDraft(window.sessionStorage, { version: 1, savedAt: Date.now(), userId: currentUserId, entityType: type, entityId: String(entityId), text: draft.text, timestampSeconds: draft.timestamp ?? undefined });
+        draftRefs.push(key);
+      }
     }
     const historyKey = typeof window.history.state?.key === 'string'
       ? window.history.state.key
@@ -993,7 +997,7 @@ export default function SynauraScroll() {
     });
     saveLiveNavigationContext(window.sessionStorage, snapshot, feedItems);
     attachLiveSnapshotToHistory(window.history, snapshot.snapshotId);
-  }, [activeIndex, clipIdFilter, continuityReady, currentUserId, feedItems, filter, homePreludeOpen, momentComposer, momentComposerText, restoredSnapshot, scrollSnap.containerRef, scrollSnap.itemRefs, sourceTrackFilter, trackCursor, trackHasMore]);
+  }, [activeIndex, clipIdFilter, continuityReady, currentUserId, feedItems, filter, homePreludeOpen, commentsClient, restoredSnapshot, scrollSnap.containerRef, scrollSnap.itemRefs, sourceTrackFilter, trackCursor, trackHasMore]);
 
   useLayoutEffect(() => {
     persistBeforeNavigationRef.current = persistLiveSnapshot;
@@ -1003,7 +1007,12 @@ export default function SynauraScroll() {
     if (!continuityReady || !feedItems.length) return;
     const timer = window.setTimeout(persistLiveSnapshot, 80);
     const persistOnPageHide = () => persistLiveSnapshot();
-    const persistOnNavigationIntent = () => persistLiveSnapshot();
+    const persistOnNavigationIntent = (event: MouseEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('[data-context-surface-trigger-key]')) return;
+      if (target?.closest('[data-context-surface]') && !target.closest('a[href], [data-live-route-intent], [data-profile-peek-full-profile]')) return;
+      persistLiveSnapshot();
+    };
     window.addEventListener('pagehide', persistOnPageHide);
     document.addEventListener('click', persistOnNavigationIntent, true);
     return () => {
@@ -1187,44 +1196,6 @@ export default function SynauraScroll() {
     }
   }, [waveformTrack, momentReactions]);
 
-  const submitMomentComment = useCallback(async () => {
-    if (!momentComposer || !momentComposerText.trim()) return;
-    if (!session?.user) {
-      notify.error('Erreur', 'Connecte-toi pour commenter');
-      return;
-    }
-    setMomentComposerSubmitting(true);
-    try {
-      const response = await fetch(`/api/tracks/${encodeURIComponent(momentComposer.track._id)}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: momentComposerText.trim(), timestampSeconds: momentComposer.timestampSeconds }),
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(payload?.error || "Impossible d'envoyer le commentaire");
-
-      momentComments.addOptimistic({
-        id: String(payload?.comment?.id || `local-${Date.now()}`),
-        content: payload?.comment?.content ?? momentComposerText.trim(),
-        createdAt: payload?.comment?.createdAt || new Date().toISOString(),
-        timestampSeconds: momentComposer.timestampSeconds,
-        user: {
-          id: String(payload?.comment?.user?.id || ''),
-          username: payload?.comment?.user?.username || 'utilisateur',
-          name: payload?.comment?.user?.name || payload?.comment?.user?.username || 'Membre',
-          avatar: payload?.comment?.user?.avatar || '',
-        },
-      });
-      notify.success('OK', 'Commentaire ajouté au bon moment');
-      setMomentComposer(null);
-      setMomentComposerText('');
-    } catch (error: any) {
-      notify.error('Erreur', error?.message || "Impossible d'envoyer le commentaire");
-    } finally {
-      setMomentComposerSubmitting(false);
-    }
-  }, [momentComposer, momentComposerText, session, momentComments]);
-
   const profileHref = username ? `/profile/${username}` : '/auth/signin';
 
   const accountLinks = [
@@ -1269,10 +1240,10 @@ export default function SynauraScroll() {
               <Heart className="h-5 w-5" />
               <span className="text-[10px] font-black">{fmtCount(clip.likesCount)}</span>
             </button>
-            <Link href={sourceHref} className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
+            <button type="button" data-context-surface-trigger-key={`live-clip-comments-${clip.id}`} aria-label="Commentaires du clip" onClick={event => openComments({ type: 'clip', id: clip.id, title: clip.caption || 'Clip Synaura', artist: clip.creator.name, creatorId: clip.creator.id, count: clip.commentsCount, sourceTrackId: track._id }, event.currentTarget)} className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
               <MessageCircle className="h-5 w-5" />
-              <span className="text-[10px] font-black">{fmtCount(clip.commentsCount)}</span>
-            </Link>
+              <span className="text-[10px] font-black"><CommentCount type="clip" id={clip.id} fallback={clip.commentsCount} /></span>
+            </button>
             <button onClick={() => shareClip(clip)} className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
               <Share2 className="h-5 w-5" />
             </button>
@@ -1442,9 +1413,9 @@ export default function SynauraScroll() {
               <Heart className={`h-5 w-5 ${track.isLiked ? 'fill-[#D96D63] text-[#D96D63]' : ''}`} />
               <span className="text-[10px] font-black">{fmtCount(likesCount)}</span>
             </button>
-            <button onClick={() => navigateFromLive(`/track/${track._id}`)} aria-label={`Ouvrir le morceau ${track.title}`} className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
+            <button data-context-surface-trigger-key={`live-track-comments-${track._id}`} onClick={event => openComments(commentsTrack(track), event.currentTarget)} aria-label={`Commentaires de ${track.title}`} className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
               <MessageCircle className="h-5 w-5" />
-              <span className="text-[10px] font-black">{fmtCount(commentsCount)}</span>
+              <span className="text-[10px] font-black">{<CommentCount type="track" id={track._id} fallback={commentsCount} />}</span>
             </button>
             <button onClick={() => shareTrack(track)} className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
               <Share2 className="h-5 w-5" />
@@ -1542,14 +1513,14 @@ export default function SynauraScroll() {
                       getAudioElement={getAudioElement}
                       onSeek={seek}
                       markers={momentComments.markers}
+                      onMarkerSeek={marker => { openComments(commentsTrack(track), document.activeElement as HTMLElement, undefined, marker.id); }}
                       reactionClusters={momentReactions.clusters}
                     />
                     <div className="mt-2 flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => {
-                          setMomentComposer({ track, timestampSeconds: Math.max(0, getAudioElement()?.currentTime || 0) });
-                          setMomentComposerText('');
+                          openComments(commentsTrack(track), document.activeElement as HTMLElement, Math.max(0, getAudioElement()?.currentTime || 0));
                         }}
                         className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.05] px-3 py-1.5 text-[11px] font-black text-black/56 transition hover:bg-[#171313] hover:text-white"
                       >
@@ -2104,38 +2075,7 @@ export default function SynauraScroll() {
           </div>
         </div>
       ) : null}
-      {momentComposer ? (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 px-4 pb-4 backdrop-blur-sm" onClick={() => setMomentComposer(null)}>
-          <div className="w-full max-w-lg rounded-[1.6rem] border border-black/[0.08] bg-[#F7F6F3] p-4 text-[#111111] shadow-[0_30px_100px_rgba(17,17,17,0.28)]" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-center gap-3">
-              <img src={momentComposer.track.coverUrl || FALLBACK_COVER} alt="" className="h-14 w-14 rounded-2xl object-cover" />
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#7357C6]">Commentaire à {fmtTime(momentComposer.timestampSeconds)}</p>
-                <h3 className="truncate text-base font-black">{momentComposer.track.title}</h3>
-              </div>
-            </div>
-            <textarea
-              value={momentComposerText}
-              onChange={(event) => setMomentComposerText(event.target.value)}
-              placeholder={`Que se passe-t-il à ${fmtTime(momentComposer.timestampSeconds)} ?`}
-              className="mt-3 min-h-[88px] w-full resize-none rounded-[1rem] border border-black/[0.08] bg-white px-3 py-3 text-sm text-[#171313] outline-none placeholder:text-black/28 focus:border-black/20"
-            />
-            <div className="mt-3 flex items-center justify-end gap-2">
-              <button type="button" onClick={() => setMomentComposer(null)} className="h-11 rounded-full border border-black/[0.08] bg-white px-4 text-sm font-black text-black/56">
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={() => void submitMomentComment()}
-                disabled={momentComposerSubmitting || !momentComposerText.trim()}
-                className="inline-flex h-11 items-center rounded-full bg-[#171313] px-5 text-sm font-black text-white transition disabled:opacity-50"
-              >
-                {momentComposerSubmitting ? 'Envoi...' : 'Publier'}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+
     </div>
   );
 }

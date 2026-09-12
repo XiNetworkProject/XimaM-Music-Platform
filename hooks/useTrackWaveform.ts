@@ -1,68 +1,24 @@
-import { useEffect, useRef, useState } from 'react';
-import { computeWaveformPeaks } from '@/lib/waveform';
-
-export type TrackWaveformState = {
-  peaks: number[] | null;
-  duration: number;
-  loading: boolean;
-};
-
-/** Peaks réels d'un morceau : lit le cache serveur (track_waveforms), et si
- * absent, décode l'audio réel côté client (Web Audio API) puis pousse le
- * résultat en cache pour les prochaines ouvertures. Jamais de données
- * inventées : tant que rien n'est calculé, peaks reste `null`. */
-export function useTrackWaveform(
-  trackId: string | null | undefined,
-  audioUrl: string | null | undefined,
-  fallbackDuration?: number,
-): TrackWaveformState {
-  const [state, setState] = useState<TrackWaveformState>({ peaks: null, duration: fallbackDuration || 0, loading: false });
-  const attemptedRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!trackId || !audioUrl) {
-      setState({ peaks: null, duration: fallbackDuration || 0, loading: false });
-      return;
-    }
-    if (attemptedRef.current === trackId) return;
-    attemptedRef.current = trackId;
-
-    let cancelled = false;
-    setState({ peaks: null, duration: fallbackDuration || 0, loading: true });
-
-    (async () => {
-      try {
-        let canWriteCache = false;
-        const cacheRes = await fetch(`/api/tracks/${encodeURIComponent(trackId)}/waveform`, { cache: 'no-store' });
-        if (cacheRes.ok) {
-          const json = await cacheRes.json().catch(() => null);
-          canWriteCache = Boolean(json?.canWrite);
-          if (!cancelled && Array.isArray(json?.peaks) && json.peaks.length) {
-            setState({ peaks: json.peaks, duration: Number(json.duration) || fallbackDuration || 0, loading: false });
-            return;
-          }
-        }
-
-        const computed = await computeWaveformPeaks(audioUrl);
-        if (cancelled) return;
-        setState({ peaks: computed.peaks, duration: computed.duration || fallbackDuration || 0, loading: false });
-
-        if (canWriteCache) {
-          fetch(`/api/tracks/${encodeURIComponent(trackId)}/waveform`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ duration: computed.duration, peaks: computed.peaks }),
-          }).catch(() => {});
-        }
-      } catch {
-        if (!cancelled) setState({ peaks: null, duration: fallbackDuration || 0, loading: false });
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [trackId, audioUrl, fallbackDuration]);
-
-  return state;
+'use client';
+import { useQuery } from '@tanstack/react-query';
+import { computeWaveformPeaks, WAVEFORM_TARGET_PEAKS } from '@/lib/waveform';
+import { commentRequest, useCommentsViewer } from '@/lib/commentsClient';
+export type TrackWaveformState = { peaks: number[] | null; duration: number; loading: boolean };
+export function useTrackWaveform(trackId: string | null | undefined, audioUrl: string | null | undefined, fallbackDuration?: number): TrackWaveformState {
+  const viewer = useCommentsViewer();
+  const query = useQuery({
+    queryKey: ['track-waveform', trackId || '', viewer],
+    enabled: Boolean(trackId),
+    staleTime: 30 * 60_000, gcTime: 5 * 60_000,
+    retry: false,
+    queryFn: async ({ signal }) => {
+      const body = await commentRequest(`/api/tracks/${encodeURIComponent(trackId!)}/waveform`, { signal });
+      if (Array.isArray(body.peaks) && body.peaks.length) return { peaks: body.peaks as number[], duration: Number(body.duration) || fallbackDuration || 0 };
+      if (!audioUrl) return { peaks: null, duration: fallbackDuration || 0 };
+      const computed = await computeWaveformPeaks(audioUrl, WAVEFORM_TARGET_PEAKS, signal);
+      signal.throwIfAborted();
+      if (body.canWrite) await commentRequest(`/api/tracks/${encodeURIComponent(trackId!)}/waveform`, { method: 'POST', body: JSON.stringify(computed), signal }).catch(() => { signal.throwIfAborted(); });
+      return computed;
+    },
+  });
+  return { peaks: query.data?.peaks || null, duration: query.data?.duration || fallbackDuration || 0, loading: query.isFetching };
 }

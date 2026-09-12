@@ -16,6 +16,7 @@ import PageTransition from '@/components/PageTransition';
 import { SynauraToastViewport } from '@/components/ui/SynauraToastViewport';
 import { ContextSurfaceProvider } from '@/components/context-surfaces/ContextSurfaceController';
 import ProfilePeekRegistration from '@/components/profile/ProfilePeekRegistration';
+import CommentsRegistration from '@/components/comments/CommentsRegistration';
 
 const SYNAURA_THEME_STORAGE_KEY = 'synaura.theme.mode.v1';
 
@@ -154,6 +155,7 @@ export default function RootLayout({
           <div id="synaura-overlay-root" />
           <SynauraToastViewport />
           <ProfilePeekRegistration />
+          <CommentsRegistration />
           </ContextSurfaceProvider>
         </Providers>
         </SynauraThemeProvider>

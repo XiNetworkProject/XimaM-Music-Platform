@@ -11,6 +11,9 @@ export async function GET(
 ) {
   try {
     const { id: postId } = params;
+    const { data: target } = await dbAdmin.from('creator_posts').select('id, is_public, creator_id').eq('id', postId).maybeSingle();
+    const viewer = (await getApiSession(request).catch(() => null))?.user?.id;
+    if (!target || (!target.is_public && target.creator_id !== viewer)) return NextResponse.json({ error: 'Post introuvable' }, { status: 404 });
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50);
     const cursor = searchParams.get('cursor');
@@ -79,7 +82,9 @@ export async function POST(
     const body = await request.json();
     const { content } = body;
 
-    if (!content?.trim()) {
+    const { data: target } = await dbAdmin.from('creator_posts').select('id, is_public, creator_id').eq('id', postId).maybeSingle();
+    if (!target || (!target.is_public && target.creator_id !== userId)) return NextResponse.json({ error: 'Post introuvable' }, { status: 404 });
+    if (typeof content !== 'string' || !content.trim() || content.length > 1000) {
       return NextResponse.json({ error: 'Contenu requis' }, { status: 400 });
     }
 

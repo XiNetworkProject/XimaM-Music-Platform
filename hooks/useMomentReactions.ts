@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { useSharedReactions } from '@/lib/commentsClient';
 import { isMomentReactionType, type MomentReactionType } from '@/lib/momentReactions';
 
 export type RawMomentReaction = { id: string; reactionType: MomentReactionType; timestampSeconds: number };
@@ -57,34 +58,7 @@ function clusterReactions(reactions: RawMomentReaction[]): MomentReactionCluster
 /** Réactions rapides horodatées d'un morceau, regroupées par moment pour l'affichage
  * sur la waveform. Requête dédiée et légère (pas de texte, pas d'identité). */
 export function useMomentReactions(trackId: string | null | undefined) {
-  const [raw, setRaw] = useState<RawMomentReaction[]>([]);
-
-  const refresh = useCallback(async () => {
-    if (!trackId) {
-      setRaw([]);
-      return;
-    }
-    try {
-      const res = await fetch(`/api/tracks/${encodeURIComponent(trackId)}/reactions`, { cache: 'no-store' });
-      const json = await res.json().catch(() => null);
-      const list = (Array.isArray(json?.reactions) ? json.reactions : [])
-        .map(normalize)
-        .filter((r: RawMomentReaction | null): r is RawMomentReaction => Boolean(r));
-      setRaw(list);
-    } catch {
-      // silencieux : les réactions sont un enrichissement, pas une donnée critique
-    }
-  }, [trackId]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  const addOptimistic = useCallback((reaction: RawMomentReaction) => {
-    setRaw((current) => [...current, reaction]);
-  }, []);
-
-  const clusters = useMemo(() => clusterReactions(raw), [raw]);
-
-  return { clusters, refresh, addOptimistic };
+  const query = useSharedReactions(trackId);
+  const clusters = useMemo(() => clusterReactions(query.reactions), [query.reactions]);
+  return { ...query, clusters };
 }

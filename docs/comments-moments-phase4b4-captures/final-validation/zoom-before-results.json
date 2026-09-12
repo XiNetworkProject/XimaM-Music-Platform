@@ -1,0 +1,146 @@
+{
+  "checks": [
+    {
+      "name": "native browser zoom doubles DPR and halves CSS width",
+      "ok": true,
+      "detail": {
+        "before": {
+          "width": 1427,
+          "height": 788,
+          "dpr": 1.25,
+          "viewport": 788,
+          "surface": {
+            "width": 419,
+            "scrollWidth": 419,
+            "height": 788
+          },
+          "panel": {
+            "height": 298,
+            "scrollHeight": 298
+          },
+          "footer": {
+            "top": 591.4000244140625,
+            "bottom": 788.8000335693359
+          }
+        },
+        "after": {
+          "width": 713,
+          "height": 394,
+          "dpr": 2.5,
+          "viewport": 394,
+          "surface": {
+            "width": 704,
+            "scrollWidth": 704,
+            "height": 323
+          },
+          "panel": {
+            "height": 16,
+            "scrollHeight": 160
+          },
+          "footer": {
+            "top": 378.4250183105469,
+            "bottom": 575.8250274658203
+          }
+        }
+      }
+    },
+    {
+      "name": "200% no horizontal surface overflow",
+      "ok": true,
+      "detail": {
+        "width": 713,
+        "height": 394,
+        "dpr": 2.5,
+        "viewport": 394,
+        "surface": {
+          "width": 704,
+          "scrollWidth": 704,
+          "height": 323
+        },
+        "panel": {
+          "height": 16,
+          "scrollHeight": 160
+        },
+        "footer": {
+          "top": 378.4250183105469,
+          "bottom": 575.8250274658203
+        }
+      }
+    },
+    {
+      "name": "200% conversation has usable scroll area",
+      "ok": false,
+      "detail": {
+        "width": 713,
+        "height": 394,
+        "dpr": 2.5,
+        "viewport": 394,
+        "surface": {
+          "width": 704,
+          "scrollWidth": 704,
+          "height": 323
+        },
+        "panel": {
+          "height": 16,
+          "scrollHeight": 160
+        },
+        "footer": {
+          "top": 378.4250183105469,
+          "bottom": 575.8250274658203
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "delayed": [],
+  "failures": [
+    {
+      "path": "/api/tracks/track_1758585826376_i9gqvyvjv/comments/moderation",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "captures": [
+    "desktop-conversation-native-200.png",
+    "failure-state.png"
+  ],
+  "zoomBefore": {
+    "width": 1427,
+    "height": 788,
+    "dpr": 1.25,
+    "viewport": 788,
+    "surface": {
+      "width": 419,
+      "scrollWidth": 419,
+      "height": 788
+    },
+    "panel": {
+      "height": 298,
+      "scrollHeight": 298
+    },
+    "footer": {
+      "top": 591.4000244140625,
+      "bottom": 788.8000335693359
+    }
+  },
+  "nativeZoomAPI": 2,
+  "zoom200": {
+    "width": 713,
+    "height": 394,
+    "dpr": 2.5,
+    "viewport": 394,
+    "surface": {
+      "width": 704,
+      "scrollWidth": 704,
+      "height": 323
+    },
+    "panel": {
+      "height": 16,
+      "scrollHeight": 160
+    },
+    "footer": {
+      "top": 378.4250183105469,
+      "bottom": 575.8250274658203
+    }
+  },
+  "error": "AssertionError [ERR_ASSERTION]: 200% conversation has usable scroll area\n    at check (file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/scripts/comments-final-validation-gate.mjs:22:145)\n    at zoom (file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/scripts/comments-final-validation-gate.mjs:88:3)\n    at async file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/scripts/comments-final-validation-gate.mjs:107:20"
+}

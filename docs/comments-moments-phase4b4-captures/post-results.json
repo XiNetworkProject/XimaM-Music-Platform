@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "checks": [
+    "Post canonical entity; no invented timestamp or waveform",
+    "Post draft preserved across close/reopen",
+    "Back closes Post comments without leaving canonical route"
+  ],
+  "errors": [],
+  "postId": "ebe9ae23-ecab-4d30-ba1c-a71095614e55"
+}

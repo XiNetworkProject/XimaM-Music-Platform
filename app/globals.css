@@ -1643,6 +1643,14 @@ html[data-synaura-theme='dark'] .synaura-player-surface :is(
   width: max-content;
 }
 
+.comments-surface { height: min(82dvh, calc(100dvh - var(--comments-keyboard, 0px))); margin-bottom: var(--comments-keyboard, 0px); }
+@media (min-width: 768px) { .comments-surface { height: 100dvh; margin-bottom: 0; } }
+/* Short viewports (including native browser zoom) must not crush the conversation
+   or clip the composer below the sheet. Keep both regions reachable by scroll. */
+@media (max-height: 600px) {
+  .comments-surface { overflow-y: auto; overscroll-behavior: contain; }
+  .comments-surface #comments-panel { flex-shrink: 0; min-height: 8rem; }
+}
 .animate-marquee:hover {
   animation-play-state: paused;
 }

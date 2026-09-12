@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { dbAdmin } from '@/lib/database';
+import { canViewTrack } from '@/lib/publicTracks';
 
 // POST /api/tracks/[id]/comments/[commentId]/like - toggle like/unlike
 export async function POST(request: NextRequest, { params }: { params: { id: string; commentId: string } }) {
@@ -10,6 +11,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const commentId = params.commentId;
   if (!commentId) return NextResponse.json({ error: 'CommentId manquant' }, { status: 400 });
+  const { data: track } = await dbAdmin.from('tracks').select('id, creator_id, is_public, audio_url').eq('id', params.id).maybeSingle();
+  if (!track || !canViewTrack(track, userId)) return NextResponse.json({ error: 'Morceau introuvable' }, { status: 404 });
+  const { data: comment } = await dbAdmin.from('comments').select('id').eq('id', commentId).eq('track_id', params.id).maybeSingle();
+  if (!comment) return NextResponse.json({ error: 'Commentaire introuvable' }, { status: 404 });
 
   // Best-effort: table comment_likes (recommandée)
   try {
@@ -22,10 +27,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     let isLiked = false;
     if (existing?.id) {
-      await dbAdmin.from('comment_likes').delete().eq('id', existing.id);
+      const { error } = await dbAdmin.from('comment_likes').delete().eq('id', existing.id);
+      if (error) throw error;
       isLiked = false;
     } else {
-      await dbAdmin.from('comment_likes').insert({ comment_id: commentId, user_id: userId });
+      const { error } = await dbAdmin.from('comment_likes').insert({ comment_id: commentId, user_id: userId });
+      if (error) throw error;
       isLiked = true;
     }
 
@@ -35,7 +42,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ isLiked, likesCount });
   } catch {
     // fallback: pas de table -> ne pas casser l'UI
-    return NextResponse.json({ isLiked: false, likesCount: 0 });
+    return NextResponse.json({ error: 'Impossible de modifier le like' }, { status: 500 });
   }
 }
 

@@ -11,6 +11,8 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useCommentsSurface } from '@/components/comments/useCommentsSurface';
+import CommentCount from '@/components/comments/CommentCount';
 import { useAudioPlayer } from '@/app/providers';
 import { notify } from '@/components/NotificationCenter';
 import { getCdnUrl } from '@/lib/cdn';
@@ -79,16 +81,13 @@ export default function PostPage() {
   const id = (params?.id as string) || '';
   const { data: session } = useSession();
   const { playTrack, audioState } = useAudioPlayer();
+  const openComments = useCommentsSurface('other');
 
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
-  const [commentText, setCommentText] = useState('');
-  const [submittingComment, setSubmittingComment] = useState(false);
   const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
@@ -109,16 +108,6 @@ export default function PostPage() {
     })();
   }, [id]);
 
-  useEffect(() => {
-    if (!id) return;
-    setCommentsLoading(true);
-    fetch(`/api/posts/${id}/comments`)
-      .then(r => r.ok ? r.json() : { comments: [] })
-      .then(d => setComments(d.comments || []))
-      .catch(() => {})
-      .finally(() => setCommentsLoading(false));
-  }, [id]);
-
   const handleLike = useCallback(async () => {
     if (!session) { notify.error('', 'Connecte-toi pour liker'); return; }
     const wasLiked = liked;
@@ -131,38 +120,6 @@ export default function PostPage() {
       setLikesCount(c => c + (wasLiked ? 1 : -1));
     }
   }, [liked, id, session]);
-
-  const handleComment = useCallback(async () => {
-    if (!commentText.trim() || !session) return;
-    setSubmittingComment(true);
-    try {
-      const res = await fetch(`/api/posts/${id}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: commentText.trim() }),
-      });
-      const data = await res.json();
-      if (res.ok && data.comment) {
-        setComments(prev => [data.comment, ...prev]);
-        setCommentText('');
-        setPost(p => p ? { ...p, comments_count: (p.comments_count || 0) + 1 } : p);
-      } else {
-        notify.error('', data.error || 'Erreur commentaire');
-      }
-    } catch {
-      notify.error('', 'Erreur réseau');
-    } finally {
-      setSubmittingComment(false);
-    }
-  }, [commentText, id, session]);
-
-  const handleDeleteComment = useCallback(async (commentId: string) => {
-    try {
-      await fetch(`/api/posts/${id}/comments?commentId=${commentId}`, { method: 'DELETE' });
-      setComments(prev => prev.filter(c => c.id !== commentId));
-      setPost(p => p ? { ...p, comments_count: Math.max(0, (p.comments_count || 1) - 1) } : p);
-    } catch { notify.error('', 'Erreur suppression'); }
-  }, [id]);
 
   const handlePlayTrack = useCallback(() => {
     if (!post?.track?.audio_url) return;
@@ -406,99 +363,7 @@ export default function PostPage() {
           </SynauraPanel>
 
           <SynauraPanel className="p-4 sm:p-6">
-            <div className="flex items-center gap-2 text-[13px] font-black uppercase tracking-[0.18em] text-black/40">
-              <MessageCircle className="h-4 w-4" />
-              {(post.comments_count || comments.length)} commentaire{(post.comments_count || comments.length) !== 1 ? 's' : ''}
-            </div>
-
-            {session ? (
-              <div className="mt-4 flex gap-3">
-                <Avatar user={{ username: (session.user as any)?.username || session.user?.name || 'Moi', name: session.user?.name || undefined, avatar: session.user?.image || undefined }} size="sm" />
-                <div className="flex-1 rounded-[1.35rem] border border-black/[0.08] bg-black/[0.03] p-3">
-                  <textarea
-                    placeholder="Ajouter un commentaire..."
-                    value={commentText}
-                    onChange={e => setCommentText(e.target.value)}
-                    className="min-h-[84px] w-full resize-none bg-transparent text-sm text-[#171313] outline-none placeholder:text-black/30"
-                    maxLength={500}
-                  />
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <p className="text-xs font-semibold text-black/35">{commentText.length}/500</p>
-                    <button
-                      onClick={handleComment}
-                      disabled={!commentText.trim() || submittingComment}
-                      className="inline-flex h-10 items-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-white transition hover:opacity-92 disabled:opacity-50"
-                    >
-                      {submittingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                      {submittingComment ? 'Envoi...' : 'Publier'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-4 rounded-[1.35rem] border border-[#ff6f61]/18 bg-[#ff6f61]/10 p-4">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#ff6f61]">Envie de répondre ?</p>
-                <h3 className="mt-2 text-xl font-black tracking-tight text-[#171313]">Inscris-toi pour commenter</h3>
-                <p className="mt-2 text-sm font-semibold leading-6 text-black/54">
-                  Crée ton compte pour liker, commenter, partager ce post et suivre les créateurs qui t'intéressent.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Link href={`/auth/signup?callbackUrl=/posts/${post.id}`} className="inline-flex h-11 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]">
-                    <UserPlus className="h-4 w-4" />
-                    Créer un compte
-                  </Link>
-                  <Link href={`/auth/signin?callbackUrl=/posts/${post.id}`} className="inline-flex h-11 items-center rounded-full bg-white px-5 text-sm font-black text-black/58 transition hover:bg-black hover:text-white">
-                    Connexion
-                  </Link>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-5 space-y-3">
-              {commentsLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-black/20" />
-                </div>
-              ) : comments.length === 0 ? (
-                <div className="rounded-[1.35rem] bg-black/[0.03] px-4 py-8 text-center text-sm font-semibold text-black/40">
-                  Aucun commentaire pour le moment.
-                </div>
-              ) : (
-                comments.filter(c => c?.user).map(comment => {
-                  const isMine = (session?.user as any)?.id === comment.user.id
-                    || (session?.user as any)?.username === comment.user.username;
-                  return (
-                    <motion.div
-                      key={comment.id}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex gap-3 rounded-[1.2rem] bg-black/[0.03] p-4 transition-colors"
-                    >
-                      <Link href={`/profile/${comment.user.username}`} className="shrink-0">
-                        <Avatar user={comment.user} size="sm" />
-                      </Link>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Link href={`/profile/${comment.user.username}`} className="text-[13px] font-black text-[#171313] hover:underline">
-                            {comment.user.name || comment.user.username}
-                          </Link>
-                          <span className="text-[11px] font-semibold text-black/30">{timeAgo(comment.created_at)}</span>
-                        </div>
-                        <p className="mt-1 text-[14px] leading-6 text-black/66">{comment.content}</p>
-                      </div>
-                      {isMine ? (
-                        <button
-                          onClick={() => handleDeleteComment(comment.id)}
-                          className="shrink-0 text-black/26 transition hover:text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      ) : null}
-                    </motion.div>
-                  );
-                })
-              )}
-            </div>
+            <button type="button" data-context-surface-trigger-key={`post-comments-${post.id}`} onClick={event => openComments({ type: 'post', id: post.id, title: 'Publication', artist: post.creator?.name || post.creator?.username, creatorId: post.creator?.id, count: post.comments_count }, event.currentTarget)} className="syn-interactive inline-flex min-h-11 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-bold text-white"><MessageCircle className="h-4 w-4" />Commentaires <CommentCount type="post" id={post.id} fallback={post.comments_count} /></button>
           </SynauraPanel>
         </motion.div>
       </div>

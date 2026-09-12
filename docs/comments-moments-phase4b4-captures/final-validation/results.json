@@ -1,0 +1,752 @@
+{
+  "checks": [
+    {
+      "name": "rapid A/B/C entity remains C after delayed responses",
+      "ok": true,
+      "detail": {
+        "a": "track-track_1758481606741_trwopq702",
+        "b": "track-track_1773789112971_0egfpy0i2",
+        "c": "track-track_1782517870229_4_vjgv7x3",
+        "final": "track:track_1782517870229_4_vjgv7x3"
+      }
+    },
+    {
+      "name": "rapid C receives no draft",
+      "ok": true
+    },
+    {
+      "name": "C contains no comments from A/B",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "C waveform matches C real peaks only",
+      "ok": true,
+      "detail": {
+        "bars": 90,
+        "source": "real persisted cache"
+      }
+    },
+    {
+      "name": "returned to A",
+      "ok": true
+    },
+    {
+      "name": "B does not inherit A draft",
+      "ok": true
+    },
+    {
+      "name": "warm A retains its own draft",
+      "ok": true
+    },
+    {
+      "name": "open has zero native play/pause/seek/load and unchanged queue",
+      "ok": true,
+      "detail": {
+        "before": {
+          "core": {
+            "instanceId": "audio-core-1",
+            "trackId": "track_1758481606741_trwopq702",
+            "playbackState": "playing",
+            "position": 0.657602,
+            "duration": 174.359979,
+            "queueIds": [
+              "track_1758481606741_trwopq702",
+              "track_1773789112971_0egfpy0i2",
+              "track_1782517870229_4_vjgv7x3"
+            ],
+            "currentIndex": 0,
+            "generation": 7,
+            "listeners": 14,
+            "pendingRetries": 0,
+            "activeSecondaryPlayers": 0,
+            "secondaryContexts": [],
+            "stateSubscribers": 1,
+            "timeSubscribers": 2,
+            "musicalAudioElements": 1,
+            "watchdogActive": true,
+            "persistenceActive": true,
+            "providerRenders": 94
+          },
+          "calls": {
+            "play": 7,
+            "pause": 7,
+            "seek": 7,
+            "load": 7
+          },
+          "focus": "live-track-comments-track_1758481606741_trwopq702"
+        },
+        "after": {
+          "core": {
+            "instanceId": "audio-core-1",
+            "trackId": "track_1758481606741_trwopq702",
+            "playbackState": "playing",
+            "position": 0.919722,
+            "duration": 174.359979,
+            "queueIds": [
+              "track_1758481606741_trwopq702",
+              "track_1773789112971_0egfpy0i2",
+              "track_1782517870229_4_vjgv7x3"
+            ],
+            "currentIndex": 0,
+            "generation": 7,
+            "listeners": 14,
+            "pendingRetries": 0,
+            "activeSecondaryPlayers": 0,
+            "secondaryContexts": [],
+            "stateSubscribers": 2,
+            "timeSubscribers": 4,
+            "musicalAudioElements": 1,
+            "watchdogActive": true,
+            "persistenceActive": true,
+            "providerRenders": 94
+          },
+          "calls": {
+            "play": 7,
+            "pause": 7,
+            "seek": 7,
+            "load": 7
+          },
+          "entity": "track:track_1758481606741_trwopq702",
+          "draft": "Draft A — never submitted",
+          "mode": "comments-tab-conversation",
+          "focus": null
+        }
+      }
+    },
+    {
+      "name": "close has zero native audio mutation and unchanged queue",
+      "ok": true,
+      "detail": {
+        "before": {
+          "core": {
+            "instanceId": "audio-core-1",
+            "trackId": "track_1758481606741_trwopq702",
+            "playbackState": "playing",
+            "position": 0.919722,
+            "duration": 174.359979,
+            "queueIds": [
+              "track_1758481606741_trwopq702",
+              "track_1773789112971_0egfpy0i2",
+              "track_1782517870229_4_vjgv7x3"
+            ],
+            "currentIndex": 0,
+            "generation": 7,
+            "listeners": 14,
+            "pendingRetries": 0,
+            "activeSecondaryPlayers": 0,
+            "secondaryContexts": [],
+            "stateSubscribers": 2,
+            "timeSubscribers": 4,
+            "musicalAudioElements": 1,
+            "watchdogActive": true,
+            "persistenceActive": true,
+            "providerRenders": 94
+          },
+          "calls": {
+            "play": 7,
+            "pause": 7,
+            "seek": 7,
+            "load": 7
+          },
+          "entity": "track:track_1758481606741_trwopq702",
+          "draft": "Draft A — never submitted",
+          "mode": "comments-tab-conversation",
+          "focus": null
+        },
+        "after": {
+          "core": {
+            "instanceId": "audio-core-1",
+            "trackId": "track_1758481606741_trwopq702",
+            "playbackState": "playing",
+            "position": 1.449043,
+            "duration": 174.359979,
+            "queueIds": [
+              "track_1758481606741_trwopq702",
+              "track_1773789112971_0egfpy0i2",
+              "track_1782517870229_4_vjgv7x3"
+            ],
+            "currentIndex": 0,
+            "generation": 7,
+            "listeners": 14,
+            "pendingRetries": 0,
+            "activeSecondaryPlayers": 0,
+            "secondaryContexts": [],
+            "stateSubscribers": 1,
+            "timeSubscribers": 2,
+            "musicalAudioElements": 1,
+            "watchdogActive": true,
+            "persistenceActive": true,
+            "providerRenders": 94
+          },
+          "calls": {
+            "play": 7,
+            "pause": 7,
+            "seek": 7,
+            "load": 7
+          },
+          "focus": "live-track-comments-track_1758481606741_trwopq702"
+        }
+      }
+    },
+    {
+      "name": "marker has exactly one explicit seek only",
+      "ok": true,
+      "detail": {
+        "before": {
+          "play": 7,
+          "pause": 7,
+          "seek": 7,
+          "load": 7
+        },
+        "after": {
+          "play": 7,
+          "pause": 7,
+          "seek": 8,
+          "load": 7
+        }
+      }
+    },
+    {
+      "name": "desktop Profile Peek no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "desktop nested Back preserves draft/tab/moment/focus/audio",
+      "ok": true,
+      "detail": {
+        "before": {
+          "core": {
+            "instanceId": "audio-core-1",
+            "trackId": "track_1758481606741_trwopq702",
+            "playbackState": "playing",
+            "position": 46.899733,
+            "duration": 174.359979,
+            "queueIds": [
+              "track_1758481606741_trwopq702",
+              "track_1773789112971_0egfpy0i2",
+              "track_1782517870229_4_vjgv7x3"
+            ],
+            "currentIndex": 0,
+            "generation": 7,
+            "listeners": 14,
+            "pendingRetries": 0,
+            "activeSecondaryPlayers": 0,
+            "secondaryContexts": [],
+            "stateSubscribers": 2,
+            "timeSubscribers": 4,
+            "musicalAudioElements": 1,
+            "watchdogActive": true,
+            "persistenceActive": true,
+            "providerRenders": 98
+          },
+          "calls": {
+            "play": 7,
+            "pause": 7,
+            "seek": 8,
+            "load": 7
+          },
+          "entity": "track:track_1758481606741_trwopq702",
+          "draft": "Draft A — never submitted",
+          "mode": "comments-tab-moments",
+          "selection": "À 0:461 commentaire(s) · 0 réaction(s)",
+          "focus": null
+        },
+        "after": {
+          "core": {
+            "instanceId": "audio-core-1",
+            "trackId": "track_1758481606741_trwopq702",
+            "playbackState": "playing",
+            "position": 48.12319,
+            "duration": 174.359979,
+            "queueIds": [
+              "track_1758481606741_trwopq702",
+              "track_1773789112971_0egfpy0i2",
+              "track_1782517870229_4_vjgv7x3"
+            ],
+            "currentIndex": 0,
+            "generation": 7,
+            "listeners": 14,
+            "pendingRetries": 0,
+            "activeSecondaryPlayers": 0,
+            "secondaryContexts": [],
+            "stateSubscribers": 2,
+            "timeSubscribers": 4,
+            "musicalAudioElements": 1,
+            "watchdogActive": true,
+            "persistenceActive": true,
+            "providerRenders": 98
+          },
+          "calls": {
+            "play": 7,
+            "pause": 7,
+            "seek": 8,
+            "load": 7
+          },
+          "entity": "track:track_1758481606741_trwopq702",
+          "draft": "Draft A — never submitted",
+          "mode": "comments-tab-moments",
+          "selection": "À 0:461 commentaire(s) · 0 réaction(s)",
+          "focus": "comment-avatar-track-caef6313-d1af-4112-be43-bbecef6d5bfc"
+        }
+      }
+    },
+    {
+      "name": "native browser zoom doubles DPR and halves CSS width",
+      "ok": true,
+      "detail": {
+        "before": {
+          "width": 1427,
+          "height": 788,
+          "dpr": 1.25,
+          "viewport": 788,
+          "surface": {
+            "width": 419,
+            "scrollWidth": 419,
+            "height": 788
+          },
+          "panel": {
+            "height": 270,
+            "scrollHeight": 372
+          },
+          "footer": {
+            "top": 591.4000244140625,
+            "bottom": 788.8000335693359
+          }
+        },
+        "after": {
+          "width": 713,
+          "height": 394,
+          "dpr": 2.5,
+          "viewport": 394,
+          "surface": {
+            "width": 704,
+            "scrollWidth": 704,
+            "height": 323
+          },
+          "panel": {
+            "height": 128,
+            "scrollHeight": 372
+          },
+          "footer": {
+            "top": 490.4250183105469,
+            "bottom": 687.8250274658203
+          }
+        }
+      }
+    },
+    {
+      "name": "200% no horizontal surface overflow",
+      "ok": true,
+      "detail": {
+        "width": 713,
+        "height": 394,
+        "dpr": 2.5,
+        "viewport": 394,
+        "surface": {
+          "width": 704,
+          "scrollWidth": 704,
+          "height": 323
+        },
+        "panel": {
+          "height": 128,
+          "scrollHeight": 372
+        },
+        "footer": {
+          "top": 490.4250183105469,
+          "bottom": 687.8250274658203
+        }
+      }
+    },
+    {
+      "name": "200% conversation has usable scroll area",
+      "ok": true,
+      "detail": {
+        "width": 713,
+        "height": 394,
+        "dpr": 2.5,
+        "viewport": 394,
+        "surface": {
+          "width": 704,
+          "scrollWidth": 704,
+          "height": 323
+        },
+        "panel": {
+          "height": 128,
+          "scrollHeight": 372
+        },
+        "footer": {
+          "top": 490.4250183105469,
+          "bottom": 687.8250274658203
+        }
+      }
+    },
+    {
+      "name": "native-200 Profile Peek no horizontal overflow",
+      "ok": true
+    },
+    {
+      "name": "native-200 nested Back preserves draft/tab/moment/focus/audio",
+      "ok": true,
+      "detail": {
+        "before": {
+          "core": {
+            "instanceId": "audio-core-1",
+            "trackId": "track_1758481606741_trwopq702",
+            "playbackState": "playing",
+            "position": 46.899733,
+            "duration": 174.359979,
+            "queueIds": [
+              "track_1758481606741_trwopq702",
+              "track_1773789112971_0egfpy0i2",
+              "track_1782517870229_4_vjgv7x3"
+            ],
+            "currentIndex": 0,
+            "generation": 7,
+            "listeners": 14,
+            "pendingRetries": 0,
+            "activeSecondaryPlayers": 0,
+            "secondaryContexts": [],
+            "stateSubscribers": 2,
+            "timeSubscribers": 4,
+            "musicalAudioElements": 1,
+            "watchdogActive": true,
+            "persistenceActive": true,
+            "providerRenders": 102
+          },
+          "calls": {
+            "play": 7,
+            "pause": 7,
+            "seek": 9,
+            "load": 7
+          },
+          "entity": "track:track_1758481606741_trwopq702",
+          "draft": "Draft A — never submitted",
+          "mode": "comments-tab-moments",
+          "selection": "À 0:461 commentaire(s) · 0 réaction(s)",
+          "focus": "comment-avatar-track-caef6313-d1af-4112-be43-bbecef6d5bfc"
+        },
+        "after": {
+          "core": {
+            "instanceId": "audio-core-1",
+            "trackId": "track_1758481606741_trwopq702",
+            "playbackState": "playing",
+            "position": 48.123996,
+            "duration": 174.359979,
+            "queueIds": [
+              "track_1758481606741_trwopq702",
+              "track_1773789112971_0egfpy0i2",
+              "track_1782517870229_4_vjgv7x3"
+            ],
+            "currentIndex": 0,
+            "generation": 7,
+            "listeners": 14,
+            "pendingRetries": 0,
+            "activeSecondaryPlayers": 0,
+            "secondaryContexts": [],
+            "stateSubscribers": 2,
+            "timeSubscribers": 4,
+            "musicalAudioElements": 1,
+            "watchdogActive": true,
+            "persistenceActive": true,
+            "providerRenders": 102
+          },
+          "calls": {
+            "play": 7,
+            "pause": 7,
+            "seek": 9,
+            "load": 7
+          },
+          "entity": "track:track_1758481606741_trwopq702",
+          "draft": "Draft A — never submitted",
+          "mode": "comments-tab-moments",
+          "selection": "À 0:461 commentaire(s) · 0 réaction(s)",
+          "focus": "comment-avatar-track-caef6313-d1af-4112-be43-bbecef6d5bfc"
+        }
+      }
+    },
+    {
+      "name": "200% composer is reachable inside viewport",
+      "ok": true,
+      "detail": {
+        "top": 275.82501220703125,
+        "bottom": 333.4250144958496
+      }
+    },
+    {
+      "name": "200% footer fully reachable by scroll",
+      "ok": true,
+      "detail": {
+        "width": 713,
+        "height": 394,
+        "dpr": 2.5,
+        "viewport": 394,
+        "surface": {
+          "width": 704,
+          "scrollWidth": 704,
+          "height": 323
+        },
+        "panel": {
+          "height": 128,
+          "scrollHeight": 372
+        },
+        "footer": {
+          "top": 196.02500915527344,
+          "bottom": 393.4250183105469
+        }
+      }
+    },
+    {
+      "name": "Back returns to Live with comments-trigger focus",
+      "ok": true
+    },
+    {
+      "name": "Live does not scroll behind comments",
+      "ok": true
+    },
+    {
+      "name": "mobile timestamp removable without draft loss",
+      "ok": true
+    },
+    {
+      "name": "390x844 composer fits, conversation scrolls",
+      "ok": true
+    },
+    {
+      "name": "Track route has one musical element only",
+      "ok": true
+    },
+    {
+      "name": "no pageerror",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "no console error",
+      "ok": false,
+      "detail": [
+        "Failed to load resource: the server responded with a status of 401 ()"
+      ]
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()"
+  ],
+  "httpErrors": [
+    {
+      "path": "/dtgglgtfx/image/upload/v1758745904/ximam/profiles/ximamoff/ximamoff_avatar_1758745905.png",
+      "method": "GET",
+      "status": 401
+    },
+    {
+      "path": "/dtgglgtfx/image/upload/v1781610007/ximam/profiles/keurlilamelo/keurlilamelo_avatar_1781610003.jpg",
+      "method": "GET",
+      "status": 401
+    },
+    {
+      "path": "/dtgglgtfx/image/upload/v1758481605/ximam/images/cover_1758481606881_hx28s79n2.jpg",
+      "method": "GET",
+      "status": 401
+    }
+  ],
+  "delayed": [
+    {
+      "path": "/api/tracks/track_1758481606741_trwopq702/comments/moderation",
+      "delay": 3500
+    },
+    {
+      "path": "/api/tracks/track_1758481606741_trwopq702/comments/moderation",
+      "delay": 3500
+    },
+    {
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/waveform",
+      "delay": 3500
+    },
+    {
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/comments/moderation",
+      "delay": 3500
+    },
+    {
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/reactions",
+      "delay": 3500
+    },
+    {
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/comments/moderation",
+      "delay": 3500
+    },
+    {
+      "path": "/api/tracks/track_1782517870229_4_vjgv7x3/waveform",
+      "delay": 3500
+    },
+    {
+      "path": "/api/tracks/track_1782517870229_4_vjgv7x3/comments/moderation",
+      "delay": 3500
+    },
+    {
+      "path": "/api/tracks/track_1782517870229_4_vjgv7x3/reactions",
+      "delay": 3500
+    },
+    {
+      "path": "/api/tracks/track_1782517870229_4_vjgv7x3/comments/moderation",
+      "delay": 3500
+    },
+    {
+      "path": "/api/tracks/track_1782517870229_4_vjgv7x3/waveform",
+      "delay": 3500
+    }
+  ],
+  "failures": [
+    {
+      "path": "/api/tracks/track_1758481606741_trwopq702/reactions",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/tracks/track_1758481606741_trwopq702/waveform",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/tracks/track_1758481606741_trwopq702/comments/moderation",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/tracks/track_1758481606741_trwopq702/comments/moderation",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/tracks/track_1758481606741_trwopq702/comments/moderation",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/comments/moderation",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/waveform",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/comments/moderation",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/reactions",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/tracks/track_1758481606741_trwopq702/comments/moderation",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "path": "/api/tracks/track_1773789112971_0egfpy0i2/comments/moderation",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "captures": [
+    "desktop-nested-profile.png",
+    "desktop-before-native-zoom.png",
+    "desktop-conversation-native-200.png",
+    "desktop-moments-native-200.png",
+    "desktop-cluster-native-200.png",
+    "native-200-nested-profile.png",
+    "desktop-composer-native-200.png",
+    "mobile-conversation-390.png",
+    "mobile-moments-390.png",
+    "mobile-composer-focused-no-os-keyboard.png",
+    "failure-state.png"
+  ],
+  "feedFixture": {
+    "kind": "real public records, test-only ordering",
+    "ids": [
+      "track_1758481606741_trwopq702",
+      "track_1773789112971_0egfpy0i2",
+      "track_1782517870229_4_vjgv7x3"
+    ]
+  },
+  "rapidDom": {
+    "entity": "track:track_1782517870229_4_vjgv7x3",
+    "ids": [],
+    "waveform": "0:081:46"
+  },
+  "zoomBefore": {
+    "width": 1427,
+    "height": 788,
+    "dpr": 1.25,
+    "viewport": 788,
+    "surface": {
+      "width": 419,
+      "scrollWidth": 419,
+      "height": 788
+    },
+    "panel": {
+      "height": 270,
+      "scrollHeight": 372
+    },
+    "footer": {
+      "top": 591.4000244140625,
+      "bottom": 788.8000335693359
+    }
+  },
+  "nativeZoomAPI": 2,
+  "zoom200": {
+    "width": 713,
+    "height": 394,
+    "dpr": 2.5,
+    "viewport": 394,
+    "surface": {
+      "width": 704,
+      "scrollWidth": 704,
+      "height": 323
+    },
+    "panel": {
+      "height": 128,
+      "scrollHeight": 372
+    },
+    "footer": {
+      "top": 490.4250183105469,
+      "bottom": 687.8250274658203
+    }
+  },
+  "composer200": {
+    "width": 713,
+    "height": 394,
+    "dpr": 2.5,
+    "viewport": 394,
+    "surface": {
+      "width": 704,
+      "scrollWidth": 704,
+      "height": 323
+    },
+    "panel": {
+      "height": 128,
+      "scrollHeight": 372
+    },
+    "footer": {
+      "top": 256.4250183105469,
+      "bottom": 453.8250274658203
+    }
+  },
+  "mobile": {
+    "width": 390,
+    "height": 844,
+    "dpr": 1.0000000149011612,
+    "viewport": 844,
+    "surface": {
+      "width": 389,
+      "scrollWidth": 389,
+      "height": 692
+    },
+    "panel": {
+      "height": 174,
+      "scrollHeight": 372
+    },
+    "footer": {
+      "top": 645.7999877929688,
+      "bottom": 843.1999969482422
+    }
+  },
+  "realMobileKeyboard": "NOT AVAILABLE: desktop viewport emulation only",
+  "error": "AssertionError [ERR_ASSERTION]: no console error\n    at check (file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/scripts/comments-final-validation-gate.mjs:23:145)\n    at file:///C:/Users/mvadn/Desktop/XimaM%20Site%202/scripts/comments-final-validation-gate.mjs:173:3"
+}

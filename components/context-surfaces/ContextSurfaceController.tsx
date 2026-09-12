@@ -241,6 +241,7 @@ export function ContextSurfaceProvider({ children }: { children: ReactNode }) {
     stackRef.current = next;
     setStack(next);
     restoreFocus(triggersRef.current.get(current.historyKey), current.origin);
+    triggersRef.current.delete(current.historyKey);
   }, []);
 
   useEffect(() => {
@@ -250,6 +251,8 @@ export function ContextSurfaceProvider({ children }: { children: ReactNode }) {
       setStack(result.stack);
       const closed = result.closed[0];
       if (closed) restoreFocus(triggersRef.current.get(closed.historyKey), closed.origin);
+      // Closed entries must not retain detached renderer DOM through their trigger.
+      for (const entry of result.closed) triggersRef.current.delete(entry.historyKey);
       closingRef.current = false;
     };
     window.addEventListener('popstate', handlePopState);
@@ -263,6 +266,7 @@ export function ContextSurfaceProvider({ children }: { children: ReactNode }) {
     stackRef.current = [];
     setStack([]);
     if (closed[0]) restoreFocus(triggersRef.current.get(closed[0].historyKey), closed[0].origin);
+    triggersRef.current.clear();
   }, [pathname]);
 
   const current = stack.at(-1) || null;

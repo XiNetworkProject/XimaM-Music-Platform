@@ -15,6 +15,8 @@ import { recordClipFunnelEvent } from '@/lib/analyticsClient';
 import TrackPostsSection from '@/components/posts/TrackPostsSection';
 import TrackShareCardModal from '@/components/share/TrackShareCardModal';
 import DownloadButton from '@/components/DownloadButton';
+import { useCommentsSurface } from '@/components/comments/useCommentsSurface';
+import CommentCount from '@/components/comments/CommentCount';
 
 interface TrackData {
   id: string;
@@ -70,6 +72,7 @@ function ArtistAvatar({ name, username, avatar }: { name: string; username: stri
 export default function TrackPageClient({ track }: { track: TrackData | null }) {
   const { data: session } = useSession();
   const router = useRouter();
+  const openComments = useCommentsSurface('other');
   const { playTrack, audioState, play, pause, setShowPlayer, setIsMinimized } = useAudioPlayer();
   const [showShare, setShowShare] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
@@ -242,6 +245,7 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
                 <Share2 className="h-4 w-4" />
                 Partager
               </button>
+              {!track.isAI && <button type="button" data-context-surface-trigger-key={`track-comments-${track.id}`} onClick={event => openComments({ type: 'track', id: track.id, title: track.title, artist: track.artist, creatorId: track.creatorId || undefined, audioUrl: track.audioUrl, coverUrl: track.coverUrl, duration: track.duration }, event.currentTarget)} className="syn-interactive inline-flex min-h-12 items-center gap-2 rounded-full bg-black/[0.055] px-5 text-sm font-black text-black/60"><MessageSquare className="h-4 w-4" />Commentaires <CommentCount type="track" id={track.id} /></button>}
 
               <DownloadButton
                 audioUrl={track.audioUrl}
@@ -336,10 +340,10 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
 
             <div className="mt-4 rounded-[1.35rem] border border-black/[0.08] bg-black/[0.03] p-4">
               <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-black/38">Lecteur audio</p>
-              <audio controls preload="none" className="w-full" style={{ height: 40 }}>
-                <source src={track.audioUrl} type="audio/mpeg" />
-                Votre navigateur ne supporte pas le lecteur audio.
-              </audio>
+              <button type="button" onClick={handlePlay} className="syn-interactive flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-bold text-white">
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                {isPlaying ? 'Mettre en pause' : 'Écouter avec le lecteur Synaura'}
+              </button>
             </div>
           </SynauraPanel>
 

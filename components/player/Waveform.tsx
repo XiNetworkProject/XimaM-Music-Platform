@@ -154,13 +154,10 @@ export default function Waveform({
       <div
         ref={containerRef}
         className={`group relative w-full ${barsHeight} cursor-pointer select-none`}
-        onPointerDown={(e) => { setOpenMarkerId(null); setOpenReactionClusterId(null); commitSeek(e.clientX); }}
-        onPointerMove={(e) => e.buttons === 1 && commitSeek(e.clientX)}
+        onPointerDown={(e) => { if ((e.target as HTMLElement).closest('button')) return; setOpenMarkerId(null); setOpenReactionClusterId(null); commitSeek(e.clientX); }}
+        onPointerMove={(e) => !(e.target as HTMLElement).closest('button') && e.buttons === 1 && commitSeek(e.clientX)}
         onPointerUp={hideScrubBubble}
         onPointerLeave={hideScrubBubble}
-        onTouchStart={(e) => { setOpenMarkerId(null); setOpenReactionClusterId(null); commitSeek(e.touches[0].clientX); }}
-        onTouchMove={(e) => commitSeek(e.touches[0].clientX)}
-        onTouchEnd={hideScrubBubble}
       >
         {peaks && peaks.length ? (
           <>

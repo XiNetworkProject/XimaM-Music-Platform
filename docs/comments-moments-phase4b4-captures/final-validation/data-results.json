@@ -1,0 +1,90 @@
+{
+  "checks": [
+    {
+      "name": "timestamped fixture is publicly readable",
+      "ok": true
+    },
+    {
+      "name": "real like",
+      "ok": true
+    },
+    {
+      "name": "real unlike",
+      "ok": true
+    },
+    {
+      "name": "real reply POST",
+      "ok": true
+    },
+    {
+      "name": "reply publicly readable",
+      "ok": true
+    },
+    {
+      "name": "non-creator moderation denied",
+      "ok": true
+    },
+    {
+      "name": "creator-filtered fixture absent from anonymous endpoint",
+      "ok": true
+    },
+    {
+      "name": "fixture restored for author deletion test",
+      "ok": true
+    },
+    {
+      "name": "real timestamp reaction POST",
+      "ok": true
+    },
+    {
+      "name": "real reaction readable",
+      "ok": true
+    },
+    {
+      "name": "author reply deletion",
+      "ok": true
+    },
+    {
+      "name": "deleted reply never returned publicly",
+      "ok": true
+    },
+    {
+      "name": "author parent deletion",
+      "ok": true
+    },
+    {
+      "name": "deleted parent never returned publicly",
+      "ok": true
+    },
+    {
+      "name": "anonymous hidden records excluded: /comments/moderation?view=public&limit=100",
+      "ok": true
+    },
+    {
+      "name": "anonymous hidden records excluded: /comments/moderation?timestampedOnly=1&limit=100",
+      "ok": true
+    },
+    {
+      "name": "anonymous hidden records excluded: /comments?view=creator&includeDeleted=true&includeFiltered=true&limit=100",
+      "ok": true
+    },
+    {
+      "name": "no test comment remains",
+      "ok": true
+    },
+    {
+      "name": "no test reaction remains",
+      "ok": true
+    }
+  ],
+  "errors": [],
+  "cleanup": [
+    {
+      "commentsRemoved": 2
+    },
+    {
+      "reactionRemoved": 1
+    }
+  ],
+  "status": "PASS"
+}

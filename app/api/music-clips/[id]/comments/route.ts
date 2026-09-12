@@ -63,7 +63,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       comments: rows.map((row) => formatComment(row, usersById.get(row.userId))),
       hasMore: rows.length === limit,
       nextOffset: offset + rows.length,
-      commentsCount: await syncCommentCount(params.id),
+      commentsCount: await countMusicClipCommentsStored(params.id),
     });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Impossible de charger les commentaires' }, { status: 500 });
