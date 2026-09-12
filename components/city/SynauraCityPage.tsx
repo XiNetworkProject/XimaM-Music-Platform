@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import Link from '@/components/navigation/HandoffLink';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -257,7 +257,7 @@ export default function SynauraCityPage() {
 
   return (
     <SynauraAppShell contentClassName="max-w-[1500px]">
-      <SynauraTopBar secondaryHref="/ai-generator" secondaryLabel="Studio" primaryHref="/upload" primaryLabel="Publier" />
+      <SynauraTopBar secondaryHref="/ai-generator" secondaryLabel="Créer avec l’IA" primaryHref="/upload" primaryLabel="Publier" />
       <SynauraRouteNav />
 
       <div className="space-y-7 sm:space-y-10">

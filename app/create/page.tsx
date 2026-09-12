@@ -1,8 +1,10 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import Link from '@/components/navigation/HandoffLink';
+import { useSearchParams } from 'next/navigation';
+import { useHandoffRouter as useRouter } from '@/hooks/useHandoffRouter';
+import HandoffReturn from '@/components/navigation/HandoffReturn';
 import { useSession } from 'next-auth/react';
 import {
   ArrowLeft,
@@ -188,20 +190,14 @@ function CreateHubContent() {
       <SynauraTopBar searchLabel="Rechercher un son, un profil ou une playlist..." />
       <main className="space-y-4 pb-6">
         <header className="flex items-start gap-3 px-1 pt-1">
-          <Link
-            href="/"
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-[11px] border border-[var(--syn-border)] bg-[var(--syn-surface)] text-[var(--syn-text-secondary)] transition hover:text-[var(--syn-text-primary)]"
-            aria-label="Retour à l'accueil"
-            title="Retour à l'accueil"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+          <HandoffReturn fallbackHref="/" fallbackLabel="Retour" className="shrink-0 border border-[var(--syn-border)] bg-[var(--syn-surface)] text-[var(--syn-text-secondary)]" />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black uppercase text-[var(--syn-text-secondary)]">Ton espace créatif</p>
             <h1 className="mt-1 text-3xl font-black text-[var(--syn-text-primary)]">Créer</h1>
             <p className="mt-1 text-sm font-semibold leading-6 text-[var(--syn-text-secondary)]">
               Commence par une idée, un fichier ou un morceau Synaura.
             </p>
+            <Link href="/studio" className="mt-1 inline-flex min-h-10 items-center text-xs font-bold text-[var(--syn-text-secondary)] underline underline-offset-4">Ouvrir Studio IDE</Link>
           </div>
         </header>
 
@@ -232,7 +228,7 @@ function CreateHubContent() {
           <div className="flex h-full min-h-[204px] flex-col justify-between">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase text-[#E7DBFF]">Studio IA</p>
+                <p className="text-[10px] font-black uppercase text-[#E7DBFF]">Créer avec l’IA</p>
                 <p className="mt-1 text-xs font-bold text-white/50">Prêt à composer</p>
               </div>
               <span className="grid h-11 w-11 place-items-center rounded-[12px] bg-white/14">
@@ -245,7 +241,7 @@ function CreateHubContent() {
                 Imagine un morceau à partir d&apos;une idée.
               </p>
               <span className="mt-4 inline-flex h-11 items-center gap-2 rounded-[12px] bg-[#F7F6F3] px-4 text-sm font-black text-[#111111]">
-                Entrer dans le Studio
+                Créer avec l’IA
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
               </span>
             </div>

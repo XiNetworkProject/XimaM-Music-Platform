@@ -23,7 +23,7 @@ export const SECONDARY_WEB_NAV_ITEMS = [
 export const ACCOUNT_WEB_NAV_ITEMS = [
   { id: 'profile', label: 'Mon profil', href: null },
   { id: 'clip', label: 'Publier un clip', href: '/clips/new' },
-  { id: 'studio', label: 'Studio', href: '/ai-generator' },
+  { id: 'studio', label: 'Créer avec l’IA', href: '/ai-generator' },
   { id: 'library', label: 'Bibliothèque', href: '/library' },
   { id: 'settings', label: 'Paramètres', href: '/settings' },
   { id: 'subscription', label: 'Abonnement', href: '/subscriptions' },

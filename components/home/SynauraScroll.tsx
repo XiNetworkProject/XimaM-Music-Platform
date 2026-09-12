@@ -4,7 +4,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import Link from 'next/link';
+import Link from '@/components/navigation/HandoffLink';
+import { withCurrentHandoff } from '@/lib/creationHandoffClient';
 import { signOut, useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import { applyCdnToTracks } from '@/lib/cdnHelpers';
@@ -435,7 +436,7 @@ export default function SynauraScroll() {
   const commentsTrack = (track: ScrollTrack) => ({ type: 'track' as const, id: track._id, title: track.title, artist: track.artist.name, creatorId: track.artist._id, audioUrl: track.audioUrl, coverUrl: track.coverUrl, duration: track.duration, count: countOf(track.comments) });
   const navigateFromLive = useCallback((href: string) => {
     persistBeforeNavigationRef.current();
-    router.push(href, { scroll: false });
+    router.push(withCurrentHandoff(href), { scroll: false });
   }, [router]);
   const useThisSound = useCallback((track: ScrollTrack) => {
     void recordClipFunnelEvent(track._id, 'clip_use_sound_started');
@@ -1183,7 +1184,7 @@ export default function SynauraScroll() {
     { href: '/discover', label: 'Découvrir', icon: Compass },
     { href: '/library', label: 'Bibliothèque', icon: Library },
     { href: '/community', label: 'Clubs', icon: Users },
-    { href: '/ai-generator', label: 'Studio', icon: Sparkles },
+    { href: '/ai-generator', label: 'Créer avec l’IA', icon: Sparkles },
     { href: '/settings', label: 'Paramètres', icon: Settings },
     { href: '/subscriptions', label: 'Abonnement', icon: CreditCard },
   ];

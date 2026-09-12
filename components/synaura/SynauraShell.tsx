@@ -2,7 +2,8 @@
 import { SynauraImage } from '@/components/ui/SynauraImage';
 
 import type { CSSProperties, ReactNode } from 'react';
-import Link from 'next/link';
+import Link from '@/components/navigation/HandoffLink';
+import HandoffReturn from '@/components/navigation/HandoffReturn';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import {
@@ -210,7 +211,7 @@ export function SynauraInkPanel({
 export function SynauraTopBar({
   searchLabel = 'Rechercher un son, post, playlist, créateur...',
   secondaryHref = '/ai-generator',
-  secondaryLabel = 'Studio',
+  secondaryLabel = 'Créer avec l’IA',
   primaryHref = '/upload',
   primaryLabel = 'Publier',
   compact = false,
@@ -232,6 +233,7 @@ export function SynauraTopBar({
       'sticky top-2 z-40 rounded-[14px] border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] px-2.5 py-2 shadow-[0_16px_50px_var(--syn-shadow)] backdrop-blur-2xl sm:top-3 sm:rounded-[20px] sm:px-4 sm:py-3',
       compact ? 'top-1 mb-1.5 rounded-[12px] px-2 py-1.5 sm:top-2 sm:rounded-[14px] sm:px-3 sm:py-1.5' : 'mb-4',
     )}>
+      <HandoffReturn omitPaths={['/create', '/upload']} />
       <div className="flex items-center justify-between gap-2 sm:gap-3">
         <Link href="/" className="flex min-w-0 shrink items-center gap-2.5 overflow-visible sm:gap-3" aria-label="Synaura, accueil">
           <SynauraLogo

@@ -1,8 +1,9 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import Link from '@/components/navigation/HandoffLink';
+import { useSearchParams } from 'next/navigation';
+import { useHandoffRouter as useRouter } from '@/hooks/useHandoffRouter';
 import { useSession } from 'next-auth/react';
 import {
   ArrowLeft,

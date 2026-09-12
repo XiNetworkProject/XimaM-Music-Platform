@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import Link from 'next/link';
+import Link from '@/components/navigation/HandoffLink';
 import { Music, Heart, Play, Download, Share2, Search, Clock, Sparkles, RefreshCw, Link as LinkIcon, Repeat2, UploadCloud, Video } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';

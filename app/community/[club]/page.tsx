@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/navigation/HandoffLink';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Clock, Music2, Pause, Play, Reply, ThumbsUp, Trophy } from 'lucide-react';
 import Avatar from '@/components/Avatar';
@@ -210,7 +210,7 @@ export default function ClubDetailPage() {
 
   return (
     <SynauraAppShell contentClassName="max-w-[1100px]">
-      <SynauraTopBar searchHref="/community" searchLabel="Chercher un Club..." secondaryHref="/ai-generator" secondaryLabel="Studio" />
+      <SynauraTopBar searchHref="/community" searchLabel="Chercher un Club..." secondaryHref="/ai-generator" secondaryLabel="Créer avec l’IA" />
       <SynauraRouteNav />
 
       <div className="space-y-5 pb-24">

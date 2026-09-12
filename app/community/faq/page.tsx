@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/navigation/HandoffLink';
 import { ArrowRight, ChevronDown, ChevronUp, HelpCircle, MessageSquare, Search, Sparkles } from 'lucide-react';
 import { notify } from '@/components/NotificationCenter';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';

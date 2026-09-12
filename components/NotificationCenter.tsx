@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
-import Link from 'next/link';
+import Link from '@/components/navigation/HandoffLink';
+import { useHandoffRouter } from '@/hooks/useHandoffRouter';
 import {
   Bell,
   BellOff,
@@ -204,6 +205,7 @@ function DBNotifItem({
   onMarkRead: (id: number) => void;
   onDelete: (id: number) => void;
 }) {
+  const router = useHandoffRouter();
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
@@ -215,7 +217,7 @@ function DBNotifItem({
       }`}
       onClick={() => {
         if (!n.is_read) onMarkRead(n.id);
-        if (n.action_url) window.location.href = n.action_url;
+        if (n.action_url) router.push(n.action_url, { scroll: false });
       }}
     >
       <div className="flex items-start gap-2.5">

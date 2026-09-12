@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/navigation/HandoffLink';
 import { useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { ArrowLeft, Clock, MessageSquare, Music2, Play, Repeat2, Reply, Send, Sparkles, ThumbsUp, Users, Zap } from 'lucide-react';

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useHandoffRouter as useRouter } from '@/hooks/useHandoffRouter';
 import {
   Bell,
   CheckCheck,

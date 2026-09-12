@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useHandoffRouter as useRouter } from '@/hooks/useHandoffRouter';
+import { currentHandoffReturn } from '@/lib/creationHandoffClient';
+import HandoffReturn from '@/components/navigation/HandoffReturn';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import {
@@ -526,7 +528,7 @@ export default function UploadPage() {
       }
 
         sessionStorage.setItem('fromUpload', 'true');
-      router.push('/');
+      router.push(currentHandoffReturn('/'));
     } catch (err) {
       notify.error('Erreur', err instanceof Error ? err.message : 'Erreur upload');
     } finally {
@@ -551,7 +553,7 @@ export default function UploadPage() {
       try { await fetch('/api/upload/cleanup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audioPublicId: tempPublicIds.audio, coverPublicId: tempPublicIds.cover }) }); } catch {}
     }
     setTempPublicIds({});
-    router.push('/');
+    router.push(currentHandoffReturn('/'));
   };
 
   // Step validation
@@ -595,7 +597,7 @@ export default function UploadPage() {
       <SynauraTopBar
         searchLabel="Rechercher avant de publier..."
         secondaryHref="/ai-generator"
-        secondaryLabel="Studio"
+        secondaryLabel="Créer avec l’IA"
         primaryHref="/upload"
         primaryLabel="Publier"
       />
@@ -672,14 +674,7 @@ export default function UploadPage() {
         <aside className="min-w-0 space-y-3">
           <SynauraPanel className="p-3 sm:p-4">
             <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => router.push('/')}
-                className="grid h-10 w-10 place-items-center rounded-2xl bg-black/[0.06] text-black/58 transition hover:bg-[#171313] hover:text-white"
-                aria-label="Retour a l'accueil"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
+              <HandoffReturn fallbackHref="/" fallbackLabel="Retour à l'accueil" iconOnly className="h-10 w-10 shrink-0 bg-black/[0.06] text-black/58 hover:bg-[#171313] hover:text-white" />
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/38">Publication</p>
                 <h1 className="truncate text-xl font-black tracking-[-0.04em] text-[#171313]">Nouvelle sortie</h1>
@@ -1296,7 +1291,7 @@ export default function UploadPage() {
           <div className="sticky top-0 z-10 bg-[#0a0a14]/95 backdrop-blur-xl border-b border-white/[0.06]">
             <div className="p-3 sm:p-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <button type="button" onClick={() => router.push('/')} className="h-10 w-10 rounded-2xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] transition grid place-items-center" aria-label="Retour">
+                <button type="button" onClick={() => router.push(currentHandoffReturn('/'))} className="h-10 w-10 rounded-2xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] transition grid place-items-center" aria-label="Retour">
                   <ArrowLeft className="h-4 w-4 text-white/50" />
                 </button>
                 <div className="min-w-0">

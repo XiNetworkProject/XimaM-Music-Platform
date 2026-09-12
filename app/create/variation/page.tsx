@@ -1,8 +1,9 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import Link from '@/components/navigation/HandoffLink';
+import { useSearchParams } from 'next/navigation';
+import { useHandoffRouter as useRouter } from '@/hooks/useHandoffRouter';
 import { useSession } from 'next-auth/react';
 import { ArrowLeft, Loader2, Music2, Wand2 } from 'lucide-react';
 import { SynauraAppShell, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
@@ -79,7 +80,7 @@ function CreateVariationContent() {
 
   return (
     <SynauraAppShell contentClassName="max-w-[1000px]">
-      <SynauraTopBar secondaryHref="/ai-generator" secondaryLabel="Studio" primaryHref="/upload" primaryLabel="Publier" />
+      <SynauraTopBar secondaryHref="/ai-generator" secondaryLabel="Créer avec l’IA" primaryHref="/upload" primaryLabel="Publier" />
       <div className="space-y-4 pb-24">
         <Link
           href="/create"

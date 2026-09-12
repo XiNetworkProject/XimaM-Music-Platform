@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { withCurrentHandoff } from '@/lib/creationHandoffClient';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -144,7 +145,7 @@ export default function SynauraPrimaryDock({
 
   const navigateCreate = (href: string) => {
     setCreateOpen(false);
-    router.push(withAuthRedirect(href, authenticated), { scroll: false });
+    router.push(withAuthRedirect(withCurrentHandoff(href), authenticated), { scroll: false });
   };
 
   const renderItem = (item: (typeof PRIMARY_WEB_NAV_ITEMS)[number]) => {
@@ -377,6 +378,9 @@ export default function SynauraPrimaryDock({
                         );
                       })}
                     </div>
+                    <button type="button" onClick={() => navigateCreate('/create')} className="mt-2 min-h-10 w-full rounded-lg px-3 text-xs font-bold text-[var(--syn-text-secondary)] focus-visible:outline focus-visible:outline-2">
+                      Tous les outils de création
+                    </button>
                   </motion.section>
                 </div>
               ) : null}

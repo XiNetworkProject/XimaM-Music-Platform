@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/navigation/HandoffLink';
 import { useSession } from 'next-auth/react';
 import { ArrowRight, Music2 } from 'lucide-react';
 import Avatar from '@/components/Avatar';
@@ -169,7 +169,7 @@ export default function CommunityClubsLandingPage() {
         searchHref="/community"
         searchLabel="Chercher un Club, un avis, un feat..."
         secondaryHref="/ai-generator"
-        secondaryLabel="Studio"
+        secondaryLabel="Créer avec l’IA"
       />
       <SynauraRouteNav />
 

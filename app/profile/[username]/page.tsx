@@ -11,7 +11,8 @@ import {
   Settings, Film, Repeat, FileEdit, SlidersHorizontal, ListChecks, ArrowLeft,
 } from "lucide-react";
 import { FaInstagram, FaSoundcloud, FaSpotify, FaTiktok, FaXTwitter, FaYoutube } from 'react-icons/fa6';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { useHandoffRouter as useRouter } from '@/hooks/useHandoffRouter';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import { useBoosters } from '@/hooks/useBoosters';

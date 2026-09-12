@@ -1,8 +1,11 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import Link from '@/components/navigation/HandoffLink';
+import { useSearchParams } from 'next/navigation';
+import { useHandoffRouter as useRouter } from '@/hooks/useHandoffRouter';
+import { currentHandoffReturn } from '@/lib/creationHandoffClient';
+import HandoffReturn from '@/components/navigation/HandoffReturn';
 import { useSession } from 'next-auth/react';
 import { ArrowLeft, Check, ChevronRight, Film, Loader2, Music2, Pause, Play, Search, UploadCloud, User, X } from 'lucide-react';
 import { SynauraAppShell } from '@/components/synaura/SynauraShell';
@@ -258,7 +261,7 @@ function NewMusicClipPageContent() {
     audioRef.current?.pause();
     audioPolicyCleanupRef.current?.();
     audioPolicyCleanupRef.current = null;
-    router.push('/?filter=clips');
+    router.push(currentHandoffReturn('/?filter=clips'));
   }
 
   const primaryLabel = !file ? 'Ajouter la vidéo' : !selectedSource ? 'Choisir le son' : 'Publier le Clip';
@@ -267,10 +270,7 @@ function NewMusicClipPageContent() {
     <SynauraAppShell contentClassName="max-w-[1120px]">
       <div className="pb-24">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <Link href="/" className="inline-flex h-10 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-xs font-black text-black/60 transition hover:bg-[#111111] hover:text-white">
-            <ArrowLeft className="h-4 w-4" />
-            Scroll
-          </Link>
+          <HandoffReturn fallbackHref="/" fallbackLabel="Scroll" className="border border-black/[0.08] bg-white text-black/60 hover:bg-[#111111] hover:text-white" />
           {challengeId ? <span className="max-w-[60%] truncate rounded-full bg-[#C99B48]/12 px-3 py-2 text-xs font-black text-[#8c671f]">{challengeTitle || 'Challenge Synaura'}</span> : null}
         </div>
 

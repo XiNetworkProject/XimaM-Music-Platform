@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/navigation/HandoffLink';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { MessageCircle } from 'lucide-react';

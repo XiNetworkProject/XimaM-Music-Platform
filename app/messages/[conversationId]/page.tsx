@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import { useHandoffRouter as useRouter } from '@/hooks/useHandoffRouter';
+import { messageOriginReturn } from '@/lib/creationHandoffClient';
 import { useSession } from "next-auth/react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -1122,9 +1124,9 @@ export default function ConversationPage() {
         <div className="mx-auto flex h-[72px] w-full max-w-4xl items-center gap-3 px-3 sm:px-5">
           <button
             type="button"
-            onClick={() => router.push("/messages")}
+            onClick={() => router.push(messageOriginReturn())}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-syn-surfaceMuted"
-            aria-label="Retour aux messages"
+            aria-label="Retour à l'origine de la conversation"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>

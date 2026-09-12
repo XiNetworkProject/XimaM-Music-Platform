@@ -1,7 +1,7 @@
 'use client';
 
 import React, { Suspense, useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import Link from 'next/link';
+import Link from '@/components/navigation/HandoffLink';
 import { useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { notify } from '@/components/NotificationCenter';

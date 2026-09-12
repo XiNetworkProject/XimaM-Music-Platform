@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/navigation/HandoffLink';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
@@ -195,7 +195,7 @@ function CommunityForumContent() {
       <SynauraTopBar
         searchLabel="Chercher un avis, un feat, un défi..."
         secondaryHref="/ai-generator"
-        secondaryLabel="Studio"
+        secondaryLabel="Créer avec l’IA"
         primaryHref="/community/forum/new?category=feedback"
         primaryLabel="Demander un avis"
       />

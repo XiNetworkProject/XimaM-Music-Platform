@@ -2,7 +2,8 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useHandoffRouter as useRouter } from '@/hooks/useHandoffRouter';
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,

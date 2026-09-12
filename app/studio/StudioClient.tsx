@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import StudioBackground from '@/components/StudioBackground';
+import HandoffReturn from '@/components/navigation/HandoffReturn';
 import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { useAudioPlayer } from '@/app/providers';
 import { useAIQuota } from '@/hooks/useAIQuota';
@@ -292,6 +293,7 @@ export default function StudioClient() {
       <div className="relative z-10 flex flex-col h-full">
         {/* IDE toolbar shell */}
         <header className="sticky top-0 z-30 border-b border-border-secondary bg-black/50 backdrop-blur-xl">
+          <HandoffReturn />
           <div className="h-14 px-3 flex items-center gap-2">
             <div className="flex items-center gap-2">
               <div className="h-9 w-9 rounded-2xl bg-white/10 border border-border-secondary flex items-center justify-center">
