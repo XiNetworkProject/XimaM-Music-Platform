@@ -175,7 +175,7 @@ export function HorizontalScroller({ children }: { children: React.ReactNode }) 
   return (
     <div className="group relative">
       {showLeft ? (
-        <button type="button" onClick={() => scroll('left')} className={cx(arrowClassName, 'left-0')}>
+        <button type="button" aria-label="Défiler vers la gauche" onClick={() => scroll('left')} className={cx(arrowClassName, 'left-0')}>
           <ChevronLeft className="h-5 w-5" />
         </button>
       ) : null}
@@ -190,7 +190,7 @@ export function HorizontalScroller({ children }: { children: React.ReactNode }) 
       </div>
 
       {showRight ? (
-        <button type="button" onClick={() => scroll('right')} className={cx(arrowClassName, 'right-0')}>
+        <button type="button" aria-label="Défiler vers la droite" onClick={() => scroll('right')} className={cx(arrowClassName, 'right-0')}>
           <ChevronRight className="h-5 w-5" />
         </button>
       ) : null}
@@ -273,6 +273,7 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
         <button
           type="button"
           onClick={() => track.audioUrl && playTrack(track as any)}
+          aria-label={`Écouter ${track.title}`}
           className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#F7F6F3] text-[#111111] shadow-[0_16px_35px_rgba(0,0,0,0.28)] transition duration-200 hover:scale-105 sm:h-11 sm:w-11"
         >
           <Play className="ml-0.5 h-4 w-4 fill-current" />
@@ -584,6 +585,7 @@ export function AlbumTile({ album }: { album: DiscoverAlbumLite }) {
             e.stopPropagation();
             router.push(`/album/${album._id}`);
           }}
+          aria-label={`Ouvrir l'album ${album.name}`}
           className="absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#F7F6F3] text-[#111111] shadow-[0_16px_35px_rgba(0,0,0,0.28)] transition duration-200 hover:scale-105 sm:h-11 sm:w-11"
         >
           {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}

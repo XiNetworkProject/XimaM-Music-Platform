@@ -38,7 +38,7 @@ export default function CreateArrivalBanner({
       style={{ backgroundColor: style.bg, color: style.color }}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" />
-      <span className="truncate">{createArrivalLabel(context, title)}</span>
+      <span className={`truncate ${context === 'ai' ? 'text-[color-mix(in_srgb,var(--syn-accent)_65%,var(--syn-text-primary))]' : ''}`}>{createArrivalLabel(context, title)}</span>
     </div>
   );
 }

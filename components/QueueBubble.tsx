@@ -71,8 +71,8 @@ export default function QueueBubble({ onClick, className = '', variant = 'bubble
       aria-label="À suivre"
       data-context-surface-trigger-key="queue-bubble"
     >
-      <ListMusic className="h-5 w-5 text-[#171313]/70 transition group-hover:text-[#171313]" />
-      <span className="hidden text-sm font-black text-[#171313]/70 transition group-hover:text-[#171313] sm:inline">File</span>
+      <ListMusic className="h-5 w-5 text-[var(--syn-text-primary)]" />
+      <span className="hidden text-sm font-black text-[var(--syn-text-primary)] sm:inline">File</span>
       {count > 0 && (
         <span className="inline-flex min-w-[1.25rem] justify-center rounded-full bg-[#ff6f61] px-1.5 py-0.5 text-[10px] font-black text-white tabular-nums shadow-lg shadow-[#ff6f61]/25">
           {count}

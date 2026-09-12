@@ -90,7 +90,7 @@ export default function ProfilePeekSurface({ entry, closeSurface }: ContextSurfa
               {profile.avatar ? <img src={profile.avatar} alt="" className="h-full w-full object-cover" /> : profile.displayName.slice(0, 1).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1 pt-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--syn-accent)]">Aperçu créateur</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[color-mix(in_srgb,var(--syn-accent)_65%,var(--syn-text-primary))]">Aperçu créateur</p>
               <div className="mt-1 flex items-center gap-1.5">
                 <SynauraOverlayTitle className="truncate">{profile.displayName}</SynauraOverlayTitle>
                 {profile.isVerified ? <BadgeCheck className="h-5 w-5 shrink-0 text-[var(--syn-accent-blue)]" aria-label="Profil vérifié" /> : null}

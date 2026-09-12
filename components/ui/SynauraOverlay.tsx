@@ -127,7 +127,11 @@ export function SynauraOverlay({
         return;
       }
       if (event.key !== 'Tab' || !panelRef.current) return;
-      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(focusableSelector));
+      // Roving menu items with tabIndex=-1 are focusable, but not in the Tab order.
+      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(focusableSelector))
+        .filter((element) => element.tabIndex >= 0 && !element.matches(':disabled')
+          && !element.closest('[inert], [aria-hidden="true"]')
+          && element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden');
       if (!focusable.length) {
         event.preventDefault();
         panelRef.current.focus();
@@ -135,10 +139,10 @@ export function SynauraOverlay({
       }
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      if (event.shiftKey && (document.activeElement === first || !focusable.includes(document.activeElement as HTMLElement))) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && (document.activeElement === last || !focusable.includes(document.activeElement as HTMLElement))) {
         event.preventDefault();
         first.focus();
       }

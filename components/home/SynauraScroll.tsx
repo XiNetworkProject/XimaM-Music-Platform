@@ -2000,11 +2000,12 @@ export default function SynauraScroll() {
             return (
               <section
                 key={item.id}
-                ref={(el) => { scrollSnap.itemRefs.current[index] = el; }}
+                ref={(el) => { scrollSnap.itemRefs.current[index] = el; el?.toggleAttribute('inert', index !== activeIndex); }}
                 data-index={index}
                 data-feed-item-id={item.id}
                 data-feed-item-type={item.type}
                 data-active={index === activeIndex ? 'true' : 'false'}
+                aria-hidden={index !== activeIndex}
                 className="relative h-[100svh] w-full snap-start overflow-hidden"
                 style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
               >

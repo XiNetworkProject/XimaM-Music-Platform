@@ -3593,7 +3593,7 @@ function AIGeneratorContent() {
             <div className="border-b border-black/[0.07] bg-[#f5eadb] p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#7357C6]">1 &middot; Idee musicale</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[color-mix(in_srgb,var(--syn-accent)_65%,var(--syn-text-primary))]">1 &middot; Idee musicale</p>
                   <h2 className="truncate text-xl font-black tracking-[-0.05em] text-[#171313]">Nouvelle session</h2>
                 </div>
                 <button

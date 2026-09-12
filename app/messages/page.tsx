@@ -435,7 +435,7 @@ function MessagesContent() {
       <div className="mx-auto w-full max-w-4xl px-1 pt-4 sm:px-4 sm:pt-6">
         <header className="flex items-end justify-between gap-4 border-b border-syn-border pb-6">
           <div>
-            <p className="mb-2 text-[11px] font-extrabold uppercase text-syn-accent">
+            <p className="mb-2 text-[11px] font-extrabold uppercase text-[color-mix(in_srgb,var(--syn-accent)_65%,var(--syn-text-primary))]">
               Liens musicaux
             </p>
             <h1 className="text-3xl font-black sm:text-4xl">Messages</h1>

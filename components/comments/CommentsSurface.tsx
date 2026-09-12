@@ -23,7 +23,7 @@ const actionClass = 'syn-interactive min-h-11 min-w-11 rounded-lg px-2 text-xs f
 function CaptureMoment({ trackId, capture }: { trackId: string; capture: (time: number) => void }) {
   const time = useAudioTime();
   const active = getBrowserAudioCore()?.getSnapshot().currentTrack?._id === trackId;
-  return <button type="button" disabled={!active} className={`${actionClass} flex items-center gap-1.5 text-[var(--syn-accent)]`} onClick={() => {
+  return <button type="button" disabled={!active} className={`${actionClass} flex items-center gap-1.5 text-[color-mix(in_srgb,var(--syn-accent)_65%,var(--syn-text-primary))]`} onClick={() => {
     const core = getBrowserAudioCore();
     if (core?.getSnapshot().currentTrack?._id === trackId) capture(core.getTimeSnapshot().currentTime);
   }}><Clock3 className="h-4 w-4" />Commenter à {momentTime(active ? time.currentTime : 0)}</button>;
@@ -118,7 +118,7 @@ function CommentsContent({ entity, entry, closeSurface }: { entity: CommentEntit
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2"><button type="button" data-context-surface-trigger-key={`comment-author-${entity.type}-${comment.id}`} className={`${actionClass} max-w-full truncate px-0 text-left`} onClick={e => peek(comment.user.username, e.currentTarget)}>{comment.user.name}</button>{comment.isCreatorFavorite && <span className="text-[10px] text-[var(--syn-accent)]">♥ Créateur</span>}</div>
         <time className="block text-[10px] text-[var(--syn-text-tertiary)]" dateTime={comment.createdAt}>{Number.isFinite(Date.parse(comment.createdAt)) ? new Date(comment.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''}</time>
-        {comment.timestampSeconds != null && <button type="button" className={`${actionClass} mt-1 bg-[var(--syn-soft)] text-[var(--syn-accent)] tabular-nums`} aria-label={`Aller à ${momentTime(comment.timestampSeconds)}`} onClick={() => { explicitSeek(comment.timestampSeconds!); setDraft(d => ({ ...d, selectedCommentId: comment.id })); }}>↗ {momentTime(comment.timestampSeconds)}</button>}
+        {comment.timestampSeconds != null && <button type="button" className={`${actionClass} mt-1 bg-[var(--syn-soft)] text-[color-mix(in_srgb,var(--syn-accent)_65%,var(--syn-text-primary))] tabular-nums`} aria-label={`Aller à ${momentTime(comment.timestampSeconds)}`} onClick={() => { explicitSeek(comment.timestampSeconds!); setDraft(d => ({ ...d, selectedCommentId: comment.id })); }}>↗ {momentTime(comment.timestampSeconds)}</button>}
         <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--syn-text-secondary)]">{comment.content}</p>
         {comment.customFiltered && <span className="text-xs">Masqué par la modération</span>}
         <div className="mt-1 flex flex-wrap gap-1">

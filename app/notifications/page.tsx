@@ -261,6 +261,7 @@ export default function NotificationsPage() {
             <button
               type="button"
               onClick={markAllRead}
+              aria-label="Tout lire"
               disabled={busy || unread === 0}
               className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[var(--syn-border)] bg-[var(--syn-surface)] px-3 text-sm font-black text-[var(--syn-text-secondary)] transition hover:text-[var(--syn-text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
             >

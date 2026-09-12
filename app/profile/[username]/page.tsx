@@ -640,7 +640,7 @@ export default function SynauraProfile() {
                 <SynauraImage src={spotlightTrack.cover_url || spotlightTrack.coverUrl || '/default-cover.svg'} alt="" className="h-full w-full object-cover" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#7357C6]">À écouter maintenant</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[color-mix(in_srgb,var(--syn-accent)_65%,var(--syn-text-primary))]">À écouter maintenant</p>
                 <p className="mt-1 truncate text-xl font-black tracking-tight text-[#171313]">{spotlightTrack.title}</p>
                 <p className="mt-1 text-xs font-bold text-black/42">{profile.artistName || profile.name} · {fmtN.format(spotlightTrack.plays || 0)} écoutes</p>
               </div>
@@ -662,6 +662,7 @@ export default function SynauraProfile() {
                 </button>
                 <button
                   onClick={() => router.push(`/track/${spotlightTrack.id}`)}
+                  aria-label={`Ouvrir ${spotlightTrack.title}`}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-black/[0.08] bg-black/[0.045] px-4 text-sm font-black text-black/62 transition hover:bg-[#171313] hover:text-white"
                 >
                   <ArrowUpRight size={14} />
@@ -898,6 +899,7 @@ export default function SynauraProfile() {
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); e.preventDefault(); setCtxTrack(ctxTrack?.track?.id === track.id ? null : { track, anchorEl: e.currentTarget as HTMLButtonElement }); }}
+                          aria-label={`Plus d'actions pour ${track.title}`}
                           className="shrink-0 rounded-full p-2 text-black/36 transition hover:bg-black/[0.06] hover:text-[#171313] sm:opacity-0 sm:group-hover:opacity-100"
                         >
                           <MoreHorizontal size={16} />
@@ -1352,10 +1354,10 @@ export default function SynauraProfile() {
               </div>
       ) : (
         <div className="md:hidden fixed bottom-24 right-4 flex flex-col gap-2 z-[100]">
-          <button onClick={handleShareProfile} className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#171313] shadow-[0_20px_45px_rgba(30,25,20,0.20)]">
+          <button onClick={handleShareProfile} aria-label="Partager le profil" className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#171313] shadow-[0_20px_45px_rgba(30,25,20,0.20)]">
             <Share2 size={15} />
           </button>
-          <button onClick={handleFollow} className={`flex h-12 w-12 items-center justify-center rounded-full shadow-[0_20px_45px_rgba(30,25,20,0.20)] ${isFollowing ? 'bg-black/[0.08] text-black/55' : 'bg-[#171313] text-white'}`}>
+          <button onClick={handleFollow} aria-label={`${isFollowing ? 'Ne plus suivre' : 'Suivre'} ${profile.artistName || profile.name}`} aria-pressed={isFollowing} className={`flex h-12 w-12 items-center justify-center rounded-full shadow-[0_20px_45px_rgba(30,25,20,0.20)] ${isFollowing ? 'bg-black/[0.08] text-black/55' : 'bg-[#171313] text-white'}`}>
             {isFollowing ? <Check size={18} /> : <UserPlus size={18} />}
           </button>
         </div>

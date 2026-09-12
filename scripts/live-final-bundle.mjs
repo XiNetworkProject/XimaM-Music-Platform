@@ -1,0 +1,13 @@
+import fs from 'node:fs/promises';
+import zlib from 'node:zlib';
+const phase = process.argv[2] || 'after';
+if (!['before', 'after'].includes(phase)) throw new Error('before|after only');
+const manifest = JSON.parse(await fs.readFile('.next/app-build-manifest.json', 'utf8'));
+const live = [...new Set(manifest.pages['/live/page'])];
+const shared = live.filter(f => Object.values(manifest.pages).every(files => files.includes(f)));
+const chunks = await Promise.all(live.map(async file => { const data = await fs.readFile('.next/' + file); return { file, bytes: data.length, gzip: zlib.gzipSync(data).length, sharedEveryPage: shared.includes(file) }; }));
+const sum = files => ({ bytes: files.reduce((n, c) => n + c.bytes, 0), gzip: files.reduce((n, c) => n + c.gzip, 0) });
+const result = { phase, buildId: (await fs.readFile('.next/BUILD_ID', 'utf8')).trim(), method: 'sum gzip per unique app-build-manifest client chunk; shared = intersection of every page, not rounded Next CLI First Load estimate', live: sum(chunks), shared: sum(chunks.filter(c => c.sharedEveryPage)), chunks };
+await fs.mkdir('artifacts/final-phase4b8/' + phase, { recursive: true });
+await fs.writeFile(`artifacts/final-phase4b8/${phase}/bundle.json`, JSON.stringify(result, null, 2));
+console.log(JSON.stringify({ phase, live: result.live, shared: result.shared }));
