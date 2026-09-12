@@ -1,4 +1,5 @@
 'use client';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -142,13 +143,13 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
         <SynauraInkPanel className="overflow-hidden">
           {coverSrc ? (
             <div className="absolute inset-0">
-              <img src={coverSrc} alt="" className="h-full w-full object-cover opacity-18 blur-[18px] scale-110" />
-              <div className="absolute inset-0 bg-gradient-to-br from-[#171313]/68 via-[#171313]/82 to-[#171313]" />
+              <SynauraImage src={coverSrc} alt="" className="h-full w-full object-cover opacity-18 blur-[18px] scale-110" />
+              <div className="absolute inset-0 bg-gradient-to-br from-[#171313]/70 via-[#171313]/80 to-[#171313]" />
             </div>
           ) : null}
           <div className="relative px-5 py-6 sm:px-7 sm:py-8">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
-              <div className="relative h-40 w-40 overflow-hidden rounded-[2rem] bg-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:h-52 sm:w-52">
+            <div className="flex items-center gap-4 sm:gap-6">
+              <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-[var(--syn-radius-lg)] bg-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:h-52 sm:w-52 lg:h-72 lg:w-72">
                 {coverSrc ? (
                   <TrackCover
                     src={coverSrc}
@@ -173,7 +174,7 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
                     Creation IA
                   </span>
                 ) : null}
-                <h1 className="mt-3 break-words text-3xl font-black leading-[0.95] tracking-[-0.06em] text-white sm:text-5xl">
+                <h1 className="mt-3 break-words text-2xl font-black leading-tight tracking-tight text-white sm:text-4xl">
                   {track.title}
                 </h1>
                 <div className="mt-4 flex flex-wrap items-center gap-3">

@@ -1,4 +1,5 @@
 'use client';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -289,10 +290,10 @@ export default function PublicPlaylistPage() {
         background: `radial-gradient(circle at 8% 0%, ${colors[0]}66, transparent 34%), radial-gradient(circle at 92% 8%, ${colors[1] || colors[0]}55, transparent 32%), linear-gradient(135deg, #171313 0%, ${colors[0]} 48%, ${colors[2] || colors[1] || colors[0]} 100%)`,
       }}
     >
-      <img src={banner} alt="" className="pointer-events-none fixed inset-0 h-full w-full object-cover opacity-20 blur-3xl scale-110" />
+      <SynauraImage src={banner} alt="" className="pointer-events-none fixed inset-0 h-full w-full object-cover opacity-20 blur-3xl scale-110" />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(180deg,rgba(23,19,19,0.38),rgba(23,19,19,0.90)_70%,rgba(23,19,19,0.96))]" />
 
-      <main className="relative mx-auto max-w-7xl px-4 pb-32 pt-4 sm:px-6 lg:px-8">
+      <main className="relative mx-auto max-w-[1480px] px-4 pb-[var(--synaura-mobile-player-space,10rem)] pt-4 sm:px-6 lg:px-8">
         <div className="mb-5 flex items-center justify-between gap-3">
           <button type="button" onClick={() => router.back()} className="inline-flex h-11 items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 text-xs font-black text-white/80 backdrop-blur transition hover:bg-white/16">
             <ArrowLeft className="h-4 w-4" />
@@ -309,15 +310,15 @@ export default function PublicPlaylistPage() {
           </div>
         </div>
 
-        <section className="relative overflow-hidden rounded-[2.5rem] border border-white/12 bg-white/10 shadow-[0_30px_100px_rgba(0,0,0,0.34)] backdrop-blur-2xl">
-          <img src={banner} alt="" className="absolute inset-0 h-full w-full object-cover opacity-48 saturate-[1.08]" />
+        <section className="relative overflow-hidden rounded-[var(--syn-radius-xl)] border border-white/12 bg-white/10 shadow-[var(--syn-shadow-medium)]">
+          <SynauraImage src={banner} alt="" className="absolute inset-0 h-full w-full object-cover opacity-48 saturate-[1.08]" />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(17,13,13,0.92),rgba(17,13,13,0.58),rgba(17,13,13,0.20))]" />
-          <div className="relative grid gap-8 p-5 sm:p-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:p-10">
-            <div className="flex min-h-[440px] flex-col justify-end">
+          <div className="relative grid items-center gap-6 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(180px,0.65fr)] sm:p-6 lg:p-8">
+            <div className="flex min-w-0 flex-col justify-center">
               <p className="mb-3 inline-flex w-fit rounded-full bg-white/15 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white/82 backdrop-blur">
                 {collection?.badge || 'Playlist Synaura'}
               </p>
-              <h1 className="max-w-4xl text-5xl font-black leading-[0.88] tracking-[-0.06em] sm:text-7xl lg:text-8xl">
+              <h1 className="max-w-4xl break-words text-3xl font-black leading-tight tracking-tight sm:text-4xl">
                 {collection?.title || data.name}
               </h1>
               <p className="mt-5 max-w-2xl text-base font-bold leading-7 text-white/78 sm:text-lg">
@@ -343,10 +344,10 @@ export default function PublicPlaylistPage() {
             </div>
 
             <div className="flex items-end justify-center lg:justify-end">
-              <div className="relative w-full max-w-[360px]">
+              <div className="relative w-full max-w-[200px] sm:max-w-[360px]">
                 <div className="absolute -inset-8 rounded-[3rem] bg-white/18 blur-3xl" />
-                <img src={cover} alt={data.name} className="relative aspect-square w-full rounded-[2.2rem] border border-white/18 object-cover shadow-[0_30px_90px_rgba(0,0,0,0.42)]" />
-                <div className="relative -mt-10 mx-5 grid grid-cols-3 gap-2 rounded-[1.6rem] border border-white/12 bg-[#171313]/74 p-3 backdrop-blur-xl">
+                <SynauraImage src={cover} alt={data.name} className="relative aspect-square w-full rounded-[var(--syn-radius-lg)] border border-white/18 object-cover shadow-[var(--syn-shadow-medium)]" />
+                <div className="relative mt-3 grid grid-cols-3 gap-2 rounded-[var(--syn-radius-md)] border border-white/12 bg-[#171313]/74 p-2 backdrop-blur-sm">
                   <Stat label="Titres" value={String(data.tracks.length)} />
                   <Stat label="Duree" value={formatDuration(totalDuration, true)} />
                   <Stat label="Likes" value={String(totalLikes)} />
@@ -399,7 +400,7 @@ export default function PublicPlaylistPage() {
                   }`}
                 >
                   <button type="button" onClick={() => playTrack(track)} className="relative grid h-16 w-16 place-items-center overflow-hidden rounded-[1.25rem] bg-white/10">
-                    <img src={imageUrl(track.coverUrl || cover)} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    <SynauraImage src={imageUrl(track.coverUrl || cover)} alt="" className="absolute inset-0 h-full w-full object-cover" />
                     <span className="relative grid h-9 w-9 place-items-center rounded-full bg-[#171313]/78 text-white backdrop-blur">
                       {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
                     </span>

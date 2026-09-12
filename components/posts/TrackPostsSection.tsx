@@ -113,8 +113,8 @@ export default function TrackPostsSection({ track }: { track: TrackForPost }) {
   }, []);
 
   return (
-    <section className="overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-[#fffaf2]/88 shadow-[0_18px_60px_rgba(30,25,20,0.10)] backdrop-blur-xl">
-      <div className="border-b border-black/[0.08] bg-[linear-gradient(135deg,#fffaf2_0%,#f2ecff_52%,#e9fbfc_100%)] p-5 sm:p-6">
+    <section className="overflow-hidden rounded-[var(--syn-radius-xl)] border border-[var(--syn-border)] bg-[var(--syn-surface)]">
+      <div className="border-b border-[var(--syn-border)] bg-[var(--syn-surface-muted)] p-4 sm:p-6">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">Posts attachés au son</p>
@@ -129,7 +129,7 @@ export default function TrackPostsSection({ track }: { track: TrackForPost }) {
 
       <div className="p-4 sm:p-5">
         {session?.user ? (
-          <div className="mb-4 rounded-[1.35rem] border border-black/[0.08] bg-white/70 p-3">
+          <div className="mb-4 rounded-[var(--syn-radius-lg)] border border-[var(--syn-border)] bg-[var(--syn-surface-muted)] p-3">
             <textarea
               value={content}
               onChange={(event) => setContent(event.target.value)}

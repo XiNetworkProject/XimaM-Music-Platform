@@ -72,7 +72,7 @@ const THEME = {
 
 const WaveformBars = memo(function WaveformBars({ peaks, variant, dimClass }: { peaks: number[]; variant: 'dim' | 'played'; dimClass: string }) {
   return (
-    <div className="absolute inset-0 flex items-center gap-[2px]">
+    <div className="absolute inset-0 flex items-center" style={{ gap: `min(2px, ${50 / Math.max(1, peaks.length)}%)` }}>
       {peaks.map((p, i) => (
         <div
           key={i}

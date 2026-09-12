@@ -1,4 +1,5 @@
 'use client';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 import TrackActionButton from '@/components/actions/TrackActionButton';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
@@ -168,7 +169,7 @@ function SearchPageContent() {
         ) : null}
 
         {!query ? (
-          <div className="grid gap-4">
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
             {suggestionsLoading ? (
               <div className="border-t border-[var(--syn-border)] px-1 pt-4">
                 <div className="h-5 w-28 animate-pulse rounded-[6px] bg-[var(--syn-soft)]" />
@@ -247,7 +248,7 @@ function SearchPageContent() {
                       href={`/track/${encodeURIComponent(track._id || track.id)}`}
                       className="flex min-h-[66px] items-center gap-3 px-1 py-2.5 transition hover:bg-[var(--syn-soft)]"
                     >
-                      <img src={track.coverUrl || track.cover_url || '/default-cover.svg'} alt="" className="h-12 w-12 rounded-[8px] object-cover" />
+                      <SynauraImage src={track.coverUrl || track.cover_url || '/default-cover.svg'} alt="" className="shrink-0 h-12 w-12 rounded-[8px] object-cover" />
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{track.title}</span>
                         <span className="block truncate text-xs font-semibold text-[var(--syn-text-secondary)]">{getCreatorName(track)}</span>
@@ -274,7 +275,7 @@ function SearchPageContent() {
                       aria-label={`Aperçu du profil de ${artist.artistName || artist.name || artist.username}`}
                       className="flex w-[190px] shrink-0 items-center gap-3 rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-2.5 transition hover:bg-[var(--syn-soft)]"
                     >
-                      <img src={artist.avatar || '/default-avatar.png'} alt="" className="h-11 w-11 rounded-full object-cover" />
+                      <SynauraImage fallbackSrc="/default-avatar.png" src={artist.avatar || '/default-avatar.png'} alt="" className="shrink-0 h-11 w-11 rounded-full object-cover" />
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{artist.artistName || artist.name || artist.username}</span>
                         <span className="block truncate text-xs text-[var(--syn-text-secondary)]">@{artist.username}</span>
@@ -297,15 +298,15 @@ function SearchPageContent() {
         ) : null}
 
         {!loading && total ? (
-          <div className="grid gap-4">
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
             {(filter === 'all' || filter === 'tracks') && results.tracks?.length ? (
               <section className="border-t border-[var(--syn-border)] px-1 pt-4">
                 <h2 className="flex items-center gap-2 text-lg font-black text-[var(--syn-text-primary)]"><Music2 className="h-5 w-5" /> Sons</h2>
                 <div className="mt-3 divide-y divide-[var(--syn-border)] sm:grid sm:grid-cols-2 sm:gap-x-4 sm:divide-y-0">
                   {results.tracks.map((track: any) => (
-                    <div key={track._id || track.id} className="flex min-h-[66px] items-center gap-3 px-1 py-2.5 transition hover:bg-[var(--syn-soft)]">
+                    <div key={track._id || track.id} className="flex min-h-[66px] min-w-0 items-center gap-3 px-1 py-2.5 transition hover:bg-[var(--syn-soft)]">
                     <Link href={`/track/${encodeURIComponent(track._id || track.id)}`} className="flex min-w-0 flex-1 items-center gap-3">
-                      <img src={track.coverUrl || track.cover_url || '/default-cover.svg'} alt="" className="h-12 w-12 rounded-[8px] object-cover" />
+                      <SynauraImage src={track.coverUrl || track.cover_url || '/default-cover.svg'} alt="" className="shrink-0 h-12 w-12 rounded-[8px] object-cover" />
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{track.title}</span>
                         <span className="block truncate text-xs font-semibold text-[var(--syn-text-secondary)]">{getCreatorName(track)}</span>
@@ -345,7 +346,7 @@ function SearchPageContent() {
                       aria-label={`Aperçu du profil de ${artist.artistName || artist.name || artist.username}`}
                       className="flex min-h-[66px] w-full items-center gap-3 px-1 py-2.5 text-left transition hover:bg-[var(--syn-soft)]"
                     >
-                      <img src={artist.avatar || '/default-avatar.png'} alt="" className="h-12 w-12 rounded-full object-cover" />
+                      <SynauraImage fallbackSrc="/default-avatar.png" src={artist.avatar || '/default-avatar.png'} alt="" className="shrink-0 h-12 w-12 rounded-full object-cover" />
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{artist.artistName || artist.name || artist.username}</span>
                         <span className="block truncate text-xs font-semibold text-[var(--syn-text-secondary)]">@{artist.username}</span>

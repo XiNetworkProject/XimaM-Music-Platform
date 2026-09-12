@@ -1,4 +1,5 @@
 'use client';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -1197,7 +1198,7 @@ export default function LibraryClient() {
         ) : null}
       </div>
 
-      <div className="synaura-no-scrollbar overflow-x-auto">
+      <div className="overflow-x-auto pb-1 [scrollbar-width:thin]">
         <div className="flex min-w-max gap-1 rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-soft)] p-1">
           <TabButton active={tab === 'playlists'} onClick={() => { setTab('playlists'); setSelectedPlaylistId(null); }}>
             Playlists
@@ -1224,7 +1225,7 @@ export default function LibraryClient() {
           className="flex min-h-[88px] w-full items-center gap-3 rounded-[14px] border border-[var(--syn-border)] border-l-[3px] border-l-[var(--syn-accent-blue)] bg-[#151515] p-3 text-left text-white transition hover:bg-[#1d1d1d]"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <SynauraImage
             src={resumeTrack.coverUrl || '/default-cover.svg'}
             alt=""
             className="h-[62px] w-[62px] shrink-0 rounded-[10px] object-cover"
@@ -1372,7 +1373,7 @@ export default function LibraryClient() {
                 <div className="flex items-start gap-3">
                   <div className="h-16 w-16 rounded-3xl bg-background-tertiary border border-border-secondary overflow-hidden shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <SynauraImage
                       src={selectedPlaylist.coverUrl || '/default-cover.svg'}
                       alt={selectedPlaylist.name}
                       className="h-full w-full object-cover"
@@ -1622,7 +1623,7 @@ export default function LibraryClient() {
                             className="flex min-w-0 flex-1 items-center gap-3 text-left"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
+                            <SynauraImage
                               src={track.coverUrl || '/default-cover.svg'}
                               alt=""
                               className="h-12 w-12 shrink-0 rounded-[9px] object-cover"
@@ -1796,10 +1797,10 @@ export default function LibraryClient() {
           <SynauraInkPanel className="p-4">
             <p className="mb-3 text-sm font-black">Bibliothèque vivante</p>
             <div className="rounded-[1.4rem] bg-white/8 p-4">
-              <p className="text-3xl font-black leading-none">Queue.</p>
-              <p className="text-3xl font-black leading-none text-white/55">Favorites.</p>
+              <p className="text-2xl font-black leading-tight">Tes morceaux.</p>
+              <p className="text-2xl font-black leading-tight text-white/70">À retrouver ici.</p>
               <p className="mt-3 text-sm leading-6 text-white/45">
-                Ta lecture, tes likes et tes playlists gardent leur logique complete, dans une bibliotheque maintenant vraiment alignee sur la home.
+                Retrouve tes favoris, reprends une écoute et organise tes playlists à ton rythme.
               </p>
             </div>
           </SynauraInkPanel>
@@ -2278,7 +2279,7 @@ function PlaylistCard({
           <div className="flex items-center gap-3 p-3.5">
             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-[10px] border border-border-secondary bg-background-fog-thin">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={cover} alt={playlist.name} className="h-full w-full object-cover" />
+              <SynauraImage src={cover} alt={playlist.name} className="h-full w-full object-cover" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-[15px] font-black text-[var(--syn-text-primary)]">{playlist.name}</div>
@@ -2332,7 +2333,7 @@ function PlaylistCard({
       >
         <div className="aspect-square bg-background-fog-thin border-b border-border-secondary/60 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={cover} alt={playlist.name} className="h-full w-full object-cover" />
+          <SynauraImage src={cover} alt={playlist.name} className="h-full w-full object-cover" />
         </div>
         <div className="p-3.5">
           <div className="flex items-start justify-between gap-2">
@@ -2420,7 +2421,7 @@ function TrackRow({
         )}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={cover} alt={track.title} className="h-full w-full object-cover" />
+        <SynauraImage src={cover} alt={track.title} className="h-full w-full object-cover" />
       </div>
 
       <div className="min-w-0 flex-1">

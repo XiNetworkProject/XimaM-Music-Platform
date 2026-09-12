@@ -246,7 +246,7 @@ export default function NotificationsPage() {
   }
 
   return (
-    <SynauraAppShell contentClassName="max-w-[1120px]">
+    <SynauraAppShell contentClassName="!max-w-[1120px]">
       <SynauraTopBar searchLabel="Rechercher un son, un post, un profil..." />
 
       <main className="pb-6">
@@ -361,7 +361,7 @@ export default function NotificationsPage() {
                               event.stopPropagation();
                               void deleteNotification(item.id);
                             }}
-                            className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-[var(--syn-text-secondary)] opacity-70 transition hover:bg-[var(--syn-soft)] hover:text-[var(--syn-text-primary)] hover:opacity-100"
+                            className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--syn-radius-sm)] text-[var(--syn-text-secondary)] opacity-70 transition hover:bg-[var(--syn-soft)] hover:text-[var(--syn-text-primary)] hover:opacity-100"
                             aria-label="Supprimer"
                             title="Supprimer"
                           >

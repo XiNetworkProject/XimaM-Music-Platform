@@ -1703,3 +1703,68 @@ html[data-synaura-theme='dark'] .synaura-player-surface :is(
   33% { transform: translate(4%, -5%) scale(1.03); }
   66% { transform: translate(-5%, 3%) scale(0.97); }
 }
+
+/* Phase 4B.6: layout only. Scope excludes portals and other Live entity types. */
+.live-track-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  grid-template: 'art rail' minmax(0, 1fr) 'meta meta' auto / minmax(0, 1fr) 44px;
+  gap: var(--syn-space-4, 1rem);
+  max-width: 1480px;
+  margin-inline: auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 6rem) 1rem calc(var(--synaura-primary-dock-space, 84px) + 1rem);
+}
+.live-track-artwork { grid-area: art; display: grid; place-items: center; min-height: 0; min-width: 0; container-type: size; }
+.live-track-artwork > button { aspect-ratio: 1; width: min(100cqw, 100cqh); height: auto; max-width: 100%; }
+.live-track-artwork > button > img { height: auto; object-fit: cover; }
+.live-track-scene > .live-track-actions {
+  grid-area: rail;
+  position: static;
+  transform: none;
+  align-self: stretch;
+  min-height: 0;
+  gap: .5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.live-track-scene > .live-track-actions > button {
+  width: 44px; height: 44px; min-height: 44px; flex-shrink: 0;
+  background-color: color-mix(in srgb, var(--syn-ink, #171313) 65%, transparent);
+}
+.live-track-metadata { grid-area: meta; }
+.live-track-metadata > div { max-height: 45dvh; overflow-y: auto; overscroll-behavior: contain; }
+.live-track-metadata button { min-height: 44px; }
+.live-track-metadata button[aria-pressed='false'] { background-color: rgb(0 0 0 / .06); color: #171313; }
+.live-track-metadata :is([class~='text-black/38'], [class~='text-black/40'], [class~='text-black/42']) { color: rgb(23 19 19 / .65); }
+@media (min-width: 640px) and (max-width: 1023px) {
+  .live-track-scene { padding-inline: 2rem; padding-top: 8rem; grid-template-columns: minmax(0, 1fr) 56px; }
+  .live-track-scene > .live-track-actions > button { width: 56px; height: 56px; min-height: 56px; }
+}
+@media (min-width: 1024px) and (min-height: 600px) {
+  .live-track-scene {
+    grid-template: 'art meta rail' minmax(0, 1fr) / minmax(0, 1.25fr) minmax(0, 1fr) 56px;
+    gap: 2rem;
+    align-items: center;
+    padding: 12rem 2rem 4rem;
+  }
+  .live-track-artwork { height: 100%; max-height: 680px; }
+  .live-track-artwork > button { width: min(100cqw, 100cqh, 680px); }
+  .live-track-artwork > button > img { height: auto; }
+  .live-track-scene > .live-track-actions { align-self: center; max-height: 100%; }
+  .live-track-scene > .live-track-actions > button { width: 56px; height: 56px; min-height: 56px; }
+  .live-track-metadata > div { max-height: calc(100dvh - 13rem); padding: 1.5rem; }
+}
+/* Native browser zoom and landscape: keep the rail in its own full-height column. */
+@media (max-height: 600px) {
+  .live-track-scene {
+    grid-template: 'art meta rail' minmax(0, 1fr) / minmax(0, .65fr) minmax(0, 1.35fr) 44px;
+    gap: .75rem;
+    padding-top: 6rem;
+  }
+  .live-track-metadata { min-height: 0; height: 100%; }
+  .live-track-metadata > div { max-height: 100%; }
+  .live-track-scene > .live-track-actions > button { width: 44px; height: 44px; min-height: 44px; }
+}

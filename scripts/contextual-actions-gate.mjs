@@ -8,7 +8,7 @@ import path from 'node:path';
 dotenv.config({ path: '.env.local', quiet: true });
 const base = 'http://localhost:3000';
 const zoomOnly = process.env.ORGANIZATION_E2E_ZOOM_ONLY === '1';
-const output = 'docs/contextual-actions-phase4b5-captures';
+const output = process.env.ORGANIZATION_E2E_OUTPUT || 'docs/contextual-actions-phase4b5-captures';
 await fs.mkdir(output, { recursive: true });
 const result = { checks: [], errors: [], consoleErrors: [], httpErrors: [], requests: [], captures: [], cleanup: [], limitations: ['Android/Gboard réel non testé', 'NVDA réel non testé', 'Favorite mutations intercepted to avoid persistent missions/notifications on existing content'] };
 const browser = await puppeteer.launch({ headless: false, pipe: true, enableExtensions: true, args: ['--window-size=1440,1000','--autoplay-policy=no-user-gesture-required'] });

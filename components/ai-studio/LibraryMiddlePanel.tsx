@@ -479,7 +479,7 @@ function TrackRow({
           'group relative min-w-0 overflow-hidden rounded-2xl border transition-all cursor-pointer before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_30%_0%,rgba(255,111,97,0.18),transparent_42%),radial-gradient(circle_at_90%_18%,rgba(0,194,203,0.16),transparent_40%),linear-gradient(135deg,rgba(255,250,242,0.92),rgba(234,255,251,0.74))] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 active:before:opacity-100',
           isSelected || isSource
             ? 'border-[#00a6ad]/35 bg-[#eafffb] shadow-[0_18px_46px_rgba(0,166,173,0.14)] before:opacity-100'
-            : 'border-black/[0.07] bg-white/72 shadow-[0_12px_30px_rgba(30,25,20,0.06)] hover:border-[#00a6ad]/22 hover:shadow-[0_18px_48px_rgba(0,166,173,0.12)]'
+            : 'border-black/[0.07] bg-[var(--syn-surface)] shadow-[0_12px_30px_rgba(30,25,20,0.06)] hover:border-[#00a6ad]/22 hover:shadow-[0_18px_48px_rgba(0,166,173,0.12)]'
         )}
         onClick={onPick}
       >
@@ -491,7 +491,7 @@ function TrackRow({
             className="absolute inset-2 flex items-center justify-center rounded-xl bg-[#171313]/20 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:bg-[#171313]/38"
             aria-label="Lire"
           >
-            <span className="grid h-11 w-11 place-items-center rounded-full bg-[#fffaf2] text-[#171313] shadow-xl">
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-[var(--syn-surface)] text-[#171313] shadow-xl">
               <Play className="h-4 w-4 fill-current" />
             </span>
           </button>
@@ -507,7 +507,7 @@ function TrackRow({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onRemix(); }}
-              className="rounded-full border border-black/[0.08] bg-[#fffaf2] px-2.5 py-1.5 text-[11px] font-black text-black/55 transition hover:bg-[#171313] hover:text-white"
+              className="rounded-full border border-black/[0.08] bg-[var(--syn-surface)] px-2.5 py-1.5 text-[11px] font-black text-black/55 transition hover:bg-[#171313] hover:text-white"
             >
               Remix
             </button>
@@ -561,7 +561,7 @@ function TrackRow({
         'group relative flex items-center gap-3 overflow-hidden rounded-[1rem] border px-2.5 py-2 transition-all cursor-pointer before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_18%_0%,rgba(255,111,97,0.18),transparent_42%),radial-gradient(circle_at_86%_30%,rgba(0,194,203,0.16),transparent_38%),linear-gradient(135deg,rgba(255,250,242,0.94),rgba(234,255,251,0.70))] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 active:before:opacity-100',
         isSelected || isSource
           ? 'border-[#00a6ad]/35 bg-[#eafffb] shadow-[0_14px_34px_rgba(0,166,173,0.12)] before:opacity-100'
-          : 'border-black/[0.07] bg-white/70 hover:border-[#00a6ad]/22 hover:shadow-[0_14px_38px_rgba(0,166,173,0.10)]'
+          : 'border-black/[0.07] bg-[var(--syn-surface)] hover:border-[#00a6ad]/22 hover:shadow-[0_14px_38px_rgba(0,166,173,0.10)]'
       )}
       onClick={onPick}
     >
@@ -896,15 +896,15 @@ export function LibraryMiddlePanel({
   const normalizedSelectedTrackId = selectedTrackId ? String(selectedTrackId).replace(/^ai-/, '') : null;
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-[#fffaf2] text-[#171313]">
+    <div className="flex h-full min-h-0 w-full flex-col bg-[var(--syn-surface)] text-[#171313]">
       {/* ── Toolbar ── */}
-      <div className="shrink-0 space-y-1.5 border-b border-black/[0.07] bg-[radial-gradient(circle_at_0%_0%,rgba(255,111,97,0.10),transparent_30%),linear-gradient(180deg,#fffaf2,#f5eadb)] px-2.5 pb-2 pt-2">
+      <div className="shrink-0 space-y-1.5 border-b border-black/[0.07] bg-[var(--syn-surface-muted)] px-2.5 pb-2 pt-2">
         <div className="flex items-center justify-between gap-2 px-0.5">
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
               <h2 className="truncate text-[13px] font-black tracking-[-0.02em] text-[#171313]">Bibliothèque IA</h2>
               {selectedFolder !== 'all' ? (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-black/[0.08] bg-white/70 px-2 py-0.5 text-[9px] font-black text-black/55">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-black/[0.08] bg-[var(--syn-surface)] px-2 py-0.5 text-[9px] font-black text-black/55">
                   <Folder className="h-3 w-3" />
                   {selectedFolder}
                 </span>
@@ -915,7 +915,7 @@ export function LibraryMiddlePanel({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <div className="hidden rounded-full border border-black/[0.08] bg-white/70 p-0.5 shadow-[0_8px_20px_rgba(30,25,20,0.06)] sm:flex">
+            <div className="hidden rounded-full border border-black/[0.08] bg-[var(--syn-surface)] p-0.5 shadow-[0_8px_20px_rgba(30,25,20,0.06)] sm:flex">
               {(['list', 'grid'] as ViewMode[]).map((mode) => (
                 <button
                   key={mode}
@@ -933,7 +933,7 @@ export function LibraryMiddlePanel({
             <button
               type="button"
               onClick={onRefresh}
-              className="grid h-8 w-8 place-items-center rounded-full border border-black/[0.08] bg-white/80 text-black/45 shadow-[0_8px_20px_rgba(30,25,20,0.06)] transition hover:bg-[#171313] hover:text-white"
+              className="grid h-8 w-8 place-items-center rounded-full border border-black/[0.08] bg-[var(--syn-surface)] text-black/45 shadow-[0_8px_20px_rgba(30,25,20,0.06)] transition hover:bg-[#171313] hover:text-white"
               aria-label="Actualiser"
             >
               <RefreshCcw className="h-3.5 w-3.5" />
@@ -948,7 +948,7 @@ export function LibraryMiddlePanel({
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Rechercher une piste…"
-              className="h-8 w-full rounded-full border border-black/[0.08] bg-white/85 pl-8 pr-3 text-xs font-bold text-[#171313] outline-none transition-all placeholder:text-black/28 focus:border-[#171313] focus:bg-white"
+              className="h-8 w-full rounded-full border border-black/[0.08] bg-[var(--syn-surface)] pl-8 pr-3 text-xs font-bold text-[#171313] outline-none transition-all placeholder:text-black/28 focus:border-[#171313] focus:bg-white"
               aria-label="Rechercher"
             />
           </div>
@@ -957,13 +957,13 @@ export function LibraryMiddlePanel({
             <button
               type="button"
               onClick={() => setSortOpen((v) => !v)}
-              className="flex h-8 items-center gap-1 rounded-full border border-black/[0.08] bg-white/85 px-2.5 text-[11px] font-black text-black/58 transition-all hover:bg-white hover:text-[#171313]"
+              className="flex h-8 items-center gap-1 rounded-full border border-black/[0.08] bg-[var(--syn-surface)] px-2.5 text-[11px] font-black text-black/58 transition-all hover:bg-white hover:text-[#171313]"
             >
               {sortBy === 'newest' ? 'Récent' : sortBy === 'oldest' ? 'Ancien' : 'A → Z'}
               <ChevronDown className="h-3.5 w-3.5 text-black/40" />
             </button>
             {sortOpen && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-40 rounded-xl border border-black/[0.08] bg-[#fffaf2]/98 py-1.5 shadow-[0_16px_48px_rgba(30,25,20,.18)] backdrop-blur-2xl">
+              <div className="absolute right-0 top-full z-50 mt-2 w-40 rounded-xl border border-black/[0.08] bg-[var(--syn-surface)] py-1.5 shadow-[0_16px_48px_rgba(30,25,20,.18)] backdrop-blur-2xl">
                 {(['newest', 'oldest', 'title'] as SortKey[]).map((k) => (
                   <button
                     key={k}
@@ -982,7 +982,7 @@ export function LibraryMiddlePanel({
           </div>
         </div>
 
-        <div className="synaura-no-scrollbar flex items-center gap-1.5 overflow-x-auto">
+        <div className="flex flex-wrap items-center gap-1.5">
           {CHIPS.map((c) => (
             <button
               key={c.key}
@@ -992,14 +992,14 @@ export function LibraryMiddlePanel({
                 'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black border transition-all',
                 filterBy === c.key
                   ? 'border-[#171313] bg-[#171313] text-white shadow-[0_10px_24px_rgba(20,15,10,0.14)]'
-                  : 'border-black/[0.08] bg-white/72 text-black/50 hover:bg-white hover:text-[#171313]'
+                  : 'border-black/[0.08] bg-[var(--syn-surface)] text-black/50 hover:bg-white hover:text-[#171313]'
               )}
             >
               {c.icon}
               {c.label}
               <span className={cn(
                 'ml-0.5 rounded-full px-1.5 py-0.5 text-[8px] tabular-nums',
-                filterBy === c.key ? 'bg-white/16 text-white/78' : 'bg-black/[0.06] text-black/42'
+                filterBy === c.key ? 'bg-[var(--syn-surface)] text-white/78' : 'bg-black/[0.06] text-black/42'
               )}>
                 {filterCounts[c.key]}
               </span>
@@ -1015,7 +1015,7 @@ export function LibraryMiddlePanel({
               'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black border transition-all',
               remixMode
                 ? 'border-[#00a6ad]/30 bg-[#eafffb] text-[#087b80] shadow-[0_10px_24px_rgba(0,166,173,0.10)]'
-                : 'border-black/[0.08] bg-white/72 text-black/50 hover:bg-white hover:text-[#171313]'
+                : 'border-black/[0.08] bg-[var(--syn-surface)] text-black/50 hover:bg-white hover:text-[#171313]'
             )}
           >
             <Wand2 className="w-3 h-3" />
@@ -1033,7 +1033,7 @@ export function LibraryMiddlePanel({
             </button>
           )}
 
-          <div className="ml-auto flex rounded-full border border-black/[0.08] bg-white/72 p-0.5 sm:hidden">
+          <div className="ml-auto flex rounded-full border border-black/[0.08] bg-[var(--syn-surface)] p-0.5 sm:hidden">
             {(['list', 'grid'] as ViewMode[]).map((mode) => (
               <button
                 key={mode}
@@ -1058,7 +1058,7 @@ export function LibraryMiddlePanel({
                 'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-black transition',
                 selectedFolder === 'all'
                   ? 'border-[#171313] bg-[#171313] text-white'
-                  : 'border-black/[0.08] bg-[#fffaf2] text-black/52 hover:bg-white hover:text-[#171313]'
+                  : 'border-black/[0.08] bg-[var(--syn-surface)] text-black/52 hover:bg-white hover:text-[#171313]'
               )}
             >
               <FolderOpen className="h-3 w-3 opacity-60" />
@@ -1074,7 +1074,7 @@ export function LibraryMiddlePanel({
                   'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-black transition',
                   selectedFolder === folder
                     ? 'border-[#00a6ad]/30 bg-[#eafffb] text-[#087b80]'
-                    : 'border-black/[0.08] bg-[#fffaf2] text-black/52 hover:bg-white hover:text-[#171313]'
+                    : 'border-black/[0.08] bg-[var(--syn-surface)] text-black/52 hover:bg-white hover:text-[#171313]'
                 )}
               >
                 <Folder className="h-3 w-3 opacity-60" />
@@ -1100,7 +1100,7 @@ export function LibraryMiddlePanel({
           <div className="py-20 text-center text-sm font-bold text-red-700">{error}</div>
         ) : filtered.length === 0 ? (
           <div className="py-20 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[1.1rem] border border-black/[0.08] bg-white shadow-[0_12px_30px_rgba(30,25,20,0.08)]">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[1.1rem] border border-black/[0.08] bg-[var(--syn-surface)] shadow-[0_12px_30px_rgba(30,25,20,0.08)]">
               <Sparkles className="h-6 w-6 text-black/20" />
             </div>
             <p className="text-sm font-black text-[#171313]">Aucune piste</p>
@@ -1151,7 +1151,7 @@ export function LibraryMiddlePanel({
                 <button
                   type="button"
                   onClick={() => setVisibleCount((v) => Math.min(v + PAGE_SIZE, filtered.length))}
-                  className="rounded-full border border-black/[0.08] bg-white px-5 py-2 text-[12px] font-black text-black/55 transition-all hover:bg-[#171313] hover:text-white"
+                  className="rounded-full border border-black/[0.08] bg-[var(--syn-surface)] px-5 py-2 text-[12px] font-black text-black/55 transition-all hover:bg-[#171313] hover:text-white"
                 >
                   Afficher plus ({Math.min(PAGE_SIZE, filtered.length - visibleCount)} sur {filtered.length - visibleCount} restantes)
                 </button>

@@ -1,4 +1,5 @@
 'use client';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 import type { CSSProperties, ReactNode } from 'react';
 import Link from 'next/link';
@@ -74,7 +75,7 @@ function SynauraAccountMenu({ compact = false }: { compact?: boolean }) {
         <span className={cx('grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-[#171313] text-xs font-black text-white', compact && 'h-7 w-7')}>
           {avatar ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatar} alt="" className="h-full w-full object-cover" />
+            <SynauraImage fallbackSrc="/default-avatar.png" src={avatar} alt="" className="h-full w-full object-cover" />
           ) : (
             (user.name || username || 'S').slice(0, 1).toUpperCase()
           )}

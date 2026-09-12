@@ -1,4 +1,5 @@
 'use client';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 import Link from 'next/link';
 import { Maximize2, Pause, Play, Radio } from 'lucide-react';
@@ -48,7 +49,7 @@ export default function PostAudioCard({
         {track.cover_url ? (
           <div className="absolute inset-0 overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={track.cover_url} alt="" className="h-full w-full scale-150 object-cover opacity-22 blur-2xl" />
+            <SynauraImage src={track.cover_url} alt="" className="h-full w-full scale-150 object-cover opacity-22 blur-2xl" />
             <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(17,17,17,0.50),rgba(17,17,17,0.90)),linear-gradient(160deg,rgba(115,87,198,0.22),transparent_42%),linear-gradient(0deg,rgba(74,158,170,0.16),transparent_34%)]" />
           </div>
         ) : null}
@@ -125,4 +126,3 @@ export default function PostAudioCard({
     </div>
   );
 }
-

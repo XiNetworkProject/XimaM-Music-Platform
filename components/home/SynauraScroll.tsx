@@ -1358,7 +1358,8 @@ export default function SynauraScroll() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(115,87,198,0.16),transparent_46%)]" />
           </div>
 
-          <div className="absolute inset-0 z-10 grid place-items-center px-5">
+          <div className="live-track-scene">
+          <div className="live-track-artwork">
             <button
               type="button"
               onClick={() => {
@@ -1366,7 +1367,8 @@ export default function SynauraScroll() {
                 else if (audioState.isPlaying) pause();
                 else void play();
               }}
-              className="group relative w-[min(76vw,520px)] overflow-hidden rounded-[2.2rem] border border-white/12 bg-white/8 shadow-[0_34px_100px_rgba(0,0,0,0.38)] backdrop-blur"
+              aria-label={`${isPlayingThis ? 'Mettre en pause' : 'Écouter'} ${track.title}`}
+              className="group relative overflow-hidden rounded-[var(--syn-radius-xl)] border border-white/12 bg-white/8 shadow-[0_34px_100px_rgba(0,0,0,0.38)] backdrop-blur"
             >
               <img
                 src={track.coverUrl || FALLBACK_COVER}
@@ -1424,10 +1426,18 @@ export default function SynauraScroll() {
               </button>
             ) : null}
             <TrackActionButton track={track} origin="live" className="h-14 w-14 border border-white/12 bg-white/10 !text-white backdrop-blur-xl" />
+            <div className="hidden shrink-0 flex-col gap-2 border-t border-white/20 pt-2 md:flex">
+              <button onClick={() => jump(activeIndex - 1)} aria-label="Item précédent" className="grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-black/50 text-white transition hover:bg-black/70">
+                <ChevronUp className="h-5 w-5" />
+              </button>
+              <button onClick={() => jump(activeIndex + 1)} aria-label="Item suivant" className="grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-black/50 text-white transition hover:bg-black/70">
+                <ChevronDown className="h-5 w-5" />
+              </button>
+            </div>
           </aside>
 
-          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] lg:pb-[max(env(safe-area-inset-bottom),1rem)]">
-            <div className="mx-auto max-w-5xl rounded-[1.8rem] border border-white/12 bg-[#fffaf2]/95 p-4 text-[#171313] shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+          <div className="live-track-metadata relative z-30 min-w-0">
+            <div className="rounded-[var(--syn-radius-xl)] border border-white/12 bg-[#fffaf2]/95 p-4 text-[#171313] shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -1437,7 +1447,7 @@ export default function SynauraScroll() {
                       </span>
                     ))}
                   </div>
-                  <h2 className="mt-1.5 truncate text-2xl font-black tracking-tight">{track.title}</h2>
+                  <h2 className="mt-1.5 break-words text-xl font-black leading-tight tracking-tight sm:text-2xl lg:text-4xl">{track.title}</h2>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     {track.artist?.username ? (
                       <button
@@ -1469,6 +1479,7 @@ export default function SynauraScroll() {
                     else if (audioState.isPlaying) pause();
                     else void play();
                   }}
+                  aria-label={`${isPlayingThis ? 'Mettre en pause' : 'Écouter'} ${track.title}`}
                   className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#171313] text-white transition hover:scale-105"
                 >
                   {isPlayingThis ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
@@ -1535,13 +1546,6 @@ export default function SynauraScroll() {
             </div>
           </div>
 
-          <div className="absolute bottom-28 right-4 z-30 hidden flex-col gap-2 md:flex">
-            <button onClick={() => jump(activeIndex - 1)} aria-label="Item précédent" className="grid h-10 w-10 place-items-center rounded-full border border-white/12 bg-white/10 backdrop-blur-xl transition hover:bg-white/16">
-              <ChevronUp className="h-5 w-5" />
-            </button>
-            <button onClick={() => jump(activeIndex + 1)} aria-label="Item suivant" className="grid h-10 w-10 place-items-center rounded-full border border-white/12 bg-white/10 backdrop-blur-xl transition hover:bg-white/16">
-              <ChevronDown className="h-5 w-5" />
-            </button>
           </div>
 
         </>
@@ -1919,11 +1923,11 @@ export default function SynauraScroll() {
         <button
           type="button"
           onClick={() => navigateFromLive('/city')}
-          className="absolute left-4 top-[6.5rem] z-30 hidden max-w-[280px] rounded-[1.4rem] border border-white/12 bg-[#fffaf2]/92 p-3 text-left text-[#171313] shadow-[0_18px_55px_rgba(0,0,0,.26)] backdrop-blur-2xl md:block"
+          className="absolute left-4 top-[6.5rem] z-30 hidden max-w-[280px] rounded-[var(--syn-radius-md)] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-3 text-left text-[var(--syn-text-primary)] shadow-[var(--syn-shadow-low)] md:block"
         >
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF6F61]">Events · Synaura Pulse</p>
           <p className="mt-1 line-clamp-1 text-sm font-black">{cityPulse.event}</p>
-          <p className="mt-1 text-[11px] font-bold text-black/50">{cityPulse.title} · Pulse {cityPulse.pulse}% · {cityPulse.votes} votes</p>
+          <p className="mt-1 text-xs font-bold text-[var(--syn-text-secondary)]">{cityPulse.title} · Pulse {cityPulse.pulse}% · {cityPulse.votes} votes</p>
         </button>
       ) : null}
 

@@ -184,7 +184,7 @@ function CreateHubContent() {
   }, [status]);
 
   return (
-    <SynauraAppShell contentClassName="max-w-[920px]">
+    <SynauraAppShell contentClassName="!max-w-[1200px]">
       <SynauraTopBar searchLabel="Rechercher un son, un profil ou une playlist..." />
       <main className="space-y-4 pb-6">
         <header className="flex items-start gap-3 px-1 pt-1">
@@ -223,6 +223,7 @@ function CreateHubContent() {
           </Link>
         ) : null}
 
+        <div className="grid gap-4 lg:grid-cols-2">
         <Link
           href={withChallenge('/ai-generator')}
           className="group block min-h-[246px] overflow-hidden rounded-[20px] border border-[#4A9EAA]/25 border-b-[3px] border-b-[#4A9EAA] p-5 text-white transition sm:p-6"
@@ -278,6 +279,7 @@ function CreateHubContent() {
           })}
         </div>
 
+        </div>
         <div className="px-1 pt-3">
           <h2 className="text-xl font-black text-[var(--syn-text-primary)]">Crée avec les autres</h2>
           <p className="mt-1 text-sm font-semibold leading-6 text-[var(--syn-text-secondary)]">

@@ -1,4 +1,5 @@
 'use client';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 import React from 'react';
 import { ArrowRight, Pause, Play } from 'lucide-react';
@@ -45,11 +46,11 @@ export function MoodCard({
       {covers.length ? (
         <div className="absolute inset-0 grid grid-cols-2 opacity-40 saturate-[1.05]">
           {covers.slice(0, 4).map((cover, index) => (
-            <img key={`${cover}-${index}`} src={cover} alt="" className="h-full w-full object-cover" />
+            <SynauraImage key={`${cover}-${index}`} src={cover} alt="" className="h-full w-full object-cover" />
           ))}
         </div>
       ) : null}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/78 via-black/22 to-black/10" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
       <div className="relative">
         <h3 className="text-xl font-black leading-tight text-white sm:text-2xl">{mood.label}</h3>
         <p className="mt-1.5 max-w-[90%] text-xs font-semibold leading-5 text-white/72 sm:text-sm">{mood.promise}</p>
@@ -79,7 +80,7 @@ export function ArtistDiscoverCard({ artist }: { artist: DiscoverArtistCardLite 
         aria-label={`Aperçu du profil de ${artist.name}`}
       >
         {artist.avatar ? (
-          <img src={artist.avatar} alt="" className="h-14 w-14 rounded-full object-cover" />
+          <SynauraImage fallbackSrc="/default-avatar.png" src={artist.avatar} alt="" className="h-14 w-14 rounded-full object-cover" />
         ) : (
           <div className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-[#7357C6]/70 via-[#D96D63]/60 to-[#4A9EAA]/60 text-lg font-black text-white">
             {(artist.name || artist.username || '?').slice(0, 1).toUpperCase()}
@@ -105,7 +106,7 @@ export function ArtistDiscoverCard({ artist }: { artist: DiscoverArtistCardLite 
           className="mt-3 flex w-full items-center gap-2.5 rounded-[10px] bg-[var(--syn-soft)] p-2 text-left transition hover:bg-[var(--syn-soft-strong)]"
         >
           <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-[8px] bg-[var(--syn-surface-muted)]">
-            {artist.track.coverUrl ? <img src={artist.track.coverUrl} alt="" className="h-full w-full object-cover" /> : null}
+            {artist.track.coverUrl ? <SynauraImage src={artist.track.coverUrl} alt="" className="h-full w-full object-cover" /> : null}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-black text-[var(--syn-text-primary)]">{artist.track.title}</p>

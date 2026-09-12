@@ -38,6 +38,9 @@ page.on('request', async r => {
 await page.evaluateOnNewDocument(() => {
   Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
   window.__actionsPerf = { tasks: [], audio: { play: 0, pause: 0, seek: 0, load: 0 } };
+  window.__actionsPerf.vitals = {lcp: null, cls: 0};
+  new PerformanceObserver(list => { for (const e of list.getEntries()) window.__actionsPerf.vitals.lcp = e.startTime; }).observe({type: 'largest-contentful-paint', buffered: true});
+  new PerformanceObserver(list => { for (const e of list.getEntries()) if (!e.hadRecentInput) window.__actionsPerf.vitals.cls += e.value; }).observe({type: 'layout-shift', buffered: true});
   new PerformanceObserver(list => window.__actionsPerf.tasks.push(...list.getEntries().map(e => ({ start: e.startTime, duration: e.duration })))).observe({ type: 'longtask', buffered: true });
   for (const name of ['play','pause','load']) { const original = HTMLMediaElement.prototype[name]; HTMLMediaElement.prototype[name] = function(...args) { if (this.tagName === 'AUDIO') window.__actionsPerf.audio[name]++; return original.apply(this,args); }; }
   const descriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime');
@@ -107,6 +110,9 @@ try {
   result.browser = await browser.version();
   result.inactiveBeforeOpen = result.requests.filter(r => r.path === '/api/playlists' || ids.slice(1).some(id => r.path.startsWith('/api/tracks/' + id)) || ids.some(id => r.path === '/api/tracks/' + id));
   assert.equal(result.inactiveBeforeOpen.length, 0, 'Inactive cards must not query organization data');
+  await cdp.send('HeapProfiler.collectGarbage');
+  result.beforeCycles = {...await page.metrics(), ...await cdp.send('Memory.getDOMCounters')};
+  result.liveRendering = await page.evaluate(() => ({ dom: document.querySelectorAll('*').length, images: document.images.length, brokenImages: [...document.images].filter(i => i.complete && !i.naturalWidth).length, animations: document.getAnimations().map(a => ({state:a.playState, duration:a.effect?.getTiming().duration})), vitals: window.__actionsPerf.vitals }));
   cdp.on('Tracing.dataCollected', e => { trace.push(...e.value.filter(t => t.cat?.includes('user_timing') || /GC|Scavenge|MarkCompact/.test(t.name))); });
   await cdp.send('Tracing.start', { categories: 'devtools.timeline,v8,blink.user_timing,disabled-by-default-v8.gc', transferMode: 'ReportEvents' }); tracing = true;
   for (const name of names) {
@@ -142,6 +148,8 @@ try {
 } catch (error) { result.failure = error.message; result.failedPhase = phase; result.failureDOM = await page.evaluate(() => ({ url: location.pathname, dialogs: [...document.querySelectorAll('[role="dialog"]')].map(e=>e.textContent.slice(0,300)), perf: window.__actionsPerf?.completed })); console.error(error); process.exitCode = 1; }
 finally {
   if (tracing) await cdp.send('Tracing.end').catch(() => {});
+  await cdp.send('HeapProfiler.collectGarbage');
+  result.afterCycles = {...await page.metrics(), ...await cdp.send('Memory.getDOMCounters')};
   await fs.mkdir(path.dirname(output), { recursive: true });
   await fs.writeFile(output, JSON.stringify(result,null,2) + '\n');
   await browser.close();

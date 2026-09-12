@@ -1,4 +1,5 @@
 'use client';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -396,7 +397,7 @@ export function PlaylistTile({ playlist }: { playlist: DiscoverPlaylistLite }) {
       style={{ scrollSnapAlign: 'start' }}
     >
       <div className="relative overflow-hidden rounded-[10px]">
-        <img
+        <SynauraImage
           src={visual}
           alt={playlist.name}
           className={`${collection?.bannerUrl || playlist.bannerUrl ? 'aspect-[1.35]' : 'aspect-square'} w-full object-cover transition duration-300 group-hover/card:scale-[1.03]`}
@@ -436,7 +437,7 @@ export function CollectionSpotlight({ playlists }: { playlists: DiscoverPlaylist
       className="relative overflow-hidden rounded-[14px] border border-white/10 p-4 text-[#fffaf2] shadow-[0_24px_80px_rgba(0,0,0,0.24)] sm:rounded-[20px] sm:p-6"
       style={{ background: `linear-gradient(135deg, ${colors[0]}, ${colors[1] || colors[0]}, ${colors[2] || colors[0]})` }}
     >
-      <img src={visual} alt="" className="absolute inset-0 h-full w-full object-cover opacity-44 saturate-[1.08]" />
+      <SynauraImage src={visual} alt="" className="absolute inset-0 h-full w-full object-cover opacity-44 saturate-[1.08]" />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(18,14,14,0.88),rgba(18,14,14,0.48),rgba(18,14,14,0.18))]" />
       <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-h-[230px] flex-col justify-end">
@@ -468,7 +469,7 @@ export function CollectionSpotlight({ playlists }: { playlists: DiscoverPlaylist
               const itemVisual = itemCollection?.coverUrl || playlist.coverUrl || itemCollection?.bannerUrl || playlist.bannerUrl || '/default-cover.svg';
               return (
                 <Link key={playlist._id} href={itemHref} className="flex items-center gap-3 rounded-[10px] border border-white/10 bg-white/12 p-2.5 backdrop-blur transition hover:bg-white/18">
-                  <img src={itemVisual} alt="" className="h-14 w-14 rounded-[8px] object-cover" />
+                  <SynauraImage src={itemVisual} alt="" className="h-14 w-14 rounded-[8px] object-cover" />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-black">{itemCollection?.title || playlist.name}</p>
                     <p className="truncate text-xs font-bold text-white/54">{itemCollection?.badge || 'Collection'}</p>
@@ -494,7 +495,7 @@ export function ArtistTile({ artist }: { artist: DiscoverArtistLite }) {
       style={{ scrollSnapAlign: 'start' }}
     >
       {artist.avatar && !imgError ? (
-        <img
+        <SynauraImage
           src={artist.avatar}
           alt={artist.name}
           className="mx-auto h-16 w-16 rounded-full border-2 border-white/12 object-cover transition duration-200 group-hover/card:border-white/26 sm:h-20 sm:w-20"
@@ -564,7 +565,7 @@ export function AlbumTile({ album }: { album: DiscoverAlbumLite }) {
     >
       <div className="relative overflow-hidden rounded-[10px]">
         {album.coverUrl ? (
-          <img src={album.coverUrl} alt={album.name} className="aspect-square w-full object-cover transition duration-300 group-hover/album:scale-[1.03]" />
+          <SynauraImage src={album.coverUrl} alt={album.name} className="aspect-square w-full object-cover transition duration-300 group-hover/album:scale-[1.03]" />
         ) : (
           <div className="flex aspect-square w-full items-center justify-center bg-gradient-to-br from-violet-500/28 to-fuchsia-500/22">
             <Disc3 className="h-10 w-10 text-white/22" />

@@ -1,4 +1,5 @@
 'use client';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -421,9 +422,9 @@ export default function SynauraProfile() {
       <div className="space-y-4 pb-32">
         <SynauraInkPanel className="overflow-hidden">
           <div className="relative">
-            <div className="relative h-[260px] overflow-hidden sm:h-[320px] md:h-[360px]">
+            <div className="relative h-44 overflow-hidden sm:h-52 lg:h-64">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={toPublicMediaUrl(profile.banner) || '/default-cover.svg'} alt="" className="h-full w-full object-cover" />
+              <SynauraImage src={toPublicMediaUrl(profile.banner) || '/default-cover.svg'} alt="" className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(23,19,19,0.08)_0%,rgba(23,19,19,0.18)_34%,rgba(23,19,19,0.76)_76%,#171313_100%)]" />
               {!isOwnProfile ? (
                 <button
@@ -474,7 +475,7 @@ export default function SynauraProfile() {
                       Profil Synaura
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-2.5">
-                      <h1 className="text-3xl font-black tracking-[-0.05em] text-white sm:text-4xl md:text-5xl">{profile.name}</h1>
+                      <h1 className="break-words text-3xl font-black tracking-tight text-white sm:text-4xl">{profile.name}</h1>
                       {profile.isVerified && (
                         <div className="grid h-7 w-7 place-items-center rounded-full bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.35)]">
                           <Check size={14} />
@@ -635,7 +636,7 @@ export default function SynauraProfile() {
             <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
               <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[1.4rem] bg-black/[0.06] shadow-[0_16px_40px_rgba(20,15,10,0.14)] sm:h-28 sm:w-28">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={spotlightTrack.cover_url || spotlightTrack.coverUrl || '/default-cover.svg'} alt="" className="h-full w-full object-cover" />
+                <SynauraImage src={spotlightTrack.cover_url || spotlightTrack.coverUrl || '/default-cover.svg'} alt="" className="h-full w-full object-cover" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#7357C6]">À écouter maintenant</p>
@@ -979,7 +980,7 @@ export default function SynauraProfile() {
                       >
                         <div className="h-12 w-12 overflow-hidden rounded-[1rem] bg-black/[0.06]">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={v.coverUrl || '/default-cover.svg'} alt="" className="h-full w-full object-cover" loading="lazy" />
+                          <SynauraImage src={v.coverUrl || '/default-cover.svg'} alt="" className="h-full w-full object-cover" loading="lazy" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-black text-[#171313]">{v.title}</p>
@@ -1427,16 +1428,16 @@ function InfoTile({ icon: Icon, label, value, href }: { icon: any; label: string
 
 function MetricCard({ label, value, accent }: { label: string; value: string; accent: 'violet' | 'cyan' | 'coral' | 'ink' }) {
   const toneMap = {
-    violet: 'from-[#efe7ff] to-[#fbf8ff] text-[#7c5cff]',
-    cyan: 'from-[#e3fbfc] to-[#fbfefe] text-[#0096a0]',
-    coral: 'from-[#ffe7df] to-[#fff9f5] text-[#ff6f61]',
-    ink: 'from-[#ede6dc] to-[#fffaf2] text-[#171313]',
+    violet: 'bg-[color-mix(in_srgb,var(--syn-accent)_12%,var(--syn-surface))]',
+    cyan: 'bg-[color-mix(in_srgb,#4A9EAA_12%,var(--syn-surface))]',
+    coral: 'bg-[color-mix(in_srgb,#D96D63_12%,var(--syn-surface))]',
+    ink: 'bg-[var(--syn-surface-muted)]',
   } as const;
 
   return (
-    <div className={`rounded-[1.4rem] border border-black/[0.06] bg-gradient-to-br ${toneMap[accent]} p-4`}>
-      <div className="text-[11px] font-black uppercase tracking-[0.14em] text-black/36">{label}</div>
-      <div className="mt-2 text-2xl font-black tracking-tight text-[#171313]">{value}</div>
+    <div className={`rounded-[var(--syn-radius-lg)] border border-[var(--syn-border)] ${toneMap[accent]} p-4`}>
+      <div className="text-xs font-black uppercase text-[var(--syn-text-secondary)]">{label}</div>
+      <div className="mt-2 text-2xl font-black tracking-tight text-[var(--syn-text-primary)]">{value}</div>
     </div>
   );
 }

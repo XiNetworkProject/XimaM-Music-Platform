@@ -92,18 +92,18 @@ function getSunoErrorMessage(status: number, errJson: { error?: string; msg?: st
   const custom = errJson?.error || errJson?.msg;
   if (custom && typeof custom === 'string' && custom.trim()) return custom.trim();
   const map: Record<number, string> = {
-    400: 'ParamÃ¨tres invalides. VÃ©rifiez titre, style et paroles.',
-    401: 'Session expirÃ©e. Reconnectez-vous.',
-    402: 'CrÃ©dits insuffisants. Ajoutez des crÃ©dits pour continuer.',
+    400: 'Paramètres invalides. Vérifiez titre, style et paroles.',
+    401: 'Session expirée. Reconnectez-vous.',
+    402: 'Crédits insuffisants. Ajoutez des crédits pour continuer.',
     404: 'Service temporairement indisponible.',
-    405: 'Limite de requÃªtes dÃ©passÃ©e. RÃ©essayez plus tard.',
-    413: 'Texte trop long (titre, style ou paroles). RÃ©duisez la taille.',
-    429: 'CrÃ©dits insuffisants. Ajoutez des crÃ©dits pour continuer.',
-    430: 'Trop de requÃªtes. Attendez quelques secondes avant de relancer.',
-    455: 'Suno est en maintenance. RÃ©essayez dans quelques minutes.',
-    500: 'Erreur serveur. RÃ©essayez dans un moment.',
+    405: 'Limite de requêtes dépassée. Réessayez plus tard.',
+    413: 'Texte trop long (titre, style ou paroles). Réduisez la taille.',
+    429: 'Crédits insuffisants. Ajoutez des crédits pour continuer.',
+    430: 'Trop de requêtes. Attendez quelques secondes avant de relancer.',
+    455: 'Suno est en maintenance. Réessayez dans quelques minutes.',
+    500: 'Erreur serveur. Réessayez dans un moment.',
   };
-  return map[status] || `Erreur lors de la gÃ©nÃ©ration (${status}).`;
+  return map[status] || `Erreur lors de la génération (${status}).`;
 }
 
 // Interface Track compatible avec le lecteur principal
@@ -198,9 +198,9 @@ function StudioStatusOrb({
             {isError
               ? 'Erreur'
               : isActive
-              ? 'GÃ©nÃ©ration'
+              ? 'Génération'
               : generationStatus === 'completed'
-              ? 'PrÃªt'
+              ? 'Prêt'
               : 'Studio'}
           </span>
         </div>
@@ -301,7 +301,7 @@ function ModelDropdownPortal({
           style={{ top: pos.top, left: pos.left }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-3 py-1.5 text-[10px] font-semibold text-white/25 uppercase tracking-wider">ModÃ¨le IA</div>
+          <div className="px-3 py-1.5 text-[10px] font-semibold text-white/25 uppercase tracking-wider">Modèle IA</div>
           {models.map((m) => {
             const isActive = modelVersion === m.id;
             const colorMap: Record<string, string> = {
@@ -724,13 +724,13 @@ function AIGeneratorContent() {
 
       if (!genRes.ok) {
         const txt = await genRes.text().catch(() => '');
-        setGenerationsError(txt ? `Erreur chargement: ${txt}` : 'Erreur chargement de la bibliothÃ¨que');
+        setGenerationsError(txt ? `Erreur chargement: ${txt}` : 'Erreur chargement de la bibliothèque');
         return;
       }
 
       const data = await genRes.json().catch(() => ({}));
       setGenerations(data.generations || []);
-      pushLog('info', `BibliothÃ¨que chargÃ©e: ${(data.generations || []).length} gÃ©nÃ©rations`);
+      pushLog('info', `Bibliothèque chargée: ${(data.generations || []).length} générations`);
 
       if (trRes.ok) {
         const trJson = await trRes.json().catch(() => ({}));
@@ -738,14 +738,14 @@ function AIGeneratorContent() {
         setAllTracks(loadedTracks);
         setLikedTrackIds(new Set(loadedTracks.filter((t: any) => t.is_liked).map((t: AITrack) => t.id)));
         setTrashedTrackIds(new Set(loadedTracks.filter((t: any) => t.generation?.is_trashed).map((t: AITrack) => t.id)));
-        pushLog('info', `Assets synchronisÃ©s: ${loadedTracks.length} tracks`);
+        pushLog('info', `Assets synchronisés: ${loadedTracks.length} tracks`);
       } else {
         setAllTracks([]);
       }
     } catch (error) {
       if (DEBUG_AI_STUDIO) console.error('[AI Studio] Erreur chargement bibliothÃ¨que:', error);
-      setGenerationsError('Impossible de charger la bibliothÃ¨que');
-      pushLog('error', 'Erreur de chargement bibliothÃ¨que');
+      setGenerationsError('Impossible de charger la bibliothèque');
+      pushLog('error', 'Erreur de chargement bibliothèque');
     } finally {
       setGenerationsLoading(false);
     }
@@ -793,13 +793,13 @@ function AIGeneratorContent() {
         body: JSON.stringify({ libraryFolder: nextFolder }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.error || 'Impossible de dÃ©placer cette piste');
-      notify.success('Dossier mis Ã  jour', nextFolder ? `Piste dÃ©placÃ©e dans "${nextFolder}".` : 'Piste retirÃ©e des dossiers.');
+      if (!res.ok) throw new Error(json?.error || 'Impossible de déplacer cette piste');
+      notify.success('Dossier mis à jour', nextFolder ? `Piste déplacée dans "${nextFolder}".` : 'Piste retirée des dossiers.');
       window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
     } catch (error: any) {
       setAllTracks(previousTracks);
       setGenerations(previousGenerations);
-      notify.error('Dossier', error?.message || 'DÃ©placement impossible');
+      notify.error('Dossier', error?.message || 'Déplacement impossible');
     }
   }, [allTracks, generations, notify]);
 
@@ -827,7 +827,7 @@ function AIGeneratorContent() {
         case 'oldest':
           return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         case 'title':
-          return (a.tracks?.[0]?.title || 'Musique gÃ©nÃ©rÃ©e').localeCompare(b.tracks?.[0]?.title || 'Musique gÃ©nÃ©rÃ©e');
+          return (a.tracks?.[0]?.title || 'Musique générée').localeCompare(b.tracks?.[0]?.title || 'Musique générée');
         default:
           return 0;
       }
@@ -935,19 +935,19 @@ function AIGeneratorContent() {
 
   const commandItems = React.useMemo(
     () => [
-      { id: 'generate', label: 'Generate', desc: 'Lancer une gÃ©nÃ©ration', run: () => executePaletteCommand('generate') },
+      { id: 'generate', label: 'Generate', desc: 'Lancer une génération', run: () => executePaletteCommand('generate') },
       { id: 'preset-edm', label: 'Apply preset: EDM', desc: 'Appliquer un preset proche EDM', run: () => executePaletteCommand('preset edm') },
-      { id: 'model-v55', label: 'Set model: v5.5', desc: 'Basculer le modÃ¨le vers v5.5', run: () => executePaletteCommand('model v5.5') },
-      { id: 'model-v5', label: 'Set model: v5', desc: 'Basculer le modÃ¨le vers v5', run: () => executePaletteCommand('model v5') },
+      { id: 'model-v55', label: 'Set model: v5.5', desc: 'Basculer le modèle vers v5.5', run: () => executePaletteCommand('model v5.5') },
+      { id: 'model-v5', label: 'Set model: v5', desc: 'Basculer le modèle vers v5', run: () => executePaletteCommand('model v5') },
       { id: 'mode-custom', label: 'Set mode: custom', desc: 'Passer en mode custom', run: () => executePaletteCommand('mode custom') },
       { id: 'mode-remix', label: 'Set mode: remix', desc: 'Passer en mode remix', run: () => executePaletteCommand('mode remix') },
       { id: 'instrumental-on', label: 'Instrumental: on', desc: 'Activer instrumental', run: () => executePaletteCommand('instrumental on') },
-      { id: 'duration-120', label: 'Set duration: 120', desc: 'DurÃ©e de gÃ©nÃ©ration = 120s', run: () => executePaletteCommand('duration 120') },
-      { id: 'tab-presets', label: 'Open tab: Presets', desc: 'Basculer vers lâ€™onglet presets', run: () => executePaletteCommand('tab presets') },
-      { id: 'tab-assets', label: 'Open tab: Assets', desc: 'Basculer vers lâ€™onglet assets', run: () => executePaletteCommand('tab assets') },
-      { id: 'refresh', label: 'Refresh library', desc: 'Synchroniser la bibliothÃ¨que', run: () => executePaletteCommand('refresh') },
-      { id: 'refresh-credits', label: 'Refresh Suno credits', desc: 'RafraÃ®chir crÃ©dits provider Suno', run: () => executePaletteCommand('credits refresh') },
-      { id: 'export-mp3', label: 'Export MP3', desc: 'PrÃ©parer export MP3', run: () => executePaletteCommand('export mp3') },
+      { id: 'duration-120', label: 'Set duration: 120', desc: 'Durée de génération = 120s', run: () => executePaletteCommand('duration 120') },
+      { id: 'tab-presets', label: 'Open tab: Presets', desc: 'Basculer vers l’onglet presets', run: () => executePaletteCommand('tab presets') },
+      { id: 'tab-assets', label: 'Open tab: Assets', desc: 'Basculer vers l’onglet assets', run: () => executePaletteCommand('tab assets') },
+      { id: 'refresh', label: 'Refresh library', desc: 'Synchroniser la bibliothèque', run: () => executePaletteCommand('refresh') },
+      { id: 'refresh-credits', label: 'Refresh Suno credits', desc: 'Rafraîchir crédits provider Suno', run: () => executePaletteCommand('credits refresh') },
+      { id: 'export-mp3', label: 'Export MP3', desc: 'Préparer export MP3', run: () => executePaletteCommand('export mp3') },
       { id: 'mode-ide', label: 'Switch mode: IDE', desc: 'Passer en mode IDE', run: () => executePaletteCommand('mode ide') },
       { id: 'mode-classic', label: 'Switch mode: Classic', desc: 'Passer en mode Classic', run: () => executePaletteCommand('mode classic') },
     ],
@@ -975,7 +975,7 @@ function AIGeneratorContent() {
       (typeof links?.original_file_name === 'string' && links.original_file_name.trim()) ||
       (typeof links?.file_name === 'string' && links.file_name.trim()) ||
       '';
-    return fromLinks || String((track as any)?.title || 'Audio uploadÃ©');
+    return fromLinks || String((track as any)?.title || 'Audio uploadé');
   };
 
   const resolveTrackMedia = (track: AITrack | any) => {
@@ -1139,7 +1139,7 @@ function AIGeneratorContent() {
       musicVideoUrl: media.musicVideoUrl,
       musicVideoPosterUrl: media.musicVideoPosterUrl,
       createdAt: createdAt || track.created_at,
-      genre: ['IA', 'GÃ©nÃ©rÃ©'],
+      genre: ['IA', 'Généré'],
       plays: track.play_count || 0,
       likes: [],
       comments: [],
@@ -1236,14 +1236,14 @@ function AIGeneratorContent() {
       !initialMedia.imageUrl ||
       (initialMedia.imageUrl && isPotentiallyExpiredProviderUrl(initialMedia.imageUrl, createdAt))
     ) {
-      pushLog('info', 'RÃ©cupÃ©ration des URLs fraÃ®ches de la pisteâ€¦');
+      pushLog('info', 'Récupération des URLs fraîches de la piste…');
       const refreshed = await hydrateTrackFromSuno(track, generation);
       if (refreshed) targetTrack = refreshed;
     }
 
     const pt = aiTrackToPlayerTrack(targetTrack, generation);
     if (!pt) {
-      notify.error('Lecture', 'Cette piste nâ€™a pas dâ€™URL audio exploitable pour le moment.');
+      notify.error('Lecture', 'Cette piste n’a pas d’URL audio exploitable pour le moment.');
       pushLog('warn', `Track sans URL audio: ${targetTrack.title || targetTrack.id}`);
       return;
     }
@@ -1260,7 +1260,7 @@ function AIGeneratorContent() {
       }
       const retryPt = aiTrackToPlayerTrack(refreshed, generation);
       if (!retryPt) {
-        notify.error('Lecture', 'Aucune source audio valide aprÃ¨s synchronisation.');
+        notify.error('Lecture', 'Aucune source audio valide après synchronisation.');
         pushLog('error', `Retry lecture impossible: ${targetTrack.title || targetTrack.id}`);
         return;
       }
@@ -1299,7 +1299,7 @@ function AIGeneratorContent() {
   const playGenerationQueue = async (generation: AIGeneration) => {
     const tracks = generation.tracks || [];
     if (!tracks.length) {
-      notify.error('Lecture', 'Aucune piste trouvÃ©e pour cette gÃ©nÃ©ration.');
+      notify.error('Lecture', 'Aucune piste trouvée pour cette génération.');
       return;
     }
 
@@ -1313,7 +1313,7 @@ function AIGeneratorContent() {
       .filter(Boolean) as PlayerTrack[];
 
     if (!playable.length) {
-      notify.error('Lecture', 'Aucune piste jouable (audio/stream) dans cette gÃ©nÃ©ration.');
+      notify.error('Lecture', 'Aucune piste jouable (audio/stream) dans cette génération.');
       return;
     }
 
@@ -1353,7 +1353,7 @@ function AIGeneratorContent() {
     }
     const gen = recentGenerationsSorted.find((g) => g.id === id);
     if (!gen) {
-      pushLog('warn', `A/B: gÃ©nÃ©ration introuvable (${slot})`);
+      pushLog('warn', `A/B: génération introuvable (${slot})`);
       return;
     }
     handlePlayGeneration(gen);
@@ -1482,7 +1482,7 @@ function AIGeneratorContent() {
     const audioId = (track as any).suno_id || '';
 
     if (!taskId || !audioId) {
-      notify.info('Clip vidÃ©o indisponible', 'Cette piste ne contient pas les IDs Suno nÃ©cessaires.');
+      notify.info('Clip vidéo indisponible', 'Cette piste ne contient pas les IDs Suno nécessaires.');
       return;
     }
 
@@ -1494,12 +1494,12 @@ function AIGeneratorContent() {
         body: JSON.stringify({ trackId: track.id, taskId, audioId }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.error || 'Impossible de gÃ©nÃ©rer la cover animÃ©e');
+      if (!res.ok) throw new Error(json?.error || 'Impossible de générer la cover animée');
 
-      notify.success('Clip vidÃ©o lancÃ©', 'Suno gÃ©nÃ¨re la vidÃ©o verticale. Elle apparaÃ®tra dans le TikTok player dÃ¨s le callback.');
+      notify.success('Clip vidéo lancé', 'Suno génère la vidéo verticale. Elle apparaîtra dans le TikTok player dès le callback.');
       await loadLibrary();
     } catch (error: any) {
-      notify.error('Clip vidÃ©o', error?.message || 'Erreur gÃ©nÃ©ration vidÃ©o');
+      notify.error('Clip vidéo', error?.message || 'Erreur génération vidéo');
     } finally {
       setGeneratingCoverVideoTrackId(null);
     }
@@ -1541,7 +1541,7 @@ function AIGeneratorContent() {
     try {
       const media = resolveTrackMedia(track);
       if (!media.playableUrl) {
-        notify.error('TÃ©lÃ©chargement', 'Aucune URL audio disponible pour cette piste.');
+        notify.error('Téléchargement', 'Aucune URL audio disponible pour cette piste.');
         return;
       }
       const response = await fetch(media.playableUrl);
@@ -1962,7 +1962,7 @@ function AIGeneratorContent() {
       setWeirdness(50);
       setStyleInfluence(50);
       setAudioWeight(50);
-      pushLog('info', `Preset dÃ©sÃ©lectionnÃ©: ${preset.label}`);
+      pushLog('info', `Preset désélectionné: ${preset.label}`);
       return;
     }
 
@@ -1978,7 +1978,7 @@ function AIGeneratorContent() {
     if (typeof d.styleInfluence === 'number') setStyleInfluence(d.styleInfluence);
     if (typeof d.audioWeight === 'number') setAudioWeight(d.audioWeight);
     if (d.tags && d.tags.length) setSelectedTags(d.tags);
-    pushLog('info', `Preset appliquÃ©: ${preset.label}`);
+    pushLog('info', `Preset appliqué: ${preset.label}`);
   };
 
   const playGenerated = async (gt: GeneratedTrack) => {
@@ -2046,7 +2046,7 @@ function AIGeneratorContent() {
         }
       }
       notify.error('Lecture', 'Aucune URL audio exploitable pour cette piste.');
-      pushLog('warn', `Track gÃ©nÃ©rÃ©e sans audioUrl: ${gt.title || gt.id}`);
+      pushLog('warn', `Track générée sans audioUrl: ${gt.title || gt.id}`);
       return;
     }
 
@@ -2058,7 +2058,7 @@ function AIGeneratorContent() {
       null;
     const playerTrack: PlayerTrack & { generationTaskId?: string; sunoAudioId?: string } = {
       _id: `gen-${gt.id}`,
-      title: gt.title || 'Musique gÃ©nÃ©rÃ©e',
+      title: gt.title || 'Musique générée',
       artist: {
         _id: 'ai-generator',
         name: 'Synaura IA',
@@ -2081,8 +2081,8 @@ function AIGeneratorContent() {
     (playerTrack as any).generationTaskId = taskIdForLyrics ?? '';
     (playerTrack as any).sunoAudioId = String((gt as any).sunoAudioId || (sourceTrackForGt as any)?.suno_id || gt.id || '');
     await Promise.resolve(playTrack(playerTrack as any)).catch(() => {
-      notify.error('Lecture', 'La lecture a Ã©chouÃ© pour cette piste.');
-      pushLog('error', `Ã‰chec lecture generated: ${gt.title || gt.id}`);
+      notify.error('Lecture', 'La lecture a échoué pour cette piste.');
+      pushLog('error', `Échec lecture generated: ${gt.title || gt.id}`);
     });
   };
 
@@ -2110,15 +2110,15 @@ function AIGeneratorContent() {
   const shareGenerated = async (gt: GeneratedTrack) => {
     try {
       const shareData = {
-        title: gt.title || 'Musique gÃ©nÃ©rÃ©e',
-        text: 'Ã‰coutez ma musique gÃ©nÃ©rÃ©e par IA sur Synaura',
+        title: gt.title || 'Musique générée',
+        text: 'Écoutez ma musique générée par IA sur Synaura',
         url: typeof window !== 'undefined' ? window.location.href : ''
       } as any;
       if ((navigator as any).share) {
         await (navigator as any).share(shareData);
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(shareData.url);
-        notify.success('Partage', 'Lien copiÃ©');
+        notify.success('Partage', 'Lien copié');
       }
     } catch {}
   };
@@ -2139,11 +2139,11 @@ function AIGeneratorContent() {
   const handleCopyLyrics = useCallback((track: GeneratedTrack, copyPrompt?: boolean) => {
     const text = (copyPrompt ? track.prompt : (track.lyrics || track.prompt) || '').trim();
     if (!text) {
-      notify.warning(copyPrompt ? 'Prompt' : 'Paroles', copyPrompt ? 'Aucun prompt Ã  copier.' : 'Aucune parole Ã  copier pour cette piste.');
+      notify.warning(copyPrompt ? 'Prompt' : 'Paroles', copyPrompt ? 'Aucun prompt à copier.' : 'Aucune parole à copier pour cette piste.');
       return;
     }
     navigator.clipboard.writeText(text).then(
-      () => notify.success('Presse-papier', copyPrompt ? 'Prompt copiÃ©.' : 'Paroles copiÃ©es dans le presse-papier'),
+      () => notify.success('Presse-papier', copyPrompt ? 'Prompt copié.' : 'Paroles copiées dans le presse-papier'),
       () => pushLog('warn', 'Impossible de copier dans le presse-papier')
     );
   }, [pushLog]);
@@ -2153,7 +2153,7 @@ function AIGeneratorContent() {
     setStyle(track.style || '');
     setLyrics(track.lyrics || track.prompt || '');
     setCustomMode(true);
-    notify.success('Formulaire', 'Titre, style et paroles rÃ©utilisÃ©s.');
+    notify.success('Formulaire', 'Titre, style et paroles réutilisés.');
     closeTrackPanel();
   }, []);
 
@@ -2179,7 +2179,7 @@ function AIGeneratorContent() {
     else if (track.prompt) setStyle(track.prompt);
     if (track.lyrics) setLyrics(track.lyrics);
 
-    pushLog('info', `Source remix sÃ©lectionnÃ©e: ${label}`);
+    pushLog('info', `Source remix sélectionnée: ${label}`);
   };
 
   const useGeneratedTrackForRemix = (track: GeneratedTrack) => {
@@ -2188,7 +2188,7 @@ function AIGeneratorContent() {
       track.createdAt
     );
     if (!sourceUrl) {
-      notify.error('Remix', 'Aucune URL audio exploitable pour cette gÃ©nÃ©ration.');
+      notify.error('Remix', 'Aucune URL audio exploitable pour cette génération.');
       return;
     }
     setGenerationModeKind('remix');
@@ -2197,7 +2197,7 @@ function AIGeneratorContent() {
     setRemixFile(null);
     setRemixUploadUrl(sourceUrl);
     setRemixSourceDurationSec(Number(track.duration || 0) || undefined);
-    const label = track.title || 'Piste gÃ©nÃ©rÃ©e';
+    const label = track.title || 'Piste générée';
     setRemixSourceLabel(label);
     setRemixSourceTrackId(null);
 
@@ -2206,7 +2206,7 @@ function AIGeneratorContent() {
     else if (track.prompt) setStyle(track.prompt);
     if (track.lyrics) setLyrics(track.lyrics);
 
-    pushLog('info', `Source remix sÃ©lectionnÃ©e: ${label}`);
+    pushLog('info', `Source remix sélectionnée: ${label}`);
   };
 
   const clearRemixSource = () => {
@@ -2218,7 +2218,7 @@ function AIGeneratorContent() {
     setSourceContext(null);
     setGenerationModeKind(style.trim() || title.trim() || description.trim() ? 'custom' : 'simple');
     setCustomMode(Boolean(style.trim() || title.trim()));
-    pushLog('info', 'Source remix dÃ©sÃ©lectionnÃ©e');
+    pushLog('info', 'Source remix désélectionnée');
   };
 
   const clearTitleSection = () => {
@@ -2290,7 +2290,7 @@ function AIGeneratorContent() {
       setRemixSourceLabel(file.name);
       setRemixSourceTrackId(null);
       if (typeof uploadedDuration === 'number' && uploadedDuration > 8 * 60) {
-        notify.warning('DurÃ©e audio', 'Suno accepte au maximum 8 minutes. Ton fichier est plus long et pourrait Ãªtre refusÃ©.');
+        notify.warning('Durée audio', 'Suno accepte au maximum 8 minutes. Ton fichier est plus long et pourrait être refusé.');
       }
       setTitle(uploadTitle);
       try {
@@ -2398,9 +2398,9 @@ function AIGeneratorContent() {
 
   const liveStatusLabel = React.useMemo(() => {
     if (sunoState === 'first') return isRemixMode ? 'Premier rendu remix disponible' : 'Premier rendu disponible';
-    if (sunoState === 'pending') return isRemixMode ? 'Remix en cours' : 'GÃ©nÃ©ration en cours';
-    if (sunoState === 'success') return isRemixMode ? 'Remix finalisÃ©' : 'GÃ©nÃ©ration finalisÃ©e';
-    if (sunoState === 'error') return isRemixMode ? 'Erreur de remix' : 'Erreur de gÃ©nÃ©ration';
+    if (sunoState === 'pending') return isRemixMode ? 'Remix en cours' : 'Génération en cours';
+    if (sunoState === 'success') return isRemixMode ? 'Remix finalisé' : 'Génération finalisée';
+    if (sunoState === 'error') return isRemixMode ? 'Erreur de remix' : 'Erreur de génération';
     return 'En attente';
   }, [isRemixMode, sunoState]);
 
@@ -2415,7 +2415,7 @@ function AIGeneratorContent() {
 
     if (activeBgGeneration.status === 'failed') {
       setSunoState('error');
-      setSunoError(activeBgGeneration.lastError || 'La gÃ©nÃ©ration a Ã©chouÃ©.');
+      setSunoError(activeBgGeneration.lastError || 'La génération a échoué.');
       setGenerationStatus('failed');
       return;
     }
@@ -2507,7 +2507,7 @@ function AIGeneratorContent() {
   const selectGenerationInIde = useCallback((g: AIGeneration) => {
     const track = g.tracks?.[0];
     if (!track) {
-      notify.warning('Version', 'Cette gÃ©nÃ©ration ne contient pas encore de piste exploitable.');
+      notify.warning('Version', 'Cette génération ne contient pas encore de piste exploitable.');
       return;
     }
     const converted = convertAITrackToGenerated(track as any);
@@ -2516,12 +2516,12 @@ function AIGeneratorContent() {
     setGeneratedTrack(converted);
     setShowTrackPanel(true);
     setRightTab('inspector');
-    pushLog('info', `Version sÃ©lectionnÃ©e: ${converted.title || 'GÃ©nÃ©ration'}`);
+    pushLog('info', `Version sélectionnée: ${converted.title || 'Génération'}`);
   }, [pushLog]);
 
   const generateAutoLyrics = useCallback(async () => {
     if (isInstrumental) {
-      notify.warning('Lyrics', 'Mode instrumental actif: passe en mode voix pour auto-gÃ©nÃ©rer des paroles.');
+      notify.warning('Lyrics', 'Mode instrumental actif: passe en mode voix pour auto-générer des paroles.');
       return;
     }
     if (isGeneratingLyrics) return;
@@ -2540,7 +2540,7 @@ function AIGeneratorContent() {
     const lyricsPrompt = seedText.slice(0, 200);
 
     setIsGeneratingLyrics(true);
-    pushLog('info', 'Lyrics auto: requÃªte Suno...');
+    pushLog('info', 'Lyrics auto: requête Suno...');
     try {
       const res = await fetch('/api/suno/generate-lyrics', {
         method: 'POST',
@@ -2549,7 +2549,7 @@ function AIGeneratorContent() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(json?.error || 'Impossible de gÃ©nÃ©rer des lyrics');
+        throw new Error(json?.error || 'Impossible de générer des lyrics');
       }
 
       let best = typeof json?.best === 'string' ? json.best.trim() : '';
@@ -2578,11 +2578,11 @@ function AIGeneratorContent() {
       }
 
       setLyrics((prev) => (prev.trim().length > 0 ? `${prev}\n\n${selected}` : selected));
-      notify.success('Lyrics', `Paroles gÃ©nÃ©rÃ©es${variants.length > 1 ? ` (${variants.length} variantes)` : ''}`);
-      pushLog('info', `Lyrics auto: ${variants.length || 1} variante(s) reÃ§ue(s)`);
+      notify.success('Lyrics', `Paroles générées${variants.length > 1 ? ` (${variants.length} variantes)` : ''}`);
+      pushLog('info', `Lyrics auto: ${variants.length || 1} variante(s) reçue(s)`);
     } catch (e: any) {
-      notify.error('Lyrics', e?.message || 'Erreur gÃ©nÃ©ration lyrics');
-      pushLog('error', `Lyrics auto: ${e?.message || 'Ã©chec'}`);
+      notify.error('Lyrics', e?.message || 'Erreur génération lyrics');
+      pushLog('error', `Lyrics auto: ${e?.message || 'échec'}`);
     } finally {
       setIsGeneratingLyrics(false);
     }
@@ -2668,7 +2668,7 @@ function AIGeneratorContent() {
     const track = selectedTrackForVisibility;
     const generation = selectedGenerationForVisibility;
     if (!track?.id && !generation?.id) {
-      notify.warning('Publication', 'SÃ©lectionne une piste enregistrÃ©e pour publier.');
+      notify.warning('Publication', 'Sélectionne une piste enregistrée pour publier.');
       return;
     }
     if (publishingVisibility) return;
@@ -2685,7 +2685,7 @@ function AIGeneratorContent() {
           body: JSON.stringify({ isPublic: nextPublic, remixPermissions: studioRemixPermissions }),
         });
         const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json?.error || 'Impossible de changer la visibilitÃ©');
+        if (!res.ok) throw new Error(json?.error || 'Impossible de changer la visibilité');
         const effectivePublic = Boolean(json?.isPublic);
 
         if (challengeId && effectivePublic && json?.remixStatus === 'published') {
@@ -2723,7 +2723,7 @@ function AIGeneratorContent() {
           body: JSON.stringify({ isPublic: nextPublic, remixPermissions: studioRemixPermissions }),
         });
         const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json?.error || 'Impossible de changer la visibilitÃ©');
+        if (!res.ok) throw new Error(json?.error || 'Impossible de changer la visibilité');
         const effectivePublic = Boolean(json?.isPublic);
 
         setGenerations((prev) =>
@@ -2734,12 +2734,12 @@ function AIGeneratorContent() {
         );
       }
 
-      notify.success('Publication', nextPublic ? 'Piste rendue publique ou envoyée en validation.' : 'Piste rendue privÃ©e.');
-      pushLog('info', `VisibilitÃ© piste: ${nextPublic ? 'public' : 'privÃ©'}`);
+      notify.success('Publication', nextPublic ? 'Piste rendue publique ou envoyée en validation.' : 'Piste rendue privée.');
+      pushLog('info', `Visibilité piste: ${nextPublic ? 'public' : 'privé'}`);
       window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
     } catch (e: any) {
       notify.error('Publication', e?.message || 'Erreur de publication');
-      pushLog('error', `VisibilitÃ©: ${e?.message || 'Ã©chec'}`);
+      pushLog('error', `Visibilité: ${e?.message || 'échec'}`);
     } finally {
       setPublishingVisibility(false);
     }
@@ -2750,14 +2750,14 @@ function AIGeneratorContent() {
     if (!taskId?.trim() || !audioId?.trim()) {
       setTimestampedWords([]);
       setTimestampedWaveform([]);
-      setTimestampedError(contextOverride ? null : 'SÃ©lectionne une piste issue dâ€™une gÃ©nÃ©ration Suno finalisÃ©e.');
+      setTimestampedError(contextOverride ? null : 'Sélectionne une piste issue d’une génération Suno finalisée.');
       return;
     }
     const trackForInstrumental = contextOverride ? null : selectedTrack;
     if (trackForInstrumental?.isInstrumental) {
       setTimestampedWords([]);
       setTimestampedWaveform([]);
-      setTimestampedError('Pas de paroles alignÃ©es en mode instrumental.');
+      setTimestampedError('Pas de paroles alignées en mode instrumental.');
       return;
     }
     setTimestampedLoading(true);
@@ -2770,7 +2770,7 @@ function AIGeneratorContent() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(json?.error || 'Impossible de rÃ©cupÃ©rer les paroles synchronisÃ©es');
+        throw new Error(json?.error || 'Impossible de récupérer les paroles synchronisées');
       }
       const words = Array.isArray(json?.alignedWords) ? (json.alignedWords as TimestampedWord[]) : [];
       const wave = Array.isArray(json?.waveformData) ? (json.waveformData as number[]) : [];
@@ -2778,14 +2778,14 @@ function AIGeneratorContent() {
       setTimestampedWaveform(wave);
       if (words.length > 0) {
         if (!silent) {
-          notify.success('Lyrics', `Paroles synchronisÃ©es chargÃ©es (${words.length} mots).`);
+          notify.success('Lyrics', `Paroles synchronisées chargées (${words.length} mots).`);
         }
       } else if (!silent) {
-        notify.warning('Lyrics', 'Aucune parole alignÃ©e trouvÃ©e pour cette piste.');
+        notify.warning('Lyrics', 'Aucune parole alignée trouvée pour cette piste.');
       }
       pushLog('info', `Timestamped lyrics: ${words.length} mots`);
     } catch (e: any) {
-      const msg = e?.message || 'Erreur de rÃ©cupÃ©ration des paroles synchronisÃ©es';
+      const msg = e?.message || 'Erreur de récupération des paroles synchronisées';
       setTimestampedError(msg);
       if (!silent) notify.error('Lyrics', msg);
       pushLog('warn', `Timestamped lyrics: ${msg}`);
@@ -2830,7 +2830,7 @@ function AIGeneratorContent() {
         audioUrl: primaryUrl,
         backupAudioUrls: backups,
         prompt: customMode ? (lyrics.trim() ? lyrics : '') : description,
-        title: track.title || title || (isRemixMode ? `Remix ${index + 1}` : `Musique gÃ©nÃ©rÃ©e ${index + 1}`),
+        title: track.title || title || (isRemixMode ? `Remix ${index + 1}` : `Musique générée ${index + 1}`),
         style: track.raw?.tags || style || 'Custom',
         lyrics: customMode ? lyrics : '',
         isInstrumental,
@@ -2936,7 +2936,7 @@ function AIGeneratorContent() {
     setSunoError(null);
     setGenerationStatus('pending');
     setGeneratedTracks([]);
-    pushLog('info', 'GÃ©nÃ©ration lancÃ©e');
+    pushLog('info', 'Génération lancée');
     
     try {
       let prompt = '';
@@ -2948,13 +2948,13 @@ function AIGeneratorContent() {
           })
         : '';
       if (generationModeKind === 'remix' && !remixUploadUrl && !remixSourceTrackId) {
-        notify.error('Audio remix requis', 'Ajoute un audio source avant de gÃ©nÃ©rer en mode Remix.');
+        notify.error('Audio remix requis', 'Ajoute un audio source avant de générer en mode Remix.');
         setIsGenerating(false);
         setGenerationStatus('idle');
         return;
       }
       if (generationModeKind === 'remix' && !remixUploadUrl && remixSourceTrackId) {
-        notify.info('Source dÃ©tectÃ©e', "Variation IA inspirée : aucun audio source n'est copié.");
+        notify.info('Source détectée', "Variation IA inspirée : aucun audio source n'est copié.");
       }
       
       if (customMode) {
@@ -2977,7 +2977,7 @@ function AIGeneratorContent() {
       } else {
         // Mode description : utiliser la description
         if (!description.trim()) {
-          notify.error('Description manquante', 'Veuillez dÃ©crire la musique que vous souhaitez');
+          notify.error('Description manquante', 'Veuillez décrire la musique que vous souhaitez');
           setIsGenerating(false);
           setGenerationStatus('idle');
           return;
@@ -3096,8 +3096,8 @@ function AIGeneratorContent() {
       if (data?.model) {
         if (data?.modelAdjusted) {
           notify.warning(
-            'ModÃ¨le ajustÃ©',
-            `Le modÃ¨le ${data.requestedModel} n'est pas disponible sur votre plan. Utilisation de ${data.model}.`,
+            'Modèle ajusté',
+            `Le modèle ${data.requestedModel} n'est pas disponible sur votre plan. Utilisation de ${data.model}.`,
             7000
           );
         }
@@ -3108,9 +3108,9 @@ function AIGeneratorContent() {
       
       if (data.taskId) {
         // GÃ©nÃ©ration Suno en cours - dÃ©marrer le suivi en arriÃ¨re-plan
-        const promptText = data.prompt || description || 'Musique gÃ©nÃ©rÃ©e';
+        const promptText = data.prompt || description || 'Musique générée';
         const customTitle = customMode
-          ? (title.trim() || (isRemixMode ? 'Remix en cours' : 'GÃ©nÃ©ration en cours'))
+          ? (title.trim() || (isRemixMode ? 'Remix en cours' : 'Génération en cours'))
           : promptText.substring(0, 50) + (promptText.length > 50 ? '...' : '');
         
         startBackgroundGeneration({
@@ -3131,7 +3131,7 @@ function AIGeneratorContent() {
         console.log('ðŸŽµ Mode:', customMode ? 'personnalisÃ©' : 'simple');
       } else {
         // GÃ©nÃ©ration simulÃ©e terminÃ©e
-        const promptText = data.prompt || description || 'Musique gÃ©nÃ©rÃ©e';
+        const promptText = data.prompt || description || 'Musique générée';
         const track: GeneratedTrack = {
           id: data.id,
           audioUrl: data.audioUrl,
@@ -3146,15 +3146,15 @@ function AIGeneratorContent() {
 
         setGeneratedTrack(track);
         setGenerationStatus('completed');
-        pushLog('info', `GÃ©nÃ©ration terminÃ©e: ${track.title || track.id}`);
+        pushLog('info', `Génération terminée: ${track.title || track.id}`);
       }
     } catch (error) {
       console.error('Erreur:', error);
-      const message = error instanceof Error ? error.message : 'Erreur lors de la gÃ©nÃ©ration';
+      const message = error instanceof Error ? error.message : 'Erreur lors de la génération';
       setSunoError(message);
-      notify.error('GÃ©nÃ©ration', message);
+      notify.error('Génération', message);
       setGenerationStatus('failed');
-      pushLog('error', `Ã‰chec de gÃ©nÃ©ration: ${message}`);
+      pushLog('error', `Échec de génération: ${message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -3184,14 +3184,14 @@ function AIGeneratorContent() {
   const shareTrack = async (track: GeneratedTrack) => {
     try {
       await navigator.share({
-        title: 'Musique gÃ©nÃ©rÃ©e par Synaura',
-        text: `Ã‰coutez "${track.title}" gÃ©nÃ©rÃ© par IA`,
+        title: 'Musique générée par Synaura',
+        text: `Écoutez "${track.title}" généré par IA`,
         url: track.audioUrl
       });
     } catch (error) {
       // Fallback: copy to clipboard
       navigator.clipboard.writeText(track.audioUrl);
-      notify.success('Partage', 'Lien copiÃ© dans le presse-papiers');
+      notify.success('Partage', 'Lien copié dans le presse-papiers');
     }
   };
 
@@ -3332,10 +3332,10 @@ function AIGeneratorContent() {
     }
     if (v.includes('export mp3') || v === 'export' || v.includes('export ')) {
       if (!generatedTrack) {
-        notify.error('Export', 'Aucune piste sÃ©lectionnÃ©e');
+        notify.error('Export', 'Aucune piste sélectionnée');
       } else {
         downloadGenerated(generatedTrack);
-        pushLog('info', 'Export MP3 lancÃ©');
+        pushLog('info', 'Export MP3 lancé');
       }
       setRightTab('export');
       setCmdOpen(false);
@@ -3466,7 +3466,7 @@ function AIGeneratorContent() {
               className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white px-3 text-[11px] font-black text-[#171313] shadow-[0_10px_26px_rgba(255,255,255,0.10)] active:scale-95 lg:hidden"
             >
               <Sparkles className="h-3.5 w-3.5 text-[#ff6f61]" />
-              CrÃ©er
+              Créer
             </button>
             <button
               type="button"
@@ -3478,7 +3478,7 @@ function AIGeneratorContent() {
             </button>
             <Link href="/ai-library" className="hidden h-8 items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.08] px-3 text-[11px] font-black text-white transition hover:bg-white/[0.14] sm:inline-flex">
               <Library className="h-3.5 w-3.5" />
-              BibliothÃ¨que
+              Bibliothèque
             </Link>
           </div>
         </section>
@@ -3536,7 +3536,7 @@ function AIGeneratorContent() {
                 className="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-3 text-xs font-black text-white transition hover:bg-white/[0.14] sm:col-span-1 sm:h-11 sm:px-4 sm:text-sm"
               >
                 <Library className="h-4 w-4" />
-                BibliothÃ¨que
+                Bibliothèque
               </Link>
             </div>
           </div>
@@ -3577,7 +3577,7 @@ function AIGeneratorContent() {
           {mobileCreateOpen ? (
             <button
               type="button"
-              aria-label="Fermer la crÃ©ation"
+              aria-label="Fermer la création"
               onClick={() => setMobileCreateOpen(false)}
               className="fixed inset-0 z-[109] bg-[#171313]/45 backdrop-blur-sm lg:hidden"
             />
@@ -3660,7 +3660,7 @@ function AIGeneratorContent() {
                     </p>
                   ) : sourceContext.mode === 'remix' ? (
                     <p className="mt-2 text-xs font-semibold text-black/42">
-                      {sourceContext.audioAttached ? 'Audio source attachÃ© automatiquement.' : 'Recherche de la source audio en cours...'}
+                      {sourceContext.audioAttached ? 'Audio source attaché automatiquement.' : 'Recherche de la source audio en cours...'}
                     </p>
                   ) : null}
                 </div>
@@ -4260,9 +4260,9 @@ function AIGeneratorContent() {
               <div className="mt-3 rounded-[1.25rem] border border-[#00c2cb]/20 bg-[#00c2cb]/10 p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#c9fbff]/60">Paroles synchronisÃ©es</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#c9fbff]/60">Paroles synchronisées</p>
                     <p className="mt-0.5 text-[11px] font-semibold text-white/42">
-                      {timestampedWords.length ? `${timestampedWords.length} mots alignÃ©s` : 'Sync audio dans lâ€™inspecteur'}
+                      {timestampedWords.length ? `${timestampedWords.length} mots alignés` : 'Sync audio dans l’inspecteur'}
                     </p>
                   </div>
                   <button
@@ -4304,7 +4304,7 @@ function AIGeneratorContent() {
                 ) : (
                   <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
                     <p className="line-clamp-6 whitespace-pre-wrap text-xs font-semibold leading-5 text-white/48">
-                      {studioInspectorTrack?.lyrics || lyrics || 'Aucune parole Ã  afficher.'}
+                      {studioInspectorTrack?.lyrics || lyrics || 'Aucune parole à afficher.'}
                     </p>
                   </div>
                 )}
@@ -4495,9 +4495,9 @@ function AIGeneratorContent() {
               <div className="mt-3 rounded-[1.25rem] border border-[#00c2cb]/20 bg-[#00c2cb]/10 p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#c9fbff]/60">Paroles synchronisÃ©es</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#c9fbff]/60">Paroles synchronisées</p>
                     <p className="mt-0.5 text-[11px] font-semibold text-white/42">
-                      {timestampedWords.length ? `${timestampedWords.length} mots alignÃ©s` : 'Sync audio'}
+                      {timestampedWords.length ? `${timestampedWords.length} mots alignés` : 'Sync audio'}
                     </p>
                   </div>
                   <button
@@ -4531,7 +4531,7 @@ function AIGeneratorContent() {
                 ) : (
                   <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
                     <p className="whitespace-pre-wrap text-xs font-semibold leading-5 text-white/48">
-                      {studioInspectorTrack.lyrics || lyrics || 'Aucune parole Ã  afficher.'}
+                      {studioInspectorTrack.lyrics || lyrics || 'Aucune parole à afficher.'}
                     </p>
                   </div>
                 )}
@@ -4607,7 +4607,7 @@ function AIGeneratorContent() {
                 type="button"
                 onClick={() => previousTrack()}
                 className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full p-1.5 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white sm:min-h-0 sm:min-w-0"
-                aria-label="Piste prÃ©cÃ©dente"
+                aria-label="Piste précédente"
               >
                 <SkipBack className="w-4 h-4" />
               </button>
@@ -4656,7 +4656,7 @@ function AIGeneratorContent() {
               type="button"
               onClick={() => setShowBuyCredits(true)}
               className="flex min-h-[36px] items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.04] px-2.5 py-1.5 transition-all hover:bg-white/[0.08] sm:min-h-0 sm:px-3"
-              aria-label={`CrÃ©dits: ${creditsBalance}. Acheter des crÃ©dits`}
+              aria-label={`Crédits: ${creditsBalance}. Acheter des crédits`}
             >
               <Coins className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
               <span className="text-xs font-semibold text-white/80 tabular-nums">{creditsBalance}</span>
@@ -4666,7 +4666,7 @@ function AIGeneratorContent() {
             <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06]">
               <div className={`w-2 h-2 rounded-full ${isGenerating || activeGenerationCount > 0 ? 'bg-indigo-400 animate-pulse' : 'bg-emerald-400'} shadow-[0_0_6px_currentColor]`} />
               <span className="text-[10px] font-medium text-white/50">
-                {isGenerating || activeGenerationCount > 0 ? `${activeGenerationCount || 1} en cours` : 'PrÃªt'}
+                {isGenerating || activeGenerationCount > 0 ? `${activeGenerationCount || 1} en cours` : 'Prêt'}
               </span>
             </div>
 
@@ -4691,7 +4691,7 @@ function AIGeneratorContent() {
               type="button"
               onClick={() => setSettingsOpen(true)}
               className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full p-1.5 text-white/30 transition-all hover:bg-white/[0.06] hover:text-white/70 sm:min-h-0 sm:min-w-0 sm:p-2"
-              aria-label="ParamÃ¨tres"
+              aria-label="Paramètres"
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -4707,8 +4707,8 @@ function AIGeneratorContent() {
         {/* Mobile studio tabs */}
         <div className="lg:hidden flex items-center gap-1.5 mb-3 bg-[#0e0e18]/80 rounded-2xl p-1 border border-white/[0.08] backdrop-blur-xl shadow-lg shadow-black/20">
           {([
-            { key: 'generate' as const, label: 'CrÃ©er', icon: Wand2 },
-            { key: 'library' as const, label: 'BibliothÃ¨que', icon: ListMusic },
+            { key: 'generate' as const, label: 'Créer', icon: Wand2 },
+            { key: 'library' as const, label: 'Bibliothèque', icon: ListMusic },
           ]).map((tab) => {
             const active = mobileTab === tab.key;
             const Icon = tab.icon;
@@ -4744,7 +4744,7 @@ function AIGeneratorContent() {
                 onClick={generateMusic}
                 disabled={isGenerationDisabled || isGenerating || rateLimitActive}
                 className="group w-full flex items-center justify-center gap-2.5 rounded-xl py-3 text-sm font-bold text-white bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500 hover:from-indigo-400 hover:via-violet-400 hover:to-purple-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/35 hover:scale-[1.01] active:scale-[0.99]"
-                aria-label={rateLimitActive ? `RÃ©essayez dans ${cooldownSecondsLeft}s` : 'CrÃ©er'}
+                aria-label={rateLimitActive ? `Réessayez dans ${cooldownSecondsLeft}s` : 'Créer'}
               >
                 {isGenerating ? (
                   <span className="w-4 h-4 rounded-full border-2 border-white/60 border-t-transparent animate-spin" />
@@ -4753,7 +4753,7 @@ function AIGeneratorContent() {
                 ) : (
                   <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
                 )}
-                {isGenerating ? 'GÃ©nÃ©rationâ€¦' : rateLimitActive ? `RÃ©essayer dans ${cooldownSecondsLeft}s` : 'CrÃ©er'}
+                {isGenerating ? 'Génération…' : rateLimitActive ? `Réessayer dans ${cooldownSecondsLeft}s` : 'Créer'}
                 {!isGenerating && !rateLimitActive && (
                   <span className="text-[10px] font-semibold text-white/40 bg-white/[0.08] px-1.5 py-0.5 rounded-full tabular-nums">{ACTION_COSTS.generation.credits} cr.</span>
                 )}
@@ -4839,7 +4839,7 @@ function AIGeneratorContent() {
                           setOpenStyleSection(true);
                         }}
                         className="flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/[0.06] py-2.5 text-xs text-cyan-200/90 hover:bg-cyan-500/10 transition"
-                        aria-label="Aller Ã  la section Audio / Remix"
+                        aria-label="Aller à la section Audio / Remix"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
                           <g><path d="M12 4c-.631 0-1.143.512-1.143 1.143v5.714H5.143a1.143 1.143 0 0 0 0 2.286h5.714v5.714a1.143 1.143 0 0 0 2.286 0v-5.714h5.714a1.143 1.143 0 0 0 0-2.286h-5.714V5.143C13.143 4.512 12.63 4 12 4"></path></g>
@@ -4930,7 +4930,7 @@ function AIGeneratorContent() {
                   {/* Style de musique */}
                   <SunoAccordionSection
                     title="Style"
-                    description="Genre, ambiance, instruments (ou utilise les tags ciâ€‘dessous)."
+                    description="Genre, ambiance, instruments (ou utilise les tags ci‑dessous)."
                     isOpen={openStyleSection}
                     onToggle={() => setOpenStyleSection((v) => !v)}
                     variant="bare"
@@ -5006,7 +5006,7 @@ function AIGeneratorContent() {
                         {isRemixMode && <span className="text-[10px] text-cyan-200/80">Requis</span>}
                       </div>
                       <p className="text-[10px] text-white/50 mb-1.5">
-                        Utilise uniquement un enregistrement dont tu dÃ©tiens les droits. Suno bloque les contenus protÃ©gÃ©s par le droit d&apos;auteur.
+                        Utilise uniquement un enregistrement dont tu détiens les droits. Suno bloque les contenus protégés par le droit d&apos;auteur.
                       </p>
                       <RemixDropzone
                         file={remixFile}
@@ -5043,18 +5043,18 @@ function AIGeneratorContent() {
                       />
                       {remixUploadUrl && (
                         <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-white/5 px-2 py-1.5">
-                          <span className="truncate text-[11px] text-white/90">{remixSourceLabel ?? 'Fichier uploadÃ©'}</span>
+                          <span className="truncate text-[11px] text-white/90">{remixSourceLabel ?? 'Fichier uploadé'}</span>
                           <button type="button" onClick={clearRemixSource} className="shrink-0 rounded px-1.5 py-0.5 text-[10px] text-red-300 hover:bg-red-500/20">
                             Retirer
                           </button>
                         </div>
                       )}
                       {isRemixMode && !remixUploadUrl && !remixUploading && (
-                        <p className="mt-2 text-[10px] text-white/50">DÃ©pose un fichier audio ou choisis une piste ciâ€‘dessous.</p>
+                        <p className="mt-2 text-[10px] text-white/50">Dépose un fichier audio ou choisis une piste ci‑dessous.</p>
                       )}
                       {uploadedRemixAssets.length > 0 && (
                         <div className="mt-2">
-                          <div className="mb-1 text-[10px] text-white/50">Pistes dÃ©jÃ  uploadÃ©es</div>
+                          <div className="mb-1 text-[10px] text-white/50">Pistes déjà uploadées</div>
                           <div className="max-h-28 overflow-y-auto divide-y divide-white/5 rounded-lg border border-white/5">
                             {uploadedRemixAssets.slice(0, 8).map((track) => {
                               const isSelected = remixUploadUrl && resolveTrackMedia(track).playableUrl === remixUploadUrl;
@@ -5066,7 +5066,7 @@ function AIGeneratorContent() {
                                   className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-[11px] transition ${isSelected ? 'bg-cyan-500/15 text-cyan-100' : 'text-white/80 hover:bg-white/5'}`}
                                 >
                                   <span className="truncate">{getUploadedAssetName(track)}</span>
-                                  <span className="text-[10px] text-white/40">{Number(track.duration || 0) > 0 ? `${Math.round(Number(track.duration))}s` : 'â€”'}</span>
+                                  <span className="text-[10px] text-white/40">{Number(track.duration || 0) > 0 ? `${Math.round(Number(track.duration))}s` : '—'}</span>
                                 </button>
                               );
                             })}
@@ -5102,7 +5102,7 @@ function AIGeneratorContent() {
                     <textarea
                       value={lyrics}
                       onChange={(e) => setLyrics(e.target.value)}
-                      placeholder="Colle ou Ã©cris les paroles iciâ€¦"
+                      placeholder="Colle ou écris les paroles ici…"
                       rows={4}
                       maxLength={5000}
                       disabled={isGenerationDisabled}
@@ -5111,8 +5111,8 @@ function AIGeneratorContent() {
                   </SunoAccordionSection>
                   {/* Options avancÃ©es */}
                   <SunoAccordionSection
-                    title="Options avancÃ©es"
-                    description="CrÃ©ativitÃ©, poids du style, voixâ€¦"
+                    title="Options avancées"
+                    description="Créativité, poids du style, voix…"
                     isOpen={openAdvancedSection}
                     onToggle={() => setOpenAdvancedSection((v) => !v)}
                     variant="bare"
@@ -5130,11 +5130,11 @@ function AIGeneratorContent() {
                   >
                     <div className="space-y-3">
                       <SunoSlider
-                        label="CrÃ©ativitÃ©"
+                        label="Créativité"
                         value={weirdness}
                         onChange={setWeirdness}
                         disabled={isGenerationDisabled}
-                        midLabel={weirdness < 35 ? 'ContrÃ´lÃ©' : weirdness < 65 ? 'Ã‰quilibrÃ©' : 'CrÃ©atif'}
+                        midLabel={weirdness < 35 ? 'Contrôlé' : weirdness < 65 ? 'Équilibré' : 'Créatif'}
                       />
                       <SunoSlider
                         label="Poids du style"
@@ -5144,7 +5144,7 @@ function AIGeneratorContent() {
                         midLabel={styleInfluence < 35 ? 'Faible' : styleInfluence < 65 ? 'Moyen' : 'Fort'}
                       />
                       <SunoSlider
-                        label="Poids de lâ€™audio"
+                        label="Poids de l’audio"
                         value={audioWeight}
                         onChange={setAudioWeight}
                         disabled={isGenerationDisabled}
@@ -5169,7 +5169,7 @@ function AIGeneratorContent() {
                           <input
                             value={negativeTags}
                             onChange={(e) => setNegativeTags(e.target.value)}
-                            placeholder="Tags Ã  Ã©viter"
+                            placeholder="Tags à éviter"
                             disabled={isGenerationDisabled}
                             className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1.5 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
                           />
@@ -5181,8 +5181,8 @@ function AIGeneratorContent() {
                   {/* RÃ©sultats */}
                   {generatedTracks.length > 0 && (
                     <SunoAccordionSection
-                      title="RÃ©sultats"
-                      description="Pistes gÃ©nÃ©rÃ©es"
+                      title="Résultats"
+                      description="Pistes générées"
                       isOpen={openResultsSection}
                       onToggle={() => setOpenResultsSection((v) => !v)}
                       variant="bare"
@@ -5238,12 +5238,12 @@ function AIGeneratorContent() {
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    <p className="text-[10px] text-white/50 mb-2">DÃ©cris lâ€™ambiance, lâ€™IA gÃ©nÃ¨re titre et paroles.</p>
+                    <p className="text-[10px] text-white/50 mb-2">Décris l’ambiance, l’IA génère titre et paroles.</p>
                     <label className="block text-[10px] font-medium mb-1 text-white/60">Description de la chanson</label>
                     <textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Ex: chanson pop Ã©nergique, Ã©tÃ©, amour..."
+                      placeholder="Ex: chanson pop énergique, été, amour..."
                       rows={3}
                       maxLength={199}
                       disabled={isGenerationDisabled}
@@ -5365,7 +5365,7 @@ function AIGeneratorContent() {
                     >
                       <Play className="w-3.5 h-3.5" />
                       {livePreviewTrack
-                        ? (isRemixMode ? 'Ã‰couter le remix live' : 'Ã‰couter le rendu live')
+                        ? (isRemixMode ? 'Écouter le remix live' : 'Écouter le rendu live')
                         : (isRemixMode ? 'En attente du 1er remix' : 'En attente du 1er rendu')}
                     </button>
                     {generatedTracks.length > 0 && (
@@ -5444,7 +5444,7 @@ function AIGeneratorContent() {
                     <div className="space-y-2">
                       {selectedTrack ? (
                         <>
-                          <div className="text-xs text-zinc-400 truncate">{selectedTrack?.title || 'Piste sÃ©lectionnÃ©e'}</div>
+                          <div className="text-xs text-zinc-400 truncate">{selectedTrack?.title || 'Piste sélectionnée'}</div>
                           <div className="flex gap-2">
                             <button
                               type="button"
@@ -5463,7 +5463,7 @@ function AIGeneratorContent() {
                           </div>
                         </>
                       ) : (
-                        <div className="text-xs text-zinc-500">SÃ©lectionne une piste dans la bibliothÃ¨que.</div>
+                        <div className="text-xs text-zinc-500">Sélectionne une piste dans la bibliothèque.</div>
                       )}
                     </div>
                   )}
@@ -5489,7 +5489,7 @@ function AIGeneratorContent() {
                         type="button"
                         onClick={() => {
                           if (!generatedTrack) {
-                            notify.error('Export', 'Aucune piste sÃ©lectionnÃ©e');
+                            notify.error('Export', 'Aucune piste sélectionnée');
                             return;
                           }
                           downloadGenerated(generatedTrack);
@@ -5510,9 +5510,9 @@ function AIGeneratorContent() {
                     <div>
                       <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-white/60">
                         <Sparkles className="h-3.5 w-3.5 text-[#ffd166]" />
-                        Presets recommandÃ©s
+                        Presets recommandés
                       </div>
-                      <p className="mt-0.5 text-[10px] text-white/30">Applique une intention complÃ¨te au builder</p>
+                      <p className="mt-0.5 text-[10px] text-white/30">Applique une intention complète au builder</p>
                     </div>
                     <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/40">{aiStudioPresets.length}</span>
                   </div>
@@ -5633,7 +5633,7 @@ function AIGeneratorContent() {
                       }}
                       className="w-full text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 p-2"
                     >
-                      <div className="text-xs font-semibold truncate">{g.metadata?.title || g.tracks?.[0]?.title || 'GÃ©nÃ©ration'}</div>
+                      <div className="text-xs font-semibold truncate">{g.metadata?.title || g.tracks?.[0]?.title || 'Génération'}</div>
                       <div className="text-[11px] text-zinc-400 inline-flex items-center gap-1"><Clock3 className="w-3 h-3" /> {new Date(g.created_at).toLocaleString('fr-FR')}</div>
                     </button>
                   ))}
@@ -5700,7 +5700,7 @@ function AIGeneratorContent() {
                         value={idePromptValue}
                         onChange={(e) => (customMode ? setStyle(e.target.value) : setDescription(e.target.value))}
                         className="min-h-[120px] w-full resize-none rounded-xl border border-white/[0.06] bg-[#07070a]/60 px-3.5 py-3 text-sm outline-none placeholder:text-white/25 focus:border-indigo-500/30 focus:ring-1 focus:ring-indigo-500/10 transition-all"
-                        placeholder="DÃ©cris le style, lâ€™ambiance, les instruments, la structureâ€¦"
+                        placeholder="Décris le style, l’ambiance, les instruments, la structure…"
                       />
                       <div className="mt-2 flex items-center justify-between text-[10px] text-white/30">
                         <span>{customMode ? 'Custom : style + lyrics' : 'Simple : ce prompt pilote tout'}</span>
@@ -5815,8 +5815,8 @@ function AIGeneratorContent() {
                             if (!lyrics.trim()) return;
                             try {
                               await navigator.clipboard.writeText(lyrics);
-                              notify.success('Lyrics', 'Paroles copiÃ©es');
-                              pushLog('info', 'Lyrics copiÃ©es');
+                              notify.success('Lyrics', 'Paroles copiées');
+                              pushLog('info', 'Lyrics copiées');
                             } catch {
                               pushLog('warn', 'Impossible de copier les lyrics');
                             }
@@ -5840,7 +5840,7 @@ function AIGeneratorContent() {
                               : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
                           }`}
                         >
-                          {isGeneratingLyrics ? 'Autoâ€¦' : 'Auto'}
+                          {isGeneratingLyrics ? 'Auto…' : 'Auto'}
                         </button>
                         <button
                           type="button"
@@ -5852,7 +5852,7 @@ function AIGeneratorContent() {
                               : 'border-cyan-300/30 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/20'
                           }`}
                         >
-                          {timestampedLoading ? 'Syncâ€¦' : 'Sync audio'}
+                          {timestampedLoading ? 'Sync…' : 'Sync audio'}
                         </button>
                       </div>
                       {timestampedError && (
@@ -5883,7 +5883,7 @@ function AIGeneratorContent() {
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                                 </svg>
                               </div>
-                              <span className="text-sm font-semibold tracking-tight text-cyan-100/95">Paroles synchronisÃ©es</span>
+                              <span className="text-sm font-semibold tracking-tight text-cyan-100/95">Paroles synchronisées</span>
                               <span className="ml-auto rounded-full bg-cyan-400/15 px-2.5 py-1 text-[11px] font-medium text-cyan-200/90">
                                 {timestampedWords.length} mots
                               </span>
@@ -5940,11 +5940,11 @@ function AIGeneratorContent() {
                         <div className="grid w-full grid-cols-2 gap-2 lg:grid-cols-3">
                           <div className="min-w-0 rounded-xl border border-indigo-500/15 bg-indigo-500/[0.04] px-3 py-2.5">
                             <div className="text-[10px] font-medium uppercase tracking-wider text-indigo-300/50 mb-0.5">Slot A</div>
-                            <div className="truncate text-xs text-white/90 font-medium">{abA ? (recentGenerationsSorted.find((x) => x.id === abA)?.metadata?.title || recentGenerationsSorted.find((x) => x.id === abA)?.tracks?.[0]?.title || String(abA).slice(0, 8)) : 'â€”'}</div>
+                            <div className="truncate text-xs text-white/90 font-medium">{abA ? (recentGenerationsSorted.find((x) => x.id === abA)?.metadata?.title || recentGenerationsSorted.find((x) => x.id === abA)?.tracks?.[0]?.title || String(abA).slice(0, 8)) : '—'}</div>
                           </div>
                           <div className="min-w-0 rounded-xl border border-violet-500/15 bg-violet-500/[0.04] px-3 py-2.5">
                             <div className="text-[10px] font-medium uppercase tracking-wider text-violet-300/50 mb-0.5">Slot B</div>
-                            <div className="truncate text-xs text-white/90 font-medium">{abB ? (recentGenerationsSorted.find((x) => x.id === abB)?.metadata?.title || recentGenerationsSorted.find((x) => x.id === abB)?.tracks?.[0]?.title || String(abB).slice(0, 8)) : 'â€”'}</div>
+                            <div className="truncate text-xs text-white/90 font-medium">{abB ? (recentGenerationsSorted.find((x) => x.id === abB)?.metadata?.title || recentGenerationsSorted.find((x) => x.id === abB)?.tracks?.[0]?.title || String(abB).slice(0, 8)) : '—'}</div>
                           </div>
                           <button
                             type="button"
@@ -5952,7 +5952,7 @@ function AIGeneratorContent() {
                             className="col-span-2 w-full rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5 text-xs font-medium hover:bg-white/[0.06] lg:col-span-1 transition-all text-white/70 hover:text-white"
                             title="Basculer A/B"
                           >
-                            Ã‰couter {abSide === 'A' ? 'B' : 'A'} <span className="text-white/30">({abSide})</span>
+                            Écouter {abSide === 'A' ? 'B' : 'A'} <span className="text-white/30">({abSide})</span>
                           </button>
                         </div>
                       </div>
@@ -5972,7 +5972,7 @@ function AIGeneratorContent() {
                                       {g.title || g.prompt || `Job ${g.taskId.slice(-4)}`}
                                     </div>
                                     <div className="truncate text-xs text-white/60">
-                                      {g.status === 'first' ? 'Premier rendu dispo' : 'Render en cours'} â€¢ {progress}%
+                                      {g.status === 'first' ? 'Premier rendu dispo' : 'Render en cours'} • {progress}%
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2">
@@ -5992,7 +5992,7 @@ function AIGeneratorContent() {
                                           ? 'text-white hover:bg-white/15'
                                           : 'text-white/35 cursor-not-allowed'
                                       }`}
-                                      title={firstReady ? 'Ã‰couter le rendu live' : 'Disponible au premier rendu'}
+                                      title={firstReady ? 'Écouter le rendu live' : 'Disponible au premier rendu'}
                                     >
                                       <Play className="w-4 h-4" />
                                     </button>
@@ -6032,7 +6032,7 @@ function AIGeneratorContent() {
                             }`}
                           >
                             <div className="min-w-0 flex-1">
-                              <div className="truncate text-sm font-semibold">{g.metadata?.title || g.tracks?.[0]?.title || 'GÃ©nÃ©ration'}</div>
+                              <div className="truncate text-sm font-semibold">{g.metadata?.title || g.tracks?.[0]?.title || 'Génération'}</div>
                               <div className="truncate text-xs text-white/60">{new Date(g.created_at).toLocaleString('fr-FR')}</div>
                             </div>
                             <span className={`rounded-full px-2 py-1 text-[10px] ${
@@ -6086,7 +6086,7 @@ function AIGeneratorContent() {
                                   selectGenerationInIde(g);
                                 }}
                                 className="rounded-lg border border-white/15 bg-white/5 p-1.5 text-white/80 hover:bg-white/15 hover:text-white"
-                                title="Ouvrir dans lâ€™inspector"
+                                title="Ouvrir dans l’inspector"
                               >
                                 <ExternalLink className="w-4 h-4" />
                               </button>
@@ -6098,7 +6098,7 @@ function AIGeneratorContent() {
                           <div className="w-full py-4 text-center text-xs text-zinc-500">Aucune version pour le moment.</div>
                         )}
                         {visibleGenerations.length > 50 && (
-                          <div className="w-full py-2 text-center text-[10px] text-zinc-500">50 plus rÃ©centes affichÃ©es. Utilise la bibliothÃ¨que pour voir tout lâ€™historique.</div>
+                          <div className="w-full py-2 text-center text-[10px] text-zinc-500">50 plus récentes affichées. Utilise la bibliothèque pour voir tout l’historique.</div>
                         )}
                       </div>
                     </div>
@@ -6255,8 +6255,8 @@ function AIGeneratorContent() {
                   <div className="inline-flex items-center gap-2">
                     <Terminal className="w-3.5 h-3.5" />
                     Console
-                    <span className="text-zinc-500">â€¢</span>
-                    <span className="text-zinc-500">Derniers Ã©vÃ©nements</span>
+                    <span className="text-zinc-500">•</span>
+                    <span className="text-zinc-500">Derniers événements</span>
                   </div>
                   <button
                     type="button"
@@ -6264,7 +6264,7 @@ function AIGeneratorContent() {
                     className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-zinc-300 hover:bg-white/10"
                   >
                     <ChevronRight className={`w-3.5 h-3.5 transition-transform ${consoleCollapsed ? '' : 'rotate-90'}`} />
-                    {consoleCollapsed ? 'DÃ©velopper' : 'RÃ©duire'}
+                    {consoleCollapsed ? 'Développer' : 'Réduire'}
                   </button>
                 </div>
                 {!consoleCollapsed && (
@@ -6285,7 +6285,7 @@ function AIGeneratorContent() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => pushLog('info', 'Upload (Ã  brancher)')}
+                      onClick={() => pushLog('info', 'Upload (à brancher)')}
                       className="rounded-xl p-2 text-zinc-400 hover:bg-white/10 hover:text-white"
                       title="Upload"
                     >
@@ -6293,7 +6293,7 @@ function AIGeneratorContent() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => pushLog('info', 'Download (Ã  brancher)')}
+                      onClick={() => pushLog('info', 'Download (à brancher)')}
                       className="rounded-xl p-2 text-zinc-400 hover:bg-white/10 hover:text-white"
                       title="Download"
                     >
@@ -6372,7 +6372,7 @@ function AIGeneratorContent() {
                     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center">
                       <Settings className="h-4 w-4 text-indigo-300" />
                     </div>
-                    <h2 className="text-base font-semibold text-white/90">ParamÃ¨tres du studio</h2>
+                    <h2 className="text-base font-semibold text-white/90">Paramètres du studio</h2>
                   </div>
                   <button
                     type="button"
@@ -6409,7 +6409,7 @@ function AIGeneratorContent() {
                   </div>
 
                   <div className="space-y-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">Onglet au dÃ©marrage</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">Onglet au démarrage</p>
                     <div className="grid grid-cols-4 gap-1.5">
                       {([
                         { key: 'builder' as const, label: 'Editor' },
@@ -6434,10 +6434,10 @@ function AIGeneratorContent() {
                   </div>
 
                   <div className="space-y-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">GÃ©nÃ©ration</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">Génération</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <span className="text-[11px] text-white/40 font-medium">ModÃ¨le</span>
+                        <span className="text-[11px] text-white/40 font-medium">Modèle</span>
                         <div className="flex gap-1.5">
                           {([
                             { id: 'V4_5' as const, label: 'v4.5' },
@@ -6461,7 +6461,7 @@ function AIGeneratorContent() {
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <span className="text-[11px] text-white/40 font-medium">DurÃ©e cible</span>
+                        <span className="text-[11px] text-white/40 font-medium">Durée cible</span>
                         <div className="flex gap-1.5">
                           {([60, 120, 180] as const).map((d) => (
                             <button
@@ -6480,7 +6480,7 @@ function AIGeneratorContent() {
                         </div>
                       </div>
                     </div>
-                    <p className="text-[10px] text-white/25">Tous les modÃ¨les : {ACTION_COSTS.generation.credits} crÃ©dits/gÃ©nÃ©ration. DurÃ©e indicative.</p>
+                    <p className="text-[10px] text-white/25">Tous les modèles : {ACTION_COSTS.generation.credits} crédits/génération. Durée indicative.</p>
                   </div>
 
                   <div className="space-y-2.5">
@@ -6495,7 +6495,7 @@ function AIGeneratorContent() {
                             : 'bg-white/[0.04] border border-white/[0.06] text-white/50 hover:bg-white/[0.08]'
                         }`}
                       >
-                        Visible au dÃ©marrage
+                        Visible au démarrage
                       </button>
                       <button
                         type="button"
@@ -6506,7 +6506,7 @@ function AIGeneratorContent() {
                             : 'bg-white/[0.04] border border-white/[0.06] text-white/50 hover:bg-white/[0.08]'
                         }`}
                       >
-                        RepliÃ©e au dÃ©marrage
+                        Repliée au démarrage
                       </button>
                     </div>
                   </div>
@@ -6523,14 +6523,14 @@ function AIGeneratorContent() {
                       </div>
                       <div className="flex items-center justify-between px-3.5 py-2.5">
                         <span className="text-[11px] text-white/50">Fermer</span>
-                        <kbd className="rounded-md px-2 py-1 bg-white/[0.06] border border-white/[0.06] font-mono text-[10px] text-white/40">Ã‰chap</kbd>
+                        <kbd className="rounded-md px-2 py-1 bg-white/[0.06] border border-white/[0.06] font-mono text-[10px] text-white/40">Échap</kbd>
                       </div>
                     </div>
                   </div>
 
                   <div className="rounded-xl border border-amber-400/10 bg-amber-500/[0.04] px-4 py-3">
                     <p className="text-[11px] text-amber-200/60 leading-relaxed">
-                      Les fichiers gÃ©nÃ©rÃ©s par Suno sont conservÃ©s <strong className="text-amber-200/80">15 jours</strong>. Pensez Ã  tÃ©lÃ©charger ou publier vos crÃ©ations.
+                      Les fichiers générés par Suno sont conservés <strong className="text-amber-200/80">15 jours</strong>. Pensez à télécharger ou publier vos créations.
                     </p>
                   </div>
                 </div>
@@ -6610,7 +6610,7 @@ function AIGeneratorContent() {
                   ))}
                   {filteredCommandItems.length === 0 && (
                     <div className="px-4 py-6 text-center text-[12px] text-white/25">
-                      Aucune commande trouvÃ©e
+                      Aucune commande trouvée
                     </div>
                   )}
                 </div>
